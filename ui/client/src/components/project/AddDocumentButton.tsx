@@ -39,31 +39,72 @@ export const AddDocumentButton = ({
   const [name, setName] = useState('');
   const [resource, setResource] = useState('');
   const [asAgent, setAsAgent] = useState(false);
+  const [asNotebook, setAsNotebook] = useState(false);
   const [cls, setCls] = useState<MetadataCls>(METADATA_CLASSES[0]);
   const [chosenToolkit, setChosenToolkit] = useState<string | undefined>(toolkit?.toolkit);
   const { currProjectName, setCurrentProject } = useProjectStore();
   const inputRef = useRef();
   const closeRef = useRef<() => void>();
 
+  const filesDir = useProjectStore.getState().getProject()?.configDocument?.data.desc.filesDirectory ?? '';
+
+  const notebookResource = `${filesDir}/notebooks/${name}.ipynb`;
+
+  const buildAddCommand = (desc: DocumentDesc) => {
+    if (asNotebook) {
+      return `
+import json
+from pathlib import Path
+notebook_path = Path("${notebookResource}")
+if not notebook_path.exists():
+    notebook_path.parent.mkdir(parents=True, exist_ok=True)
+    empty_notebook = {
+        "nbformat": 4,
+        "nbformat_minor": 5,
+        "metadata": {"kernelspec": {
+            "display_name": "Python 3",
+            "language": "python",
+            "name": "python3",
+        }},
+        "cells": [],
+    }
+    notebook_path.write_text(json.dumps(empty_notebook, indent=2))
+Cache_Collection().addDocument(
+    projectName="${currProjectName}",
+    resource="${notebookResource}",
+    dataFormat="JSON_dict",
+    type="notebook",
+    desc=${JSON.stringify(desc)},
+)`;
+    }
+    if (asAgent) {
+      return `
+All.addDocument(
+    '${currProjectName}',
+    resource={"effects": {}},
+    desc=${JSON.stringify(desc)},
+    dataFormat=datatypes.JSON_DICT,
+    type='ToolkitDataSource',
+)`;
+    }
+    return `
+${cls.collection}().addDocument(
+    '${currProjectName}',
+    resource='${resource}',
+    desc=${JSON.stringify(desc)},
+)`;
+  };
+
   const doAddDoc = async () => {
     const desc: DocumentDesc = { datasourceName: name };
     if (chosenToolkit) {
       desc.toolkit = chosenToolkit;
     }
-    const addcmd = asAgent
-      ? `
-All.addDocument('${currProjectName}', resource={"effects": {}}, desc=${JSON.stringify(desc)},
-    dataFormat=datatypes.JSON_DICT,
-    type='ToolkitDataSource')
-      `
-      : `
-${cls.collection}().addDocument('${currProjectName}', resource='${resource}', desc=${JSON.stringify(desc)})
-    `;
     const { problem, data } = await fetchPython({
       results: ['project'],
       code: `
-from hera.datalayer import All, datatypes, ${cls.collection}
-${addcmd}
+from hera.datalayer import All, datatypes, Measurements_Collection, Simulations_Collection, Cache_Collection
+${buildAddCommand(desc)}
 docs = All.getDocumentsAsDict('${currProjectName}', with_id=True)
 project = {"name": '${currProjectName}', "documents": docs['documents']}
 `,
@@ -88,6 +129,7 @@ project = {"name": '${currProjectName}', "documents": docs['documents']}
         setName('');
         setResource('');
         setAsAgent(false);
+        setAsNotebook(false);
         setTimeout(() => (inputRef.current as any)?.focus(), 0)
       }}
       dialogProps={{
@@ -122,41 +164,59 @@ project = {"name": '${currProjectName}', "documents": docs['documents']}
               margin="dense"
               label="Resource"
               fullWidth
-              value={resource}
+              value={asNotebook ? `${filesDir}/notebooks/${name}.ipynb` : resource}
               setValue={v => setResource(v)}
-              disabled={asAgent}
+              disabled={asAgent || asNotebook}
+              helperText={asNotebook ? 'If a notebook file already exists at this path, it will be used as-is. Otherwise, a new empty notebook will be created.' : undefined}
             />
-            <Stack
-              direction={'column'}
-              spacing={1}
-              justifyItems={'flex-start'}
-              alignItems={'flex-start'}
-            >
+            <Stack direction="column" spacing={-1}>
               <BooleanProperty
-                label="Agent"
-                value={asAgent}
-                setValue={v => setAsAgent(v)}
-              />
-              <SelectProperty
-                label="Class"
-                value={cls.name}
-                setValue={(v) => setCls(METADATA_CLASSES.find(c => c.name === v)!)}
-                menuItems={METADATA_CLASSES.map(c => ({ name: c.name }))}
-              />
-              <Autocomplete
-                size="small"
-                disableClearable
-                style={{ minWidth: '200px' }}
-                options={[NO_TOOLKIT, ...toolkits.map(t => t.toolkit)]}
-                value={chosenToolkit || NO_TOOLKIT}
-                onChange={(_e, v) => setChosenToolkit(v === NO_TOOLKIT ? undefined : v)}
-                renderInput={(params) => <TextField {...params} label="Toolkit" />}
-                slotProps={{
-                  popper: { placement: 'bottom-start', modifiers: [{ name: 'flip', enabled: false }] },
-                  listbox: { style: { maxHeight: '250px' } },
+                label="Notebook"
+                value={asNotebook}
+                setValue={v => {
+                  setAsNotebook(v);
+                  if (v) {
+                    setAsAgent(false);
+                    setChosenToolkit(undefined);
+                  }
                 }}
               />
+              {!asNotebook && (
+                <BooleanProperty
+                  label="Agent"
+                  value={asAgent}
+                  setValue={v => setAsAgent(v)}
+                />
+              )}
             </Stack>
+            {!asNotebook && (
+              <Stack
+                direction={'column'}
+                spacing={2}
+                justifyItems={'flex-start'}
+                alignItems={'flex-start'}
+              >
+                <SelectProperty
+                  label="Class"
+                  value={cls.name}
+                  setValue={(v) => setCls(METADATA_CLASSES.find(c => c.name === v)!)}
+                  menuItems={METADATA_CLASSES.map(c => ({ name: c.name }))}
+                />
+                <Autocomplete
+                  size="small"
+                  disableClearable
+                  style={{ minWidth: '200px' }}
+                  options={[NO_TOOLKIT, ...toolkits.map(t => t.toolkit)]}
+                  value={chosenToolkit || NO_TOOLKIT}
+                  onChange={(_e, v) => setChosenToolkit(v === NO_TOOLKIT ? undefined : v)}
+                  renderInput={(params) => <TextField {...params} label="Toolkit" />}
+                  slotProps={{
+                    popper: { placement: 'bottom-start', modifiers: [{ name: 'flip', enabled: false }] },
+                    listbox: { style: { maxHeight: '250px' } },
+                  }}
+                />
+              </Stack>
+            )}
           </DialogContent>
           <DialogActions>
             <Button onClick={close}>

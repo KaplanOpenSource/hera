@@ -16,6 +16,10 @@ export class DocumentObj {
     return this.data.type === this.project.data.name + '__config__';
   }
 
+  public get isNotebook(): boolean {
+    return this.data.type === 'notebook';
+  }
+
   public get name(): string {
     return this.data.desc?.datasourceName || this.data.type || this.data._cls;
   }

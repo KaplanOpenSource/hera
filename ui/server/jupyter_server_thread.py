@@ -89,6 +89,10 @@ class JupyterServerThread:
                 'fetchNews': 'false',
                 'checkForUpdates': False,
             }
+            overrides['@jupyterlab/docmanager-extension:plugin'] = {
+                'autosave': True,
+                'autosaveInterval': 2,
+            }
             overrides_path.write_text(json.dumps(overrides, indent=2))
         except OSError:
             print("WARNING: Could not write Jupyter overrides (permission denied) — news popup may appear")

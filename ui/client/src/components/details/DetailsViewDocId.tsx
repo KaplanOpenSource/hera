@@ -1,7 +1,9 @@
+import { Box } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { fetchDocument, updateDocument } from '../../io/FetchDocument';
 import { DocumentObj, ProjectObj } from '../../objects/ProjectObj';
 import { DetailsViewDocument } from './DetailsViewDocument';
+import { DetailsViewNotebook } from './DetailsViewNotebook';
 
 export const DetailsViewDocId = ({
   project, docid,
@@ -31,14 +33,26 @@ export const DetailsViewDocId = ({
     }
   };
 
+  const docObj = doc ? new DocumentObj(doc, project) : null;
+
   return (
     <>
-      {doc
-        ? (
-          <DetailsViewDocument
-            doc={new DocumentObj(doc, project)}
-            setDoc={(newDoc) => changeDocument(newDoc.data)} />
-        )
+      {docObj
+        ? docObj.isNotebook
+          ? (
+            <DetailsViewNotebook
+              rootDir={project.configDocument?.data.desc.filesDirectory ?? ''}
+              resource={docObj.data.resource as string}
+            />
+          )
+          : (
+            <Box sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+              <DetailsViewDocument
+                doc={docObj}
+                setDoc={(newDoc) => changeDocument(newDoc.data)}
+              />
+            </Box>
+          )
         : null}
     </>
   );

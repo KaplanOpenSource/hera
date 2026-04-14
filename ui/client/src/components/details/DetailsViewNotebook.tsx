@@ -4,17 +4,17 @@ import { BASEURL } from '../../shared/baseurl';
 
 export const DetailsViewNotebook = ({
   rootDir,
-  notebookName,
+  resource,
 }: {
   rootDir: string,
-  notebookName: string,
+  resource: string,
 }) => {
-  const [jupyterPort, setJupyterPort] = useState<number | null>(null);
+  const [notebookUrl, setNotebookUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    setJupyterPort(null);
+    setNotebookUrl(null);
     setError(null);
 
     (async () => {
@@ -27,33 +27,44 @@ export const DetailsViewNotebook = ({
         const data = await r.json();
         if (cancelled) return;
 
-        if (!cancelled) {
-          setJupyterPort(data.port);
+        const host = window.location.hostname || 'localhost';
+        const relativePath = resource.startsWith(rootDir) ? resource.slice(rootDir.length).replace(/^\//, '') : resource;
+        const url = `http://${host}:${data.port}/doc/tree/${relativePath}`;
+
+        // Poll the notebook URL until it actually serves content
+        const deadline = Date.now() + 15000;
+        while (Date.now() < deadline && !cancelled) {
+          try {
+            const probe = await fetch(url, { mode: 'no-cors' });
+            if (probe.type === 'opaque' || probe.ok) {
+              if (!cancelled) setNotebookUrl(url);
+              return;
+            }
+          } catch {
+            // not ready yet
+          }
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
+        if (!cancelled) setError('Jupyter notebook took too long to become ready');
       } catch {
-        if (!cancelled) {
-          setError('Could not start Jupyter server');
-        }
+        if (!cancelled) setError('Could not start Jupyter server');
       }
     })();
 
     return () => { cancelled = true; };
-  }, [rootDir, notebookName]);
+  }, [rootDir, resource]);
 
   if (error) return <Typography color="error">{error}</Typography>;
-  if (!jupyterPort) return (
+  if (!notebookUrl) return (
     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
       <CircularProgress />
     </Box>
   );
 
-  const host = window.location.hostname || 'localhost';
-  const src = `http://${host}:${jupyterPort}/doc/tree/notebooks/${notebookName}.ipynb`;
-
   return (
     <Box sx={{ width: '100%', height: '100%' }}>
       <iframe
-        src={src}
+        src={notebookUrl}
         style={{ width: '100%', height: '100%', border: 'none' }}
       />
     </Box>
