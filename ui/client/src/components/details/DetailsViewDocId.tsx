@@ -42,7 +42,7 @@ export const DetailsViewDocId = ({
           ? (
             <DetailsViewNotebook
               rootDir={project.configDocument?.data.desc.filesDirectory ?? ''}
-              notebookName={docObj.data.desc.datasourceName ?? ''}
+              resource={docObj.data.resource as string}
             />
           )
           : (

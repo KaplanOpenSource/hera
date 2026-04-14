@@ -4,10 +4,10 @@ import { BASEURL } from '../../shared/baseurl';
 
 export const DetailsViewNotebook = ({
   rootDir,
-  notebookName,
+  resource,
 }: {
   rootDir: string,
-  notebookName: string,
+  resource: string,
 }) => {
   const [notebookUrl, setNotebookUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +28,8 @@ export const DetailsViewNotebook = ({
         if (cancelled) return;
 
         const host = window.location.hostname || 'localhost';
-        const url = `http://${host}:${data.port}/doc/tree/notebooks/${notebookName}.ipynb`;
+        const relativePath = resource.startsWith(rootDir) ? resource.slice(rootDir.length).replace(/^\//, '') : resource;
+        const url = `http://${host}:${data.port}/doc/tree/${relativePath}`;
 
         // Poll the notebook URL until it actually serves content
         const deadline = Date.now() + 15000;
@@ -51,7 +52,7 @@ export const DetailsViewNotebook = ({
     })();
 
     return () => { cancelled = true; };
-  }, [rootDir, notebookName]);
+  }, [rootDir, resource]);
 
   if (error) return <Typography color="error">{error}</Typography>;
   if (!notebookUrl) return (
