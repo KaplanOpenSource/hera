@@ -11,7 +11,6 @@ import {
 } from "@mui/material";
 import { DocumentDesc, ProjectEntire, Toolkit } from "../../shared/types";
 import { useRef, useState } from "react";
-import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonDialog } from "../../elements/ButtonDialog";
 import { TextProperty } from "../../elements/TextProperty";
 import { fetchPython } from "../../io/fetchPython";
@@ -28,6 +27,9 @@ type MetadataCls = typeof METADATA_CLASSES[number];
 
 const NO_TOOLKIT = '* No Toolkit *';
 
+const DOC_KINDS = ['Regular', 'Agent', 'Notebook'] as const;
+type DocKind = typeof DOC_KINDS[number];
+
 export const AddDocumentButton = ({
   toolkit = undefined,
   onDocumentCreated,
@@ -38,8 +40,7 @@ export const AddDocumentButton = ({
   const { toolkits } = useProjectStore();
   const [name, setName] = useState('');
   const [resource, setResource] = useState('');
-  const [asAgent, setAsAgent] = useState(false);
-  const [asNotebook, setAsNotebook] = useState(false);
+  const [kind, setKind] = useState<DocKind>('Regular');
   const [cls, setCls] = useState<MetadataCls>(METADATA_CLASSES[0]);
   const [chosenToolkit, setChosenToolkit] = useState<string | undefined>(toolkit?.toolkit);
   const { currProjectName, setCurrentProject } = useProjectStore();
@@ -51,7 +52,7 @@ export const AddDocumentButton = ({
   const notebookResource = `${filesDir}/notebooks/${name}.ipynb`;
 
   const buildAddCommand = (desc: DocumentDesc) => {
-    if (asNotebook) {
+    if (kind === 'Notebook') {
       return `
 import json
 from pathlib import Path
@@ -77,7 +78,7 @@ Cache_Collection().addDocument(
     desc=${JSON.stringify(desc)},
 )`;
     }
-    if (asAgent) {
+    if (kind === 'Agent') {
       return `
 All.addDocument(
     '${currProjectName}',
@@ -128,8 +129,7 @@ project = {"name": '${currProjectName}', "documents": docs['documents']}
       onOpen={() => {
         setName('');
         setResource('');
-        setAsAgent(false);
-        setAsNotebook(false);
+        setKind('Regular');
         setTimeout(() => (inputRef.current as any)?.focus(), 0)
       }}
       dialogProps={{
@@ -147,8 +147,20 @@ project = {"name": '${currProjectName}', "documents": docs['documents']}
         <>
           <DialogTitle>Add Document</DialogTitle>
           <DialogContent>
-            <DialogContentText>
-              Adding a document
+            <DialogContentText component="div" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              Adding a
+              <SelectProperty
+                label=""
+                value={kind}
+                setValue={v => {
+                  setKind(v as DocKind);
+                  if (v !== 'Regular') {
+                    setChosenToolkit(undefined);
+                  }
+                }}
+                menuItems={DOC_KINDS.map(k => ({ name: k }))}
+              />
+              document
             </DialogContentText>
             <TextProperty
               inputRef={inputRef}
@@ -164,37 +176,18 @@ project = {"name": '${currProjectName}', "documents": docs['documents']}
               margin="dense"
               label="Resource"
               fullWidth
-              value={asNotebook ? `${filesDir}/notebooks/${name}.ipynb` : resource}
+              value={kind === 'Notebook' ? `${filesDir}/notebooks/${name}.ipynb` : resource}
               setValue={v => setResource(v)}
-              disabled={asAgent || asNotebook}
-              helperText={asNotebook ? 'If a notebook file already exists at this path, it will be used as-is. Otherwise, a new empty notebook will be created.' : undefined}
+              disabled={kind !== 'Regular'}
+              helperText={kind === 'Notebook' ? 'If a notebook file already exists at this path, it will be used as-is. Otherwise, a new empty notebook will be created.' : undefined}
             />
-            <Stack direction="column" spacing={-1}>
-              <BooleanProperty
-                label="Notebook"
-                value={asNotebook}
-                setValue={v => {
-                  setAsNotebook(v);
-                  if (v) {
-                    setAsAgent(false);
-                    setChosenToolkit(undefined);
-                  }
-                }}
-              />
-              {!asNotebook && (
-                <BooleanProperty
-                  label="Agent"
-                  value={asAgent}
-                  setValue={v => setAsAgent(v)}
-                />
-              )}
-            </Stack>
-            {!asNotebook && (
+            {kind === 'Regular' && (
               <Stack
                 direction={'column'}
                 spacing={2}
                 justifyItems={'flex-start'}
                 alignItems={'flex-start'}
+                mt={2}
               >
                 <SelectProperty
                   label="Class"

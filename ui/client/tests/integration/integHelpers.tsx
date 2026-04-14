@@ -71,7 +71,8 @@ export const addDocumentViaUI = async (
     target: { value: docName },
   });
   if (opts.agent) {
-    fireEvent.click(within(dialog).getByRole('checkbox', { name: /agent/i }));
+    fireEvent.mouseDown(within(dialog).getByText('Regular'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Agent' }));
   }
 
   await act(async () => {

@@ -98,9 +98,9 @@ describe('AddDocumentButton', () => {
     const nameInput = within(dialog).getByRole('textbox', { name: /^name$/i });
     fireEvent.change(nameInput, { target: { value: 'Agent1' } });
 
-    // Check the Agent checkbox
-    const agentCheckbox = within(dialog).getByRole('checkbox', { name: /agent/i });
-    fireEvent.click(agentCheckbox);
+    // Select Agent kind
+    fireEvent.mouseDown(within(dialog).getByText('Regular'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Agent' }));
 
     await act(async () => {
       fireEvent.click(within(dialog).getByRole('button', { name: /add document/i }));
@@ -221,8 +221,8 @@ describe('AddDocumentButton', () => {
     const nameInput = within(dialog).getByRole('textbox', { name: /^name$/i });
     fireEvent.change(nameInput, { target: { value: 'MyNotebook' } });
 
-    const notebookCheckbox = within(dialog).getByRole('checkbox', { name: /notebook/i });
-    fireEvent.click(notebookCheckbox);
+    fireEvent.mouseDown(within(dialog).getByText('Regular'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Notebook' }));
 
     await act(async () => {
       fireEvent.click(within(dialog).getByRole('button', { name: /add document/i }));
@@ -237,7 +237,7 @@ describe('AddDocumentButton', () => {
     });
   });
 
-  it('shows resource field with auto-generated path when notebook is checked', async () => {
+  it('shows resource field with auto-generated path when notebook is selected', async () => {
     render(<AddDocumentButton />);
     await act(async () => {
       const w = screen.getByLabelText('Add Document');
@@ -248,15 +248,15 @@ describe('AddDocumentButton', () => {
     const nameInput = within(dialog).getByRole('textbox', { name: /^name$/i });
     fireEvent.change(nameInput, { target: { value: 'TestNB' } });
 
-    const notebookCheckbox = within(dialog).getByRole('checkbox', { name: /notebook/i });
-    fireEvent.click(notebookCheckbox);
+    fireEvent.mouseDown(within(dialog).getByText('Regular'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Notebook' }));
 
     const resourceInput = within(dialog).getByRole('textbox', { name: /resource/i });
     expect(resourceInput).toHaveProperty('disabled', true);
     expect((resourceInput as HTMLInputElement).value).toBe('/tmp/testproject/notebooks/TestNB.ipynb');
   });
 
-  it('shows helper text when notebook is checked', async () => {
+  it('shows helper text when notebook is selected', async () => {
     render(<AddDocumentButton />);
     await act(async () => {
       const w = screen.getByLabelText('Add Document');
@@ -264,13 +264,13 @@ describe('AddDocumentButton', () => {
     });
 
     const dialog = await screen.findByRole('dialog');
-    const notebookCheckbox = within(dialog).getByRole('checkbox', { name: /notebook/i });
-    fireEvent.click(notebookCheckbox);
+    fireEvent.mouseDown(within(dialog).getByText('Regular'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Notebook' }));
 
     expect(within(dialog).getByText(/already exists at this path/i)).toBeTruthy();
   });
 
-  it('hides agent checkbox and class/toolkit when notebook is checked', async () => {
+  it('hides class/toolkit when notebook kind is selected', async () => {
     render(<AddDocumentButton />);
     await act(async () => {
       const w = screen.getByLabelText('Add Document');
@@ -278,13 +278,14 @@ describe('AddDocumentButton', () => {
     });
 
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).queryByRole('checkbox', { name: /agent/i })).toBeTruthy();
+    // Regular mode shows the Toolkit autocomplete
+    expect(within(dialog).queryByRole('combobox', { name: /toolkit/i })).toBeTruthy();
 
-    const notebookCheckbox = within(dialog).getByRole('checkbox', { name: /notebook/i });
-    fireEvent.click(notebookCheckbox);
+    fireEvent.mouseDown(within(dialog).getByText('Regular'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Notebook' }));
 
-    expect(within(dialog).queryByRole('checkbox', { name: /agent/i })).toBeNull();
-    expect(within(dialog).queryByText(/Class/i)).toBeNull();
+    // Notebook mode hides the Toolkit autocomplete
+    expect(within(dialog).queryByRole('combobox', { name: /toolkit/i })).toBeNull();
   });
 
   it('includes toolkit in desc when selected', async () => {
