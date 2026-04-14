@@ -74,7 +74,8 @@ describe('AddDocumentButton', () => {
     await waitFor(() => {
       expect(mockFetchPython).toHaveBeenCalledTimes(1);
       const code = mockFetchPython.mock.calls[0][0].code;
-      expect(code).toContain("Measurements_Collection().addDocument('TestProject'");
+      expect(code).toContain("Measurements_Collection().addDocument(");
+      expect(code).toContain("'TestProject'");
       expect(code).toContain("resource='myres'");
       expect(code).toContain('"datasourceName":"MyDoc"');
     });

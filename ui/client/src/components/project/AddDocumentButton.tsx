@@ -48,14 +48,11 @@ export const AddDocumentButton = ({
 
   const filesDir = useProjectStore.getState().getProject()?.configDocument?.data.desc.filesDirectory ?? '';
 
-  const doAddDoc = async () => {
-    const desc: DocumentDesc = { datasourceName: name };
-    if (chosenToolkit) {
-      desc.toolkit = chosenToolkit;
-    }
-    const notebookResource = `${filesDir}/notebooks/${name}.ipynb`;
-    const addcmd = asNotebook
-      ? `
+  const notebookResource = `${filesDir}/notebooks/${name}.ipynb`;
+
+  const buildAddCommand = (desc: DocumentDesc) => {
+    if (asNotebook) {
+      return `
 import json
 from pathlib import Path
 notebook_path = Path("${notebookResource}")
@@ -64,7 +61,11 @@ if not notebook_path.exists():
     empty_notebook = {
         "nbformat": 4,
         "nbformat_minor": 5,
-        "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"}},
+        "metadata": {"kernelspec": {
+            "display_name": "Python 3",
+            "language": "python",
+            "name": "python3",
+        }},
         "cells": [],
     }
     notebook_path.write_text(json.dumps(empty_notebook, indent=2))
@@ -74,22 +75,36 @@ Cache_Collection().addDocument(
     dataFormat="JSON_dict",
     type="notebook",
     desc=${JSON.stringify(desc)},
-)
-`
-      : asAgent
-        ? `
-All.addDocument('${currProjectName}', resource={"effects": {}}, desc=${JSON.stringify(desc)},
+)`;
+    }
+    if (asAgent) {
+      return `
+All.addDocument(
+    '${currProjectName}',
+    resource={"effects": {}},
+    desc=${JSON.stringify(desc)},
     dataFormat=datatypes.JSON_DICT,
-    type='ToolkitDataSource')
-      `
-        : `
-${cls.collection}().addDocument('${currProjectName}', resource='${resource}', desc=${JSON.stringify(desc)})
-    `;
+    type='ToolkitDataSource',
+)`;
+    }
+    return `
+${cls.collection}().addDocument(
+    '${currProjectName}',
+    resource='${resource}',
+    desc=${JSON.stringify(desc)},
+)`;
+  };
+
+  const doAddDoc = async () => {
+    const desc: DocumentDesc = { datasourceName: name };
+    if (chosenToolkit) {
+      desc.toolkit = chosenToolkit;
+    }
     const { problem, data } = await fetchPython({
       results: ['project'],
       code: `
 from hera.datalayer import All, datatypes, Cache_Collection
-${addcmd}
+${buildAddCommand(desc)}
 docs = All.getDocumentsAsDict('${currProjectName}', with_id=True)
 project = {"name": '${currProjectName}', "documents": docs['documents']}
 `,
