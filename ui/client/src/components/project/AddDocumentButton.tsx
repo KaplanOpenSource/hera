@@ -59,14 +59,15 @@ export const AddDocumentButton = ({
 import json
 from pathlib import Path
 notebook_path = Path("${notebookResource}")
-notebook_path.parent.mkdir(parents=True, exist_ok=True)
-empty_notebook = {
-    "nbformat": 4,
-    "nbformat_minor": 5,
-    "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"}},
-    "cells": [],
-}
-notebook_path.write_text(json.dumps(empty_notebook, indent=2))
+if not notebook_path.exists():
+    notebook_path.parent.mkdir(parents=True, exist_ok=True)
+    empty_notebook = {
+        "nbformat": 4,
+        "nbformat_minor": 5,
+        "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"}},
+        "cells": [],
+    }
+    notebook_path.write_text(json.dumps(empty_notebook, indent=2))
 Cache_Collection().addDocument(
     projectName="${currProjectName}",
     resource="${notebookResource}",
@@ -151,6 +152,7 @@ project = {"name": '${currProjectName}', "documents": docs['documents']}
               value={asNotebook ? `${filesDir}/notebooks/${name}.ipynb` : resource}
               setValue={v => setResource(v)}
               disabled={asAgent || asNotebook}
+              helperText={asNotebook ? 'If a notebook file already exists at this path, it will be used as-is. Otherwise, a new empty notebook will be created.' : undefined}
             />
             <Stack direction="column" spacing={-1}>
               <BooleanProperty
