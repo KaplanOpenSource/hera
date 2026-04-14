@@ -103,7 +103,7 @@ ${cls.collection}().addDocument(
     const { problem, data } = await fetchPython({
       results: ['project'],
       code: `
-from hera.datalayer import All, datatypes, Cache_Collection
+from hera.datalayer import All, datatypes, Measurements_Collection, Simulations_Collection, Cache_Collection
 ${buildAddCommand(desc)}
 docs = All.getDocumentsAsDict('${currProjectName}', with_id=True)
 project = {"name": '${currProjectName}', "documents": docs['documents']}
