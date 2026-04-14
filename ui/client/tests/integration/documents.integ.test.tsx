@@ -73,7 +73,8 @@ describe('Documents UI integration', () => {
     fireEvent.change(within(dialog).getByRole('textbox', { name: /^name$/i }), {
       target: { value: 'AgentDoc1' },
     });
-    fireEvent.click(within(dialog).getByRole('checkbox', { name: /agent/i }));
+    fireEvent.mouseDown(within(dialog).getByText('Regular'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Agent' }));
 
     await act(async () => {
       fireEvent.click(within(dialog).getByRole('button', { name: /add document/i }));
