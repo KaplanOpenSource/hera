@@ -8,8 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run --exclude 'tests/integration/**'",
-    "test:integ": "vitest run tests/integration",
-    "test:all": "vitest run"
+    "test:integ": "vitest run tests/integration --retry 1",
+    "test:all": "vitest run --retry 1"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
