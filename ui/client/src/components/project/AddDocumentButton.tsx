@@ -53,13 +53,13 @@ export const AddDocumentButton = ({
     if (chosenToolkit) {
       desc.toolkit = chosenToolkit;
     }
+    const notebookResource = `${filesDir}/notebooks/${name}.ipynb`;
     const addcmd = asNotebook
       ? `
 import json
 from pathlib import Path
-notebooks_dir = Path("${filesDir}") / "notebooks"
-notebooks_dir.mkdir(parents=True, exist_ok=True)
-notebook_path = notebooks_dir / f"${name}.ipynb"
+notebook_path = Path("${notebookResource}")
+notebook_path.parent.mkdir(parents=True, exist_ok=True)
 empty_notebook = {
     "nbformat": 4,
     "nbformat_minor": 5,
@@ -69,7 +69,7 @@ empty_notebook = {
 notebook_path.write_text(json.dumps(empty_notebook, indent=2))
 Cache_Collection().addDocument(
     projectName="${currProjectName}",
-    resource=str(notebook_path),
+    resource="${notebookResource}",
     dataFormat="JSON_dict",
     type="notebook",
     desc=${JSON.stringify(desc)},
@@ -144,16 +144,14 @@ project = {"name": '${currProjectName}', "documents": docs['documents']}
               value={name}
               setValue={v => setName(v)}
             />
-            {!asNotebook && (
-              <TextProperty
-                margin="dense"
-                label="Resource"
-                fullWidth
-                value={resource}
-                setValue={v => setResource(v)}
-                disabled={asAgent}
-              />
-            )}
+            <TextProperty
+              margin="dense"
+              label="Resource"
+              fullWidth
+              value={asNotebook ? `${filesDir}/notebooks/${name}.ipynb` : resource}
+              setValue={v => setResource(v)}
+              disabled={asAgent || asNotebook}
+            />
             <Stack direction="column" spacing={-1}>
               <BooleanProperty
                 label="Notebook"
