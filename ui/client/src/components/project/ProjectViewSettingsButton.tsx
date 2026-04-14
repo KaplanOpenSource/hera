@@ -34,7 +34,7 @@ export const ProjectViewSettingsButton = ({ }) => {
                 setValue={(v) => setViewSettings({ ...viewSettings, maxBranches: v })}
               />
               <BooleanProperty
-                label="First branch by header fields (toolkit, type, etc...)"
+                label="First branch by header fields (toolkit, notebooks, type, etc...)"
                 value={viewSettings.firstBranchHeadFields}
                 setValue={v => setViewSettings({ ...viewSettings, firstBranchHeadFields: v })}
               />

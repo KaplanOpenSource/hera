@@ -173,7 +173,13 @@ project = {"name": '${currProjectName}', "documents": docs['documents']}
               <BooleanProperty
                 label="Notebook"
                 value={asNotebook}
-                setValue={v => { setAsNotebook(v); if (v) setAsAgent(false); }}
+                setValue={v => {
+                  setAsNotebook(v);
+                  if (v) {
+                    setAsAgent(false);
+                    setChosenToolkit(undefined);
+                  }
+                }}
               />
               {!asNotebook && (
                 <BooleanProperty
