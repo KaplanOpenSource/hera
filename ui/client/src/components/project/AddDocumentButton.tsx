@@ -187,6 +187,7 @@ project = {"name": '${currProjectName}', "documents": docs['documents']}
                 spacing={2}
                 justifyItems={'flex-start'}
                 alignItems={'flex-start'}
+                mt={2}
               >
                 <SelectProperty
                   label="Class"
