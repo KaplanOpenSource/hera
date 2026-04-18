@@ -46,14 +46,19 @@ install-env:
 	@echo "Creating Python virtual environment at $(VENV_DIR)..."
 	@mkdir -p $(HOME)/.pyhera
 	python3 -m venv $(VENV_DIR)
-	$(VENV_DIR)/bin/pip install --upgrade pip
+	@echo "Pinning build tools inside the venv (needed for --no-build-isolation)..."
+	$(VENV_DIR)/bin/pip install --upgrade pip setuptools wheel
 	@echo "Installing requirements (this may take a while)..."
-	$(VENV_DIR)/bin/pip install -r $(CURDIR)/requirements.txt
-	$(VENV_DIR)/bin/pip install -e $(CURDIR)
+	$(VENV_DIR)/bin/pip install --no-build-isolation -r $(CURDIR)/requirements.txt
+	$(VENV_DIR)/bin/pip install --no-build-isolation -e $(CURDIR)
 	@echo ""
 	@echo "=== Python environment installed at $(VENV_DIR) ==="
 	@echo "  Activate with: make setup"
 	@echo "  Or manually:   source $(VENV_DIR)/bin/activate"
+	@echo ""
+	@echo "  GDAL is not installed automatically (its version is bound to"
+	@echo "  the system libgdal). After activating the venv, run:"
+	@echo "    make install-deps"
 
 setup:
 	@if [ -n "$$VIRTUAL_ENV" ]; then \
