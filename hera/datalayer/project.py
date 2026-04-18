@@ -11,14 +11,11 @@ from deprecated import deprecated
 
 from hera.datalayer.datahandler import datatypes
 from hera.utils.logging import get_classMethod_logger
-from hera.utils import loadJSON
 from hera import toolkit
 from hera.datalayer.collection import AbstractCollection,\
     Cache_Collection,\
     Measurements_Collection,\
     Simulations_Collection
-
-from hera.utils import ConfigurationToJSON
 
 def getProjectList(connectionName=None):
     """
@@ -233,6 +230,7 @@ class Project:
             logger.debug(f"projectName is None, try to load file {confFile}")
             if os.path.exists(confFile):
                 logger.debug(f"Load as JSON")
+                from hera.utils.jsonutils import loadJSON
                 configuration = loadJSON(confFile)
                 if 'projectName' not in configuration:
                     err = f"Got projectName=None and the key 'projectName' does not exist in the JSON. "
@@ -971,6 +969,7 @@ class Project:
         funcName = getattr(self,f"add{kind}Document")
         fullType = type if type is not None else name
 
+        from hera.utils.jsonutils import ConfigurationToJSON
         qry = ConfigurationToJSON(desc, standardize=True, splitUnits=True, keepOriginalUnits=True)
         storeParamsDict = qry.get("storeParameters",{})
         storeParamsDict.update(saveParamsUpdatedDict)
