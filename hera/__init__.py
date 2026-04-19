@@ -1,4 +1,4 @@
-__version__ = '2.16.1'
+__version__ = '2.16.2'
 __author__ = 'Yehuda Arav'
 __contributors__ = [
     'Eyal Fattal',
@@ -32,6 +32,23 @@ from hera.datalayer.autocache import cacheFunction,clearFunctionCache,clearAllFu
 toolkitHome = ToolkitHome()
 
 """
+2.16.2 (2026-04)
+-----------------
+    RAG:
+        - Local HuggingFace model cache: embedding models are saved to
+          RAG_MODELS_CACHE_DIR (default ~/.pyhera/rag_models) on first
+          download and reloaded from disk on subsequent runs.
+        - Offline mode (RAG_OFFLINE_MODE=true): refuses network fetches and
+          requires the model to be pre-cached; Ollama must be reachable at
+          RAG_OLLAMA_BASE_URL (typically a native install).
+        - New `hera-rag-search download-models` CLI command to populate the
+          cache ahead of going offline.
+        - New `make rag-services-up-native` target brings up Qdrant and
+          Cassandra without the Ollama container, avoiding the port-11434
+          clash with a host-installed Ollama (remapping the host port alone
+          does not fix it).
+        - New `make rag-download-models` target wrapping the CLI.
+
 2.16.1 (2026-03)
 -----------------
     Docstrings:
