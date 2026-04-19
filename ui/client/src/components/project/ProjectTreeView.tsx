@@ -6,14 +6,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { fetchProjectDetails } from '../../io/FetchProjects';
 import { ProjectObj } from '../../objects/ProjectObj';
-import { ID_NOTEBOOKS_GROUP, idDocId, idFromDocId } from '../../shared/idDocId';
+import { idDocId, idFromDocId } from '../../shared/idDocId';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { SplitTree } from '../../utils/splitTree';
 import { AddDocumentButton } from './AddDocumentButton';
 import { DocumentSplitGroup } from './DocumentSplitGroup';
 import { ProjectViewSettingsButton } from './ProjectViewSettingsButton';
 import { RegisteredRepositories } from '../repo/RegisteredRepositories';
-import { NotebookList } from './NotebookList';
 import { RepoTreeWhole } from './RepoTreeWhole';
 import { useViewSettingsStore } from '../../stores/useViewSettingsStore';
 
@@ -36,7 +35,7 @@ export const ProjectTreeView = ({
 }) => {
   const { toolkits } = useProjectStore();
   const { viewSettings } = useViewSettingsStore();
-  const [expandedItems, setExpandedItems] = useState<string[]>(['project-documents', 'no-toolkit', '*repos*', 'registered-repos', ID_NOTEBOOKS_GROUP]);
+  const [expandedItems, setExpandedItems] = useState<string[]>(['project-documents', 'no-toolkit', '*repos*', 'registered-repos']);
   const splitTreeRef = useRef<SplitTree | null>(null);
 
   const getSplitTree = useCallback(() => {
@@ -126,16 +125,6 @@ export const ProjectTreeView = ({
           onDocumentDeleted={() => setSelectedItemIds([])}
         />
       </TreeItem>
-      <NotebookList
-        filesDir={project.configDocument?.data.desc.filesDirectory ?? ''}
-        selectedItemId={selectedItemsIds[0]}
-        setSelectedItemIds={(ids) => {
-          if (ids.length > 0) {
-            setExpandedItems(prev => [...new Set([...prev, ID_NOTEBOOKS_GROUP])]);
-          }
-          setSelectedItemIds(ids);
-        }}
-      />
       <RegisteredRepositories showUpdateButton />
       <RepoTreeWhole
       />

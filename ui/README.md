@@ -44,6 +44,28 @@ sh hera/scripts/docker_mongo.sh
 The web UI will be in this URL:  
 http://localhost:8000
 
+## Notebooks
+
+Documents can be created as Jupyter notebooks. When adding a document, check the "Notebook" checkbox — this creates an `.ipynb` file under the project's `filesDirectory/notebooks/` and opens it in an embedded Jupyter editor. If a notebook file already exists at that path, it will be used as-is.
+
+### Using AI in notebook cells
+
+Notebooks include [Jupyter AI](https://jupyter-ai.readthedocs.io/) with Ollama integration. Use the `%%ai` cell magic to query LLMs directly from notebook cells.
+
+**Text response** — the LLM output appears as text below the cell:
+
+```
+%%ai ollama:llama3
+how's the weather in Israel?
+```
+
+**Code response** — use `-f code` to have the LLM output inserted as a new code cell below, which you can then execute:
+
+```
+%%ai ollama:llama3 -f code
+Write a python function that calculates wind speed from u and v components then run it with some reasonable params
+```
+
 ## Debug with docker
 #### Server
 ```sh

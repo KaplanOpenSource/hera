@@ -99,6 +99,21 @@ describe('updateDocument', () => {
     expect(body.code).toContain('doc.resource = None');
   });
 
+  it('converts boolean true/false to Python True/False', async () => {
+    const newDoc = { ...prevDoc, desc: { datasourceName: 'changed', flag: true, disabled: false } };
+    mockFetch.mockResolvedValueOnce({ json: () => Promise.resolve({ docData: newDoc }) });
+
+    await updateDocument(newDoc, prevDoc);
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const code: string = body.code;
+    // Python code must use True/False, not JS true/false
+    expect(code).not.toMatch(/:true[,}]/);
+    expect(code).not.toMatch(/:false[,}]/);
+    expect(code).toMatch(/:True[,}]/);
+    expect(code).toMatch(/:False[,}]/);
+  });
+
   it('handles nested object changes', async () => {
     const newDoc = { ...prevDoc, desc: { datasourceName: 'new' } };
     mockFetch.mockResolvedValueOnce({ json: () => Promise.resolve({ docData: newDoc }) });

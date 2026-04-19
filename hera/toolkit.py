@@ -10,7 +10,6 @@ import pandas as pd
 from typing import Optional, List, Dict, Any
 
 from hera.utils.logging import get_classMethod_logger
-from sympy.physics.units import second
 
 # ---------------------------------------------------------------------------
 # Constants for Toolkit data sources

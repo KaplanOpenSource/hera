@@ -1,15 +1,15 @@
-import { Fullscreen, FullscreenExit } from '@mui/icons-material';
-import { AppBar, Box, createTheme, IconButton, Paper, Stack, ThemeProvider, Toolbar, Tooltip, Typography } from '@mui/material';
+import { Fullscreen, FullscreenExit, HelpOutline } from '@mui/icons-material';
+import { AppBar, Box, createTheme, IconButton, Paper, Stack, ThemeProvider, Toolbar, Typography } from '@mui/material';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { DetailsViewPanel } from './components/details/DetailsViewPanel';
 import { PageTitle } from './components/header/PageTitle';
 import { ProjectChooser } from './components/header/ProjectChooser';
 import { StatusIndicators } from './components/header/StatusIndicators';
+import { ButtonTooltip } from './elements/ButtonTooltip';
 import { ProjectTreeView } from './components/project/ProjectTreeView';
 import { SplitWithSidebar } from './elements/SplitWithSidebar';
 import { FetchProjects } from './io/FetchProjects';
-import { idFromNotebookId } from './shared/idDocId';
 import { useProjectStore } from './stores/useProjectStore';
 import { ServerConstantReader } from './stores/useServerConstants';
 
@@ -78,15 +78,20 @@ export const Dashboard = () => {
             <Stack direction="row" spacing={1} alignItems="center">
               <PageTitle />
               <ProjectChooser />
-              <Tooltip title={treeCollapsed ? 'Show sidebar' : 'Hide sidebar'}>
-                <IconButton
-                  color="inherit"
-                  onClick={() => setTreeCollapsed(c => !c)}
-                  size="small"
-                >
-                  {treeCollapsed ? <FullscreenExit /> : <Fullscreen />}
-                </IconButton>
-              </Tooltip>
+              <ButtonTooltip
+                title={treeCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+                onClick={() => setTreeCollapsed(c => !c)}
+                color="inherit"
+              >
+                {treeCollapsed ? <FullscreenExit /> : <Fullscreen />}
+              </ButtonTooltip>
+              <ButtonTooltip
+                title="Documentation"
+                onClick={() => window.open('https://kaplanopensource.github.io/hera', '_blank')}
+                color="inherit"
+              >
+                <HelpOutline />
+              </ButtonTooltip>
               <StatusIndicators />
             </Stack>
           </Toolbar>
@@ -116,7 +121,6 @@ export const Dashboard = () => {
               }
             >
               <Paper sx={{
-                p: idFromNotebookId(selectedItemsIds[0]) ? 0 : 2,
                 height: '100%',
                 overflow: 'hidden',
               }}>

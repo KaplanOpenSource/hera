@@ -15,12 +15,16 @@ docData = All.getDocumentByID('${docid}').asDict(with_id=True)
 
 const stringifyToPython = (obj: any) => {
   const jsonString = JSON.stringify(obj, (key, value) => {
-    // Convert null to a unique placeholder for replacement
-    return value === null ? '=-=None=-=' : value;
+    if (value === null) return '=-=None=-=';
+    if (value === true) return '=-=True=-=';
+    if (value === false) return '=-=False=-=';
+    return value;
   });
 
-  // Replace the placeholder 'None' without quotes
-  return jsonString.replace(/"=-=None=-="/g, 'None');
+  return jsonString
+    .replace(/"=-=None=-="/g, 'None')
+    .replace(/"=-=True=-="/g, 'True')
+    .replace(/"=-=False=-="/g, 'False');
 }
 
 export const updateDocument = async (newDoc: any, prevDoc: any) => {

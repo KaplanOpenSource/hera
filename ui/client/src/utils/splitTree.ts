@@ -52,6 +52,24 @@ export class SplitTree {
   }
 
   private buildNodes(docs: DocumentObj[], depth: number): SplitTreeNode[] {
+    if (this.viewSettings.firstBranchHeadFields) {
+      const notebooks = docs.filter(d => d.isNotebook);
+      if (notebooks.length > 0) {
+        const rest = docs.filter(d => !d.isNotebook);
+        const notebookNode: SplitNode = {
+          type: SplitTreeNodeType.Split,
+          itemKey: 'split_notebooks',
+          path: DESC_PATH_TYPE,
+          value: 'Notebooks',
+          children: notebooks.map(doc => ({ type: SplitTreeNodeType.Leaf, doc })),
+        };
+        return [notebookNode, ...this.buildNodesInner(rest, depth)];
+      }
+    }
+    return this.buildNodesInner(docs, depth);
+  }
+
+  private buildNodesInner(docs: DocumentObj[], depth: number): SplitTreeNode[] {
     const compared = this.getCompared(docs, depth);
     if (!compared.length) {
       return docs.map(doc => ({ type: SplitTreeNodeType.Leaf, doc }));
@@ -62,7 +80,7 @@ export class SplitTree {
       itemKey: g.itemKey,
       path: g.path,
       value: g.value,
-      children: this.buildNodes(g.docs, depth - 1),
+      children: this.buildNodesInner(g.docs, depth - 1),
     }));
   }
 

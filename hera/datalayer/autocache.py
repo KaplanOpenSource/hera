@@ -5,7 +5,6 @@ from hera import Project
 import inspect
 from functools import wraps
 from hera.datalayer.datahandler import getHandler,datatypes
-from hera.utils import dictToMongoQuery,ConfigurationToJSON
 import pickle
 import base64
 from bson import BSON
@@ -191,6 +190,7 @@ class cacheDecorators:
         if 'self' in call_info:
             call_info['context'] = call_info.pop('self')
 
+        from hera.utils.jsonutils import ConfigurationToJSON
         # convert any pint/unum to standardized MKS and dict with the magnitude and units seperated.
         # This will allow the query of the querys even if they are given in different units
         call_info_JSON = ConfigurationToJSON(call_info, standardize=True, splitUnits=True, keepOriginalUnits=True)
