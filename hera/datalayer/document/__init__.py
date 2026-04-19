@@ -1,3 +1,4 @@
+from hera import get_logger
 from mongoengine import *
 from mongoengine.connection import disconnect
 import os
@@ -172,12 +173,15 @@ def connectToDatabase(mongoConfig,alias=None):
     -------
         mongodb connection.
     """
+    logger = get_logger(None, "hera.datalayer.document.connectToDatabase")
+    logger.debug("Connecting to DB")
     if isinstance(mongoConfig,str):
         mongoConfig = parseConnectionString(mongoConfig)
 
     alias = '%s-alias' % mongoConfig['dbName'] if alias is None else alias
 
     disconnect(alias)
+    logger.debug("Closed all prior connections to DB")
 
     con = connect(alias=alias,
             host=mongoConfig['dbIP'],
@@ -186,6 +190,7 @@ def connectToDatabase(mongoConfig,alias=None):
             password=mongoConfig['password'],
             authentication_source='admin'
             )
+    logger.info("Successfuly connected to DB")
     return con
 
 

@@ -1,14 +1,12 @@
 import os
 import json
-import pandas
 import logging
 import copy
 from itertools import product
 from json.decoder import JSONDecodeError
+import sys
 from hera.utils.logging import get_classMethod_logger
 from jsonpath_ng import parse
-from hera.utils.unitHandler import *
-from hera.utils.dataframeutils import compareDataframeConfigurations
 
 
 def compareJSONS(longFormat=False,changeDotToUnderscore=False,**kwargs):
@@ -23,6 +21,9 @@ def compareJSONS(longFormat=False,changeDotToUnderscore=False,**kwargs):
     -------
         DataFrame: df of the comparison results
     """
+    from hera.utils.dataframeutils import compareDataframeConfigurations
+
+    import pandas
     fulldata = pandas.concat([convertJSONtoPandas(data).assign(datasetName=name) for name,data in kwargs.items()])
     return compareDataframeConfigurations(fulldata,datasetName="datasetName",parameterName="parameterNameFullPath",longFormat=longFormat,changeDotToUnderscore=changeDotToUnderscore)
 
@@ -60,6 +61,8 @@ def ConfigurationToJSON(valueToProcess, standardize=False, splitUnits=False, kee
         dict with all the values as string
 
     """
+    from unum import Unum
+
     logger = logging.getLogger("hera.bin.ConfigurationToJSON")
     ret = {}
     logger.debug(f"Processing {valueToProcess}")
@@ -80,6 +83,7 @@ def ConfigurationToJSON(valueToProcess, standardize=False, splitUnits=False, kee
 
         logger.debug(f"\t Try to convert *{valueToProcess}* to string")
 
+        from hera.utils.unitHandler import unumToPint
         origPintObj = unumToPint(valueToProcess)
         pintObj = origPintObj.to_base_units() if standardize else origPintObj
 
@@ -92,18 +96,25 @@ def ConfigurationToJSON(valueToProcess, standardize=False, splitUnits=False, kee
         else:
             ret =  str(pintObj)
 
-    elif isinstance(valueToProcess,Quantity):
-        origPintObj = valueToProcess
-        pintObj = origPintObj.to_base_units() if standardize else origPintObj
 
-        if splitUnits:
-            ret = dict(magnitude=pintObj.magnitude)
-            ret['units'] = str(pintObj)
-            if keepOriginalUnits:
-                ret['value'] = str(origPintObj)
+    # in case pint wasnt loaded to memory the object can't be pint and there is not reason to check for it
+    # UNLESS someone loaded this object with pickle or something similar(in this case  this breaks)
+    # we discourage doing this anyways and assume this doesn't happen, it  will fail to parse the object anyways
+    if 'pint' in sys.modules:
+        from pint import Quantity
+        if isinstance(valueToProcess,Quantity):
+            origPintObj = valueToProcess
+            pintObj = origPintObj.to_base_units() if standardize else origPintObj
+
+            if splitUnits:
+                ret = dict(magnitude=pintObj.magnitude)
+                ret['units'] = str(pintObj)
+                if keepOriginalUnits:
+                    ret['value'] = str(origPintObj)
+            else:
+                ret = str(pintObj)
         else:
-            ret = str(pintObj)
-
+            ret = valueToProcess
     else:
         ret = valueToProcess
 
@@ -136,6 +147,8 @@ def JSONToConfiguration(valueToProcess,returnUnum=False,returnStandardize=False)
     logger.debug(f"Processing {valueToProcess} of type {type(valueToProcess)}")
     if isinstance(valueToProcess,dict):
         if ('magnitude' in valueToProcess) and ('units' in valueToProcess) and ('value' in valueToProcess) and len(valueToProcess)==3:
+            from pint import Quantity
+            from hera.utils.unitHandler import unumToPint, ureg, pintToUnum, UndefinedUnitError, DimensionalityError
             ret = ureg(valueToProcess['value']) if not returnStandardize else ureg(valueToProcess['units'])
             ret = pintToUnum(ret) if returnUnum else ret
         else:
@@ -146,20 +159,24 @@ def JSONToConfiguration(valueToProcess,returnUnum=False,returnStandardize=False)
     elif isinstance(valueToProcess,list):
         logger.debug("\t list, transforming to unum every item")
         ret = [JSONToConfiguration(x,returnUnum=returnUnum,returnStandardize=returnStandardize) for x in valueToProcess]
+    elif isinstance(valueToProcess,(int, float, bool)):
+        ret = valueToProcess
     elif isinstance(valueToProcess,Unum):
         ret = valueToProcess if returnUnum else unumToPint(valueToProcess)
-    elif isinstance(valueToProcess,Quantity):
+    
+    # we want to avoid importing pint when unnecessary since it takes a long time to load
+    from pint import Quantity
+    if isinstance(valueToProcess,Quantity):
         ret = pintToUnum(valueToProcess) if returnUnum else valueToProcess
-    elif isinstance(valueToProcess,int):
-        ret = valueToProcess
-    elif isinstance(valueToProcess,float):
-        ret = valueToProcess
     elif "'" in str(valueToProcess):
         logger.debug(f"\t {valueToProcess} is a String, use as is")
         ret = valueToProcess
     else:
         logger.debug(f"\t Try to convert {valueToProcess} to unum")
         try:
+            from unum import Unum
+            
+            from hera.utils.unitHandler import unumToPint, ureg, pintToUnum, UndefinedUnitError, DimensionalityError
             ret = ureg(valueToProcess)
             ret = pintToUnum(ret) if returnUnum else ret
         except (UndefinedUnitError, DimensionalityError, ValueError):
@@ -183,6 +200,10 @@ def stripConfigurationUnits(valueToProcess,returnStandardize=False, ignoreStanda
         Same json with all units stripped leaving just magnitudes
 
     """
+    from unum import Unum
+    from pint import Quantity
+    from hera.utils.unitHandler import unumToPint
+
     logger = logging.getLogger("hera.utils.stripConfigurationUnits")
     ret = {}
     logger.debug(f"Processing {valueToProcess}")
@@ -309,6 +330,7 @@ def processJSONToPandas(jsonData, nameColumn="parameterName", valueColumn="value
             The name of the value
 
     """
+    import pandas
     pnds = pandas.json_normalize(jsonData).T.reset_index().rename(columns={'index': nameColumn, 0: valueColumn})\
         .explode(valueColumn,ignore_index=True)\
         .reset_index()
@@ -397,6 +419,7 @@ def convertJSONtoPandas(jsonData, nameColumn="parameterNameFullPath", valueColum
         pandas.DataFrame
         with the fields nameColumn (the path of the json) and valueColumn
     """
+    import pandas
     param1 =  loadJSON(jsonData)
     pnds1 = processJSONToPandas(param1,nameColumn=nameColumn,valueColumn=valueColumn)
     dictIndex = pnds1.apply(lambda x: isinstance(x.value,dict),axis=1)

@@ -1,4 +1,4 @@
-from hera.utils.unitHandler import ureg, Unum, Quantity, celsius, K, tonumber
+from hera.utils.unitHandler import ureg, Unum, Quantity, celsius, K
 from hera.riskassessment.agents.effects import  injuryfactory
 import numpy
 import json
