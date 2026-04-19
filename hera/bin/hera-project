@@ -283,7 +283,7 @@ if __name__ == "__main__":
 
     # ----------------- Exec -----------------
     argcomplete.autocomplete(parser)
-    parsed = parser.parse_args()()
+    parsed = parser.parse_args()
     logger.debug(f"Got {parsed} in the command line")
 
     # If no sub-command was selected – print help and exit

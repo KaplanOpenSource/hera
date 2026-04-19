@@ -30,7 +30,7 @@ if __name__=="__main__":
     parser_create_rep.set_defaults(func=CLI.createRepository)
 
     argcomplete.autocomplete(parser)
-    parsed = parser.parse_args()()
+    parsed = parser.parse_args()
     if 'func' not in parsed:
         parser.print_help()
     else:
