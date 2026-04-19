@@ -1,5 +1,7 @@
 #! /usr/bin/env python
-import argparse
+# PYTHON_ARGCOMPLETE_OK
+
+import argparse, argcomplete
 import logging
 from hera.simulations.openFoam import CLI
 from hera.simulations import CLI as workflowCLI
@@ -511,7 +513,8 @@ if __name__ == "__main__":
     execute_parser.set_defaults(execute=True)
     execute_parser.set_defaults(func=CLI.foam_solver_template_buildExecute)
 
-    parsed = parser.parse_args()
+    argcomplete.autocomplete(parser)
+    parsed = parser.parse_args()()
     logger.debug(f"Got {parsed} in the command line")
     if 'func' not in parsed:
         parser.print_help()
