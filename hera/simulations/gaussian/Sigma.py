@@ -8,7 +8,7 @@ from scipy import optimize
 
 class AbstractSigma:
 
-    def getVirtualDistance(self,sigma0,stability, units):
+    def getVirtualDistance(self,sigma0,stability):
         """
         Calculates the virtual distances for a given sigma0.
 
