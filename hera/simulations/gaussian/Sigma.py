@@ -119,7 +119,7 @@ class BriggsRural(AbstractSigma):
         if sigma0 is None:
             Ix = Iy = Iz = 0
         else:
-            Ix,Iy,Iz = self.getVirtualDistance(sigma0,stability,units)
+            Ix,Iy,Iz = self.getVirtualDistance(sigma0,stability)
 
 
         Ix = tonumber(Ix,m)
