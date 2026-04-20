@@ -5,6 +5,7 @@ import json
 import getpass
 import logging
 from hera.datalayer.document.metadataDocument import MetadataFrame,nonDBMetadataFrame
+from pathlib import Path
 
 dbObjects = {}
 
@@ -16,7 +17,8 @@ def getMongoJSON():
     -------
         dict
     """
-    configFile = os.path.join(os.environ.get('HOME'), '.pyhera', 'config.json')
+    configFile = Path.home() / '.your_hidden_config_dir' / 'config.json' #X-platform support
+    # configFile = os.path.join(os.environ.get('HOME'), '.pyhera', 'config.json')
     if os.path.isfile(configFile):
         with open(configFile, 'r') as jsonFile:
             mongoConfig = json.load(jsonFile)
