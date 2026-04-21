@@ -1,5 +1,5 @@
 import { Folder, Settings } from "@mui/icons-material";
-import { Stack, TextField, Typography } from "@mui/material";
+import { Stack, TextField, Tooltip, Typography } from "@mui/material";
 import { TreeItem } from "@mui/x-tree-view";
 import { useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
@@ -95,13 +95,20 @@ if os.path.isdir(folder):
       <TreeItem
         itemId="central-repo-folder"
         label={
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Folder fontSize="small" />
-            <Typography variant="body2">{folder}</Typography>
-            <ButtonTooltip title="Change repository folder" onClick={handleChangeFolder}>
-              <Settings fontSize="small" />
-            </ButtonTooltip>
-          </Stack>
+          <Tooltip title="Central repository folder. Contains local JSON repository files on disk that can be loaded into any project. Click the chevron to expand.">
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              onClick={e => e.stopPropagation()}
+            >
+              <Folder fontSize="small" />
+              <Typography variant="body2">{folder}</Typography>
+              <ButtonTooltip title="Change repository folder" onClick={handleChangeFolder}>
+                <Settings fontSize="small" />
+              </ButtonTooltip>
+            </Stack>
+          </Tooltip>
         }
         onClick={handleExpand}
       >
