@@ -56,31 +56,29 @@ export const GeoJsonPreview = ({
 }: {
   path: string,
 }) => {
-  const [state, setState] = useState<MapState>({ geojson: null, bounds: null, hasError: false });
+  const [mapState, setMapState] = useState<MapState>({ geojson: null, bounds: null, hasError: false });
 
   useEffect(() => {
-    setState({ geojson: null, bounds: null, hasError: false });
     (async () => {
+      setMapState({ geojson: null, bounds: null, hasError: false });
       const geojson = await loadGeoJson(path);
-      if (!geojson) {
-        setState({ geojson: null, bounds: null, hasError: true });
-        return;
+      if (geojson) {
+        const bounds = L.geoJSON(geojson as any).getBounds();
+        if (bounds.isValid()) {
+          setMapState({ geojson, bounds, hasError: false });
+          return;
+        }
       }
-      const bounds = L.geoJSON(geojson as any).getBounds();
-      if (!bounds.isValid()) {
-        setState({ geojson: null, bounds: null, hasError: true });
-        return;
-      }
-      setState({ geojson, bounds, hasError: false });
+      setMapState({ geojson: null, bounds: null, hasError: true });
     })();
   }, [path]);
 
   const centered = { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' };
 
   return (
-    state.hasError ? (
+    mapState.hasError ? (
       <Box sx={centered}><Typography color="text.secondary">Map unavailable</Typography></Box>
-    ) : !state.geojson || !state.bounds ? (
+    ) : !mapState.geojson || !mapState.bounds ? (
       <Box sx={centered}><CircularProgress /></Box>
     ) : (
       <MapContainer
@@ -89,8 +87,8 @@ export const GeoJsonPreview = ({
         style={{ height: '100%', width: '100%' }}
       >
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        <GeoJSONLayer data={state.geojson as any} />
-        <FitBounds bounds={state.bounds} />
+        <GeoJSONLayer data={mapState.geojson as any} />
+        <FitBounds bounds={mapState.bounds} />
         <InvalidateOnResize />
       </MapContainer>
     )
