@@ -73,28 +73,30 @@ else:
   };
 
   return (
-    <TreeItem
-      itemId="central-repo-folder"
-      label={
-        <Stack direction="row" spacing={1} alignItems="center">
-          <Folder fontSize="small" />
-          <Typography variant="body2">{folder}</Typography>
-          <ButtonTooltip title="Change repository folder" onClick={handleChangeFolder}>
-            <Settings fontSize="small" />
-          </ButtonTooltip>
-          {DialogComponent}
-        </Stack>
-      }
-      onClick={handleExpand}
-    >
-      {!loaded
-        ? <TreeItem itemId="central-repo-folder/__loading" label="Loading..." />
-        : files.length === 0
-          ? <TreeItem itemId="central-repo-folder/__empty" label="No JSON files found" />
-          : files.map(f => (
-            <TreeItem key={idRepoId(f)} itemId={idRepoId(f)} label={f} />
-          ))
-      }
-    </TreeItem>
+    <>
+      <TreeItem
+        itemId="central-repo-folder"
+        label={
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Folder fontSize="small" />
+            <Typography variant="body2">{folder}</Typography>
+            <ButtonTooltip title="Change repository folder" onClick={handleChangeFolder}>
+              <Settings fontSize="small" />
+            </ButtonTooltip>
+          </Stack>
+        }
+        onClick={handleExpand}
+      >
+        {!loaded
+          ? <TreeItem itemId="central-repo-folder/__loading" label="Loading..." />
+          : files.length === 0
+            ? <TreeItem itemId="central-repo-folder/__empty" label="No JSON files found" />
+            : files.map(f => (
+              <TreeItem key={idRepoId(f)} itemId={idRepoId(f)} label={f} />
+            ))
+        }
+      </TreeItem>
+      {DialogComponent}
+    </>
   )
 }
