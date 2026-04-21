@@ -36,7 +36,7 @@ const fetchPythonDirect = async (code: string): Promise<ExecResponse> => {
   }
 };
 
-export const fetchPython = async (...commands: PythonCommand[]): Promise<ExecResponse> => {
+export const fetchPython = async (...commands: PythonCommand[]): Promise<{ data: any }> => {
   const lines: string[] = [];
   const resultVars: string[] = [];
 
@@ -45,12 +45,11 @@ export const fetchPython = async (...commands: PythonCommand[]): Promise<ExecRes
     resultVars.push(...cmd.results);
   }
 
-  if (resultVars.length > 0) {
-    lines.push('result = {}');
-    for (const name of resultVars) {
-      lines.push(`result["${name}"] = ${name}`);
-    }
+  lines.push('result = {}');
+  for (const name of resultVars) {
+    lines.push(`result["${name}"] = ${name}`);
   }
 
-  return fetchPythonDirect(lines.join('\n'));
+  const response = await fetchPythonDirect(lines.join('\n'));
+  return { data: response.problem ? null : response.data };
 };

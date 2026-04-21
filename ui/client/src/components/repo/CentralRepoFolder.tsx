@@ -19,7 +19,7 @@ export const CentralRepoFolder = () => {
   const { openDialog, DialogComponent } = useDialog<{ folder: string }>();
 
   const fetchFiles = async (folderPath: string) => {
-    const { data, problem } = await fetchPython({
+    const { data } = await fetchPython({
       results: ['jsonFiles'],
       code: `
 import os, glob
@@ -32,7 +32,7 @@ else:
     jsonFiles = []
 `,
     });
-    if (!problem && data?.jsonFiles) {
+    if (data?.jsonFiles) {
       setFiles(data.jsonFiles);
     }
     setLoaded(true);

@@ -18,14 +18,14 @@ export const RepoContents = ({
 
   const handleExpand = async () => {
     if (loaded) return;
-    const { data, problem } = await fetchPython({
+    const { data } = await fetchPython({
       results: ['repoData'],
       code: `
 from hera.utils.data.toolkit import dataToolkit
 repoData = dataToolkit().getRepository('${repo.datasourceName}')
 `,
     });
-    if (!problem && data?.repoData) {
+    if (data?.repoData) {
       setContents(data.repoData);
     }
     setLoaded(true);

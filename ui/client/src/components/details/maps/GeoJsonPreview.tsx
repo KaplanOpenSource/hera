@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Box, CircularProgress, Typography } from '@mui/material';
+import { Box, CircularProgress } from '@mui/material';
 import { GeoJSON as GeoJSONLayer, MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import type { GeoJSON } from 'geojson';
@@ -29,8 +29,8 @@ const FitBounds = ({
   return null;
 };
 
-const loadGeoJson = async (path: string): Promise<GeoJSON> => {
-  const { data, problem } = await fetchPython({
+const loadGeoJson = async (path: string): Promise<GeoJSON | null> => {
+  const { data } = await fetchPython({
     results: ['geojson_data'],
     code: `
 import geopandas as gpd
@@ -46,8 +46,7 @@ else:
 geojson_data = json.loads(gdf.to_json())
 `,
   });
-  if (problem) throw new Error(problem);
-  return data.geojson_data;
+  return data?.geojson_data ?? null;
 };
 
 export const GeoJsonPreview = ({
@@ -56,17 +55,11 @@ export const GeoJsonPreview = ({
   path: string;
 }) => {
   const [geojson, setGeojson] = useState<GeoJSON | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadGeoJson(path)
-      .then(setGeojson)
-      .catch(e => setError(e.message));
+    loadGeoJson(path).then(setGeojson);
   }, [path]);
 
-  if (error) {
-    return <Typography color="error">Failed to load GeoJSON: {error}</Typography>;
-  }
   if (!geojson) {
     return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}><CircularProgress /></Box>;
   }

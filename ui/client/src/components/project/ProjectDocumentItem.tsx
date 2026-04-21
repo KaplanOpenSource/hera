@@ -25,14 +25,14 @@ export const ProjectDocumentItem = ({
   const name = document?.desc?.datasourceName || document?.type || document._cls;
 
   const deleteDocument = async () => {
-    const { problem } = await fetchPython({
+    const { data } = await fetchPython({
       results: [],
       code: `
 from hera.datalayer import All
 All.deleteDocumentByID('${document?._id.$oid}')
 `,
     })
-    if (problem) {
+    if (!data) {
       return;
     }
     await fetchProjectDetails(project.name);

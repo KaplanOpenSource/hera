@@ -101,7 +101,7 @@ ${cls.collection}().addDocument(
     if (chosenToolkit) {
       desc.toolkit = chosenToolkit;
     }
-    const { problem, data } = await fetchPython({
+    const { data } = await fetchPython({
       results: ['project'],
       code: `
 from hera.datalayer import All, datatypes, Measurements_Collection, Simulations_Collection, Cache_Collection
@@ -110,7 +110,7 @@ docs = All.getDocumentsAsDict('${currProjectName}', with_id=True)
 project = {"name": '${currProjectName}', "documents": docs['documents']}
 `,
     })
-    if (problem) {
+    if (!data) {
       return;
     }
     const existingIds = useProjectStore.getState().getProject()?.documentIds ?? new Set<string>();
