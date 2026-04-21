@@ -98,7 +98,7 @@ def exec_code(payload: ExecPayload) -> ExecResponse:
     _locals = {} # "MOCK_PROJECTS": MOCK_PROJECTS}
     print("executing: " + payload.code)
     try:
-        exec(payload.code, {}, _locals)
+        exec(payload.code, _locals)
     except Exception as e:
         error = f"{type(e).__name__}: {e}"
         tb = traceback.format_exc()

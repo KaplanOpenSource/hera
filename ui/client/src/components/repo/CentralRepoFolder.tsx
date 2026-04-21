@@ -1,5 +1,5 @@
 import { Folder, Settings } from "@mui/icons-material";
-import { Stack, TextField, Typography } from "@mui/material";
+import { Stack, TextField, Tooltip, Typography } from "@mui/material";
 import { TreeItem } from "@mui/x-tree-view";
 import { useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
@@ -23,14 +23,32 @@ export const CentralRepoFolder = () => {
       results: ['jsonFiles'],
       label: 'central repo files',
       code: `
-import os, glob
+import os, glob, json
+
+SECTIONS = {'config', 'datasource', 'measurements', 'simulations', 'cache', 'function'}
+
+def isRepoJson(path):
+    try:
+        with open(path, 'r') as f:
+            doc = json.load(f)
+    except Exception:
+        return False
+    if not isinstance(doc, dict) or not doc:
+        return False
+    for toolkitValue in doc.values():
+        if not isinstance(toolkitValue, dict):
+            return False
+        for sectionKey in toolkitValue.keys():
+            if sectionKey.lower() not in SECTIONS:
+                return False
+    return True
+
 folder = os.path.expanduser('${folderPath}')
+jsonFiles = []
 if os.path.isdir(folder):
     allFiles = glob.glob(os.path.join(folder, '**', '*.json'), recursive=True)
     allFiles = [f for f in allFiles if not f.endswith('caseConfiguration.json')]
-    jsonFiles = sorted(allFiles)
-else:
-    jsonFiles = []
+    jsonFiles = sorted(f for f in allFiles if isRepoJson(f))
 `,
     });
     if (data?.jsonFiles) {
@@ -73,28 +91,37 @@ else:
   };
 
   return (
-    <TreeItem
-      itemId="central-repo-folder"
-      label={
-        <Stack direction="row" spacing={1} alignItems="center">
-          <Folder fontSize="small" />
-          <Typography variant="body2">{folder}</Typography>
-          <ButtonTooltip title="Change repository folder" onClick={handleChangeFolder}>
-            <Settings fontSize="small" />
-          </ButtonTooltip>
-          {DialogComponent}
-        </Stack>
-      }
-      onClick={handleExpand}
-    >
-      {!loaded
-        ? <TreeItem itemId="central-repo-folder/__loading" label="Loading..." />
-        : files.length === 0
-          ? <TreeItem itemId="central-repo-folder/__empty" label="No JSON files found" />
-          : files.map(f => (
-            <TreeItem key={idRepoId(f)} itemId={idRepoId(f)} label={f} />
-          ))
-      }
-    </TreeItem>
+    <>
+      <TreeItem
+        itemId="central-repo-folder"
+        label={
+          <Tooltip title="Central repository folder. Contains local JSON repository files on disk that can be loaded into any project. Click the chevron to expand.">
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              onClick={e => e.stopPropagation()}
+            >
+              <Folder fontSize="small" />
+              <Typography variant="body2">{folder}</Typography>
+              <ButtonTooltip title="Change repository folder" onClick={handleChangeFolder}>
+                <Settings fontSize="small" />
+              </ButtonTooltip>
+            </Stack>
+          </Tooltip>
+        }
+        onClick={handleExpand}
+      >
+        {!loaded
+          ? <TreeItem itemId="central-repo-folder/__loading" label="Loading..." />
+          : files.length === 0
+            ? <TreeItem itemId="central-repo-folder/__empty" label="No JSON files found" />
+            : files.map(f => (
+              <TreeItem key={idRepoId(f)} itemId={idRepoId(f)} label={f} />
+            ))
+        }
+      </TreeItem>
+      {DialogComponent}
+    </>
   )
 }
