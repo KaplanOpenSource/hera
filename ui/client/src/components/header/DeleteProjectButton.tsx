@@ -13,6 +13,7 @@ export const DeleteProjectButton = ({ }) => {
   const deleteProject = async () => {
     const { data } = await fetchPython({
       results: ['projectNames', 'project'],
+      label: `delete project ${currProjectName}`,
       code: `
 from hera.datalayer import All
 from hera.datalayer.project import getProjectList

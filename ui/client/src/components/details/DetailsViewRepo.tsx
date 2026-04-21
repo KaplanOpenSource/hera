@@ -24,6 +24,7 @@ export const DetailsViewRepo = ({
       if (!isTempRepo) {
         const { data } = await fetchPython({
           results: ['jsonData'],
+          label: 'repo JSON',
           code: `
 import json
 with open('${repoPath}', 'r') as fjson:

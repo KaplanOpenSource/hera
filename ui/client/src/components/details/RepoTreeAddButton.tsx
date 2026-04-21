@@ -23,6 +23,7 @@ export const RepoTreeAddButton = ({
   const addRepo = async (params: AddRepoArgs) => {
     const { data } = await fetchPython({
       results: ['project'],
+      label: 'add repository',
       code: `
 import logging
 import os

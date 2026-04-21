@@ -13,6 +13,7 @@ export const useServerConstants = create<ServerConstantStore>((set) => ({
   readAllConstants: async () => {
     const { data } = await fetchPython({
       results: ['datatypes'],
+      label: 'datatypes',
       code: `
 from hera import datalayer
 datatypes = {key:value for key, value in vars(datalayer.datatypes).items()
