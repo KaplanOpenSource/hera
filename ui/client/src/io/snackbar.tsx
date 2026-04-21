@@ -72,7 +72,7 @@ export const pushRunning = (label: string): SnackbarKey =>
 
 export const pushError = (message: string): SnackbarKey =>
   enqueueSnackbar(message, {
-    autoHideDuration: 12000,
+    autoHideDuration: 5000,
     content: toastContent('error'),
   });
 

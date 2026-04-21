@@ -5,7 +5,7 @@ import { FORBIDDEN_FIELDS } from "../shared/constants";
 export const fetchDocument = async (docid: string) => {
   const { data } = await fetchPython({
     results: ['docData'],
-    label: 'get document',
+    label: `get document ${docid}`,
     code: `
 from hera.datalayer import All
 docData = All.getDocumentByID('${docid}').asDict(with_id=True)
