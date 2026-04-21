@@ -20,6 +20,7 @@ export const RepoContents = ({
     if (loaded) return;
     const { data } = await fetchPython({
       results: ['repoData'],
+      label: `repo ${repo.datasourceName}`,
       code: `
 from hera.utils.data.toolkit import dataToolkit
 repoData = dataToolkit().getRepository('${repo.datasourceName}')

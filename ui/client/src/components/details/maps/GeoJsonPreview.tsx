@@ -34,6 +34,7 @@ const FitBounds = ({
 const loadGeoJson = async (path: string): Promise<GeoJSON | null> => {
   const { data } = await fetchPython({
     results: ['geojson_data'],
+    label: 'load GeoJSON',
     code: `
 import geopandas as gpd
 import json

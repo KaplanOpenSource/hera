@@ -5,6 +5,7 @@ import { pushRunning, pushError, dismiss } from './snackbar';
 export type PythonCommand = {
   results: string[];
   code: string;
+  label?: string;
 };
 
 const SHORT_ERROR_MAX = 120;
@@ -14,17 +15,6 @@ const shortenError = (error: string) => {
   return firstLine.length > SHORT_ERROR_MAX
     ? firstLine.slice(0, SHORT_ERROR_MAX - 1) + '…'
     : firstLine;
-};
-
-const getCallerLabel = (): string => {
-  const stack = new Error().stack ?? '';
-  const lines = stack.split('\n');
-  const caller = lines.find((line, i) => i > 0 && !line.includes('/fetchPython') && !line.includes('/snackbar'));
-  if (!caller) return 'Python';
-  const match = caller.match(/at\s+(?:async\s+)?([^\s(]+)/);
-  const name = match?.[1];
-  if (!name || name.startsWith('http') || name === '<anonymous>') return 'Python';
-  return name;
 };
 
 const fetchPythonDirect = async (code: string): Promise<ExecResponse> => {
@@ -59,13 +49,14 @@ const fetchPythonDirect = async (code: string): Promise<ExecResponse> => {
 };
 
 export const fetchPython = async (...commands: PythonCommand[]): Promise<{ data: any }> => {
-  const caller = getCallerLabel();
   const lines: string[] = [];
   const resultVars: string[] = [];
+  const labels: string[] = [];
 
   for (const cmd of commands) {
     lines.push(cmd.code);
     resultVars.push(...cmd.results);
+    if (cmd.label) labels.push(cmd.label);
   }
 
   lines.push('result = {}');
@@ -73,11 +64,12 @@ export const fetchPython = async (...commands: PythonCommand[]): Promise<{ data:
     lines.push(`result["${name}"] = ${name}`);
   }
 
-  const key = pushRunning(caller);
+  const label = labels.length > 0 ? labels.join(', ') : 'Python';
+  const key = pushRunning(label);
   try {
     const response = await fetchPythonDirect(lines.join('\n'));
     if (response.problem) {
-      pushError(shortenError(response.problem.error));
+      pushError(`${label}: ${shortenError(response.problem.error)}`);
       return { data: null };
     }
     return { data: response.data };

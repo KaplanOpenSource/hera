@@ -15,6 +15,7 @@ export const fetchProjectsNames = async () => {
 export const fetchProjectDetails = async (projectName: string) => {
   const { data } = await fetchPython({
     results: ['project'],
+    label: `project details ${projectName}`,
     code: `
 from hera.datalayer import All
 docs = All.getDocumentsAsDict('${projectName}', with_id=True)
@@ -53,6 +54,7 @@ export const fetchProjectData = async (projectName: string) => {
   const { data } = await fetchPython(
     {
       results: ['toolkitDocs'],
+      label: 'toolkits',
       code: `
 from hera import toolkitHome
 toolkitDocs = toolkitHome.getToolkitDocuments()
@@ -60,6 +62,7 @@ toolkitDocs = toolkitHome.getToolkitDocuments()
     },
     {
       results: ['project'],
+      label: `project ${projectName}`,
       code: `
 from hera.datalayer import All
 docs = All.getDocumentsAsDict('${projectName}', with_id=True)

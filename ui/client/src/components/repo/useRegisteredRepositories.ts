@@ -8,6 +8,7 @@ export const useRegisteredRepositories = () => {
   const fetchRepositories = async () => {
     const { data } = await fetchPython({
       results: ['repos'],
+      label: 'registered repositories',
       code: `
 from hera.utils.data.toolkit import dataToolkit
 repos = dataToolkit().getRepositoryTable().to_dict(orient='records')

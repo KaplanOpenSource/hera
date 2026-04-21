@@ -38,6 +38,7 @@ export const AddProjectButton = ({ }) => {
 
     const { data } = await fetchPython({
       results: [],
+      label: `create project ${trimmedName}`,
       code: `
 import os
 from types import SimpleNamespace

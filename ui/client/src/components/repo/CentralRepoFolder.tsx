@@ -21,6 +21,7 @@ export const CentralRepoFolder = () => {
   const fetchFiles = async (folderPath: string) => {
     const { data } = await fetchPython({
       results: ['jsonFiles'],
+      label: 'central repo files',
       code: `
 import os, glob
 folder = os.path.expanduser('${folderPath}')
