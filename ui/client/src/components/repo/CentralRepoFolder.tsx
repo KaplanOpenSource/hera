@@ -23,14 +23,32 @@ export const CentralRepoFolder = () => {
       results: ['jsonFiles'],
       label: 'central repo files',
       code: `
-import os, glob
+import os, glob, json
+
+SECTIONS = {'config', 'datasource', 'measurements', 'simulations', 'cache', 'function'}
+
+def isRepoJson(path):
+    try:
+        with open(path, 'r') as f:
+            doc = json.load(f)
+    except Exception:
+        return False
+    if not isinstance(doc, dict) or not doc:
+        return False
+    for toolkitValue in doc.values():
+        if not isinstance(toolkitValue, dict):
+            return False
+        for sectionKey in toolkitValue.keys():
+            if sectionKey.lower() not in SECTIONS:
+                return False
+    return True
+
 folder = os.path.expanduser('${folderPath}')
+jsonFiles = []
 if os.path.isdir(folder):
     allFiles = glob.glob(os.path.join(folder, '**', '*.json'), recursive=True)
     allFiles = [f for f in allFiles if not f.endswith('caseConfiguration.json')]
-    jsonFiles = sorted(allFiles)
-else:
-    jsonFiles = []
+    jsonFiles = sorted(f for f in allFiles if isRepoJson(f))
 `,
     });
     if (data?.jsonFiles) {
