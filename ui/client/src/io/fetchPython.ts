@@ -1,33 +1,42 @@
 import { BASEURL } from '../shared/baseurl';
-import { ExecRequest } from '../shared/types';
+import { ExecRequest, ExecResponse } from '../shared/types';
 
 export type PythonCommand = {
   results: string[];
   code: string;
 };
 
-const fetchPythonDirect = async (code: string): Promise<{ data: any; problem: undefined | string }> => {
+const fetchPythonDirect = async (code: string): Promise<ExecResponse> => {
+  console.log('executing', code);
+  const payload: ExecRequest = { code };
+  let text: string | undefined;
   try {
-    console.log('executing', code);
-    const payload: ExecRequest = {
-      code,
-    };
     const r = await fetch(`${BASEURL}/exec`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    const data = await r.json();
-    console.log('result =', data);
-    return { data, problem: undefined };
+    text = await r.text();
+    const parsed = JSON.parse(text) as ExecResponse;
+    if (parsed.problem) {
+      console.error('python error:', parsed.problem.error, parsed.problem.traceback);
+    } else {
+      console.log('result =', parsed.data);
+    }
+    return parsed;
   } catch (e: any) {
-    const problem = e?.message ?? 'Failed to run';
-    console.trace('problem:', problem);
-    return { data: undefined, problem };
+    const error = text !== undefined
+      ? `unexpected response: ${text.slice(0, 500)}`
+      : `network error: ${e?.message ?? e}`;
+    console.error(error);
+    return {
+      data: null,
+      problem: { error, traceback: '' },
+    };
   }
 };
 
-export const fetchPython = async (...commands: PythonCommand[]): Promise<{ data: any; problem: string | undefined }> => {
+export const fetchPython = async (...commands: PythonCommand[]): Promise<ExecResponse> => {
   const lines: string[] = [];
   const resultVars: string[] = [];
 
@@ -43,6 +52,5 @@ export const fetchPython = async (...commands: PythonCommand[]): Promise<{ data:
     }
   }
 
-  const { data, problem } = await fetchPythonDirect(lines.join('\n'));
-  return { data: problem ? undefined : data, problem };
+  return fetchPythonDirect(lines.join('\n'));
 };
