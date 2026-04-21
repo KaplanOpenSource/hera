@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Box, CircularProgress } from '@mui/material';
+import { Box, CircularProgress, Typography } from '@mui/material';
 import { GeoJSON as GeoJSONLayer, MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import type { GeoJSON } from 'geojson';
@@ -13,19 +13,21 @@ export const isGeoJsonResource = (resource: unknown): resource is string => {
   return typeof resource === 'string' && GEOJSON_EXTENSIONS.test(resource);
 };
 
+type MapState = {
+  geojson: GeoJSON | null,
+  bounds: L.LatLngBounds | null,
+  hasError: boolean,
+};
+
 const FitBounds = ({
-  geojson,
+  bounds,
 }: {
-  geojson: GeoJSON;
+  bounds: L.LatLngBounds,
 }) => {
   const map = useMap();
   useEffect(() => {
-    const layer = L.geoJSON(geojson as any);
-    const bounds = layer.getBounds();
-    if (bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [20, 20] });
-    }
-  }, [geojson, map]);
+    map.fitBounds(bounds, { padding: [20, 20] });
+  }, [bounds, map]);
   return null;
 };
 
@@ -52,28 +54,45 @@ geojson_data = json.loads(gdf.to_json())
 export const GeoJsonPreview = ({
   path,
 }: {
-  path: string;
+  path: string,
 }) => {
-  const [geojson, setGeojson] = useState<GeoJSON | null>(null);
+  const [state, setState] = useState<MapState>({ geojson: null, bounds: null, hasError: false });
 
   useEffect(() => {
-    loadGeoJson(path).then(setGeojson);
+    setState({ geojson: null, bounds: null, hasError: false });
+    (async () => {
+      const geojson = await loadGeoJson(path);
+      if (!geojson) {
+        setState({ geojson: null, bounds: null, hasError: true });
+        return;
+      }
+      const bounds = L.geoJSON(geojson as any).getBounds();
+      if (!bounds.isValid()) {
+        setState({ geojson: null, bounds: null, hasError: true });
+        return;
+      }
+      setState({ geojson, bounds, hasError: false });
+    })();
   }, [path]);
 
-  if (!geojson) {
-    return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}><CircularProgress /></Box>;
-  }
+  const centered = { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' };
 
   return (
-    <MapContainer
-      center={[32, 35]}
-      zoom={8}
-      style={{ height: '100%', width: '100%' }}
-    >
-      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-      <GeoJSONLayer data={geojson as any} />
-      <FitBounds geojson={geojson} />
-      <InvalidateOnResize />
-    </MapContainer>
+    state.hasError ? (
+      <Box sx={centered}><Typography color="text.secondary">Map unavailable</Typography></Box>
+    ) : !state.geojson || !state.bounds ? (
+      <Box sx={centered}><CircularProgress /></Box>
+    ) : (
+      <MapContainer
+        center={[32, 35]}
+        zoom={8}
+        style={{ height: '100%', width: '100%' }}
+      >
+        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        <GeoJSONLayer data={state.geojson as any} />
+        <FitBounds bounds={state.bounds} />
+        <InvalidateOnResize />
+      </MapContainer>
+    )
   );
 };
