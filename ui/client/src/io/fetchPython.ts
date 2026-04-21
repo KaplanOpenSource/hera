@@ -22,7 +22,7 @@ const fetchPythonDirect = async (code: string): Promise<ExecResponse> => {
   const payload: ExecRequest = { code };
   let text: string | undefined;
   try {
-    await new Promise(r => setTimeout(r, 1500));
+    // await new Promise(r => setTimeout(r, 1500));
     const r = await fetch(`${BASEURL}/exec`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
