@@ -514,7 +514,7 @@ if __name__ == "__main__":
     execute_parser.set_defaults(func=CLI.foam_solver_template_buildExecute)
 
     argcomplete.autocomplete(parser)
-    parsed = parser.parse_args()()
+    parsed = parser.parse_args()
     logger.debug(f"Got {parsed} in the command line")
     if 'func' not in parsed:
         parser.print_help()

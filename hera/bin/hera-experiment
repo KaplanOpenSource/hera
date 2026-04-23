@@ -62,7 +62,7 @@ if __name__ =="__main__":
 
     ##################### exec
     argcomplete.autocomplete(parser)
-    parsed = parser.parse_args()()
+    parsed = parser.parse_args()
     if 'func' not in parsed:
         parser.print_help()
     else:
