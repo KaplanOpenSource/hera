@@ -8,7 +8,7 @@ Quick start::
     print(rag.ask("How do I create a project?"))
 """
 from .search import RAGSearch, retrieve
-from .indexer import build_index, update_file, delete_file
+from .indexer import build_index, update_file, delete_file, download_embed_model
 from .config import settings as rag_settings
 
 __all__ = [
@@ -17,5 +17,6 @@ __all__ = [
     "build_index",
     "update_file",
     "delete_file",
+    "download_embed_model",
     "rag_settings",
 ]

@@ -36,8 +36,9 @@ export const AddProjectButton = ({ }) => {
       dirStr = `'${filesDirectory}'`;
     }
 
-    const { problem } = await fetchPython({
+    const { data } = await fetchPython({
       results: [],
+      label: `create project ${trimmedName}`,
       code: `
 import os
 from types import SimpleNamespace
@@ -55,7 +56,7 @@ project_create(SimpleNamespace(
 Project(projectName='${trimmedName}', filesDirectory=${dirStr})
 `,
     })
-    if (problem) {
+    if (!data) {
       return;
     }
 

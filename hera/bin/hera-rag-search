@@ -11,6 +11,7 @@ Commands:
     hera-rag-search watch                 watch docs/ for changes
     hera-rag-search serve                 start REST API server
     hera-rag-search serve --with-watcher  serve + watch simultaneously
+    hera-rag-search download-models       pre-download HF models for offline use
 """
 from __future__ import annotations
 from pathlib import Path
@@ -127,6 +128,31 @@ def serve(
         console.print(f"[cyan]Watcher started on {watch_root}[/cyan]")
 
     run_server(host=host, port=port, reload=reload)
+
+
+@app.command("download-models")
+def download_models(
+    model: str = typer.Option(None, "--model", "-m",
+                              help="Override the embedding model name (defaults to RAG_EMBED_MODEL)."),
+):
+    """Download the HuggingFace embedding model into the local cache for offline use."""
+    from hera.utils.rag.indexer import download_embed_model, _local_model_path
+    from hera.utils.rag.config import settings
+
+    if settings.offline_mode:
+        console.print("[red]RAG_OFFLINE_MODE is enabled — refusing to download.[/red]")
+        console.print("Unset it (or run `RAG_OFFLINE_MODE=false`) and retry.")
+        raise typer.Exit(1)
+
+    name = model or settings.embed_model
+    target = _local_model_path(name)
+    if target.exists():
+        console.print(f"[green]Already cached:[/green] {target}")
+        return
+    console.print(f"Downloading [bold]{name}[/bold] to [cyan]{target}[/cyan] ...")
+    with console.status("Fetching..."):
+        path = download_embed_model(name)
+    console.print(f"[green]Saved:[/green] {path}")
 
 
 def main():

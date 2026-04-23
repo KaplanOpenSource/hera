@@ -2,7 +2,8 @@ import pandas
 import numpy
 from hera.utils import tounit,tonumber
 from unum.units import *
-from sympy import *
+# from sympy import solve, symbols
+from scipy import optimize
 
 
 class AbstractSigma:
@@ -29,27 +30,23 @@ class AbstractSigma:
         # 3. use root finding to find Iz and use self.getSigma(x,stability)
 
         stability=stability
-        x = symbols("x")
-        sigmas = self.getSigma(x, stability)
-        # sigma0 = numpy.array([tonumber(y, m) for y in numpy.atleast_1d(x)])
+
         sx,sy,sz = sigma0
         sx = tonumber(sx, m)
         sy = tonumber(sy, m)
         sz = tonumber(sz, m)
 
-        #this option is if the fuction getSigma returns a pandas table:
-        # Ix = float(solve(tonumber(sigmas['sigmaX'][0][0],m) - sx)[0])*m
-        # Iy = float(solve(tonumber(sigmas['sigmaY'][0][0],m) - sy)[0])*m
-        # Iz = float(solve(tonumber(sigmas['sigmaZ'][0][0],m) - sz)[0])*m
+        sigma_x = lambda x: self.getSigma(x=x, stability=stability, units=False)['sigmaX'][0] - sx
+        sigma_y = lambda x: self.getSigma(x=x, stability=stability, units=False)['sigmaY'][0] - sy
+        sigma_z = lambda x: self.getSigma(x=x, stability=stability, units=False)['sigmaZ'][0] - sz
 
-        #this option is if the fuction getSigma returns an array
-        Ix = float(solve(tonumber(sigmas['sigmaX'][0],m) - sx)[0])*m
-        Iy = float(solve(tonumber(sigmas['sigmaY'][0],m) - sy)[0])*m
-        Iz = float(solve(tonumber(sigmas['sigmaZ'][0],m) - sz)[0])*m
+        Ix = optimize.newton(sigma_x, x0=0)*m
+        Iy = optimize.newton(sigma_y, x0=0) * m
+        Iz = optimize.newton(sigma_z, x0=0) * m
 
         return Ix, Iy, Iz
 
-    def getSigma(self,x,stability,sigma0=None):
+    def getSigma(self,x,stability,sigma0=None, **kwargs):
         """
             Return the sigma.
 
@@ -146,7 +143,7 @@ class BriggsRural(AbstractSigma):
             dict_res = {
                 'sigmaX': Ax * (x + Ix) * (1 + Bx * (x + Ix)) ** Cx,
                 'sigmaY': Ax * (x + Iy) * (1 + Bx * (x + Iy)) ** Cx,
-                'sigmaZ': Az * (x + Iz) * (1 + Bz * (x + Iz)) ** Cz
+                'sigmaZ': Az * (x + Iz) * (1 + Bz * (x + Iz)) ** Cz, 'distance': x
             }
 
 

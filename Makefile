@@ -135,16 +135,18 @@ help:
 	@echo "    make docs-deps           Install documentation dependencies"
 	@echo ""
 	@echo "  RAG Search:"
-	@echo "    make rag-setup           Full setup: install + services + model + index"
-	@echo "    make rag-services-up     Start Qdrant + Cassandra + Ollama"
-	@echo "    make rag-services-down   Stop all RAG services"
-	@echo "    make rag-services-status Show RAG service status"
-	@echo "    make rag-index           Build RAG index from docs/ + hera/"
-	@echo "    make rag-reindex         Wipe and rebuild RAG index"
-	@echo "    make rag-search          Search with default query"
-	@echo "    make rag-serve           Start RAG REST API server"
-	@echo "    make rag-serve-watch     Serve + auto re-index on changes"
-	@echo "    make rag-clean           Stop services + remove all data"
+	@echo "    make rag-setup             Full setup: install + services + model + index"
+	@echo "    make rag-services-up       Start Qdrant + Cassandra + Ollama (Docker)"
+	@echo "    make rag-services-up-native  Start Qdrant + Cassandra only (use host Ollama)"
+	@echo "    make rag-services-down     Stop all RAG services"
+	@echo "    make rag-services-status   Show RAG service status"
+	@echo "    make rag-download-models   Pre-cache HF embedding model for offline use"
+	@echo "    make rag-index             Build RAG index from docs/ + hera/"
+	@echo "    make rag-reindex           Wipe and rebuild RAG index"
+	@echo "    make rag-search            Search with default query"
+	@echo "    make rag-serve             Start RAG REST API server"
+	@echo "    make rag-serve-watch       Serve + auto re-index on changes"
+	@echo "    make rag-clean             Stop services + remove all data"
 
 # --- MongoDB ---
 
@@ -480,8 +482,20 @@ rag-ollama-pull:
 rag-services-up: rag-qdrant-up rag-cassandra-up rag-ollama-up
 	@echo "All RAG services running."
 
+# Same as rag-services-up but skips the Ollama container. Use this when you
+# already run Ollama natively on the host (port 11434 would otherwise clash
+# with the container's internal port, which remapping the host port alone
+# does not fix). Point RAG_OLLAMA_BASE_URL at your native Ollama instance.
+rag-services-up-native: rag-qdrant-up rag-cassandra-up
+	@echo "Qdrant + Cassandra running. Using host-installed Ollama at RAG_OLLAMA_BASE_URL."
+
 rag-services-down: rag-qdrant-down rag-cassandra-down rag-ollama-down
 	@echo "All RAG services stopped."
+
+rag-download-models:
+	@echo "Downloading RAG embedding model into local cache..."
+	hera-rag-search download-models
+	@echo "Done. Models are reusable in offline mode."
 
 rag-services-status:
 	@echo "=== RAG Services ==="
@@ -506,4 +520,5 @@ rag-clean: rag-services-down
 
 .PHONY: rag-install rag-qdrant-up rag-qdrant-down rag-cassandra-up rag-cassandra-down \
         rag-ollama-up rag-ollama-down rag-ollama-pull \
-        rag-services-up rag-services-down rag-services-status rag-setup rag-clean
+        rag-services-up rag-services-up-native rag-services-down rag-services-status \
+        rag-setup rag-clean rag-download-models

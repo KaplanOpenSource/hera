@@ -37,7 +37,7 @@ def get_default_logging_config(*, disable_existing_loggers: bool = False) -> dic
 
     with open(defaultLocalConfig,'r') as localConfig:
         config_text = "\n".join(localConfig.readlines())
-    config_text = config_text.replace("{hera_log}", str(HERA_DEFAULT_LOG_DIR))
+    config_text = config_text.replace("{hera_log}", HERA_DEFAULT_LOG_DIR.as_posix())
     config = json.loads(config_text)
     assert isinstance(config, dict)
     config['disable_existing_loggers'] = disable_existing_loggers

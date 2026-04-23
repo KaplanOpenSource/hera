@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import argparse, argcomplete
 import mimetypes
+import traceback
 from pathlib import Path
+
+from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.encoders import jsonable_encoder
@@ -77,18 +80,34 @@ class ExecPayload(BaseModel):
     code: str
 
 
+class Problem(BaseModel):
+    error: str
+    traceback: str
+
+
+class ExecResponse(BaseModel):
+    data: Any = None
+    problem: Optional[Problem] = None
+
+
 # Code execution endpoint (simple: eval expression and return its value)
-@app.post("/exec")
-def exec_code(payload: ExecPayload):
+@app.post("/exec", response_model=ExecResponse)
+def exec_code(payload: ExecPayload) -> ExecResponse:
     # DANGER: This is a security risk. It allows arbitrary code execution.
     # Only use this in a trusted environment.
     # The `_locals` dict will be updated with any variables created in the code.
     _locals = {} # "MOCK_PROJECTS": MOCK_PROJECTS}
     print("executing: " + payload.code)
-    exec(payload.code, {}, _locals)
+    try:
+        exec(payload.code, _locals)
+    except Exception as e:
+        error = f"{type(e).__name__}: {e}"
+        tb = traceback.format_exc()
+        print("exec error:", tb)
+        return ExecResponse(problem=Problem(error=error, traceback=tb))
     result = _locals.get("result", None)
     print("got:", result)
-    return jsonable_encoder(result)
+    return ExecResponse(data=jsonable_encoder(result))
 
 
 @app.get("/file/{file_path:path}")

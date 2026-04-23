@@ -44,6 +44,16 @@ export interface ExecRequest {
   code: string;
 }
 
+export interface Problem {
+  error: string;
+  traceback: string;
+}
+
+export interface ExecResponse {
+  data: any;
+  problem: Problem | null;
+}
+
 export interface Repository {
   datasourceName: string;
   resource: string;

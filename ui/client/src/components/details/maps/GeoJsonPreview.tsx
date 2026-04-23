@@ -13,25 +13,28 @@ export const isGeoJsonResource = (resource: unknown): resource is string => {
   return typeof resource === 'string' && GEOJSON_EXTENSIONS.test(resource);
 };
 
+type MapState = {
+  geojson: GeoJSON | null,
+  bounds: L.LatLngBounds | null,
+  hasError: boolean,
+};
+
 const FitBounds = ({
-  geojson,
+  bounds,
 }: {
-  geojson: GeoJSON;
+  bounds: L.LatLngBounds,
 }) => {
   const map = useMap();
   useEffect(() => {
-    const layer = L.geoJSON(geojson as any);
-    const bounds = layer.getBounds();
-    if (bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [20, 20] });
-    }
-  }, [geojson, map]);
+    map.fitBounds(bounds, { padding: [20, 20] });
+  }, [bounds, map]);
   return null;
 };
 
-const loadGeoJson = async (path: string): Promise<GeoJSON> => {
-  const { data, problem } = await fetchPython({
+const loadGeoJson = async (path: string): Promise<GeoJSON | null> => {
+  const { data } = await fetchPython({
     results: ['geojson_data'],
+    label: 'load GeoJSON',
     code: `
 import geopandas as gpd
 import json
@@ -46,41 +49,49 @@ else:
 geojson_data = json.loads(gdf.to_json())
 `,
   });
-  if (problem) throw new Error(problem);
-  return data.geojson_data;
+  return data?.geojson_data ?? null;
 };
 
 export const GeoJsonPreview = ({
   path,
 }: {
-  path: string;
+  path: string,
 }) => {
-  const [geojson, setGeojson] = useState<GeoJSON | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [mapState, setMapState] = useState<MapState>({ geojson: null, bounds: null, hasError: false });
 
   useEffect(() => {
-    loadGeoJson(path)
-      .then(setGeojson)
-      .catch(e => setError(e.message));
+    (async () => {
+      setMapState({ geojson: null, bounds: null, hasError: false });
+      const geojson = await loadGeoJson(path);
+      if (geojson) {
+        const bounds = L.geoJSON(geojson as any).getBounds();
+        if (bounds.isValid()) {
+          setMapState({ geojson, bounds, hasError: false });
+          return;
+        }
+      }
+      setMapState({ geojson: null, bounds: null, hasError: true });
+    })();
   }, [path]);
 
-  if (error) {
-    return <Typography color="error">Failed to load GeoJSON: {error}</Typography>;
-  }
-  if (!geojson) {
-    return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}><CircularProgress /></Box>;
-  }
+  const centered = { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' };
 
   return (
-    <MapContainer
-      center={[32, 35]}
-      zoom={8}
-      style={{ height: '100%', width: '100%' }}
-    >
-      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-      <GeoJSONLayer data={geojson as any} />
-      <FitBounds geojson={geojson} />
-      <InvalidateOnResize />
-    </MapContainer>
+    mapState.hasError ? (
+      <Box sx={centered}><Typography color="text.secondary">Map unavailable</Typography></Box>
+    ) : !mapState.geojson || !mapState.bounds ? (
+      <Box sx={centered}><CircularProgress /></Box>
+    ) : (
+      <MapContainer
+        center={[32, 35]}
+        zoom={8}
+        style={{ height: '100%', width: '100%' }}
+      >
+        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        <GeoJSONLayer data={mapState.geojson as any} />
+        <FitBounds bounds={mapState.bounds} />
+        <InvalidateOnResize />
+      </MapContainer>
+    )
   );
 };
