@@ -142,6 +142,7 @@ def JSONToConfiguration(valueToProcess,returnUnum=False,returnStandardize=False)
         A dict with the values convected to unum.
 
     """
+    from unum import Unum
     logger = logging.getLogger("hera.util.JSONToConfiguration")
 
     logger.debug(f"Processing {valueToProcess} of type {type(valueToProcess)}")
@@ -163,24 +164,25 @@ def JSONToConfiguration(valueToProcess,returnUnum=False,returnStandardize=False)
         ret = valueToProcess
     elif isinstance(valueToProcess,Unum):
         ret = valueToProcess if returnUnum else unumToPint(valueToProcess)
-    
-    # we want to avoid importing pint when unnecessary since it takes a long time to load
-    from pint import Quantity
-    if isinstance(valueToProcess,Quantity):
-        ret = pintToUnum(valueToProcess) if returnUnum else valueToProcess
-    elif "'" in str(valueToProcess):
-        logger.debug(f"\t {valueToProcess} is a String, use as is")
-        ret = valueToProcess
     else:
-        logger.debug(f"\t Try to convert {valueToProcess} to unum")
-        try:
-            from unum import Unum
-            
-            from hera.utils.unitHandler import unumToPint, ureg, pintToUnum, UndefinedUnitError, DimensionalityError
-            ret = ureg(valueToProcess)
-            ret = pintToUnum(ret) if returnUnum else ret
-        except (UndefinedUnitError, DimensionalityError, ValueError):
+        # we want to avoid importing pint when unnecessary since it takes a long time to load
+        from pint import Quantity
+        if isinstance(valueToProcess,Quantity):
+            ret = pintToUnum(valueToProcess) if returnUnum else valueToProcess
+        elif "'" in str(valueToProcess):
+            logger.debug(f"\t {valueToProcess} is a String, use as is")
             ret = valueToProcess
+        else:
+            print(valueToProcess)
+            logger.debug(f"\t Try to convert {valueToProcess} to unum")
+            try:
+                from unum import Unum
+                
+                from hera.utils.unitHandler import unumToPint, ureg, pintToUnum, UndefinedUnitError, DimensionalityError
+                ret = ureg(valueToProcess)
+                ret = pintToUnum(ret) if returnUnum else ret
+            except (UndefinedUnitError, DimensionalityError, ValueError):
+                ret = valueToProcess
 
     return ret
 
