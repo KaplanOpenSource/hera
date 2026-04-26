@@ -3,24 +3,14 @@ import logging
 import os
 import shutil
 import warnings
-import numpy
-import pandas
 
-from ... import toolkitHome
-from ...utils.jsonutils import loadJSON
-from ...utils.freeCAD import getObjFileBoundaries
-from .preprocessOFObjects import OFObjectHome
-try:
-    from hermes.utils.workflowAssembly import handler_buildExecute
-except ImportError:
-    #    raise ImportError("hermes is not installed. please install it to use the hermes workflow toolkit.")
-    warnings.warn("hermes is not installed. some features will not work.")
-    workflow = None
-from ..CLI  import workflow_add
+
 
 
 def Foam_createEmpty(arguments):
     """Create an empty OpenFOAM case directory with specified fields."""
+    from ... import toolkitHome
+    from ...utils.jsonutils import loadJSON
     logger = logging.getLogger("hera.bin")
     logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -55,6 +45,7 @@ def Foam_createEmpty(arguments):
 
 def Foam_parser_FieldDescription(arguments):
     """Write a JSON template for field descriptions to a file."""
+    from .preprocessOFObjects import OFObjectHome
     logger = logging.getLogger("hera.bin")
     logger.debug(f"----- Start : Foam_parser_FieldDescription -----")
     logger.debug(f" arguments: {arguments}")
@@ -89,6 +80,11 @@ def foam_solver_template_buildExecute(arguments):
     -------
 
     """
+    try:
+        from hermes.utils.workflowAssembly import handler_buildExecute
+    except ImportError:
+        #    raise ImportError("hermes is not installed. please install it to use the hermes workflow toolkit.")
+        warnings.warn("hermes is not installed. some features will not work.")
     logger = logging.getLogger("hera.bin")
     logger.debug(f"----- Start : foam_templates_flow_list-----")
     logger.debug(f" arguments: {arguments}")
@@ -97,11 +93,13 @@ def foam_solver_template_buildExecute(arguments):
     if arguments.noDB:
         handler_buildExecute(arguments)
     else:
+        from ..CLI  import workflow_add
         workflow_add(arguments)
         handler_buildExecute(arguments)
 
 def foam_solver_templates_list(arguments):
     """List available solver templates for a given project and solver."""
+    from ... import toolkitHome
     logger = logging.getLogger("hera.bin")
     logger.debug(f"----- Start : foam_templates_flow_list-----")
     logger.debug(f" arguments: {arguments}")
@@ -120,6 +118,7 @@ def foam_solver_templates_list(arguments):
 
 def foam_solver_template_create(arguments):
     """Create a solver template JSON file from a named template."""
+    from ... import toolkitHome
     logger = logging.getLogger("hera.bin")
     logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -150,6 +149,7 @@ def foam_solver_template_create(arguments):
 
 def foam_templates_node_list(arguments):
     """List available node templates for a given project."""
+    from ... import toolkitHome
     logger = logging.getLogger("hera.bin")
     logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -167,6 +167,8 @@ def foam_templates_node_list(arguments):
 
 def foam_solver_simulations_list(arguments):
     """List existing simulations for a given solver and display their differences."""
+    from ... import toolkitHome
+    from ...utils.jsonutils import loadJSON
     logger = logging.getLogger("hera.bin")
     logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -222,6 +224,8 @@ def stochasticLagrangian_dispersionFlow_create(arguments):
     -------
 
     """
+    from ...utils.jsonutils import loadJSON
+    from ... import toolkitHome
     logger = logging.getLogger("hera.bin")
     logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -307,6 +311,8 @@ def stochasticLagrangian_dispersionFlow_list(arguments):
     -------
 
     """
+    from ... import toolkitHome
+    from ...utils.jsonutils import loadJSON
     logger = logging.getLogger("hera.bin")
     logger.debug(f"----- Start -----")
     logger.debug(f" makeDispersionFlow with arguments: {arguments}")
@@ -373,6 +379,8 @@ def stochasticLagrangian_dispersion_create(arguments):
 
     :return:
     """
+    from ... import toolkitHome
+    from ...utils.jsonutils import loadJSON
     logger = logging.getLogger("hera.bin.stochasticLagrangian.dispersion_create")
     logger.debug(f"----- Start -----")
     logger.debug(f"  Got arguments: {arguments}")
@@ -421,6 +429,8 @@ def stochasticLagrangian_dispersion_create(arguments):
 
 def stochasticLagrangian_source_cylinder(arguments):
     """Write a cylindrical particle source position file for a dispersion case."""
+    from ... import toolkitHome
+    from ...utils.jsonutils import loadJSON
     logger = logging.getLogger("hera.bin.stochasticLagrangian_source_cylinder")
     logger.debug(f"----- Start -----")
     logger.debug(f"  Got arguments: {arguments}")
@@ -459,6 +469,9 @@ def stochasticLagrangian_source_makeEscapedMassFile(args):
     -------
 
     """
+    from ... import toolkitHome
+    import pandas
+    import numpy
 
     case = os.path.abspath(args.casePath)
     massFileName = f"{args.patch}Mass" if args.massFileName is None else args.massFileName
@@ -496,6 +509,8 @@ def stochasticLagrangian_postProcess_toParquet(arguments):
     """
         Creates a parquet file from the case results
     """
+    from ... import toolkitHome
+    from ...utils.jsonutils import loadJSON
     logger = logging.getLogger("hera.bin.stochasticLagrangian_postProcess_toParquet")
     logger.debug(f"----- Start -----")
     logger.debug(f"  Got arguments: {arguments}")
@@ -535,6 +550,8 @@ def stochasticLagrangian_postProcess_toVTK(arguments):
         Creates VTK files from the case.
         Creates the parquet file if does not exist.
     """
+    from ... import toolkitHome
+    from ...utils.jsonutils import loadJSON
     logger = logging.getLogger("hera.bin.stochasticLagrangian_postProcess_toParquet")
     logger.debug(f"----- Start -----")
     logger.debug(f"  Got arguments: {arguments}")
@@ -597,6 +614,8 @@ def objects_createVerticesAndBoundary(arguments):
             boundary[regionObj.Name] = dict(type="zeroGradient")
         ret[fieldName] = dict(boundaryField=boundary)
 
+
+    from ...utils.freeCAD import getObjFileBoundaries
     print("----- Bounding box vertices -----------")
     corners = getObjFileBoundaries(fileName)
 
@@ -697,6 +716,8 @@ def IC_hydrostaticPressure(arguments):
     -------
 
     """
+    from ... import toolkitHome
+    from ...utils.jsonutils import loadJSON
     logger = logging.getLogger("hera.bin")
     logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -740,6 +761,11 @@ def foam_BC(arguments):
 
 def hermes_buildExecute(arguments):
     """Build and execute a hermes workflow from the given arguments."""
+    try:
+        from hermes.utils.workflowAssembly import handler_buildExecute
+    except ImportError:
+        #    raise ImportError("hermes is not installed. please install it to use the hermes workflow toolkit.")
+        warnings.warn("hermes is not installed. some features will not work.")
     logger = logging.getLogger("bin.hermes_buildExecute")
     handler_buildExecute(arguments)
 

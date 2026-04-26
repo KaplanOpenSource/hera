@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import argparse
+import argparse, argcomplete
 import mimetypes
 import traceback
 from pathlib import Path
@@ -24,6 +24,7 @@ cors_handler.add_argument(parser)
 parser.add_argument('--debug', action='store_true', help='Enable debugpy remote debugging on port 5678')
 parser.add_argument('-y', '--yes', action='store_true', help='Skip confirmation prompts')
 parser.add_argument('--jupyter-port', type=int, default=8888, help='Port for Jupyter server (0 to disable)')
+argcomplete.autocomplete(parser)
 args = parser.parse_args()
 
 app = FastAPI(title="Hera UI API")

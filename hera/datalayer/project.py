@@ -274,7 +274,8 @@ class Project:
         else:
             filesDirectory = savedFilesDirectory
 
-        os.makedirs(os.path.abspath(filesDirectory),exist_ok=True)
+        if self.projectName != self.DEFAULTPROJECT:
+            os.makedirs(os.path.abspath(filesDirectory),exist_ok=True)
         self._FilesDirectory = filesDirectory
 
     @staticmethod

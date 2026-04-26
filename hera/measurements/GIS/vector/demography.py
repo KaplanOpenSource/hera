@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import numpy as np
 from hera.measurements.GIS.utils import WSG84, ITM
-from hera.utils.unitHandler import ureg
 from hera import toolkit
 from hera.measurements.GIS.vector import toolkit
 from hera.datalayer import datatypes, nonDBMetadataFrame
@@ -498,6 +497,7 @@ class presentation:
         matplotlib.axes.Axes
             The axes with the plot.
         """
+        from hera.utils.unitHandler import ureg
         if density_units is None:
             density_units = ureg.km ** 2
 
@@ -1046,6 +1046,7 @@ class presentation:
         -------
         matplotlib.axes.Axes
         """
+        from hera.utils.unitHandler import ureg
         plot_data = data.copy()
 
         if inputCRS is not None:
