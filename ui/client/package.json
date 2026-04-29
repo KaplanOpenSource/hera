@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run --exclude 'tests/integration/**'",
-    "test:integ": "vitest run tests/integration -c vitest.integ.config.ts --retry 1",
+    "test:integ": "vitest run tests/integration -c vitest.integ.config.ts --no-file-parallelism --retry 1",
+    "test:integ:docker": "cd ../.. && docker build -t hera-integ-test -f ui/client/tests/integration/Dockerfile-integ-test . && docker run --rm hera-integ-test",
     "test:all": "vitest run --retry 1"
   },
   "devDependencies": {

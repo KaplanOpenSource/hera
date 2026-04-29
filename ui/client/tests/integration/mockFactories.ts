@@ -1,4 +1,14 @@
-export const SHARED_PORT = 8001;
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
+
+let detectedPort = 8001;
+try {
+  const parsed = parseInt(readFileSync(join(tmpdir(), 'hera-integ-port'), 'utf-8').trim(), 10);
+  if (!isNaN(parsed)) detectedPort = parsed;
+} catch { /* port file not written yet — fall back to default */ }
+
+export const SHARED_PORT = detectedPort;
 export const SHARED_SERVER_URL = `http://localhost:${SHARED_PORT}`;
 
 export const createServerConstantsMock = () => {
