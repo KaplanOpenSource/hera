@@ -11,3 +11,10 @@ export const createServerConstantsMock = () => {
 export const createBaseurlMock = (port: number) => ({
   BASEURL: `http://localhost:${port}`,
 });
+
+let keyCounter = 0;
+export const createSnackbarMock = () => ({
+  pushRunning: (_label: string) => `mock-key-${++keyCounter}`,
+  pushError: (_message: string) => `mock-key-${++keyCounter}`,
+  dismiss: (_key: unknown) => {},
+});
