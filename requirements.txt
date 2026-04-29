@@ -156,7 +156,7 @@ llvmlite==0.43.0
 locket==1.0.0
 lockfile==0.12.2
 luigi==3.6.0
-lxml==5.3.1
+lxml==6.1.0
 mapclassify==2.8.1
 Markdown==3.7
 markdown-it-py==3.0.0
