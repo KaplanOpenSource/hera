@@ -2,6 +2,7 @@ import { Box } from '@mui/material';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { idFromDocId, idFromRepoId } from '../../shared/idDocId';
 import { DetailsViewDocId } from './DetailsViewDocId';
+import { DetailsViewMergedRepo } from './DetailsViewMergedRepo';
 import { DetailsViewRepo } from './DetailsViewRepo';
 
 export const DetailsViewPanel = ({
@@ -11,6 +12,14 @@ export const DetailsViewPanel = ({
   project: ProjectObj,
   showItemId: string,
 }) => {
+  if (showItemId === 'central-repo-folder') {
+    return (
+      <Box sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+        <DetailsViewMergedRepo />
+      </Box>
+    )
+  }
+
   const docid = idFromDocId(showItemId);
   if (docid) {
     return (

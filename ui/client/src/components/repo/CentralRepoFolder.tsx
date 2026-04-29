@@ -100,11 +100,15 @@ if os.path.isdir(folder):
               direction="row"
               spacing={1}
               alignItems="center"
-              onClick={e => e.stopPropagation()}
             >
               <Folder fontSize="small" />
               <Typography variant="body2">{folder}</Typography>
-              <ButtonTooltip title="Change repository folder" onClick={handleChangeFolder}>
+              <ButtonTooltip title="Change repository folder"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleChangeFolder();
+                }}
+              >
                 <Settings fontSize="small" />
               </ButtonTooltip>
             </Stack>
