@@ -39,7 +39,7 @@ export default async function setup() {
   ], {
     cwd: PROJECT_ROOT,
     env: { ...process.env, HOME: tmpDir },
-    stdio: ['pipe', 'pipe', 'pipe'],
+    stdio: 'ignore',
   });
 
   const pid = proc.pid;
@@ -48,25 +48,8 @@ export default async function setup() {
     throw new Error('Failed to spawn server process');
   }
 
-  const serverLog = path.join(tmpDir, 'server.log');
-  const logStream = fs.createWriteStream(serverLog);
-  proc.stdout?.pipe(logStream);
-  proc.stderr?.pipe(logStream);
-
-  let earlyExit: number | null = null;
-  let stderr = '';
-  proc.stderr?.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
-  proc.on('exit', (code) => { earlyExit = code; });
-
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
-    if (earlyExit !== null) {
-      fs.rmSync(tmpDir, { recursive: true, force: true });
-      throw new Error(
-        `Server exited early with code ${earlyExit}`
-        + (stderr ? `\n${stderr.slice(-500)}` : ''),
-      );
-    }
     try {
       const r = await fetch(`http://localhost:${SERVER_PORT}/healthz`);
       if (r.ok) break;

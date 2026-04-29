@@ -26,9 +26,5 @@ COPY ui/client/vitest.integ.config.ts ./
 CMD ["bash", "-c", "\
     mongod --port 27018 --fork --logpath /var/log/mongodb.log --dbpath /data/db && \
     mongosh --port 27018 admin /docker-entrypoint-initdb.d/50-create-users.js --quiet && \
-    npx vitest run tests/integration -c vitest.integ.config.ts --no-file-parallelism --retry 1 --exclude tests/integration/centralRepo.integ.test.tsx; \
-    status=$?; \
-    echo '\\n--- SERVER LOG ---'; \
-    cat /tmp/hera-integ-*/server.log 2>/dev/null || echo 'no server log found'; \
-    exit $status \
+    npx vitest run tests/integration -c vitest.integ.config.ts --no-file-parallelism --retry 1 --exclude tests/integration/centralRepo.integ.test.tsx \
 "]
