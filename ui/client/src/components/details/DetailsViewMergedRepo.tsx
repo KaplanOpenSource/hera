@@ -1,7 +1,7 @@
 import { Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { fetchPython } from "../../io/fetchPython";
-import { IS_REPO_JSON_PYTHON } from "../../shared/repoJsonPython";
+import { LOAD_REPO_JSON_PYTHON } from "../../shared/repoJsonPython";
 import { RepoTreeDisplay } from "./RepoTreeDisplay";
 
 const STORAGE_KEY = 'hera-central-repo-folder';
@@ -21,7 +21,7 @@ export const DetailsViewMergedRepo = () => {
         label: 'merged central repo',
         code: `
 import os, glob, json
-${IS_REPO_JSON_PYTHON}
+${LOAD_REPO_JSON_PYTHON}
 folder = os.path.expanduser('${folder}')
 merged = {}
 if os.path.isdir(folder):

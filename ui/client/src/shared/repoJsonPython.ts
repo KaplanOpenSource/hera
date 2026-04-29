@@ -1,4 +1,4 @@
-export const IS_REPO_JSON_PYTHON = `
+export const LOAD_REPO_JSON_PYTHON = `
 def loadRepoJson(path):
     SECTIONS = {'config', 'datasource', 'measurements', 'simulations', 'cache', 'function'}
     try:

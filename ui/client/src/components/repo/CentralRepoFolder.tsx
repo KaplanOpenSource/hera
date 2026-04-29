@@ -6,7 +6,7 @@ import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { useDialog } from "../../elements/useDialog";
 import { fetchPython } from "../../io/fetchPython";
 import { idRepoId } from "../../shared/idDocId";
-import { IS_REPO_JSON_PYTHON } from "../../shared/repoJsonPython";
+import { LOAD_REPO_JSON_PYTHON } from "../../shared/repoJsonPython";
 
 const DEFAULT_FOLDER = '~/hera/repositories/';
 const STORAGE_KEY = 'hera-central-repo-folder';
@@ -25,7 +25,7 @@ export const CentralRepoFolder = () => {
       label: 'central repo files',
       code: `
 import os, glob, json
-${IS_REPO_JSON_PYTHON}
+${LOAD_REPO_JSON_PYTHON}
 folder = os.path.expanduser('${folderPath}')
 jsonFiles = []
 if os.path.isdir(folder):
