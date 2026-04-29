@@ -1,17 +1,15 @@
 /// <reference types="node" />
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import { screen, waitFor, cleanup, act, fireEvent } from '@testing-library/react';
-import { startDockerEnv, type DockerEnv } from './dockerSetup';
 import { createProjectViaUI, renderApp, resetStore } from './integHelpers';
+import { SHARED_SERVER_URL } from './mockFactories';
 
-vi.mock('../../src/shared/baseurl', async () => (await import('./mockFactories')).createBaseurlMock(8004));
+vi.mock('../../src/shared/baseurl', async () => (await import('./mockFactories')).createBaseurlMock());
 vi.mock('../../src/stores/useServerConstants', async () => (await import('./mockFactories')).createServerConstantsMock());
 vi.mock('../../src/io/snackbar', async () => (await import('./mockFactories')).createSnackbarMock());
 
-let env: DockerEnv;
-
 const execPython = async (code: string) => {
-  const r = await fetch(`http://localhost:8004/exec`, {
+  const r = await fetch(`${SHARED_SERVER_URL}/exec`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ code }),
@@ -62,13 +60,6 @@ const notJson = 'this is not json {{{';
 
 describe('Central Repo isRepoJson integration', () => {
   beforeAll(async () => {
-    env = await startDockerEnv({
-      network: 'hera-test-central-net',
-      mongoContainer: 'hera-test-central-mongo',
-      serverContainer: 'hera-test-central-server',
-      serverPort: 8004,
-      dbName: 'hera_test_central',
-    });
     await createProjectViaUI('CentralTestProject');
 
     await writeFileOnServer(`${REPO_DIR}/valid.json`, validRepo);
@@ -92,7 +83,6 @@ shutil.rmtree('${REPO_DIR}', ignore_errors=True)
 result = 'ok'
 `);
     cleanup();
-    env?.cleanup();
   }, 15000);
 
   it('isRepoJson accepts valid repo and rejects invalid files', async () => {
