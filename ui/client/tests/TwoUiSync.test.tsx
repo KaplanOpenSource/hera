@@ -23,6 +23,11 @@ vi.mock('../src/components/project/ProjectViewSettingsButton', () => ({
 vi.mock('../src/components/project/RepoTreeWhole', () => ({
   RepoTreeWhole: () => null,
 }));
+vi.mock('../src/io/snackbar', () => ({
+  pushRunning: () => 'mock-key',
+  pushError: () => 'mock-key',
+  dismiss: () => {},
+}));
 
 const DOC_ID = 'abc123';
 

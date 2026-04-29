@@ -7,6 +7,11 @@ import { ProjectEntire } from '../src/shared/types';
 vi.mock('../src/io/FetchProjects', () => ({
   fetchProjectDetails: vi.fn(),
 }));
+vi.mock('../src/io/snackbar', () => ({
+  pushRunning: () => 'mock-key',
+  pushError: () => 'mock-key',
+  dismiss: () => {},
+}));
 vi.mock('../src/components/project/AddDocumentButton', () => ({
   AddDocumentButton: () => null,
 }));
