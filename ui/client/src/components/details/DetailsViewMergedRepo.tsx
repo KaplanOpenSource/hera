@@ -1,6 +1,7 @@
 import { Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { fetchPython } from "../../io/fetchPython";
+import { IS_REPO_JSON_PYTHON } from "../../shared/repoJsonPython";
 import { RepoTreeDisplay } from "./RepoTreeDisplay";
 
 const STORAGE_KEY = 'hera-central-repo-folder';
@@ -20,34 +21,15 @@ export const DetailsViewMergedRepo = () => {
         label: 'merged central repo',
         code: `
 import os, glob, json
-
-SECTIONS = {'config', 'datasource', 'measurements', 'simulations', 'cache', 'function'}
-
-def isRepoJson(path):
-    try:
-        with open(path, 'r') as f:
-            doc = json.load(f)
-    except Exception:
-        return False
-    if not isinstance(doc, dict) or not doc:
-        return False
-    for toolkitValue in doc.values():
-        if not isinstance(toolkitValue, dict):
-            return False
-        for sectionKey in toolkitValue.keys():
-            if sectionKey.lower() not in SECTIONS:
-                return False
-    return True
-
+${IS_REPO_JSON_PYTHON}
 folder = os.path.expanduser('${folder}')
 merged = {}
 if os.path.isdir(folder):
     allFiles = glob.glob(os.path.join(folder, '**', '*.json'), recursive=True)
     allFiles = [f for f in allFiles if not f.endswith('caseConfiguration.json')]
     for f in sorted(allFiles):
-        if isRepoJson(f):
-            with open(f, 'r') as fh:
-                doc = json.load(fh)
+        doc = loadRepoJson(f)
+        if doc is not None:
             for toolkit, sections in doc.items():
                 if toolkit not in merged:
                     merged[toolkit] = {}
