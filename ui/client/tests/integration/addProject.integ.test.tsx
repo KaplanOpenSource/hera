@@ -1,34 +1,18 @@
 /// <reference types="node" />
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import { screen, fireEvent, waitFor, within, cleanup, act } from '@testing-library/react';
-import { startDockerEnv, type DockerEnv } from './dockerSetup';
 import { renderApp, resetStore } from './integHelpers';
 
-vi.mock('../../src/shared/baseurl', async () => (await import('./mockFactories')).createBaseurlMock(8002));
+vi.mock('../../src/shared/baseurl', async () => (await import('./mockFactories')).createBaseurlMock());
 vi.mock('../../src/stores/useServerConstants', async () => (await import('./mockFactories')).createServerConstantsMock());
+vi.mock('../../src/io/snackbar', async () => (await import('./mockFactories')).createSnackbarMock());
 
 import { useProjectStore } from '../../src/stores/useProjectStore';
 
-let env: DockerEnv;
-
 describe('Add Project UI integration', () => {
-  beforeAll(async () => {
-    env = await startDockerEnv({
-      network: 'hera-test-ui-net',
-      mongoContainer: 'hera-test-ui-mongo',
-      serverContainer: 'hera-test-ui-server',
-      serverPort: 8002,
-      dbName: 'hera_test_ui',
-    });
-  }, 30000);
-
   beforeEach(() => { resetStore(); });
   afterEach(() => { cleanup(); });
-
-  afterAll(() => {
-    cleanup();
-    env?.cleanup();
-  }, 15000);
+  afterAll(() => { cleanup(); });
 
   it('clicking Add Project creates the project and it appears in the list', async () => {
     renderApp('/');

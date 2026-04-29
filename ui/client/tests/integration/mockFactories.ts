@@ -1,6 +1,5 @@
-/** Shared mock factories for integration tests.
- *  Used via: vi.mock('...path...', async () => (await import('./mockFactories')).factoryName())
- */
+export const SHARED_PORT = 8001;
+export const SHARED_SERVER_URL = `http://localhost:${SHARED_PORT}`;
 
 export const createServerConstantsMock = () => {
   const state = { dataTypes: { STRING: 'string', JSON: 'json', JSON_DICT: 'JSON_DICT' }, readAllConstants: async () => {} };
@@ -8,7 +7,7 @@ export const createServerConstantsMock = () => {
   return { useServerConstants, ServerConstantReader: () => null };
 };
 
-export const createBaseurlMock = (port: number) => ({
+export const createBaseurlMock = (port: number = SHARED_PORT) => ({
   BASEURL: `http://localhost:${port}`,
 });
 
