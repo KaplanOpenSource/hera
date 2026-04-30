@@ -141,7 +141,7 @@ jupyter_core==5.7.2
 jupyter_nbextensions_configurator==0.6.4
 jupyter_server==2.15.0
 jupyter_server_terminals==0.5.3
-jupyterlab==4.4.8
+jupyterlab==4.5.7
 jupyterlab_git==0.51.0
 jupyterlab_pygments==0.3.0
 jupyterlab_server==2.27.3
