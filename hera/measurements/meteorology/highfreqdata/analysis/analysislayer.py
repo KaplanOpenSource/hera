@@ -80,7 +80,7 @@ class RawdataAnalysis:
             Sonic anemometer data. If a string, the named data source is
             loaded from the project automatically.
         samplingWindow : str
-            Resampling window (e.g. ``'30min'``, ``'10S'``).
+            Resampling window (e.g. ``'30min'``, ``'10s'``).
         start : str or pandas.Timestamp
             Start of the analysis period.
         end : str or pandas.Timestamp
