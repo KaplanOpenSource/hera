@@ -84,6 +84,9 @@ if os.path.isdir(folder):
               spacing={1}
               alignItems="center"
             >
+              <span>
+                <b>Central folder</b>
+              </span>
               <Folder fontSize="small" />
               <Typography variant="body2">{folder}</Typography>
               <ButtonTooltip title="Change repository folder"
