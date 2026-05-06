@@ -1,4 +1,5 @@
-import { Paper, Table, TableBody, TableCell, TableHead, TableRow } from "@mui/material";
+import CheckIcon from "@mui/icons-material/Check";
+import { Paper, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
 
 const lookupValue = (
   doc: { [key: string]: any },
@@ -29,11 +30,17 @@ export const OverrideTooltipTable = ({
     value: lookupValue(repoJsons[filePath], overridePath),
   }));
 
+  const chosenPath = filePaths[filePaths.length - 1];
+
   return (
-    <Paper elevation={4}>
+    <Paper elevation={4} sx={{ p: 1 }}>
+      <Typography variant="h6" sx={{ mb: 1, px: 1 }}>
+        {overridePath}
+      </Typography>
       <Table size="small">
         <TableHead>
           <TableRow>
+            <TableCell />
             <TableCell>File</TableCell>
             <TableCell>Value</TableCell>
           </TableRow>
@@ -41,6 +48,9 @@ export const OverrideTooltipTable = ({
         <TableBody>
           {rows.map(row => (
             <TableRow key={row.path}>
+              <TableCell sx={{ width: 24, p: 0 }}>
+                {row.path === chosenPath ? <CheckIcon fontSize="small" color="success" /> : null}
+              </TableCell>
               <TableCell>{row.path}</TableCell>
               <TableCell>
                 {typeof row.value === 'object'
