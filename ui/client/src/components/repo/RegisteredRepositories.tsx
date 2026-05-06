@@ -1,10 +1,9 @@
 import { TreeItem } from "@mui/x-tree-view";
 import { Stack } from "@mui/material";
-import { RepoContents } from "./RepoContents";
-import { LoadRepositoryButton } from "./LoadRepositoryButton";
 import { UpdateRepositoriesButton } from "./UpdateRepositoriesButton";
 import { useRegisteredRepositories } from "./useRegisteredRepositories";
 import { DEFAULT_PROJECT } from "../../stores/useProjectStore";
+import { idRepoId } from "../../shared/idDocId";
 
 export const RegisteredRepositories = ({
   showUpdateButton = false,
@@ -25,14 +24,10 @@ export const RegisteredRepositories = ({
       {repositories.length === 0
         ? <TreeItem itemId="registered-repos/__empty" label="No registered repositories" />
         : repositories.map(r => (
-          <RepoContents
+          <TreeItem
             key={r.datasourceName}
-            repo={r}
-            actions={
-              showUpdateButton
-                ? <LoadRepositoryButton repositoryName={r.datasourceName} />
-                : undefined
-            }
+            itemId={idRepoId(r.datasourceName)}
+            label={r.resource}
           />
         ))
       }

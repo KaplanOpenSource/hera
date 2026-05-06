@@ -14,13 +14,19 @@ export const DetailsViewRepo = ({
   useEffect(() => {
     (async () => {
       if (!isTempRepo) {
+        const isFilePath = repoPath.includes('/') || repoPath.endsWith('.json');
         const { data } = await fetchPython({
           results: ['jsonData'],
           label: 'repo JSON',
-          code: `
+          code: isFilePath
+            ? `
 import json
 with open('${repoPath}', 'r') as fjson:
   jsonData = json.load(fjson)
+`
+            : `
+from hera.utils.data.toolkit import dataToolkit
+jsonData = dataToolkit().getRepository('${repoPath}')
 `,
         });
         setTree(data?.jsonData ?? undefined);
