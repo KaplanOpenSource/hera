@@ -1,3 +1,6 @@
+export const SECTION_EXPERIMENT = 'experiment';
+export const SECTION_DATASOURCE = 'datasource';
+
 export class RepoJsonMerger {
   merged: { [key: string]: any } = {};
   overrides: { [path: string]: string[] } = {};
@@ -8,9 +11,9 @@ export class RepoJsonMerger {
         if (!this.merged[toolkit]) {
           this.merged[toolkit] = {};
         }
-        if (toolkit.toLowerCase() === 'experiment') {
+        if (toolkit.toLowerCase() === SECTION_EXPERIMENT) {
           const dsSection = Object.entries(sections as { [key: string]: any })
-            .find(([key]) => key.toLowerCase() === 'datasource');
+            .find(([key]) => key.toLowerCase() === SECTION_DATASOURCE);
           const dsName = dsSection
             && typeof dsSection[1] === 'object'
             && dsSection[1] !== null

@@ -4,6 +4,7 @@ import { SimpleTreeView, TreeItem } from "@mui/x-tree-view";
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { JsonTreeNode } from "../../elements/JsonTreeNode";
+import { SECTION_DATASOURCE, SECTION_EXPERIMENT } from "./RepoJsonMerger";
 import { RepoTreeAddButton } from "./RepoTreeAddButton";
 import { TextFieldWithApply } from "./TextFieldWithApply";
 import { VisibilityToggleButton } from "./VisibilityToggleButton";
@@ -34,10 +35,10 @@ export const RepoTreeDisplay = ({
 
   const canToggleHidden = useCallback((treePath: string[]) => {
     if (treePath.length === 1) return true;
-    if (treePath[0].toLowerCase() === 'experiment') {
+    if (treePath[0].toLowerCase() === SECTION_EXPERIMENT) {
       return treePath.length === 2;
     }
-    if (treePath.length === 3 && treePath[1].toLowerCase() === 'datasource') {
+    if (treePath.length === 3 && treePath[1].toLowerCase() === SECTION_DATASOURCE) {
       return true;
     }
     return false;

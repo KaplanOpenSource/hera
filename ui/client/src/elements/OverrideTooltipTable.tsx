@@ -1,12 +1,13 @@
 import CheckIcon from "@mui/icons-material/Check";
 import { Paper, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
+import { SECTION_EXPERIMENT } from "../components/details/RepoJsonMerger";
 
 const lookupValue = (
   doc: { [key: string]: any },
   overridePath: string,
 ) => {
   const parts = overridePath.split('/');
-  const isExperiment = parts[0].toLowerCase() === 'experiment';
+  const isExperiment = parts[0].toLowerCase() === SECTION_EXPERIMENT;
   const lookupParts = isExperiment ? [parts[0], ...parts.slice(2)] : parts;
   let current: any = doc;
   for (const part of lookupParts) {
