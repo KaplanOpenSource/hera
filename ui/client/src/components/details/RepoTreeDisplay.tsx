@@ -1,5 +1,5 @@
-import { Delete, Edit } from "@mui/icons-material";
-import { Stack, Typography } from "@mui/material";
+import { Edit, Visibility, VisibilityOff } from "@mui/icons-material";
+import { Menu, MenuItem, Stack, Typography } from "@mui/material";
 import { SimpleTreeView, TreeItem } from "@mui/x-tree-view";
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
@@ -28,6 +28,21 @@ export const RepoTreeDisplay = ({
 }) => {
   const [repoStr, setRepoStr] = useState<string>('');
   const [showStr, setShowStr] = useState(showStrDefault);
+  const [hiddenPaths, setHiddenPaths] = useState<Set<string>>(new Set());
+  const [showHidden, setShowHidden] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ mouseX: number; mouseY: number } | null>(null);
+
+  const onToggleHidden = (path: string) => {
+    setHiddenPaths((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     const newText = JSON.stringify(tree, undefined, 2);
@@ -59,12 +74,24 @@ export const RepoTreeDisplay = ({
               <Typography marginRight={1}>
                 {label}
               </Typography>
-              <RepoTreeAddButton tree={tree} />
+              <RepoTreeAddButton tree={tree} hiddenPaths={hiddenPaths} />
               <ButtonTooltip
                 title={'Edit Repository as Json text'}
                 onClick={() => setShowStr(!showStr)}
               >
                 <Edit />
+              </ButtonTooltip>
+              <ButtonTooltip
+                title={showHidden ? 'Show only visible items' : 'Show all items including hidden'}
+                onClick={() => setShowHidden(!showHidden)}
+                onContextMenu={(e: React.MouseEvent) => {
+                  e.preventDefault();
+                  setContextMenu({ mouseX: e.clientX, mouseY: e.clientY });
+                }}
+              >
+                {hiddenPaths.size > 0 && !showHidden
+                  ? <VisibilityOff />
+                  : <Visibility />}
               </ButtonTooltip>
             </Stack>
           )}
@@ -79,14 +106,9 @@ export const RepoTreeDisplay = ({
                 overrides={overrides}
                 treePath={[key]}
                 repoJsons={repoJsons}
-                rootLabelComponents={(
-                  <ButtonTooltip
-                    onClick={() => setTree(Object.fromEntries(Object.entries(tree).filter(([k]) => k !== key)))}
-                    title={'Remove Data Source from repository (locally, not affecting the file)'}
-                  >
-                    <Delete fontSize="inherit" />
-                  </ButtonTooltip>
-                )}
+                hiddenPaths={hiddenPaths}
+                showHidden={showHidden}
+                onToggleHidden={onToggleHidden}
               />
             ))
             : null}
@@ -106,6 +128,16 @@ export const RepoTreeDisplay = ({
           />
         )
         : null}
+      <Menu
+        open={contextMenu !== null}
+        onClose={() => setContextMenu(null)}
+        anchorReference="anchorPosition"
+        anchorPosition={contextMenu ? { top: contextMenu.mouseY, left: contextMenu.mouseX } : undefined}
+      >
+        <MenuItem onClick={() => { setHiddenPaths(new Set()); setContextMenu(null); }}>
+          Restore all hidden items
+        </MenuItem>
+      </Menu>
     </>
   );
 };
