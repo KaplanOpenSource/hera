@@ -39,6 +39,7 @@ if os.path.isdir(folder):
         const merger = new RepoJsonMerger(data.repoJsons);
         setMerged(merger.merged);
         setOverrides(merger.overrides);
+        console.log(merger.overrides)
       }
       setLoading(false);
     })();

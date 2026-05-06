@@ -29,6 +29,10 @@ export const JsonTreeNode = ({
   overridePath?: string;
 }) => {
   const isOverridden = overridePath !== undefined && overrides?.has(overridePath);
+  const hasOverriddenDescendant = !isOverridden
+    && overridePath !== undefined
+    && overrides !== undefined
+    && Array.from(overrides.keys()).some(k => k.startsWith(overridePath + '/'));
 
   const onDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -40,6 +44,9 @@ export const JsonTreeNode = ({
   const labelNode = (
     <Stack direction="row" spacing={1} alignItems="center">
       <Typography variant="body2" color={isOverridden ? 'error' : undefined}>{label}</Typography>
+      {hasOverriddenDescendant
+        ? <Typography variant="body2" color="error">●</Typography>
+        : null}
       {setData === undefined ? null :
         <IconButton size="small" onClick={onDelete}>
           <DeleteIcon fontSize="inherit" />

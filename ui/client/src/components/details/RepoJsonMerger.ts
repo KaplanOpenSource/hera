@@ -58,7 +58,7 @@ export class RepoJsonMerger {
   ) {
     for (const [key, val] of Object.entries(source)) {
       const fullPath = `${pathPrefix}/${key}`;
-      if (key in target) {
+      if (key in target && JSON.stringify(target[key]) !== JSON.stringify(val)) {
         const existing = this.overrides.get(fullPath);
         if (existing) {
           existing.push(sourcePath);
