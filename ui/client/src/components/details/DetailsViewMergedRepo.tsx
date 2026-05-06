@@ -2,53 +2,14 @@ import { Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { fetchPython } from "../../io/fetchPython";
 import { LOAD_REPO_JSON_PYTHON } from "../../shared/repoJsonPython";
+import { RepoJsonMerger } from "./RepoJsonMerger";
 import { RepoTreeDisplay } from "./RepoTreeDisplay";
 
 const STORAGE_KEY = 'hera-central-repo-folder';
 const DEFAULT_FOLDER = '~/hera/repositories/';
 
-const mergeRepoDocs = (docs: Record<string, any>[]) => {
-  const merged: Record<string, any> = {};
-  for (const doc of docs) {
-    for (const [toolkit, sections] of Object.entries(doc)) {
-      if (!merged[toolkit]) {
-        merged[toolkit] = {};
-      }
-      if (toolkit.toLowerCase() === 'experiment') {
-        const dsSection = Object.entries(sections as Record<string, any>)
-          .find(([key]) => key.toLowerCase() === 'datasource');
-        const dsName = dsSection
-          && typeof dsSection[1] === 'object'
-          && dsSection[1] !== null
-          && Object.keys(dsSection[1]).length > 0
-          ? Object.keys(dsSection[1])[0]
-          : null;
-        if (dsName) {
-          if (!merged[toolkit][dsName]) {
-            merged[toolkit][dsName] = {};
-          }
-          for (const [section, sectionData] of Object.entries(sections as Record<string, any>)) {
-            merged[toolkit][dsName][section] = {
-              ...merged[toolkit][dsName][section],
-              ...(sectionData as Record<string, any>),
-            };
-          }
-          continue;
-        }
-      }
-      for (const [section, sectionData] of Object.entries(sections as Record<string, any>)) {
-        merged[toolkit][section] = {
-          ...merged[toolkit][section],
-          ...(sectionData as Record<string, any>),
-        };
-      }
-    }
-  }
-  return merged;
-};
-
 export const DetailsViewMergedRepo = () => {
-  const [merged, setMerged] = useState<Record<string, any> | null>(null);
+  const [merged, setMerged] = useState<{ [key: string]: any } | null>(null);
   const [loading, setLoading] = useState(true);
 
   const folder = localStorage.getItem(STORAGE_KEY) || DEFAULT_FOLDER;
@@ -63,18 +24,20 @@ export const DetailsViewMergedRepo = () => {
 import os, glob, json
 ${LOAD_REPO_JSON_PYTHON}
 folder = os.path.expanduser('${folder}')
-repoJsons = []
+repoJsons = {}
 if os.path.isdir(folder):
     allFiles = glob.glob(os.path.join(folder, '**', '*.json'), recursive=True)
     allFiles = [f for f in allFiles if not f.endswith('caseConfiguration.json')]
     for f in sorted(allFiles):
         doc = loadRepoJson(f)
         if doc is not None:
-            repoJsons.append(doc)
+            repoJsons[f] = doc
 `,
       });
       if (data?.repoJsons) {
-        setMerged(mergeRepoDocs(data.repoJsons));
+        const merger = new RepoJsonMerger(data.repoJsons);
+        setMerged(merger.merged);
+        console.log('overrides', merger.overrides);
       }
       setLoading(false);
     })();
