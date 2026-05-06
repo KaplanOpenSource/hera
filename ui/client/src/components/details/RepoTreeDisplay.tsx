@@ -1,11 +1,12 @@
-import { Edit, Visibility, VisibilityOff } from "@mui/icons-material";
-import { Menu, MenuItem, Stack, Typography } from "@mui/material";
+import { Edit } from "@mui/icons-material";
+import { Stack, Typography } from "@mui/material";
 import { SimpleTreeView, TreeItem } from "@mui/x-tree-view";
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { JsonTreeNode } from "../../elements/JsonTreeNode";
 import { RepoTreeAddButton } from "./RepoTreeAddButton";
 import { TextFieldWithApply } from "./TextFieldWithApply";
+import { VisibilityToggleButton } from "./VisibilityToggleButton";
 
 export const RepoTreeDisplay = ({
   tree,
@@ -30,7 +31,6 @@ export const RepoTreeDisplay = ({
   const [showStr, setShowStr] = useState(showStrDefault);
   const [hiddenPaths, setHiddenPaths] = useState<Set<string>>(new Set());
   const [showHidden, setShowHidden] = useState(false);
-  const [contextMenu, setContextMenu] = useState<{ mouseX: number; mouseY: number } | null>(null);
 
   const onToggleHidden = (path: string) => {
     setHiddenPaths((prev) => {
@@ -81,18 +81,12 @@ export const RepoTreeDisplay = ({
               >
                 <Edit />
               </ButtonTooltip>
-              <ButtonTooltip
-                title={showHidden ? 'Show only visible items' : 'Show all items including hidden'}
-                onClick={() => setShowHidden(!showHidden)}
-                onContextMenu={(e: React.MouseEvent) => {
-                  e.preventDefault();
-                  setContextMenu({ mouseX: e.clientX, mouseY: e.clientY });
-                }}
-              >
-                {hiddenPaths.size > 0 && !showHidden
-                  ? <VisibilityOff />
-                  : <Visibility />}
-              </ButtonTooltip>
+              <VisibilityToggleButton
+                hasHidden={hiddenPaths.size > 0}
+                showHidden={showHidden}
+                setShowHidden={setShowHidden}
+                onRestoreAll={() => setHiddenPaths(new Set())}
+              />
             </Stack>
           )}
         >
@@ -128,16 +122,6 @@ export const RepoTreeDisplay = ({
           />
         )
         : null}
-      <Menu
-        open={contextMenu !== null}
-        onClose={() => setContextMenu(null)}
-        anchorReference="anchorPosition"
-        anchorPosition={contextMenu ? { top: contextMenu.mouseY, left: contextMenu.mouseX } : undefined}
-      >
-        <MenuItem onClick={() => { setHiddenPaths(new Set()); setContextMenu(null); }}>
-          Restore all hidden items
-        </MenuItem>
-      </Menu>
     </>
   );
 };
