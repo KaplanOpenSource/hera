@@ -1,7 +1,7 @@
 import { Edit } from "@mui/icons-material";
 import { Stack, Typography } from "@mui/material";
 import { SimpleTreeView, TreeItem } from "@mui/x-tree-view";
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { JsonTreeNode } from "../../elements/JsonTreeNode";
 import { RepoTreeAddButton } from "./RepoTreeAddButton";
@@ -31,6 +31,12 @@ export const RepoTreeDisplay = ({
   const [showStr, setShowStr] = useState(showStrDefault);
   const [hiddenPaths, setHiddenPaths] = useState<Set<string>>(new Set());
   const [showHidden, setShowHidden] = useState(false);
+
+  const canToggleHidden = useCallback((treePath: string[]) => {
+    if (treePath.length === 1) return true;
+    if (treePath[0].toLowerCase() === 'experiment' && treePath.length <= 3) return true;
+    return false;
+  }, []);
 
   const onToggleHidden = (path: string) => {
     setHiddenPaths((prev) => {
@@ -103,6 +109,7 @@ export const RepoTreeDisplay = ({
                 hiddenPaths={hiddenPaths}
                 showHidden={showHidden}
                 onToggleHidden={onToggleHidden}
+                canToggleHidden={canToggleHidden}
               />
             ))
             : null}

@@ -25,6 +25,7 @@ export const JsonTreeNode = ({
   hiddenPaths,
   showHidden,
   onToggleHidden,
+  canToggleHidden,
 }: {
   label: string;
   value: JsonValue;
@@ -37,9 +38,11 @@ export const JsonTreeNode = ({
   hiddenPaths?: Set<string>;
   showHidden?: boolean;
   onToggleHidden?: (treePathKey: string) => void;
+  canToggleHidden?: (treePath: string[]) => boolean;
 }) => {
   const treePathKey = treePath.join('/');
   const isHidden = hiddenPaths?.has(treePathKey) ?? false;
+  const showEye = onToggleHidden && (!canToggleHidden || canToggleHidden(treePath));
 
   if (onToggleHidden && !showHidden && isHidden) {
     return null;
@@ -79,7 +82,7 @@ export const JsonTreeNode = ({
           </Tooltip>
         )
         : null}
-      {onToggleHidden && (
+      {showEye && (
         <IconButton size="small" onClick={onToggle}>
           {isHidden ? <VisibilityOff fontSize="inherit" /> : <Visibility fontSize="inherit" />}
         </IconButton>
@@ -107,6 +110,7 @@ export const JsonTreeNode = ({
             hiddenPaths={hiddenPaths}
             showHidden={showHidden}
             onToggleHidden={onToggleHidden}
+            canToggleHidden={canToggleHidden}
             setData={setData === undefined ? undefined :
               (next) =>
                 setData(
@@ -152,6 +156,7 @@ export const JsonTreeNode = ({
             hiddenPaths={hiddenPaths}
             showHidden={showHidden}
             onToggleHidden={onToggleHidden}
+            canToggleHidden={canToggleHidden}
           />
         ))}
       </TreeItem>
@@ -171,7 +176,7 @@ export const JsonTreeNode = ({
           >
             {label}: {String(value)}
           </OverrideLabel>
-          {onToggleHidden && (
+          {showEye && (
             <IconButton size="small" onClick={onToggle}>
               {isHidden ? <VisibilityOff fontSize="inherit" /> : <Visibility fontSize="inherit" />}
             </IconButton>
