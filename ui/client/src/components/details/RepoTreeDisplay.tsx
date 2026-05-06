@@ -63,6 +63,22 @@ export const RepoTreeDisplay = ({
     }
   }, [tree]);
 
+  const allToggleablePaths = useMemo(() => {
+    const paths: string[] = [];
+    const collect = (obj: any, prefix: string[]) => {
+      if (typeof obj !== 'object' || obj === null) return;
+      for (const key of Object.keys(obj)) {
+        const tp = [...prefix, key];
+        if (canToggleHidden(tp)) {
+          paths.push(tp.join('/'));
+        }
+        collect(obj[key], tp);
+      }
+    };
+    collect(tree, []);
+    return paths;
+  }, [tree, canToggleHidden]);
+
   const expandedByDefault = useMemo(() => {
     const ids = [itemId];
     if (typeof tree === 'object' && tree !== null) {
@@ -97,7 +113,8 @@ export const RepoTreeDisplay = ({
                 hasHidden={hiddenPaths.size > 0}
                 showHidden={showHidden}
                 setShowHidden={setShowHidden}
-                onRestoreAll={() => setHiddenPaths(new Set())}
+                setHiddenPaths={setHiddenPaths}
+                allToggleablePaths={allToggleablePaths}
               />
             </Stack>
           )}

@@ -7,12 +7,14 @@ export const VisibilityToggleButton = ({
   hasHidden,
   showHidden,
   setShowHidden,
-  onRestoreAll,
+  setHiddenPaths,
+  allToggleablePaths,
 }: {
   hasHidden: boolean;
   showHidden: boolean;
   setShowHidden: (v: boolean) => void;
-  onRestoreAll: () => void;
+  setHiddenPaths: (paths: Set<string>) => void;
+  allToggleablePaths: string[];
 }) => {
   const [contextMenu, setContextMenu] = useState<{ mouseX: number; mouseY: number } | null>(null);
 
@@ -36,7 +38,10 @@ export const VisibilityToggleButton = ({
         anchorReference="anchorPosition"
         anchorPosition={contextMenu ? { top: contextMenu.mouseY, left: contextMenu.mouseX } : undefined}
       >
-        <MenuItem onClick={() => { onRestoreAll(); setContextMenu(null); }}>
+        <MenuItem onClick={() => { setHiddenPaths(new Set(allToggleablePaths)); setContextMenu(null); }}>
+          Hide all
+        </MenuItem>
+        <MenuItem onClick={() => { setHiddenPaths(new Set()); setContextMenu(null); }}>
           Restore all hidden items
         </MenuItem>
       </Menu>
