@@ -1,5 +1,5 @@
 import DeleteIcon from "@mui/icons-material/Delete";
-import { IconButton, Stack, Typography } from "@mui/material";
+import { IconButton, Stack, Tooltip, Typography } from "@mui/material";
 import { TreeItem } from "@mui/x-tree-view";
 import { ReactNode } from "react";
 
@@ -45,7 +45,11 @@ export const JsonTreeNode = ({
     <Stack direction="row" spacing={1} alignItems="center">
       <Typography variant="body2" color={isOverridden ? 'error' : undefined}>{label}</Typography>
       {hasOverriddenDescendant
-        ? <Typography variant="body2" color="error">●</Typography>
+        ? (
+          <Tooltip title="Some children have overrides">
+            <Typography variant="body2" color="error">●</Typography>
+          </Tooltip>
+        )
         : null}
       {setData === undefined ? null :
         <IconButton size="small" onClick={onDelete}>
