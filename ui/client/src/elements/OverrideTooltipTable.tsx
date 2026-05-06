@@ -1,4 +1,4 @@
-import { Table, TableBody, TableCell, TableHead, TableRow } from "@mui/material";
+import { Paper, Table, TableBody, TableCell, TableHead, TableRow } from "@mui/material";
 
 const lookupValue = (
   doc: { [key: string]: any },
@@ -30,25 +30,27 @@ export const OverrideTooltipTable = ({
   }));
 
   return (
-    <Table size="small">
-      <TableHead>
-        <TableRow>
-          <TableCell sx={{ color: 'inherit' }}>File</TableCell>
-          <TableCell sx={{ color: 'inherit' }}>Value</TableCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {rows.map(row => (
-          <TableRow key={row.path}>
-            <TableCell sx={{ color: 'inherit' }}>{row.path}</TableCell>
-            <TableCell sx={{ color: 'inherit' }}>
-              {typeof row.value === 'object'
-                ? JSON.stringify(row.value)
-                : String(row.value)}
-            </TableCell>
+    <Paper elevation={4}>
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>File</TableCell>
+            <TableCell>Value</TableCell>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHead>
+        <TableBody>
+          {rows.map(row => (
+            <TableRow key={row.path}>
+              <TableCell>{row.path}</TableCell>
+              <TableCell>
+                {typeof row.value === 'object'
+                  ? JSON.stringify(row.value)
+                  : String(row.value)}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Paper>
   );
 };

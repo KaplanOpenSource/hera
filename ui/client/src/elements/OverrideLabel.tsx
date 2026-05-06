@@ -18,7 +18,7 @@ export const OverrideLabel = ({
   if (isOverridden && repoJsons && overrides) {
     return (
       <Tooltip
-        slotProps={{ tooltip: { sx: { maxWidth: 'none' } } }}
+        slotProps={{ tooltip: { sx: { maxWidth: 'none', backgroundColor: 'transparent', padding: 0 } } }}
         title={
           <OverrideTooltipTable
             overridePath={treePathKey}
