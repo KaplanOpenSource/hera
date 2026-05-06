@@ -77,12 +77,18 @@ if os.path.isdir(folder):
     <>
       <TreeItem
         itemId="central-repo-folder"
+        sx={{
+          '& > .MuiTreeItem-content': { pointerEvents: 'none' },
+          '& > .MuiTreeItem-content > .MuiTreeItem-iconContainer': { pointerEvents: 'auto' },
+          '& > .MuiTreeItem-content > .MuiTreeItem-label': { pointerEvents: 'auto' },
+        }}
         label={
-          <Tooltip title="Central repository folder. Contains local JSON repository files on disk that can be loaded into any project. Click the chevron to expand.">
+          <Tooltip title="Central repository folder. Contains local JSON repository files on disk that can be loaded into any project.">
             <Stack
               direction="row"
               spacing={1}
               alignItems="center"
+              onClick={(e) => e.stopPropagation()}
             >
               <span>
                 <b>Central folder</b>
