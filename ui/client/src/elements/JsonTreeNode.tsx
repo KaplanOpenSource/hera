@@ -2,7 +2,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { IconButton, Stack, Tooltip, Typography } from "@mui/material";
 import { TreeItem } from "@mui/x-tree-view";
 import { ReactNode } from "react";
-import { OverrideTooltipTable } from "./OverrideTooltipTable";
+import { OverrideLabel } from "./OverrideLabel";
 
 export type JsonValue =
   | string
@@ -46,22 +46,14 @@ export const JsonTreeNode = ({
 
   const labelNode = (
     <Stack direction="row" spacing={1} alignItems="center">
-      {isOverridden && repoJsons
-        ? (
-          <Tooltip
-            slotProps={{ tooltip: { sx: { maxWidth: 'none' } } }}
-            title={
-              <OverrideTooltipTable
-                overridePath={treePathKey}
-                filePaths={overrides![treePathKey]}
-                repoJsons={repoJsons}
-              />
-            }
-          >
-            <Typography variant="body2" color="error">{label}</Typography>
-          </Tooltip>
-        )
-        : <Typography variant="body2">{label}</Typography>}
+      <OverrideLabel
+        isOverridden={isOverridden}
+        treePathKey={treePathKey}
+        overrides={overrides}
+        repoJsons={repoJsons}
+      >
+        {label}
+      </OverrideLabel>
       {hasOverriddenDescendant
         ? (
           <Tooltip title="Some children have overrides">
@@ -142,28 +134,14 @@ export const JsonTreeNode = ({
       itemId={`${parentKey}.${label}`}
       label={
         <Stack direction="row" spacing={1} alignItems="center">
-          {isOverridden && repoJsons
-            ? (
-              <Tooltip
-                slotProps={{ tooltip: { sx: { maxWidth: 'none' } } }}
-                title={
-                  <OverrideTooltipTable
-                    overridePath={treePathKey}
-                    filePaths={overrides![treePathKey]}
-                    repoJsons={repoJsons}
-                  />
-                }
-              >
-                <Typography variant="body2" color="error">
-                  {label}: {String(value)}
-                </Typography>
-              </Tooltip>
-            )
-            : (
-              <Typography variant="body2">
-                {label}: {String(value)}
-              </Typography>
-            )}
+          <OverrideLabel
+            isOverridden={isOverridden}
+            treePathKey={treePathKey}
+            overrides={overrides}
+            repoJsons={repoJsons}
+          >
+            {label}: {String(value)}
+          </OverrideLabel>
           {setData === undefined ? null :
             <IconButton size="small" onClick={onDelete}>
               <DeleteIcon fontSize="inherit" />
