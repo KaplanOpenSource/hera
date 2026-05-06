@@ -12,7 +12,6 @@ Usage::
     area = 10 * ureg.dunam          # custom: 1 dunam = 1000 m²
 """
 
-from hera.utils.logging import get_logger
 from pint import Unit, UnitRegistry
 from pint import Quantity
 from pint.errors import UndefinedUnitError, DimensionalityError
@@ -113,6 +112,7 @@ def tounit(x, theunit):
     -------
     Quantity or Unum
     """
+    from hera.utils.logging import get_logger
     logger = get_logger(None, "hera.utils.tounit")
     if isinstance(x, Unum) and unumSupport:
         logger.warning("Please prefer using pint (ureg) for units")

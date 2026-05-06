@@ -2,15 +2,6 @@ import json
 import logging
 import os
 
-import pandas
-from hera.utils import jsonutils
-
-from .. import toolkitHome
-from ..simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
-from ..utils import loadJSON,compareJSONS
-from hermes import workflow
-from hermes.utils.workflowAssembly import handler_build,handler_execute
-
 
 def WorkflowsGroup_list(args):
     """
@@ -24,6 +15,7 @@ def WorkflowsGroup_list(args):
     -------
 
     """
+    from hera import toolkitHome
     logger = logging.getLogger("hera.bin.hera_workflows.group_list")
     logger.info(" -- Starting: listing all the simulation groups --")
 
@@ -71,6 +63,7 @@ def workflow_add(args):
     -------
         None
     """
+    from hera import toolkitHome
     logger = logging.getLogger("hera.bin.hera_workflows.add")
     logger.info(" -- Starting: adding workflow to the group --")
 
@@ -94,6 +87,7 @@ def workflow_delete(arguments):
     -------
 
     """
+    from hera import toolkitHome
     logger = logging.getLogger("hera.bin.hera_workflows.delete")
     logger.info(f" -- Starting: Deleting workflows --")
 
@@ -141,6 +135,7 @@ def workflow_export(arguments):
     -------
 
     """
+    from hera import toolkitHome
     logger = logging.getLogger("hera.bin.hera_workflows.export")
     logger.info(f" -- Starting: Deleting workflows --")
 
@@ -173,6 +168,7 @@ def workflow_compareToDisk(arguments):
     -------
 
     """
+    from hera import toolkitHome
     logger = logging.getLogger("hera.bin.hera_workflows.compareToDisk")
     logger.info(f" -- Starting: Deleting workflows --")
 
@@ -186,6 +182,7 @@ def workflow_compareToDisk(arguments):
         if not os.path.isfile(outfileName):
             print(f"Workflow {sim.name} (file {outfileName} does not exist on the disk. use export to create it. ")
         else:
+            from ..utils import loadJSON,compareJSONS
             localWorkflow = wftk.getHermesWorkflowFromJSON(loadJSON(outfileName),name="Local", resource=outfileName)
             smName = sim.name
             sim.name = "DB"
@@ -215,6 +212,9 @@ def workflow_sync_to_db(arguments):
     -------
 
     """
+    from ..simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
+    from hera import toolkitHome
+
     logger = logging.getLogger("hera.bin.hera_workflows.sync_to_db")
     logger.info(f" -- Starting: syncing workflows --")
 
@@ -233,6 +233,8 @@ def workflow_sync_to_db(arguments):
         if not os.path.isfile(outfileName):
             print(f"Workflow {sim.name} (file {outfileName}) does not exist on the disk. use export to create it.")
         else:
+            from ..utils import loadJSON,compareJSONS
+            import pandas
             localWorkflow = wftk.getHermesWorkflowFromJSON(loadJSON(outfileName),name="Local", resource=outfileName)
             simName = sim.name
             sim.name = "DB"
@@ -260,6 +262,9 @@ def create_workflow_variations(arguments):
     -------
 
     """
+    from ..simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
+    from hera import toolkitHome
+
     logger = logging.getLogger("hera.bin.hera_workflows.create_workflow_variations")
     logger.info(f" -- Starting: creating workflow variation --")
     _confirm_project_name(arguments, logger)
@@ -298,6 +303,7 @@ def create_workflow_variations(arguments):
     
     variation_scheme = None
     if naming_scheme == "index":
+        from hera.utils import jsonutils
         variation_scheme = enumerate(jsonutils.JSONVariations(base_workflow_json, variation_json))
     else:
         logger.error(f"naming scheme {naming_scheme} is not implemented")
@@ -327,6 +333,9 @@ def batch_delete_workflows(arguments):
     -------
 
     """
+    from hera import toolkitHome
+    from ..simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
+
     logger = logging.getLogger("hera.bin.hera_workflows.batch_delete_workflows")
     logger.info(f" -- Starting: batch delete workflows --")
     _confirm_project_name(arguments, logger)
@@ -354,6 +363,7 @@ def batch_delete_workflows(arguments):
 
 
 def _confirm_project_name(arguments, logger):
+    from ..utils import loadJSON
     if arguments.projectName is None:
         logger.debug(
             f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
@@ -413,6 +423,7 @@ def workflow_list(arguments):
                      |   simulation name |  <parameters>   |
                      +-------------------+-----------------+
     """
+    from hera import toolkitHome
     logger = logging.getLogger("hera.bin.hera_workflows.list")
     logger.info(f" -- Starting: Listing simulations --")
 
@@ -482,10 +493,13 @@ def workflowNodes_list(arguments):
     -------
         prints a list of all the nodes of the workflow.
     """
+    from hera import toolkitHome
     logger = logging.getLogger("hera.bin.hera_workflows.listNodes")
     logger.info(f" -- Starting: Listing workflow nodes --")
 
     if os.path.exists(arguments.workflowName) and not os.path.isdir(arguments.workflowName):
+            from hermes import workflow
+            from ..utils import loadJSON
             json = loadJSON(arguments.workflowName)
             hermesObject = workflow(json, Resource_path=arguments.workflowName)
     else:
@@ -527,10 +541,13 @@ def workflowNodes_listParameters(arguments):
     -------
 
     """
+    from hera import toolkitHome
     logger = logging.getLogger("hera.bin.hera_workflows.listNodeParameters")
     logger.info(f" -- Starting: Listing node parameters --")
 
     if os.path.isfile(arguments.workflowName):
+            from hermes import workflow
+            from ..utils import loadJSON
             json = loadJSON(arguments.workflowName)
             hermesObject = workflow(json, Resource_path=arguments.workflowName)
     else:
@@ -577,6 +594,7 @@ def workflow_compare(arguments):
     -------
 
     """
+    from hera import toolkitHome
     logger = logging.getLogger("hera.bin.hera_workflows.compare")
     logger.info(f" -- Starting: Listing workflow nodes --")
 
@@ -596,6 +614,7 @@ def workflow_compare(arguments):
         output = res.to_csv()
         ext = "csv"
     else:
+        from ..utils import loadJSON
         output = json.dumps(loadJSON(res.to_json()),indent=4)
         ext = "json"
 
@@ -611,9 +630,11 @@ def workflow_compare(arguments):
                 outputFile.write(output)
 
 def workflow_build(arguments):
+    from hermes.utils.workflowAssembly import handler_build
     handler_build(arguments)
 
 def workflow_execute(arguments):
+    from hermes.utils.workflowAssembly import handler_execute
     handler_execute(arguments)
 
 def workflow_buildExecute(arguments):
@@ -633,6 +654,7 @@ def workflow_buildExecute(arguments):
     -------
 
     """
+    from hera import toolkitHome
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=arguments.projectName)
 
     workflowName = arguments.workflowName.split(".")[0]

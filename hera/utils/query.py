@@ -1,6 +1,3 @@
-import pandas
-import json
-
 def andClause(excludeFields=[], **kwargs):
     """
         Builds a pandas query str

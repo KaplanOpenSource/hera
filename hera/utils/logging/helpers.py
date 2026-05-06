@@ -4,7 +4,6 @@ import logging.config
 import os.path
 import pathlib
 from importlib.resources import read_text
-from typing import List
 
 
 HERA_DEFAULT_LOG_DIR = pathlib.Path.home() / ".pyhera" / "log"
