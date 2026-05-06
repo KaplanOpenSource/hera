@@ -7,6 +7,46 @@ import { RepoTreeDisplay } from "./RepoTreeDisplay";
 const STORAGE_KEY = 'hera-central-repo-folder';
 const DEFAULT_FOLDER = '~/hera/repositories/';
 
+const mergeRepoDocs = (docs: Record<string, any>[]) => {
+  const merged: Record<string, any> = {};
+  for (const doc of docs) {
+    for (const [toolkit, sections] of Object.entries(doc)) {
+      if (!merged[toolkit]) {
+        merged[toolkit] = {};
+      }
+      if (toolkit.toLowerCase() === 'experiment') {
+        const dsSection = Object.entries(sections as Record<string, any>)
+          .find(([key]) => key.toLowerCase() === 'datasource');
+        const dsName = dsSection
+          && typeof dsSection[1] === 'object'
+          && dsSection[1] !== null
+          && Object.keys(dsSection[1]).length > 0
+          ? Object.keys(dsSection[1])[0]
+          : null;
+        if (dsName) {
+          if (!merged[toolkit][dsName]) {
+            merged[toolkit][dsName] = {};
+          }
+          for (const [section, sectionData] of Object.entries(sections as Record<string, any>)) {
+            merged[toolkit][dsName][section] = {
+              ...merged[toolkit][dsName][section],
+              ...(sectionData as Record<string, any>),
+            };
+          }
+          continue;
+        }
+      }
+      for (const [section, sectionData] of Object.entries(sections as Record<string, any>)) {
+        merged[toolkit][section] = {
+          ...merged[toolkit][section],
+          ...(sectionData as Record<string, any>),
+        };
+      }
+    }
+  }
+  return merged;
+};
+
 export const DetailsViewMergedRepo = () => {
   const [merged, setMerged] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -17,31 +57,24 @@ export const DetailsViewMergedRepo = () => {
     (async () => {
       setLoading(true);
       const { data } = await fetchPython({
-        results: ['mergedJson'],
+        results: ['repoJsons'],
         label: 'merged central repo',
         code: `
 import os, glob, json
 ${LOAD_REPO_JSON_PYTHON}
 folder = os.path.expanduser('${folder}')
-merged = {}
+repoJsons = []
 if os.path.isdir(folder):
     allFiles = glob.glob(os.path.join(folder, '**', '*.json'), recursive=True)
     allFiles = [f for f in allFiles if not f.endswith('caseConfiguration.json')]
     for f in sorted(allFiles):
         doc = loadRepoJson(f)
         if doc is not None:
-            for toolkit, sections in doc.items():
-                if toolkit not in merged:
-                    merged[toolkit] = {}
-                for section, sectionData in sections.items():
-                    if section not in merged[toolkit]:
-                        merged[toolkit][section] = {}
-                    merged[toolkit][section].update(sectionData)
-mergedJson = merged
+            repoJsons.append(doc)
 `,
       });
-      if (data?.mergedJson) {
-        setMerged(data.mergedJson);
+      if (data?.repoJsons) {
+        setMerged(mergeRepoDocs(data.repoJsons));
       }
       setLoading(false);
     })();
