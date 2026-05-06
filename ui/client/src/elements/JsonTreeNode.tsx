@@ -19,7 +19,7 @@ export const JsonTreeNode = ({
   parentKey,
   rootLabelComponents = null,
   overrides,
-  overridePath,
+  treePath = [],
   repoJsons,
 }: {
   label: string;
@@ -27,15 +27,15 @@ export const JsonTreeNode = ({
   setData?: (next: JsonValue | undefined) => void;
   parentKey: string,
   rootLabelComponents?: ReactNode | null,
-  overrides?: Map<string, string[]>;
-  overridePath?: string;
+  overrides?: { [path: string]: string[] };
+  treePath: string[];
   repoJsons?: { [path: string]: { [key: string]: any } };
 }) => {
-  const isOverridden = overridePath !== undefined && overrides?.has(overridePath);
+  const treePathKey = treePath.join('/');
+  const isOverridden = treePathKey in (overrides ?? {});
   const hasOverriddenDescendant = !isOverridden
-    && overridePath !== undefined
     && overrides !== undefined
-    && Array.from(overrides.keys()).some(k => k.startsWith(overridePath + '/'));
+    && Object.keys(overrides).some(k => k.startsWith(treePathKey + '/'));
 
   const onDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -46,14 +46,14 @@ export const JsonTreeNode = ({
 
   const labelNode = (
     <Stack direction="row" spacing={1} alignItems="center">
-      {isOverridden && repoJsons && overridePath
+      {isOverridden && repoJsons
         ? (
           <Tooltip
             slotProps={{ tooltip: { sx: { maxWidth: 'none' } } }}
             title={
               <OverrideTooltipTable
-                overridePath={overridePath}
-                filePaths={overrides!.get(overridePath)!}
+                overridePath={treePathKey}
+                filePaths={overrides![treePathKey]}
                 repoJsons={repoJsons}
               />
             }
@@ -86,6 +86,9 @@ export const JsonTreeNode = ({
             label={`[${index}]`}
             parentKey={`${parentKey}[${index}]`}
             value={item}
+            overrides={overrides}
+            treePath={[...treePath, String(index)]}
+            repoJsons={repoJsons}
             setData={setData === undefined ? undefined :
               (next) =>
                 setData(
@@ -126,7 +129,7 @@ export const JsonTreeNode = ({
                 )
             }
             overrides={overrides}
-            overridePath={overridePath !== undefined ? `${overridePath}/${key}` : undefined}
+            treePath={[...treePath, key]}
             repoJsons={repoJsons}
           />
         ))}
@@ -139,14 +142,14 @@ export const JsonTreeNode = ({
       itemId={`${parentKey}.${label}`}
       label={
         <Stack direction="row" spacing={1} alignItems="center">
-          {isOverridden && repoJsons && overridePath
+          {isOverridden && repoJsons
             ? (
               <Tooltip
                 slotProps={{ tooltip: { sx: { maxWidth: 'none' } } }}
                 title={
                   <OverrideTooltipTable
-                    overridePath={overridePath}
-                    filePaths={overrides!.get(overridePath)!}
+                    overridePath={treePathKey}
+                    filePaths={overrides![treePathKey]}
                     repoJsons={repoJsons}
                   />
                 }

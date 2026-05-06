@@ -10,7 +10,7 @@ const DEFAULT_FOLDER = '~/hera/repositories/';
 
 export const DetailsViewMergedRepo = () => {
   const [merged, setMerged] = useState<{ [key: string]: any } | null>(null);
-  const [overrides, setOverrides] = useState<Map<string, string[]>>(new Map());
+  const [overrides, setOverrides] = useState<{ [path: string]: string[] }>({});
   const [repoJsons, setRepoJsons] = useState<{ [path: string]: { [key: string]: any } }>({});
   const [loading, setLoading] = useState(true);
 

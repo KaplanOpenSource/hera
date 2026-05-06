@@ -1,6 +1,6 @@
 export class RepoJsonMerger {
   merged: { [key: string]: any } = {};
-  overrides = new Map<string, string[]>();
+  overrides: { [path: string]: string[] } = {};
 
   constructor(repoJsons: { [path: string]: { [key: string]: any } }) {
     for (const [sourcePath, doc] of Object.entries(repoJsons)) {
@@ -90,11 +90,10 @@ export class RepoJsonMerger {
   }
 
   private recordOverride(path: string, sourcePath: string) {
-    const existing = this.overrides.get(path);
-    if (existing) {
-      existing.push(sourcePath);
+    if (this.overrides[path]) {
+      this.overrides[path].push(sourcePath);
     } else {
-      this.overrides.set(path, [sourcePath]);
+      this.overrides[path] = [sourcePath];
     }
   }
 }
