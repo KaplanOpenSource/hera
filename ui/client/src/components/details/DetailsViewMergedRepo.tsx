@@ -10,6 +10,7 @@ const DEFAULT_FOLDER = '~/hera/repositories/';
 
 export const DetailsViewMergedRepo = () => {
   const [merged, setMerged] = useState<{ [key: string]: any } | null>(null);
+  const [overrides, setOverrides] = useState<Map<string, string[]>>(new Map());
   const [loading, setLoading] = useState(true);
 
   const folder = localStorage.getItem(STORAGE_KEY) || DEFAULT_FOLDER;
@@ -37,7 +38,7 @@ if os.path.isdir(folder):
       if (data?.repoJsons) {
         const merger = new RepoJsonMerger(data.repoJsons);
         setMerged(merger.merged);
-        console.log('overrides', merger.overrides);
+        setOverrides(merger.overrides);
       }
       setLoading(false);
     })();
@@ -57,6 +58,7 @@ if os.path.isdir(folder):
       setTree={setMerged}
       label={`${folder} (merged)`}
       itemId="merged-root"
+      overrides={overrides}
     />
   );
 };

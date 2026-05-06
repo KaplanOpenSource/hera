@@ -14,6 +14,7 @@ export const RepoTreeDisplay = ({
   itemId,
   tooltipContent,
   showStrDefault = false,
+  overrides,
 }: {
   tree: any;
   setTree: (next: any) => void;
@@ -21,6 +22,7 @@ export const RepoTreeDisplay = ({
   itemId: string;
   tooltipContent?: ReactNode;
   showStrDefault?: boolean;
+  overrides?: Map<string, string[]>;
 }) => {
   const [repoStr, setRepoStr] = useState<string>('');
   const [showStr, setShowStr] = useState(showStrDefault);
@@ -72,6 +74,8 @@ export const RepoTreeDisplay = ({
                 label={key}
                 parentKey={`${itemId}.${key}`}
                 value={val as any}
+                overrides={overrides}
+                overridePath={overrides ? key : undefined}
                 rootLabelComponents={(
                   <ButtonTooltip
                     onClick={() => setTree(Object.fromEntries(Object.entries(tree).filter(([k]) => k !== key)))}

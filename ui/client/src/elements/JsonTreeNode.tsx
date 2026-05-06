@@ -17,13 +17,19 @@ export const JsonTreeNode = ({
   setData,
   parentKey,
   rootLabelComponents = null,
+  overrides,
+  overridePath,
 }: {
   label: string;
   value: JsonValue;
   setData?: (next: JsonValue | undefined) => void;
   parentKey: string,
   rootLabelComponents?: ReactNode | null,
+  overrides?: Map<string, string[]>;
+  overridePath?: string;
 }) => {
+  const isOverridden = overridePath !== undefined && overrides?.has(overridePath);
+
   const onDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (setData) {
@@ -33,7 +39,7 @@ export const JsonTreeNode = ({
 
   const labelNode = (
     <Stack direction="row" spacing={1} alignItems="center">
-      <Typography variant="body2">{label}</Typography>
+      <Typography variant="body2" color={isOverridden ? 'error' : undefined}>{label}</Typography>
       {setData === undefined ? null :
         <IconButton size="small" onClick={onDelete}>
           <DeleteIcon fontSize="inherit" />
@@ -90,6 +96,8 @@ export const JsonTreeNode = ({
                     : { ...value, [key]: next }
                 )
             }
+            overrides={overrides}
+            overridePath={overridePath !== undefined ? `${overridePath}/${key}` : undefined}
           />
         ))}
       </TreeItem>
@@ -101,7 +109,7 @@ export const JsonTreeNode = ({
       itemId={`${parentKey}.${label}`}
       label={
         <Stack direction="row" spacing={1} alignItems="center">
-          <Typography variant="body2">
+          <Typography variant="body2" color={isOverridden ? 'error' : undefined}>
             {label}: {String(value)}
           </Typography>
           {setData === undefined ? null :
