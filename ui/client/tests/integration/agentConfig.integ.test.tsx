@@ -1,38 +1,24 @@
 /// <reference types="node" />
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import { screen, fireEvent, waitFor, within, cleanup, act } from '@testing-library/react';
-import { startDockerEnv, type DockerEnv } from './dockerSetup';
 import { createProjectViaUI, addDocumentViaUI, renderApp, resetStore } from './integHelpers';
 
-vi.mock('../../src/shared/baseurl', async () => (await import('./mockFactories')).createBaseurlMock(8005));
+vi.mock('../../src/shared/baseurl', async () => (await import('./mockFactories')).createBaseurlMock());
 vi.mock('../../src/stores/useServerConstants', async () => (await import('./mockFactories')).createServerConstantsMock());
+vi.mock('../../src/io/snackbar', async () => (await import('./mockFactories')).createSnackbarMock());
 
 import { useProjectStore } from '../../src/stores/useProjectStore';
 
-let env: DockerEnv;
-
 describe('Agent config UI integration', () => {
   beforeAll(async () => {
-    env = await startDockerEnv({
-      network: 'hera-test-agent-net',
-      mongoContainer: 'hera-test-agent-mongo',
-      serverContainer: 'hera-test-agent-server',
-      serverPort: 8005,
-      dbName: 'hera_test_agent',
-    });
     await createProjectViaUI('AgentTestProject');
     await addDocumentViaUI('AgentTestProject', 'TestAgent', { agent: true });
   }, 90000);
 
   beforeEach(() => { resetStore(); });
   afterEach(() => { cleanup(); });
+  afterAll(() => { cleanup(); });
 
-  afterAll(() => {
-    cleanup();
-    env?.cleanup();
-  }, 15000);
-
-  // Render the full app, wait for project to load, click the agent doc in the tree
   const openAgentDoc = async () => {
     renderApp('/AgentTestProject');
 
@@ -40,15 +26,12 @@ describe('Agent config UI integration', () => {
       expect(useProjectStore.getState().currProject?.name).toBe('AgentTestProject');
     }, { timeout: 15000 });
 
-    // Click the agent document name in the tree to select it
     const docLabel = await screen.findByText('TestAgent', {}, { timeout: 10000 });
     await act(async () => { fireEvent.click(docLabel); });
 
-    // Wait for the detail panel to load the document
     await waitFor(() => {
-      // The document name appears in the detail panel header (h6)
       const headings = screen.getAllByText('TestAgent');
-      expect(headings.length).toBeGreaterThanOrEqual(2); // one in tree, one in detail panel
+      expect(headings.length).toBeGreaterThanOrEqual(2);
     }, { timeout: 10000 });
   };
 

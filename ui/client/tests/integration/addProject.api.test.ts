@@ -1,11 +1,9 @@
 /// <reference types="node" />
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { startDockerEnv, type DockerEnv } from './dockerSetup';
-
-let env: DockerEnv;
+import { describe, it, expect, afterAll } from 'vitest';
+import { SHARED_SERVER_URL } from './mockFactories';
 
 const execPython = async (code: string) => {
-  const r = await fetch(`${env.serverUrl}/exec`, {
+  const r = await fetch(`${SHARED_SERVER_URL}/exec`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ code }),
@@ -14,37 +12,34 @@ const execPython = async (code: string) => {
   if (!r.ok) {
     throw new Error(`exec failed (${r.status}): ${text}`);
   }
-  return JSON.parse(text);
+  return JSON.parse(text).data;
 };
 
 describe('Add Project API integration', () => {
-  beforeAll(async () => {
-    env = await startDockerEnv({
-      network: 'hera-test-api-net',
-      mongoContainer: 'hera-test-api-mongo',
-      serverContainer: 'hera-test-api-server',
-      serverPort: 8001,
-      dbName: 'hera_test_api',
-    });
-  }, 30000);
-
-  afterAll(() => {
-    env?.cleanup();
+  afterAll(async () => {
+    await execPython(`
+from hera.datalayer.project import deleteProject
+try:
+    deleteProject('APITestProject')
+except Exception:
+    pass
+result = 'ok'
+`);
   }, 15000);
 
   it('server is healthy', async () => {
-    const r = await fetch(`${env.serverUrl}/healthz`);
+    const r = await fetch(`${SHARED_SERVER_URL}/healthz`);
     expect(r.ok).toBe(true);
     const data = await r.json();
     expect(data.status).toBe('ok');
   });
 
-  it('project list is initially empty', async () => {
+  it('APITestProject does not exist initially', async () => {
     const data = await execPython(`
 from hera.datalayer.project import getProjectList
-result = getProjectList()
+result = [{"name": p} for p in getProjectList()]
     `);
-    expect(data).toEqual([]);
+    expect(data).not.toContainEqual({ name: 'APITestProject' });
   });
 
   it('created project appears in project list', async () => {
@@ -55,19 +50,18 @@ from hera.utils.data.CLI import project_create
 from hera.datalayer.project import getProjectList, Project
 
 project_create(SimpleNamespace(
-  projectName='TestProject',
-  directory=os.path.join(os.getcwd(), 'projects', 'TestProject'),
+  projectName='APITestProject',
+  directory=os.path.join(os.getcwd(), 'projects', 'APITestProject'),
   loadRepositories=False,
   overwrite=False))
 
-# Creates a config document in MongoDB so the project appears in getProjectList()
-Project(projectName='TestProject',
-        filesDirectory=os.path.join(os.getcwd(), 'projects', 'TestProject'))
+Project(projectName='APITestProject',
+        filesDirectory=os.path.join(os.getcwd(), 'projects', 'APITestProject'))
 
 result = [{"name": p} for p in getProjectList()]
     `);
 
-    expect(createResult).toContainEqual({ name: 'TestProject' });
+    expect(createResult).toContainEqual({ name: 'APITestProject' });
   });
 
   it('project persists after simulated refresh (fresh getProjectList call)', async () => {
@@ -76,13 +70,13 @@ from hera.datalayer.project import getProjectList
 result = [{"name": p} for p in getProjectList()]
     `);
 
-    expect(data).toContainEqual({ name: 'TestProject' });
+    expect(data).toContainEqual({ name: 'APITestProject' });
   });
 
   it('project has documents after refresh', async () => {
     const data = await execPython(`
 from hera.datalayer import All
-docs = All.getDocumentsAsDict('TestProject', with_id=True)
+docs = All.getDocumentsAsDict('APITestProject', with_id=True)
 result = docs['documents']
     `);
 

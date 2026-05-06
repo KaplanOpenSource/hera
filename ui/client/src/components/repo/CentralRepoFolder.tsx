@@ -6,6 +6,7 @@ import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { useDialog } from "../../elements/useDialog";
 import { fetchPython } from "../../io/fetchPython";
 import { idRepoId } from "../../shared/idDocId";
+import { LOAD_REPO_JSON_PYTHON } from "../../shared/repoJsonPython";
 
 const DEFAULT_FOLDER = '~/hera/repositories/';
 const STORAGE_KEY = 'hera-central-repo-folder';
@@ -24,31 +25,13 @@ export const CentralRepoFolder = () => {
       label: 'central repo files',
       code: `
 import os, glob, json
-
-SECTIONS = {'config', 'datasource', 'measurements', 'simulations', 'cache', 'function'}
-
-def isRepoJson(path):
-    try:
-        with open(path, 'r') as f:
-            doc = json.load(f)
-    except Exception:
-        return False
-    if not isinstance(doc, dict) or not doc:
-        return False
-    for toolkitValue in doc.values():
-        if not isinstance(toolkitValue, dict):
-            return False
-        for sectionKey in toolkitValue.keys():
-            if sectionKey.lower() not in SECTIONS:
-                return False
-    return True
-
+${LOAD_REPO_JSON_PYTHON}
 folder = os.path.expanduser('${folderPath}')
 jsonFiles = []
 if os.path.isdir(folder):
     allFiles = glob.glob(os.path.join(folder, '**', '*.json'), recursive=True)
     allFiles = [f for f in allFiles if not f.endswith('caseConfiguration.json')]
-    jsonFiles = sorted(f for f in allFiles if isRepoJson(f))
+    jsonFiles = sorted(f for f in allFiles if loadRepoJson(f) is not None)
 `,
     });
     if (data?.jsonFiles) {
@@ -100,11 +83,18 @@ if os.path.isdir(folder):
               direction="row"
               spacing={1}
               alignItems="center"
-              onClick={e => e.stopPropagation()}
             >
+              <span>
+                <b>Central folder</b>
+              </span>
               <Folder fontSize="small" />
               <Typography variant="body2">{folder}</Typography>
-              <ButtonTooltip title="Change repository folder" onClick={handleChangeFolder}>
+              <ButtonTooltip title="Change repository folder"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleChangeFolder();
+                }}
+              >
                 <Settings fontSize="small" />
               </ButtonTooltip>
             </Stack>
