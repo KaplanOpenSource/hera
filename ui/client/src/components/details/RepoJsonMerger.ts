@@ -58,15 +58,43 @@ export class RepoJsonMerger {
   ) {
     for (const [key, val] of Object.entries(source)) {
       const fullPath = `${pathPrefix}/${key}`;
-      if (key in target && JSON.stringify(target[key]) !== JSON.stringify(val)) {
-        const existing = this.overrides.get(fullPath);
-        if (existing) {
-          existing.push(sourcePath);
-        } else {
-          this.overrides.set(fullPath, [sourcePath]);
-        }
+      if (key in target) {
+        this.diffAndRecord(target[key], val, sourcePath, fullPath);
       }
       target[key] = val;
+    }
+  }
+
+  private diffAndRecord(
+    oldVal: any,
+    newVal: any,
+    sourcePath: string,
+    path: string,
+  ) {
+    if (typeof oldVal === 'object' && oldVal !== null
+      && typeof newVal === 'object' && newVal !== null
+      && !Array.isArray(oldVal) && !Array.isArray(newVal)) {
+      const allKeys = new Set([...Object.keys(oldVal), ...Object.keys(newVal)]);
+      for (const key of allKeys) {
+        if (!(key in oldVal) || !(key in newVal)) {
+          this.recordOverride(`${path}/${key}`, sourcePath);
+        } else {
+          this.diffAndRecord(oldVal[key], newVal[key], sourcePath, `${path}/${key}`);
+        }
+      }
+      return;
+    }
+    if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+      this.recordOverride(path, sourcePath);
+    }
+  }
+
+  private recordOverride(path: string, sourcePath: string) {
+    const existing = this.overrides.get(path);
+    if (existing) {
+      existing.push(sourcePath);
+    } else {
+      this.overrides.set(path, [sourcePath]);
     }
   }
 }

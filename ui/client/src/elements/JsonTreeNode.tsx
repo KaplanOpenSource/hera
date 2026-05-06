@@ -2,6 +2,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { IconButton, Stack, Tooltip, Typography } from "@mui/material";
 import { TreeItem } from "@mui/x-tree-view";
 import { ReactNode } from "react";
+import { OverrideTooltipTable } from "./OverrideTooltipTable";
 
 export type JsonValue =
   | string
@@ -19,6 +20,7 @@ export const JsonTreeNode = ({
   rootLabelComponents = null,
   overrides,
   overridePath,
+  repoJsons,
 }: {
   label: string;
   value: JsonValue;
@@ -27,6 +29,7 @@ export const JsonTreeNode = ({
   rootLabelComponents?: ReactNode | null,
   overrides?: Map<string, string[]>;
   overridePath?: string;
+  repoJsons?: { [path: string]: { [key: string]: any } };
 }) => {
   const isOverridden = overridePath !== undefined && overrides?.has(overridePath);
   const hasOverriddenDescendant = !isOverridden
@@ -43,7 +46,22 @@ export const JsonTreeNode = ({
 
   const labelNode = (
     <Stack direction="row" spacing={1} alignItems="center">
-      <Typography variant="body2" color={isOverridden ? 'error' : undefined}>{label}</Typography>
+      {isOverridden && repoJsons && overridePath
+        ? (
+          <Tooltip
+            slotProps={{ tooltip: { sx: { maxWidth: 'none' } } }}
+            title={
+              <OverrideTooltipTable
+                overridePath={overridePath}
+                filePaths={overrides!.get(overridePath)!}
+                repoJsons={repoJsons}
+              />
+            }
+          >
+            <Typography variant="body2" color="error">{label}</Typography>
+          </Tooltip>
+        )
+        : <Typography variant="body2">{label}</Typography>}
       {hasOverriddenDescendant
         ? (
           <Tooltip title="Some children have overrides">
@@ -109,6 +127,7 @@ export const JsonTreeNode = ({
             }
             overrides={overrides}
             overridePath={overridePath !== undefined ? `${overridePath}/${key}` : undefined}
+            repoJsons={repoJsons}
           />
         ))}
       </TreeItem>
@@ -120,9 +139,28 @@ export const JsonTreeNode = ({
       itemId={`${parentKey}.${label}`}
       label={
         <Stack direction="row" spacing={1} alignItems="center">
-          <Typography variant="body2" color={isOverridden ? 'error' : undefined}>
-            {label}: {String(value)}
-          </Typography>
+          {isOverridden && repoJsons && overridePath
+            ? (
+              <Tooltip
+                slotProps={{ tooltip: { sx: { maxWidth: 'none' } } }}
+                title={
+                  <OverrideTooltipTable
+                    overridePath={overridePath}
+                    filePaths={overrides!.get(overridePath)!}
+                    repoJsons={repoJsons}
+                  />
+                }
+              >
+                <Typography variant="body2" color="error">
+                  {label}: {String(value)}
+                </Typography>
+              </Tooltip>
+            )
+            : (
+              <Typography variant="body2">
+                {label}: {String(value)}
+              </Typography>
+            )}
           {setData === undefined ? null :
             <IconButton size="small" onClick={onDelete}>
               <DeleteIcon fontSize="inherit" />
