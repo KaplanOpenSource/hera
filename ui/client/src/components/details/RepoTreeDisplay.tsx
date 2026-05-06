@@ -34,7 +34,12 @@ export const RepoTreeDisplay = ({
 
   const canToggleHidden = useCallback((treePath: string[]) => {
     if (treePath.length === 1) return true;
-    if (treePath[0].toLowerCase() === 'experiment' && treePath.length <= 3) return true;
+    if (treePath[0].toLowerCase() === 'experiment') {
+      return treePath.length === 2;
+    }
+    if (treePath.length === 3 && treePath[1].toLowerCase() === 'datasource') {
+      return true;
+    }
     return false;
   }, []);
 
