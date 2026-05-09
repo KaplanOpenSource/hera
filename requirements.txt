@@ -166,7 +166,7 @@ matplotlib-inline==0.1.7
 mdurl==0.1.2
 mercantile==1.2.1
 mgwr==2.2.1
-mistune==2.0.5
+mistune==3.2.1
 ml_dtypes==0.5.1
 mmh3==5.1.0
 momepy==0.6.0
