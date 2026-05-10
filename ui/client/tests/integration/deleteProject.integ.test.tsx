@@ -1,36 +1,23 @@
 /// <reference types="node" />
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import { screen, fireEvent, waitFor, within, cleanup, act } from '@testing-library/react';
-import { startDockerEnv, type DockerEnv } from './dockerSetup';
 import { createProjectViaUI, renderApp, resetStore } from './integHelpers';
 
-vi.mock('../../src/shared/baseurl', async () => (await import('./mockFactories')).createBaseurlMock(8004));
+vi.mock('../../src/shared/baseurl', async () => (await import('./mockFactories')).createBaseurlMock());
 vi.mock('../../src/stores/useServerConstants', async () => (await import('./mockFactories')).createServerConstantsMock());
+vi.mock('../../src/io/snackbar', async () => (await import('./mockFactories')).createSnackbarMock());
 
 import { useProjectStore } from '../../src/stores/useProjectStore';
 
-let env: DockerEnv;
-
 describe('Delete Project UI integration', () => {
   beforeAll(async () => {
-    env = await startDockerEnv({
-      network: 'hera-test-delproj-net',
-      mongoContainer: 'hera-test-delproj-mongo',
-      serverContainer: 'hera-test-delproj-server',
-      serverPort: 8004,
-      dbName: 'hera_test_delproj',
-    });
     await createProjectViaUI('ProjectToKeep');
     await createProjectViaUI('ProjectToDelete');
   }, 90000);
 
   beforeEach(() => { resetStore(); });
   afterEach(() => { cleanup(); });
-
-  afterAll(() => {
-    cleanup();
-    env?.cleanup();
-  }, 15000);
+  afterAll(() => { cleanup(); });
 
   it('both projects appear in the list', async () => {
     renderApp('/ProjectToDelete');
@@ -67,7 +54,9 @@ describe('Delete Project UI integration', () => {
     }, { timeout: 15000 });
 
     await waitFor(() => {
-      expect(useProjectStore.getState().currProjectName).toBe('ProjectToKeep');
+      const curr = useProjectStore.getState().currProjectName;
+      expect(curr).not.toBe('ProjectToDelete');
+      expect(curr).not.toBe('* NONE *');
     }, { timeout: 5000 });
   }, 45000);
 

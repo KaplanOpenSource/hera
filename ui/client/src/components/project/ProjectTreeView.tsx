@@ -12,7 +12,6 @@ import { SplitTree } from '../../utils/splitTree';
 import { AddDocumentButton } from './AddDocumentButton';
 import { DocumentSplitGroup } from './DocumentSplitGroup';
 import { ProjectViewSettingsButton } from './ProjectViewSettingsButton';
-import { RegisteredRepositories } from '../repo/RegisteredRepositories';
 import { RepoTreeWhole } from './RepoTreeWhole';
 import { useViewSettingsStore } from '../../stores/useViewSettingsStore';
 
@@ -35,7 +34,7 @@ export const ProjectTreeView = ({
 }) => {
   const { toolkits } = useProjectStore();
   const { viewSettings } = useViewSettingsStore();
-  const [expandedItems, setExpandedItems] = useState<string[]>(['project-documents', 'no-toolkit', '*repos*', 'registered-repos']);
+  const [expandedItems, setExpandedItems] = useState<string[]>(['project-documents', 'no-toolkit', '*repos*']);
   const splitTreeRef = useRef<SplitTree | null>(null);
 
   const getSplitTree = useCallback(() => {
@@ -125,9 +124,7 @@ export const ProjectTreeView = ({
           onDocumentDeleted={() => setSelectedItemIds([])}
         />
       </TreeItem>
-      <RegisteredRepositories showUpdateButton />
-      <RepoTreeWhole
-      />
+      <RepoTreeWhole />
     </SimpleTreeView>
   );
 };

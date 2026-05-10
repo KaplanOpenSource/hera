@@ -1,4 +1,4 @@
-from hera import get_logger
+from hera.utils.logging import get_logger
 from mongoengine import *
 from mongoengine.connection import disconnect
 import os
