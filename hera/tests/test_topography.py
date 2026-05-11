@@ -19,7 +19,13 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from hera.measurements.GIS.raster.topography import WSG84
+try:
+    from hera.measurements.GIS.raster.topography import WSG84
+except ImportError as _gdal_err:
+    pytest.skip(
+        f"Skipping topography tests — system GDAL not installed: {_gdal_err}",
+        allow_module_level=True,
+    )
 
 
 # ---------------------------------------------------------------------------

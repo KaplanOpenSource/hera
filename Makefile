@@ -243,6 +243,12 @@ test-setup:
 	@echo "Add test data files under measurements/ and expected outputs under expected/BASELINE/"
 
 test:
+	@if [ ! -f "$(TEST_HERA)/test_repository.json" ]; then \
+		echo "Test data not found at $(TEST_HERA) — running S3 bootstrap..."; \
+		./scripts/s3/bootstrap_unittest_data.sh --target-dir "$(TEST_HERA)"; \
+	else \
+		echo "Test data already present at $(TEST_HERA) (skipping bootstrap)."; \
+	fi
 	TEST_HERA=$(TEST_HERA) pytest hera/tests/ -v
 
 # --- Third-party Dependencies ---
