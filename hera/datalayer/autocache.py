@@ -263,7 +263,14 @@ class cacheDecorators:
 
         proj = Project(self.projectName)
         docList = proj.getCacheDocuments(type="functionCacheData",**call_info)
-        return None if len(docList)==0 else docList[0].getData(**self.getDataParams)
+        if len(docList) == 0:
+            return None
+        try:
+            return docList[0].getData(**self.getDataParams)
+        except Exception:
+            # Cache file missing or corrupt — recompute
+            docList[0].delete()
+            return None
 
     def saveFunctionCache(self,call_info,data):
         """

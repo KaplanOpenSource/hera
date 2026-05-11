@@ -342,6 +342,15 @@ class DailyPlots(Plots):
             if data.index.name != 'datetime':
                 raise Exception("No column 'datetime' in dataframe.!")
 
+        # Drop duplicate index labels (pandas 3.x raises on reindex with duplicates)
+        if data.index.duplicated().any():
+            data = data[~data.index.duplicated(keep='first')]
+
+        if data.empty:
+            if ax is None:
+                fig, ax = plt.subplots()
+            return ax
+
         if ax is None:
             fig, ax = plt.subplots()
         else:
@@ -427,7 +436,7 @@ class DailyPlots(Plots):
         curdata = curdata.assign(houronly=curdata.curdate.dt.hour + curdata.curdate.dt.minute / 60.)
 
         qstring = "dateonly == '%s'" % date
-        if isinstance(curdata, dask.dataframe.core.DataFrame):
+        if isinstance(curdata, dask.dataframe.DataFrame):
             dailydata = curdata.query(qstring).compute()
         else:
             dailydata = curdata.query(qstring)
