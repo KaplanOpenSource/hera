@@ -4,6 +4,7 @@ import { SimpleTreeView, TreeItem } from "@mui/x-tree-view";
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { JsonTreeNode } from "../../elements/JsonTreeNode";
+import { DatasourceAddButton } from "./DatasourceAddButton";
 import { SECTION_DATASOURCE, SECTION_EXPERIMENT } from "./RepoJsonMerger";
 import { RepoTreeAddButton } from "./RepoTreeAddButton";
 import { TextFieldWithApply } from "./TextFieldWithApply";
@@ -56,12 +57,17 @@ export const RepoTreeDisplay = ({
     });
   };
 
+  const isDatasource = (treePath: string[]) =>
+    treePath.length === 3 && treePath[1].toLowerCase() === SECTION_DATASOURCE;
+
   const nodeActions = (treePath: string[]) => {
+    const actions = [];
     if (canToggleHidden(treePath)) {
       const treePathKey = treePath.join('/');
       const isHidden = hiddenPaths.has(treePathKey);
-      return (
+      actions.push(
         <ButtonTooltip
+          key="visibility"
           title={isHidden ? 'Show' : 'Hide'}
           onClick={() => onToggleHidden(treePathKey)}
         >
@@ -69,7 +75,12 @@ export const RepoTreeDisplay = ({
         </ButtonTooltip>
       );
     }
-    return null;
+    if (isDatasource(treePath)) {
+      actions.push(
+        <DatasourceAddButton key="add-ds" tree={tree} treePath={treePath} />
+      );
+    }
+    return actions.length > 0 ? <>{actions}</> : null;
   };
 
   useEffect(() => {
