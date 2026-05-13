@@ -67,7 +67,19 @@ if not notebook_path.exists():
             "language": "python",
             "name": "python3",
         }},
-        "cells": [],
+        "cells": [{
+            "cell_type": "code",
+            "metadata": {},
+            "source": [
+                "import hera\\n",
+                "PROJECT_NAME = \\"${currProjectName}\\"\\n",
+                "\\n",
+                "p = hera.datalayer.Project(projectName=PROJECT_NAME)\\n",
+                "p.getMetadata()",
+            ],
+            "outputs": [],
+            "execution_count": None,
+        }],
     }
     notebook_path.write_text(json.dumps(empty_notebook, indent=2))
 Cache_Collection().addDocument(
