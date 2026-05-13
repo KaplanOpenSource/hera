@@ -5,6 +5,7 @@ import { ReactNode, useEffect, useMemo, useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { JsonTreeNode } from "../../elements/JsonTreeNode";
 import { DatasourceAddButton } from "./DatasourceAddButton";
+import { ExperimentAddButton } from "./ExperimentAddButton";
 import { SECTION_DATASOURCE, SECTION_EXPERIMENT } from "./RepoJsonMerger";
 import { ToolkitAddButton } from "./ToolkitAddButton";
 import { RepoTreeAddButton } from "./RepoTreeAddButton";
@@ -61,6 +62,9 @@ export const RepoTreeDisplay = ({
   const isDatasource = (treePath: string[]) =>
     treePath.length === 3 && treePath[1].toLowerCase() === SECTION_DATASOURCE;
 
+  const isExperiment = (treePath: string[]) =>
+    treePath.length === 2 && treePath[0].toLowerCase() === SECTION_EXPERIMENT;
+
   const isToolkit = (treePath: string[]) =>
     treePath.length === 1 && treePath[0].toLowerCase() !== SECTION_EXPERIMENT;
 
@@ -82,6 +86,11 @@ export const RepoTreeDisplay = ({
     if (isDatasource(treePath)) {
       actions.push(
         <DatasourceAddButton key="add-ds" tree={tree} treePath={treePath} />
+      );
+    }
+    if (isExperiment(treePath)) {
+      actions.push(
+        <ExperimentAddButton key="add-exp" tree={tree} treePath={treePath} />
       );
     }
     if (isToolkit(treePath)) {
