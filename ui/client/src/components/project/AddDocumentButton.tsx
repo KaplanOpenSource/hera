@@ -4,10 +4,11 @@ import {
   Button,
   DialogActions,
   DialogContent,
-  DialogContentText,
   DialogTitle,
   Stack,
-  TextField
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
 import { DocumentDesc, ProjectEntire, Toolkit } from "../../shared/types";
 import { useRef, useState } from "react";
@@ -64,7 +65,11 @@ export const AddDocumentButton = ({
         kind,
         projectName: currProjectName,
         desc,
-        toolkits,
+        toolkitNames: [...new Set(
+          useProjectStore.getState().getProject()?.documents
+            .map(d => d.toolkit)
+            .filter((t): t is string => !!t) ?? []
+        )],
         notebookResource,
         collection: cls.collection,
         resource,
@@ -110,14 +115,14 @@ export const AddDocumentButton = ({
             <ToggleButtonGroup
               exclusive
               size="small"
-                value={kind}
+              value={kind}
               onChange={(_e, v) => {
                 if (v === null) return;
-                  setKind(v as DocKind);
-                  if (v !== 'Regular') {
-                    setChosenToolkit(undefined);
-                  }
-                }}
+                setKind(v as DocKind);
+                if (v !== 'Regular') {
+                  setChosenToolkit(undefined);
+                }
+              }}
               sx={{ mb: 1 }}
             >
               {DOC_KINDS.map(k => (

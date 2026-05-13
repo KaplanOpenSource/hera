@@ -1,11 +1,11 @@
-import { DocumentDesc, Toolkit } from "../../shared/types";
+import { DocumentDesc } from "../../shared/types";
 import { buildNotebookCommand } from "./buildNotebookCommand";
 
 export const buildAddDocumentCode = ({
   kind,
   projectName,
   desc,
-  toolkits,
+  toolkitNames,
   notebookResource,
   collection,
   resource,
@@ -13,14 +13,14 @@ export const buildAddDocumentCode = ({
   kind: string,
   projectName: string,
   desc: DocumentDesc,
-  toolkits: Toolkit[],
+  toolkitNames: string[],
   notebookResource: string,
   collection: string,
   resource: string,
 }) => {
   let addCommand: string;
   if (kind === 'Notebook') {
-    addCommand = buildNotebookCommand({ notebookResource, projectName, toolkits, desc });
+    addCommand = buildNotebookCommand({ notebookResource, projectName, toolkitNames, desc });
   } else if (kind === 'Agent') {
     addCommand = `
 All.addDocument(

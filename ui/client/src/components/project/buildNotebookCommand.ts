@@ -1,21 +1,21 @@
-import { DocumentDesc, Toolkit } from "../../shared/types";
+import { DocumentDesc } from "../../shared/types";
 
 export const buildNotebookCommand = ({
   notebookResource,
   projectName,
-  toolkits,
+  toolkitNames,
   desc,
 }: {
   notebookResource: string,
   projectName: string,
-  toolkits: Toolkit[],
+  toolkitNames: string[],
   desc: DocumentDesc,
 }) => {
-  const toolkitSourceLines = toolkits.map(t => {
-    const varName = t.toolkit.replace(/[^a-zA-Z0-9_]/g, '_');
-    return `                "${varName}_tk = hera.toolkit.ToolkitHome().getToolkit(\\"${t.toolkit}\\", PROJECT_NAME)\\n",`;
+  const toolkitSourceLines = toolkitNames.map(name => {
+    const varName = name.replace(/[^a-zA-Z0-9_]/g, '_');
+    return `                "${varName}_tk = hera.toolkit.ToolkitHome().getToolkit(\\"${name}\\", PROJECT_NAME)\\n",`;
   }).join('\n');
-  const toolkitSection = toolkits.length > 0
+  const toolkitSection = toolkitNames.length > 0
     ? `\n                "\\n",\n${toolkitSourceLines}`
     : '';
   return `
