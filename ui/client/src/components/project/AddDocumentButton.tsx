@@ -16,6 +16,7 @@ import { TextProperty } from "../../elements/TextProperty";
 import { fetchPython } from "../../io/fetchPython";
 import { useProjectStore } from "../../stores/useProjectStore";
 import { SelectProperty } from "../../elements/SelectProperty";
+import { buildAddDocumentCode } from "./buildAddDocumentCode";
 
 const METADATA_CLASSES = [
   { name: 'Metadata.Measurements', collection: 'Measurements_Collection' },
@@ -51,63 +52,6 @@ export const AddDocumentButton = ({
 
   const notebookResource = `${filesDir}/notebooks/${name}.ipynb`;
 
-  const buildAddCommand = (desc: DocumentDesc) => {
-    if (kind === 'Notebook') {
-      return `
-import json
-from pathlib import Path
-notebook_path = Path("${notebookResource}")
-if not notebook_path.exists():
-    notebook_path.parent.mkdir(parents=True, exist_ok=True)
-    empty_notebook = {
-        "nbformat": 4,
-        "nbformat_minor": 5,
-        "metadata": {"kernelspec": {
-            "display_name": "Python 3",
-            "language": "python",
-            "name": "python3",
-        }},
-        "cells": [{
-            "cell_type": "code",
-            "metadata": {},
-            "source": [
-                "import hera\\n",
-                "PROJECT_NAME = \\"${currProjectName}\\"\\n",
-                "\\n",
-                "p = hera.datalayer.Project(projectName=PROJECT_NAME)\\n",
-                "p.getMetadata()",
-            ],
-            "outputs": [],
-            "execution_count": None,
-        }],
-    }
-    notebook_path.write_text(json.dumps(empty_notebook, indent=2))
-Cache_Collection().addDocument(
-    projectName="${currProjectName}",
-    resource="${notebookResource}",
-    dataFormat="JSON_dict",
-    type="notebook",
-    desc=${JSON.stringify(desc)},
-)`;
-    }
-    if (kind === 'Agent') {
-      return `
-All.addDocument(
-    '${currProjectName}',
-    resource={"effects": {}},
-    desc=${JSON.stringify(desc)},
-    dataFormat=datatypes.JSON_DICT,
-    type='ToolkitDataSource',
-)`;
-    }
-    return `
-${cls.collection}().addDocument(
-    '${currProjectName}',
-    resource='${resource}',
-    desc=${JSON.stringify(desc)},
-)`;
-  };
-
   const doAddDoc = async () => {
     const desc: DocumentDesc = { datasourceName: name };
     if (chosenToolkit) {
@@ -116,12 +60,15 @@ ${cls.collection}().addDocument(
     const { data } = await fetchPython({
       results: ['project'],
       label: `add document ${name}`,
-      code: `
-from hera.datalayer import All, datatypes, Measurements_Collection, Simulations_Collection, Cache_Collection
-${buildAddCommand(desc)}
-docs = All.getDocumentsAsDict('${currProjectName}', with_id=True)
-project = {"name": '${currProjectName}', "documents": docs['documents']}
-`,
+      code: buildAddDocumentCode({
+        kind,
+        projectName: currProjectName,
+        desc,
+        toolkits,
+        notebookResource,
+        collection: cls.collection,
+        resource,
+      }),
     })
     if (!data) {
       return;
