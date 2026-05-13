@@ -1,7 +1,7 @@
-import { Edit } from "@mui/icons-material";
+import { Edit, Visibility, VisibilityOff } from "@mui/icons-material";
 import { Stack, Typography } from "@mui/material";
 import { SimpleTreeView, TreeItem } from "@mui/x-tree-view";
-import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { JsonTreeNode } from "../../elements/JsonTreeNode";
 import { SECTION_DATASOURCE, SECTION_EXPERIMENT } from "./RepoJsonMerger";
@@ -33,7 +33,7 @@ export const RepoTreeDisplay = ({
   const [hiddenPaths, setHiddenPaths] = useState<Set<string>>(new Set());
   const [showHidden, setShowHidden] = useState(false);
 
-  const canToggleHidden = useCallback((treePath: string[]) => {
+  const canToggleHidden = (treePath: string[]) => {
     if (treePath.length === 1) return true;
     if (treePath[0].toLowerCase() === SECTION_EXPERIMENT) {
       return treePath.length === 2;
@@ -42,18 +42,34 @@ export const RepoTreeDisplay = ({
       return true;
     }
     return false;
-  }, []);
+  };
 
-  const onToggleHidden = (path: string) => {
+  const onToggleHidden = (treePathKey: string) => {
     setHiddenPaths((prev) => {
       const next = new Set(prev);
-      if (next.has(path)) {
-        next.delete(path);
+      if (next.has(treePathKey)) {
+        next.delete(treePathKey);
       } else {
-        next.add(path);
+        next.add(treePathKey);
       }
       return next;
     });
+  };
+
+  const nodeActions = (treePath: string[]) => {
+    if (canToggleHidden(treePath)) {
+      const treePathKey = treePath.join('/');
+      const isHidden = hiddenPaths.has(treePathKey);
+      return (
+        <ButtonTooltip
+          title={isHidden ? 'Show' : 'Hide'}
+          onClick={() => onToggleHidden(treePathKey)}
+        >
+          {isHidden ? <VisibilityOff fontSize="inherit" /> : <Visibility fontSize="inherit" />}
+        </ButtonTooltip>
+      );
+    }
+    return null;
   };
 
   useEffect(() => {
@@ -131,8 +147,7 @@ export const RepoTreeDisplay = ({
                 repoJsons={repoJsons}
                 hiddenPaths={hiddenPaths}
                 showHidden={showHidden}
-                onToggleHidden={onToggleHidden}
-                canToggleHidden={canToggleHidden}
+                nodeActions={nodeActions}
               />
             ))
             : null}
