@@ -107,21 +107,23 @@ export const AddDocumentButton = ({
         <>
           <DialogTitle>Add Document</DialogTitle>
           <DialogContent>
-            <DialogContentText component="div" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              Adding a
-              <SelectProperty
-                label=""
+            <ToggleButtonGroup
+              exclusive
+              size="small"
                 value={kind}
-                setValue={v => {
+              onChange={(_e, v) => {
+                if (v === null) return;
                   setKind(v as DocKind);
                   if (v !== 'Regular') {
                     setChosenToolkit(undefined);
                   }
                 }}
-                menuItems={DOC_KINDS.map(k => ({ name: k }))}
-              />
-              document
-            </DialogContentText>
+              sx={{ mb: 1 }}
+            >
+              {DOC_KINDS.map(k => (
+                <ToggleButton key={k} value={k}>{k}</ToggleButton>
+              ))}
+            </ToggleButtonGroup>
             <TextProperty
               inputRef={inputRef}
               autoFocus
