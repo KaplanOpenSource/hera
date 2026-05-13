@@ -29,8 +29,27 @@ type MetadataCls = typeof METADATA_CLASSES[number];
 
 const NO_TOOLKIT = '* No Toolkit *';
 
-const DOC_KINDS = ['Regular', 'Agent', 'Notebook'] as const;
-type DocKind = typeof DOC_KINDS[number];
+export enum DocKind {
+  Document = 'Document',
+  Agent = 'Agent',
+  Notebook = 'Notebook',
+}
+
+const DOC_KINDS = Object.values(DocKind);
+
+const getNextDefaultName = (kind: DocKind) => {
+  const prefix = kind;
+  const regex = new RegExp(`^${prefix}(\\d+)$`);
+  const docs = useProjectStore.getState().getProject()?.documents ?? [];
+  let max = 0;
+  for (const doc of docs) {
+    const match = doc.name.match(regex);
+    if (match) {
+      max = Math.max(max, parseInt(match[1], 10));
+    }
+  }
+  return `${prefix}${max + 1}`;
+};
 
 export const AddDocumentButton = ({
   toolkit = undefined,
@@ -42,7 +61,7 @@ export const AddDocumentButton = ({
   const { toolkits } = useProjectStore();
   const [name, setName] = useState('');
   const [resource, setResource] = useState('');
-  const [kind, setKind] = useState<DocKind>('Regular');
+  const [kind, setKind] = useState(DocKind.Document);
   const [cls, setCls] = useState<MetadataCls>(METADATA_CLASSES[0]);
   const [chosenToolkit, setChosenToolkit] = useState<string | undefined>(toolkit?.toolkit);
   const { currProjectName, setCurrentProject } = useProjectStore();
@@ -88,10 +107,10 @@ export const AddDocumentButton = ({
       icon={<Add />}
       title="Add Document"
       onOpen={() => {
-        setName('');
+        setName(getNextDefaultName(DocKind.Document));
         setResource('');
-        setKind('Regular');
-        setTimeout(() => (inputRef.current as any)?.focus(), 0)
+        setKind(DocKind.Document);
+        setTimeout(() => (inputRef.current as any)?.select(), 0)
       }}
       dialogProps={{
         onClick: (e) => e.stopPropagation(),
@@ -114,10 +133,13 @@ export const AddDocumentButton = ({
               value={kind}
               onChange={(_e, v) => {
                 if (v === null) return;
-                setKind(v as DocKind);
-                if (v !== 'Regular') {
+                const newKind = v as DocKind;
+                setKind(newKind);
+                setName(getNextDefaultName(newKind));
+                if (newKind !== DocKind.Document) {
                   setChosenToolkit(undefined);
                 }
+                setTimeout(() => (inputRef.current as any)?.select(), 0);
               }}
               sx={{ mb: 1 }}
             >
@@ -139,12 +161,12 @@ export const AddDocumentButton = ({
               margin="dense"
               label="Resource"
               fullWidth
-              value={kind === 'Notebook' ? `${filesDir}/notebooks/${name}.ipynb` : resource}
+              value={kind === DocKind.Notebook ? `${filesDir}/notebooks/${name}.ipynb` : resource}
               setValue={v => setResource(v)}
-              disabled={kind !== 'Regular'}
-              helperText={kind === 'Notebook' ? 'If a notebook file already exists at this path, it will be used as-is. Otherwise, a new empty notebook will be created.' : undefined}
+              disabled={kind !== DocKind.Document}
+              helperText={kind === DocKind.Notebook ? 'If a notebook file already exists at this path, it will be used as-is. Otherwise, a new empty notebook will be created.' : undefined}
             />
-            {kind === 'Regular' && (
+            {kind === DocKind.Document && (
               <Stack
                 direction={'column'}
                 spacing={2}
