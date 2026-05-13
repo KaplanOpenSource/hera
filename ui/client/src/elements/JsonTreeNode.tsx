@@ -33,7 +33,7 @@ export const JsonTreeNode = ({
   parentKey: string,
   rootLabelComponents?: ReactNode | null,
   overrides?: { [path: string]: string[] };
-  treePath: string[];
+  treePath?: string[];
   repoJsons?: { [path: string]: { [key: string]: any } };
   hiddenPaths?: Set<string>;
   showHidden?: boolean;
