@@ -65,11 +65,16 @@ export const AddDocumentButton = ({
         kind,
         projectName: currProjectName,
         desc,
-        toolkitNames: [...new Set(
-          useProjectStore.getState().getProject()?.documents
-            .map(d => d.toolkit)
-            .filter((t): t is string => !!t) ?? []
-        )],
+        toolkitNames: toolkits
+          .filter(t => {
+            const className = t.cls.split('.').at(-1) ?? '';
+            const docToolkits = useProjectStore.getState().getProject()?.documents
+              .map(d => d.toolkit).filter(Boolean) ?? [];
+            return docToolkits.some(dt =>
+              dt === t.toolkit || className.toLowerCase().startsWith(dt!.toLowerCase())
+            );
+          })
+          .map(t => t.toolkit),
         notebookResource,
         collection: cls.collection,
         resource,

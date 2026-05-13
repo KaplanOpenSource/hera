@@ -13,7 +13,7 @@ export const buildNotebookCommand = ({
 }) => {
   const toolkitSourceLines = toolkitNames.map(name => {
     const varName = name.replace(/[^a-zA-Z0-9_]/g, '_');
-    return `                "${varName}_tk = hera.toolkit.ToolkitHome().getToolkit(\\"${name}\\", PROJECT_NAME)\\n",`;
+    return `                "${varName}_tk = hera.toolkit.ToolkitHome().getToolkit(\\"${name}\\", projectName=PROJECT_NAME)\\n",`;
   }).join('\n');
   const toolkitSection = toolkitNames.length > 0
     ? `\n                "\\n",\n${toolkitSourceLines}`
