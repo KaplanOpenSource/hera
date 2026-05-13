@@ -69,7 +69,7 @@ project = {"name": '${currProject?.name}', "documents": docs['documents']}
       disabled={tree === undefined}
       onClick={async () => {
         const result = await openDialog({
-          title: 'Add Repository of Datasources To Project',
+          title,
           initialValues: { overwrite: true },
           render:
             ({ values, setValues }) => (

@@ -6,6 +6,7 @@ import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { JsonTreeNode } from "../../elements/JsonTreeNode";
 import { DatasourceAddButton } from "./DatasourceAddButton";
 import { SECTION_DATASOURCE, SECTION_EXPERIMENT } from "./RepoJsonMerger";
+import { ToolkitAddButton } from "./ToolkitAddButton";
 import { RepoTreeAddButton } from "./RepoTreeAddButton";
 import { TextFieldWithApply } from "./TextFieldWithApply";
 import { VisibilityToggleButton } from "./VisibilityToggleButton";
@@ -60,6 +61,9 @@ export const RepoTreeDisplay = ({
   const isDatasource = (treePath: string[]) =>
     treePath.length === 3 && treePath[1].toLowerCase() === SECTION_DATASOURCE;
 
+  const isToolkit = (treePath: string[]) =>
+    treePath.length === 1 && treePath[0].toLowerCase() !== SECTION_EXPERIMENT;
+
   const nodeActions = (treePath: string[]) => {
     const actions = [];
     if (canToggleHidden(treePath)) {
@@ -78,6 +82,11 @@ export const RepoTreeDisplay = ({
     if (isDatasource(treePath)) {
       actions.push(
         <DatasourceAddButton key="add-ds" tree={tree} treePath={treePath} />
+      );
+    }
+    if (isToolkit(treePath)) {
+      actions.push(
+        <ToolkitAddButton key="add-toolkit" tree={tree} toolkitName={treePath[0]} />
       );
     }
     return actions.length > 0 ? <>{actions}</> : null;
