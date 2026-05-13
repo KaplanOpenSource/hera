@@ -1,4 +1,4 @@
-__version__ = '2.16.2'
+__version__ = '2.16.3'
 __author__ = 'Yehuda Arav'
 __contributors__ = [
     'Eyal Fattal',
@@ -32,6 +32,10 @@ from hera.datalayer.autocache import cacheFunction,clearFunctionCache,clearAllFu
 toolkitHome = ToolkitHome()
 
 """
+2.16.3 (2026-05)
+    LSM: 
+        - The output of the getConcentration and getDosage is always pint. 
+
 2.16.2 (2026-04)
 -----------------
     RAG:
