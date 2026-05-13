@@ -1,5 +1,4 @@
 import DeleteIcon from "@mui/icons-material/Delete";
-import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { IconButton, Stack, Tooltip, Typography } from "@mui/material";
 import { TreeItem } from "@mui/x-tree-view";
 import { ReactNode } from "react";
@@ -24,8 +23,7 @@ export const JsonTreeNode = ({
   repoJsons,
   hiddenPaths,
   showHidden,
-  onToggleHidden,
-  canToggleHidden,
+  nodeActions,
 }: {
   label: string;
   value: JsonValue;
@@ -33,18 +31,16 @@ export const JsonTreeNode = ({
   parentKey: string,
   rootLabelComponents?: ReactNode | null,
   overrides?: { [path: string]: string[] };
-  treePath: string[];
+  treePath?: string[];
   repoJsons?: { [path: string]: { [key: string]: any } };
   hiddenPaths?: Set<string>;
   showHidden?: boolean;
-  onToggleHidden?: (treePathKey: string) => void;
-  canToggleHidden?: (treePath: string[]) => boolean;
+  nodeActions?: (treePath: string[]) => ReactNode;
 }) => {
   const treePathKey = treePath.join('/');
   const isHidden = hiddenPaths?.has(treePathKey) ?? false;
-  const showEye = onToggleHidden && (!canToggleHidden || canToggleHidden(treePath));
 
-  if (onToggleHidden && !showHidden && isHidden) {
+  if (hiddenPaths && !showHidden && isHidden) {
     return null;
   }
 
@@ -58,11 +54,6 @@ export const JsonTreeNode = ({
     if (setData) {
       setData(undefined);
     }
-  };
-
-  const onToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onToggleHidden) onToggleHidden(treePathKey);
   };
 
   const labelNode = (
@@ -82,11 +73,7 @@ export const JsonTreeNode = ({
           </Tooltip>
         )
         : null}
-      {showEye && (
-        <IconButton size="small" onClick={onToggle}>
-          {isHidden ? <VisibilityOff fontSize="inherit" /> : <Visibility fontSize="inherit" />}
-        </IconButton>
-      )}
+      {nodeActions?.(treePath)}
       {setData === undefined ? null :
         <IconButton size="small" onClick={onDelete}>
           <DeleteIcon fontSize="inherit" />
@@ -109,8 +96,7 @@ export const JsonTreeNode = ({
             repoJsons={repoJsons}
             hiddenPaths={hiddenPaths}
             showHidden={showHidden}
-            onToggleHidden={onToggleHidden}
-            canToggleHidden={canToggleHidden}
+            nodeActions={nodeActions}
             setData={setData === undefined ? undefined :
               (next) =>
                 setData(
@@ -155,8 +141,7 @@ export const JsonTreeNode = ({
             repoJsons={repoJsons}
             hiddenPaths={hiddenPaths}
             showHidden={showHidden}
-            onToggleHidden={onToggleHidden}
-            canToggleHidden={canToggleHidden}
+            nodeActions={nodeActions}
           />
         ))}
       </TreeItem>
@@ -176,11 +161,7 @@ export const JsonTreeNode = ({
           >
             {label}: {String(value)}
           </OverrideLabel>
-          {showEye && (
-            <IconButton size="small" onClick={onToggle}>
-              {isHidden ? <VisibilityOff fontSize="inherit" /> : <Visibility fontSize="inherit" />}
-            </IconButton>
-          )}
+          {nodeActions?.(treePath)}
           {setData === undefined ? null :
             <IconButton size="small" onClick={onDelete}>
               <DeleteIcon fontSize="inherit" />

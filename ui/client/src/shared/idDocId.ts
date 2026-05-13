@@ -1,6 +1,7 @@
 const ID_PREFIX_DOC = 'document_'
 const ID_PREFIX_REPO = '__repo_*_'
 export const TEMP_REPO_NAME = '*Temp Repository*';
+export const CENTRAL_REPO_FOLDER_ID = 'central-repo-folder';
 
 export const idDocId = (oid: string) => {
   return ID_PREFIX_DOC + oid;

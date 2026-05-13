@@ -16,6 +16,7 @@ interface ProjectStore {
   setCurrentProject: (project: ProjectEntire | null) => void; // Sets current project
   setToolkits: (val: Toolkit[]) => void;
   getProject: () => ProjectObj | null;
+  getProjectToolkitKeys: () => string[];
 }
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
@@ -38,5 +39,20 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   getProject: () => {
     const { currProject } = get();
     return currProject ? new ProjectObj(currProject) : null;
-  }
+  },
+  getProjectToolkitKeys: () => {
+    const { toolkits } = get();
+    const documents = get().getProject()?.documents ?? [];
+    const docToolkitNames = [...new Set(
+      documents.map(d => d.toolkit).filter(Boolean) as string[]
+    )];
+    return toolkits
+      .filter(t => {
+        const className = t.cls.split('.').at(-1) ?? '';
+        return docToolkitNames.some(dt =>
+          dt === t.toolkit || className.toLowerCase().startsWith(dt.toLowerCase())
+        );
+      })
+      .map(t => t.toolkit);
+  },
 }));
