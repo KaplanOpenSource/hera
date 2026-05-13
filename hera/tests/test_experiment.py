@@ -106,7 +106,7 @@ def _create_sonic_parquet(path, n_rows=100):
         "T": np.random.normal(25.0, 1.0, n_rows),
         "deviceName": "sonic01",
     }, index=idx)
-    df.index.name = "Time"
+    df.index.name = "timestamp"
     df.to_parquet(path)
     return df
 
@@ -120,7 +120,7 @@ def _create_trh_parquet(path, n_rows=100):
         "RH": np.random.normal(65.0, 5.0, n_rows),
         "deviceName": "TRH01",
     }, index=idx)
-    df.index.name = "Time"
+    df.index.name = "timestamp"
     df.to_parquet(path)
     return df
 
@@ -128,11 +128,11 @@ def _create_trh_parquet(path, n_rows=100):
 def _create_argos_zip(zip_path, experiment_name="TestExp"):
     """Create an Argos zip with trial sets, entity types, trials, and entities."""
     data_json = {
-        "version": "1.0.0",
+        "version": "1.0.0.",
         "experiment": {
             "name": experiment_name,
             "description": "Test experiment",
-            "version": "1.0.0",
+            "version": "1.0.0.",
         },
         "entityTypes": [
             {
@@ -176,8 +176,8 @@ def _create_argos_zip(zip_path, experiment_name="TestExp"):
             {
                 "name": "Measurements",
                 "attributeTypes": [
-                    {"type": "Date", "name": "TrialStart"},
-                    {"type": "Date", "name": "TrialEnd"},
+                    {"type": "datetime-local", "name": "TrialStart", "label": "TrialStart", "description": ""},
+                    {"type": "datetime-local", "name": "TrialEnd", "label": "TrialEnd", "description": ""},
                 ],
                 "trials": [
                     {
@@ -185,8 +185,8 @@ def _create_argos_zip(zip_path, experiment_name="TestExp"):
                         "created": "2024-03-15T06:00:00.000Z",
                         "cloneFrom": None,
                         "properties": [
-                            {"key": "TrialStart", "val": "2024-03-15T08:00:00.000Z", "type": "Date"},
-                            {"key": "TrialEnd", "val": "2024-03-15T08:00:10.000Z", "type": "Date"},
+                            {"key": "TrialStart", "val": "2024-03-15T08:00:00.000Z", "type": "datetime-local"},
+                            {"key": "TrialEnd", "val": "2024-03-15T08:00:10.000Z", "type": "datetime-local"},
                         ],
                         "entities": [
                             {
@@ -708,7 +708,7 @@ class TestArgosZipParsing:
         )
         exp = ExperimentZipFile(zip_path)
         trial = exp.trialSet["Measurements"]["Trial_01"]
-        table = trial.entitiesTable()
+        table = trial.entitiesTable
         assert isinstance(table, pd.DataFrame)
         assert len(table) == 2  # sonic01 + TRH01
 
