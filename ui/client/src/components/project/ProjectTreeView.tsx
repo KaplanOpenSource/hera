@@ -1,4 +1,4 @@
-import { Folder, Refresh } from '@mui/icons-material';
+import { ContentCopy, Folder, Refresh } from '@mui/icons-material';
 import { Stack, Tooltip, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
@@ -124,14 +124,23 @@ export const ProjectTreeView = ({
           </Stack>
         )}
       >
-        <Tooltip title='Files directory where the project is located'>
-          <Stack direction={'row'} spacing={1} alignItems={'center'} justifyContent={'start'} sx={{ marginLeft: 5, width: 'fit-content' }}>
-            <Folder />
+        <Stack direction={'row'} spacing={0} alignItems={'center'} justifyContent={'start'} sx={{ marginLeft: 5, width: 'fit-content' }}>
+          <Folder sx={{ mr: 1 }} />
+          <Tooltip title='Files directory where the project is located'>
             <Typography color={project.configDocument?.data.desc.filesDirectory ? 'text.primary' : 'text.secondary'}>
               {project.configDocument?.data.desc.filesDirectory || 'No directory'}
             </Typography>
-          </Stack>
-        </Tooltip>
+          </Tooltip>
+          {project.configDocument?.data.desc.filesDirectory && (
+            <ButtonTooltip
+              title='Copy path'
+              onClick={() => navigator.clipboard.writeText(project.configDocument?.data.desc.filesDirectory ?? '')}
+              sx={{ ml: 0.5 }}
+            >
+              <ContentCopy sx={{ fontSize: 16 }} />
+            </ButtonTooltip>
+          )}
+        </Stack>
         <DocumentSplitGroup
           docs={project?.documents}
           project={project}
