@@ -6,7 +6,7 @@ import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { JsonTreeNode } from "../../elements/JsonTreeNode";
 import { DatasourceAddButton } from "./DatasourceAddButton";
 import { ExperimentAddButton } from "./ExperimentAddButton";
-import { SECTION_DATASOURCE, SECTION_EXPERIMENT } from "./RepoJsonMerger";
+import { repoIsDatasource, repoIsExperiment, repoIsExperimentSection, repoIsToolkit } from "./repoTreeClassifiers";
 import { ToolkitAddButton } from "./ToolkitAddButton";
 import { RepoTreeAddButton } from "./RepoTreeAddButton";
 import { TextFieldWithApply } from "./TextFieldWithApply";
@@ -36,17 +36,6 @@ export const RepoTreeDisplay = ({
   const [hiddenPaths, setHiddenPaths] = useState<Set<string>>(new Set());
   const [showHidden, setShowHidden] = useState(false);
 
-  const canToggleHidden = (treePath: string[]) => {
-    if (treePath.length === 1) return true;
-    if (treePath[0].toLowerCase() === SECTION_EXPERIMENT) {
-      return treePath.length === 2;
-    }
-    if (treePath.length === 3 && treePath[1].toLowerCase() === SECTION_DATASOURCE) {
-      return true;
-    }
-    return false;
-  };
-
   const onToggleHidden = (treePathKey: string) => {
     setHiddenPaths((prev) => {
       const next = new Set(prev);
@@ -59,18 +48,9 @@ export const RepoTreeDisplay = ({
     });
   };
 
-  const isDatasource = (treePath: string[]) =>
-    treePath.length === 3 && treePath[1].toLowerCase() === SECTION_DATASOURCE;
-
-  const isExperiment = (treePath: string[]) =>
-    treePath.length === 2 && treePath[0].toLowerCase() === SECTION_EXPERIMENT;
-
-  const isToolkit = (treePath: string[]) =>
-    treePath.length === 1 && treePath[0].toLowerCase() !== SECTION_EXPERIMENT;
-
   const nodeActions = (treePath: string[]) => {
     const actions = [];
-    if (canToggleHidden(treePath)) {
+    if (repoIsToolkit(treePath) || repoIsExperimentSection(treePath) || repoIsExperiment(treePath) || repoIsDatasource(treePath)) {
       const treePathKey = treePath.join('/');
       const isHidden = hiddenPaths.has(treePathKey);
       actions.push(
@@ -83,22 +63,22 @@ export const RepoTreeDisplay = ({
         </ButtonTooltip>
       );
     }
-    if (isDatasource(treePath)) {
+    if (repoIsDatasource(treePath)) {
       actions.push(
         <DatasourceAddButton key="add-ds" tree={tree} treePath={treePath} />
       );
     }
-    if (isExperiment(treePath)) {
+    if (repoIsExperiment(treePath)) {
       actions.push(
         <ExperimentAddButton key="add-exp" tree={tree} treePath={treePath} />
       );
     }
-    if (isToolkit(treePath)) {
+    if (repoIsToolkit(treePath)) {
       actions.push(
         <ToolkitAddButton key="add-toolkit" tree={tree} toolkitName={treePath[0]} />
       );
     }
-    return actions.length > 0 ? <>{actions}</> : null;
+    return <>{actions}</>;
   };
 
   useEffect(() => {
@@ -114,7 +94,7 @@ export const RepoTreeDisplay = ({
       if (typeof obj !== 'object' || obj === null) return;
       for (const key of Object.keys(obj)) {
         const tp = [...prefix, key];
-        if (canToggleHidden(tp)) {
+        if (repoIsToolkit(tp) || repoIsExperimentSection(tp) || repoIsExperiment(tp) || repoIsDatasource(tp)) {
           paths.push(tp.join('/'));
         }
         collect(obj[key], tp);
@@ -122,7 +102,7 @@ export const RepoTreeDisplay = ({
     };
     collect(tree, []);
     return paths;
-  }, [tree, canToggleHidden]);
+  }, [tree]);
 
   const expandedByDefault = useMemo(() => {
     const ids = [itemId];
