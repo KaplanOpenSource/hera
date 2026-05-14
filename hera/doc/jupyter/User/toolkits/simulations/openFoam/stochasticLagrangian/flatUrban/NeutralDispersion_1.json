@@ -342,7 +342,7 @@
                 "Execution": {
                     "input_parameters": {
                         "activeCloud": "true",
-                        "stochasticTurbulenceModel": "Indoor",
+                        "stochasticTurbulenceModel": "Neutral2018Dict",
                         "passiveTrace": true,
                         "injectors": {
                             "release": {
