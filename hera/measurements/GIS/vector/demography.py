@@ -385,14 +385,19 @@ class analysis:
         res_intersect_poly = demography.loc[demography["geometry"].intersection(poly).is_empty == False]
         intersection_poly = res_intersect_poly["geometry"].intersection(poly)
 
+        # Project to a metric CRS for correct area computation (avoid geographic/degree-based area)
+        intersection_area = intersection_poly.to_crs(epsg=ITM).area
+        original_area = res_intersect_poly["geometry"].to_crs(epsg=ITM).area
+        area_fraction = intersection_area / original_area
+
         res_intersection = geopandas.GeoDataFrame.from_dict(
             {"geometry": intersection_poly.geometry,
-             "areaFraction": intersection_poly.area / res_intersect_poly.area})
+             "areaFraction": area_fraction})
 
         for populationType in populationTypes:
             populationType = self.datalayer.populationTypes.get(populationType,populationType)
             if populationType in res_intersect_poly:
-                res_intersection[populationType] = intersection_poly.area / res_intersect_poly.area * res_intersect_poly[populationType]
+                res_intersection[populationType] = area_fraction * res_intersect_poly[populationType]
 
         return res_intersection
 
