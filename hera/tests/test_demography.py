@@ -94,8 +94,8 @@ def large_polygon_itm():
 
 @pytest.fixture(scope="module")
 def small_polygon_itm():
-    """Polygon that partially overlaps synthetic ITM data."""
-    return box(170500, 660500, 171500, 661500)
+    """Polygon that partially overlaps synthetic ITM data (only intersects block 1)."""
+    return box(170100, 660100, 170900, 660900)
 
 
 # ---------------------------------------------------------------------------
@@ -648,6 +648,10 @@ class TestPlotPopulationOnMap:
 
         class MockTilesToolkit:
             presentation = MockTilesPresentation()
+
+            def getImageFromCorners(self, minx, miny, maxx, maxy, zoomlevel,
+                                    tileServer=None, inputCRS=None, outputCRS=None):
+                return None
 
         return MockTilesToolkit()
 

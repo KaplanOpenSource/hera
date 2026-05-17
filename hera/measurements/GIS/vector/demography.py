@@ -855,8 +855,10 @@ class presentation:
             poly_gdf = _gpd.GeoDataFrame(geometry=[queryPolygon])
             if inputCRS is not None:
                 poly_gdf = poly_gdf.set_crs(epsg=inputCRS if isinstance(inputCRS, int) else inputCRS)
-            if outputCRS is not None:
-                poly_gdf = poly_gdf.to_crs(epsg=outputCRS if isinstance(outputCRS, int) else outputCRS)
+                if outputCRS is not None:
+                    poly_gdf = poly_gdf.to_crs(epsg=outputCRS if isinstance(outputCRS, int) else outputCRS)
+            elif outputCRS is not None:
+                poly_gdf = poly_gdf.set_crs(epsg=outputCRS if isinstance(outputCRS, int) else outputCRS)
             poly_gdf.boundary.plot(ax=ax, color="blue", linewidth=2, linestyle="--")
 
         if xlim is not None:

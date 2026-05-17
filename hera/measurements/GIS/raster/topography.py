@@ -160,7 +160,7 @@ class TopographyToolkit(toolkit.abstractToolkit):
             pointList = pointList.to_frame("point").assign(filename=pointList.apply(lambda row: 'N' + str(int(row.y)) + 'E' + str(int(row.x)).zfill(3) + '.hgt' ),
                                                            lon=pointList.x,
                                                            lat=pointList.y,
-                                                           elevation=0)
+                                                           elevation=0.0)
 
         elif isinstance(pointList,geopandas.geodataframe.GeoDataFrame):
             if 'point' not in pointList:
@@ -170,9 +170,9 @@ class TopographyToolkit(toolkit.abstractToolkit):
             pointList = pointList.assign(filename=pointList.apply(lambda row: 'N' + str(int(row.point.y)) + 'E' + str(int(row.point.x)).zfill(3) + '.hgt', axis=1),
                                          lon=pointList.point.x,
                                          lat=pointList.point.y,
-                                         elevation=0)
+                                         elevation=0.0)
         else:
-            pointList = pointList.assign(filename=pointList.apply(lambda x: 'N' + str(int(x.lat)) + 'E' + str(int(x.lon)).zfill(3) + '.hgt' ,axis=1),elevation=0)
+            pointList = pointList.assign(filename=pointList.apply(lambda x: 'N' + str(int(x.lat)) + 'E' + str(int(x.lon)).zfill(3) + '.hgt' ,axis=1),elevation=0.0)
 
 
         if dataSourceName is None:

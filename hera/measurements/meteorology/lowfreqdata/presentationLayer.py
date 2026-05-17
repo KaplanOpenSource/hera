@@ -172,7 +172,7 @@ class Plots(object):
         cmap : colormap object
         """
 
-        cmap = copy.copy(matplotlib.cm.get_cmap("jet"))
+        cmap = copy.copy(matplotlib.colormaps["jet"])
         if under is not False:
             cmap.set_under(color=undercolor,alpha=alpha)
         if over is not False:
@@ -352,14 +352,20 @@ class DailyPlots(Plots):
 
         # curdata = data.dropna(subset=[plotField])
         curdata = data.copy()
-        curdata[plotField] = curdata[plotField].where(curdata[plotField] > -5000)
+
+        if curdata.empty:
+            return ax
+
+        curdata[plotField] = curdata[plotField].where(curdata[plotField].to_numpy() > -5000).to_numpy()
 
         # curdata = curdata.query("%s > -9990" % plotField)
-        curdata = curdata.assign(curdate=curdata.index)
-        curdata.curdate = pd.to_datetime(curdata.curdate, utc=True)
-        curdata = curdata.assign(houronly=curdata.curdate.dt.hour + curdata.curdate.dt.minute / 60.)
+        curdate_arr = pd.to_datetime(curdata.index.to_numpy(), utc=True)
+        curdata = curdata.assign(
+            curdate=curdate_arr,
+            houronly=curdate_arr.hour + curdate_arr.minute / 60.
+        )
 
-        ax = seaborn.scatterplot(x=curdata['houronly'], y=curdata[plotField], ax=ax, **scatter_props)
+        ax = seaborn.scatterplot(x=curdata['houronly'].to_numpy(), y=curdata[plotField].to_numpy(), ax=ax, **scatter_props)
 
         ax_func_props = dict(self._plotfieldaxfuncdict.get(plotField, dict()))
         ax_func_props.update(self._axfuncdict)
@@ -427,7 +433,7 @@ class DailyPlots(Plots):
         curdata = curdata.assign(houronly=curdata.curdate.dt.hour + curdata.curdate.dt.minute / 60.)
 
         qstring = "dateonly == '%s'" % date
-        if isinstance(curdata, dask.dataframe.core.DataFrame):
+        if isinstance(curdata, dask.dataframe.DataFrame):
             dailydata = curdata.query(qstring).compute()
         else:
             dailydata = curdata.query(qstring)
