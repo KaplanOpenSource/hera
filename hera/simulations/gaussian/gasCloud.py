@@ -2,8 +2,8 @@ import pandas
 import numpy
 from numpy import matlib
 import math
-from unum.units import *
 from hera.utils import *
+from hera.utils.unitHandler import ureg, unumToPint
 import xarray
 from scipy import special
 
@@ -16,16 +16,16 @@ class abstractGasCloud:
 
         Parameters
         ----------
-        sourceQ : unum, method
-            If unum:
+        sourceQ : pint Quantity or unum
+            If Quantity:
                 The unit determine the release time.
                 [mass] - Instantaneous
                 [mass/time] - Continuous
             else
                 Continuous (not implementaed yet.)
 
-        sourceHeight : unum
-        initialCloudSize : 3-touple unum, the sigmas in each axis.
+        sourceHeight : pint Quantity
+        initialCloudSize : 3-touple pint Quantity, the sigmas in each axis.
         sigmaType : The sigma type, for example from Briggs, rural/urban.
         """
         self.sourceHeight = sourceHeight
@@ -41,29 +41,30 @@ class abstractGasCloud:
             Return the type of the release based on the units of Q
         Parameters
         ----------
-        sourceQ : unum, method
-            If unum:
+        sourceQ : pint Quantity or unum
+            If Quantity:
                 The unit determine the release time.
                 [mass] - Instantaneous
                 [mass/time] - Continuous
             else
                 Continuous (not implementaed yet.)
 
-        sourceHeight : unum
-        initialCloudSize : 3-touple unum, the sigmas in each axis.
+        sourceHeight : pint Quantity
+        initialCloudSize : 3-touple pint Quantity, the sigmas in each axis.
 
         Returns
         -------
 
         """
+        sourceQ = unumToPint(sourceQ)
         try:
-            sourceQ.asUnit(mg)
+            sourceQ.to(ureg.mg)
             instantaneous = True
-        except:
+        except Exception:
             try:
-                sourceQ.asUnit(mg/min)
+                sourceQ.to(ureg.mg/ureg.min)
                 instantaneous = False
-            except:
+            except Exception:
                 raise ValueError("Must be mass or mass per time!")
 
         returnCls = instantaneousReleaseGasCloud if instantaneous else continuousReleaseGasCloud
@@ -75,10 +76,10 @@ class abstractGasCloud:
         """
         Parameters
         ----------
-        initialCloudSize : 3-tuple of float/unum (default m)
+        initialCloudSize : 3-tuple of float/pint Quantity (default m)
             The initial cloud size (standard deviation) in the x,y and z dimensions.
         stability : the stability class
-        u: the wind speed /unum (default m/s)
+        u: the wind speed / pint Quantity (default m/s)
         xcoordRange : Tuple in numpy.arange format, unitless.
         tcoordRange : Tuple in numpy.arange format, unitless.
 
@@ -99,7 +100,7 @@ class abstractGasCloud:
 
         Parameters
         ----------
-        initialCloudSize : 3-tuple of float/unum (default m)
+        initialCloudSize : 3-tuple of float/pint Quantity (default m)
             The initial cloud size (standard deviation) in the x,y and z dimensions.
         stability : the stability class
         xcoordRange : Tuple in numpy.arange format, unitless.
@@ -123,10 +124,10 @@ class abstractGasCloud:
 
         Parameters
         ----------
-        initialCloudSize : 3-tuple of float/unum (default m)
+        initialCloudSize : 3-tuple of float/pint Quantity (default m)
             The initial cloud size (standard deviation) in the x,y and z dimensions.
         stability : the stability class
-        inversion: the inversion height /unum (default m)
+        inversion: the inversion height / pint Quantity (default m)
         xcoordRange : Tuple in numpy.arange format, unitless.
         zcoordRange : Tuple in numpy.arange format, unitless.
         numOfReflections : The number of reflections of the summation of the Z component.
@@ -135,7 +136,7 @@ class abstractGasCloud:
         -------
         The Z component of the Gaussian concentration formula.
         """
-        sourceHeight = tonumber(self.sourceHeight, m)
+        sourceHeight = tonumber(self.sourceHeight, ureg.m)
         X, Z = numpy.meshgrid(xcoordRange, zcoordRange, indexing='ij')
         sigmaZ = self.sigmaType.getSigma(x=X, stability=stability, sigma0=self.initialCloudSize, units=False)['sigmaZ']
 
@@ -152,7 +153,7 @@ class abstractGasCloud:
 
 
 
-    def fractions(self, fracVector, minx, miny, minz, maxx, maxy, maxz, timeSpan, dxdy=10*m, dz=1*m, dt=1*min):
+    def fractions(self, fracVector, minx, miny, minz, maxx, maxy, maxz, timeSpan, dxdy=10*ureg.m, dz=1*ureg.m, dt=1*ureg.min):
 
         """
         This function generates an xarray of fractions of the mass of each isotope at every time-step.
@@ -164,10 +165,10 @@ class abstractGasCloud:
         :return:
         """
 
-        xcoordRange = numpy.arange(tonumber(minx, m), tonumber(maxx, m), tonumber(dxdy,m))
-        ycoordRange = numpy.arange(tonumber(miny,m),tonumber(maxy,m),tonumber(dxdy,m))
-        zcoordRange = numpy.arange(tonumber(minz, m), tonumber(maxz, m), tonumber(dz,m))
-        tcoordRange = numpy.arange(0,tonumber(timeSpan,min),tonumber(dt,min))
+        xcoordRange = numpy.arange(tonumber(minx, ureg.m), tonumber(maxx, ureg.m), tonumber(dxdy,ureg.m))
+        ycoordRange = numpy.arange(tonumber(miny,ureg.m),tonumber(maxy,ureg.m),tonumber(dxdy,ureg.m))
+        zcoordRange = numpy.arange(tonumber(minz, ureg.m), tonumber(maxz, ureg.m), tonumber(dz,ureg.m))
+        tcoordRange = numpy.arange(0,tonumber(timeSpan,ureg.min),tonumber(dt,ureg.min))
 
         frac, X = numpy.meshgrid(fracVector, xcoordRange, indexing='ij')
         XR_downwind = xarray.DataArray(frac, dims=("time", "x"), coords={"time": tcoordRange, "x": xcoordRange})
@@ -183,10 +184,10 @@ class abstractGasCloud:
         """
         Parameters
         ----------
-        initialCloudSize : 3-tuple of float/unum (default m)
+        initialCloudSize : 3-tuple of float/pint Quantity (default m)
             The initial cloud size (standard deviation) in the x,y and z dimensions.
         stability : the stability class
-        u: the wind speed /unum (default m/s)
+        u: the wind speed / pint Quantity (default m/s)
         xcoordRange : Tuple in numpy.arange format, unitless.
         tcoordRange : Tuple in numpy.arange format, unitless.
 
@@ -290,11 +291,11 @@ class abstractGasCloud:
         :return: The Depletion Factor
         """
 
-        v = tonumber(0.003*m/s, m/min) #Deposition velocity. By default we take this value to be 0.003 [m/s]
+        v = tonumber(0.003*ureg.m/ureg.s, ureg.m/ureg.min) #Deposition velocity. By default we take this value to be 0.003 [m/s]
 
         X, Z = numpy.meshgrid(xcoordRange, zcoordRange, indexing='ij')
         sigmaZ = self.sigmaType.getSigma(x=X, stability=stability, sigma0=self.initialCloudSize, units=False)['sigmaZ']
-        H = tonumber(self.sourceHeight, m)
+        H = tonumber(self.sourceHeight, ureg.m)
         dx = xcoordRange[1] - xcoordRange[0]
         DF = (numpy.e**(numpy.cumsum(1/(sigmaZ*numpy.e**(0.5*(H/sigmaZ)**2))*dx, axis=0)))**((-v/u)*numpy.sqrt(2/numpy.pi))
 
@@ -302,14 +303,14 @@ class abstractGasCloud:
 
 
 
-    def getDF_noQ_xarray(self, meteorology, minx, miny, minz, maxx, maxy, maxz, timeSpan, dxdy=10*m, dz=1*m, dt=1*min):
+    def getDF_noQ_xarray(self, meteorology, minx, miny, minz, maxx, maxy, maxz, timeSpan, dxdy=10*ureg.m, dz=1*ureg.m, dt=1*ureg.min):
         stability = meteorology.stability
-        u = tonumber(meteorology.u10, m/min)
+        u = tonumber(meteorology.u10, ureg.m/ureg.min)
 
-        xcoordRange = numpy.arange(tonumber(minx, m), tonumber(maxx, m), tonumber(dxdy, m))
-        ycoordRange = numpy.arange(tonumber(miny, m), tonumber(maxy, m), tonumber(dxdy, m))
-        zcoordRange = numpy.arange(tonumber(minz, m), tonumber(maxz, m), tonumber(dz, m))
-        tcoordRange = numpy.arange(0, tonumber(timeSpan, min), tonumber(dt, min))
+        xcoordRange = numpy.arange(tonumber(minx, ureg.m), tonumber(maxx, ureg.m), tonumber(dxdy, ureg.m))
+        ycoordRange = numpy.arange(tonumber(miny, ureg.m), tonumber(maxy, ureg.m), tonumber(dxdy, ureg.m))
+        zcoordRange = numpy.arange(tonumber(minz, ureg.m), tonumber(maxz, ureg.m), tonumber(dz, ureg.m))
+        tcoordRange = numpy.arange(0, tonumber(timeSpan, ureg.min), tonumber(dt, ureg.min))
 
         TX = self._getTXterm_ones(xcoordRange=xcoordRange, tcoordRange=tcoordRange)
         XY = self._getXYterm_ones(xcoordRange=xcoordRange, ycoordRange=ycoordRange)
@@ -325,16 +326,16 @@ class instantaneousReleaseGasCloud(abstractGasCloud):
 
 
     def getConcentrationFromMinMaxRange_inst_noQ(self, meteorology, minx, miny, minz, maxx, maxy, maxz, timeSpan,
-                                        dxdy=10*m, dz=1*m, dt=1*min, numOfReflections=3):
+                                        dxdy=10*ureg.m, dz=1*ureg.m, dt=1*ureg.min, numOfReflections=3):
 
-        xcoordRange = numpy.arange(tonumber(minx, m), tonumber(maxx, m), tonumber(dxdy,m))
-        ycoordRange = numpy.arange(tonumber(miny,m),tonumber(maxy,m),tonumber(dxdy,m))
-        zcoordRange = numpy.arange(tonumber(minz, m), tonumber(maxz, m), tonumber(dz,m))
-        tcoordRange = numpy.arange(0,tonumber(timeSpan,min),tonumber(dt,min))
+        xcoordRange = numpy.arange(tonumber(minx, ureg.m), tonumber(maxx, ureg.m), tonumber(dxdy,ureg.m))
+        ycoordRange = numpy.arange(tonumber(miny,ureg.m),tonumber(maxy,ureg.m),tonumber(dxdy,ureg.m))
+        zcoordRange = numpy.arange(tonumber(minz, ureg.m), tonumber(maxz, ureg.m), tonumber(dz,ureg.m))
+        tcoordRange = numpy.arange(0,tonumber(timeSpan,ureg.min),tonumber(dt,ureg.min))
 
         stability = meteorology.stability
-        u = tonumber(meteorology.u10, m/min)
-        inversion = tonumber(meteorology.inversion, m)
+        u = tonumber(meteorology.u10, ureg.m/ureg.min)
+        inversion = tonumber(meteorology.inversion, ureg.m)
 
         TX = self._getTXterm(stability=stability, u=u, xcoordRange=xcoordRange, tcoordRange=tcoordRange)
         XY = self._getXYterm(stability=stability, xcoordRange=xcoordRange, ycoordRange=ycoordRange)
@@ -342,21 +343,21 @@ class instantaneousReleaseGasCloud(abstractGasCloud):
                              numOfReflections=numOfReflections)
 
         ret = TX*XY*XZ
-        ret.attrs['Q'] = 1/m**3
+        ret.attrs['Q'] = 1/ureg.m**3
 
         return ret
 
 
     def getDosageFromMinMaxRange_inst_noQ(self, meteorology, minx, miny, minz, maxx, maxy, maxz, timeSpan,
-                           dxdy=10*m, dz=1*m, dt=1*min, numOfReflections=3, DF=False):
+                           dxdy=10*ureg.m, dz=1*ureg.m, dt=1*ureg.min, numOfReflections=3, DF=False):
         stability = meteorology.stability
-        u = tonumber(meteorology.u10, m/min)
-        inversion = tonumber(meteorology.inversion, m)
+        u = tonumber(meteorology.u10, ureg.m/ureg.min)
+        inversion = tonumber(meteorology.inversion, ureg.m)
 
-        xcoordRange = numpy.arange(tonumber(minx, m), tonumber(maxx, m), tonumber(dxdy, m))
-        ycoordRange = numpy.arange(tonumber(miny, m), tonumber(maxy, m), tonumber(dxdy, m))
-        zcoordRange = numpy.arange(tonumber(minz, m), tonumber(maxz, m), tonumber(dz, m))
-        tcoordRange = numpy.arange(0, tonumber(timeSpan, min), tonumber(dt, min))
+        xcoordRange = numpy.arange(tonumber(minx, ureg.m), tonumber(maxx, ureg.m), tonumber(dxdy, ureg.m))
+        ycoordRange = numpy.arange(tonumber(miny, ureg.m), tonumber(maxy, ureg.m), tonumber(dxdy, ureg.m))
+        zcoordRange = numpy.arange(tonumber(minz, ureg.m), tonumber(maxz, ureg.m), tonumber(dz, ureg.m))
+        tcoordRange = numpy.arange(0, tonumber(timeSpan, ureg.min), tonumber(dt, ureg.min))
 
         TX = self._getTXDosage(stability=stability, u=u, xcoordRange=xcoordRange, tcoordRange=tcoordRange)
         XY = self._getXYterm(stability=meteorology.stability, xcoordRange=xcoordRange, ycoordRange=ycoordRange)
@@ -367,12 +368,12 @@ class instantaneousReleaseGasCloud(abstractGasCloud):
             D_F = self._getDF(stability=stability, u=u, xcoordRange=xcoordRange, zcoordRange=zcoordRange)
 
         ret = TX*XY*(XZ*D_F)
-        ret.attrs['Q'] = 1*min/m**3
+        ret.attrs['Q'] = 1*ureg.min/ureg.m**3
 
         return ret
 
     def getDosageFromMinMaxRange_inst_NoERF_noQ(self, meteorology, minx, miny, minz, maxx, maxy, maxz, timeSpan,
-                           dxdy=10*m, dz=1*m, dt=1*min, numOfReflections=3, DF=False):
+                           dxdy=10*ureg.m, dz=1*ureg.m, dt=1*ureg.min, numOfReflections=3, DF=False):
         C_without_Q = self.getConcentrationFromMinMaxRange_inst_noQ(meteorology=meteorology, minx=minx, miny=miny, minz=minz,
                                                                     maxx=maxx, maxy=maxy, maxz=maxz, timeSpan=timeSpan,dxdy=dxdy,
                                                                     dz=dz, dt=dt,numOfReflections=numOfReflections)
@@ -384,7 +385,7 @@ class instantaneousReleaseGasCloud(abstractGasCloud):
                                         maxz=maxz, timeSpan=timeSpan, dxdy=dxdy, dz=dz, dt=dt)
 
         ret = D_without_Q*D_F
-        ret.attrs['Q'] = 1*min/m**3
+        ret.attrs['Q'] = 1*ureg.min/ureg.m**3
 
         return ret
 
@@ -392,37 +393,37 @@ class instantaneousReleaseGasCloud(abstractGasCloud):
 
 
     def getConcentrationFromMinMaxRange_inst(self, meteorology, minx, miny, minz, maxx, maxy, maxz, timeSpan,
-                                        dxdy=10*m, dz=1*m, dt=1*min, numOfReflections=3, DF=False):
+                                        dxdy=10*ureg.m, dz=1*ureg.m, dt=1*ureg.min, numOfReflections=3, DF=False):
         C_without_Q = self.getConcentrationFromMinMaxRange_inst_noQ(meteorology=meteorology, minx=minx, miny=miny, minz=minz,
                                                                     maxx=maxx, maxy=maxy, maxz=maxz, timeSpan=timeSpan,dxdy=dxdy,
                                                                     dz=dz, dt=dt,numOfReflections=numOfReflections)
 
-        ret = tonumber(self.sourceQ, mg)*C_without_Q
-        ret.attrs['Q'] = 1*mg/m**3
+        ret = tonumber(self.sourceQ, ureg.mg)*C_without_Q
+        ret.attrs['Q'] = 1*ureg.mg/ureg.m**3
         return ret
 
 
     def getDosageFromMinMaxRange_inst(self, meteorology, minx, miny, minz, maxx, maxy, maxz, timeSpan,
-                           dxdy=10*m, dz=1*m, dt=1*min, numOfReflections=3, DF=False):
+                           dxdy=10*ureg.m, dz=1*ureg.m, dt=1*ureg.min, numOfReflections=3, DF=False):
         D_without_Q = self.getDosageFromMinMaxRange_inst_noQ(meteorology=meteorology, minx=minx, miny=miny, minz=minz, maxx=maxx,
                                                              maxy=maxy, maxz=maxz, timeSpan=timeSpan, dxdy=dxdy, dz=dz,
                                                              dt=dt, numOfReflections=numOfReflections, DF=DF)
 
-        ret = tonumber(self.sourceQ, mg)*D_without_Q
-        ret.attrs['Q'] = 1*mg*min/m**3
+        ret = tonumber(self.sourceQ, ureg.mg)*D_without_Q
+        ret.attrs['Q'] = 1*ureg.mg*ureg.min/ureg.m**3
         return ret
 
 
 
     def getDosageFromMinMaxRange_inst_NoERF(self, meteorology, minx, miny, minz, maxx, maxy, maxz, timeSpan,
-                           dxdy=10*m, dz=1*m, dt=1*min, numOfReflections=3, DF=False):
+                           dxdy=10*ureg.m, dz=1*ureg.m, dt=1*ureg.min, numOfReflections=3, DF=False):
 
         D_without_Q = self.getDosageFromMinMaxRange_inst_NoERF_noQ(meteorology=meteorology, minx=minx, miny=miny, minz=minz,
                                                                    maxx=maxx, maxy=maxy,maxz=maxz, timeSpan=timeSpan,dxdy=dxdy,
                                                                    dz=dz, dt=dt, numOfReflections=numOfReflections, DF=DF)
 
-        ret = tonumber(self.sourceQ, mg)*D_without_Q
-        ret.attrs['Q'] = 1*mg*min/m**3
+        ret = tonumber(self.sourceQ, ureg.mg)*D_without_Q
+        ret.attrs['Q'] = 1*ureg.mg*ureg.min/ureg.m**3
         return ret
 
 
@@ -430,72 +431,78 @@ class instantaneousReleaseGasCloud(abstractGasCloud):
     #---------------------------------------------Radiology---------------------------------------------
 
     def concentrationConversion_mass_to_Bq(self, C, outputUnits, specificActivity):
-        factor = (C.attrs['Q'] * specificActivity).asNumber(outputUnits)
+        units = unumToPint(C.attrs['Q'])
+        out_units = unumToPint(outputUnits)
+        factor = (units * specificActivity).m_as(out_units)
         C_Bq = C * factor
-        C_Bq.attrs['Q'] = outputUnits
+        C_Bq.attrs['Q'] = out_units
         return C_Bq
 
 
     def getTIACFromMinMaxRange_inst(self,specifitActivity, meteorology, minx, miny, minz, maxx, maxy, maxz, timeSpan,
-                           dxdy=10*m, dz=1*m, dt=1*min, numOfReflections=3, outputUnits=Bq*s/m**3, DF=False):
+                           dxdy=10*ureg.m, dz=1*ureg.m, dt=1*ureg.min, numOfReflections=3, outputUnits=ureg.Bq*ureg.s/ureg.m**3, DF=False):
 
         D_without_Q = self.getDosageFromMinMaxRange_inst_noQ(meteorology=meteorology, minx=minx, miny=miny, minz=minz, maxx=maxx,
                                                              maxy=maxy, maxz=maxz, timeSpan=timeSpan, dxdy=dxdy, dz=dz,
                                                              dt=dt, numOfReflections=numOfReflections, DF=DF)
 
-        ret = tonumber(self.sourceQ, mg)*D_without_Q
-        factor = (1*mg*min/m**3 * specifitActivity).asNumber(outputUnits)
+        out_units = unumToPint(outputUnits)
+        ret = tonumber(self.sourceQ, ureg.mg)*D_without_Q
+        factor = (1*ureg.mg*ureg.min/ureg.m**3 * specifitActivity).m_as(out_units)
         ret *= factor
-        ret.attrs['Q'] = outputUnits
+        ret.attrs['Q'] = out_units
         return ret
 
 
     def getTIACFromMinMaxRange_inst_noQ(self, meteorology, minx, miny, minz, maxx, maxy, maxz, timeSpan,
-                           dxdy=10*m, dz=1*m, dt=1*min, numOfReflections=3, outputUnits=s/m**3, DF=False):
+                           dxdy=10*ureg.m, dz=1*ureg.m, dt=1*ureg.min, numOfReflections=3, outputUnits=ureg.s/ureg.m**3, DF=False):
 
         D_without_Q = self.getDosageFromMinMaxRange_inst_noQ(meteorology=meteorology, minx=minx, miny=miny, minz=minz, maxx=maxx,
                                                              maxy=maxy, maxz=maxz, timeSpan=timeSpan, dxdy=dxdy, dz=dz,
                                                              dt=dt, numOfReflections=numOfReflections, DF=DF)
-        currentUnites = D_without_Q.attrs['Q']
-        factor = (currentUnites).asNumber(outputUnits)
+        out_units = unumToPint(outputUnits)
+        currentUnites = unumToPint(D_without_Q.attrs['Q'])
+        factor = currentUnites.m_as(out_units)
         D_without_Q *= factor
-        D_without_Q.attrs['Q'] = outputUnits
+        D_without_Q.attrs['Q'] = out_units
         return D_without_Q
 
 
 
     def getTIACFromMinMaxRange_inst_NoERF(self, specifitActivity, meteorology, minx, miny, minz, maxx, maxy, maxz, timeSpan,
-                                    dxdy=10*m, dz=1*m, dt=1*min, numOfReflections=3, outputUnits=Bq*s/m**3, DF=False):
+                                    dxdy=10*ureg.m, dz=1*ureg.m, dt=1*ureg.min, numOfReflections=3, outputUnits=ureg.Bq*ureg.s/ureg.m**3, DF=False):
 
         D_without_Q = self.getDosageFromMinMaxRange_inst_NoERF_noQ(meteorology=meteorology, minx=minx, miny=miny, minz=minz,
                                                              maxx=maxx, maxy=maxy, maxz=maxz, timeSpan=timeSpan, dxdy=dxdy,
                                                              dz=dz, dt=dt, numOfReflections=numOfReflections, DF=DF)
 
-        ret = tonumber(self.sourceQ, mg) * D_without_Q
-        factor = (1 * mg * min / m ** 3 * specifitActivity).asNumber(outputUnits)
+        out_units = unumToPint(outputUnits)
+        ret = tonumber(self.sourceQ, ureg.mg) * D_without_Q
+        factor = (1 * ureg.mg * ureg.min / ureg.m ** 3 * specifitActivity).m_as(out_units)
         ret *= factor
-        ret.attrs['Q'] = outputUnits
+        ret.attrs['Q'] = out_units
         return ret
 
 
     def getTIACFromMinMaxRange_inst_NoERF_noQ(self, meteorology, minx, miny, minz, maxx, maxy, maxz, timeSpan,
-                                    dxdy=10*m, dz=1*m, dt=1*min, numOfReflections=3, outputUnits=s/m**3, DF=False):
+                                    dxdy=10*ureg.m, dz=1*ureg.m, dt=1*ureg.min, numOfReflections=3, outputUnits=ureg.s/ureg.m**3, DF=False):
 
         D_without_Q = self.getDosageFromMinMaxRange_inst_NoERF_noQ(meteorology=meteorology, minx=minx, miny=miny, minz=minz,
                                                              maxx=maxx, maxy=maxy, maxz=maxz, timeSpan=timeSpan, dxdy=dxdy,
                                                              dz=dz, dt=dt, numOfReflections=numOfReflections, DF=DF)
 
-        currentUnites = D_without_Q.attrs['Q']
-        factor = (currentUnites).asNumber(outputUnits)
+        out_units = unumToPint(outputUnits)
+        currentUnites = unumToPint(D_without_Q.attrs['Q'])
+        factor = currentUnites.m_as(out_units)
         D_without_Q *= factor
-        D_without_Q .attrs['Q'] = outputUnits
+        D_without_Q.attrs['Q'] = out_units
         return D_without_Q
 
 
 
 
     def getTIACFromConcentration_inst_NoERF(self, C, specifitActivity, meteorology, minx, miny, minz, maxx, maxy, maxz, timeSpan,
-                                    dxdy=10*m, dz=1*m, dt=1*min, outputUnits=Bq*s/m**3, DF=False):
+                                    dxdy=10*ureg.m, dz=1*ureg.m, dt=1*ureg.min, outputUnits=ureg.Bq*ureg.s/ureg.m**3, DF=False):
         """
 
         :param C: xarray of concentrations in units of [mass/volume].
@@ -504,11 +511,12 @@ class instantaneousReleaseGasCloud(abstractGasCloud):
         :return: TIAC (Time Integrated Air Concentration) in unites of [Bq*time/volume]
         """
 
-        factor = (C.attrs['Q']).asNumber(mg/m**3)
+        out_units = unumToPint(outputUnits)
+        factor = unumToPint(C.attrs['Q']).m_as(ureg.mg/ureg.m**3)
         C_mg_m3 = C*factor
-        C_mg_m3.attrs['Q'] = mg/m**3
+        C_mg_m3.attrs['Q'] = ureg.mg/ureg.m**3
 
-        C_without_Q = C_mg_m3 / tonumber(self.sourceQ, mg)
+        C_without_Q = C_mg_m3 / tonumber(self.sourceQ, ureg.mg)
         D_without_Q = self.trapezoidal_integration(data = C_without_Q)
 
         D_F = 1
@@ -518,15 +526,15 @@ class instantaneousReleaseGasCloud(abstractGasCloud):
 
         D_without_Q = D_without_Q * D_F
 
-        ret = tonumber(self.sourceQ, mg) * D_without_Q
-        factor = (1 * mg * min / m ** 3 * specifitActivity).asNumber(outputUnits)
+        ret = tonumber(self.sourceQ, ureg.mg) * D_without_Q
+        factor = (1 * ureg.mg * ureg.min / ureg.m ** 3 * specifitActivity).m_as(out_units)
         ret *= factor
-        ret.attrs['Q'] = outputUnits
+        ret.attrs['Q'] = out_units
         return ret
 
 
     def getTIACFromConcentration_inst_NoERF_noQ(self, C_noQ, meteorology, minx, miny, minz, maxx, maxy, maxz, timeSpan,
-                                    dxdy=10*m, dz=1*m, dt=1*min, outputUnits=s/m**3, DF=False):
+                                    dxdy=10*ureg.m, dz=1*ureg.m, dt=1*ureg.min, outputUnits=ureg.s/ureg.m**3, DF=False):
         """
 
         :param C_noQ: xarray of concentrations in units of [1/volume].
@@ -541,12 +549,13 @@ class instantaneousReleaseGasCloud(abstractGasCloud):
                                         maxz=maxz, timeSpan=timeSpan, dxdy=dxdy, dz=dz, dt=dt)
 
         D_without_Q = D_without_Q*D_F
-        D_without_Q.attrs['Q'] = 1*min/m**3 #need to verify that C_noQ was generated with time steps in [min], not [s]
+        D_without_Q.attrs['Q'] = 1*ureg.min/ureg.m**3 #need to verify that C_noQ was generated with time steps in [min], not [s]
 
-        currentUnites = D_without_Q.attrs['Q']
-        factor = (currentUnites).asNumber(outputUnits)
+        out_units = unumToPint(outputUnits)
+        currentUnites = unumToPint(D_without_Q.attrs['Q'])
+        factor = currentUnites.m_as(out_units)
         D_without_Q *= factor
-        D_without_Q .attrs['Q'] = outputUnits
+        D_without_Q.attrs['Q'] = out_units
 
         return D_without_Q
 
@@ -578,7 +587,7 @@ class instantaneousReleaseGasCloud(abstractGasCloud):
 class continuousReleaseGasCloud(abstractGasCloud):
 
     def getConcentrationFromMinMaxRange_cont(self, meteorology, minx, miny, minz, maxx, maxy, maxz, timeSpan,
-                                        dxdy=10*m, dz=1*m, dt=1*min, numOfReflections=3, DF=False):
+                                        dxdy=10*ureg.m, dz=1*ureg.m, dt=1*ureg.min, numOfReflections=3, DF=False):
         """
         Returns
         -------
@@ -590,11 +599,11 @@ class continuousReleaseGasCloud(abstractGasCloud):
                                                         maxy=maxy, maxz=maxz, timeSpan=timeSpan, dxdy=dxdy, dz=dz, dt=dt,
                                                         numOfReflections=numOfReflections, DF=DF)
 
-        return tonumber(self.sourceQ, mg/s)*C_without_Q
+        return tonumber(self.sourceQ, ureg.mg/ureg.s)*C_without_Q
 
 
     def getConcentrationFromMinMaxRange_cont_NoERF(self, meteorology, minx, miny, minz, maxx, maxy, maxz, timeSpan,
-                                        dxdy=10*m, dz=1*m, dt=1*min, numOfReflections=3, DF=False):
+                                        dxdy=10*ureg.m, dz=1*ureg.m, dt=1*ureg.min, numOfReflections=3, DF=False):
         """
         Returns
         -------
@@ -605,28 +614,28 @@ class continuousReleaseGasCloud(abstractGasCloud):
         C_without_Q = self.getDosageFromMinMaxRange_inst_NoERF_noQ(meteorology=meteorology, minx=minx, miny=miny, minz=minz,
                                                           maxx=maxx, maxy=maxy, maxz=maxz, timeSpan=timeSpan, dxdy=dxdy,
                                                           dz=dz, dt=dt, numOfReflections=numOfReflections, DF=DF)
-        return tonumber(self.sourceQ, mg/s)*C_without_Q
+        return tonumber(self.sourceQ, ureg.mg/ureg.s)*C_without_Q
 
 
     def getDosageFromMinMaxRange_cont_NoERF(self, meteorology, minx, miny, minz, maxx, maxy, maxz, timeSpan,
-                                        dxdy=10*m, dz=1*m, dt=1*min, numOfReflections=3, DF=False):
+                                        dxdy=10*ureg.m, dz=1*ureg.m, dt=1*ureg.min, numOfReflections=3, DF=False):
 
         C_without_Q = self.getConcentrationFromMinMaxRange_cont(meteorology=meteorology, minx=minx, miny=miny, minz=minz,
                                                            maxx=maxx, maxy=maxy, maxz=maxz, timeSpan=timeSpan, dxdy=dxdy,
                                                            dz=dz, dt=dt, numOfReflections=numOfReflections, DF=DF)
         D_without_Q = self.trapezoidal_integration(data=C_without_Q)
 
-        return tonumber(self.sourceQ, mg/min) * D_without_Q
+        return tonumber(self.sourceQ, ureg.mg/ureg.min) * D_without_Q
 
     def getDosageFromMinMaxRange_cont_doubleNoERF(self, meteorology, minx, miny, minz, maxx, maxy, maxz, timeSpan,
-                                        dxdy=10*m, dz=1*m, dt=1*min, numOfReflections=3, DF=False):
+                                        dxdy=10*ureg.m, dz=1*ureg.m, dt=1*ureg.min, numOfReflections=3, DF=False):
 
         C_without_Q = self.getConcentrationFromMinMaxRange_cont_NoERF(meteorology=meteorology, minx=minx, miny=miny, minz=minz,
                                                            maxx=maxx, maxy=maxy, maxz=maxz, timeSpan=timeSpan, dxdy=dxdy,
                                                            dz=dz, dt=dt, numOfReflections=numOfReflections, DF=DF)
         D_without_Q = self.trapezoidal_integration(data=C_without_Q)
 
-        return tonumber(self.sourceQ, mg/min) * D_without_Q
+        return tonumber(self.sourceQ, ureg.mg/ureg.min) * D_without_Q
 
 
 
@@ -638,7 +647,7 @@ class Continuous(object):
     Timekernel = None
     _FullKernel = None
 
-    def __init__(self,dt,kernelsize,timetofinish=10*min):
+    def __init__(self,dt,kernelsize,timetofinish=10*ureg.min):
         """
         Time to finish.
         the time (min) it take to reach 0.1.
@@ -655,19 +664,19 @@ class Continuous(object):
 
         and that is what we should put in the kernel.
         """
-        dt = tounum(dt,min)
-        self.dt = tonumber(dt,min)
+        dt = unumToPint(dt).to(ureg.min)
+        self.dt = dt.m_as(ureg.min)
         self.kernelsize  = kernelsize
 
 
-        timetofinish = tounum(timetofinish,min)
-        alpha = numpy.log(0.1)/(-timetofinish.asNumber(min))
+        timetofinish = unumToPint(timetofinish).to(ureg.min)
+        alpha = numpy.log(0.1)/(-timetofinish.m_as(ureg.min))
 
         # build the kernel.
-        ts = numpy.arange(kernelsize,-1,-1)*dt.asNumber(min)
+        ts = numpy.arange(kernelsize,-1,-1)*dt.m_as(ureg.min)
 
         # the kernel
-        self.Timekernel = (numpy.exp(-alpha*ts[1:]) - numpy.exp(-alpha*ts[:-1]))/dt.asNumber(min)
+        self.Timekernel = (numpy.exp(-alpha*ts[1:]) - numpy.exp(-alpha*ts[:-1]))/dt.m_as(ureg.min)
         self.Timekernel = self.Timekernel.reshape([kernelsize,1,1,1])
 
 
@@ -682,7 +691,6 @@ class Continuous(object):
 
 
 #-------------------------- End Of Yehuda's Code For Convolution --------------------------
-
 
 
 

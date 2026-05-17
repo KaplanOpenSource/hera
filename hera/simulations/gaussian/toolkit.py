@@ -2,7 +2,7 @@ from hera.toolkit import abstractToolkit
 from hera.simulations.gaussian.Sigma import BriggsRural
 from hera.simulations.gaussian.gasCloud import abstractGasCloud
 from hera.simulations.gaussian.Meteorology import MeteorologyFactory
-from unum.units import *
+from hera.utils.unitHandler import ureg, unumToPint, celsius, K
 import matplotlib.pyplot as plt
 
 
@@ -58,14 +58,14 @@ class gaussianToolkit(abstractToolkit):
 
 
 
-    def getMeteorologyFromU10(self, u10, inversion, verticalProfileType="log", temperature=20*celsius, stability="D",
-                              z0=0.1*m, ustar=0.3*m/s, skinSurfaceTemperature=35*celsius):
+    def getMeteorologyFromU10(self, u10, inversion, verticalProfileType="log", temperature=20*ureg.degC, stability="D",
+                              z0=0.1*ureg.m, ustar=0.3*ureg.m/ureg.s, skinSurfaceTemperature=35*ureg.degC):
         return MeteorologyFactory().getMeteorologyFromU10(u10=u10, inversion=inversion, verticalProfileType=verticalProfileType,
                     temperature=temperature, stability=stability, z0=z0, ustar=ustar, skinSurfaceTemperature=skinSurfaceTemperature)
 
 
-    def getMeteorologyFromURefHeight(self, u, refHeight, inversion, verticalProfileType="log", temperature=20*celsius, stability="D",
-                              z0=0.1*m, ustar=0.3*m/s, skinSurfaceTemperature=35*celsius):
+    def getMeteorologyFromURefHeight(self, u, refHeight, inversion, verticalProfileType="log", temperature=20*ureg.degC, stability="D",
+                              z0=0.1*ureg.m, ustar=0.3*ureg.m/ureg.s, skinSurfaceTemperature=35*ureg.degC):
         return MeteorologyFactory().getMeteorologyFromURefHeight(u=u, refHeight=refHeight,  inversion=inversion,
                     verticalProfileType=verticalProfileType, temperature=temperature, stability=stability, z0=z0,
                     ustar=ustar,skinSurfaceTemperature=skinSurfaceTemperature)
@@ -124,8 +124,8 @@ class presentationLayer:
         :param z: Z-coordinate of the line
         :return:
         """
-        y = y.asNumber(m)
-        z = z.asNumber(m)
+        y = unumToPint(y).m_as(ureg.m)
+        z = unumToPint(z).m_as(ureg.m)
 
         conc_x_inst = C.sel(y=y, z=z, method="nearest").max(dim="time")
         x_array = conc_x_inst.squeeze().x
@@ -139,8 +139,8 @@ class presentationLayer:
         plt.title(f"Maximum concentration over time. y={y}[m], z={z}[m]")
         plt.grid()
         if x_min is not None and x_max is not None:
-            x_min = x_min.asNumber(m)
-            x_max = x_max.asNumber(m)
+            x_min = unumToPint(x_min).m_as(ureg.m)
+            x_max = unumToPint(x_max).m_as(ureg.m)
             plt.xlim(x_min, x_max)
         plt.show()
 
@@ -155,9 +155,9 @@ class presentationLayer:
         :return:
         """
 
-        x = x.asNumber(m)
-        y = y.asNumber(m)
-        z = z.asNumber(m)
+        x = unumToPint(x).m_as(ureg.m)
+        y = unumToPint(y).m_as(ureg.m)
+        z = unumToPint(z).m_as(ureg.m)
 
         conc_inst_t = C.sel(x=x, y=y, z=z, method="nearest")
         time_array = conc_inst_t.squeeze().time
@@ -171,8 +171,8 @@ class presentationLayer:
         plt.title(f"Receptor at x={x}[m], y={y}[m], z={z}[m].")
         plt.grid()
         if t_min is not None and t_max is not None:
-            t_min = t_min.asNumber(min)
-            t_max = t_max.asNumber(min)
+            t_min = unumToPint(t_min).m_as(ureg.min)
+            t_max = unumToPint(t_max).m_as(ureg.min)
             plt.xlim(t_min, t_max)
         plt.show()
 
@@ -187,9 +187,9 @@ class presentationLayer:
         :param z: Z-coordinate of the line
         :return:
         """
-        y = y.asNumber(m)
-        z = z.asNumber(m)
-        time = time.asNumber(min)
+        y = unumToPint(y).m_as(ureg.m)
+        z = unumToPint(z).m_as(ureg.m)
+        time = unumToPint(time).m_as(ureg.min)
 
         dos_x_inst = D.sel(y=y, z=z, time=time, method="nearest")
         x_array = dos_x_inst .squeeze().x
@@ -215,9 +215,9 @@ class presentationLayer:
         :return:
         """
 
-        x = x.asNumber(m)
-        y = y.asNumber(m)
-        z = z.asNumber(m)
+        x = unumToPint(x).m_as(ureg.m)
+        y = unumToPint(y).m_as(ureg.m)
+        z = unumToPint(z).m_as(ureg.m)
 
         dos_inst_t = D.sel(x=x, y=y, z=z, method="nearest")
         time_array = dos_inst_t .squeeze().time
@@ -245,8 +245,8 @@ class presentationLayer:
         :param z: Z-coordinate of the line
         :return:
         """
-        y = y.asNumber(m)
-        z = z.asNumber(m)
+        y = unumToPint(y).m_as(ureg.m)
+        z = unumToPint(z).m_as(ureg.m)
 
         conc_x_inst = C.sel(y=y, z=z, method="nearest").max(dim="time")
         x_array = conc_x_inst.squeeze().x
@@ -257,8 +257,8 @@ class presentationLayer:
         plt.title(f"Maximum concentration over time. y={y}[m], z={z}[m]")
         plt.grid()
         if x_min is not None and x_max is not None:
-            x_min = x_min.asNumber(m)
-            x_max = x_max.asNumber(m)
+            x_min = unumToPint(x_min).m_as(ureg.m)
+            x_max = unumToPint(x_max).m_as(ureg.m)
             plt.xlim(x_min, x_max)
         plt.show()
 
@@ -273,9 +273,9 @@ class presentationLayer:
         :return:
         """
 
-        x = x.asNumber(m)
-        y = y.asNumber(m)
-        z = z.asNumber(m)
+        x = unumToPint(x).m_as(ureg.m)
+        y = unumToPint(y).m_as(ureg.m)
+        z = unumToPint(z).m_as(ureg.m)
 
         conc_inst_t = C.sel(x=x, y=y, z=z, method="nearest")
         time_array = conc_inst_t.squeeze().time
@@ -286,8 +286,8 @@ class presentationLayer:
         plt.title(f"Receptor at x={x}[m], y={y}[m], z={z}[m].")
         plt.grid()
         if t_min is not None and t_max is not None:
-            t_min = t_min.asNumber(min)
-            t_max = t_max.asNumber(min)
+            t_min = unumToPint(t_min).m_as(ureg.min)
+            t_max = unumToPint(t_max).m_as(ureg.min)
             plt.xlim(t_min, t_max)
         plt.show()
 
@@ -301,9 +301,9 @@ class presentationLayer:
         :param z: Z-coordinate of the line
         :return:
         """
-        y = y.asNumber(m)
-        z = z.asNumber(m)
-        time = time.asNumber(min)
+        y = unumToPint(y).m_as(ureg.m)
+        z = unumToPint(z).m_as(ureg.m)
+        time = unumToPint(time).m_as(ureg.min)
 
         dos_x_inst = TIAC.sel(y=y, z=z, time=time, method="nearest")
         x_array = dos_x_inst .squeeze().x
@@ -326,9 +326,9 @@ class presentationLayer:
         :return:
         """
 
-        x = x.asNumber(m)
-        y = y.asNumber(m)
-        z = z.asNumber(m)
+        x = unumToPint(x).m_as(ureg.m)
+        y = unumToPint(y).m_as(ureg.m)
+        z = unumToPint(z).m_as(ureg.m)
 
         dos_inst_t = TIAC.sel(x=x, y=y, z=z, method="nearest")
         time_array = dos_inst_t .squeeze().time

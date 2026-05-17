@@ -24,14 +24,14 @@ def toGeopandas(ContourData, inunits):
         A geopandas object with the contours as polygons and levels as attributes.
 
     """
-    from hera.utils.unitHandler import ureg
+    from hera.utils.unitHandler import ureg, unumToPint
 
     try:
         from shapely import geometry
         import geopandas
     except ImportError:
         print("gis support not installed. ")
-    units_conversion = inunits.asNumber(ureg.m)
+    units_conversion = unumToPint(inunits).m_as(ureg.m)
     polyList = []
     levelsList = []
     for col, level in zip(ContourData.collections, ContourData.levels):

@@ -9,7 +9,7 @@ from itertools import product
 from ..utils.inputForModelsCreation import InputForModelsCreator
 from hera.simulations.LSM.singleSimulation import SingleSimulation
 from hera.datalayer import datatypes
-from hera.utils.unitHandler import  Quantity, ureg, Unum
+from hera.utils.unitHandler import Quantity, ureg, unumToPint
 from hera import toolkit
 from hera.utils.jsonutils import JSONToConfiguration, stripConfigurationUnits
 from hera.utils import dictToMongoQuery, get_classMethod_logger
@@ -318,10 +318,8 @@ class LSMTemplate:
         if desc is not None and 'units' in desc:
             for key in desc["units"].keys():
                 param_item= paramsToPrepare[key]
-                if isinstance(param_item, Unum):
-                    paramsToPrepare[key] = param_item.asNumber(eval(desc["units"][key]))
-                elif isinstance(param_item, Quantity):
-                    paramsToPrepare[key] = param_item.m_as(desc["units"][key])
+                if hasattr(param_item, 'asNumber') or hasattr(param_item, 'magnitude'):
+                    paramsToPrepare[key] = unumToPint(param_item).m_as(ureg.parse_expression(desc["units"][key]))
                 else:
                     raise ValueError(f"parameters must use either pint or unum to specify units, currently type({param_item})={type(param_item)}")
         if 'duration' in paramsToPrepare and isinstance(paramsToPrepare['duration'], Quantity):
