@@ -16,7 +16,7 @@ VENV_DIR ?= $(HOME)/.pyhera/environment
 
 .PHONY: install install-env setup install-docs install-rag populate populate-project \
         help mongo-up mongo-down mongo-status mongo-logs mongo-clean \
-        build run stop test test-setup \
+        build run stop test test-setup test-ui test-all \
         install-deps install-deps-all install-paraview install-freecad install-openfoam \
         mermaid-pull render-diagrams render-diagrams-force \
         docs-deps docs-build docs-build-strict docs-serve docs-deploy docs-clean \
@@ -115,7 +115,9 @@ help:
 	@echo ""
 	@echo "  Testing:"
 	@echo "    make test-setup    Create the test data directory structure"
-	@echo "    make test          Run all tests (requires MongoDB + test data)"
+	@echo "    make test          Run Python/pytest suite (requires MongoDB + test data)"
+	@echo "    make test-ui       Run UI tests (npm install + npm run test:all in ui/client/)"
+	@echo "    make test-all      Run Python tests then UI tests (halts on first failure)"
 	@echo ""
 	@echo "  Third-party dependencies:"
 	@echo "    make install-deps        Install system packages and GDAL Python binding"
@@ -244,6 +246,11 @@ test-setup:
 
 test:
 	TEST_HERA=$(TEST_HERA) pytest hera/tests/ -v
+
+test-ui:
+	cd ui/client && npm install && npm run test:all
+
+test-all: test test-ui
 
 # --- Third-party Dependencies ---
 
