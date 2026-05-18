@@ -97,7 +97,7 @@ class SingleSimulation(object):
         finalxarray = self.getDosage(Q=Q, time_units=time_units, q_units=q_units)
 
         dDosage = finalxarray['Dosage'].diff('datetime').to_dataset().rename({'Dosage': 'dDosage'})
-        dDosage['C'] = dDosage['dDosage'] / finalxarray.attrs['dt']
+        dDosage['C'] = dDosage['dDosage'] / finalxarray.attrs['dt'].m_as(time_units)
         dDosage.attrs = finalxarray.attrs
 
         return dDosage
