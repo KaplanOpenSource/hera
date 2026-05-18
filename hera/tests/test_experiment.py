@@ -33,7 +33,7 @@ import pytest
 def _mongo_is_available():
     try:
         from hera.datalayer.project import Project
-        p = Project(projectName="__ping_experiment__")
+        p = Project(projectName="defaultProject")
         list(p.getMeasurementsDocuments())
         return True
     except Exception:

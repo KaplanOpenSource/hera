@@ -36,7 +36,7 @@ from hera.datalayer.document.metadataDocument import nonDBMetadataFrame
 def _mongo_is_available():
     """Return True if the configured MongoDB server is reachable."""
     try:
-        p = Project(projectName="__ping__")
+        p = Project(projectName="defaultProject")
         list(p.getMeasurementsDocuments())
         return True
     except Exception:

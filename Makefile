@@ -249,7 +249,7 @@ test:
 	else \
 		echo "Test data already present at $(TEST_HERA) (skipping bootstrap)."; \
 	fi
-	TEST_HERA=$(TEST_HERA) pytest hera/tests/ -v
+	PYTHONPATH=.$${PYTHONPATH:+:$$PYTHONPATH} TEST_HERA=$(TEST_HERA) pytest hera/tests/ -v
 
 # --- Third-party Dependencies ---
 

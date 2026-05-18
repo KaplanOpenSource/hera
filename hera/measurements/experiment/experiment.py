@@ -354,7 +354,8 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile, toolkit.abstra
         self.trialSet = dict()
 
         if filesDirectory is None:
-            filesDirectory = os.getcwd()
+            import tempfile
+            filesDirectory = tempfile.mkdtemp(prefix="hera_exp_cache_")
 
         cacheDir = os.path.join(filesDirectory, "experimentCache")
         os.makedirs(cacheDir, exist_ok=True)

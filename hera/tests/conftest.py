@@ -27,6 +27,8 @@ PREPARE_EXPECTED_OUTPUT : str (env var)
 import json
 import math
 import os
+import shutil
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -128,8 +130,12 @@ def hera_test_project(test_hera_root):
 
     basedir = str(test_hera_root)
 
-    # Create the project
+    # Create the project, then forcibly redirect its files directory to /tmp
+    # so test runs never litter the repository root.
+    _files_tmp = tempfile.mkdtemp(prefix="hera_pytest_main_")
     proj = Project(projectName=PYTEST_PROJECT_NAME)
+    proj._FilesDirectory = _files_tmp
+    proj.setConfig(filesDirectory=_files_tmp)
 
     # Load all datasources + configs into the project
     dt = dataToolkit()
@@ -148,6 +154,7 @@ def hera_test_project(test_hera_root):
             doc.delete()
     except Exception:
         pass
+    shutil.rmtree(_files_tmp, ignore_errors=True)
 
 
 @pytest.fixture(scope="session")
@@ -205,7 +212,10 @@ def project_fixture():
     from hera.datalayer.project import Project
 
     project_name = "pytest_temp_project"
+    _files_tmp = tempfile.mkdtemp(prefix="hera_pytest_func_")
     proj = Project(projectName=project_name)
+    proj._FilesDirectory = _files_tmp
+    proj.setConfig(filesDirectory=_files_tmp)
     yield proj
     # Cleanup: remove all documents created during the test
     try:
@@ -213,6 +223,7 @@ def project_fixture():
             doc.delete()
     except Exception:
         pass
+    shutil.rmtree(_files_tmp, ignore_errors=True)
 
 
 @pytest.fixture(scope="session")
