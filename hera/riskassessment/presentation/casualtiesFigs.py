@@ -60,7 +60,7 @@ class casualtiesPlot(object):
 			projectedData.append(injuryareas)
 		projectedData = pandas.concat(projectedData)
 
-		pivotedData = projectedData.pivot("angle",'severity',effectedPopulation).reset_index().fillna(0)
+		pivotedData = projectedData.pivot(index="angle",columns='severity',values=effectedPopulation).reset_index().fillna(0)
 		if (ax is None):
 			fig = plt.gcf()
 			ax = fig.add_subplot(111,polar=True)
@@ -83,15 +83,15 @@ class casualtiesPlot(object):
 					cycler  += plt.cycler(width=[weights]*len(severityList))
 
 		bottom = numpy.zeros(pivotedData.shape[0])
+		pivotedData["total"] = 0
 		for severity,plotprops in zip(severityList,cycler):
 			if severity not in pivotedData.columns:
 				continue
 
 			ax.bar(pivotedData["angle"],pivotedData[severity],label=severity,bottom=bottom,**plotprops)
 			bottom += pivotedData[severity]
-		pivotedData["total"] = 0
-		for severity in severityList:
 			pivotedData["total"] += pivotedData[severity]
+
 		if windDistribution is not None:
 			windDist = windDistribution.copy()
 			windTicks = [25,50,75,100] if windTicks is None else sorted(windTicks)
@@ -175,7 +175,9 @@ class casualtiesPlot(object):
 			:cycler: a property cycler for the polygons. 
 			:boundarycycler: a property cycler for the overall polygons.  
 		"""
-		if (ax is None): 
+		from hera.utils.matplotlibCountour import plot_polygons
+
+		if (ax is None):
 			fig = plt.gcf()
 			ax = fig.add_subplot(111) 
 		elif isinstance(ax,list): 
@@ -196,21 +198,15 @@ class casualtiesPlot(object):
 		projected  	= retProj.dissolve("severity")
 
 		boundarycycler = plt.cycler(color=plt.rcParams['axes.prop_cycle'].by_key()['color']) if boundarycycler is None else boundarycycler		 		
-		cycler = plt.cycler(fc=plt.rcParams['axes.prop_cycle'].by_key()['color'])*plt.cycler(ec=['None']) if cycler is None else cycler		
+		cycler = plt.cycler(facecolor=plt.rcParams['axes.prop_cycle'].by_key()['color'])*plt.cycler(edgecolor=['None']) if cycler is None else cycler
 
 		patchList = []
 		for severity,prop,lineprop in zip(severityList,cycler,boundarycycler):
 			if severity not in projected.index:
 				continue
 			geom =projected.loc[severity].geometry
-			if hasattr(geom,"geoms"):
-				for pol in geom.geoms:
-					if pol.geom_type == 'LineString':
-						ax.plot(*pol.xy,**lineprop)
-					else:
-						ax.add_patch(PolygonPatch(pol,**prop) )
-			else:
-				ax.add_patch(PolygonPatch(projected.loc[severity].geometry,**prop) )
+			plot_polygons(ax,geom,**prop)
+
 
 		for ((severity,severitydata),prop) in zip(results.shiftLocationAndAngle(loc,mathematical_angle=rotate_angle,geometry="TotalPolygon")
 								 .query("severity in %s" % numpy.atleast_1d(plumSeverity))
