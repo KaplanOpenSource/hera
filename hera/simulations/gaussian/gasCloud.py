@@ -320,33 +320,6 @@ class abstractGasCloud:
 
 # ---------------------------------------------END OF DF------------------------------------------------
 
-
-class instantaneousReleaseGasCloud(abstractGasCloud):
-
-
-    def getConcentrationFromMinMaxRange_inst_noQ(self, meteorology, minx, miny, minz, maxx, maxy, maxz, timeSpan,
-                                        dxdy=10*m, dz=1*m, dt=1*min, numOfReflections=3):
-
-        xcoordRange = numpy.arange(tonumber(minx, m), tonumber(maxx, m), tonumber(dxdy,m))
-        ycoordRange = numpy.arange(tonumber(miny,m),tonumber(maxy,m),tonumber(dxdy,m))
-        zcoordRange = numpy.arange(tonumber(minz, m), tonumber(maxz, m), tonumber(dz,m))
-        tcoordRange = numpy.arange(0,tonumber(timeSpan,min),tonumber(dt,min))
-
-        stability = meteorology.stability
-        u = tonumber(meteorology.u10, m/min)
-        inversion = tonumber(meteorology.inversion, m)
-
-        TX = self._getTXterm(stability=stability, u=u, xcoordRange=xcoordRange, tcoordRange=tcoordRange)
-        XY = self._getXYterm(stability=stability, xcoordRange=xcoordRange, ycoordRange=ycoordRange)
-        XZ = self._getXZterm(stability=stability, inversion=inversion, xcoordRange=xcoordRange, zcoordRange=zcoordRange,
-                             numOfReflections=numOfReflections)
-
-        ret = TX*XY*XZ
-        ret.attrs['Q'] = 1/m**3
-
-        return ret
-
-
     def getDosageFromMinMaxRange_inst_noQ(self, meteorology, minx, miny, minz, maxx, maxy, maxz, timeSpan,
                            dxdy=10*m, dz=1*m, dt=1*min, numOfReflections=3, DF=False):
         stability = meteorology.stability
@@ -389,6 +362,30 @@ class instantaneousReleaseGasCloud(abstractGasCloud):
         return ret
 
 
+class instantaneousReleaseGasCloud(abstractGasCloud):
+
+
+    def getConcentrationFromMinMaxRange_inst_noQ(self, meteorology, minx, miny, minz, maxx, maxy, maxz, timeSpan,
+                                        dxdy=10*m, dz=1*m, dt=1*min, numOfReflections=3):
+
+        xcoordRange = numpy.arange(tonumber(minx, m), tonumber(maxx, m), tonumber(dxdy,m))
+        ycoordRange = numpy.arange(tonumber(miny,m),tonumber(maxy,m),tonumber(dxdy,m))
+        zcoordRange = numpy.arange(tonumber(minz, m), tonumber(maxz, m), tonumber(dz,m))
+        tcoordRange = numpy.arange(0,tonumber(timeSpan,min),tonumber(dt,min))
+
+        stability = meteorology.stability
+        u = tonumber(meteorology.u10, m/min)
+        inversion = tonumber(meteorology.inversion, m)
+
+        TX = self._getTXterm(stability=stability, u=u, xcoordRange=xcoordRange, tcoordRange=tcoordRange)
+        XY = self._getXYterm(stability=stability, xcoordRange=xcoordRange, ycoordRange=ycoordRange)
+        XZ = self._getXZterm(stability=stability, inversion=inversion, xcoordRange=xcoordRange, zcoordRange=zcoordRange,
+                             numOfReflections=numOfReflections)
+
+        ret = TX*XY*XZ
+        ret.attrs['Q'] = 1/m**3
+
+        return ret
 
 
     def getConcentrationFromMinMaxRange_inst(self, meteorology, minx, miny, minz, maxx, maxy, maxz, timeSpan,
@@ -575,7 +572,7 @@ class instantaneousReleaseGasCloud(abstractGasCloud):
 
 
 
-class continuousReleaseGasCloud(abstractGasCloud):
+class continuousReleaseGasCloud(instantaneousReleaseGasCloud):
 
     def getConcentrationFromMinMaxRange_cont(self, meteorology, minx, miny, minz, maxx, maxy, maxz, timeSpan,
                                         dxdy=10*m, dz=1*m, dt=1*min, numOfReflections=3, DF=False):

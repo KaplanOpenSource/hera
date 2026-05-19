@@ -1113,7 +1113,7 @@ class ToolkitHome(abstractToolkit):
         pandas.DataFrame
             Table with columns: toolkit, cls, source, type, repositoryName, version.
         """
-        docs = self.getToolkitDocuments(name=None, projectName=projectName) or []
+        docs = self.getToolkitDocuments(name=None) or []
         rows = []
         for d in docs:
             desc = d.get("desc", {})

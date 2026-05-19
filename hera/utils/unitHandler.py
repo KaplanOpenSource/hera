@@ -133,7 +133,10 @@ def tounit(x, theunit):
             logger.error(f"can't convert {x} to units {theunit}")
             ret = x
     else:
-        ret = Quantity(x, theunit)
+        if isinstance(theunit, Unum) and unumSupport:
+            ret = x * theunit
+        else:
+            ret = Quantity(x, theunit)
     return ret
 
 
@@ -253,6 +256,16 @@ if unumSupport:
     }
     # Remove None entries
     PINT_TO_UNUM_MAP = {k: v for k, v in PINT_TO_UNUM_MAP.items() if v is not None}
+
+    # Expose custom unum units as public names for backward compatibility
+    atm = _unum_atm
+    mbar = _unum_mbar
+    mmHg = _unum_mmHg
+    mmH2O = _unum_mmH2O
+    torr = _unum_torr
+    dyne = _unum_dyne
+    poise = _unum_poise
+    cpoise = _unum_cpoise
 
     @deprecated(reason="Doesn't work for some cases. Move to Pint")
     def convert_unum_units_to_eval_str(unit_str):
