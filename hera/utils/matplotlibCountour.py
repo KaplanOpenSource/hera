@@ -9,7 +9,7 @@ def standardize_polygon(poly, units_conversion):
     return [(x * units_conversion, y * units_conversion) for (x, y) in zip(xs, ys)]
 
 
-def toGeopandas(ContourData, inunits):
+def toGeopandas(ContourData, inunits=None):
     
     """
         Converts the contours of matplotlib to polygons.
@@ -31,6 +31,8 @@ def toGeopandas(ContourData, inunits):
         import geopandas
     except ImportError:
         print("gis support not installed. ")
+    inunits = inunits if inunits is None else 1*ureg.m
+
     units_conversion = unumToPint(inunits).m_as(ureg.m)
     polyList = []
     levelsList = []
