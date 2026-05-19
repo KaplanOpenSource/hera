@@ -245,12 +245,15 @@ test-setup:
 	@echo "Add test data files under measurements/ and expected outputs under expected/BASELINE/"
 
 test:
-	TEST_HERA=$(TEST_HERA) pytest hera/tests/ -v
+	TEST_HERA=$(TEST_HERA) pytest hera/tests/ -v -m "not notebook"
+
+test-notebooks:
+	TEST_HERA=$(TEST_HERA) pytest hera/tests/test_notebooks.py -v
 
 test-ui:
 	cd ui/client && npm install && npm run test:all
 
-test-all: test test-ui
+test-all: test test-notebooks test-ui
 
 # --- Third-party Dependencies ---
 
