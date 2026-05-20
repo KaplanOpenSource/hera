@@ -1,10 +1,10 @@
 import { Box, Paper } from '@mui/material';
-import { Actions, DockLocation, Layout, Model, TabNode } from 'flexlayout-react';
+import { Action, Actions, DockLocation, Layout, Model, TabNode } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ProjectObj } from '../../objects/ProjectObj';
-import { idFromDocId } from '../../shared/idDocId';
+import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId } from '../../shared/idDocId';
 import { DetailsViewPanel, detailsTabName } from '../details/DetailsViewPanel';
 import { hasPreview, PreviewPanel } from '../details/PreviewPanel';
 import { ProjectTreeView } from '../project/ProjectTreeView';
@@ -20,6 +20,9 @@ export const ProjectLayout = ({
   const navigate = useNavigate();
   const [selectedItemsIds, setSelectedItemIds] = useState<string[]>(
     docId ? [`document_${docId}`] : []
+  );
+  const [activeShowItemId, setActiveShowItemId] = useState<string | undefined>(
+    docId ? `document_${docId}` : undefined
   );
 
   const [model] = useState(() => Model.fromJson({
@@ -57,11 +60,11 @@ export const ProjectLayout = ({
     },
   }));
 
-  const selectedDocId = idFromDocId(selectedItemsIds[0]);
-  const selectedDoc = selectedDocId
-    ? project.allDocuments.find(d => d.docid === selectedDocId)
+  const activeDocId = activeShowItemId ? idFromDocId(activeShowItemId) : undefined;
+  const activeDoc = activeDocId
+    ? project.allDocuments.find(d => d.docid === activeDocId)
     : undefined;
-  const previewAvailable = selectedDoc ? hasPreview(selectedDoc.data) : false;
+  const previewAvailable = activeDoc ? hasPreview(activeDoc.data) : false;
 
   useEffect(() => {
     const treeNode = model.getNodeById('tree');
@@ -78,23 +81,23 @@ export const ProjectLayout = ({
   }, [treeCollapsed, model]);
 
   useEffect(() => {
-    const tabsToRemove: string[] = [];
-    model.visitNodes((node) => {
-      if (node.getType() === 'tab') {
-        const id = node.getId();
-        if (id.startsWith('details:') || id.startsWith('preview:')) {
-          tabsToRemove.push(id);
-        }
-      }
-    });
-    tabsToRemove.forEach(id => model.doAction(Actions.deleteTab(id)));
+    const rawShowItemId = selectedItemsIds[0];
+    if (!rawShowItemId) return;
 
-    const showItemId = selectedItemsIds[0];
-    if (showItemId) {
+    const isSpecific = rawShowItemId === CENTRAL_REPO_FOLDER_ID
+      || !!idFromDocId(rawShowItemId)
+      || !!idFromRepoId(rawShowItemId);
+    const showItemId = isSpecific ? rawShowItemId : 'config';
+
+    const detailsId = `details:${showItemId}`;
+    const existing = model.getNodeById(detailsId);
+    if (existing) {
+      model.doAction(Actions.selectTab(detailsId));
+    } else {
       model.doAction(Actions.addTab(
         {
           type: 'tab',
-          id: `details:${showItemId}`,
+          id: detailsId,
           name: detailsTabName(showItemId, project),
           component: 'details',
           config: { showItemId },
@@ -103,23 +106,34 @@ export const ProjectLayout = ({
         DockLocation.CENTER,
         -1,
       ));
-
-      if (previewAvailable && selectedDocId) {
-        model.doAction(Actions.addTab(
-          {
-            type: 'tab',
-            id: `preview:${selectedDocId}`,
-            name: `Preview: ${selectedDoc!.name}`,
-            component: 'preview',
-            config: { docid: selectedDocId },
-          },
-          'details-tabset',
-          DockLocation.BOTTOM,
-          -1,
-        ));
-      }
     }
-  }, [selectedItemsIds[0], previewAvailable, selectedDocId, model]);
+    setActiveShowItemId(showItemId);
+  }, [selectedItemsIds[0], model]);
+
+  useEffect(() => {
+    const existingPreview: string[] = [];
+    model.visitNodes((node) => {
+      if (node.getType() === 'tab' && node.getId().startsWith('preview:')) {
+        existingPreview.push(node.getId());
+      }
+    });
+    existingPreview.forEach(id => model.doAction(Actions.deleteTab(id)));
+
+    if (previewAvailable && activeDocId) {
+      model.doAction(Actions.addTab(
+        {
+          type: 'tab',
+          id: `preview:${activeDocId}`,
+          name: `Preview: ${activeDoc!.name}`,
+          component: 'preview',
+          config: { docid: activeDocId },
+        },
+        'details-tabset',
+        DockLocation.BOTTOM,
+        -1,
+      ));
+    }
+  }, [activeShowItemId, previewAvailable, activeDocId, model]);
 
   useEffect(() => {
     if (docId && project?.documentIds.has(docId)) {
@@ -139,6 +153,19 @@ export const ProjectLayout = ({
       navigate(newPath, { replace: true });
     }
   }, [project?.name, navigate]);
+
+  const handleAction = useCallback((action: Action) => {
+    if (action.type === Actions.SELECT_TAB) {
+      const tabId = action.data.tabNode as string;
+      if (tabId?.startsWith('details:')) {
+        const node = model.getNodeById(tabId) as TabNode | undefined;
+        if (node) {
+          setActiveShowItemId(node.getConfig()?.showItemId);
+        }
+      }
+    }
+    return action;
+  }, [model]);
 
   const factory = (node: TabNode) => {
     const component = node.getComponent();
@@ -175,6 +202,7 @@ export const ProjectLayout = ({
       <Layout
         model={model}
         factory={factory}
+        onAction={handleAction}
       />
     </Box>
   );
