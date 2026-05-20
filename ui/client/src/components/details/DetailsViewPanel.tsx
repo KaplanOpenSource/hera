@@ -8,9 +8,13 @@ import { DetailsViewRepo } from './DetailsViewRepo';
 export const DetailsViewPanel = ({
   project,
   showItemId,
+  previewHidden,
+  setPreviewHidden,
 }: {
   project: ProjectObj,
   showItemId: string,
+  previewHidden: boolean,
+  setPreviewHidden: (hidden: boolean) => void,
 }) => {
   if (showItemId === CENTRAL_REPO_FOLDER_ID) {
     return (
@@ -26,6 +30,8 @@ export const DetailsViewPanel = ({
       <DetailsViewDocId
         project={project}
         docid={docid}
+        previewHidden={previewHidden}
+        setPreviewHidden={setPreviewHidden}
       />
     )
   }

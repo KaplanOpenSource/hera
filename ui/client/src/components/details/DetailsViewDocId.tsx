@@ -4,12 +4,18 @@ import { fetchDocument, updateDocument } from '../../io/FetchDocument';
 import { DocumentObj, ProjectObj } from '../../objects/ProjectObj';
 import { DetailsViewDocument } from './DetailsViewDocument';
 import { DetailsViewNotebook } from './DetailsViewNotebook';
+import { hasPreview } from './PreviewChooser';
 
 export const DetailsViewDocId = ({
-  project, docid,
+  project,
+  docid,
+  previewHidden,
+  setPreviewHidden,
 }: {
   project: ProjectObj;
   docid: string;
+  previewHidden?: boolean;
+  setPreviewHidden?: (hidden: boolean) => void;
 }) => {
   const [doc, setDoc] = useState<any>(undefined);
 
@@ -50,6 +56,9 @@ export const DetailsViewDocId = ({
               <DetailsViewDocument
                 doc={docObj}
                 setDoc={(newDoc) => changeDocument(newDoc.data)}
+                previewHidden={previewHidden}
+                setPreviewHidden={setPreviewHidden}
+                previewAvailable={hasPreview(docObj.data)}
               />
             </Box>
           )

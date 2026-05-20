@@ -1,4 +1,6 @@
-import { Paper } from '@mui/material';
+import { Visibility } from '@mui/icons-material';
+import { Box, Paper } from '@mui/material';
+import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { SplitWithSidebar } from '../../elements/SplitWithSidebar';
@@ -18,6 +20,7 @@ export const ProjectLayout = ({
   const [selectedItemsIds, setSelectedItemIds] = useState<string[]>(
     docId ? [`document_${docId}`] : []
   );
+  const [previewHidden, setPreviewHidden] = useState(false);
 
   useEffect(() => {
     if (docId && project?.documentIds.has(docId)) {
@@ -51,15 +54,29 @@ export const ProjectLayout = ({
         </Paper>
       }
     >
-      <Paper sx={{
-        height: '100%',
-        overflow: 'hidden',
-      }}>
-        <DetailsViewPanel
-          project={project}
-          showItemId={selectedItemsIds[0]}
-        />
-      </Paper>
+      <Box sx={{ height: '100%', position: 'relative' }}>
+        <Paper sx={{
+          height: '100%',
+          overflow: 'hidden',
+        }}>
+          <DetailsViewPanel
+            project={project}
+            showItemId={selectedItemsIds[0]}
+            previewHidden={previewHidden}
+            setPreviewHidden={setPreviewHidden}
+          />
+        </Paper>
+        {previewHidden && (
+          <Box sx={{ position: 'absolute', bottom: 4, right: 4 }}>
+            <ButtonTooltip
+              title="Show preview"
+              onClick={() => setPreviewHidden(false)}
+            >
+              <Visibility sx={{ fontSize: 14 }} />
+            </ButtonTooltip>
+          </Box>
+        )}
+      </Box>
     </SplitWithSidebar>
   );
 };

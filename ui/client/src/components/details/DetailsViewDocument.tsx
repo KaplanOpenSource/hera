@@ -1,4 +1,4 @@
-import { Visibility, VisibilityOff } from '@mui/icons-material';
+import { VisibilityOff } from '@mui/icons-material';
 import { Box } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from 'react-resizable-panels';
@@ -6,27 +6,32 @@ import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DocumentObj } from '../../objects/ProjectObj';
 import { ProjectDocument } from '../../shared/types';
 import { DetailsViewDocumentContent } from './DetailsViewDocumentContent';
-import { hasPreview, PreviewChooser } from './PreviewChooser';
+import { PreviewChooser } from './PreviewChooser';
 
 export const DetailsViewDocument = ({
   doc,
   setDoc,
+  previewHidden = false,
+  setPreviewHidden,
+  previewAvailable = false,
 }: {
   doc: DocumentObj,
   setDoc: (newDoc: DocumentObj) => void,
+  previewHidden?: boolean,
+  setPreviewHidden?: (hidden: boolean) => void,
+  previewAvailable?: boolean,
 }) => {
   const [shownDoc, setShownDoc] = useState<ProjectDocument>(JSON.parse(JSON.stringify(doc.data)));
-  const [previewHidden, setPreviewHidden] = useState(false);
 
   useEffect(() => {
     setShownDoc(JSON.parse(JSON.stringify(doc.data)));
   }, [doc.data])
 
   useEffect(() => {
-    setPreviewHidden(false);
+    setPreviewHidden?.(false);
   }, [doc.docid])
 
-  const showPreview = hasPreview(shownDoc) && !previewHidden;
+  const showPreview = previewAvailable && !previewHidden;
 
   return showPreview
     ? (
@@ -35,7 +40,7 @@ export const DetailsViewDocument = ({
           orientation="vertical"
           onLayoutChanged={(layout) => {
             if (layout['preview-panel'] === 0) {
-              setPreviewHidden(true);
+              setPreviewHidden?.(true);
             }
           }}
         >
@@ -69,7 +74,7 @@ export const DetailsViewDocument = ({
               <Box sx={{ position: 'absolute', top: 4, right: 4, zIndex: 1000 }}>
                 <ButtonTooltip
                   title="Hide preview"
-                  onClick={() => setPreviewHidden(true)}
+                  onClick={() => setPreviewHidden?.(true)}
                   sx={{
                     backgroundColor: 'white',
                     '&:hover': { backgroundColor: '#eee' },
@@ -85,23 +90,11 @@ export const DetailsViewDocument = ({
       </Box>
     )
     : (
-      <Box sx={{ height: '100%', position: 'relative' }}>
-        <DetailsViewDocumentContent
-          doc={doc}
-          setDoc={setDoc}
-          shownDoc={shownDoc}
-          setShownDoc={setShownDoc}
-        />
-        {hasPreview(shownDoc) && previewHidden && (
-          <Box sx={{ position: 'absolute', bottom: 4, right: 4 }}>
-            <ButtonTooltip
-              title="Show preview"
-              onClick={() => setPreviewHidden(false)}
-            >
-              <Visibility sx={{ fontSize: 14 }} />
-            </ButtonTooltip>
-          </Box>
-        )}
-      </Box>
+      <DetailsViewDocumentContent
+        doc={doc}
+        setDoc={setDoc}
+        shownDoc={shownDoc}
+        setShownDoc={setShownDoc}
+      />
     )
 }
