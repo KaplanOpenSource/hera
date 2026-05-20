@@ -5,6 +5,18 @@ import { DetailsViewDocId } from './DetailsViewDocId';
 import { DetailsViewMergedRepo } from './DetailsViewMergedRepo';
 import { DetailsViewRepo } from './DetailsViewRepo';
 
+export const detailsTabName = (showItemId: string, project: ProjectObj): string => {
+  if (showItemId === CENTRAL_REPO_FOLDER_ID) return 'Repositories';
+  const docid = idFromDocId(showItemId);
+  if (docid) {
+    const doc = project.allDocuments.find(d => d.docid === docid);
+    if (doc) return doc.isConfig ? project.name + ' config' : doc.name;
+  }
+  const repoPath = idFromRepoId(showItemId);
+  if (repoPath) return repoPath;
+  return project.name + ' config';
+};
+
 export const DetailsViewPanel = ({
   project,
   showItemId,

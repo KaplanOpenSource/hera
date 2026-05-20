@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { idFromDocId } from '../../shared/idDocId';
-import { DetailsViewPanel } from '../details/DetailsViewPanel';
+import { DetailsViewPanel, detailsTabName } from '../details/DetailsViewPanel';
 import { hasPreview, PreviewPanel } from '../details/PreviewPanel';
 import { ProjectTreeView } from '../project/ProjectTreeView';
 
@@ -24,8 +24,8 @@ export const ProjectLayout = ({
 
   const [model] = useState(() => Model.fromJson({
     global: {
-      tabEnableClose: false,
-      tabEnableRename: false,
+      tabEnableClose: true,
+      tabEnableRename: true,
       tabEnableDrag: true,
       tabSetEnableMaximize: true,
       tabSetEnableClose: true,
@@ -95,7 +95,7 @@ export const ProjectLayout = ({
         {
           type: 'tab',
           id: `details:${showItemId}`,
-          name: 'Details',
+          name: detailsTabName(showItemId, project),
           component: 'details',
           config: { showItemId },
         },
@@ -109,7 +109,7 @@ export const ProjectLayout = ({
           {
             type: 'tab',
             id: `preview:${selectedDocId}`,
-            name: 'Preview',
+            name: `Preview: ${selectedDoc!.name}`,
             component: 'preview',
             config: { docid: selectedDocId },
           },
