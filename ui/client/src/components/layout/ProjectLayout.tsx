@@ -1,10 +1,8 @@
-import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { Box, Paper } from '@mui/material';
+import { Actions, DockLocation, Layout, Model, TabNode } from 'flexlayout-react';
+import 'flexlayout-react/style/light.css';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Panel, Group as PanelGroup, Separator as PanelResizeHandle, usePanelRef } from 'react-resizable-panels';
-import { ButtonTooltip } from '../../elements/ButtonTooltip';
-import { SplitWithSidebar } from '../../elements/SplitWithSidebar';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { idFromDocId } from '../../shared/idDocId';
 import { DetailsViewPanel } from '../details/DetailsViewPanel';
@@ -23,8 +21,41 @@ export const ProjectLayout = ({
   const [selectedItemsIds, setSelectedItemIds] = useState<string[]>(
     docId ? [`document_${docId}`] : []
   );
-  const [previewHidden, setPreviewHidden] = useState(false);
-  const previewPanelRef = usePanelRef();
+
+  const [model] = useState(() => Model.fromJson({
+    global: {
+      tabEnableClose: false,
+      tabEnableRename: false,
+      tabEnableDrag: true,
+      tabSetEnableMaximize: true,
+      tabSetEnableClose: true,
+      tabSetEnableDeleteWhenEmpty: true,
+      rootOrientationVertical: false,
+    },
+    layout: {
+      type: 'row',
+      children: [
+        {
+          type: 'tabset',
+          id: 'tree-tabset',
+          weight: 25,
+          children: [{
+            type: 'tab',
+            id: 'tree',
+            name: 'Project',
+            component: 'tree',
+          }],
+        },
+        {
+          type: 'tabset',
+          id: 'details-tabset',
+          weight: 75,
+          enableDeleteWhenEmpty: false,
+          children: [],
+        },
+      ],
+    },
+  }));
 
   const selectedDocId = idFromDocId(selectedItemsIds[0]);
   const selectedDoc = selectedDocId
@@ -33,16 +64,62 @@ export const ProjectLayout = ({
   const previewAvailable = selectedDoc ? hasPreview(selectedDoc.data) : false;
 
   useEffect(() => {
-    setPreviewHidden(false);
-  }, [selectedDocId]);
+    const treeNode = model.getNodeById('tree');
+    if (treeCollapsed && treeNode) {
+      model.doAction(Actions.deleteTab('tree'));
+    } else if (!treeCollapsed && !treeNode) {
+      model.doAction(Actions.addTab(
+        { type: 'tab', id: 'tree', name: 'Project', component: 'tree' },
+        'details-tabset',
+        DockLocation.LEFT,
+        -1,
+      ));
+    }
+  }, [treeCollapsed, model]);
 
   useEffect(() => {
-    if (previewHidden) {
-      previewPanelRef.current?.collapse();
-    } else {
-      previewPanelRef.current?.expand();
+    const tabsToRemove: string[] = [];
+    model.visitNodes((node) => {
+      if (node.getType() === 'tab') {
+        const id = node.getId();
+        if (id.startsWith('details:') || id.startsWith('preview:')) {
+          tabsToRemove.push(id);
+        }
+      }
+    });
+    tabsToRemove.forEach(id => model.doAction(Actions.deleteTab(id)));
+
+    const showItemId = selectedItemsIds[0];
+    if (showItemId) {
+      model.doAction(Actions.addTab(
+        {
+          type: 'tab',
+          id: `details:${showItemId}`,
+          name: 'Details',
+          component: 'details',
+          config: { showItemId },
+        },
+        'details-tabset',
+        DockLocation.CENTER,
+        -1,
+      ));
+
+      if (previewAvailable && selectedDocId) {
+        model.doAction(Actions.addTab(
+          {
+            type: 'tab',
+            id: `preview:${selectedDocId}`,
+            name: 'Preview',
+            component: 'preview',
+            config: { docid: selectedDocId },
+          },
+          'details-tabset',
+          DockLocation.BOTTOM,
+          -1,
+        ));
+      }
     }
-  }, [previewHidden]);
+  }, [selectedItemsIds[0], previewAvailable, selectedDocId, model]);
 
   useEffect(() => {
     if (docId && project?.documentIds.has(docId)) {
@@ -50,7 +127,7 @@ export const ProjectLayout = ({
     } else {
       setSelectedItemIds([]);
     }
-  }, [project?.name])
+  }, [project?.name]);
 
   const handleSetSelectedItemIds = useCallback((ids: string[]) => {
     setSelectedItemIds(ids);
@@ -63,105 +140,42 @@ export const ProjectLayout = ({
     }
   }, [project?.name, navigate]);
 
-  return (
-    <SplitWithSidebar
-      collapsed={treeCollapsed}
-      sidebar={
-        <Paper sx={{ p: 2, height: '100%', overflow: 'auto' }}>
-          <ProjectTreeView
-            project={project}
-            selectedItemsIds={selectedItemsIds}
-            setSelectedItemIds={handleSetSelectedItemIds}
-          />
-        </Paper>
-      }
-    >
-      {previewAvailable
-        ? (
-          <PanelGroup
-            orientation="vertical"
-            onLayoutChanged={(layout) => {
-              if (layout['preview-panel'] === 0) {
-                setPreviewHidden(true);
-              }
-            }}
-          >
-            <Panel defaultSize={50} minSize={20}>
-              <Box sx={{ height: '100%', position: 'relative' }}>
-                <Paper sx={{ height: '100%', overflow: 'hidden' }}>
-                  <DetailsViewPanel
-                    project={project}
-                    showItemId={selectedItemsIds[0]}
-                  />
-                </Paper>
-                {previewHidden && (
-                  <Box sx={{ position: 'absolute', bottom: 4, right: 4 }}>
-                    <ButtonTooltip
-                      title="Show preview"
-                      onClick={() => setPreviewHidden(false)}
-                    >
-                      <Visibility sx={{ fontSize: 14 }} />
-                    </ButtonTooltip>
-                  </Box>
-                )}
-              </Box>
-            </Panel>
-
-            <PanelResizeHandle
-              style={{
-                height: 4,
-                cursor: 'row-resize',
-                backgroundColor: '#e0e0e0',
-                outline: 'none',
-              }}
+  const factory = (node: TabNode) => {
+    const component = node.getComponent();
+    const config = node.getConfig();
+    switch (component) {
+      case 'tree':
+        return (
+          <Paper sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+            <ProjectTreeView
+              project={project}
+              selectedItemsIds={selectedItemsIds}
+              setSelectedItemIds={handleSetSelectedItemIds}
             />
+          </Paper>
+        );
+      case 'details':
+        return (
+          <Paper sx={{ height: '100%', overflow: 'hidden' }}>
+            <DetailsViewPanel
+              project={project}
+              showItemId={config?.showItemId}
+            />
+          </Paper>
+        );
+      case 'preview':
+        return <PreviewPanel docid={config?.docid} />;
+      default:
+        return null;
+    }
+  };
 
-            <Panel
-              id="preview-panel"
-              panelRef={previewPanelRef}
-              defaultSize={50}
-              minSize={5}
-              collapsible
-            >
-              <Box sx={{ height: '100%', position: 'relative' }}>
-                <Box sx={{ position: 'absolute', top: 4, right: 4, zIndex: 1000 }}>
-                  <ButtonTooltip
-                    title="Hide preview"
-                    onClick={() => setPreviewHidden(true)}
-                    sx={{
-                      backgroundColor: 'white',
-                      '&:hover': { backgroundColor: '#eee' },
-                    }}
-                  >
-                    <VisibilityOff sx={{ fontSize: 14 }} />
-                  </ButtonTooltip>
-                </Box>
-                <PreviewPanel docid={selectedDocId!} />
-              </Box>
-            </Panel>
-          </PanelGroup>
-        )
-        : (
-          <Box sx={{ height: '100%', position: 'relative' }}>
-            <Paper sx={{ height: '100%', overflow: 'hidden' }}>
-              <DetailsViewPanel
-                project={project}
-                showItemId={selectedItemsIds[0]}
-              />
-            </Paper>
-            {previewHidden && (
-              <Box sx={{ position: 'absolute', bottom: 4, right: 4 }}>
-                <ButtonTooltip
-                  title="Show preview"
-                  onClick={() => setPreviewHidden(false)}
-                >
-                  <Visibility sx={{ fontSize: 14 }} />
-                </ButtonTooltip>
-              </Box>
-            )}
-          </Box>
-        )
-      }
-    </SplitWithSidebar>
+  return (
+    <Box sx={{ position: 'relative', flex: 1, height: '100%' }}>
+      <Layout
+        model={model}
+        factory={factory}
+      />
+    </Box>
   );
 };
