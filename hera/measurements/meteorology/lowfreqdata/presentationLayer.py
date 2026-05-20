@@ -427,7 +427,7 @@ class DailyPlots(Plots):
         curdata = curdata.assign(houronly=curdata.curdate.dt.hour + curdata.curdate.dt.minute / 60.)
 
         qstring = "dateonly == '%s'" % date
-        if isinstance(curdata, dask.dataframe.core.DataFrame):
+        if isinstance(curdata, dask.dataframe.DataFrame):
             dailydata = curdata.query(qstring).compute()
         else:
             dailydata = curdata.query(qstring)

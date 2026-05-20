@@ -98,7 +98,7 @@ def ConfigurationToJSON(valueToProcess, standardize=False, splitUnits=False, kee
     # in case pint wasnt loaded to memory the object can't be pint and there is not reason to check for it
     # UNLESS someone loaded this object with pickle or something similar(in this case  this breaks)
     # we discourage doing this anyways and assume this doesn't happen, it  will fail to parse the object anyways
-    if 'pint' in sys.modules:
+    elif 'pint' in sys.modules:
         from pint import Quantity
         if isinstance(valueToProcess,Quantity):
             origPintObj = valueToProcess
