@@ -1,36 +1,13 @@
-import { Fullscreen, FullscreenExit, HelpOutline } from '@mui/icons-material';
-import { AppBar, Box, createTheme, IconButton, Paper, Stack, ThemeProvider, Toolbar, Typography } from '@mui/material';
+import { Box, Paper, Typography } from '@mui/material';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { DetailsViewPanel } from './components/details/DetailsViewPanel';
-import { PageTitle } from './components/header/PageTitle';
-import { ProjectChooser } from './components/header/ProjectChooser';
-import { StatusIndicators } from './components/header/StatusIndicators';
-import { ButtonTooltip } from './elements/ButtonTooltip';
+import { DashboardHeader } from './components/header/DashboardHeader';
 import { ProjectTreeView } from './components/project/ProjectTreeView';
 import { SplitWithSidebar } from './elements/SplitWithSidebar';
 import { FetchProjects } from './io/FetchProjects';
 import { useProjectStore } from './stores/useProjectStore';
 import { ServerConstantReader } from './stores/useServerConstants';
-
-const headerTheme = createTheme({
-  palette: {
-    mode: 'dark',
-    background: { paper: '#1976d2' },
-  },
-  components: {
-    MuiInputBase: {
-      styleOverrides: {
-        input: {
-          '&::selection': {
-            backgroundColor: 'rgba(255,255,255,0.3)',
-            color: '#fff',
-          },
-        },
-      },
-    },
-  },
-});
 
 export const Dashboard = () => {
   const { projectName, docId } = useParams<{ projectName: string; docId: string }>();
@@ -72,31 +49,10 @@ export const Dashboard = () => {
         flexDirection: 'column',
       }}
     >
-      <ThemeProvider theme={headerTheme}>
-        <AppBar position="static">
-          <Toolbar>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <PageTitle />
-              <ProjectChooser />
-              <ButtonTooltip
-                title={treeCollapsed ? 'Show sidebar' : 'Hide sidebar'}
-                onClick={() => setTreeCollapsed(c => !c)}
-                color="inherit"
-              >
-                {treeCollapsed ? <FullscreenExit /> : <Fullscreen />}
-              </ButtonTooltip>
-              <ButtonTooltip
-                title="Documentation"
-                onClick={() => window.open('https://kaplanopensource.github.io/hera', '_blank')}
-                color="inherit"
-              >
-                <HelpOutline />
-              </ButtonTooltip>
-              <StatusIndicators />
-            </Stack>
-          </Toolbar>
-        </AppBar>
-      </ThemeProvider>
+      <DashboardHeader
+        treeCollapsed={treeCollapsed}
+        setTreeCollapsed={setTreeCollapsed}
+      />
 
       <Box
         sx={{
