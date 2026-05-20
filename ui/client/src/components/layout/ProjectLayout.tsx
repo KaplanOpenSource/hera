@@ -8,7 +8,7 @@ import { SplitWithSidebar } from '../../elements/SplitWithSidebar';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { idFromDocId } from '../../shared/idDocId';
 import { DetailsViewPanel } from '../details/DetailsViewPanel';
-import { hasPreview, PreviewChooser } from '../details/PreviewChooser';
+import { hasPreview, PreviewPanel } from '../details/PreviewPanel';
 import { ProjectTreeView } from '../project/ProjectTreeView';
 
 export const ProjectLayout = ({
@@ -136,7 +136,7 @@ export const ProjectLayout = ({
                     <VisibilityOff sx={{ fontSize: 14 }} />
                   </ButtonTooltip>
                 </Box>
-                <PreviewChooser doc={selectedDoc!.data} />
+                <PreviewPanel docid={selectedDocId!} />
               </Box>
             </Panel>
           </PanelGroup>
