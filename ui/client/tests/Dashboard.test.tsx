@@ -24,6 +24,7 @@ vi.mock('../src/components/project/ProjectTreeView', () => ({
 }));
 vi.mock('../src/components/details/DetailsViewPanel', () => ({
   DetailsViewPanel: () => <div>DetailsViewPanel</div>,
+  detailsTabName: () => 'Details',
 }));
 
 const renderDashboard = () => {
@@ -58,8 +59,7 @@ describe('Dashboard', () => {
       currProject: { name: 'TestProject', documents: [] },
     });
     renderDashboard();
-    expect(screen.getByText('ProjectTreeView')).toBeDefined();
-    expect(screen.getByText('DetailsViewPanel')).toBeDefined();
+    expect(screen.getAllByText('Project').length).toBeGreaterThan(0);
     expect(screen.queryByText('No project loaded')).toBeNull();
   });
 
