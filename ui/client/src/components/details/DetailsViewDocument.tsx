@@ -1,12 +1,7 @@
-import { Visibility, VisibilityOff } from '@mui/icons-material';
-import { Box } from '@mui/material';
 import { useEffect, useState } from 'react';
-import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from 'react-resizable-panels';
-import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DocumentObj } from '../../objects/ProjectObj';
 import { ProjectDocument } from '../../shared/types';
 import { DetailsViewDocumentContent } from './DetailsViewDocumentContent';
-import { hasPreview, PreviewChooser } from './PreviewChooser';
 
 export const DetailsViewDocument = ({
   doc,
@@ -16,92 +11,17 @@ export const DetailsViewDocument = ({
   setDoc: (newDoc: DocumentObj) => void,
 }) => {
   const [shownDoc, setShownDoc] = useState<ProjectDocument>(JSON.parse(JSON.stringify(doc.data)));
-  const [previewHidden, setPreviewHidden] = useState(false);
 
   useEffect(() => {
     setShownDoc(JSON.parse(JSON.stringify(doc.data)));
   }, [doc.data])
 
-  useEffect(() => {
-    setPreviewHidden(false);
-  }, [doc.docid])
-
-  const showPreview = hasPreview(shownDoc) && !previewHidden;
-
-  return showPreview
-    ? (
-      <Box sx={{ height: 'calc(100% + 32px)', m: -2 }}>
-        <PanelGroup
-          orientation="vertical"
-          onLayoutChanged={(layout) => {
-            if (layout['preview-panel'] === 0) {
-              setPreviewHidden(true);
-            }
-          }}
-        >
-          <Panel defaultSize={50} minSize={20}>
-            <Box sx={{ height: '100%', overflow: 'auto', p: 2 }}>
-              <DetailsViewDocumentContent
-                doc={doc}
-                setDoc={setDoc}
-                shownDoc={shownDoc}
-                setShownDoc={setShownDoc}
-              />
-            </Box>
-          </Panel>
-
-          <PanelResizeHandle
-            style={{
-              height: 4,
-              cursor: 'row-resize',
-              backgroundColor: '#e0e0e0',
-              outline: 'none',
-            }}
-          />
-
-          <Panel
-            id="preview-panel"
-            defaultSize={50}
-            minSize={5}
-            collapsible
-          >
-            <Box sx={{ height: '100%', position: 'relative' }}>
-              <Box sx={{ position: 'absolute', top: 4, right: 4, zIndex: 1000 }}>
-                <ButtonTooltip
-                  title="Hide preview"
-                  onClick={() => setPreviewHidden(true)}
-                  sx={{
-                    backgroundColor: 'white',
-                    '&:hover': { backgroundColor: '#eee' },
-                  }}
-                >
-                  <VisibilityOff sx={{ fontSize: 14 }} />
-                </ButtonTooltip>
-              </Box>
-              <PreviewChooser doc={shownDoc} />
-            </Box>
-          </Panel>
-        </PanelGroup>
-      </Box>
-    )
-    : (
-      <Box sx={{ height: '100%', position: 'relative' }}>
-        <DetailsViewDocumentContent
-          doc={doc}
-          setDoc={setDoc}
-          shownDoc={shownDoc}
-          setShownDoc={setShownDoc}
-        />
-        {hasPreview(shownDoc) && previewHidden && (
-          <Box sx={{ position: 'absolute', bottom: 4, right: 4 }}>
-            <ButtonTooltip
-              title="Show preview"
-              onClick={() => setPreviewHidden(false)}
-            >
-              <Visibility sx={{ fontSize: 14 }} />
-            </ButtonTooltip>
-          </Box>
-        )}
-      </Box>
-    )
+  return (
+    <DetailsViewDocumentContent
+      doc={doc}
+      setDoc={setDoc}
+      shownDoc={shownDoc}
+      setShownDoc={setShownDoc}
+    />
+  );
 }
