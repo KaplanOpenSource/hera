@@ -100,7 +100,7 @@ def ConfigurationToJSON(valueToProcess, standardize=False, splitUnits=False, kee
     # in case pint wasnt loaded to memory the object can't be pint and there is not reason to check for it
     # UNLESS someone loaded this object with pickle or something similar(in this case  this breaks)
     # we discourage doing this anyways and assume this doesn't happen, it  will fail to parse the object anyways
-    if 'pint' in sys.modules:
+    elif 'pint' in sys.modules:
         from pint import Quantity
         if isinstance(valueToProcess,Quantity):
             origPintObj = valueToProcess
@@ -163,11 +163,13 @@ def JSONToConfiguration(valueToProcess,returnUnum=False,returnStandardize=False)
     elif isinstance(valueToProcess,(int, float, bool)):
         ret = valueToProcess
     elif isinstance(valueToProcess,Unum):
+        from hera.utils.unitHandler import unumToPint
         ret = valueToProcess if returnUnum else unumToPint(valueToProcess)
     else:
         # we want to avoid importing pint when unnecessary since it takes a long time to load
         from pint import Quantity
         if isinstance(valueToProcess,Quantity):
+            from hera.utils.unitHandler import pintToUnum
             ret = pintToUnum(valueToProcess) if returnUnum else valueToProcess
         elif "'" in str(valueToProcess):
             logger.debug(f"\t {valueToProcess} is a String, use as is")

@@ -9,8 +9,27 @@ from hera.measurements.GIS.utils import stlFactory, convertCRS, ITM, WSG84, ED50
 from hera.utils.logging import get_classMethod_logger
 
 import numpy
-from osgeo import gdal
+import rasterio
 import os
+
+# Lazy-load gdal only if available and compatible (gdal_array fails on numpy 2.x)
+try:
+    from osgeo import gdal as _gdal
+    _gdal_available = True
+except ImportError:
+    _gdal_available = False
+
+
+def _open_raster(fheight):
+    """Open a raster file with rasterio and return (array, geotransform_tuple).
+    geotransform_tuple matches gdal convention: (xmin, xres, 0, ymax, 0, -yres)
+    """
+    with rasterio.open(fheight) as src:
+        myarray = src.read(1).astype(float)
+        t = src.transform
+        # rasterio affine: (xres, 0, xmin, 0, -yres, ymax)
+        gt = (t.c, t.a, 0.0, t.f, 0.0, t.e)
+    return myarray, gt
 import geopandas
 import numpy as np
 
@@ -113,10 +132,8 @@ class TopographyToolkit(toolkit.abstractToolkit):
         logger.debug(f"Getting the data source {dataSourceName}")
         fheight = self.findElevationFile(filename, dataSourceName)
 
-        ds =  gdal.Open(fheight)
-        myarray = numpy.array(ds.GetRasterBand(1).ReadAsArray())
+        myarray, gt = _open_raster(fheight)
         myarray[myarray < -1000] = 0  # deal with problematic points
-        gt = ds.GetGeoTransform()
         rastery = (long - gt[0]) / gt[1]
         rasterx = (lat - gt[3]) / gt[5]
         height11 = myarray[int(rasterx), int(rastery)]
@@ -160,7 +177,7 @@ class TopographyToolkit(toolkit.abstractToolkit):
             pointList = pointList.to_frame("point").assign(filename=pointList.apply(lambda row: 'N' + str(int(row.y)) + 'E' + str(int(row.x)).zfill(3) + '.hgt' ),
                                                            lon=pointList.x,
                                                            lat=pointList.y,
-                                                           elevation=0)
+                                                           elevation=0.0)
 
         elif isinstance(pointList,geopandas.geodataframe.GeoDataFrame):
             if 'point' not in pointList:
@@ -170,9 +187,9 @@ class TopographyToolkit(toolkit.abstractToolkit):
             pointList = pointList.assign(filename=pointList.apply(lambda row: 'N' + str(int(row.point.y)) + 'E' + str(int(row.point.x)).zfill(3) + '.hgt', axis=1),
                                          lon=pointList.point.x,
                                          lat=pointList.point.y,
-                                         elevation=0)
+                                         elevation=0.0)
         else:
-            pointList = pointList.assign(filename=pointList.apply(lambda x: 'N' + str(int(x.lat)) + 'E' + str(int(x.lon)).zfill(3) + '.hgt' ,axis=1),elevation=0)
+            pointList = pointList.assign(filename=pointList.apply(lambda x: 'N' + str(int(x.lat)) + 'E' + str(int(x.lon)).zfill(3) + '.hgt' ,axis=1),elevation=0.0)
 
 
         if dataSourceName is None:
@@ -190,10 +207,8 @@ class TopographyToolkit(toolkit.abstractToolkit):
             logger.info(f"\tProcessing the group {grpid} with {grp.shape[0]}. Processed so far {processed}/{totalNumberOfPoints}")
             fheight = self.findElevationFile(grpid, dataSourceName)
             logger.debug(f"Getting data from the file {fheight}")
-            ds = gdal.Open(fheight)
-            myarray = numpy.array(ds.GetRasterBand(1).ReadAsArray())
+            myarray, gt = _open_raster(fheight)
             myarray[myarray < -1000] = 0  # deal with problematic points
-            gt = ds.GetGeoTransform()
             for itemindx,item in grp.iterrows():
                 rastery = (item.lon - gt[0]) / gt[1]
                 rasterx = (item.lat - gt[3]) / gt[5]

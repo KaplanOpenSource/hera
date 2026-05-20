@@ -9,7 +9,7 @@ from itertools import product
 from ..utils.inputForModelsCreation import InputForModelsCreator
 from hera.simulations.LSM.singleSimulation import SingleSimulation
 from hera.datalayer import datatypes
-from hera.utils.unitHandler import  *
+from hera.utils.unitHandler import  Quantity, ureg, Unum
 from hera import toolkit
 from hera.utils.jsonutils import JSONToConfiguration, stripConfigurationUnits
 from hera.utils import dictToMongoQuery, get_classMethod_logger
@@ -367,13 +367,13 @@ class LSMTemplate:
         for (i, curData) in enumerate(combined):
             logger.info("\t... reading %s" % curData[0])
             cur = pandas.read_csv(curData[0], sep="\s+",
-                                  names=["y", "x", "z", "Dosage"])  # ,dtype={'x':int,'y':int,'z':int,'Dosage':float})
+                                  names=["x", "y", "z", "Dosage"])  # ,dtype={'x':int,'y':int,'z':int,'Dosage':float})
 
             cur['time'] = curData[1]
             if dt is None:
-                dt = cur.iloc[0]['time'] * s
+                dt = cur.iloc[0]['time'] * ureg.s
 
-            cur['Dosage'] *= (s / m ** 3).asNumber(min / m ** 3)
+            cur['Dosage'] *= (1*ureg.s / ureg.m ** 3).m_as(ureg.minute / ureg.m ** 3)
             xray = cur.sort_values(['time', 'x', 'y', 'z']).set_index(['time', 'x', 'y', 'z']).to_xarray()
             if datetimeFormat == "timestamp":
                 datetime = pandas.to_datetime("1-1-2016 12:00") + pandas.to_timedelta(xray.time.values, 's')
@@ -390,14 +390,14 @@ class LSMTemplate:
 
                 finalxarray = xarray.DataArray(numpy.zeros(xray['Dosage'].values.shape), \
                                                coords={'x': xray.x, 'y': xray.y, 'z': xray.z, 'datetime': zdatetime},
-                                               dims=['datetime', 'y', 'x', 'z']).to_dataset(name='Dosage')
+                                               dims=['datetime', 'x', 'y', 'z']).to_dataset(name='Dosage')
 
                 yield finalxarray
             # finalxarray.to_netcdf(os.path.join(topath,name,"%s_0_0.nc" % outfilename) )
 
             finalxarray = xarray.DataArray(xray['Dosage'].values, \
                                            coords={'x': xray.x, 'y': xray.y, 'z': xray.z, 'datetime': datetime},
-                                           dims=['datetime', 'y', 'x', 'z']).to_dataset(name='Dosage')
+                                           dims=['datetime', 'x', 'y', 'z']).to_dataset(name='Dosage')
 
             yield finalxarray
 
