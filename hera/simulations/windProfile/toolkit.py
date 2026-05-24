@@ -4,7 +4,7 @@ import pandas as pd
 import xarray
 import numpy as np
 from hera.utils.angle import toMathematicalAngle
-from hera.utils import BETA,KARMAN,convertCRS,ITM,WSG84
+from hera.measurements.GIS.utils import BETA,KARMAN,convertCRS,ITM,WSG84
 from hera import toolkitHome
 import json
 from tqdm import tqdm

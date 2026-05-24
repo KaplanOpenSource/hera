@@ -4,10 +4,11 @@ import {
   Button,
   DialogActions,
   DialogContent,
-  DialogContentText,
   DialogTitle,
   Stack,
-  TextField
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
 import { DocumentDesc, ProjectEntire, Toolkit } from "../../shared/types";
 import { useRef, useState } from "react";
@@ -16,6 +17,7 @@ import { TextProperty } from "../../elements/TextProperty";
 import { fetchPython } from "../../io/fetchPython";
 import { useProjectStore } from "../../stores/useProjectStore";
 import { SelectProperty } from "../../elements/SelectProperty";
+import { buildAddDocumentCode } from "./buildAddDocumentCode";
 
 const METADATA_CLASSES = [
   { name: 'Metadata.Measurements', collection: 'Measurements_Collection' },
@@ -27,8 +29,27 @@ type MetadataCls = typeof METADATA_CLASSES[number];
 
 const NO_TOOLKIT = '* No Toolkit *';
 
-const DOC_KINDS = ['Regular', 'Agent', 'Notebook'] as const;
-type DocKind = typeof DOC_KINDS[number];
+export enum DocKind {
+  Document = 'Document',
+  Agent = 'Agent',
+  Notebook = 'Notebook',
+}
+
+const DOC_KINDS = Object.values(DocKind);
+
+const getNextDefaultName = (kind: DocKind) => {
+  const prefix = kind;
+  const regex = new RegExp(`^${prefix}(\\d+)$`);
+  const docs = useProjectStore.getState().getProject()?.documents ?? [];
+  let max = 0;
+  for (const doc of docs) {
+    const match = doc.name.match(regex);
+    if (match) {
+      max = Math.max(max, parseInt(match[1], 10));
+    }
+  }
+  return `${prefix}${max + 1}`;
+};
 
 export const AddDocumentButton = ({
   toolkit = undefined,
@@ -40,7 +61,7 @@ export const AddDocumentButton = ({
   const { toolkits } = useProjectStore();
   const [name, setName] = useState('');
   const [resource, setResource] = useState('');
-  const [kind, setKind] = useState<DocKind>('Regular');
+  const [kind, setKind] = useState(DocKind.Document);
   const [cls, setCls] = useState<MetadataCls>(METADATA_CLASSES[0]);
   const [chosenToolkit, setChosenToolkit] = useState<string | undefined>(toolkit?.toolkit);
   const { currProjectName, setCurrentProject } = useProjectStore();
@@ -51,51 +72,6 @@ export const AddDocumentButton = ({
 
   const notebookResource = `${filesDir}/notebooks/${name}.ipynb`;
 
-  const buildAddCommand = (desc: DocumentDesc) => {
-    if (kind === 'Notebook') {
-      return `
-import json
-from pathlib import Path
-notebook_path = Path("${notebookResource}")
-if not notebook_path.exists():
-    notebook_path.parent.mkdir(parents=True, exist_ok=True)
-    empty_notebook = {
-        "nbformat": 4,
-        "nbformat_minor": 5,
-        "metadata": {"kernelspec": {
-            "display_name": "Python 3",
-            "language": "python",
-            "name": "python3",
-        }},
-        "cells": [],
-    }
-    notebook_path.write_text(json.dumps(empty_notebook, indent=2))
-Cache_Collection().addDocument(
-    projectName="${currProjectName}",
-    resource="${notebookResource}",
-    dataFormat="JSON_dict",
-    type="notebook",
-    desc=${JSON.stringify(desc)},
-)`;
-    }
-    if (kind === 'Agent') {
-      return `
-All.addDocument(
-    '${currProjectName}',
-    resource={"effects": {}},
-    desc=${JSON.stringify(desc)},
-    dataFormat=datatypes.JSON_DICT,
-    type='ToolkitDataSource',
-)`;
-    }
-    return `
-${cls.collection}().addDocument(
-    '${currProjectName}',
-    resource='${resource}',
-    desc=${JSON.stringify(desc)},
-)`;
-  };
-
   const doAddDoc = async () => {
     const desc: DocumentDesc = { datasourceName: name };
     if (chosenToolkit) {
@@ -104,12 +80,15 @@ ${cls.collection}().addDocument(
     const { data } = await fetchPython({
       results: ['project'],
       label: `add document ${name}`,
-      code: `
-from hera.datalayer import All, datatypes, Measurements_Collection, Simulations_Collection, Cache_Collection
-${buildAddCommand(desc)}
-docs = All.getDocumentsAsDict('${currProjectName}', with_id=True)
-project = {"name": '${currProjectName}', "documents": docs['documents']}
-`,
+      code: buildAddDocumentCode({
+        kind,
+        projectName: currProjectName,
+        desc,
+        toolkitNames: useProjectStore.getState().getProjectToolkitKeys(),
+        notebookResource,
+        collection: cls.collection,
+        resource,
+      }),
     })
     if (!data) {
       return;
@@ -128,10 +107,10 @@ project = {"name": '${currProjectName}', "documents": docs['documents']}
       icon={<Add />}
       title="Add Document"
       onOpen={() => {
-        setName('');
+        setName(getNextDefaultName(DocKind.Document));
         setResource('');
-        setKind('Regular');
-        setTimeout(() => (inputRef.current as any)?.focus(), 0)
+        setKind(DocKind.Document);
+        setTimeout(() => (inputRef.current as any)?.select(), 0)
       }}
       dialogProps={{
         onClick: (e) => e.stopPropagation(),
@@ -148,21 +127,26 @@ project = {"name": '${currProjectName}', "documents": docs['documents']}
         <>
           <DialogTitle>Add Document</DialogTitle>
           <DialogContent>
-            <DialogContentText component="div" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              Adding a
-              <SelectProperty
-                label=""
-                value={kind}
-                setValue={v => {
-                  setKind(v as DocKind);
-                  if (v !== 'Regular') {
-                    setChosenToolkit(undefined);
-                  }
-                }}
-                menuItems={DOC_KINDS.map(k => ({ name: k }))}
-              />
-              document
-            </DialogContentText>
+            <ToggleButtonGroup
+              exclusive
+              size="small"
+              value={kind}
+              onChange={(_e, v) => {
+                if (v === null) return;
+                const newKind = v as DocKind;
+                setKind(newKind);
+                setName(getNextDefaultName(newKind));
+                if (newKind !== DocKind.Document) {
+                  setChosenToolkit(undefined);
+                }
+                setTimeout(() => (inputRef.current as any)?.select(), 0);
+              }}
+              sx={{ mb: 1 }}
+            >
+              {DOC_KINDS.map(k => (
+                <ToggleButton key={k} value={k}>{k}</ToggleButton>
+              ))}
+            </ToggleButtonGroup>
             <TextProperty
               inputRef={inputRef}
               autoFocus
@@ -177,12 +161,12 @@ project = {"name": '${currProjectName}', "documents": docs['documents']}
               margin="dense"
               label="Resource"
               fullWidth
-              value={kind === 'Notebook' ? `${filesDir}/notebooks/${name}.ipynb` : resource}
+              value={kind === DocKind.Notebook ? `${filesDir}/notebooks/${name}.ipynb` : resource}
               setValue={v => setResource(v)}
-              disabled={kind !== 'Regular'}
-              helperText={kind === 'Notebook' ? 'If a notebook file already exists at this path, it will be used as-is. Otherwise, a new empty notebook will be created.' : undefined}
+              disabled={kind !== DocKind.Document}
+              helperText={kind === DocKind.Notebook ? 'If a notebook file already exists at this path, it will be used as-is. Otherwise, a new empty notebook will be created.' : undefined}
             />
-            {kind === 'Regular' && (
+            {kind === DocKind.Document && (
               <Stack
                 direction={'column'}
                 spacing={2}

@@ -1,4 +1,4 @@
-import { Folder, Refresh } from '@mui/icons-material';
+import { ContentCopy, Folder, Refresh } from '@mui/icons-material';
 import { Stack, Tooltip, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { fetchProjectDetails } from '../../io/FetchProjects';
 import { ProjectObj } from '../../objects/ProjectObj';
-import { idDocId, idFromDocId } from '../../shared/idDocId';
+import { CENTRAL_REPO_FOLDER_ID, idDocId, idFromDocId } from '../../shared/idDocId';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { SplitTree } from '../../utils/splitTree';
 import { AddDocumentButton } from './AddDocumentButton';
@@ -80,7 +80,22 @@ export const ProjectTreeView = ({
   return (
     <SimpleTreeView
       expandedItems={expandedItems}
-      onExpandedItemsChange={(_e, itemIds) => setExpandedItems(itemIds)}
+      onExpandedItemsChange={(e, itemIds) => {
+        const wasExpanded = expandedItems.includes(CENTRAL_REPO_FOLDER_ID);
+        const willBeExpanded = itemIds.includes(CENTRAL_REPO_FOLDER_ID);
+        if (wasExpanded !== willBeExpanded) {
+          const target = (e as React.SyntheticEvent | null)?.target as HTMLElement | null;
+          const fromChevron = !!target?.closest('[class*="iconContainer"]');
+          if (!fromChevron) {
+            const corrected = wasExpanded
+              ? [...new Set([...itemIds, CENTRAL_REPO_FOLDER_ID])]
+              : itemIds.filter(id => id !== CENTRAL_REPO_FOLDER_ID);
+            setExpandedItems(corrected);
+            return;
+          }
+        }
+        setExpandedItems(itemIds);
+      }}
       selectedItems={selectedItemsIds[0] ?? null}
       onSelectedItemsChange={(_e, itemIds) => {
         setSelectedItemIds(itemIds ? [itemIds] : [])
@@ -109,14 +124,23 @@ export const ProjectTreeView = ({
           </Stack>
         )}
       >
-        <Tooltip title='Files directory where the project is located'>
-          <Stack direction={'row'} spacing={1} alignItems={'center'} justifyContent={'start'} sx={{ marginLeft: 5, width: 'fit-content' }}>
-            <Folder />
+        <Stack direction={'row'} spacing={0} alignItems={'center'} justifyContent={'start'} sx={{ marginLeft: 5, width: 'fit-content' }}>
+          <Folder sx={{ mr: 1 }} />
+          <Tooltip title='Files directory where the project is located'>
             <Typography color={project.configDocument?.data.desc.filesDirectory ? 'text.primary' : 'text.secondary'}>
               {project.configDocument?.data.desc.filesDirectory || 'No directory'}
             </Typography>
-          </Stack>
-        </Tooltip>
+          </Tooltip>
+          {project.configDocument?.data.desc.filesDirectory && (
+            <ButtonTooltip
+              title='Copy path'
+              onClick={() => navigator.clipboard.writeText(project.configDocument?.data.desc.filesDirectory ?? '')}
+              sx={{ ml: 0.5 }}
+            >
+              <ContentCopy sx={{ fontSize: 16 }} />
+            </ButtonTooltip>
+          )}
+        </Stack>
         <DocumentSplitGroup
           docs={project?.documents}
           project={project}

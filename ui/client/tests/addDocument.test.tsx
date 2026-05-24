@@ -99,8 +99,7 @@ describe('AddDocumentButton', () => {
     fireEvent.change(nameInput, { target: { value: 'Agent1' } });
 
     // Select Agent kind
-    fireEvent.mouseDown(within(dialog).getByText('Regular'));
-    fireEvent.click(await screen.findByRole('option', { name: 'Agent' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Agent' }));
 
     await act(async () => {
       fireEvent.click(within(dialog).getByRole('button', { name: /add document/i }));
@@ -218,11 +217,10 @@ describe('AddDocumentButton', () => {
     });
 
     const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Notebook' }));
+
     const nameInput = within(dialog).getByRole('textbox', { name: /^name$/i });
     fireEvent.change(nameInput, { target: { value: 'MyNotebook' } });
-
-    fireEvent.mouseDown(within(dialog).getByText('Regular'));
-    fireEvent.click(await screen.findByRole('option', { name: 'Notebook' }));
 
     await act(async () => {
       fireEvent.click(within(dialog).getByRole('button', { name: /add document/i }));
@@ -245,11 +243,10 @@ describe('AddDocumentButton', () => {
     });
 
     const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Notebook' }));
+
     const nameInput = within(dialog).getByRole('textbox', { name: /^name$/i });
     fireEvent.change(nameInput, { target: { value: 'TestNB' } });
-
-    fireEvent.mouseDown(within(dialog).getByText('Regular'));
-    fireEvent.click(await screen.findByRole('option', { name: 'Notebook' }));
 
     const resourceInput = within(dialog).getByRole('textbox', { name: /resource/i });
     expect(resourceInput).toHaveProperty('disabled', true);
@@ -264,8 +261,7 @@ describe('AddDocumentButton', () => {
     });
 
     const dialog = await screen.findByRole('dialog');
-    fireEvent.mouseDown(within(dialog).getByText('Regular'));
-    fireEvent.click(await screen.findByRole('option', { name: 'Notebook' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Notebook' }));
 
     expect(within(dialog).getByText(/already exists at this path/i)).toBeTruthy();
   });
@@ -281,8 +277,7 @@ describe('AddDocumentButton', () => {
     // Regular mode shows the Toolkit autocomplete
     expect(within(dialog).queryByRole('combobox', { name: /toolkit/i })).toBeTruthy();
 
-    fireEvent.mouseDown(within(dialog).getByText('Regular'));
-    fireEvent.click(await screen.findByRole('option', { name: 'Notebook' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Notebook' }));
 
     // Notebook mode hides the Toolkit autocomplete
     expect(within(dialog).queryByRole('combobox', { name: /toolkit/i })).toBeNull();

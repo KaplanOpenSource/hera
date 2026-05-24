@@ -21,9 +21,11 @@ const filterTree = (obj: any, hidden: Set<string>, prefix: string[] = []): any =
 export const RepoTreeAddButton = ({
   tree,
   hiddenPaths,
+  title = 'Add repository of data sources to project',
 }: {
   tree: any,
   hiddenPaths?: Set<string>,
+  title?: string,
 }) => {
   type AddRepoArgs = {
     overwrite: boolean;
@@ -63,11 +65,11 @@ project = {"name": '${currProject?.name}', "documents": docs['documents']}
   return (
     <ButtonTooltip
       color="primary"
-      title={'Add repository of data sources to project'}
+      title={title}
       disabled={tree === undefined}
       onClick={async () => {
         const result = await openDialog({
-          title: 'Add Repository of Datasources To Project',
+          title,
           initialValues: { overwrite: true },
           render:
             ({ values, setValues }) => (

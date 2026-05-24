@@ -5,7 +5,7 @@ import { useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { useDialog } from "../../elements/useDialog";
 import { fetchPython } from "../../io/fetchPython";
-import { idRepoId } from "../../shared/idDocId";
+import { CENTRAL_REPO_FOLDER_ID, idRepoId } from "../../shared/idDocId";
 import { LOAD_REPO_JSON_PYTHON } from "../../shared/repoJsonPython";
 
 const DEFAULT_FOLDER = '~/hera/repositories/';
@@ -76,7 +76,7 @@ if os.path.isdir(folder):
   return (
     <>
       <TreeItem
-        itemId="central-repo-folder"
+        itemId={CENTRAL_REPO_FOLDER_ID}
         label={
           <Tooltip title="Central repository folder. Contains local JSON repository files on disk that can be loaded into any project. Click the chevron to expand.">
             <Stack
@@ -103,9 +103,9 @@ if os.path.isdir(folder):
         onClick={handleExpand}
       >
         {!loaded
-          ? <TreeItem itemId="central-repo-folder/__loading" label="Loading..." />
+          ? <TreeItem itemId={`${CENTRAL_REPO_FOLDER_ID}/__loading`} label="Loading..." />
           : files.length === 0
-            ? <TreeItem itemId="central-repo-folder/__empty" label="No JSON files found" />
+            ? <TreeItem itemId={`${CENTRAL_REPO_FOLDER_ID}/__empty`} label="No JSON files found" />
             : files.map(f => (
               <TreeItem key={idRepoId(f)} itemId={idRepoId(f)} label={f} />
             ))

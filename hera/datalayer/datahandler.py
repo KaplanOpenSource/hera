@@ -214,7 +214,7 @@ class DataHandler_geotiff(object):
         raise NotImplementedError("Not implemented yet")
 
     @staticmethod
-    def getData(resource, rasterBand=1):
+    def getData(resource, rasterBand=1, desc=None, **kwargs):
         """
         Reads a geotiff
 

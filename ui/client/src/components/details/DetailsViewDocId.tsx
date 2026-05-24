@@ -6,7 +6,8 @@ import { DetailsViewDocument } from './DetailsViewDocument';
 import { DetailsViewNotebook } from './DetailsViewNotebook';
 
 export const DetailsViewDocId = ({
-  project, docid,
+  project,
+  docid,
 }: {
   project: ProjectObj;
   docid: string;

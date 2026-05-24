@@ -1,10 +1,13 @@
-import { Edit } from "@mui/icons-material";
+import { Edit, Visibility, VisibilityOff } from "@mui/icons-material";
 import { Stack, Typography } from "@mui/material";
 import { SimpleTreeView, TreeItem } from "@mui/x-tree-view";
-import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { JsonTreeNode } from "../../elements/JsonTreeNode";
-import { SECTION_DATASOURCE, SECTION_EXPERIMENT } from "./RepoJsonMerger";
+import { DatasourceAddButton } from "./DatasourceAddButton";
+import { ExperimentAddButton } from "./ExperimentAddButton";
+import { repoIsDatasource, repoIsExperiment, repoIsExperimentSection, repoIsToolkit } from "./repoTreeClassifiers";
+import { ToolkitAddButton } from "./ToolkitAddButton";
 import { RepoTreeAddButton } from "./RepoTreeAddButton";
 import { TextFieldWithApply } from "./TextFieldWithApply";
 import { VisibilityToggleButton } from "./VisibilityToggleButton";
@@ -33,27 +36,49 @@ export const RepoTreeDisplay = ({
   const [hiddenPaths, setHiddenPaths] = useState<Set<string>>(new Set());
   const [showHidden, setShowHidden] = useState(false);
 
-  const canToggleHidden = useCallback((treePath: string[]) => {
-    if (treePath.length === 1) return true;
-    if (treePath[0].toLowerCase() === SECTION_EXPERIMENT) {
-      return treePath.length === 2;
-    }
-    if (treePath.length === 3 && treePath[1].toLowerCase() === SECTION_DATASOURCE) {
-      return true;
-    }
-    return false;
-  }, []);
-
-  const onToggleHidden = (path: string) => {
+  const onToggleHidden = (treePathKey: string) => {
     setHiddenPaths((prev) => {
       const next = new Set(prev);
-      if (next.has(path)) {
-        next.delete(path);
+      if (next.has(treePathKey)) {
+        next.delete(treePathKey);
       } else {
-        next.add(path);
+        next.add(treePathKey);
       }
       return next;
     });
+  };
+
+  const nodeActions = (treePath: string[]) => {
+    const actions = [];
+    if (repoIsToolkit(treePath) || repoIsExperimentSection(treePath) || repoIsExperiment(treePath) || repoIsDatasource(treePath)) {
+      const treePathKey = treePath.join('/');
+      const isHidden = hiddenPaths.has(treePathKey);
+      actions.push(
+        <ButtonTooltip
+          key="visibility"
+          title={isHidden ? 'Show' : 'Hide'}
+          onClick={() => onToggleHidden(treePathKey)}
+        >
+          {isHidden ? <VisibilityOff fontSize="inherit" /> : <Visibility fontSize="inherit" />}
+        </ButtonTooltip>
+      );
+    }
+    if (repoIsDatasource(treePath)) {
+      actions.push(
+        <DatasourceAddButton key="add-ds" tree={tree} treePath={treePath} />
+      );
+    }
+    if (repoIsExperiment(treePath)) {
+      actions.push(
+        <ExperimentAddButton key="add-exp" tree={tree} treePath={treePath} />
+      );
+    }
+    if (repoIsToolkit(treePath)) {
+      actions.push(
+        <ToolkitAddButton key="add-toolkit" tree={tree} toolkitName={treePath[0]} />
+      );
+    }
+    return <>{actions}</>;
   };
 
   useEffect(() => {
@@ -69,7 +94,7 @@ export const RepoTreeDisplay = ({
       if (typeof obj !== 'object' || obj === null) return;
       for (const key of Object.keys(obj)) {
         const tp = [...prefix, key];
-        if (canToggleHidden(tp)) {
+        if (repoIsToolkit(tp) || repoIsExperimentSection(tp) || repoIsExperiment(tp) || repoIsDatasource(tp)) {
           paths.push(tp.join('/'));
         }
         collect(obj[key], tp);
@@ -77,7 +102,7 @@ export const RepoTreeDisplay = ({
     };
     collect(tree, []);
     return paths;
-  }, [tree, canToggleHidden]);
+  }, [tree]);
 
   const expandedByDefault = useMemo(() => {
     const ids = [itemId];
@@ -131,8 +156,7 @@ export const RepoTreeDisplay = ({
                 repoJsons={repoJsons}
                 hiddenPaths={hiddenPaths}
                 showHidden={showHidden}
-                onToggleHidden={onToggleHidden}
-                canToggleHidden={canToggleHidden}
+                nodeActions={nodeActions}
               />
             ))
             : null}
