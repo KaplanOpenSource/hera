@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run unit tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: requirements.txt
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+          pip install -e . --no-deps
+
+      - name: Run unit tests
+        # We do not invoke `make test` directly because that target assumes a
+        # local MongoDB and the $HOME/hera_unittest_data fixture tree. CI is
+        # intentionally scoped to fast, isolated unit tests per Lior's guidance
+        # (issue #884) — no Docker, no MongoDB, no heavy data files.
+        #
+        # The conftest's pytest.skip() guards cleanly skip data-dependent
+        # tests when $HOME/hera_unittest_data is absent. The --ignore set
+        # below covers files that fail at *collection time* on a vanilla
+        # ubuntu-latest runner (missing argos package, MongoDB-only tests):
+        #   - test_experiment.py and dynamic_loading argos CLI tests need
+        #     the external `argos` package (not on PyPI).
+        #   - test_repository.py exercises live MongoDB document loading.
+        run: |
+          pytest hera/tests/ -v -m "not notebook" \
+            --ignore=hera/tests/test_experiment.py \
+            --ignore=hera/tests/test_repository.py \
+            --ignore=hera/tests/dynamic_loading_tests_pack/test_experiment_cli_shortcuts.py \
+            --ignore=hera/tests/dynamic_loading_tests_pack/test_experiment_dynamic_loading.py
+        env:
+          MPLBACKEND: Agg
