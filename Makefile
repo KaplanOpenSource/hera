@@ -16,7 +16,7 @@ VENV_DIR ?= $(HOME)/.pyhera/environment
 
 .PHONY: install install-env setup install-docs install-rag populate populate-project \
         help mongo-up mongo-down mongo-status mongo-logs mongo-clean \
-        build run stop test test-setup test-ui test-all \
+        build run stop test test-setup test-notebooks test-ui test-all \
         install-deps install-deps-all install-paraview install-freecad install-openfoam \
         mermaid-pull render-diagrams render-diagrams-force \
         docs-deps docs-build docs-build-strict docs-serve docs-deploy docs-clean \
@@ -245,7 +245,13 @@ test-setup:
 	@echo "Add test data files under measurements/ and expected outputs under expected/BASELINE/"
 
 test:
-	TEST_HERA=$(TEST_HERA) pytest hera/tests/ -v -m "not notebook"
+	@if [ ! -f "$(TEST_HERA)/test_repository.json" ]; then \
+		echo "Test data not found at $(TEST_HERA) — running S3 bootstrap..."; \
+		./scripts/s3/bootstrap_unittest_data.sh --target-dir "$(TEST_HERA)"; \
+	else \
+		echo "Test data already present at $(TEST_HERA) (skipping bootstrap)."; \
+	fi
+	PYTHONPATH=.$${PYTHONPATH:+:$$PYTHONPATH} TEST_HERA=$(TEST_HERA) pytest hera/tests/ -v -m "not notebook"
 
 test-notebooks:
 	TEST_HERA=$(TEST_HERA) pytest hera/tests/test_notebooks.py -v

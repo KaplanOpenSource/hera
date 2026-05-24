@@ -267,16 +267,18 @@ class Project:
             logger.info(f"Default project, setting to current directory(not saving on disk)")
             savedFilesDirectory = None
 
-        if savedFilesDirectory is None and self.projectName != self.DEFAULTPROJECT:
-            if filesDirectory is None:
-                filesDirectory = os.path.join(os.path.abspath(os.getcwd()), projectName)
-            else:
-                filesDirectory = os.path.abspath(filesDirectory)
-
+        if filesDirectory is not None:
+            # Caller explicitly passed a directory — always honor it and persist it.
+            filesDirectory = os.path.abspath(filesDirectory)
+            if filesDirectory != savedFilesDirectory and self.projectName != self.DEFAULTPROJECT:
+                self.setConfig(filesDirectory=filesDirectory)
+        elif savedFilesDirectory is not None:
+            filesDirectory = savedFilesDirectory
+        elif self.projectName != self.DEFAULTPROJECT:
+            # No saved path and none passed — default to ~/.hera/<projectName>
+            filesDirectory = os.path.join(os.path.expanduser("~"), ".hera", projectName)
             logger.info(f"Files directory is not saved for the project, using {filesDirectory}")
             self.setConfig(filesDirectory=filesDirectory)
-        else:
-            filesDirectory = savedFilesDirectory
 
         if self.projectName != self.DEFAULTPROJECT:
             os.makedirs(os.path.abspath(filesDirectory),exist_ok=True)
