@@ -652,6 +652,11 @@ class TestPlotPopulationOnMap:
             def getImageFromCorners(self, minx, miny, maxx, maxy, zoomlevel,
                                     tileServer=None, inputCRS=None, outputCRS=None):
                 return None
+            def getImageFromCorners(self, minx, miny, maxx, maxy,
+                                    zoomlevel=14, tileServer=None,
+                                    inputCRS=None, outputCRS=None):
+                import numpy as np
+                return np.zeros((256, 256, 3), dtype=np.uint8)
 
         return MockTilesToolkit()
 

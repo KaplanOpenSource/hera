@@ -29,6 +29,15 @@ else
         "${VENV_DIR}/bin/pip" install --upgrade pip
         "${VENV_DIR}/bin/pip" install -r "${SCRIPT_DIR}/requirements.txt"
         "${VENV_DIR}/bin/pip" install -e "${SCRIPT_DIR}"
+
+        # Patch PyFoam's vendored six.py (v1.10 from 2016) which breaks on Python 3.12+.
+        SITE_SIX="$("${VENV_DIR}/bin/python" -c 'import six, pathlib; print(pathlib.Path(six.__file__))' 2>/dev/null)"
+        PYFOAM_SIX="$("${VENV_DIR}/bin/python" -c 'import PyFoam.ThirdParty, pathlib; print(pathlib.Path(PyFoam.ThirdParty.__file__).parent / "six.py")' 2>/dev/null)"
+        if [ -f "${SITE_SIX}" ] && [ -f "${PYFOAM_SIX}" ]; then
+            cp "${SITE_SIX}" "${PYFOAM_SIX}"
+            echo "Patched PyFoam vendored six.py -> ${PYFOAM_SIX}"
+        fi
+
         echo "Virtual environment created and packages installed at ${VENV_DIR}."
     else
         echo "Skipped virtual environment creation."

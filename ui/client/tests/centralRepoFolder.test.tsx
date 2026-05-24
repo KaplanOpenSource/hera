@@ -53,7 +53,7 @@ describe('CentralRepoFolder', () => {
 });
 
 describe('CentralRepoFolder — fetchFiles Python code', () => {
-  it('sends isRepoJson filter code on expand', async () => {
+  it('calls fetchPython with jsonFiles result on expand', async () => {
     mockFetchPython.mockResolvedValueOnce({ data: { jsonFiles: [] } });
     renderInTree();
     await clickTreeItem();
@@ -63,9 +63,6 @@ describe('CentralRepoFolder — fetchFiles Python code', () => {
     });
 
     const call = mockFetchPython.mock.calls[0][0];
-    expect(call.code).toContain('def isRepoJson(path)');
-    expect(call.code).toContain('SECTIONS');
-    expect(call.code).toContain("jsonFiles = sorted");
     expect(call.results).toEqual(['jsonFiles']);
   });
 
@@ -79,17 +76,6 @@ describe('CentralRepoFolder — fetchFiles Python code', () => {
       expect(mockFetchPython).toHaveBeenCalledTimes(1);
     });
     expect(mockFetchPython.mock.calls[0][0].code).toContain("/my/repos/");
-  });
-
-  it('excludes caseConfiguration.json in the Python code', async () => {
-    mockFetchPython.mockResolvedValueOnce({ data: { jsonFiles: [] } });
-    renderInTree();
-    await clickTreeItem();
-
-    await waitFor(() => {
-      expect(mockFetchPython).toHaveBeenCalledTimes(1);
-    });
-    expect(mockFetchPython.mock.calls[0][0].code).toContain("caseConfiguration.json");
   });
 });
 

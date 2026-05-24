@@ -167,6 +167,14 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         # נסה להשיג את ה-DataSource דרך הפונקציה הקיימת
         ds = self.getDataSourceData(dataSourceName)
 
+        # If the datasource is a gdal.Dataset, get its file path and open with rasterio
+        try:
+            from osgeo import gdal as _gdal
+            if isinstance(ds, _gdal.Dataset):
+                ds = rasterio.open(ds.GetDescription())
+        except ImportError:
+            pass
+
         # If the datasource stores a file path (dataFormat="string"), open it with rasterio
         if isinstance(ds, str) and os.path.isfile(ds):
             ds = rasterio.open(ds)
@@ -176,8 +184,8 @@ class LandCoverToolkit(toolkit.abstractToolkit):
             else:
                 raise ValueError(f"Could not load data source: {dataSourceName}")
 
-        # המר קואורדינטות אם צריך
-        if inputCRS != ds.crs.to_epsg():
+        # המר קואורדינטות אם צריך (only if rasterio dataset has a valid CRS)
+        if ds.crs is not None and ds.crs.to_epsg() is not None and inputCRS != ds.crs.to_epsg():
             transformer = Transformer.from_crs(inputCRS, ds.crs.to_epsg(), always_xy=True)
             lon, lat = transformer.transform(lon, lat)
 
@@ -254,8 +262,12 @@ class LandCoverToolkit(toolkit.abstractToolkit):
                     lonUpperLeft, latUpperLeft = src.transform[2], src.transform[5]
                     lonResolution, latResolution = src.transform[0], src.transform[4]
             elif hasattr(ds, "GetRasterBand"):
-                img = ds.GetRasterBand(1).ReadAsArray()
-                lonUpperLeft, lonResolution, lonRotation, latUpperLeft, latRotation, latResolution = ds.GetGeoTransform()
+                # gdal.Dataset — open with rasterio to avoid numpy 2.x incompatibility
+                file_path = ds.GetDescription()
+                with rasterio.open(file_path) as src:
+                    img = src.read(1)
+                    lonUpperLeft, latUpperLeft = src.transform[2], src.transform[5]
+                    lonResolution, latResolution = src.transform[0], src.transform[4]
             else:
                 img = ds.read(1)
                 lonUpperLeft, latUpperLeft = ds.transform[2], ds.transform[5]

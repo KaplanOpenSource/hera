@@ -10,9 +10,20 @@ Replaces:
   - hera/tests/json_definitions/test_definitions_landcover.json
 """
 
+import os
 import numpy as np
 import pytest
 import rasterio
+
+_LC_TIF = os.path.join(
+    os.environ.get("TEST_HERA", ""),
+    "measurements", "GIS", "raster", "lc_mcd12q1.tif",
+)
+if not os.path.isfile(_LC_TIF):
+    pytest.skip(
+        f"Skipping landcover tests — data file not found: {_LC_TIF}",
+        allow_module_level=True,
+    )
 
 
 # ---------------------------------------------------------------------------
