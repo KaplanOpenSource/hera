@@ -61,7 +61,7 @@ class analysis:
             datecolumn = 'curdate'
 
         # 🔁 הפיכת datetime לאובייקט נאיבי אם יש timezone
-        if pd.api.types.is_datetime64tz_dtype(curdata[datecolumn]):
+        if isinstance(curdata[datecolumn].dtype, pd.DatetimeTZDtype):
             curdata[datecolumn] = curdata[datecolumn].dt.tz_convert(None)
 
         curdata = curdata.assign(yearonly=curdata[datecolumn].dt.year)
