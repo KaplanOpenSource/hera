@@ -190,7 +190,8 @@ def connectToDatabase(mongoConfig,alias=None):
             db=mongoConfig['dbName'],
             username=mongoConfig['username'],
             password=mongoConfig['password'],
-            authentication_source='admin'
+            authentication_source='admin',
+            uuidRepresentation='standard',
             )
     logger.info("Successfuly connected to DB")
     return con

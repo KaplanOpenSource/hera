@@ -208,10 +208,10 @@ class TestGetElevation:
 
     def test_matches_hgt_file(self, topo_toolkit, resource_folders):
         minx, miny, maxx, maxy = 35.1, 33.85, 35.12, 33.87
-        dxdy = 0.001
+        dxdy = 100
 
         try:
-            da = topo_toolkit.getElevation(minx, miny, maxx, maxy, dxdy)
+            da = topo_toolkit.getElevation(minx, miny, maxx, maxy, dxdy, inputCRS=WSG84)
         except Exception as exc:
             pytest.skip(f"getElevation failed: {exc}")
 
