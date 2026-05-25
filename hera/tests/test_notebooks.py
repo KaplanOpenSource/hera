@@ -22,6 +22,8 @@ List discovered notebooks without running::
     pytest hera/tests/test_notebooks.py --collect-only
 """
 
+from __future__ import annotations
+
 import re
 from pathlib import Path
 
