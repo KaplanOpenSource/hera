@@ -1,6 +1,10 @@
 from mongoengine import *
 import json
+from bson.binary import UuidRepresentation
+from bson.json_util import JSONOptions
 from hera.datalayer.datahandler import getHandler
+
+_JSON_OPTIONS = JSONOptions(uuid_representation=UuidRepresentation.STANDARD)
 
 class MetadataFrame(object):
     """
@@ -41,7 +45,7 @@ class MetadataFrame(object):
         dict
             Dictionary representation of the document.
         """
-        docDict = json.loads(self.to_json())
+        docDict = json.loads(self.to_json(json_options=_JSON_OPTIONS))
         if not with_id:
             docDict.pop('_id')
         # docDict.pop('_cls')

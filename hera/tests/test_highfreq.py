@@ -129,11 +129,11 @@ class TestSpecificPoints:
 
 class TestErrorPaths:
     def test_campbelToParquet_nonexistent(self, hf_toolkit):
-        with pytest.raises(ValueError):
+        with pytest.warns(DeprecationWarning), pytest.raises(ValueError):
             hf_toolkit.campbelToParquet(binaryFile="/path/to/nonexistent_file.dat")
 
     def test_asciiToParquet_nonexistent(self, hf_toolkit):
-        with pytest.raises(FileNotFoundError):
+        with pytest.warns(DeprecationWarning), pytest.raises(FileNotFoundError):
             hf_toolkit.asciiToParquet(path="/path/to/nonexistent_file.txt")
 
 

@@ -710,7 +710,8 @@ class TestEdgeCases:
             crs="EPSG:2039",
         )
         # plotPopulation with empty data — should return ax without error
-        ax = demo_toolkit.presentation.plotPopulation(empty)
+        with pytest.warns(UserWarning, match="empty"):
+            ax = demo_toolkit.presentation.plotPopulation(empty)
         assert ax is not None
         plt.close("all")
 
