@@ -2,7 +2,7 @@ import os
 import xarray
 import numpy
 import os
-from hera.utils.unitHandler import  *
+from hera.utils.unitHandler import ureg, unumToPint
 
 from ...utils import tounit,tonumber
 
@@ -67,10 +67,6 @@ class SingleSimulation(object):
         final_xarray.attrs['dt'] = dt_minutes.to(time_units)
         final_xarray.attrs['Q']  = Q.to(q_units)
         final_xarray.attrs['C']  = q_units/ ureg.m ** 3
-        if not ret_pint:
-            final_xarray.attrs['dt'] = pintToUnum(final_xarray.attrs['dt']) 
-            final_xarray.attrs['Q']  = pintToUnum(final_xarray.attrs['Q'])
-            final_xarray.attrs['C']  = pintToUnum(final_xarray.attrs['C'])
 
         Qfactor = (Q.to(q_units) * ureg.min / ureg.m ** 3).m_as(q_units * time_units / ureg.m ** 3)
 
@@ -101,7 +97,7 @@ class SingleSimulation(object):
         finalxarray = self.getDosage(Q=Q, time_units=time_units, q_units=q_units)
 
         dDosage = finalxarray['Dosage'].diff('datetime').to_dataset().rename({'Dosage': 'dDosage'})
-        dDosage['C'] = dDosage['dDosage'] / finalxarray.attrs['dt']
+        dDosage['C'] = dDosage['dDosage'] / finalxarray.attrs['dt'].m_as(time_units)
         dDosage.attrs = finalxarray.attrs
 
         return dDosage

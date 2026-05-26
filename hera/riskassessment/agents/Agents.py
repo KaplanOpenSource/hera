@@ -1,4 +1,4 @@
-from hera.utils.unitHandler import ureg, Unum, Quantity, celsius, K
+from hera.utils.unitHandler import ureg, unumToPint, Quantity, celsius, K
 from hera.riskassessment.agents.effects import  injuryfactory
 import numpy
 import json
@@ -254,10 +254,7 @@ class PhysicalPropeties(object):
 		:return:
 			The vapor saturation as Unum.
 		"""
-		if isinstance(temperature, Unum):
-			temperature = temperature.asNumber(celsius)
-		elif isinstance(temperature, Quantity):
-			temperature = temperature.m_as(ureg.celsius)
+		temperature = unumToPint(temperature).m_as(ureg.celsius)
 		MW = self.getMolecularWeight().to(ureg.g/ureg.mol)
 
 		a,b,c,d = self._volatilityConst
@@ -277,10 +274,7 @@ class PhysicalPropeties(object):
 			:return:
 				The density as Unum
 		"""
-		if isinstance(temperature, Unum):
-			temperature = temperature.asNumber(celsius)
-		elif isinstance(temperature, Quantity):
-			temperature = temperature.m_as(ureg.celsius)
+		temperature = unumToPint(temperature).m_as(ureg.celsius)
 		a,b,c = self._densityConst
 
 		return (a-b*(temperature-c))*ureg.g/ureg.cm**3
@@ -299,10 +293,7 @@ class PhysicalPropeties(object):
 		float
 			Vapor pressure in bar.
 		"""
-		if isinstance(temperature, Unum):
-			temperature = temperature.asNumber(K)
-		elif isinstance(temperature, Quantity):
-			temperature = temperature.m_as(ureg.kelvin)
+		temperature = unumToPint(temperature).m_as(ureg.kelvin)
 		A = self._vaporConst["A"]
 		B = self._vaporConst["B"]
 		C = self._vaporConst["C"]

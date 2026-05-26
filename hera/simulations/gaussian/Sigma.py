@@ -1,7 +1,7 @@
 import pandas
 import numpy
 from hera.utils import tounit,tonumber
-from unum.units import *
+from hera.utils.unitHandler import ureg, unumToPint
 # from sympy import solve, symbols
 from scipy import optimize
 
@@ -32,17 +32,17 @@ class AbstractSigma:
         stability=stability
 
         sx,sy,sz = sigma0
-        sx = tonumber(sx, m)
-        sy = tonumber(sy, m)
-        sz = tonumber(sz, m)
+        sx = tonumber(sx, ureg.m)
+        sy = tonumber(sy, ureg.m)
+        sz = tonumber(sz, ureg.m)
 
         sigma_x = lambda x: self.getSigma(x=x, stability=stability, units=False)['sigmaX'][0] - sx
         sigma_y = lambda x: self.getSigma(x=x, stability=stability, units=False)['sigmaY'][0] - sy
         sigma_z = lambda x: self.getSigma(x=x, stability=stability, units=False)['sigmaZ'][0] - sz
 
-        Ix = optimize.newton(sigma_x, x0=0)*m
-        Iy = optimize.newton(sigma_y, x0=0) * m
-        Iz = optimize.newton(sigma_z, x0=0) * m
+        Ix = optimize.newton(sigma_x, x0=0)*ureg.m
+        Iy = optimize.newton(sigma_y, x0=0) * ureg.m
+        Iz = optimize.newton(sigma_z, x0=0) * ureg.m
 
         return Ix, Iy, Iz
 
@@ -111,7 +111,7 @@ class BriggsRural(AbstractSigma):
 
         """
 
-        x = numpy.array([tonumber(y,m) for y in numpy.atleast_1d(x)])
+        x = numpy.array([tonumber(y,ureg.m) for y in numpy.atleast_1d(x)])
         Ax, Bx, Cx = self._coeffX.loc[stability][['A','B','C']]
         Az, Bz, Cz = self._coeffZ.loc[stability][['A', 'B', 'C']]
 
@@ -122,9 +122,9 @@ class BriggsRural(AbstractSigma):
             Ix,Iy,Iz = self.getVirtualDistance(sigma0,stability)
 
 
-        Ix = tonumber(Ix,m)
-        Iy = tonumber(Iy,m)
-        Iz = tonumber(Iz,m)
+        Ix = tonumber(Ix,ureg.m)
+        Iy = tonumber(Iy,ureg.m)
+        Iz = tonumber(Iz,ureg.m)
 
         # pandas_res = pandas.DataFrame({
         #         'sigmaX' : [Ax*(x+Ix)*(1+Bx*(x+Ix))**Cx *m],
@@ -134,9 +134,9 @@ class BriggsRural(AbstractSigma):
 
         if units:
             dict_res = {
-                'sigmaX': Ax * (x + Ix) * (1 + Bx * (x + Ix)) ** Cx * m,
-                'sigmaY': Ax * (x + Iy) * (1 + Bx * (x + Iy)) ** Cx * m,
-                'sigmaZ': Az * (x + Iz) * (1 + Bz * (x + Iz)) ** Cz * m, 'distance': x * m
+                'sigmaX': Ax * (x + Ix) * (1 + Bx * (x + Ix)) ** Cx * ureg.m,
+                'sigmaY': Ax * (x + Iy) * (1 + Bx * (x + Iy)) ** Cx * ureg.m,
+                'sigmaZ': Az * (x + Iz) * (1 + Bz * (x + Iz)) ** Cz * ureg.m, 'distance': x * ureg.m
             }
 
         else:

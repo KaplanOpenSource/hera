@@ -5,7 +5,7 @@ try:
 except ImportError:
 	print("wrong scipy, can't solve the system")
 
-from hera.utils.unitHandler import *
+from hera.utils.unitHandler import ureg, unumToPint, tounit, tonumber
 from scipy.optimize import root
 from scipy.constants import g as gconst
 from hera.simulations.gaussian.Meteorology import MeteorologyFactory
@@ -50,7 +50,7 @@ class FallingNonEvaporatingDroplets(object):
         except:
                 raise ValueError("Must be a 3 tuple. ")
 
-        self._position=[tounit(x,m) for x in value]
+        self._position=[tounit(x,ureg.m) for x in value]
 
     @property
     def cloudSigma(self):
@@ -64,7 +64,7 @@ class FallingNonEvaporatingDroplets(object):
         except:
             raise ValueError("Must be a 3 tuple. ")
 
-        self._cloudSigma = [tounit(x, m) for x in value]
+        self._cloudSigma = [tounit(x, ureg.m) for x in value]
 
     @property
     def cloudSigmaX(self):
@@ -83,7 +83,7 @@ class FallingNonEvaporatingDroplets(object):
         return self._cloudQ
     @Q.setter
     def Q(self,value):
-        self._cloudQ = tounit(value,kg)
+        self._cloudQ = tounit(value,ureg.kg)
 
     @property
     def particleMass(self):
@@ -111,7 +111,7 @@ class FallingNonEvaporatingDroplets(object):
 
     @particleDiameter.setter
     def particleDiameter(self,value):
-        self._particleDiameter = tounit(value,um)
+        self._particleDiameter = tounit(value,ureg.um)
         self.__setParticleMass()
 
     @property
@@ -120,47 +120,47 @@ class FallingNonEvaporatingDroplets(object):
 
     @rho_p.setter
     def rho_p(self, value):
-        self._rho_p = tounit(value, g / cm ** 3)
+        self._rho_p = tounit(value, ureg.g / ureg.cm ** 3)
         self.__setParticleMass()
 
-    @property 
-    def N(self): 
+    @property
+    def N(self):
         """
-           The total number of particles.  
+           The total number of particles.
         """
-        return (self.Q/self.particleMass).asNumber()
+        return (self.Q/self.particleMass).magnitude
 
     @property
-    def SpreadFactor(self): 
+    def SpreadFactor(self):
         """
-          The spread factor of the droplets. Assuming oil and taken from the VX parameters. 
-        """        
+          The spread factor of the droplets. Assuming oil and taken from the VX parameters.
+        """
         return 4.5
 
     @property
     def g(self):
-        return gconst*m/s**2
+        return gconst*ureg.m/ureg.s**2
 
     @property
-    def AreaOnSurface(self): 
+    def AreaOnSurface(self):
         """
-          The total surface area that the droplet occupies after its spread. 
-            Q                                    3 * Q * SpreadFactor 
-          ------ * pi*(d/2)**2*SpreadFactor =   --------------------- 
+          The total surface area that the droplet occupies after its spread.
+            Q                                    3 * Q * SpreadFactor
+          ------ * pi*(d/2)**2*SpreadFactor =   ---------------------
            Mass                                      2 * rho_l*d
-          
+
         """
         return (self.Q*self.SpreadFactor*numpy.pi*(self.particleDiameter/2.)**2)/self.particleMass
 
     def __setParticleMass(self):
         if (self.rho_p is None or self.particleDiameter is None):
             return
-        self._particleMass = (1 / 6. * self.rho_p * numpy.pi * self.particleDiameter ** 3).asUnit(kg)
+        self._particleMass = (1 / 6. * self.rho_p * numpy.pi * self.particleDiameter ** 3).to(ureg.kg)
 
     def __init__(self,
                  particleDiameter,
-                 Q=1*kg,
-                 position=(0*m,0*m,0*m),
+                 Q=1*ureg.kg,
+                 position=(0*ureg.m,0*ureg.m,0*ureg.m),
                  met_kwargs={},
                  meteorologyName="StandardMeteorolgyConstant",
                  **kwargs):
@@ -168,12 +168,12 @@ class FallingNonEvaporatingDroplets(object):
             Initializes the particle cloud.
             Currently initialized to point source.
 
-	    See Aroesty - Atmospheric diffusion of droplet clouds for details. 
+	    See Aroesty - Atmospheric diffusion of droplet clouds for details.
 
-	    Plume (Aroesty pg 19): Plume diffusion refers to circumstances where material release and smaplling times are long compared with travel time from the source. 
-	    Puff  		     : material release and samplling times are short compared with travel time. 
+	    Plume (Aroesty pg 19): Plume diffusion refers to circumstances where material release and smaplling times are long compared with travel time from the source.
+	    Puff  		     : material release and samplling times are short compared with travel time.
 
-		Since the fall even from 500m is O(min) ~ O(release time) than we are always in the plume regime. 
+		Since the fall even from 500m is O(min) ~ O(release time) than we are always in the plume regime.
 
 
         :param particleDiameter:
@@ -186,21 +186,21 @@ class FallingNonEvaporatingDroplets(object):
                 The initial cloud dimensions.
 
         :param position:
-                A 3 tuple of unum length  that indicates the initial position of the cloud in space.
+                A 3 tuple of pint Quantity length  that indicates the initial position of the cloud in space.
                 default unit [m].
         :param meteorology:
                 The name meteorology class to use
 
         met_kwargs : the parameters or the meteorology.
 
-	:param dispersionType: 
+	:param dispersionType:
 		The dispersion is a plume or a puff.
-		
-		The differance is taken from Aerosty - Atmospheric diffusion of droplet clouds. 
-		
-		
-		
-		According to Aerosty if it is a plume (release time 
+
+		The differance is taken from Aerosty - Atmospheric diffusion of droplet clouds.
+
+
+
+		According to Aerosty if it is a plume (release time
 
         :param kwargs:
                 * all Passed to the meteorology factory.
@@ -215,7 +215,7 @@ class FallingNonEvaporatingDroplets(object):
 
                 * rho_l : The density of the liquid.
         """
-        cloudSigma = (0 * m, 0 * m, 0 * m)
+        cloudSigma = (0 * ureg.m, 0 * ureg.m, 0 * ureg.m)
         self._meteorology = MeteorologyFactory().getMeteorology(meteorologyName,**met_kwargs)
 
         dragCoeffFunc   = kwargs.get("dragCoeffFunc","Haugen")
@@ -225,14 +225,14 @@ class FallingNonEvaporatingDroplets(object):
         self._correctionfunc = getattr(self,"correctionCloud_%s" % cloudCorrectionFunc.title())
 
         self.particleDiameter = particleDiameter
-        self.rho_p = kwargs.get("rho_l", 0.9 * g / cm ** 3) # oil
+        self.rho_p = kwargs.get("rho_l", 0.9 * ureg.g / ureg.cm ** 3) # oil
         self.Q = Q
         self.cloudSigma = cloudSigma
         self.position   = position
 
     def getTerminalVelocity(self,height=None):
         Res = root(self._VTFunc,1,args=(height,))
-        return Res.x[0]*m/s
+        return Res.x[0]*ureg.m/ureg.s
 
 
     def _DragCoefficient_Ik(self,Re):
@@ -296,7 +296,7 @@ class FallingNonEvaporatingDroplets(object):
 
         :param Re:
         :return:
-            Drag coefficient
+            Drag coefficient.
         """
         if Re < 2:
             Cd = 24 / Re
@@ -322,30 +322,29 @@ class FallingNonEvaporatingDroplets(object):
 
     def _VTFunc(self,Vt,height=None):
 
-        height = tounit(height if height is not None else self.z,m)
-
+        height = tounit(height if height is not None else self.z, ureg.m)
 
         rho_air = self.meteorology.getAirDensity(height)
         nu_air  = self.meteorology.getAirDynamicViscosity(height)
 
-        uVt = Vt[0]*m/s
-        Re  = (uVt*self.particleDiameter/nu_air).asNumber()
+        uVt = Vt[0]*ureg.m/ureg.s
+        Re  = (uVt*self.particleDiameter/nu_air).magnitude
         CD  = self._dragfunc(Re)
 
-        GuessVt = 4 * gconst * (m/s**2) * (self.rho_p - rho_air) * self.particleDiameter ** 2 / (3 * nu_air * CD * Re)
+        GuessVt = 4 * gconst * (ureg.m/ureg.s**2) * (self.rho_p - rho_air) * self.particleDiameter ** 2 / (3 * nu_air * CD * Re)
 
-        return (GuessVt - uVt).asNumber(m/s)
+        return (GuessVt - uVt).m_as(ureg.m/ureg.s)
 
     def correctionCloud_None(self):
         return 1
 
     def correctionCloud_Plume(self):
-        Ubar = numpy.mean([self.meteorology.getWindVelocity(z) for z in numpy.arange(0, self.z.asNumber(m))])
-        return ((1 + (self.beta * self.getTerminalVelocity() / Ubar) ** 2) ** -0.25).asNumber()  # taking beta=5
+        Ubar = numpy.mean([self.meteorology.getWindVelocity(z) for z in numpy.arange(0, unumToPint(self.z).m_as(ureg.m))])
+        return ((1 + (self.beta * self.getTerminalVelocity() / Ubar) ** 2) ** -0.25).magnitude  # taking beta=5
 
     def correctionCloud_Puff(self):
-        Ubar = numpy.mean([self.meteorology.getWindVelocity(z) for z in numpy.arange(0, self.z.asNumber(m))])
-        return ((1 + (self.beta * self.getTerminalVelocity() / Ubar) ** 2) ** -0.5).asNumber()  # taking beta=5
+        Ubar = numpy.mean([self.meteorology.getWindVelocity(z) for z in numpy.arange(0, unumToPint(self.z).m_as(ureg.m))])
+        return ((1 + (self.beta * self.getTerminalVelocity() / Ubar) ** 2) ** -0.5).magnitude  # taking beta=5
 
 
     def solveToTime(self, T):
@@ -362,9 +361,9 @@ class FallingNonEvaporatingDroplets(object):
                     - particle velocity
         """
         # y0: x,y,z,dist,u,w
-        y0 = numpy.array([self.x.asNumber(m),
-                          self.y.asNumber(m),
-                          self.z.asNumber(m),
+        y0 = numpy.array([unumToPint(self.x).m_as(ureg.m),
+                          unumToPint(self.y).m_as(ureg.m),
+                          unumToPint(self.z).m_as(ureg.m),
                           0,
                           0,
                           0])
@@ -379,8 +378,8 @@ class FallingNonEvaporatingDroplets(object):
         correction = self._correctionfunc()
         ret = ret.assign(sigmaXCorrected=ret['sigmaX']*correction)\
            .assign(sigmaZCorrected=ret['sigmaZ']*correction)\
-           .assign(Q=self.Q.asNumber(kg))\
-           .assign(diameter=self.particleDiameter.asNumber(um))
+           .assign(Q=unumToPint(self.Q).m_as(ureg.kg))\
+           .assign(diameter=unumToPint(self.particleDiameter).m_as(ureg.um))
         return ret
 
 
@@ -401,10 +400,10 @@ class FallingNonEvaporatingDroplets(object):
         x, yc, z, dist, u_p, w_p = y
 
         z = numpy.max(z,0)
-        z = tounit(z,m)
+        z = tounit(z, ureg.m)
 
-        u_p = tounit(u_p,m/s)
-        w_p = tounit(w_p, m / s)
+        u_p = tounit(u_p, ureg.m/ureg.s)
+        w_p = tounit(w_p, ureg.m / ureg.s)
 
         try:
             U = self.meteorology.getWindVelocity(z)
@@ -420,7 +419,7 @@ class FallingNonEvaporatingDroplets(object):
         Uparticle = (u_p**2 + w_p**2)**0.5
 
         # 2. Calculate Re
-        Re = (rho_air*Uabs * self.particleDiameter / nu_air).asNumber()
+        Re = (rho_air*Uabs * self.particleDiameter / nu_air).magnitude
 
         # 3. Calculate Cd
         Cd = self._dragfunc(Re)
@@ -433,12 +432,12 @@ class FallingNonEvaporatingDroplets(object):
         new_w_p = -Cd*Coeff*Uabs*(w_p)- self.g
 
         newy = numpy.zeros(y.shape)
-        newy[0] = u_p.asNumber(m/s)                   # x
-        newy[1] = 0                                   # y
-        newy[2] = w_p.asNumber(m/s)                   # z
-        newy[3] = Uparticle.asNumber(m/s)                  # dist - distance,
-        newy[4] = new_u_p.asNumber()    # u_p
-        newy[5] = new_w_p.asNumber()    # w_p
+        newy[0] = u_p.m_as(ureg.m/ureg.s)                   # x
+        newy[1] = 0                                           # y
+        newy[2] = w_p.m_as(ureg.m/ureg.s)                   # z
+        newy[3] = Uparticle.m_as(ureg.m/ureg.s)             # dist - distance,
+        newy[4] = new_u_p.magnitude                          # u_p
+        newy[5] = new_w_p.magnitude                          # w_p
         return newy
 
 class hit_ground(object):
@@ -449,5 +448,3 @@ class hit_ground(object):
     #particleDiameter, Q = 1 * kg, cloudSigma = (1 * m, 1 * m, 1 * m), position = (0 * m, 0 * m,0 * m), meteorologyName = "StandardMeteorolgyConstant", ** kwargs):
 
     #particle = FallingNonEvaporatingDroplets(particleDiameter=3*mm,position = (0 * m, 0 * m,300 * m))
-
-

@@ -1,7 +1,7 @@
 from ...datalayer import project
 from ...riskassessment import AgentHome
 from ..utils import tonumber, tounit
-from unum.units import *
+from hera.utils.unitHandler import ureg, unumToPint
 import numpy
 
 class depositionModels(object):
@@ -71,16 +71,23 @@ class depositionModels(object):
         self._depositionModel=newModel
 
     def __init__(self, projectName = "deposition", surface={"name":"Desert","zrough":0.04},
-                 ustar=1, density=1500, diameter = 1E-6*m,heatFlux=0.1*W/(m**2), temperature=293*K, depositionModel="Petroff"):
+                 ustar=1, density=1500, diameter=None, heatFlux=None, temperature=None, depositionModel="Petroff"):
+
+        if diameter is None:
+            diameter = 1E-6*ureg.m
+        if heatFlux is None:
+            heatFlux = 0.1*ureg.W/ureg.m**2
+        if temperature is None:
+            temperature = 293*ureg.K
 
         p = project.Project(projectName)
         self._depositionModel = depositionModel
         self._ustar = ustar
         self._density = density
-        self._temperature = tonumber(tounit(temperature,K),K)
+        self._temperature = tonumber(tounit(temperature, ureg.K), ureg.K)
         self._surface = surface if type(surface)==dict else p.getCacheDocuments(type="surface",surface=surface)[0].asDict()["desc"]
-        self._diameter = tonumber(tounit(diameter,m),m)
-        self._heatFlux = tonumber(tounit(heatFlux, W/(m**2)), W/(m**2))
+        self._diameter = tonumber(tounit(diameter, ureg.m), ureg.m)
+        self._heatFlux = tonumber(tounit(heatFlux, ureg.W/ureg.m**2), ureg.W/ureg.m**2)
 
     def depositionRate(self):
         return getattr(self, f"depositionRate_{self._depositionModel}")()

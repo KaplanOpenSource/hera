@@ -195,7 +195,7 @@ class Injury(object):
 		pass
 
 	def calculate(self, concentrationField, field, time="datetime", x="x", y="y", breathingRate=10 * ureg.L / ureg.min,
-				  **parameters):
+				  sel={},isel={}):
 		"""Deprecated. Use ``calculateRegionOfInjured`` instead."""
 		import warnings
 		warnings.warn("This function is obselete. Use calculateRegionOfInjured instead")
@@ -205,9 +205,9 @@ class Injury(object):
 											  x=x,
 											  y=y,
 											  breathingRate=breathingRate,
-											  **parameters)
+											  sel=sel,isel=isel)
 
-	def calculateRegionOfInjured(self,concentrationField,field,time="datetime",x="x",y="y",breathingRate=10*ureg.L / ureg.min,**parameters):
+	def calculateRegionOfInjured(self,concentrationField,field,time="datetime",x="x",y="y",breathingRate=10*ureg.L / ureg.min,sel={},isel={}):
 		"""
 			Calculates the fraction of the population that was effected in each point, and returns its contour.
 			The levels are determined by the injury type.
@@ -247,8 +247,7 @@ class Injury(object):
 		toxicLoads = self.calculateToxicLoads(concentrationField=concentrationField,
 											  time=time,
 											  breathingRate=breathingRate,
-											  field=field,
-											  **parameters).compute()
+											  field=field).sel(**sel).isel(**isel).compute()
 		for lvl in self.levels:
 			data = lvl.calculateContours(toxicLoads=toxicLoads,time=time,x=x,y=y)
 			if data is not None: 

@@ -9,7 +9,7 @@ from itertools import product
 from ..utils.inputForModelsCreation import InputForModelsCreator
 from hera.simulations.LSM.singleSimulation import SingleSimulation
 from hera.datalayer import datatypes
-from hera.utils.unitHandler import  Quantity, ureg, Unum
+from hera.utils.unitHandler import Quantity, ureg, unumToPint
 from hera import toolkit
 from hera.utils.jsonutils import JSONToConfiguration, stripConfigurationUnits
 from hera.utils import dictToMongoQuery, get_classMethod_logger
@@ -160,6 +160,11 @@ class LSMTemplate:
                                      f"{toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE} in order to replace it.")
                 if saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE:
                     docList.delete()
+
+            curr_counter = self.Toolkit.getCounterAndAdd(f"LSM_SIMULATION_{self.Toolkit.projectName}")
+            simulationName = simulationName if simulationName is not None else f"LSM_Simulation_{curr_counter}"
+            saveDir = os.path.join(saveDir, simulationName)
+
             doc = self.Toolkit.addSimulationsDocument(
                 type=self.doctype_simulation,
                 resource='None',
@@ -170,8 +175,7 @@ class LSMTemplate:
                           simulationName=simulationName,
                           params=updated_params)
             )
-            curr_counter = self.Toolkit.getCounterAndAdd(f"LSM_SIMULATION_{self.Toolkit.projectName}")
-            saveDir = os.path.join(saveDir, f"LSM_Simulation_{curr_counter}")
+
             if self.to_xarray:
                 doc['resource'] = os.path.join(saveDir, 'netcdf', '*')
                 doc['dataFormat'] = datatypes.NETCDF_XARRAY
@@ -315,17 +319,19 @@ class LSMTemplate:
     @staticmethod
     def prepareParams(desc, paramsToPrepare):
         logger = get_logger(instance=None, name="hera.simulations.LSM.prepareParams")
-        if desc is not None and 'units' in desc:
-            for key in desc["units"].keys():
-                param_item= paramsToPrepare[key]
-                if isinstance(param_item, Unum):
-                    paramsToPrepare[key] = param_item.asNumber(eval(desc["units"][key]))
-                elif isinstance(param_item, Quantity):
-                    paramsToPrepare[key] = param_item.m_as(desc["units"][key])
-                else:
-                    raise ValueError(f"parameters must use either pint or unum to specify units, currently type({param_item})={type(param_item)}")
-        if 'duration' in paramsToPrepare and isinstance(paramsToPrepare['duration'], Quantity):
-            paramsToPrepare['duration'] = paramsToPrepare['duration'].to(ureg.minutes)
+        try:
+            if desc is not None and 'units' in desc:
+                for key in desc["units"].keys():
+                    param_item= paramsToPrepare[key]
+                    if hasattr(param_item, 'asNumber') or hasattr(param_item, 'magnitude'):
+                        paramsToPrepare[key] = unumToPint(param_item).m_as(ureg.parse_expression(desc["units"][key]))
+                    elif key=='duration':
+                        paramsToPrepare[key] = param_item*ureg.minutes
+                    else:
+                        paramsToPrepare[key] = ureg.parse_expression(param_item).m_as(ureg.parse_expression(desc["units"][key]))
+        except:
+            raise ValueError(f"parameters must use either pint or unum to specify units, currently type({param_item})={type(param_item)}")
+
         paramsToPrepare = stripConfigurationUnits(paramsToPrepare, returnStandardize=True, ignoreStandardization=["duration"])
         for integer_field in ["TopoXn", "TopoYn"]:
             if not isinstance(paramsToPrepare[integer_field], int):
@@ -437,6 +443,15 @@ class LSMTemplate:
         """
         return SingleSimulation(self.getDocumentByID(id))
 
+    def getSimulationByName(self,simulationName):
+        """
+        get a simulation by document id
+
+        :param id:
+        :return:
+        """
+        return SingleSimulation(self.getSimulationsDocuments(type=self.doctype_simulation,templateName=self.templateName,simulationName=simulationName))
+
     def _getSimulationsList(self, **query):
         """
             List the Simulation parameters that fulfil the query
@@ -484,4 +499,4 @@ class LSMTemplate:
 
             return df
         except ValueError:
-            raise FileNotFoundError('No simulations.old found')
+            raise FileNotFoundError('No simulations found')

@@ -61,8 +61,6 @@ def ConfigurationToJSON(valueToProcess, standardize=False, splitUnits=False, kee
         dict with all the values as string
 
     """
-    from unum import Unum
-
     logger = logging.getLogger("hera.bin.ConfigurationToJSON")
     ret = {}
     logger.debug(f"Processing {valueToProcess}")
@@ -79,7 +77,7 @@ def ConfigurationToJSON(valueToProcess, standardize=False, splitUnits=False, kee
     elif "'" in str(valueToProcess):
         logger.debug(f"\t {valueToProcess} is String, use as is")
         ret = valueToProcess
-    elif isinstance(valueToProcess,Unum):
+    elif hasattr(valueToProcess, 'asNumber'):  # Unum object — convert via unumToPint for backwards compat
 
         logger.debug(f"\t Try to convert *{valueToProcess}* to string")
 
@@ -142,7 +140,6 @@ def JSONToConfiguration(valueToProcess,returnUnum=False,returnStandardize=False)
         A dict with the values convected to unum.
 
     """
-    from unum import Unum
     logger = logging.getLogger("hera.util.JSONToConfiguration")
 
     logger.debug(f"Processing {valueToProcess} of type {type(valueToProcess)}")
@@ -162,8 +159,8 @@ def JSONToConfiguration(valueToProcess,returnUnum=False,returnStandardize=False)
         ret = [JSONToConfiguration(x,returnUnum=returnUnum,returnStandardize=returnStandardize) for x in valueToProcess]
     elif isinstance(valueToProcess,(int, float, bool)):
         ret = valueToProcess
-    elif isinstance(valueToProcess,Unum):
-        from hera.utils.unitHandler import unumToPint
+    elif hasattr(valueToProcess, 'asNumber'):  # Unum object — backwards compat
+        from hera.utils.unitHandler import unumToPint, pintToUnum
         ret = valueToProcess if returnUnum else unumToPint(valueToProcess)
     else:
         # we want to avoid importing pint when unnecessary since it takes a long time to load
@@ -176,11 +173,9 @@ def JSONToConfiguration(valueToProcess,returnUnum=False,returnStandardize=False)
             ret = valueToProcess
         else:
             print(valueToProcess)
-            logger.debug(f"\t Try to convert {valueToProcess} to unum")
+            logger.debug(f"\t Try to convert {valueToProcess} to pint")
             try:
-                from unum import Unum
-                
-                from hera.utils.unitHandler import unumToPint, ureg, pintToUnum, UndefinedUnitError, DimensionalityError
+                from hera.utils.unitHandler import ureg, pintToUnum, UndefinedUnitError, DimensionalityError
                 ret = ureg(valueToProcess)
                 ret = pintToUnum(ret) if returnUnum else ret
             except (UndefinedUnitError, DimensionalityError, ValueError):
@@ -204,7 +199,6 @@ def stripConfigurationUnits(valueToProcess,returnStandardize=False, ignoreStanda
         Same json with all units stripped leaving just magnitudes
 
     """
-    from unum import Unum
     from pint import Quantity
     from hera.utils.unitHandler import unumToPint
 
@@ -220,7 +214,7 @@ def stripConfigurationUnits(valueToProcess,returnStandardize=False, ignoreStanda
         logger.debug("\t list, transforming to str every item")
         ret = [stripConfigurationUnits(x,returnStandardize=returnStandardize,
                                        ignoreStandardization=ignoreStandardization) for x in valueToProcess]
-    elif isinstance(valueToProcess,Unum):
+    elif hasattr(valueToProcess, 'asNumber'):  # Unum object — backwards compat
         logger.debug(f"\t Try to convert *{valueToProcess}* to string")
         origPintObj = unumToPint(valueToProcess)
         pintObj = origPintObj.to_base_units() if (returnStandardize) else origPintObj
