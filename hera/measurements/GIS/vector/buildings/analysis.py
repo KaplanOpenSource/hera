@@ -8,6 +8,7 @@ import pandas as pd
 import shapely.wkt
 from shapely.geometry import box, Polygon
 from .....utils.logging import get_classMethod_logger
+from .._io_utils import readGeoJSONString
 import fiona
 
 BUILDINGS_LAMBDA_WIND_DIRECTION = 'wind'
@@ -120,8 +121,8 @@ class analysis():
         logger.info("--- Start ---")
 
         if isinstance(buildingsData,str):
-            logger.debug("Reading the bounds from StringIO")
-            data = geopandas.read_file(io.StringIO(buildingsData))
+            logger.debug("Reading the bounds from GeoJSON string")
+            data = readGeoJSONString(buildingsData)
         elif isinstance(buildingsData, geopandas.GeoDataFrame):
             logger.debug("Using the user input")
             data = buildingsData
