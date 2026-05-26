@@ -13,6 +13,33 @@ import io
 import geopandas
 
 
+def _buildGeoReadErrors():
+    """Collect exception types raised by whichever GeoPandas IO engines are installed.
+
+    GeoPandas 1.x defaults to ``pyogrio`` on modern stacks and falls back to
+    ``fiona`` on legacy ones; the two raise different exceptions for the same
+    failure modes (missing file, unreadable source). Callers can
+    ``except GEO_READ_ERRORS:`` to handle both without taking a hard import
+    on either — keeps the code working on Python 3.9 (fiona-only) and 3.11+
+    (pyogrio default) environments alike.
+    """
+    errors = []
+    try:
+        import fiona
+        errors.append(fiona.errors.DriverError)
+    except ImportError:
+        pass
+    try:
+        import pyogrio
+        errors.append(pyogrio.errors.DataSourceError)
+    except ImportError:
+        pass
+    return tuple(errors)
+
+
+GEO_READ_ERRORS = _buildGeoReadErrors()
+
+
 def readGeoJSONString(geojsonText):
     """Parse a GeoJSON string into a ``geopandas.GeoDataFrame``.
 

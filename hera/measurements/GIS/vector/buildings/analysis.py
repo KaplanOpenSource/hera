@@ -8,8 +8,7 @@ import pandas as pd
 import shapely.wkt
 from shapely.geometry import box, Polygon
 from .....utils.logging import get_classMethod_logger
-from .._io_utils import readGeoJSONString
-import fiona
+from .._io_utils import readGeoJSONString, GEO_READ_ERRORS
 
 BUILDINGS_LAMBDA_WIND_DIRECTION = 'wind'
 BUILDINGS_LAMBDA_RESOLUTION = 'resolution'
@@ -176,7 +175,7 @@ class analysis():
             logger.debug("Return found data in DB")
             try:
                 domainLambda = dataDoc[0].getData()
-            except fiona.errors.DriverError:
+            except GEO_READ_ERRORS:
                 errmsg = f"The cached data in location {dataDoc[0].resource} is not found on the disk. Maybe it was removed?. Use overwrite=True to recalculate and update the cache."
                 logger.error(errmsg)
                 raise FileNotFoundError(errmsg)
