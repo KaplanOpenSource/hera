@@ -33,7 +33,7 @@ except ImportError as _gdal_err:
 # ---------------------------------------------------------------------------
 
 def read_raw_elevation(lat, lon, hgt_folders):
-    """Read raw elevation from an .hgt SRTM tile."""
+    """Read raw elevation from an .hgt SRTM tile (SRTM1 3601² or SRTM3 1201²)."""
     lat_deg = int(math.floor(lat))
     lon_deg = int(math.floor(lon))
     lat_prefix = "N" if lat_deg >= 0 else "S"
@@ -42,20 +42,26 @@ def read_raw_elevation(lat, lon, hgt_folders):
 
     for folder in hgt_folders:
         tile_path = os.path.join(folder, tile_name)
-        if os.path.exists(tile_path):
+        if not os.path.exists(tile_path):
+            continue
+        size = os.path.getsize(tile_path)
+        # SRTM1 (1 arc-sec, ~30m) = 3601², SRTM3 (3 arc-sec, ~90m) = 1201²
+        if size == 3601 * 3601 * 2:
+            SAMPLES = 3601
+        elif size == 1201 * 1201 * 2:
             SAMPLES = 1201
-            size = os.path.getsize(tile_path)
-            if size == SAMPLES * SAMPLES * 2:
-                lat_fraction = lat - lat_deg
-                lon_fraction = lon - lon_deg
-                row = int((1 - lat_fraction) * (SAMPLES - 1))
-                col = int(lon_fraction * (SAMPLES - 1))
-                with open(tile_path, "rb") as f:
-                    offset = 2 * (row * SAMPLES + col)
-                    f.seek(offset)
-                    data = f.read(2)
-                    elevation = struct.unpack(">h", data)[0]
-                    return elevation if elevation != -32768 else None
+        else:
+            continue
+        lat_fraction = lat - lat_deg
+        lon_fraction = lon - lon_deg
+        row = int((1 - lat_fraction) * (SAMPLES - 1))
+        col = int(lon_fraction * (SAMPLES - 1))
+        with open(tile_path, "rb") as f:
+            offset = 2 * (row * SAMPLES + col)
+            f.seek(offset)
+            data = f.read(2)
+            elevation = struct.unpack(">h", data)[0]
+            return elevation if elevation != -32768 else None
     return None
 
 
@@ -200,14 +206,16 @@ class TestGetElevationOfXarray:
 
 class TestGetElevation:
     def test_basic(self, topo_toolkit):
+        # Per documented WSG84 contract: minx=latitude, miny=longitude.
         result = _safe_get(
-            topo_toolkit.getElevation, 35.1, 33.85, 35.12, 33.86, 100, inputCRS=WSG84
+            topo_toolkit.getElevation, 33.85, 35.1, 33.86, 35.12, 100, inputCRS=WSG84
         )
         assert isinstance(result, xr.Dataset)
         assert "elevation" in result.coords
 
     def test_matches_hgt_file(self, topo_toolkit, resource_folders):
-        minx, miny, maxx, maxy = 35.1, 33.85, 35.12, 33.87
+        # Per documented WSG84 contract: minx=latitude, miny=longitude.
+        minx, miny, maxx, maxy = 33.85, 35.1, 33.87, 35.12
         dxdy = 100
 
         try:
@@ -215,18 +223,22 @@ class TestGetElevation:
         except Exception as exc:
             pytest.skip(f"getElevation failed: {exc}")
 
-        if da is None or not isinstance(da, xr.DataArray):
-            pytest.skip("Did not return a valid DataArray")
+        if da is None or not isinstance(da, xr.Dataset):
+            pytest.skip("Did not return a valid Dataset")
+        if "elevation" not in da.coords:
+            pytest.skip("elevation coord not added")
 
-        latitudes = da.coords["lat"].values
-        longitudes = da.coords["lon"].values
+        lat_grid = da["lat"].values
+        lon_grid = da["lon"].values
+        elev_grid = da.coords["elevation"].values
 
         tested_any = False
-        for i in [0, len(latitudes) // 2, -1]:
-            for j in [0, len(longitudes) // 2, -1]:
-                lat, lon = latitudes[i], longitudes[j]
+        for i_idx in [0, lat_grid.shape[0] // 2, -1]:
+            for j_idx in [0, lat_grid.shape[1] // 2, -1]:
+                lat = lat_grid[i_idx, j_idx]
+                lon = lon_grid[i_idx, j_idx]
                 expected = read_raw_elevation(lat, lon, resource_folders)
-                actual = float(da.values[i, j])
+                actual = float(elev_grid[i_idx, j_idx])
                 if expected is not None:
                     assert abs(actual - expected) <= 1
                     tested_any = True
@@ -244,9 +256,10 @@ class TestConvertPointsCRS:
 
 class TestCreateElevationSTL:
     def test_basic(self, topo_toolkit):
+        # Per documented WSG84 contract: minx=latitude, miny=longitude.
         stl_str = _safe_get(
             topo_toolkit.createElevationSTL,
-            minx=35.1, miny=33.85, maxx=35.11, maxy=33.86,
+            minx=33.85, miny=35.1, maxx=33.86, maxy=35.11,
             dxdy=50, inputCRS=WSG84, solidName="TestSTL",
         )
         if stl_str is not None:
