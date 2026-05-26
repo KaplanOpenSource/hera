@@ -148,7 +148,7 @@ class TestGetPointListElevation:
         tested_any = False
         for i, row in points.iterrows():
             expected = read_raw_elevation(row["lat"], row["lon"], resource_folders)
-            actual = elevations.iloc[i]
+            actual = elevations["elevation"].iloc[i]
             if expected is not None and actual is not None:
                 assert abs(actual - expected) <= 1
                 tested_any = True

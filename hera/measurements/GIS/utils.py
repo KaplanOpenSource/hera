@@ -300,12 +300,16 @@ class stlFactory:
 
                 # dem facet 1
                 n = numpy.cross(numpy.array(v1) - numpy.array(v2), numpy.array(v1) - numpy.array(v3))
-                n = n / numpy.sqrt(sum(n ** 2))
+                mag = numpy.sqrt(sum(n ** 2))
+                if mag > 0:
+                    n = n / mag
                 stl_str += self._make_facet_str(n, v1, v2, v3)
 
                 # dem facet 2
                 n = numpy.cross(numpy.array(v2) - numpy.array(v3), numpy.array(v2) - numpy.array(v4))
-                n = n / numpy.sqrt(sum(n ** 2))
+                mag = numpy.sqrt(sum(n ** 2))
+                if mag > 0:
+                    n = n / mag
                 # stl_str += self._make_facet_str( n, v2, v3, v4 )
                 stl_str += self._make_facet_str(n, v2, v4, v3)
 

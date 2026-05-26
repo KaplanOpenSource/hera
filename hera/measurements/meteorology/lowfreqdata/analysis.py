@@ -78,10 +78,11 @@ class analysis:
             Time=curdata[datecolumn].dt.hour * 100 + curdata[datecolumn].dt.minute
         )
 
-        # 🧠 חלוקה לעונות לפי חודש
+        # 🧠 חלוקה לעונות לפי חודש (December and Jan-Feb both map to Winter; ordered=False
+        # allows the duplicate label without the deprecated .replace on a CategoricalDtype)
         tm = lambda x, field: pd.cut(x[field], [0, 2, 5, 8, 11, 12],
-                                     labels=['Winter', 'Spring', 'Summer', 'Autumn', 'Winter1']) \
-                                     .replace('Winter1', 'Winter')
+                                     labels=['Winter', 'Spring', 'Summer', 'Autumn', 'Winter'],
+                                     ordered=False)
 
         if isinstance(data, dask.dataframe.DataFrame):
             curdata = curdata.map_partitions(lambda df: df.assign(season=tm(df, monthcolumn)))
