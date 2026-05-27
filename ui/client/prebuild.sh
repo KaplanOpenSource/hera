@@ -16,4 +16,6 @@ else
   N=1
 fi
 
-echo "export const buildNumber = '${TODAY}.${N}';" > "$FILE"
+BUILD="${TODAY}.${N}"
+echo "export const buildNumber = '${BUILD}';" > "$FILE"
+echo "Build number: ${BUILD}"
