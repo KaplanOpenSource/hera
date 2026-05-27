@@ -1,6 +1,7 @@
 import { Box } from '@mui/material';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId, idFromToolkitSplitId } from '../../shared/idDocId';
+import { VALUE_GROUP_UNDEFINED } from '../../utils/splitTree';
 import { DetailsViewDocId } from './DetailsViewDocId';
 import { DetailsViewMergedRepo } from './DetailsViewMergedRepo';
 import { DetailsViewRepo } from './DetailsViewRepo';
@@ -9,7 +10,7 @@ import { DetailsViewToolkit } from './toolkit/DetailsViewToolkit';
 export const detailsTabName = (showItemId: string, project: ProjectObj): string => {
   if (showItemId === CENTRAL_REPO_FOLDER_ID) return 'Repositories';
   const toolkitName = idFromToolkitSplitId(showItemId);
-  if (toolkitName) return toolkitName;
+  if (toolkitName) return toolkitName === VALUE_GROUP_UNDEFINED ? 'No toolkit' : toolkitName;
   const docid = idFromDocId(showItemId);
   if (docid) {
     const doc = project.allDocuments.find(d => d.docid === docid);
