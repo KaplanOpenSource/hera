@@ -15,6 +15,7 @@ from ....simulations.utils import coordinateHandler
 from ....utils.logging import get_classMethod_logger
 
 from ....toolkit import TOOLKIT_SAVEMODE_ONLYFILE
+from ._io_utils import readGeoJSONString
 from .toolkit import VectorToolkit
 from ..utils import stlFactory
 
@@ -177,7 +178,7 @@ class TopographyToolkit(VectorToolkit):
         if isinstance(regionNameOrData,str):
             data = self.getDatasourceData(datasourceName=regionNameOrData,**filters)
             if data is None:
-                data = geopandas.read_file(io.StringIO(regionNameOrData))
+                data = readGeoJSONString(regionNameOrData)
         elif isinstance(regionNameOrData,geopandas.geodataframe.GeoDataFrame):
             data = regionNameOrData
         else:
