@@ -25,7 +25,10 @@ export const idFromRepoId = (repoid: string) => {
 };
 
 export const idFromToolkitSplitId = (id: string) => {
-  return id && id.startsWith(ID_PREFIX_TOOLKIT) ? id.replace(ID_PREFIX_TOOLKIT, "") : undefined;
+  if (!id?.startsWith(ID_PREFIX_TOOLKIT)) return undefined;
+  const rest = id.slice(ID_PREFIX_TOOLKIT.length);
+  const slashIdx = rest.indexOf('/');
+  return slashIdx === -1 ? rest : rest.slice(0, slashIdx);
 };
 
 export const isSplitId = (id: string) => {
@@ -34,7 +37,8 @@ export const isSplitId = (id: string) => {
 
 // Resolves the toolkit name for any split tree node ID.
 // For toolkit splits (split_/toolkit=X), returns X directly.
-// For child splits (split_/type=Y), finds a matching document and returns its toolkit.
+// For child splits (split_/toolkit=X/...), extracts X from the key prefix.
+// For splits without a toolkit ancestor, finds the toolkit from matching documents.
 export const toolkitNameFromSplitId = (
   splitId: string,
   documents: { extDesc: Record<string, any>, toolkit: string | undefined }[],
@@ -49,4 +53,14 @@ export const toolkitNameFromSplitId = (
     String(getValueAtPath(d.extDesc, path)) === value
   );
   return doc?.toolkit ?? VALUE_GROUP_UNDEFINED;
+};
+
+// Normalizes any split ID to its parent toolkit split ID.
+// Child splits reuse the parent toolkit's details tab instead of opening a new one.
+export const normalizeSplitId = (
+  splitId: string,
+  documents: { extDesc: Record<string, any>, toolkit: string | undefined }[],
+): string => {
+  const toolkitName = toolkitNameFromSplitId(splitId, documents);
+  return ID_PREFIX_TOOLKIT + (toolkitName ?? VALUE_GROUP_UNDEFINED);
 };

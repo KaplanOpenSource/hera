@@ -4,7 +4,7 @@ import 'flexlayout-react/style/light.css';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ProjectObj } from '../../objects/ProjectObj';
-import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId, idFromToolkitSplitId, isSplitId } from '../../shared/idDocId';
+import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId, isSplitId, normalizeSplitId } from '../../shared/idDocId';
 import { classifyTab, tabKindClassName } from '../../shared/tabKind';
 import { TAB_KIND_STYLES, tabKindCss } from '../../shared/tabKindConfig';
 import { DetailsViewPanel, detailsTabName } from '../details/DetailsViewPanel';
@@ -90,7 +90,9 @@ export const ProjectLayout = ({
       || !!idFromDocId(rawShowItemId)
       || !!idFromRepoId(rawShowItemId)
       || isSplitId(rawShowItemId);
-    const showItemId = isSpecific ? rawShowItemId : 'config';
+    const showItemId = isSpecific
+      ? (isSplitId(rawShowItemId) ? normalizeSplitId(rawShowItemId, project.documents) : rawShowItemId)
+      : 'config';
 
     const detailsId = `details:${showItemId}`;
     const existing = model.getNodeById(detailsId);
