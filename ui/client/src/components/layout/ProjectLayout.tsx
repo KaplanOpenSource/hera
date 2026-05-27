@@ -1,10 +1,12 @@
 import { Box, Paper } from '@mui/material';
-import { Action, Actions, DockLocation, Layout, Model, TabNode } from 'flexlayout-react';
+import { Action, Actions, DockLocation, ITabRenderValues, Layout, Model, TabNode } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ProjectObj } from '../../objects/ProjectObj';
-import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId } from '../../shared/idDocId';
+import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId, isSplitId, normalizeSplitId } from '../../shared/idDocId';
+import { classifyTab, tabKindClassName } from '../../shared/tabKind';
+import { TAB_KIND_STYLES, tabKindCss } from '../../shared/tabKindConfig';
 import { DetailsViewPanel, detailsTabName } from '../details/DetailsViewPanel';
 import { hasPreview, PreviewPanel } from '../details/PreviewPanel';
 import { ProjectTreeView } from '../project/ProjectTreeView';
@@ -86,8 +88,11 @@ export const ProjectLayout = ({
 
     const isSpecific = rawShowItemId === CENTRAL_REPO_FOLDER_ID
       || !!idFromDocId(rawShowItemId)
-      || !!idFromRepoId(rawShowItemId);
-    const showItemId = isSpecific ? rawShowItemId : 'config';
+      || !!idFromRepoId(rawShowItemId)
+      || isSplitId(rawShowItemId);
+    const showItemId = isSpecific
+      ? (isSplitId(rawShowItemId) ? normalizeSplitId(rawShowItemId, project.documents) : rawShowItemId)
+      : 'config';
 
     const detailsId = `details:${showItemId}`;
     const existing = model.getNodeById(detailsId);
@@ -99,6 +104,7 @@ export const ProjectLayout = ({
           type: 'tab',
           id: detailsId,
           name: detailsTabName(showItemId, project),
+          className: tabKindClassName(showItemId, project),
           component: 'details',
           config: { showItemId },
         },
@@ -167,6 +173,15 @@ export const ProjectLayout = ({
     return action;
   }, [model]);
 
+  const onRenderTab = useCallback((node: TabNode, renderValues: ITabRenderValues) => {
+    const showItemId = node.getConfig()?.showItemId as string | undefined;
+    if (!showItemId) return;
+    const kind = classifyTab(showItemId, project);
+    if (!kind) return;
+    const { icon: Icon, color } = TAB_KIND_STYLES[kind];
+    renderValues.leading = <Icon sx={{ fontSize: 16, color }} />;
+  }, [project.allDocuments]);
+
   const factory = (node: TabNode) => {
     const component = node.getComponent();
     const config = node.getConfig();
@@ -199,9 +214,11 @@ export const ProjectLayout = ({
 
   return (
     <Box sx={{ position: 'relative', flex: 1, height: '100%' }}>
+      <style>{tabKindCss}</style>
       <Layout
         model={model}
         factory={factory}
+        onRenderTab={onRenderTab}
         onAction={handleAction}
       />
     </Box>

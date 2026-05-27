@@ -19,8 +19,10 @@ Options:
 - `--cors ORIGINS`: Enable CORS for external origins.  
 Use `all` to allow all origins, or pass a comma-separated list of IPs to allow specific ones.  
 Example: `--cors 192.168.1.10,10.0.0.5`  
-Each IP is prefixed with `http://` and port `8000` automatically.  
+Each IP is prefixed with `http://` and the server port automatically.  
 When active, a red "CORS" indicator appears in the top-right of the UI.
+
+- `--port PORT`: Port for the API server (default: `8000`).
 
 - `-y, --yes`: Skip confirmation prompts. Useful for non-interactive environments (e.g. VS Code launch).
 
@@ -42,7 +44,7 @@ sh hera/scripts/docker_mongo.sh
 ```
 #### Browse
 The web UI will be in this URL:  
-http://localhost:8000
+http://localhost:8000 (default port, configurable with `--port`)
 
 ## Notebooks
 

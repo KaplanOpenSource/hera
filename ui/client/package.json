@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "scripts": {
     "dev": "vite",
-    "prebuild": "echo \"export const commitId = '$(git rev-parse HEAD)';\" > src/commitId.ts",
+    "prebuild": "bash prebuild.sh",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run --exclude 'tests/integration/**'",

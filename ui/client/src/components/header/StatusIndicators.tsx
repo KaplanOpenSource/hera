@@ -1,5 +1,5 @@
 import { Box } from '@mui/material';
-import { CommitIdShower } from './CommitIdShower';
+import { VersionShower } from './VersionShower';
 import { CorsIndicator } from './CorsIndicator';
 
 export const StatusIndicators = () => {
@@ -11,7 +11,7 @@ export const StatusIndicators = () => {
       textAlign: 'right',
       lineHeight: 0,
     }}>
-      <CommitIdShower />
+      <VersionShower />
       <CorsIndicator />
     </Box>
   );
