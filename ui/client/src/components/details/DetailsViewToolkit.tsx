@@ -1,7 +1,15 @@
-import { Box, Chip, Stack, Typography } from '@mui/material';
+import { Box, Chip, Stack, Tooltip, Typography } from '@mui/material';
 import { Handyman } from '@mui/icons-material';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { Toolkit } from '../../shared/types';
+
+const FIELD_TOOLTIPS: Record<string, string> = {
+  'Class': 'Fully-qualified Python class path of the toolkit implementation',
+  'Description': 'Short description of what the toolkit does',
+  'Repository': 'Repository JSON file where this toolkit is defined',
+  'Version': 'Toolkit version',
+  'Documents': 'Number of documents in this project belonging to this toolkit',
+};
 
 const ToolkitField = ({
   label,
@@ -13,9 +21,11 @@ const ToolkitField = ({
   if (!value) return null;
   return (
     <Stack direction="row" spacing={1} alignItems="baseline">
-      <Typography variant="body2" color="text.secondary" sx={{ minWidth: 120 }}>
-        {label}
-      </Typography>
+      <Tooltip title={FIELD_TOOLTIPS[label] ?? ''} placement="left">
+        <Typography variant="body2" color="text.secondary" sx={{ minWidth: 120 }}>
+          {label}
+        </Typography>
+      </Tooltip>
       <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
         {value}
       </Typography>
@@ -35,8 +45,16 @@ const ToolkitDetails = ({
       <Stack direction="row" spacing={1} alignItems="center">
         <Handyman color="action" />
         <Typography variant="h6">{toolkit.toolkit}</Typography>
-        {toolkit.source && <Chip label={toolkit.source} size="small" variant="outlined" />}
-        {toolkit.type && <Chip label={toolkit.type} size="small" variant="outlined" />}
+        {toolkit.source && (
+          <Tooltip title="Where this toolkit is registered from (internal or dynamic)">
+            <Chip label={toolkit.source} size="small" variant="outlined" />
+          </Tooltip>
+        )}
+        {toolkit.type && (
+          <Tooltip title="Toolkit category (measurements, simulations, etc.)">
+            <Chip label={toolkit.type} size="small" variant="outlined" />
+          </Tooltip>
+        )}
       </Stack>
 
       <Stack spacing={1}>

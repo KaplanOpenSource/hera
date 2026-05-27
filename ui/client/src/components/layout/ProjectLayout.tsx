@@ -1,4 +1,3 @@
-import { Code, Description, FolderOpen, Handyman, Science, Settings, Source } from '@mui/icons-material';
 import { Box, Paper } from '@mui/material';
 import { Action, Actions, DockLocation, ITabRenderValues, Layout, Model, TabNode } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
@@ -6,11 +5,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId, idFromToolkitSplitId } from '../../shared/idDocId';
-import { classifyTab, TabKind, tabKindClassName } from '../../shared/tabKind';
+import { classifyTab, tabKindClassName } from '../../shared/tabKind';
+import { TAB_KIND_STYLES, tabKindCss } from '../../shared/tabKindConfig';
 import { DetailsViewPanel, detailsTabName } from '../details/DetailsViewPanel';
 import { hasPreview, PreviewPanel } from '../details/PreviewPanel';
 import { ProjectTreeView } from '../project/ProjectTreeView';
-import './tabKindStyles.css';
 
 export const ProjectLayout = ({
   project,
@@ -176,17 +175,8 @@ export const ProjectLayout = ({
     const showItemId = node.getConfig()?.showItemId as string | undefined;
     if (!showItemId) return;
     const kind = classifyTab(showItemId, project);
-    const tabStyle: Record<TabKind, { icon: typeof Code; color: string }> = {
-      [TabKind.Notebook]: { icon: Code, color: '#4a6b3a' },
-      [TabKind.Document]: { icon: Description, color: '#3a5f80' },
-      [TabKind.Agent]: { icon: Science, color: '#7a4a76' },
-      [TabKind.ProjectConfig]: { icon: Settings, color: '#555555' },
-      [TabKind.Repository]: { icon: Source, color: '#7a5530' },
-      [TabKind.CentralRepository]: { icon: FolderOpen, color: '#6e5c30' },
-      [TabKind.Toolkit]: { icon: Handyman, color: '#4a7a6b' },
-    };
     if (!kind) return;
-    const { icon: Icon, color } = tabStyle[kind];
+    const { icon: Icon, color } = TAB_KIND_STYLES[kind];
     renderValues.leading = <Icon sx={{ fontSize: 16, color }} />;
   }, [project.allDocuments]);
 
@@ -222,6 +212,7 @@ export const ProjectLayout = ({
 
   return (
     <Box sx={{ position: 'relative', flex: 1, height: '100%' }}>
+      <style>{tabKindCss}</style>
       <Layout
         model={model}
         factory={factory}
