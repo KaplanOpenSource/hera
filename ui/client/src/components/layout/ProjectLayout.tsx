@@ -1,10 +1,12 @@
+import { Code, Description, FolderOpen, Science, Settings, Source } from '@mui/icons-material';
 import { Box, Paper } from '@mui/material';
-import { Action, Actions, DockLocation, Layout, Model, TabNode } from 'flexlayout-react';
+import { Action, Actions, DockLocation, ITabRenderValues, Layout, Model, TabNode } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId } from '../../shared/idDocId';
+import { classifyTab, TabKind } from '../../shared/tabKind';
 import { DetailsViewPanel, detailsTabName } from '../details/DetailsViewPanel';
 import { hasPreview, PreviewPanel } from '../details/PreviewPanel';
 import { ProjectTreeView } from '../project/ProjectTreeView';
@@ -167,6 +169,22 @@ export const ProjectLayout = ({
     return action;
   }, [model]);
 
+  const onRenderTab = useCallback((node: TabNode, renderValues: ITabRenderValues) => {
+    const showItemId = node.getConfig()?.showItemId as string | undefined;
+    if (!showItemId) return;
+    const kind = classifyTab(showItemId, project);
+    const iconSx = { fontSize: 16 };
+    const icon = {
+      [TabKind.Notebook]: <Code sx={iconSx} />,
+      [TabKind.Document]: <Description sx={iconSx} />,
+      [TabKind.Agent]: <Science sx={iconSx} />,
+      [TabKind.ProjectConfig]: <Settings sx={iconSx} />,
+      [TabKind.Repository]: <Source sx={iconSx} />,
+      [TabKind.CentralRepository]: <FolderOpen sx={iconSx} />,
+    }[kind!];
+    if (icon) renderValues.leading = icon;
+  }, [project.allDocuments]);
+
   const factory = (node: TabNode) => {
     const component = node.getComponent();
     const config = node.getConfig();
@@ -202,6 +220,7 @@ export const ProjectLayout = ({
       <Layout
         model={model}
         factory={factory}
+        onRenderTab={onRenderTab}
         onAction={handleAction}
       />
     </Box>
