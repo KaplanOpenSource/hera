@@ -63,7 +63,7 @@ export class SplitTree {
           value: 'Notebooks',
           children: notebooks.map(doc => ({ type: SplitTreeNodeType.Leaf, doc })),
         };
-        return [notebookNode, ...this.buildNodesInner(rest, depth)];
+        return [notebookNode, ...this.buildNodesInner(rest, depth, '')];
       }
     }
     return this.buildNodesInner(docs, depth, '');
