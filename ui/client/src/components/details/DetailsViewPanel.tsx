@@ -4,7 +4,7 @@ import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId, idFromToolkitSplitId
 import { DetailsViewDocId } from './DetailsViewDocId';
 import { DetailsViewMergedRepo } from './DetailsViewMergedRepo';
 import { DetailsViewRepo } from './DetailsViewRepo';
-import { DetailsViewToolkit } from './DetailsViewToolkit';
+import { DetailsViewToolkit } from './toolkit/DetailsViewToolkit';
 
 export const detailsTabName = (showItemId: string, project: ProjectObj): string => {
   if (showItemId === CENTRAL_REPO_FOLDER_ID) return 'Repositories';
