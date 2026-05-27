@@ -280,3 +280,10 @@ config = proj.getConfig()
 6. Add expected output files in `hera/tests/expected/`.
 7. Register the toolkit dynamically (or add to `toolkits_registry.json` per roadmap).
 8. Document the toolkit following the existing MkDocs structure under `docs/toolkits/`.
+
+---
+
+## UI Development
+
+- The UI client lives in `ui/client/` (React + TypeScript + Vite).
+- **Before reporting any UI work as done, follow the full validation checklist in `ui/client/TEST_UI.md`.** Do not run tsc, tests, or build as individual ad-hoc commands — always follow the checklist in order.
