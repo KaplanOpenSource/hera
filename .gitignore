@@ -41,3 +41,5 @@ hera_unittest_data/
 # cache/ directory contents are local-only (bootstrap data, test results, etc.)
 cache/*
 !cache/.gitkeep
+
+.claude/settings.json
