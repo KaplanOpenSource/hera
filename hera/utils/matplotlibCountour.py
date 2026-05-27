@@ -89,7 +89,7 @@ def plot_polygons(ax, geom, facecolor="none", edgecolor="black", linewidth=1):
 
     elif isinstance(geom, MultiPolygon):
         for part in geom.geoms:
-            plot_geom(ax, part, facecolor, edgecolor, linewidth)
+            plot_polygons(ax, part, facecolor, edgecolor, linewidth)
 
     elif isinstance(geom, LineString):
         x, y = geom.xy
@@ -97,28 +97,18 @@ def plot_polygons(ax, geom, facecolor="none", edgecolor="black", linewidth=1):
 
     elif isinstance(geom, MultiLineString):
         for part in geom.geoms:
-            plot_geom(ax, part, facecolor, edgecolor, linewidth)
+            plot_polygons(ax, part, facecolor, edgecolor, linewidth)
 
     elif isinstance(geom, Point):
         ax.plot(geom.x, geom.y, "o", color=edgecolor)
 
     elif isinstance(geom, MultiPoint):
         for part in geom.geoms:
-            plot_geom(ax, part, facecolor, edgecolor, linewidth)
+            plot_polygons(ax, part, facecolor, edgecolor, linewidth)
 
     elif isinstance(geom, GeometryCollection):
         for part in geom.geoms:
-            plot_geom(ax, part, facecolor, edgecolor, linewidth)
+            plot_polygons(ax, part, facecolor, edgecolor, linewidth)
 
     else:
         raise TypeError(f"Unsupported geometry type: {geom.geom_type}")
-
-
-# usage
-fig, ax = plt.subplots()
-
-plot_geom(ax, my_geometry, facecolor="lightblue", edgecolor="black")
-
-ax.set_aspect("equal")
-ax.autoscale()
-plt.show()
