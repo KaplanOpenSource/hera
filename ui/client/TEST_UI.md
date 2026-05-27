@@ -22,16 +22,16 @@ cd /home/eran/Code/hera/ui/client && npm run build
 
 ## 4. Clean build artifacts
 
-**CRITICAL: Always run from repo root.** The build creates new hash-named files and modifies commitId.ts. Both must be reverted.
+**CRITICAL: Always run from repo root.** The build creates new hash-named files and modifies buildNumber.ts. Both must be reverted.
 
 ```bash
-cd /home/eran/Code/hera && rm -f ui/client/bundle/assets/index-*.js ui/client/bundle/assets/index-*.css && git checkout -- ui/client/bundle/ ui/client/src/commitId.ts
+cd /home/eran/Code/hera && rm -f ui/client/bundle/assets/index-*.js ui/client/bundle/assets/index-*.css && git checkout -- ui/client/bundle/ ui/client/src/buildNumber.ts
 ```
 
 ## 5. Verify clean state
 
 ```bash
-cd /home/eran/Code/hera && git status ui/client/bundle/ ui/client/src/commitId.ts
+cd /home/eran/Code/hera && git status ui/client/bundle/ ui/client/src/buildNumber.ts
 ```
 
 Must show "nothing to commit, working tree clean" with no untracked files.
