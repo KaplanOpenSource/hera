@@ -36,6 +36,7 @@ export default async function setup() {
 
   const proc = spawn('python', [
     'ui/server/server.py', '--cors', 'all', '-y', '--jupyter-port', '0',
+    '--port', String(SERVER_PORT),
   ], {
     cwd: PROJECT_ROOT,
     env: { ...process.env, HOME: tmpDir },
