@@ -1,11 +1,11 @@
-import { Code, Description, FolderOpen, Science, Settings, Source } from '@mui/icons-material';
+import { Code, Description, FolderOpen, Handyman, Science, Settings, Source } from '@mui/icons-material';
 import { Box, Paper } from '@mui/material';
 import { Action, Actions, DockLocation, ITabRenderValues, Layout, Model, TabNode } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ProjectObj } from '../../objects/ProjectObj';
-import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId } from '../../shared/idDocId';
+import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId, idFromToolkitSplitId } from '../../shared/idDocId';
 import { classifyTab, TabKind, tabKindClassName } from '../../shared/tabKind';
 import { DetailsViewPanel, detailsTabName } from '../details/DetailsViewPanel';
 import { hasPreview, PreviewPanel } from '../details/PreviewPanel';
@@ -89,7 +89,8 @@ export const ProjectLayout = ({
 
     const isSpecific = rawShowItemId === CENTRAL_REPO_FOLDER_ID
       || !!idFromDocId(rawShowItemId)
-      || !!idFromRepoId(rawShowItemId);
+      || !!idFromRepoId(rawShowItemId)
+      || !!idFromToolkitSplitId(rawShowItemId);
     const showItemId = isSpecific ? rawShowItemId : 'config';
 
     const detailsId = `details:${showItemId}`;
@@ -182,6 +183,7 @@ export const ProjectLayout = ({
       [TabKind.ProjectConfig]: { icon: Settings, color: '#555555' },
       [TabKind.Repository]: { icon: Source, color: '#7a5530' },
       [TabKind.CentralRepository]: { icon: FolderOpen, color: '#6e5c30' },
+      [TabKind.Toolkit]: { icon: Handyman, color: '#4a7a6b' },
     };
     if (!kind) return;
     const { icon: Icon, color } = tabStyle[kind];

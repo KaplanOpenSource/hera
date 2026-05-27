@@ -1,6 +1,6 @@
 import { DocumentObj } from '../objects/DocumentObj';
 import { ProjectObj } from '../objects/ProjectObj';
-import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId } from './idDocId';
+import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId, idFromToolkitSplitId } from './idDocId';
 
 export enum TabKind {
   Notebook = 'notebook',
@@ -9,6 +9,7 @@ export enum TabKind {
   ProjectConfig = 'projectConfig',
   Repository = 'repository',
   CentralRepository = 'centralRepository',
+  Toolkit = 'toolkit',
 }
 
 const isAgentDoc = (doc: DocumentObj) => {
@@ -18,6 +19,8 @@ const isAgentDoc = (doc: DocumentObj) => {
 
 export const classifyTab = (showItemId: string, project: ProjectObj): TabKind | undefined => {
   if (showItemId === CENTRAL_REPO_FOLDER_ID) return TabKind.CentralRepository;
+
+  if (idFromToolkitSplitId(showItemId)) return TabKind.Toolkit;
 
   if (idFromRepoId(showItemId)) return TabKind.Repository;
 

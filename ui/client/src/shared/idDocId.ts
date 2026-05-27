@@ -18,3 +18,9 @@ export const idRepoId = (repoName: string) => {
 export const idFromRepoId = (repoid: string) => {
   return repoid && repoid.startsWith(ID_PREFIX_REPO) ? repoid.replace(ID_PREFIX_REPO, "") : undefined;
 };
+
+const ID_PREFIX_TOOLKIT = 'split_/toolkit='
+
+export const idFromToolkitSplitId = (id: string) => {
+  return id && id.startsWith(ID_PREFIX_TOOLKIT) ? id.replace(ID_PREFIX_TOOLKIT, "") : undefined;
+};
