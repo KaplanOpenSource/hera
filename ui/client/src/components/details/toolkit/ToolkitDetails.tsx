@@ -1,13 +1,13 @@
 import { Chip, Stack, Tooltip, Typography } from '@mui/material';
 import { Handyman } from '@mui/icons-material';
-import { Toolkit } from '../../../shared/types';
+import { ToolkitObj } from '../../../objects/ToolkitObj';
 import { ToolkitField } from './ToolkitField';
 
 export const ToolkitDetails = ({
   toolkit,
   documentCount,
 }: {
-  toolkit: Toolkit,
+  toolkit: ToolkitObj,
   documentCount: number,
 }) => {
   return (

@@ -34,10 +34,8 @@ project = {"name": '${projectName}', "documents": docs['documents']}
 const parseToolkits = (toolkitDocs: any[]): Toolkit[] =>
   toolkitDocs.map((d: any) => {
     const desc = d.desc;
-    const className = desc.classpath.split('.').pop() ?? '';
     const t = {
       toolkit: d.toolkit,
-      shortName: className.replace(/Toolkit$/i, '') || d.toolkit,
       cls: desc.classpath,
     } as Toolkit;
     for (const field of [

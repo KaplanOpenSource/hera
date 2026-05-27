@@ -1,6 +1,7 @@
 import { ProjectEntire, ProjectName, Toolkit } from '@shared/types';
 import { create } from 'zustand';
 import { ProjectObj } from '../objects/ProjectObj';
+import { ToolkitObj } from '../objects/ToolkitObj';
 
 export const NO_PROJECT = "* NONE *";
 export const DEFAULT_PROJECT = "defaultProject";
@@ -48,7 +49,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     )];
     return toolkits
       .filter(t => docToolkitNames.some(dt =>
-        dt === t.toolkit || dt === t.shortName
+        new ToolkitObj(t).matches(dt)
       ))
       .map(t => t.toolkit);
   },
