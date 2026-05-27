@@ -4,7 +4,7 @@ import 'flexlayout-react/style/light.css';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ProjectObj } from '../../objects/ProjectObj';
-import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId, idFromToolkitSplitId } from '../../shared/idDocId';
+import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId, idFromToolkitSplitId, isSplitId } from '../../shared/idDocId';
 import { classifyTab, tabKindClassName } from '../../shared/tabKind';
 import { TAB_KIND_STYLES, tabKindCss } from '../../shared/tabKindConfig';
 import { DetailsViewPanel, detailsTabName } from '../details/DetailsViewPanel';
@@ -89,7 +89,7 @@ export const ProjectLayout = ({
     const isSpecific = rawShowItemId === CENTRAL_REPO_FOLDER_ID
       || !!idFromDocId(rawShowItemId)
       || !!idFromRepoId(rawShowItemId)
-      || !!idFromToolkitSplitId(rawShowItemId);
+      || isSplitId(rawShowItemId);
     const showItemId = isSpecific ? rawShowItemId : 'config';
 
     const detailsId = `details:${showItemId}`;

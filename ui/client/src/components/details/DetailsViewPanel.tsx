@@ -1,25 +1,12 @@
 import { Box } from '@mui/material';
 import { ProjectObj } from '../../objects/ProjectObj';
-import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId, idFromToolkitSplitId } from '../../shared/idDocId';
-import { VALUE_GROUP_UNDEFINED } from '../../utils/splitTree';
+import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId, isSplitId, toolkitNameFromSplitId } from '../../shared/idDocId';
 import { DetailsViewDocId } from './DetailsViewDocId';
 import { DetailsViewMergedRepo } from './DetailsViewMergedRepo';
 import { DetailsViewRepo } from './DetailsViewRepo';
 import { DetailsViewToolkit } from './toolkit/DetailsViewToolkit';
 
-export const detailsTabName = (showItemId: string, project: ProjectObj): string => {
-  if (showItemId === CENTRAL_REPO_FOLDER_ID) return 'Repositories';
-  const toolkitName = idFromToolkitSplitId(showItemId);
-  if (toolkitName) return toolkitName === VALUE_GROUP_UNDEFINED ? 'No toolkit' : toolkitName;
-  const docid = idFromDocId(showItemId);
-  if (docid) {
-    const doc = project.allDocuments.find(d => d.docid === docid);
-    if (doc) return doc.isConfig ? project.name + ' config' : doc.name;
-  }
-  const repoPath = idFromRepoId(showItemId);
-  if (repoPath) return repoPath;
-  return project.name + ' config';
-};
+export { detailsTabName } from '../../shared/tabKind';
 
 export const DetailsViewPanel = ({
   project,
@@ -36,13 +23,15 @@ export const DetailsViewPanel = ({
     )
   }
 
-  const toolkitName = idFromToolkitSplitId(showItemId);
-  if (toolkitName) {
-    return (
-      <Box sx={{ height: '100%', overflow: 'auto' }}>
-        <DetailsViewToolkit toolkitName={toolkitName} />
-      </Box>
-    )
+  if (isSplitId(showItemId)) {
+    const toolkitName = toolkitNameFromSplitId(showItemId, project.documents);
+    if (toolkitName) {
+      return (
+        <Box sx={{ height: '100%', overflow: 'auto' }}>
+          <DetailsViewToolkit toolkitName={toolkitName} />
+        </Box>
+      )
+    }
   }
 
   const docid = idFromDocId(showItemId);
@@ -77,4 +66,3 @@ export const DetailsViewPanel = ({
     return null;
   }
 };
-
