@@ -64,6 +64,7 @@ export interface Repository {
 
 export interface Toolkit {
   toolkit: string;
+  shortName: string;
   cls: string;
   description?: string;
   source?: string;

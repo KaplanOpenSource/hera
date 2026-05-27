@@ -47,12 +47,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       documents.map(d => d.toolkit).filter(Boolean) as string[]
     )];
     return toolkits
-      .filter(t => {
-        const className = t.cls.split('.').at(-1) ?? '';
-        return docToolkitNames.some(dt =>
-          dt === t.toolkit || className.toLowerCase().startsWith(dt.toLowerCase())
-        );
-      })
+      .filter(t => docToolkitNames.some(dt =>
+        dt === t.toolkit || dt === t.shortName
+      ))
       .map(t => t.toolkit);
   },
 }));

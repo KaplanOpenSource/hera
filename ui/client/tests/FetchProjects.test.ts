@@ -192,8 +192,8 @@ describe('fetchProjectData', () => {
     await fetchProjectData('TestProject');
 
     expect(useProjectStore.getState().toolkits).toEqual([
-      { toolkit: 'LSM', cls: 'lsm.cls', description: 'Linear' },
-      { toolkit: 'GIS', cls: 'gis.cls' },
+      { toolkit: 'LSM', shortName: 'cls', cls: 'lsm.cls', description: 'Linear' },
+      { toolkit: 'GIS', shortName: 'cls', cls: 'gis.cls' },
     ]);
     expect(useProjectStore.getState().currProject).toEqual(project);
   });
@@ -230,7 +230,7 @@ describe('fetchProjectData', () => {
     await promise;
 
     expect(useProjectStore.getState().toolkits).toEqual([
-      { toolkit: 'T1', cls: 't1.cls' },
+      { toolkit: 'T1', shortName: 'cls', cls: 't1.cls' },
     ]);
     expect(useProjectStore.getState().currProject).toEqual({ name: 'TestProject', documents: [] });
   });

@@ -1,6 +1,7 @@
 import { Box, Stack, Typography } from '@mui/material';
 import { Handyman } from '@mui/icons-material';
 import { useProjectStore } from '../../../stores/useProjectStore';
+import { ProjectObj } from '../../../objects/ProjectObj';
 import { ToolkitDetails } from './ToolkitDetails';
 
 export const DetailsViewToolkit = ({
@@ -8,10 +9,10 @@ export const DetailsViewToolkit = ({
 }: {
   toolkitName: string,
 }) => {
-  const { toolkits } = useProjectStore();
-  const project = useProjectStore.getState().getProject();
+  const { toolkits, currProject } = useProjectStore();
+  const project = currProject ? new ProjectObj(currProject) : null;
 
-  const toolkit = toolkits.find(t => t.toolkit === toolkitName);
+  const toolkit = toolkits.find(t => t.toolkit === toolkitName || t.shortName === toolkitName);
   const documentCount = project?.documents.filter(d => d.toolkit === toolkitName).length ?? 0;
 
   return (
@@ -23,6 +24,9 @@ export const DetailsViewToolkit = ({
             <Handyman color="action" />
             <Typography variant="h6">{toolkitName}</Typography>
             <Typography variant="body2" color="text.secondary">(not registered)</Typography>
+            {documentCount > 0 && (
+              <Typography variant="body2" color="text.secondary">{documentCount} document{documentCount !== 1 && 's'}</Typography>
+            )}
           </Stack>
         )
       }
