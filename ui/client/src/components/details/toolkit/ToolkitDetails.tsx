@@ -15,6 +15,9 @@ export const ToolkitDetails = ({
       <Stack direction="row" spacing={1} alignItems="center">
         <Handyman color="action" />
         <Typography variant="h6">{toolkit.toolkit}</Typography>
+        {!toolkit.registered && (
+          <Typography variant="body2" color="text.secondary">(not registered)</Typography>
+        )}
         {toolkit.source && (
           <Tooltip title="Where this toolkit is registered from (internal or dynamic)">
             <Chip label={toolkit.source} size="small" variant="outlined" />

@@ -1,9 +1,17 @@
 import { Toolkit } from "../shared/types";
 
 export class ToolkitObj {
+  public readonly registered: boolean;
+
   constructor(
     public data: Toolkit,
+    registered = true,
   ) {
+    this.registered = registered;
+  }
+
+  static unregistered(toolkitName: string): ToolkitObj {
+    return new ToolkitObj({ toolkit: toolkitName, cls: '' }, false);
   }
 
   get toolkit(): string {
@@ -42,7 +50,8 @@ export class ToolkitObj {
     return this.data.version;
   }
 
-  matches(name: string): boolean {
+  matches(name: string | undefined): boolean {
+    if (!name) return !this.registered;
     return this.toolkit === name || this.shortName === name || this.className === name;
   }
 }
