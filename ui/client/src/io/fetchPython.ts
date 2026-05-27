@@ -48,15 +48,13 @@ const fetchPythonDirect = async (code: string): Promise<ExecResponse> => {
   }
 };
 
-export const fetchPython = async (...commands: PythonCommand[]): Promise<{ data: any }> => {
+const assembleCode = (commands: PythonCommand[]) => {
   const lines: string[] = [];
   const resultVars: string[] = [];
-  const labels: string[] = [];
 
   for (const cmd of commands) {
     lines.push(cmd.code);
     resultVars.push(...cmd.results);
-    if (cmd.label) labels.push(cmd.label);
   }
 
   lines.push('result = {}');
@@ -64,10 +62,19 @@ export const fetchPython = async (...commands: PythonCommand[]): Promise<{ data:
     lines.push(`result["${name}"] = ${name}`);
   }
 
+  return lines.join('\n');
+};
+
+export const fetchPythonClean = async (...commands: PythonCommand[]): Promise<ExecResponse> => {
+  return fetchPythonDirect(assembleCode(commands));
+};
+
+export const fetchPython = async (...commands: PythonCommand[]): Promise<{ data: any }> => {
+  const labels = commands.map(c => c.label).filter(Boolean);
   const label = labels.length > 0 ? labels.join(', ') : 'Python';
   const key = pushRunning(label);
   try {
-    const response = await fetchPythonDirect(lines.join('\n'));
+    const response = await fetchPythonClean(...commands);
     if (response.problem) {
       pushError(`${label}: ${shortenError(response.problem.error)}`);
       return { data: null };

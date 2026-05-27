@@ -1,6 +1,6 @@
 import { Box, Tooltip, Typography } from '@mui/material';
 import { buildNumber } from '../../buildNumber';
-import { BASEURL } from '../../shared/baseurl';
+import { fetchPythonClean } from '../../io/fetchPython';
 import { useEffect, useState } from 'react';
 
 export const VersionShower = () => {
@@ -8,17 +8,13 @@ export const VersionShower = () => {
   const [heraVersion, setHeraVersion] = useState<string | null>(null);
 
   useEffect(() => {
-    const code = 'import hera\nresult = {}\nresult["version"] = hera.__version__';
-    fetch(`${BASEURL}/exec`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code }),
-    })
-      .then(r => r.json())
-      .then(res => {
-        if (res.data?.version) setHeraVersion(res.data.version);
-      })
-      .catch(() => {});
+    (async () => {
+      const response = await fetchPythonClean({
+        results: ['version'],
+        code: 'import hera; version = hera.__version__',
+      });
+      if (response.data?.version) setHeraVersion(response.data.version);
+    })();
   }, []);
 
   const versionText = heraVersion
