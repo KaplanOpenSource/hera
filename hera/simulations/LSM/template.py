@@ -372,7 +372,7 @@ class LSMTemplate:
 
         for (i, curData) in enumerate(combined):
             logger.info("\t... reading %s" % curData[0])
-            cur = pandas.read_csv(curData[0], sep="\s+",
+            cur = pandas.read_csv(curData[0], sep=r"\s+",
                                   names=["x", "y", "z", "Dosage"])  # ,dtype={'x':int,'y':int,'z':int,'Dosage':float})
 
             cur['time'] = curData[1]
