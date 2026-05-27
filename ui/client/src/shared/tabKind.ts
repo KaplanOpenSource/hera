@@ -33,3 +33,8 @@ export const classifyTab = (showItemId: string, project: ProjectObj): TabKind | 
 
   return TabKind.ProjectConfig;
 };
+
+export const tabKindClassName = (showItemId: string, project: ProjectObj): string | undefined => {
+  const kind = classifyTab(showItemId, project);
+  return kind ? `tab-kind-${kind}` : undefined;
+};

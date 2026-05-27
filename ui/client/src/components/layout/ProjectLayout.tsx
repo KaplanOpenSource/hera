@@ -6,10 +6,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId } from '../../shared/idDocId';
-import { classifyTab, TabKind } from '../../shared/tabKind';
+import { classifyTab, TabKind, tabKindClassName } from '../../shared/tabKind';
 import { DetailsViewPanel, detailsTabName } from '../details/DetailsViewPanel';
 import { hasPreview, PreviewPanel } from '../details/PreviewPanel';
 import { ProjectTreeView } from '../project/ProjectTreeView';
+import './tabKindStyles.css';
 
 export const ProjectLayout = ({
   project,
@@ -101,6 +102,7 @@ export const ProjectLayout = ({
           type: 'tab',
           id: detailsId,
           name: detailsTabName(showItemId, project),
+          className: tabKindClassName(showItemId, project),
           component: 'details',
           config: { showItemId },
         },
@@ -173,16 +175,17 @@ export const ProjectLayout = ({
     const showItemId = node.getConfig()?.showItemId as string | undefined;
     if (!showItemId) return;
     const kind = classifyTab(showItemId, project);
-    const iconSx = { fontSize: 16 };
-    const icon = {
-      [TabKind.Notebook]: <Code sx={iconSx} />,
-      [TabKind.Document]: <Description sx={iconSx} />,
-      [TabKind.Agent]: <Science sx={iconSx} />,
-      [TabKind.ProjectConfig]: <Settings sx={iconSx} />,
-      [TabKind.Repository]: <Source sx={iconSx} />,
-      [TabKind.CentralRepository]: <FolderOpen sx={iconSx} />,
-    }[kind!];
-    if (icon) renderValues.leading = icon;
+    const tabStyle: Record<TabKind, { icon: typeof Code; color: string }> = {
+      [TabKind.Notebook]: { icon: Code, color: '#4a6b3a' },
+      [TabKind.Document]: { icon: Description, color: '#3a5f80' },
+      [TabKind.Agent]: { icon: Science, color: '#7a4a76' },
+      [TabKind.ProjectConfig]: { icon: Settings, color: '#555555' },
+      [TabKind.Repository]: { icon: Source, color: '#7a5530' },
+      [TabKind.CentralRepository]: { icon: FolderOpen, color: '#6e5c30' },
+    };
+    if (!kind) return;
+    const { icon: Icon, color } = tabStyle[kind];
+    renderValues.leading = <Icon sx={{ fontSize: 16, color }} />;
   }, [project.allDocuments]);
 
   const factory = (node: TabNode) => {
