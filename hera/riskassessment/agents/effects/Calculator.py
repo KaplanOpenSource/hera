@@ -2,7 +2,7 @@ import json
 import pandas
 from hera.utils import ureg
 import xarray
-from utils.unitHandler import unumToPint
+from hera.utils.unitHandler import unumToPint
 
 
 class AbstractCalculator(object):
