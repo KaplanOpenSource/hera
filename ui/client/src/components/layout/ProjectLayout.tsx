@@ -4,12 +4,19 @@ import 'flexlayout-react/style/light.css';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ProjectObj } from '../../objects/ProjectObj';
-import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId, isSplitId, normalizeSplitId } from '../../shared/idDocId';
+import { CENTRAL_REPO_FOLDER_ID, idDocId, idFromDocId, idFromRepoId, isSplitId, normalizeSplitId } from '../../shared/idDocId';
 import { classifyTab, tabKindClassName } from '../../shared/tabKind';
 import { TAB_KIND_STYLES } from '../../shared/tabKindConfig';
 import { DetailsViewPanel, detailsTabName } from '../details/DetailsViewPanel';
 import { hasPreview, PreviewPanel } from '../details/PreviewPanel';
 import { ProjectTreeView } from '../project/ProjectTreeView';
+
+// The component identifiers flexlayout stores on each tab and passes to the factory.
+enum LayoutComponent {
+  Tree = 'tree',
+  Details = 'details',
+  Preview = 'preview',
+}
 
 const GLOBAL_LAYOUT_CONFIG = {
   tabEnableClose: true,
@@ -21,7 +28,7 @@ const GLOBAL_LAYOUT_CONFIG = {
   rootOrientationVertical: false,
 };
 
-const TREE_TAB: IJsonTabNode = { type: 'tab', id: 'tree', name: 'Project', component: 'tree' };
+const TREE_TAB: IJsonTabNode = { type: 'tab', id: 'tree', name: 'Project', component: LayoutComponent.Tree };
 
 // Builds a fresh layout model in the original arrangement: tree panel (25%) on the
 // left, details panel (75%) on the right. Any open details tabs are re-placed into
@@ -66,10 +73,10 @@ export const ProjectLayout = ({
   const { docId } = useParams<{ docId: string }>();
   const navigate = useNavigate();
   const [selectedItemsIds, setSelectedItemIds] = useState<string[]>(
-    docId ? [`document_${docId}`] : []
+    docId ? [idDocId(docId)] : []
   );
   const [activeShowItemId, setActiveShowItemId] = useState<string | undefined>(
-    docId ? `document_${docId}` : undefined
+    docId ? idDocId(docId) : undefined
   );
 
   const [model, setModel] = useState(() => createLayoutModel(!treeCollapsed));
@@ -100,7 +107,7 @@ export const ProjectLayout = ({
       model.doAction(Actions.deleteTab('tree'));
     } else if (!treeCollapsed && !treeNode) {
       model.doAction(Actions.addTab(
-        { type: 'tab', id: 'tree', name: 'Project', component: 'tree' },
+        TREE_TAB,
         'details-tabset',
         DockLocation.LEFT,
         -1,
@@ -131,7 +138,7 @@ export const ProjectLayout = ({
           id: detailsId,
           name: detailsTabName(showItemId, project),
           className: tabKindClassName(showItemId, project),
-          component: 'details',
+          component: LayoutComponent.Details,
           config: { showItemId },
         },
         'details-tabset',
@@ -157,7 +164,7 @@ export const ProjectLayout = ({
           type: 'tab',
           id: `preview:${activeDocId}`,
           name: `Preview: ${activeDoc!.name}`,
-          component: 'preview',
+          component: LayoutComponent.Preview,
           config: { docid: activeDocId },
         },
         'details-tabset',
@@ -169,7 +176,7 @@ export const ProjectLayout = ({
 
   useEffect(() => {
     if (docId && project?.documentIds.has(docId)) {
-      setSelectedItemIds([`document_${docId}`]);
+      setSelectedItemIds([idDocId(docId)]);
     } else {
       setSelectedItemIds([]);
     }
@@ -178,7 +185,7 @@ export const ProjectLayout = ({
   const handleSetSelectedItemIds = useCallback((ids: string[]) => {
     setSelectedItemIds(ids);
     const selectedId = ids[0];
-    const oid = selectedId?.startsWith('document_') ? selectedId.slice('document_'.length) : undefined;
+    const oid = selectedId ? idFromDocId(selectedId) : undefined;
     const basePath = '/' + encodeURIComponent(project?.name ?? '');
     const newPath = oid ? `${basePath}/${oid}` : basePath;
     if (location.pathname !== newPath) {
@@ -212,7 +219,7 @@ export const ProjectLayout = ({
     const component = node.getComponent();
     const config = node.getConfig();
     switch (component) {
-      case 'tree':
+      case LayoutComponent.Tree:
         return (
           <Paper sx={{ p: 2, height: '100%', overflow: 'auto' }}>
             <ProjectTreeView
@@ -222,7 +229,7 @@ export const ProjectLayout = ({
             />
           </Paper>
         );
-      case 'details':
+      case LayoutComponent.Details:
         return (
           <Paper sx={{ height: '100%', overflow: 'hidden' }}>
             <DetailsViewPanel
@@ -231,7 +238,7 @@ export const ProjectLayout = ({
             />
           </Paper>
         );
-      case 'preview':
+      case LayoutComponent.Preview:
         return <PreviewPanel docid={config?.docid} />;
       default:
         return null;
