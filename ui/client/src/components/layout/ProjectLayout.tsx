@@ -2,7 +2,7 @@ import { Action, Actions, DockLocation, IJsonModel, IJsonTabNode, ITabRenderValu
 import 'flexlayout-react/style/light.css';
 import { useCallback, useEffect, useState } from 'react';
 import { ProjectObj } from '../../objects/ProjectObj';
-import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId, isSplitId, normalizeSplitId } from '../../shared/idDocId';
+import { classifyItemId, idFromDocId, ItemKind, normalizeSplitId } from '../../shared/idDocId';
 import { classifyTab, tabKindClassName } from '../../shared/tabKind';
 import { TAB_KIND_STYLES } from '../../shared/tabKindConfig';
 import { detailsTabName } from '../details/DetailsViewPanel';
@@ -137,13 +137,10 @@ export const ProjectLayout = ({
   const handleSelectItem = useCallback((rawShowItemId: string | undefined) => {
     if (!rawShowItemId) return;
 
-    const isSpecific = rawShowItemId === CENTRAL_REPO_FOLDER_ID
-      || !!idFromDocId(rawShowItemId)
-      || !!idFromRepoId(rawShowItemId)
-      || isSplitId(rawShowItemId);
-    const showItemId = isSpecific
-      ? (isSplitId(rawShowItemId) ? normalizeSplitId(rawShowItemId, project.documents) : rawShowItemId)
-      : CONFIG_ITEM_ID;
+    const kind = classifyItemId(rawShowItemId);
+    let showItemId = rawShowItemId;
+    if (kind === ItemKind.Config) showItemId = CONFIG_ITEM_ID;
+    else if (kind === ItemKind.Split) showItemId = normalizeSplitId(rawShowItemId, project.documents);
 
     const detailsId = `${DETAILS_TAB_PREFIX}${showItemId}`;
     if (model.getNodeById(detailsId)) {
