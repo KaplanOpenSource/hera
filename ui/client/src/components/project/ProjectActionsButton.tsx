@@ -1,5 +1,5 @@
 import { MoreVert } from '@mui/icons-material';
-import { Popover, Stack } from '@mui/material';
+import { Divider, Popover, Stack, Typography } from '@mui/material';
 import { useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { AddDocumentButton } from './AddDocumentButton';
@@ -28,6 +28,10 @@ export const ProjectActionsButton = ({
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         onClick={(e) => e.stopPropagation()}
       >
+        <Typography variant="h6" sx={{ px: 1.5, pt: 1, pb: 0.5, color: 'text.secondary' }}>
+          Actions
+        </Typography>
+        <Divider />
         <Stack direction="row" alignItems="center" sx={{ px: 0.5, py: 0.25 }}>
           <AddDocumentButton
             onDocumentCreated={(oid) => {

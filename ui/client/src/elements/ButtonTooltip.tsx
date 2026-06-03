@@ -27,9 +27,14 @@ export const ButtonTooltip = ({
             <Button
               onClick={handleClick}
               size="small"
+              startIcon={children}
+              variant="contained"
+              sx={{ borderRadius: 10, margin: '5px', alignItems: 'center' }}
               {...(restProps as ButtonProps)}
             >
-              {children}
+              <span style={{marginBottom:'-5px'}}>
+                {title}
+              </span>
             </Button>
           )
           : (
