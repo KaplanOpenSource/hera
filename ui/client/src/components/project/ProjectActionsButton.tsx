@@ -3,13 +3,17 @@ import { Divider, Popover, Stack, Typography } from '@mui/material';
 import { useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { AddDocumentButton } from './AddDocumentButton';
+import { DeleteSelectedButton } from './DeleteSelectedButton';
 
-// "Actions" button on the project node: opens a popover holding the project-level
-// actions (currently just Add Document).
+// "Actions" button on the project node: opens a popover holding the project-level actions.
 export const ProjectActionsButton = ({
+  selectedIds = [],
   onDocumentCreated,
+  onDocumentsDeleted,
 }: {
+  selectedIds?: string[],
   onDocumentCreated?: (docOid: string) => void,
+  onDocumentsDeleted?: () => void,
 }) => {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
@@ -32,10 +36,17 @@ export const ProjectActionsButton = ({
           Actions
         </Typography>
         <Divider />
-        <Stack direction="row" alignItems="center" sx={{ px: 0.5, py: 0.25 }}>
+        <Stack alignItems="flex-start" sx={{ px: 0.5, py: 0.5 }}>
           <AddDocumentButton
             onDocumentCreated={(oid) => {
               onDocumentCreated?.(oid);
+              setAnchorEl(null);
+            }}
+          />
+          <DeleteSelectedButton
+            selectedIds={selectedIds}
+            onDeleted={() => {
+              onDocumentsDeleted?.();
               setAnchorEl(null);
             }}
           />

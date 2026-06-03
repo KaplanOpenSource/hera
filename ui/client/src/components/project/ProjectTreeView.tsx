@@ -168,7 +168,12 @@ export const ProjectTreeView = ({
             <ProjectViewSettingsButton
             />
             <ProjectActionsButton
+              selectedIds={selectedIds}
               onDocumentCreated={handleDocumentCreated}
+              onDocumentsDeleted={() => {
+                setSelectedIds([]);
+                navigateToItem(undefined);
+              }}
             />
           </Stack>
         )}
