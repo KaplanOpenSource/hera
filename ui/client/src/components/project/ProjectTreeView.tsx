@@ -84,7 +84,13 @@ export const ProjectTreeView = ({
     }
   }, [selectedIds, navigateToItem, onSelectItem]);
 
-  const handleDocumentCreated = useCallback((docOid: string) => {
+  // Make the given document the selection (highlight, URL, open tab), or clear it when none.
+  const selectDocument = useCallback((docOid?: string) => {
+    if (!docOid) {
+      setSelectedIds([]);
+      navigateToItem(undefined);
+      return;
+    }
     expandToDocument(docOid);
     const id = idDocId(docOid);
     setSelectedIds([id]);
@@ -169,11 +175,7 @@ export const ProjectTreeView = ({
             />
             <ProjectActionsButton
               selectedIds={selectedIds}
-              onDocumentCreated={handleDocumentCreated}
-              onDocumentsDeleted={() => {
-                setSelectedIds([]);
-                navigateToItem(undefined);
-              }}
+              onSelectDocument={selectDocument}
             />
           </Stack>
         )}

@@ -8,12 +8,11 @@ import { DeleteSelectedButton } from './DeleteSelectedButton';
 // "Actions" button on the project node: opens a popover holding the project-level actions.
 export const ProjectActionsButton = ({
   selectedIds = [],
-  onDocumentCreated,
-  onDocumentsDeleted,
+  onSelectDocument,
 }: {
   selectedIds?: string[],
-  onDocumentCreated?: (docOid: string) => void,
-  onDocumentsDeleted?: () => void,
+  // Sets the tree selection to a document (after creating one) or clears it (after deleting).
+  onSelectDocument?: (docOid?: string) => void,
 }) => {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
@@ -39,14 +38,14 @@ export const ProjectActionsButton = ({
         <Stack alignItems="flex-start" sx={{ px: 0.5, py: 0.5 }}>
           <AddDocumentButton
             onDocumentCreated={(oid) => {
-              onDocumentCreated?.(oid);
+              onSelectDocument?.(oid);
               setAnchorEl(null);
             }}
           />
           <DeleteSelectedButton
             selectedIds={selectedIds}
             onDeleted={() => {
-              onDocumentsDeleted?.();
+              onSelectDocument?.(undefined);
               setAnchorEl(null);
             }}
           />
