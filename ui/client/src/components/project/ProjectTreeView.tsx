@@ -70,7 +70,11 @@ export const ProjectTreeView = ({
   }, [project?.name, navigate]);
 
   // Multi-select highlights rows, but only the most recently added item opens/focuses a tab.
-  const handleSelectionChange = useCallback((ids: string[]) => {
+  const handleSelectionChange = useCallback((event: React.SyntheticEvent | null, ids: string[]) => {
+    // Clicking the expand/collapse chevron shouldn't change the selection.
+    const target = (event?.target as HTMLElement | null);
+    if (target?.closest('[class*="iconContainer"]')) return;
+
     const added = ids.filter(id => !selectedIds.includes(id));
     setSelectedIds(ids);
     const clicked = added[added.length - 1];
@@ -129,9 +133,25 @@ export const ProjectTreeView = ({
         setExpandedItems(itemIds);
       }}
       selectedItems={selectedIds}
-      onSelectedItemsChange={(_e, itemIds) => handleSelectionChange(itemIds)}
+      onSelectedItemsChange={(e, itemIds) => handleSelectionChange(e, itemIds)}
       expansionTrigger={'content'}
       multiSelect
+      sx={{
+        // Highlighted (selected) rows: soft blue.
+        '& .MuiTreeItem-content.Mui-selected': {
+          backgroundColor: 'rgba(25, 118, 210, 0.24)',
+        },
+        '& .MuiTreeItem-content.Mui-selected:hover': {
+          backgroundColor: 'rgba(25, 118, 210, 0.34)',
+        },
+        // Active (focused) row stands out with a stronger blue.
+        '& .MuiTreeItem-content.Mui-selected.Mui-focused': {
+          backgroundColor: 'rgba(25, 118, 210, 0.44)',
+        },
+        '& .MuiTreeItem-content.Mui-selected.Mui-focused:hover': {
+          backgroundColor: 'rgba(25, 118, 210, 0.54)',
+        },
+      }}
     >
       <TreeItem key={`project-documents`} itemId={`project-documents`}
         label={(
