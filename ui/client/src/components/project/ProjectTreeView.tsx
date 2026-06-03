@@ -10,8 +10,8 @@ import { ProjectObj } from '../../objects/ProjectObj';
 import { CENTRAL_REPO_FOLDER_ID, idDocId, idFromDocId } from '../../shared/idDocId';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { SplitTree } from '../../utils/splitTree';
-import { AddDocumentButton } from './AddDocumentButton';
 import { DocumentSplitGroup } from './DocumentSplitGroup';
+import { ProjectActionsButton } from './ProjectActionsButton';
 import { ProjectViewSettingsButton } from './ProjectViewSettingsButton';
 import { RepoTreeWhole } from './RepoTreeWhole';
 import { useViewSettingsStore } from '../../stores/useViewSettingsStore';
@@ -167,8 +167,7 @@ export const ProjectTreeView = ({
             </ButtonTooltip>
             <ProjectViewSettingsButton
             />
-            <AddDocumentButton
-              toolkit={undefined}
+            <ProjectActionsButton
               onDocumentCreated={handleDocumentCreated}
             />
           </Stack>
