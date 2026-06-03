@@ -41,8 +41,7 @@ beforeEach(() => {
 describe('AddDocumentButton', () => {
   it('opens dialog when clicked', async () => {
     render(<AddDocumentButton />);
-    const wrapper = screen.getByLabelText('Add Document');
-    const btn = within(wrapper).getByRole('button');
+    const btn = screen.getByRole('button', { name: /add document/i });
     await act(async () => { fireEvent.click(btn); });
     expect(await screen.findByRole('dialog')).toBeTruthy();
   });
@@ -56,8 +55,7 @@ describe('AddDocumentButton', () => {
 
     render(<AddDocumentButton />);
     await act(async () => {
-      const w = screen.getByLabelText('Add Document');
-      fireEvent.click(within(w).getByRole('button'));
+      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
     });
 
     const dialog = await screen.findByRole('dialog');
@@ -90,8 +88,7 @@ describe('AddDocumentButton', () => {
 
     render(<AddDocumentButton />);
     await act(async () => {
-      const w = screen.getByLabelText('Add Document');
-      fireEvent.click(within(w).getByRole('button'));
+      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
     });
 
     const dialog = await screen.findByRole('dialog');
@@ -123,8 +120,7 @@ describe('AddDocumentButton', () => {
 
     render(<AddDocumentButton />);
     await act(async () => {
-      const w = screen.getByLabelText('Add Document');
-      fireEvent.click(within(w).getByRole('button'));
+      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
     });
 
     const dialog = await screen.findByRole('dialog');
@@ -146,8 +142,7 @@ describe('AddDocumentButton', () => {
 
     render(<AddDocumentButton />);
     await act(async () => {
-      const w = screen.getByLabelText('Add Document');
-      fireEvent.click(within(w).getByRole('button'));
+      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
     });
 
     const dialog = await screen.findByRole('dialog');
@@ -173,8 +168,7 @@ describe('AddDocumentButton', () => {
 
     render(<AddDocumentButton />);
     await act(async () => {
-      const w = screen.getByLabelText('Add Document');
-      fireEvent.click(within(w).getByRole('button'));
+      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
     });
 
     const dialog = await screen.findByRole('dialog');
@@ -212,8 +206,7 @@ describe('AddDocumentButton', () => {
 
     render(<AddDocumentButton />);
     await act(async () => {
-      const w = screen.getByLabelText('Add Document');
-      fireEvent.click(within(w).getByRole('button'));
+      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
     });
 
     const dialog = await screen.findByRole('dialog');
@@ -238,8 +231,7 @@ describe('AddDocumentButton', () => {
   it('shows resource field with auto-generated path when notebook is selected', async () => {
     render(<AddDocumentButton />);
     await act(async () => {
-      const w = screen.getByLabelText('Add Document');
-      fireEvent.click(within(w).getByRole('button'));
+      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
     });
 
     const dialog = await screen.findByRole('dialog');
@@ -256,8 +248,7 @@ describe('AddDocumentButton', () => {
   it('shows helper text when notebook is selected', async () => {
     render(<AddDocumentButton />);
     await act(async () => {
-      const w = screen.getByLabelText('Add Document');
-      fireEvent.click(within(w).getByRole('button'));
+      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
     });
 
     const dialog = await screen.findByRole('dialog');
@@ -269,8 +260,7 @@ describe('AddDocumentButton', () => {
   it('hides class/toolkit when notebook kind is selected', async () => {
     render(<AddDocumentButton />);
     await act(async () => {
-      const w = screen.getByLabelText('Add Document');
-      fireEvent.click(within(w).getByRole('button'));
+      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
     });
 
     const dialog = await screen.findByRole('dialog');
@@ -291,8 +281,7 @@ describe('AddDocumentButton', () => {
 
     render(<AddDocumentButton toolkit={{ toolkit: 'LSM', cls: 'lsm.cls' }} />);
     await act(async () => {
-      const w = screen.getByLabelText('Add Document');
-      fireEvent.click(within(w).getByRole('button'));
+      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
     });
 
     const dialog = await screen.findByRole('dialog');

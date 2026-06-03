@@ -104,8 +104,14 @@ export const AddDocumentButton = ({
 
   return (
     <ButtonDialog
-      icon={<Add />}
-      title="Add Document"
+      icon={
+        <Stack direction={'row'}>
+          <Add />
+          Add Document
+        </Stack>
+      }
+      button
+      title="Add document to project"
       onOpen={() => {
         setName(getNextDefaultName(DocKind.Document));
         setResource('');

@@ -16,6 +16,8 @@ export const ButtonDialog = ({
   dialogProps?: Omit<DialogProps, 'open' | 'onClose' | 'children'>;
   onOpen?: () => void;
   closeRef?: React.MutableRefObject<(() => void) | undefined>;
+  // Render the trigger as a Button (icon + `title` label) instead of an IconButton.
+  button?: boolean;
 }) => {
   const [open, setOpen] = useState(false);
 
