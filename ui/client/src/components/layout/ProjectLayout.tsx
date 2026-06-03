@@ -18,6 +18,15 @@ enum LayoutComponent {
   Preview = 'preview',
 }
 
+// Tabset ids, the single tree tab id, and the id prefixes for the per-item tabs.
+const TREE_TAB_ID = 'tree';
+const TREE_TABSET_ID = 'tree-tabset';
+const DETAILS_TABSET_ID = 'details-tabset';
+const DETAILS_TAB_PREFIX = 'details:';
+const PREVIEW_TAB_PREFIX = 'preview:';
+// Fallback "item" shown when the tree selection isn't a document/repo/split.
+const CONFIG_ITEM_ID = 'config';
+
 const GLOBAL_LAYOUT_CONFIG = {
   tabEnableClose: true,
   tabEnableRename: true,
@@ -28,7 +37,7 @@ const GLOBAL_LAYOUT_CONFIG = {
   rootOrientationVertical: false,
 };
 
-const TREE_TAB: IJsonTabNode = { type: 'tab', id: 'tree', name: 'Project', component: LayoutComponent.Tree };
+const TREE_TAB: IJsonTabNode = { type: 'tab', id: TREE_TAB_ID, name: 'Project', component: LayoutComponent.Tree };
 
 // Builds a fresh layout model in the original arrangement: tree panel (25%) on the
 // left, details panel (75%) on the right. Any open details tabs are re-placed into
@@ -40,7 +49,7 @@ export const createLayoutModel = (
 ): Model => {
   const detailsTabset = {
     type: 'tabset',
-    id: 'details-tabset',
+    id: DETAILS_TABSET_ID,
     weight: 75,
     enableDeleteWhenEmpty: false,
     children: detailsTabs,
@@ -52,7 +61,7 @@ export const createLayoutModel = (
       type: 'row',
       children: [
         ...(treeVisible
-          ? [{ type: 'tabset', id: 'tree-tabset', weight: 25, children: [TREE_TAB] }]
+          ? [{ type: 'tabset', id: TREE_TABSET_ID, weight: 25, children: [TREE_TAB] }]
           : []),
         detailsTabset,
       ],
@@ -93,22 +102,22 @@ export const ProjectLayout = ({
     if (resetSignal === 0) return;
     const detailsTabs: IJsonTabNode[] = [];
     model.visitNodes((node) => {
-      if (node.getType() === 'tab' && node.getId().startsWith('details:')) {
+      if (node.getType() === 'tab' && node.getId().startsWith(DETAILS_TAB_PREFIX)) {
         detailsTabs.push((node as TabNode).toJson());
       }
     });
-    const selectedIndex = detailsTabs.findIndex(t => t.id === `details:${activeShowItemId}`);
+    const selectedIndex = detailsTabs.findIndex(t => t.id === `${DETAILS_TAB_PREFIX}${activeShowItemId}`);
     setModel(createLayoutModel(!treeCollapsed, detailsTabs, selectedIndex));
   }, [resetSignal]);
 
   useEffect(() => {
-    const treeNode = model.getNodeById('tree');
+    const treeNode = model.getNodeById(TREE_TAB_ID);
     if (treeCollapsed && treeNode) {
-      model.doAction(Actions.deleteTab('tree'));
+      model.doAction(Actions.deleteTab(TREE_TAB_ID));
     } else if (!treeCollapsed && !treeNode) {
       model.doAction(Actions.addTab(
         TREE_TAB,
-        'details-tabset',
+        DETAILS_TABSET_ID,
         DockLocation.LEFT,
         -1,
       ));
@@ -125,9 +134,9 @@ export const ProjectLayout = ({
       || isSplitId(rawShowItemId);
     const showItemId = isSpecific
       ? (isSplitId(rawShowItemId) ? normalizeSplitId(rawShowItemId, project.documents) : rawShowItemId)
-      : 'config';
+      : CONFIG_ITEM_ID;
 
-    const detailsId = `details:${showItemId}`;
+    const detailsId = `${DETAILS_TAB_PREFIX}${showItemId}`;
     const existing = model.getNodeById(detailsId);
     if (existing) {
       model.doAction(Actions.selectTab(detailsId));
@@ -141,7 +150,7 @@ export const ProjectLayout = ({
           component: LayoutComponent.Details,
           config: { showItemId },
         },
-        'details-tabset',
+        DETAILS_TABSET_ID,
         DockLocation.CENTER,
         -1,
       ));
@@ -152,7 +161,7 @@ export const ProjectLayout = ({
   useEffect(() => {
     const existingPreview: string[] = [];
     model.visitNodes((node) => {
-      if (node.getType() === 'tab' && node.getId().startsWith('preview:')) {
+      if (node.getType() === 'tab' && node.getId().startsWith(PREVIEW_TAB_PREFIX)) {
         existingPreview.push(node.getId());
       }
     });
@@ -162,12 +171,12 @@ export const ProjectLayout = ({
       model.doAction(Actions.addTab(
         {
           type: 'tab',
-          id: `preview:${activeDocId}`,
+          id: `${PREVIEW_TAB_PREFIX}${activeDocId}`,
           name: `Preview: ${activeDoc!.name}`,
           component: LayoutComponent.Preview,
           config: { docid: activeDocId },
         },
-        'details-tabset',
+        DETAILS_TABSET_ID,
         DockLocation.BOTTOM,
         -1,
       ));
@@ -196,7 +205,7 @@ export const ProjectLayout = ({
   const handleAction = useCallback((action: Action) => {
     if (action.type === Actions.SELECT_TAB) {
       const tabId = action.data.tabNode as string;
-      if (tabId?.startsWith('details:')) {
+      if (tabId?.startsWith(DETAILS_TAB_PREFIX)) {
         const node = model.getNodeById(tabId) as TabNode | undefined;
         if (node) {
           setActiveShowItemId(node.getConfig()?.showItemId);
