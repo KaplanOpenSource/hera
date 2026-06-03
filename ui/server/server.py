@@ -23,6 +23,7 @@ parser = argparse.ArgumentParser(description="Hera UI API server")
 cors_handler.add_argument(parser)
 parser.add_argument('--debug', action='store_true', help='Enable debugpy remote debugging on port 5678')
 parser.add_argument('-y', '--yes', action='store_true', help='Skip confirmation prompts')
+parser.add_argument('--host', default='0.0.0.0', help='Address to bind to (default: 0.0.0.0, all interfaces; use 127.0.0.1 for local-only, e.g. behind a reverse proxy).')
 parser.add_argument('--port', type=int, default=8000, help='Port for the API server')
 parser.add_argument('--jupyter-port', type=int, default=8888, help='Port for Jupyter server (0 to disable)')
 argcomplete.autocomplete(parser)
@@ -168,7 +169,7 @@ if __name__ == "__main__":
 
     uvicorn.run(
         app,
-        host="0.0.0.0",
+        host=args.host,
         port=args.port,
         reload=False,
         workers=1,
