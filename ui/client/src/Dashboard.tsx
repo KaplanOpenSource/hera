@@ -11,6 +11,7 @@ export const Dashboard = () => {
   const { projectName } = useParams<{ projectName: string }>();
   const { getProject } = useProjectStore();
   const [treeCollapsed, setTreeCollapsed] = useState(false);
+  const [layoutResetSignal, setLayoutResetSignal] = useState(0);
 
   const project = getProject();
 
@@ -27,6 +28,7 @@ export const Dashboard = () => {
       <DashboardHeader
         treeCollapsed={treeCollapsed}
         setTreeCollapsed={setTreeCollapsed}
+        onResetLayout={() => setLayoutResetSignal(s => s + 1)}
       />
 
       <Box
@@ -38,7 +40,7 @@ export const Dashboard = () => {
         }}
       >
         {project
-          ? <ProjectLayout project={project} treeCollapsed={treeCollapsed} />
+          ? <ProjectLayout project={project} treeCollapsed={treeCollapsed} resetSignal={layoutResetSignal} />
           : (
             <Paper sx={{ p: 2, height: '100%', overflow: 'auto', flex: 1, minWidth: 0 }}>
               <Typography>

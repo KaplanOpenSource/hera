@@ -1,5 +1,5 @@
 import { Box, Paper } from '@mui/material';
-import { Action, Actions, DockLocation, ITabRenderValues, Layout, Model, TabNode } from 'flexlayout-react';
+import { Action, Actions, DockLocation, IJsonModel, IJsonTabNode, ITabRenderValues, Layout, Model, TabNode } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -11,12 +11,57 @@ import { DetailsViewPanel, detailsTabName } from '../details/DetailsViewPanel';
 import { hasPreview, PreviewPanel } from '../details/PreviewPanel';
 import { ProjectTreeView } from '../project/ProjectTreeView';
 
+const GLOBAL_LAYOUT_CONFIG = {
+  tabEnableClose: true,
+  tabEnableRename: true,
+  tabEnableDrag: true,
+  tabSetEnableMaximize: true,
+  tabSetEnableClose: true,
+  tabSetEnableDeleteWhenEmpty: true,
+  rootOrientationVertical: false,
+};
+
+const TREE_TAB: IJsonTabNode = { type: 'tab', id: 'tree', name: 'Project', component: 'tree' };
+
+// Builds a fresh layout model in the original arrangement: tree panel (25%) on the
+// left, details panel (75%) on the right. Any open details tabs are re-placed into
+// the details panel so a layout reset doesn't lose the user's open documents.
+export const createLayoutModel = (
+  treeVisible: boolean,
+  detailsTabs: IJsonTabNode[] = [],
+  selectedIndex = -1,
+): Model => {
+  const detailsTabset = {
+    type: 'tabset',
+    id: 'details-tabset',
+    weight: 75,
+    enableDeleteWhenEmpty: false,
+    children: detailsTabs,
+    ...(selectedIndex >= 0 ? { selected: selectedIndex } : {}),
+  };
+  const layout: IJsonModel = {
+    global: GLOBAL_LAYOUT_CONFIG,
+    layout: {
+      type: 'row',
+      children: [
+        ...(treeVisible
+          ? [{ type: 'tabset', id: 'tree-tabset', weight: 25, children: [TREE_TAB] }]
+          : []),
+        detailsTabset,
+      ],
+    },
+  };
+  return Model.fromJson(layout);
+};
+
 export const ProjectLayout = ({
   project,
   treeCollapsed,
+  resetSignal,
 }: {
   project: ProjectObj,
   treeCollapsed: boolean,
+  resetSignal: number,
 }) => {
   const { docId } = useParams<{ docId: string }>();
   const navigate = useNavigate();
@@ -27,46 +72,27 @@ export const ProjectLayout = ({
     docId ? `document_${docId}` : undefined
   );
 
-  const [model] = useState(() => Model.fromJson({
-    global: {
-      tabEnableClose: true,
-      tabEnableRename: true,
-      tabEnableDrag: true,
-      tabSetEnableMaximize: true,
-      tabSetEnableClose: true,
-      tabSetEnableDeleteWhenEmpty: true,
-      rootOrientationVertical: false,
-    },
-    layout: {
-      type: 'row',
-      children: [
-        {
-          type: 'tabset',
-          id: 'tree-tabset',
-          weight: 25,
-          children: [{
-            type: 'tab',
-            id: 'tree',
-            name: 'Project',
-            component: 'tree',
-          }],
-        },
-        {
-          type: 'tabset',
-          id: 'details-tabset',
-          weight: 75,
-          enableDeleteWhenEmpty: false,
-          children: [],
-        },
-      ],
-    },
-  }));
+  const [model, setModel] = useState(() => createLayoutModel(!treeCollapsed));
 
   const activeDocId = activeShowItemId ? idFromDocId(activeShowItemId) : undefined;
   const activeDoc = activeDocId
     ? project.allDocuments.find(d => d.docid === activeDocId)
     : undefined;
   const previewAvailable = activeDoc ? hasPreview(activeDoc.data) : false;
+
+  // When the reset button in the header is pressed, rebuild the layout in its
+  // original left/right arrangement while keeping the currently open details tabs.
+  useEffect(() => {
+    if (resetSignal === 0) return;
+    const detailsTabs: IJsonTabNode[] = [];
+    model.visitNodes((node) => {
+      if (node.getType() === 'tab' && node.getId().startsWith('details:')) {
+        detailsTabs.push((node as TabNode).toJson());
+      }
+    });
+    const selectedIndex = detailsTabs.findIndex(t => t.id === `details:${activeShowItemId}`);
+    setModel(createLayoutModel(!treeCollapsed, detailsTabs, selectedIndex));
+  }, [resetSignal]);
 
   useEffect(() => {
     const treeNode = model.getNodeById('tree');
