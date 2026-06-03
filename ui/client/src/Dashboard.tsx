@@ -6,6 +6,7 @@ import { ProjectLayout } from './components/layout/ProjectLayout';
 import { FetchProjects } from './io/FetchProjects';
 import { useProjectStore } from './stores/useProjectStore';
 import { ServerConstantReader } from './stores/useServerConstants';
+import { tabKindCss } from './shared/tabKindConfig';
 
 export const Dashboard = () => {
   const { projectName } = useParams<{ projectName: string }>();
@@ -40,7 +41,16 @@ export const Dashboard = () => {
         }}
       >
         {project
-          ? <ProjectLayout project={project} treeCollapsed={treeCollapsed} resetSignal={layoutResetSignal} />
+          ? (
+            <Box sx={{ position: 'relative', flex: 1, height: '100%' }}>
+              <style>{tabKindCss}</style>
+              <ProjectLayout
+                project={project}
+                treeCollapsed={treeCollapsed}
+                resetSignal={layoutResetSignal}
+              />
+            </Box>
+          )
           : (
             <Paper sx={{ p: 2, height: '100%', overflow: 'auto', flex: 1, minWidth: 0 }}>
               <Typography>

@@ -1,4 +1,4 @@
-import { Box, Paper } from '@mui/material';
+import { Paper } from '@mui/material';
 import { Action, Actions, DockLocation, IJsonModel, IJsonTabNode, ITabRenderValues, Layout, Model, TabNode } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
 import { useCallback, useEffect, useState } from 'react';
@@ -6,7 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId, isSplitId, normalizeSplitId } from '../../shared/idDocId';
 import { classifyTab, tabKindClassName } from '../../shared/tabKind';
-import { TAB_KIND_STYLES, tabKindCss } from '../../shared/tabKindConfig';
+import { TAB_KIND_STYLES } from '../../shared/tabKindConfig';
 import { DetailsViewPanel, detailsTabName } from '../details/DetailsViewPanel';
 import { hasPreview, PreviewPanel } from '../details/PreviewPanel';
 import { ProjectTreeView } from '../project/ProjectTreeView';
@@ -239,14 +239,11 @@ export const ProjectLayout = ({
   };
 
   return (
-    <Box sx={{ position: 'relative', flex: 1, height: '100%' }}>
-      <style>{tabKindCss}</style>
-      <Layout
-        model={model}
-        factory={factory}
-        onRenderTab={onRenderTab}
-        onAction={handleAction}
-      />
-    </Box>
+    <Layout
+      model={model}
+      factory={factory}
+      onRenderTab={onRenderTab}
+      onAction={handleAction}
+    />
   );
 };
