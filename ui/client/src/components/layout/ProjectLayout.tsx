@@ -1,4 +1,3 @@
-import { Paper } from '@mui/material';
 import { Action, Actions, DockLocation, IJsonModel, IJsonTabNode, ITabRenderValues, Layout, Model, TabNode } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
 import { useCallback, useEffect, useState } from 'react';
@@ -6,16 +5,9 @@ import { ProjectObj } from '../../objects/ProjectObj';
 import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId, isSplitId, normalizeSplitId } from '../../shared/idDocId';
 import { classifyTab, tabKindClassName } from '../../shared/tabKind';
 import { TAB_KIND_STYLES } from '../../shared/tabKindConfig';
-import { DetailsViewPanel, detailsTabName } from '../details/DetailsViewPanel';
-import { hasPreview, PreviewPanel } from '../details/PreviewPanel';
-import { ProjectTreeView } from '../project/ProjectTreeView';
-
-// The component identifiers flexlayout stores on each tab and passes to the factory.
-enum LayoutComponent {
-  Tree = 'tree',
-  Details = 'details',
-  Preview = 'preview',
-}
+import { detailsTabName } from '../details/DetailsViewPanel';
+import { hasPreview } from '../details/PreviewPanel';
+import { LayoutComponent, LayoutPanel } from './LayoutPanel';
 
 // Tabset ids, the single tree tab id, and the id prefixes for the per-item tabs.
 const TREE_TAB_ID = 'tree';
@@ -203,34 +195,14 @@ export const ProjectLayout = ({
     renderValues.leading = <Icon sx={{ fontSize: 16, color }} />;
   }, [project.allDocuments]);
 
-  const factory = (node: TabNode) => {
-    const component = node.getComponent();
-    const config = node.getConfig();
-    switch (component) {
-      case LayoutComponent.Tree:
-        return (
-          <Paper sx={{ p: 2, height: '100%', overflow: 'auto' }}>
-            <ProjectTreeView
-              project={project}
-              onSelectItem={handleSelectItem}
-            />
-          </Paper>
-        );
-      case LayoutComponent.Details:
-        return (
-          <Paper sx={{ height: '100%', overflow: 'hidden' }}>
-            <DetailsViewPanel
-              project={project}
-              showItemId={config?.showItemId}
-            />
-          </Paper>
-        );
-      case LayoutComponent.Preview:
-        return <PreviewPanel docid={config?.docid} />;
-      default:
-        return null;
-    }
-  };
+  const factory = (node: TabNode) => (
+    <LayoutPanel
+      component={node.getComponent()}
+      config={node.getConfig()}
+      project={project}
+      onSelectItem={handleSelectItem}
+    />
+  );
 
   return (
     <Layout
