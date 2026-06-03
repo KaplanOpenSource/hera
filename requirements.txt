@@ -149,7 +149,6 @@ jupyterlab_widgets==3.0.13
 kafka-python==2.0.6
 kaleido==0.2.1
 kiwisolver==1.4.7
-ksql==0.10.2
 libclang==18.1.1
 libpysal==4.8.1
 llvmlite==0.43.0
