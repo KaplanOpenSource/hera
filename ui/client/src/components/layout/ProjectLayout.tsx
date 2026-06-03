@@ -157,8 +157,9 @@ export const ProjectLayout = ({
   }, [model, project]);
 
   useEffect(() => {
-    tabsWithPrefix(model, PREVIEW_TAB_PREFIX)
-      .forEach(t => model.doAction(Actions.deleteTab(t.getId())));
+    for (const t of tabsWithPrefix(model, PREVIEW_TAB_PREFIX)) {
+      model.doAction(Actions.deleteTab(t.getId()));
+    }
 
     if (previewAvailable && activeDocId) {
       model.doAction(Actions.addTab(
@@ -169,6 +170,22 @@ export const ProjectLayout = ({
       ));
     }
   }, [activeShowItemId, previewAvailable, activeDocId, model]);
+
+  // Close details/preview tabs whose document no longer exists (e.g. after it was deleted).
+  useEffect(() => {
+    for (const t of tabsWithPrefix(model, DETAILS_TAB_PREFIX)) {
+      const oid = idFromDocId(t.getConfig()?.showItemId ?? '');
+      if (oid && !project.documentIds.has(oid)) {
+        model.doAction(Actions.deleteTab(t.getId()));
+      }
+    }
+    for (const t of tabsWithPrefix(model, PREVIEW_TAB_PREFIX)) {
+      const oid = t.getConfig()?.docid as string | undefined;
+      if (oid && !project.documentIds.has(oid)) {
+        model.doAction(Actions.deleteTab(t.getId()));
+      }
+    }
+  }, [project, model]);
 
   const handleAction = useCallback((action: Action) => {
     if (action.type === Actions.SELECT_TAB) {
