@@ -35,7 +35,7 @@ export const ProjectTreeView = ({
   const navigate = useNavigate();
   const { toolkits } = useProjectStore();
   const { viewSettings } = useViewSettingsStore();
-  const [selectedId, setSelectedId] = useState<string | null>(docId ? idDocId(docId) : null);
+  const [selectedIds, setSelectedIds] = useState<string[]>(docId ? [idDocId(docId)] : []);
   const [expandedItems, setExpandedItems] = useState<string[]>(['project-documents', 'no-toolkit', '*repos*']);
   const splitTreeRef = useRef<SplitTree | null>(null);
 
@@ -59,27 +59,39 @@ export const ProjectTreeView = ({
     }
   }, [getSplitTree]);
 
-  // Select an item: highlight it, sync the URL, and tell the layout to open its tab.
-  const selectItem = useCallback((rawId: string | undefined) => {
-    setSelectedId(rawId ?? null);
+  // Sync the URL to the given item (the active one), or to the project root if none.
+  const navigateToItem = useCallback((rawId: string | undefined) => {
     const oid = rawId ? idFromDocId(rawId) : undefined;
     const basePath = '/' + encodeURIComponent(project?.name ?? '');
     const newPath = oid ? `${basePath}/${oid}` : basePath;
     if (location.pathname !== newPath) {
       navigate(newPath, { replace: true });
     }
-    onSelectItem(rawId);
-  }, [project?.name, navigate, onSelectItem]);
+  }, [project?.name, navigate]);
+
+  // Multi-select highlights rows, but only the most recently added item opens/focuses a tab.
+  const handleSelectionChange = useCallback((ids: string[]) => {
+    const added = ids.filter(id => !selectedIds.includes(id));
+    setSelectedIds(ids);
+    const clicked = added[added.length - 1];
+    if (clicked) {
+      navigateToItem(clicked);
+      onSelectItem(clicked);
+    }
+  }, [selectedIds, navigateToItem, onSelectItem]);
 
   const handleDocumentCreated = useCallback((docOid: string) => {
     expandToDocument(docOid);
-    selectItem(idDocId(docOid));
-  }, [expandToDocument, selectItem]);
+    const id = idDocId(docOid);
+    setSelectedIds([id]);
+    navigateToItem(id);
+    onSelectItem(id);
+  }, [expandToDocument, navigateToItem, onSelectItem]);
 
   // Sync the selection from the URL on mount and when the project changes.
   useEffect(() => {
     const rawId = (docId && project?.documentIds.has(docId)) ? idDocId(docId) : undefined;
-    setSelectedId(rawId ?? null);
+    setSelectedIds(rawId ? [rawId] : []);
     onSelectItem(rawId);
   }, [project?.name]);
 
@@ -87,12 +99,12 @@ export const ProjectTreeView = ({
   const hasExpandedInitial = useRef(false);
   useEffect(() => {
     if (hasExpandedInitial.current) return;
-    const docOid = selectedId ? idFromDocId(selectedId) : undefined;
+    const docOid = selectedIds[0] ? idFromDocId(selectedIds[0]) : undefined;
     if (docOid && project?.documentIds.has(docOid)) {
       expandToDocument(docOid);
       hasExpandedInitial.current = true;
     }
-  }, [project, selectedId, expandToDocument]);
+  }, [project, selectedIds, expandToDocument]);
 
   console.log(toolkits)
   console.log(project)
@@ -116,10 +128,10 @@ export const ProjectTreeView = ({
         }
         setExpandedItems(itemIds);
       }}
-      selectedItems={selectedId}
-      onSelectedItemsChange={(_e, itemId) => selectItem(itemId ?? undefined)}
+      selectedItems={selectedIds}
+      onSelectedItemsChange={(_e, itemIds) => handleSelectionChange(itemIds)}
       expansionTrigger={'content'}
-      multiSelect={false}
+      multiSelect
     >
       <TreeItem key={`project-documents`} itemId={`project-documents`}
         label={(
@@ -163,7 +175,10 @@ export const ProjectTreeView = ({
           docs={project?.documents}
           project={project}
           depth={viewSettings.maxDepth}
-          onDocumentDeleted={() => selectItem(undefined)}
+          onDocumentDeleted={() => {
+            setSelectedIds([]);
+            navigateToItem(undefined);
+          }}
         />
       </TreeItem>
       <RepoTreeWhole />
