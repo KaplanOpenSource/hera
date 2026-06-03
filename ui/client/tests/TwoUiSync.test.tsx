@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor, within, act } from '@testing-library/react';
 import { useState } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { DetailsViewDocId } from '../src/components/details/DetailsViewDocId';
 import { DetailsViewPanel } from '../src/components/details/DetailsViewPanel';
 import { ProjectTreeView } from '../src/components/project/ProjectTreeView';
@@ -204,8 +205,7 @@ describe('Two UI sync', () => {
           <div data-testid="tree-panel">
             <ProjectTreeView
               project={project}
-              selectedItemsIds={selectedItemId ? [selectedItemId] : []}
-              setSelectedItemIds={(ids) => setSelectedItemId(ids[0] || '')}
+              onSelectItem={(id) => setSelectedItemId(id ?? '')}
             />
           </div>
           <div data-testid="details-panel">
@@ -218,7 +218,7 @@ describe('Two UI sync', () => {
       );
     };
 
-    render(<DashboardLike />);
+    render(<MemoryRouter><DashboardLike /></MemoryRouter>);
 
     const treePanel = screen.getByTestId('tree-panel');
     const detailsPanel = screen.getByTestId('details-panel');

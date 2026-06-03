@@ -3,6 +3,7 @@ import { Stack, Tooltip, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { fetchProjectDetails } from '../../io/FetchProjects';
 import { ProjectObj } from '../../objects/ProjectObj';
@@ -25,15 +26,16 @@ export type ViewSettingsType = {
 
 export const ProjectTreeView = ({
   project,
-  selectedItemsIds = [],
-  setSelectedItemIds,
+  onSelectItem,
 }: {
   project: ProjectObj;
-  selectedItemsIds?: string[];
-  setSelectedItemIds: (v: string[]) => void,
+  onSelectItem: (rawId: string | undefined) => void,
 }) => {
+  const { docId } = useParams<{ docId: string }>();
+  const navigate = useNavigate();
   const { toolkits } = useProjectStore();
   const { viewSettings } = useViewSettingsStore();
+  const [selectedId, setSelectedId] = useState<string | null>(docId ? idDocId(docId) : null);
   const [expandedItems, setExpandedItems] = useState<string[]>(['project-documents', 'no-toolkit', '*repos*']);
   const splitTreeRef = useRef<SplitTree | null>(null);
 
@@ -57,22 +59,40 @@ export const ProjectTreeView = ({
     }
   }, [getSplitTree]);
 
+  // Select an item: highlight it, sync the URL, and tell the layout to open its tab.
+  const selectItem = useCallback((rawId: string | undefined) => {
+    setSelectedId(rawId ?? null);
+    const oid = rawId ? idFromDocId(rawId) : undefined;
+    const basePath = '/' + encodeURIComponent(project?.name ?? '');
+    const newPath = oid ? `${basePath}/${oid}` : basePath;
+    if (location.pathname !== newPath) {
+      navigate(newPath, { replace: true });
+    }
+    onSelectItem(rawId);
+  }, [project?.name, navigate, onSelectItem]);
+
   const handleDocumentCreated = useCallback((docOid: string) => {
     expandToDocument(docOid);
-    setSelectedItemIds([idDocId(docOid)]);
-  }, [expandToDocument, setSelectedItemIds]);
+    selectItem(idDocId(docOid));
+  }, [expandToDocument, selectItem]);
+
+  // Sync the selection from the URL on mount and when the project changes.
+  useEffect(() => {
+    const rawId = (docId && project?.documentIds.has(docId)) ? idDocId(docId) : undefined;
+    setSelectedId(rawId ?? null);
+    onSelectItem(rawId);
+  }, [project?.name]);
 
   // Expand branches to the initially selected document (e.g. from URL)
   const hasExpandedInitial = useRef(false);
   useEffect(() => {
     if (hasExpandedInitial.current) return;
-    const docOid = idFromDocId(selectedItemsIds[0]);
+    const docOid = selectedId ? idFromDocId(selectedId) : undefined;
     if (docOid && project?.documentIds.has(docOid)) {
-      console.log('[expand-initial] expanding to', docOid, 'documents:', project?.documentIds);
       expandToDocument(docOid);
       hasExpandedInitial.current = true;
     }
-  }, [project, selectedItemsIds, expandToDocument]);
+  }, [project, selectedId, expandToDocument]);
 
   console.log(toolkits)
   console.log(project)
@@ -96,10 +116,8 @@ export const ProjectTreeView = ({
         }
         setExpandedItems(itemIds);
       }}
-      selectedItems={selectedItemsIds[0] ?? null}
-      onSelectedItemsChange={(_e, itemIds) => {
-        setSelectedItemIds(itemIds ? [itemIds] : [])
-      }}
+      selectedItems={selectedId}
+      onSelectedItemsChange={(_e, itemId) => selectItem(itemId ?? undefined)}
       expansionTrigger={'content'}
       multiSelect={false}
     >
@@ -145,7 +163,7 @@ export const ProjectTreeView = ({
           docs={project?.documents}
           project={project}
           depth={viewSettings.maxDepth}
-          onDocumentDeleted={() => setSelectedItemIds([])}
+          onDocumentDeleted={() => selectItem(undefined)}
         />
       </TreeItem>
       <RepoTreeWhole />

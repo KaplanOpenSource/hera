@@ -2,9 +2,8 @@ import { Paper } from '@mui/material';
 import { Action, Actions, DockLocation, IJsonModel, IJsonTabNode, ITabRenderValues, Layout, Model, TabNode } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
 import { ProjectObj } from '../../objects/ProjectObj';
-import { CENTRAL_REPO_FOLDER_ID, idDocId, idFromDocId, idFromRepoId, isSplitId, normalizeSplitId } from '../../shared/idDocId';
+import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId, isSplitId, normalizeSplitId } from '../../shared/idDocId';
 import { classifyTab, tabKindClassName } from '../../shared/tabKind';
 import { TAB_KIND_STYLES } from '../../shared/tabKindConfig';
 import { DetailsViewPanel, detailsTabName } from '../details/DetailsViewPanel';
@@ -109,14 +108,7 @@ export const ProjectLayout = ({
   treeCollapsed: boolean,
   resetSignal: number,
 }) => {
-  const { docId } = useParams<{ docId: string }>();
-  const navigate = useNavigate();
-  const [selectedItemsIds, setSelectedItemIds] = useState<string[]>(
-    docId ? [idDocId(docId)] : []
-  );
-  const [activeShowItemId, setActiveShowItemId] = useState<string | undefined>(
-    docId ? idDocId(docId) : undefined
-  );
+  const [activeShowItemId, setActiveShowItemId] = useState<string | undefined>(undefined);
 
   const [model, setModel] = useState(() => createLayoutModel(!treeCollapsed));
 
@@ -149,8 +141,8 @@ export const ProjectLayout = ({
     }
   }, [treeCollapsed, model]);
 
-  useEffect(() => {
-    const rawShowItemId = selectedItemsIds[0];
+  // The tree owns the selection; when it changes, open or focus that item's details tab.
+  const handleSelectItem = useCallback((rawShowItemId: string | undefined) => {
     if (!rawShowItemId) return;
 
     const isSpecific = rawShowItemId === CENTRAL_REPO_FOLDER_ID
@@ -162,8 +154,7 @@ export const ProjectLayout = ({
       : CONFIG_ITEM_ID;
 
     const detailsId = `${DETAILS_TAB_PREFIX}${showItemId}`;
-    const existing = model.getNodeById(detailsId);
-    if (existing) {
+    if (model.getNodeById(detailsId)) {
       model.doAction(Actions.selectTab(detailsId));
     } else {
       model.doAction(Actions.addTab(
@@ -174,7 +165,7 @@ export const ProjectLayout = ({
       ));
     }
     setActiveShowItemId(showItemId);
-  }, [selectedItemsIds[0], model]);
+  }, [model, project]);
 
   useEffect(() => {
     tabsWithPrefix(model, PREVIEW_TAB_PREFIX)
@@ -189,25 +180,6 @@ export const ProjectLayout = ({
       ));
     }
   }, [activeShowItemId, previewAvailable, activeDocId, model]);
-
-  useEffect(() => {
-    if (docId && project?.documentIds.has(docId)) {
-      setSelectedItemIds([idDocId(docId)]);
-    } else {
-      setSelectedItemIds([]);
-    }
-  }, [project?.name]);
-
-  const handleSetSelectedItemIds = useCallback((ids: string[]) => {
-    setSelectedItemIds(ids);
-    const selectedId = ids[0];
-    const oid = selectedId ? idFromDocId(selectedId) : undefined;
-    const basePath = '/' + encodeURIComponent(project?.name ?? '');
-    const newPath = oid ? `${basePath}/${oid}` : basePath;
-    if (location.pathname !== newPath) {
-      navigate(newPath, { replace: true });
-    }
-  }, [project?.name, navigate]);
 
   const handleAction = useCallback((action: Action) => {
     if (action.type === Actions.SELECT_TAB) {
@@ -240,8 +212,7 @@ export const ProjectLayout = ({
           <Paper sx={{ p: 2, height: '100%', overflow: 'auto' }}>
             <ProjectTreeView
               project={project}
-              selectedItemsIds={selectedItemsIds}
-              setSelectedItemIds={handleSetSelectedItemIds}
+              onSelectItem={handleSelectItem}
             />
           </Paper>
         );
