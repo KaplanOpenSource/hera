@@ -16,7 +16,8 @@ export const DetailsViewDocId = ({
 
   useEffect(() => {
     (async () => {
-      if (docid) {
+      // Skip docs that no longer exist (e.g. just deleted) to avoid a failing fetch.
+      if (docid && project.documentIds.has(docid)) {
         const data = await fetchDocument(docid);
         if (data) {
           setDoc(data);

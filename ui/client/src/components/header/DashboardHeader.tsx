@@ -1,4 +1,4 @@
-import { Fullscreen, FullscreenExit, HelpOutline } from '@mui/icons-material';
+import { Fullscreen, FullscreenExit, HelpOutline, ViewQuilt } from '@mui/icons-material';
 import { AppBar, createTheme, Stack, ThemeProvider, Toolbar } from '@mui/material';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { PageTitle } from './PageTitle';
@@ -27,9 +27,11 @@ const headerTheme = createTheme({
 export const DashboardHeader = ({
   treeCollapsed,
   setTreeCollapsed,
+  onResetLayout,
 }: {
   treeCollapsed: boolean,
   setTreeCollapsed: (fn: (c: boolean) => boolean) => void,
+  onResetLayout: () => void,
 }) => {
   return (
     <ThemeProvider theme={headerTheme}>
@@ -44,6 +46,13 @@ export const DashboardHeader = ({
               color="inherit"
             >
               {treeCollapsed ? <FullscreenExit /> : <Fullscreen />}
+            </ButtonTooltip>
+            <ButtonTooltip
+              title="Reset panel layout"
+              onClick={onResetLayout}
+              color="inherit"
+            >
+              <ViewQuilt />
             </ButtonTooltip>
             <ButtonTooltip
               title="Documentation"
