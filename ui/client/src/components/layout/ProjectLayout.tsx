@@ -70,6 +70,36 @@ export const createLayoutModel = (
   return Model.fromJson(layout);
 };
 
+// Tab node for a tree item's details view.
+const makeDetailsTab = (showItemId: string, project: ProjectObj): IJsonTabNode => ({
+  type: 'tab',
+  id: `${DETAILS_TAB_PREFIX}${showItemId}`,
+  name: detailsTabName(showItemId, project),
+  className: tabKindClassName(showItemId, project),
+  component: LayoutComponent.Details,
+  config: { showItemId },
+});
+
+// Tab node for a document's preview pane.
+const makePreviewTab = (docid: string, docName: string): IJsonTabNode => ({
+  type: 'tab',
+  id: `${PREVIEW_TAB_PREFIX}${docid}`,
+  name: `Preview: ${docName}`,
+  component: LayoutComponent.Preview,
+  config: { docid },
+});
+
+// All open tabs whose id starts with the given prefix (e.g. all details or preview tabs).
+const tabsWithPrefix = (model: Model, prefix: string): TabNode[] => {
+  const tabs: TabNode[] = [];
+  model.visitNodes((node) => {
+    if (node.getType() === 'tab' && node.getId().startsWith(prefix)) {
+      tabs.push(node as TabNode);
+    }
+  });
+  return tabs;
+};
+
 export const ProjectLayout = ({
   project,
   treeCollapsed,
@@ -100,12 +130,7 @@ export const ProjectLayout = ({
   // original left/right arrangement while keeping the currently open details tabs.
   useEffect(() => {
     if (resetSignal === 0) return;
-    const detailsTabs: IJsonTabNode[] = [];
-    model.visitNodes((node) => {
-      if (node.getType() === 'tab' && node.getId().startsWith(DETAILS_TAB_PREFIX)) {
-        detailsTabs.push((node as TabNode).toJson());
-      }
-    });
+    const detailsTabs = tabsWithPrefix(model, DETAILS_TAB_PREFIX).map(t => t.toJson());
     const selectedIndex = detailsTabs.findIndex(t => t.id === `${DETAILS_TAB_PREFIX}${activeShowItemId}`);
     setModel(createLayoutModel(!treeCollapsed, detailsTabs, selectedIndex));
   }, [resetSignal]);
@@ -142,14 +167,7 @@ export const ProjectLayout = ({
       model.doAction(Actions.selectTab(detailsId));
     } else {
       model.doAction(Actions.addTab(
-        {
-          type: 'tab',
-          id: detailsId,
-          name: detailsTabName(showItemId, project),
-          className: tabKindClassName(showItemId, project),
-          component: LayoutComponent.Details,
-          config: { showItemId },
-        },
+        makeDetailsTab(showItemId, project),
         DETAILS_TABSET_ID,
         DockLocation.CENTER,
         -1,
@@ -159,23 +177,12 @@ export const ProjectLayout = ({
   }, [selectedItemsIds[0], model]);
 
   useEffect(() => {
-    const existingPreview: string[] = [];
-    model.visitNodes((node) => {
-      if (node.getType() === 'tab' && node.getId().startsWith(PREVIEW_TAB_PREFIX)) {
-        existingPreview.push(node.getId());
-      }
-    });
-    existingPreview.forEach(id => model.doAction(Actions.deleteTab(id)));
+    tabsWithPrefix(model, PREVIEW_TAB_PREFIX)
+      .forEach(t => model.doAction(Actions.deleteTab(t.getId())));
 
     if (previewAvailable && activeDocId) {
       model.doAction(Actions.addTab(
-        {
-          type: 'tab',
-          id: `${PREVIEW_TAB_PREFIX}${activeDocId}`,
-          name: `Preview: ${activeDoc!.name}`,
-          component: LayoutComponent.Preview,
-          config: { docid: activeDocId },
-        },
+        makePreviewTab(activeDocId, activeDoc!.name),
         DETAILS_TABSET_ID,
         DockLocation.BOTTOM,
         -1,
