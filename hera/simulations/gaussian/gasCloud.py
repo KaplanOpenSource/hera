@@ -304,7 +304,9 @@ class abstractGasCloud:
 
     def getDF_noQ_xarray(self, meteorology, minx, miny, minz, maxx, maxy, maxz, timeSpan, dxdy=10*m, dz=1*m, dt=1*min):
         stability = meteorology.stability
-        u = tonumber(meteorology.u10, m/min)
+        # u = tonumber(meteorology.u10, m/s)
+        u = tonumber(meteorology.getWindVelocity(height=self.sourceHeight), m / min)
+        u = round(u, 2)
 
         xcoordRange = numpy.arange(tonumber(minx, m), tonumber(maxx, m), tonumber(dxdy, m))
         ycoordRange = numpy.arange(tonumber(miny, m), tonumber(maxy, m), tonumber(dxdy, m))
@@ -333,7 +335,9 @@ class instantaneousReleaseGasCloud(abstractGasCloud):
         tcoordRange = numpy.arange(0,tonumber(timeSpan,min),tonumber(dt,min))
 
         stability = meteorology.stability
-        u = tonumber(meteorology.u10, m/min)
+        # u = tonumber(meteorology.u10, m/s)
+        u = tonumber(meteorology.getWindVelocity(height=self.sourceHeight), m / min)
+        u = round(u, 2)
         inversion = tonumber(meteorology.inversion, m)
 
         TX = self._getTXterm(stability=stability, u=u, xcoordRange=xcoordRange, tcoordRange=tcoordRange)
@@ -350,7 +354,9 @@ class instantaneousReleaseGasCloud(abstractGasCloud):
     def getDosageFromMinMaxRange_inst_noQ(self, meteorology, minx, miny, minz, maxx, maxy, maxz, timeSpan,
                            dxdy=10*m, dz=1*m, dt=1*min, numOfReflections=3, DF=False):
         stability = meteorology.stability
-        u = tonumber(meteorology.u10, m/min)
+        # u = tonumber(meteorology.u10, m/s)
+        u = tonumber(meteorology.getWindVelocity(height=self.sourceHeight), m / min)
+        u = round(u, 2)
         inversion = tonumber(meteorology.inversion, m)
 
         xcoordRange = numpy.arange(tonumber(minx, m), tonumber(maxx, m), tonumber(dxdy, m))
