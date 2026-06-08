@@ -43,11 +43,11 @@ jobs:
           path: _vendor/hermes
           # token: ${{ secrets.INTERNAL_REPO_PAT }}   # uncomment if private
 
-      - name: Checkout argos (internal dependency)
+      - name: Checkout pyargos (internal dependency — provides the `argos` package)
         uses: actions/checkout@v4
         with:
-          repository: KaplanOpenSource/argos
-          path: _vendor/argos
+          repository: KaplanOpenSource/pyargos
+          path: _vendor/pyargos
           # token: ${{ secrets.INTERNAL_REPO_PAT }}   # uncomment if private
 
       - name: Set up Python 3.11
@@ -66,9 +66,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
-          pip install -e ./_vendor/hermes
-          pip install -e ./_vendor/argos
           pip install -e . --no-deps
+          # hermes and pyargos are not pip-installable (no setup.py / pyproject.toml).
+          # They expose the python packages `hermes` and `argos` at the clone root,
+          # so we put their parent dirs on PYTHONPATH in the pytest step instead.
 
       - name: Write ~/.pyhera/config.json
         run: |
@@ -102,3 +103,4 @@ jobs:
         run: pytest hera/tests/ -v -m "not notebook"
         env:
           MPLBACKEND: Agg
+          PYTHONPATH: ${{ github.workspace }}/_vendor/hermes:${{ github.workspace }}/_vendor/pyargos
