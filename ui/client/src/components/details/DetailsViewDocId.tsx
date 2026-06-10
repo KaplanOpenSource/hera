@@ -15,10 +15,11 @@ export const DetailsViewDocId = ({
   const [doc, setDoc] = useState<any>(undefined);
 
   useEffect(() => {
-    const load = async () => {
+    // Periodic reloads are silent (no notification); the initial open is not.
+    const load = async (silent: boolean) => {
       // Skip docs that no longer exist (e.g. just deleted) to avoid a failing fetch.
       if (docid && project.documentIds.has(docid)) {
-        const data = await fetchDocument(docid);
+        const data = await fetchDocument(docid, silent);
         if (data) {
           setDoc(data);
           return;
@@ -26,8 +27,8 @@ export const DetailsViewDocId = ({
       }
       setDoc(undefined);
     };
-    load();
-    const interval = setInterval(load, 5000);
+    load(false);
+    const interval = setInterval(() => load(true), 5000);
     return () => clearInterval(interval);
   }, [docid, project]);
 
