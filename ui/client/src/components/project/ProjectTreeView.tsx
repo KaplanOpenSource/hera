@@ -16,14 +16,6 @@ import { RepoTreeWhole } from './RepoTreeWhole';
 import { TreeSearchBar } from './TreeSearchBar';
 import { useViewSettingsStore } from '../../stores/useViewSettingsStore';
 
-export type ViewSettingsType = {
-  minGroupSize: number;
-  maxDepth: number;
-  maxBranches: number;
-  showEmptyToolkits: boolean;
-  showDocumentPreview: boolean;
-};
-
 export const ProjectTreeView = ({
   project,
   onSelectItem,
