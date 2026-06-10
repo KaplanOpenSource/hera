@@ -6,6 +6,8 @@ export type ViewSettingsType = {
   maxBranches: number;
   firstBranchHeadFields: boolean;
   showDocumentPreview: boolean;
+  // How often (seconds) to auto-reload the open project. null turns auto-reload off.
+  reloadIntervalSeconds: number | null;
 };
 
 type ViewSettingsStore = {
@@ -20,6 +22,7 @@ const defaultSettings: ViewSettingsType = {
   maxBranches: 50,
   firstBranchHeadFields: true,
   showDocumentPreview: true,
+  reloadIntervalSeconds: 5,
 };
 
 export const useViewSettingsStore = create<ViewSettingsStore>((set) => ({

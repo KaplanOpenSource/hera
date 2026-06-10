@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import { DashboardHeader } from './components/header/DashboardHeader';
 import { ProjectLayout } from './components/layout/ProjectLayout';
 import { FetchProjects } from './io/FetchProjects';
+import { ProjectAutoReload } from './io/ProjectAutoReload';
 import { useProjectStore } from './stores/useProjectStore';
 import { ServerConstantReader } from './stores/useServerConstants';
 import { tabKindCss } from './shared/tabKindConfig';
@@ -19,6 +20,7 @@ export const Dashboard = () => {
   return (<>
     <ServerConstantReader />
     <FetchProjects urlProjectName={projectName} />
+    <ProjectAutoReload />
     <Box
       sx={{
         height: '100vh',

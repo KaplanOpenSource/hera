@@ -3,17 +3,22 @@ import { Button, DialogActions, DialogContent, DialogTitle, Stack } from "@mui/m
 import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonDialog } from "../../elements/ButtonDialog";
 import { NumberProperty } from "../../elements/NumberProperty";
+import { ReloadIntervalSlider } from "../../elements/ReloadIntervalSlider";
 import { useViewSettingsStore } from "../../stores/useViewSettingsStore";
 
 export const ProjectViewSettingsButton = ({ }) => {
   const { viewSettings, setViewSettings } = useViewSettingsStore();
   return (
-    <ButtonDialog icon={<Settings />} title="Change tree settings">
+    <ButtonDialog icon={<Settings />} title="Settings">
       {(close) => (
         <>
-          <DialogTitle>Change tree settings</DialogTitle>
+          <DialogTitle>Settings</DialogTitle>
           <DialogContent>
             <Stack direction="column" spacing={1} sx={{ mt: 1 }}>
+              <ReloadIntervalSlider
+                value={viewSettings.reloadIntervalSeconds}
+                setValue={(v) => setViewSettings({ ...viewSettings, reloadIntervalSeconds: v })}
+              />
               <NumberProperty
                 label="Max depth"
                 value={viewSettings.maxDepth}

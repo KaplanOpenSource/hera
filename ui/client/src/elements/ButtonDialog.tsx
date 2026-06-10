@@ -43,6 +43,11 @@ export const ButtonDialog = ({
       <Dialog
         open={open}
         onClose={close}
+        // The dialog is rendered inside other components (e.g. the tree); MUI portals it
+        // to <body>, but React events still bubble up the React tree. Stop them so dialog
+        // interactions don't reach the page underneath.
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
         {...dialogProps}
       >
         {typeof children === 'function' ? children(close) : children}

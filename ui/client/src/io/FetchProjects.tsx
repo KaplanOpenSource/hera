@@ -2,7 +2,7 @@ import { ProjectEntire, ProjectName, Toolkit } from "@shared/types";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { NO_PROJECT, useProjectStore } from "../stores/useProjectStore";
-import { fetchPython } from "./fetchPython";
+import { fetchPython, fetchPythonClean } from "./fetchPython";
 import { ProjectCommands } from "./ProjectCommands";
 
 export const fetchProjectsNames = async () => {
@@ -12,8 +12,10 @@ export const fetchProjectsNames = async () => {
   }
 }
 
-export const fetchProjectDetails = async (projectName: string) => {
-  const { data } = await fetchPython({
+// silent: use the no-notification fetch (e.g. for the periodic auto-reload).
+export const fetchProjectDetails = async (projectName: string, silent = false) => {
+  const run = silent ? fetchPythonClean : fetchPython;
+  const { data } = await run({
     results: ['project'],
     label: `project details ${projectName}`,
     code: `

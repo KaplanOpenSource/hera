@@ -1,7 +1,7 @@
 import { Box } from '@mui/material';
-import { useEffect, useState } from 'react';
-import { fetchDocument, updateDocument } from '../../io/FetchDocument';
-import { DocumentObj, ProjectObj } from '../../objects/ProjectObj';
+import { updateDocument } from '../../io/FetchDocument';
+import { fetchProjectDetails } from '../../io/FetchProjects';
+import { ProjectObj } from '../../objects/ProjectObj';
 import { DetailsViewDocument } from './DetailsViewDocument';
 import { DetailsViewNotebook } from './DetailsViewNotebook';
 
@@ -12,34 +12,18 @@ export const DetailsViewDocId = ({
   project: ProjectObj;
   docid: string;
 }) => {
-  const [doc, setDoc] = useState<any>(undefined);
-
-  useEffect(() => {
-    // Periodic reloads are silent (no notification); the initial open is not.
-    const load = async (silent: boolean) => {
-      // Skip docs that no longer exist (e.g. just deleted) to avoid a failing fetch.
-      if (docid && project.documentIds.has(docid)) {
-        const data = await fetchDocument(docid, silent);
-        if (data) {
-          setDoc(data);
-          return;
-        }
-      }
-      setDoc(undefined);
-    };
-    load(false);
-    const interval = setInterval(() => load(true), 5000);
-    return () => clearInterval(interval);
-  }, [docid, project]);
+  // The document data comes from the project store (loaded centrally and auto-reloaded),
+  // so there is no per-tab fetch — open tabs stay in sync with the one store.
+  const docObj = project.allDocuments.find(d => d.docid === docid) ?? null;
 
   const changeDocument = async (shownDoc: any) => {
-    const data = await updateDocument(shownDoc, doc);
+    if (!docObj) return;
+    const data = await updateDocument(shownDoc, docObj.data);
     if (data) {
-      setDoc(data);
+      // Pull the saved value back into the store so all views update.
+      fetchProjectDetails(project.name, true);
     }
   };
-
-  const docObj = doc ? new DocumentObj(doc, project) : null;
 
   return (
     <>
