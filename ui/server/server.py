@@ -66,7 +66,7 @@ def jupyter_ensure(payload: JupyterStartPayload) -> dict:
         if jupyter.root_dir == payload.root_dir:
             return {"port": jupyter.port, "root_dir": jupyter.root_dir}
         jupyter.stop()
-    jupyter = JupyterServerThread(payload.root_dir, jupyter_port)
+    jupyter = JupyterServerThread(payload.root_dir, jupyter_port, ip=args.host)
     jupyter.wait_until_ready()
     return {"port": jupyter.port, "root_dir": jupyter.root_dir}
 
