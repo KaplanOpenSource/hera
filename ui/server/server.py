@@ -66,7 +66,10 @@ def jupyter_ensure(payload: JupyterStartPayload) -> dict:
         if jupyter.root_dir == payload.root_dir:
             return {"port": jupyter.port, "root_dir": jupyter.root_dir}
         jupyter.stop()
-    jupyter = JupyterServerThread(payload.root_dir, jupyter_port, ip=args.host)
+    # Only expose the notebook server beyond localhost when CORS is enabled (i.e. the user
+    # opted into remote access). With no --cors, keep it local-only regardless of --host.
+    jupyter_ip = args.host if args.cors is not None else '127.0.0.1'
+    jupyter = JupyterServerThread(payload.root_dir, jupyter_port, ip=jupyter_ip)
     jupyter.wait_until_ready()
     return {"port": jupyter.port, "root_dir": jupyter.root_dir}
 
