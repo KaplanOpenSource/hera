@@ -1,6 +1,7 @@
 import { Fullscreen, FullscreenExit, HelpOutline, ViewQuilt } from '@mui/icons-material';
 import { AppBar, createTheme, Stack, ThemeProvider, Toolbar } from '@mui/material';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
+import { ProjectViewSettingsButton } from '../project/ProjectViewSettingsButton';
 import { PageTitle } from './PageTitle';
 import { ProjectChooser } from './ProjectChooser';
 import { StatusIndicators } from './StatusIndicators';
@@ -61,6 +62,7 @@ export const DashboardHeader = ({
             >
               <HelpOutline />
             </ButtonTooltip>
+            <ProjectViewSettingsButton />
             <StatusIndicators />
           </Stack>
         </Toolbar>

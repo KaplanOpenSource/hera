@@ -66,7 +66,10 @@ def jupyter_ensure(payload: JupyterStartPayload) -> dict:
         if jupyter.root_dir == payload.root_dir:
             return {"port": jupyter.port, "root_dir": jupyter.root_dir}
         jupyter.stop()
-    jupyter = JupyterServerThread(payload.root_dir, jupyter_port)
+    # Only expose the notebook server beyond localhost when CORS is enabled (i.e. the user
+    # opted into remote access). With no --cors, keep it local-only regardless of --host.
+    jupyter_ip = args.host if args.cors is not None else '127.0.0.1'
+    jupyter = JupyterServerThread(payload.root_dir, jupyter_port, ip=jupyter_ip)
     jupyter.wait_until_ready()
     return {"port": jupyter.port, "root_dir": jupyter.root_dir}
 
@@ -154,6 +157,21 @@ def spa_fallback(full_path: str):  # noqa: ARG001 (unused)
     return {"message": "Not found"}
 
 
+def find_available_port(host: str, start_port: int, attempts: int = 79) -> int:
+    """Return the first free port at or after start_port, trying up to `attempts` ports."""
+    import socket
+
+    for port in range(start_port, start_port + attempts):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            if sock.connect_ex((host, port)) != 0:
+                return port
+            print(f"Port {port} is in use, trying the next one...")
+    raise SystemExit(
+        f"No free port found in range {start_port}-{start_port + attempts - 1}."
+    )
+
+
 if __name__ == "__main__":
     # Use a single process: no reload watcher
     import uvicorn
@@ -167,10 +185,16 @@ if __name__ == "__main__":
         debugpy.listen(("0.0.0.0", 5678))
         print("debugpy listening on 0.0.0.0:5678 - attach your debugger")
 
+    # The bind address may be 0.0.0.0 (all interfaces); probe against localhost.
+    probe_host = "127.0.0.1" if args.host == "0.0.0.0" else args.host
+    port = find_available_port(probe_host, args.port)
+    if port != args.port:
+        print(f"Requested port {args.port} unavailable; starting on port {port} instead.")
+
     uvicorn.run(
         app,
         host=args.host,
-        port=args.port,
+        port=port,
         reload=False,
         workers=1,
     )

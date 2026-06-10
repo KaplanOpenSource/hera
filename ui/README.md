@@ -17,7 +17,9 @@ Use `--help` to see all available options.
 
 Options:
 - `--cors ORIGINS`: Enable CORS for external origins.  
-Use `all` to allow all origins, or pass a comma-separated list of IPs to allow specific ones.  
+Use `all` to allow all origins.  
+Use `remote` to also allow this machine's own hostname and LAN IP, so it can be opened by name from other machines.  
+Or pass a comma-separated list of IPs to allow specific ones.  
 Example: `--cors 192.168.1.10,10.0.0.5`  
 Each IP is prefixed with `http://` and the server port automatically.  
 When active, a red "CORS" indicator appears in the top-right of the UI.

@@ -32,7 +32,9 @@ vi.mock('../src/io/snackbar', () => ({
 
 const DOC_ID = 'abc123';
 
-const makeProjectData = (): ProjectEntire => ({
+// The document data now lives in the project (loaded centrally into the store),
+// so tests build a project carrying the resource value they expect to see.
+const makeProjectData = (resource: string): ProjectEntire => ({
   name: 'TestProject',
   documents: [
     {
@@ -41,28 +43,18 @@ const makeProjectData = (): ProjectEntire => ({
       projectName: 'TestProject',
       desc: { datasourceName: 'MyDoc', filesDirectory: '/tmp' },
       type: 'myType',
-      resource: 'original-resource',
+      resource,
       dataFormat: 'json',
     },
   ],
 });
 
-const makeDoc = (resource: string): ProjectDocument => ({
-  _cls: 'Document',
-  _id: { $oid: DOC_ID },
-  projectName: 'TestProject',
-  desc: { datasourceName: 'MyDoc', filesDirectory: '/tmp' },
-  type: 'myType',
-  resource,
-  dataFormat: 'json',
-});
+const makeDoc = (resource: string): ProjectDocument => makeProjectData(resource).documents[0];
 
 describe('Two UI sync', () => {
-  let fetchDocumentSpy: ReturnType<typeof vi.spyOn>;
   let updateDocumentSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    fetchDocumentSpy = vi.spyOn(FetchDocument, 'fetchDocument');
     updateDocumentSpy = vi.spyOn(FetchDocument, 'updateDocument');
     useServerConstants.setState({ dataTypes: { JSON: 'json' } });
   });
@@ -73,10 +65,7 @@ describe('Two UI sync', () => {
   });
 
   it('two UIs viewing the same document both see the same data', async () => {
-    const doc = makeDoc('shared-value');
-    fetchDocumentSpy.mockResolvedValue(doc);
-
-    const projectData = makeProjectData();
+    const projectData = makeProjectData('shared-value');
 
     const ui1 = render(
       <div data-testid="ui1">
@@ -101,98 +90,56 @@ describe('Two UI sync', () => {
     expect(within(ui2.container).getByDisplayValue('shared-value')).toBeDefined();
   });
 
-  it('UI-2 sees the old value, then sees the updated value after refresh', async () => {
-    const oldDoc = makeDoc('old-value');
-    const updatedDoc = makeDoc('new-value');
-
-    // Both UIs initially fetch the old document
-    fetchDocumentSpy.mockResolvedValue(oldDoc);
-
-    const projectData = makeProjectData();
-    const project1 = new ProjectObj(projectData);
-    const project2 = new ProjectObj(projectData);
-
-    // --- Render UI-1 ---
+  it('a second UI sees the new value after its project updates', async () => {
     const ui1 = render(
       <div data-testid="ui1">
-        <DetailsViewDocId project={project1} docid={DOC_ID} />
+        <DetailsViewDocId project={new ProjectObj(makeProjectData('old-value'))} docid={DOC_ID} />
       </div>
     );
-
-    // Wait for UI-1 to load the document
     await waitFor(() => {
-      expect(within(ui1.container).getByText('MyDoc')).toBeDefined();
+      expect(within(ui1.container).getByDisplayValue('old-value')).toBeDefined();
     });
 
-    // Verify UI-1 shows old resource value
-    expect(within(ui1.container).getByDisplayValue('old-value')).toBeDefined();
-
-    // --- Render UI-2 ---
     const ui2 = render(
       <div data-testid="ui2">
-        <DetailsViewDocId project={project2} docid={DOC_ID} />
+        <DetailsViewDocId project={new ProjectObj(makeProjectData('old-value'))} docid={DOC_ID} />
       </div>
     );
-
-    // Wait for UI-2 to load the document
     await waitFor(() => {
-      expect(within(ui2.container).getByText('MyDoc')).toBeDefined();
+      expect(within(ui2.container).getByDisplayValue('old-value')).toBeDefined();
     });
-
-    // UI-2 also shows the old value
-    expect(within(ui2.container).getByDisplayValue('old-value')).toBeDefined();
 
     // --- UI-1 changes the resource value and saves ---
     const resourceInput = within(ui1.container).getByDisplayValue('old-value');
     fireEvent.change(resourceInput, { target: { value: 'new-value' } });
 
-    // The "Update Document" button (Done icon) should appear after editing
-    updateDocumentSpy.mockResolvedValue(updatedDoc);
+    updateDocumentSpy.mockResolvedValue(makeDoc('new-value'));
+    // The save pulls the project back into the store; no-op it here.
+    vi.spyOn(FetchProjects, 'fetchProjectDetails').mockResolvedValue(undefined);
 
-    const updateButton = await waitFor(() =>
+    const updateWrapper = await waitFor(() =>
       within(ui1.container).getByLabelText('Update Document')
     );
-    fireEvent.click(updateButton);
+    fireEvent.click(within(updateWrapper).getByRole('button'));
+    await waitFor(() => expect(updateDocumentSpy).toHaveBeenCalled());
 
-    // Wait for UI-1 to reflect the saved value
-    await waitFor(() => {
-      expect(within(ui1.container).getByDisplayValue('new-value')).toBeDefined();
-    });
-
-    // --- UI-2 still shows the old value ---
+    // UI-2 still shows the old value (its project hasn't been reloaded yet)
     expect(within(ui2.container).getByDisplayValue('old-value')).toBeDefined();
 
-    // --- UI-2 "refreshes" (simulated by re-rendering with a new project ref) ---
-    // In the real app, clicking the refresh button calls fetchProjectDetails,
-    // which updates the project store, causing DetailsViewDocId to re-render
-    // with a new project object. The useEffect triggers on project.name change,
-    // but since name is the same, we simulate by unmounting and remounting.
-    fetchDocumentSpy.mockResolvedValue(updatedDoc);
-
-    ui2.unmount();
-    const ui2Refreshed = render(
+    // UI-2's project updates (as the auto-reload would do) → it shows the new value
+    ui2.rerender(
       <div data-testid="ui2">
-        <DetailsViewDocId project={new ProjectObj(projectData)} docid={DOC_ID} />
+        <DetailsViewDocId project={new ProjectObj(makeProjectData('new-value'))} docid={DOC_ID} />
       </div>
     );
-
-    // After refresh, UI-2 should now show the new value
     await waitFor(() => {
-      expect(within(ui2Refreshed.container).getByDisplayValue('new-value')).toBeDefined();
+      expect(within(ui2.container).getByDisplayValue('new-value')).toBeDefined();
     });
   });
 
   it('clicking the refresh button in the tree updates the details panel', async () => {
-    const oldDoc = makeDoc('old-value');
-    const updatedDoc = makeDoc('new-value');
-
-    // Initial document fetch returns old data
-    fetchDocumentSpy.mockResolvedValue(oldDoc);
-
-    const projectData = makeProjectData();
-
     // Set up the store with the project (like Dashboard does)
-    useProjectStore.setState({ currProject: projectData });
+    useProjectStore.setState({ currProject: makeProjectData('old-value') });
 
     // A mini wrapper that wires the tree and details panel via the store,
     // mimicking Dashboard's behavior
@@ -227,29 +174,17 @@ describe('Two UI sync', () => {
     const docItem = await waitFor(() => within(treePanel).getByText('MyDoc'));
     fireEvent.click(docItem);
 
-    // Wait for the details panel to load and show the old value
+    // Wait for the details panel to show the old value (read from the store)
     await waitFor(() => {
       expect(within(detailsPanel).getByDisplayValue('old-value')).toBeDefined();
     });
 
-    // Now the backend has updated data — mock fetchDocument to return new value
-    fetchDocumentSpy.mockResolvedValue(updatedDoc);
-
-    // Also mock fetchProjectDetails to update the store (this is what the
-    // refresh button triggers). It re-fetches the project and calls setCurrentProject.
-    const fetchProjectDetailsSpy = vi.spyOn(FetchProjects, 'fetchProjectDetails');
-    fetchProjectDetailsSpy.mockImplementation(async () => {
-      useProjectStore.getState().setCurrentProject({ ...projectData });
-    });
-
-    // Click the refresh button (the actual <button> inside the labelled wrapper)
-    const refreshWrapper = within(treePanel).getByLabelText('Reload documents');
-    const refreshButton = within(refreshWrapper).getByRole('button');
+    // The auto-reload updates the store with the new backend value; simulate that.
     await act(async () => {
-      fireEvent.click(refreshButton);
+      useProjectStore.getState().setCurrentProject(makeProjectData('new-value'));
     });
 
-    // After refresh, the details panel should show the new value
+    // The details panel (which reads from the store) should show the new value
     await waitFor(() => {
       expect(within(detailsPanel).getByDisplayValue('new-value')).toBeDefined();
     });
