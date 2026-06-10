@@ -1,15 +1,18 @@
 import { Settings } from "@mui/icons-material";
-import { Button, DialogActions, DialogContent, DialogTitle, Stack } from "@mui/material";
+import { Button, createTheme, DialogActions, DialogContent, DialogTitle, Stack } from "@mui/material";
 import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonDialog } from "../../elements/ButtonDialog";
 import { NumberProperty } from "../../elements/NumberProperty";
 import { ReloadIntervalSlider } from "../../elements/ReloadIntervalSlider";
 import { useViewSettingsStore } from "../../stores/useViewSettingsStore";
 
+// Own (light) theme so the dialog isn't tinted by the dark app-header theme it opens from.
+const dialogTheme = createTheme();
+
 export const ProjectViewSettingsButton = ({ }) => {
   const { viewSettings, setViewSettings } = useViewSettingsStore();
   return (
-    <ButtonDialog icon={<Settings />} title="Settings">
+    <ButtonDialog icon={<Settings />} title="Settings" dialogTheme={dialogTheme}>
       {(close) => (
         <>
           <DialogTitle>Settings</DialogTitle>

@@ -1,18 +1,16 @@
-import { ContentCopy, Folder, Refresh } from '@mui/icons-material';
+import { ContentCopy, Folder } from '@mui/icons-material';
 import { Stack, Tooltip, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
-import { fetchProjectDetails } from '../../io/FetchProjects';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { CENTRAL_REPO_FOLDER_ID, idDocId, idFromDocId } from '../../shared/idDocId';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { SplitTree } from '../../utils/splitTree';
 import { DocumentSplitGroup } from './DocumentSplitGroup';
 import { ProjectActionsButton } from './ProjectActionsButton';
-import { ProjectViewSettingsButton } from './ProjectViewSettingsButton';
 import { RepoTreeWhole } from './RepoTreeWhole';
 import { useViewSettingsStore } from '../../stores/useViewSettingsStore';
 
@@ -165,14 +163,6 @@ export const ProjectTreeView = ({
             <Typography marginRight={1}>
               Project {project.name}
             </Typography>
-            <ButtonTooltip
-              title={'Reload documents'}
-              onClick={() => fetchProjectDetails(project.name)}
-            >
-              <Refresh />
-            </ButtonTooltip>
-            <ProjectViewSettingsButton
-            />
             <ProjectActionsButton
               selectedIds={selectedIds}
               onSelectDocument={selectDocument}

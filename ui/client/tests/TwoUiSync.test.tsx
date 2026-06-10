@@ -179,21 +179,12 @@ describe('Two UI sync', () => {
       expect(within(detailsPanel).getByDisplayValue('old-value')).toBeDefined();
     });
 
-    // The refresh button calls fetchProjectDetails; simulate it updating the store
-    // with the new backend value.
-    const fetchProjectDetailsSpy = vi.spyOn(FetchProjects, 'fetchProjectDetails');
-    fetchProjectDetailsSpy.mockImplementation(async () => {
+    // The auto-reload updates the store with the new backend value; simulate that.
+    await act(async () => {
       useProjectStore.getState().setCurrentProject(makeProjectData('new-value'));
     });
 
-    // Click the refresh button (the actual <button> inside the labelled wrapper)
-    const refreshWrapper = within(treePanel).getByLabelText('Reload documents');
-    const refreshButton = within(refreshWrapper).getByRole('button');
-    await act(async () => {
-      fireEvent.click(refreshButton);
-    });
-
-    // After refresh, the details panel should show the new value
+    // The details panel (which reads from the store) should show the new value
     await waitFor(() => {
       expect(within(detailsPanel).getByDisplayValue('new-value')).toBeDefined();
     });
