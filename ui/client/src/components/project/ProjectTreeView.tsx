@@ -2,16 +2,18 @@ import { ContentCopy, Folder } from '@mui/icons-material';
 import { Stack, Tooltip, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { CENTRAL_REPO_FOLDER_ID, idDocId, idFromDocId } from '../../shared/idDocId';
 import { useProjectStore } from '../../stores/useProjectStore';
-import { SplitTree } from '../../utils/splitTree';
+import { documentSearchText } from '../../utils/documentSearch';
+import { collectBranchKeys, SplitTree } from '../../utils/splitTree';
 import { DocumentSplitGroup } from './DocumentSplitGroup';
 import { ProjectActionsButton } from './ProjectActionsButton';
 import { RepoTreeWhole } from './RepoTreeWhole';
+import { TreeSearchBar } from './TreeSearchBar';
 import { useViewSettingsStore } from '../../stores/useViewSettingsStore';
 
 export type ViewSettingsType = {
@@ -35,7 +37,31 @@ export const ProjectTreeView = ({
   const { viewSettings } = useViewSettingsStore();
   const [selectedIds, setSelectedIds] = useState<string[]>(docId ? [idDocId(docId)] : []);
   const [expandedItems, setExpandedItems] = useState<string[]>(['project-documents', 'no-toolkit', '*repos*']);
+  const [search, setSearch] = useState('');
   const splitTreeRef = useRef<SplitTree | null>(null);
+
+  // Search index: one lowercased value-blob per document, rebuilt only when the project changes.
+  const searchIndex = useMemo(
+    () => project.documents.map(doc => ({ doc, text: documentSearchText(doc.data) })),
+    [project],
+  );
+
+  const query = search.trim().toLowerCase();
+  const filteredDocs = useMemo(
+    () => query ? searchIndex.filter(e => e.text.includes(query)).map(e => e.doc) : searchIndex.map(e => e.doc),
+    [searchIndex, query],
+  );
+
+  // While searching, expand every matching branch so results aren't hidden in collapsed groups.
+  const searchExpandedKeys = useMemo(() => {
+    if (!query) return [];
+    const tree = new SplitTree(filteredDocs, viewSettings.maxDepth, viewSettings);
+    return ['project-documents', ...collectBranchKeys(tree.nodes)];
+  }, [query, filteredDocs, viewSettings]);
+
+  const effectiveExpandedItems = query
+    ? [...new Set([...expandedItems, ...searchExpandedKeys])]
+    : expandedItems;
 
   const getSplitTree = useCallback(() => {
     const currentProject = useProjectStore.getState().getProject();
@@ -118,8 +144,10 @@ export const ProjectTreeView = ({
   console.log(project)
 
   return (
+    <>
+    <TreeSearchBar value={search} onChange={setSearch} />
     <SimpleTreeView
-      expandedItems={expandedItems}
+      expandedItems={effectiveExpandedItems}
       onExpandedItemsChange={(e, itemIds) => {
         const wasExpanded = expandedItems.includes(CENTRAL_REPO_FOLDER_ID);
         const willBeExpanded = itemIds.includes(CENTRAL_REPO_FOLDER_ID);
@@ -188,7 +216,7 @@ export const ProjectTreeView = ({
           )}
         </Stack>
         <DocumentSplitGroup
-          docs={project?.documents}
+          docs={filteredDocs}
           project={project}
           depth={viewSettings.maxDepth}
           onDocumentDeleted={() => {
@@ -199,5 +227,6 @@ export const ProjectTreeView = ({
       </TreeItem>
       <RepoTreeWhole />
     </SimpleTreeView>
+    </>
   );
 };
