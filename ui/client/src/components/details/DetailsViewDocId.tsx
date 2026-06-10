@@ -15,7 +15,7 @@ export const DetailsViewDocId = ({
   const [doc, setDoc] = useState<any>(undefined);
 
   useEffect(() => {
-    (async () => {
+    const load = async () => {
       // Skip docs that no longer exist (e.g. just deleted) to avoid a failing fetch.
       if (docid && project.documentIds.has(docid)) {
         const data = await fetchDocument(docid);
@@ -25,7 +25,10 @@ export const DetailsViewDocId = ({
         }
       }
       setDoc(undefined);
-    })();
+    };
+    load();
+    const interval = setInterval(load, 5000);
+    return () => clearInterval(interval);
   }, [docid, project]);
 
   const changeDocument = async (shownDoc: any) => {
