@@ -17,6 +17,9 @@ jobs:
       HERA_DB_USER: hera
       HERA_DB_PASS: heracles
       HERA_DB_NAME: hera_ci
+      # ubuntu-latest runner home is /home/runner; matches $HOME/hera_unittest_data
+      # which is both bootstrap_unittest_data.sh's default and conftest's default.
+      TEST_HERA: /home/runner/hera_unittest_data
 
     services:
       mongodb:
@@ -98,6 +101,27 @@ jobs:
             sleep 2
           done
           echo "MongoDB did not become available"; exit 1
+
+      # ----- Test data from S3 (per scripts/s3/bootstrap_unittest_data.sh) -----
+      - name: Resolve test data version
+        id: tdv
+        run: |
+          VERSION=$(curl -fsSL --max-time 30 \
+            "https://s3.eu-west-1.amazonaws.com/hera.kaplanopensource.co.il/latest.json" \
+            | python3 -c "import json,sys; print(json.load(sys.stdin)['version'])")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved test data version: $VERSION"
+
+      - name: Cache test data
+        id: cache-test-data
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TEST_HERA }}
+          key: hera-test-data-${{ steps.tdv.outputs.version }}
+
+      - name: Fetch test data (cache miss)
+        if: steps.cache-test-data.outputs.cache-hit != 'true'
+        run: ./scripts/s3/bootstrap_unittest_data.sh --target-dir "$TEST_HERA"
 
       - name: Run full test suite
         run: pytest hera/tests/ -v -m "not notebook"
