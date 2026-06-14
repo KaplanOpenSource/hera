@@ -103,3 +103,51 @@ class TestDocumentToRepositoryItem:
         del d["_cls"]
         with pytest.raises(ValueError):
             rx.documentToRepositoryItem(d)
+
+
+class TestMergeDocumentsIntoRepository:
+    def test_add_to_empty_repo(self):
+        repo, report = rx.mergeDocumentsIntoRepository({}, [_doc()], "MeteoHighFreq")
+        assert "MeteoHighFreq" in repo
+        assert "Measurements" in repo["MeteoHighFreq"]
+        assert len(repo["MeteoHighFreq"]["Measurements"]) == 1
+        assert len(report["added"]) == 1
+        assert report["skipped_existing"] == []
+
+    def test_duplicate_skipped(self):
+        repo, _ = rx.mergeDocumentsIntoRepository({}, [_doc()], "TK")
+        repo2, report = rx.mergeDocumentsIntoRepository(repo, [_doc()], "TK")
+        # same content hash -> not added again
+        assert len(repo2["TK"]["Measurements"]) == 1
+        assert len(report["skipped_existing"]) == 1
+        assert report["added"] == []
+
+    def test_overwrite_replaces(self):
+        repo, _ = rx.mergeDocumentsIntoRepository({}, [_doc()], "TK")
+        repo2, report = rx.mergeDocumentsIntoRepository(
+            repo, [_doc()], "TK", overwrite=True
+        )
+        assert len(repo2["TK"]["Measurements"]) == 1
+        assert len(report["overwritten"]) == 1
+
+    def test_distinct_docs_both_added(self):
+        docs = [_doc(resource="/a.parquet"), _doc(resource="/b.parquet")]
+        repo, report = rx.mergeDocumentsIntoRepository({}, docs, "TK")
+        assert len(repo["TK"]["Measurements"]) == 2
+        assert len(report["added"]) == 2
+
+    def test_dup_detected_across_sections(self):
+        # Same identity but a Simulations doc already present under the toolkit.
+        sim = _doc("Metadata.Simulations")
+        repo, _ = rx.mergeDocumentsIntoRepository({}, [sim], "TK")
+        # A Measurements doc whose content hash matches must still be detected.
+        same = _doc("Metadata.Measurements")
+        # Force identical identity by matching all hashed fields:
+        same.update({k: sim[k] for k in ("type", "resource", "dataFormat", "desc")})
+        repo2, report = rx.mergeDocumentsIntoRepository(repo, [same], "TK")
+        assert len(report["skipped_existing"]) == 1
+
+    def test_input_not_mutated(self):
+        original = {}
+        rx.mergeDocumentsIntoRepository(original, [_doc()], "TK")
+        assert original == {}

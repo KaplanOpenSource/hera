@@ -96,3 +96,77 @@ def documentToRepositoryItem(docDict, idStrategy="contentHash"):
         },
     }
     return section, item_name, entry
+
+
+def _existingIdentities(toolkitDict):
+    """Return {identity: (section, itemName)} for all entries under a toolkit.
+
+    Identity prefers the stored ``contentHash``; falls back to ``sourceId`` for
+    entries (e.g. hand-authored) that lack a hash.
+    """
+    index = {}
+    for section, entries in toolkitDict.items():
+        if not isinstance(entries, dict):
+            continue
+        for item_name, entry in entries.items():
+            if not isinstance(entry, dict):
+                continue
+            identity = entry.get("contentHash") or entry.get("sourceId")
+            if identity is not None:
+                index[identity] = (section, item_name)
+    return index
+
+
+def mergeDocumentsIntoRepository(repoJSON, docDicts, toolkitName,
+                                 idStrategy="contentHash", overwrite=False):
+    """Merge document dicts under repoJSON[toolkitName].
+
+    Returns (newRepoJSON, report). ``report`` has keys ``added``,
+    ``skipped_existing`` and ``overwritten``, each a list of itemNames. A
+    document already present (matching identity anywhere under ``toolkitName``)
+    is skipped unless ``overwrite=True``. The input ``repoJSON`` is never
+    mutated.
+    """
+    repo = copy.deepcopy(repoJSON)
+    toolkitDict = repo.setdefault(toolkitName, {})
+    index = _existingIdentities(toolkitDict)
+    report = {"added": [], "skipped_existing": [], "overwritten": []}
+
+    for docDict in docDicts:
+        section, item_name, entry = documentToRepositoryItem(docDict, idStrategy=idStrategy)
+        identity = entry.get("contentHash") or entry.get("sourceId")
+
+        if identity in index:
+            if not overwrite:
+                report["skipped_existing"].append(item_name)
+                continue
+            # Remove the previously stored entry (possibly in another section).
+            old_section, old_name = index[identity]
+            toolkitDict.get(old_section, {}).pop(old_name, None)
+            report["overwritten"].append(item_name)
+        else:
+            report["added"].append(item_name)
+
+        sectionDict = toolkitDict.setdefault(section, {})
+        item_name = _uniqueItemName(sectionDict, item_name, entry["contentHash"])
+        sectionDict[item_name] = entry
+        index[identity] = (section, item_name)
+
+    return repo, report
+
+
+def _uniqueItemName(sectionDict, item_name, content_hash):
+    """Return an itemName not already used in ``sectionDict``.
+
+    ObjectId-derived names are unique in practice, but if a collision occurs
+    (e.g. distinct content sharing a name) the contentHash disambiguates so no
+    entry is silently overwritten.
+    """
+    if item_name not in sectionDict:
+        return item_name
+    candidate = f"{item_name}_{content_hash[:8]}"
+    suffix = 1
+    while candidate in sectionDict:
+        candidate = f"{item_name}_{content_hash[:8]}_{suffix}"
+        suffix += 1
+    return candidate
