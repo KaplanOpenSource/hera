@@ -261,3 +261,21 @@ class TestExportFacade:
             )
             assert report["added"] == []
             assert len(report["skipped_existing"]) == 2
+
+
+class TestRoundTrip:
+    def test_exported_items_match_loadRepositoryFromPath(self, export_project):
+        """An exported repo file loads back with item fields intact."""
+        tk = dataToolkit()
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "rt_repo.json")
+            tk.exportDocumentsToRepository(
+                toolkitName="ExportTK", repositoryName=path,
+                projectName=EXPORT_TEST_PROJECT, register=False,
+            )
+            resolved = dataToolkit.loadRepositoryFromPath(path)
+            assert "ExportTK" in resolved
+            items = resolved["ExportTK"]["Measurements"]
+            assert len(items) == 2
+            for entry in items.values():
+                assert set(entry["item"].keys()) == {"type", "resource", "dataFormat", "desc"}
