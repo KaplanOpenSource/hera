@@ -193,3 +193,71 @@ class TestDeduplicateRepository:
         snapshot = copy.deepcopy(original)
         rx.deduplicateRepository(original)
         assert original == snapshot
+
+
+# ---------------------------------------------------------------------------
+# DB-backed integration tests for the dataToolkit facade
+# ---------------------------------------------------------------------------
+
+import json
+import os
+import tempfile
+
+from hera.datalayer.project import Project
+from hera.utils.data.toolkit import dataToolkit
+
+EXPORT_TEST_PROJECT = "PYTEST_EXPORT_PROJECT"
+
+
+@pytest.fixture(scope="module")
+def export_project():
+    """A temp project holding two measurements documents."""
+    files_tmp = tempfile.mkdtemp(prefix="hera_export_test_")
+    proj = Project(projectName=EXPORT_TEST_PROJECT)
+    proj._FilesDirectory = files_tmp
+    proj.setConfig(filesDirectory=files_tmp)
+    proj.addMeasurementsDocument(
+        resource="/abs/path/a.parquet", dataFormat="parquet",
+        type="exportTest_Data", desc={"deviceType": "Sonic"},
+    )
+    proj.addMeasurementsDocument(
+        resource="/abs/path/b.parquet", dataFormat="parquet",
+        type="exportTest_Data", desc={"deviceType": "TRH"},
+    )
+    yield proj
+    for doc in proj.getMeasurementsDocuments():
+        doc.delete()
+
+
+class TestExportFacade:
+    def test_export_all_writes_valid_repo(self, export_project):
+        tk = dataToolkit()
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "exported_repo.json")
+            report = tk.exportDocumentsToRepository(
+                toolkitName="ExportTK",
+                repositoryName=path,
+                projectName=EXPORT_TEST_PROJECT,
+                register=False,
+            )
+            assert os.path.isfile(path)
+            with open(path) as fh:
+                repo = json.load(fh)
+            assert "ExportTK" in repo
+            assert len(repo["ExportTK"]["Measurements"]) == 2
+            assert len(report["added"]) == 2
+
+    def test_export_is_idempotent(self, export_project):
+        tk = dataToolkit()
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "repo.json")
+            tk.exportDocumentsToRepository(
+                toolkitName="ExportTK", repositoryName=path,
+                projectName=EXPORT_TEST_PROJECT, register=False,
+            )
+            report = tk.exportDocumentsToRepository(
+                toolkitName="ExportTK", repositoryName=path,
+                projectName=EXPORT_TEST_PROJECT, register=False,
+            )
+            assert report["added"] == []
+            assert len(report["skipped_existing"]) == 2
