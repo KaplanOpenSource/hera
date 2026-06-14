@@ -61,3 +61,45 @@ class TestDocumentContentHash:
         d = _doc()
         d["_id"] = "PLAIN_STRING_ID"
         assert rx.documentContentHash(d, idStrategy="objectId") == "PLAIN_STRING_ID"
+
+
+class TestDocumentToRepositoryItem:
+    def test_section_mapping_measurements(self):
+        section, name, entry = rx.documentToRepositoryItem(_doc("Metadata.Measurements"))
+        assert section == "Measurements"
+
+    def test_section_mapping_simulations(self):
+        section, _, _ = rx.documentToRepositoryItem(_doc("Metadata.Simulations"))
+        assert section == "Simulations"
+
+    def test_section_mapping_cache(self):
+        section, _, _ = rx.documentToRepositoryItem(_doc("Metadata.Cache"))
+        assert section == "Cache"
+
+    def test_itemname_is_objectid_when_present(self):
+        _, name, _ = rx.documentToRepositoryItem(_doc(oid="682f1b9e4d3a2c0011aa1c3"))
+        assert name == "682f1b9e4d3a2c0011aa1c3"
+
+    def test_itemname_is_hash_prefix_without_id(self):
+        d = _doc()
+        del d["_id"]
+        _, name, entry = rx.documentToRepositoryItem(d)
+        assert name == entry["contentHash"][:16]
+
+    def test_entry_shape(self):
+        _, _, entry = rx.documentToRepositoryItem(_doc())
+        assert entry["isRelativePath"] == "False"
+        assert set(entry["item"].keys()) == {"type", "resource", "dataFormat", "desc"}
+        assert entry["item"]["dataFormat"] == "parquet"
+        assert "contentHash" in entry
+        assert entry["sourceId"] == "682f1b9e4d3a2c0011aa1c3"
+
+    def test_unknown_cls_raises(self):
+        with pytest.raises(ValueError):
+            rx.documentToRepositoryItem(_doc("Metadata.Bogus"))
+
+    def test_missing_cls_raises(self):
+        d = _doc()
+        del d["_cls"]
+        with pytest.raises(ValueError):
+            rx.documentToRepositoryItem(d)

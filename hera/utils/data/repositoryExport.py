@@ -59,3 +59,40 @@ def documentContentHash(docDict, idStrategy="contentHash"):
     }
     canonical = json.dumps(payload, sort_keys=True, default=str)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _sectionForCls(cls_value):
+    """Map a document ``_cls`` ('Metadata.Measurements') to a repo section name."""
+    if not cls_value or "." not in cls_value:
+        raise ValueError(f"Document _cls is missing or malformed: {cls_value!r}")
+    short = cls_value.split(".")[1]
+    if short not in _SECTION_BY_CLS:
+        raise ValueError(f"Unsupported document _cls: {cls_value!r}")
+    return _SECTION_BY_CLS[short]
+
+
+def documentToRepositoryItem(docDict, idStrategy="contentHash"):
+    """Convert one document dict into a (section, itemName, entry) triple.
+
+    The entry is a repository-JSON record:
+        {"isRelativePath": "False", "contentHash": ..., "sourceId": ...,
+         "item": {type, resource, dataFormat, desc}}
+    Raises ValueError if ``_cls`` is missing or unrecognised.
+    """
+    section = _sectionForCls(docDict.get("_cls"))
+    content_hash = documentContentHash(docDict, idStrategy=idStrategy)
+    source_id = _sourceObjectId(docDict)
+    item_name = source_id if source_id is not None else content_hash[:16]
+
+    entry = {
+        "isRelativePath": "False",
+        "contentHash": content_hash,
+        "sourceId": source_id,
+        "item": {
+            "type": docDict.get("type"),
+            "resource": docDict.get("resource"),
+            "dataFormat": docDict.get("dataFormat"),
+            "desc": docDict.get("desc", {}),
+        },
+    }
+    return section, item_name, entry
