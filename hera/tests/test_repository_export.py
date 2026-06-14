@@ -151,3 +151,45 @@ class TestMergeDocumentsIntoRepository:
         original = {}
         rx.mergeDocumentsIntoRepository(original, [_doc()], "TK")
         assert original == {}
+
+
+class TestDeduplicateRepository:
+    def _repo_with_dup(self):
+        # Two entries, same contentHash, different itemNames, same section.
+        entry_a = {"isRelativePath": "False", "contentHash": "HHH", "sourceId": "A",
+                   "item": {"type": "t", "resource": "/x", "dataFormat": "parquet", "desc": {}}}
+        entry_b = {"isRelativePath": "False", "contentHash": "HHH", "sourceId": "B",
+                   "item": {"type": "t", "resource": "/x", "dataFormat": "parquet", "desc": {}}}
+        return {"TK": {"Measurements": {"A": entry_a, "B": entry_b}}}
+
+    def test_collapses_duplicates(self):
+        repo, report = rx.deduplicateRepository(self._repo_with_dup())
+        assert len(repo["TK"]["Measurements"]) == 1
+        assert len(report["removed"]) == 1
+
+    def test_unique_entries_untouched(self):
+        entry_a = {"isRelativePath": "False", "contentHash": "H1", "sourceId": "A",
+                   "item": {"type": "t", "resource": "/x", "dataFormat": "parquet", "desc": {}}}
+        entry_b = {"isRelativePath": "False", "contentHash": "H2", "sourceId": "B",
+                   "item": {"type": "t", "resource": "/y", "dataFormat": "parquet", "desc": {}}}
+        repo, report = rx.deduplicateRepository({"TK": {"Measurements": {"A": entry_a, "B": entry_b}}})
+        assert len(repo["TK"]["Measurements"]) == 2
+        assert report["removed"] == []
+
+    def test_dedup_across_sections(self):
+        entry_a = {"isRelativePath": "False", "contentHash": "HHH", "sourceId": "A",
+                   "item": {"type": "t", "resource": "/x", "dataFormat": "parquet", "desc": {}}}
+        entry_b = {"isRelativePath": "False", "contentHash": "HHH", "sourceId": "B",
+                   "item": {"type": "t", "resource": "/x", "dataFormat": "parquet", "desc": {}}}
+        repo, report = rx.deduplicateRepository(
+            {"TK": {"Measurements": {"A": entry_a}, "Simulations": {"B": entry_b}}}
+        )
+        total = sum(len(s) for s in repo["TK"].values())
+        assert total == 1
+        assert len(report["removed"]) == 1
+
+    def test_input_not_mutated(self):
+        original = self._repo_with_dup()
+        snapshot = copy.deepcopy(original)
+        rx.deduplicateRepository(original)
+        assert original == snapshot

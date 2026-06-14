@@ -170,3 +170,37 @@ def _uniqueItemName(sectionDict, item_name, content_hash):
         candidate = f"{item_name}_{content_hash[:8]}_{suffix}"
         suffix += 1
     return candidate
+
+
+def deduplicateRepository(repoJSON):
+    """Collapse entries sharing the same identity to a single entry.
+
+    Identity is ``contentHash`` (or ``sourceId`` fallback). The first occurrence
+    (iterating toolkits -> sections -> items) is kept; later duplicates are
+    removed. Returns (newRepoJSON, report) where ``report['removed']`` lists
+    (toolkit, section, itemName) tuples. Input is not mutated.
+    """
+    repo = copy.deepcopy(repoJSON)
+    report = {"removed": []}
+
+    for toolkitName, toolkitDict in repo.items():
+        if not isinstance(toolkitDict, dict):
+            continue
+        seen = set()
+        for section, entries in toolkitDict.items():
+            if not isinstance(entries, dict):
+                continue
+            for item_name in list(entries.keys()):
+                entry = entries[item_name]
+                if not isinstance(entry, dict):
+                    continue
+                identity = entry.get("contentHash") or entry.get("sourceId")
+                if identity is None:
+                    continue
+                if identity in seen:
+                    del entries[item_name]
+                    report["removed"].append((toolkitName, section, item_name))
+                else:
+                    seen.add(identity)
+
+    return repo, report
