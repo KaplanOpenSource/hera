@@ -4,11 +4,10 @@ introduced for the centralized-scheduler support (issue #918).
 
 Covers:
     - buildLuigiExecutionCommand: local vs central scheduler, host/port, dispatch-id.
-    - The generated Luigi node template carries a dispatch_id luigi.Parameter and
-      propagates it through requires()/output() (guarded by hermes availability).
-"""
 
-import pytest
+The generated Luigi node template (dispatch_id parameter + propagation) is tested
+in the hermes repository, since that is where the template lives.
+"""
 
 from hera.simulations.hermesWorkflowToolkit import (
     buildLuigiExecutionCommand,
@@ -64,18 +63,8 @@ def test_custom_target_task():
     assert "finalnode_xx_0" not in cmd
 
 
-# ---------------------------------------------------------------------------
-# Generated Luigi node template (requires hermes to be importable)
-# ---------------------------------------------------------------------------
-
-def test_generated_template_declares_and_propagates_dispatch_id():
-    pytest.importorskip("hermes")
-    from hermes.engines.luigi.pythonClassBase import transform
-
-    template = transform._basicLuigiTemplate
-    # The parameter must be declared on every generated node class...
-    assert "dispatch_id = luigi.Parameter(default=\"\")" in template
-    # ...propagated to required tasks (Luigi does not thread params automatically)...
-    assert "dispatch_id=self.dispatch_id" in template
-    # ...and used to isolate per-dispatch output targets.
-    assert "self.dispatch_id or" in template
+# Note: the generated Luigi node template (the dispatch_id luigi.Parameter, its
+# propagation through requires() and per-dispatch output isolation) lives in the
+# hermes repository, so it is tested there (tests/test_dispatch_id_template.py),
+# not here. Hera's CI vendors hermes' default branch, which would not carry the
+# change until the hermes PR merges.
