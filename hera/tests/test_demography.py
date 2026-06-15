@@ -24,6 +24,11 @@ test data repository.
 import os
 import tempfile
 
+try:
+    from pyogrio.errors import DataSourceError as _PyogrioDataSourceError
+except ImportError:
+    _PyogrioDataSourceError = None
+
 import pytest
 
 gpd = pytest.importorskip("geopandas", reason="geopandas not installed")
@@ -105,7 +110,18 @@ def small_polygon_itm():
 @pytest.fixture(scope="module")
 def population_gdf(demo_toolkit):
     """Load the population GeoDataFrame through the project's datasource."""
-    gdf = demo_toolkit.getDataSourceData("lamas_population")
+    try:
+        gdf = demo_toolkit.getDataSourceData("lamas_population")
+    except FileNotFoundError as exc:
+        pytest.skip(f"lamas_population data file missing in TEST_HERA: {exc}")
+    except Exception as exc:
+        # pyogrio raises DataSourceError (RuntimeError-derived) when the
+        # shapefile is absent. Match only "no such file" — corruption or
+        # format errors should still surface as real failures.
+        if _PyogrioDataSourceError is not None and isinstance(exc, _PyogrioDataSourceError) \
+                and "No such file" in str(exc):
+            pytest.skip(f"lamas_population data file missing in TEST_HERA: {exc}")
+        raise
     if gdf is None:
         pytest.skip("lamas_population datasource not loaded in project")
     return gdf

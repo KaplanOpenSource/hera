@@ -4,7 +4,7 @@ access==1.1.9
 affine==2.4.0
 aiohappyeyeballs==2.6.1
 aiohttp==3.13.3
-aiosignal==1.3.2
+aiosignal==1.4.0
 alabaster==0.7.16
 anyio==4.8.0
 appdirs==1.4.4
@@ -20,8 +20,6 @@ attrs==25.3.0
 babel==2.17.0
 backcall==0.2.0
 backoff==2.2.1
-basemap==1.4.1
-basemap-data==1.3.2
 beautifulsoup4==4.13.3
 bleach==6.2.0
 bleak==0.22.3
@@ -84,7 +82,6 @@ gast==0.6.0
 geodatasets==2024.8.0
 geographiclib==2.0
 geojson==3.2.0
-geomet==1.1.0
 geopandas==1.0.1
 geopy==2.4.1
 giddy==2.3.5
@@ -95,17 +92,9 @@ gmsh==4.13.1
 google-auth==2.38.0
 google-auth-oauthlib==1.2.1
 google-pasta==0.2.0
-gql==3.5.2
-graphql-core==3.2.6
 grpcio==1.71.0
-h11==0.16.0
-h2==4.3.0
 h5py==3.13.0
-hpack==4.1.0
-httpcore==1.0.7
 httpx==0.28.1
-hyper==0.7.0
-hyperframe==6.1.0
 idna==3.10
 imagesize==1.4.1
 importlib_metadata==8.6.1
@@ -141,7 +130,6 @@ jupyter_core==5.7.2
 jupyter_nbextensions_configurator==0.6.4
 jupyter_server==2.15.0
 jupyter_server_terminals==0.5.3
-jupyterlab==4.4.8
 jupyterlab_git==0.51.0
 jupyterlab_pygments==0.3.0
 jupyterlab_server==2.27.3
@@ -149,7 +137,6 @@ jupyterlab_widgets==3.0.13
 kafka-python==2.0.6
 kaleido==0.2.1
 kiwisolver==1.4.7
-ksql==0.10.2
 libclang==18.1.1
 libpysal==4.8.1
 llvmlite==0.43.0
@@ -259,7 +246,6 @@ python-json-logger==3.3.0
 python-slugify==8.0.4
 python-srtm==0.6.0
 pytz==2025.1
-pyvista==0.44.2
 PyYAML==6.0.2
 pyzmq==26.3.0
 qtconsole==5.6.1
@@ -278,7 +264,6 @@ rsa==4.9
 rtree==1.4.0
 s2sphere==0.2.5
 scikit-learn==1.6.1
-scikits.odes
 scipy==1.13.1
 scooby==0.10.0
 seaborn==0.13.2
@@ -297,7 +282,7 @@ soupsieve==2.6
 spaghetti==1.7.4
 spglm==1.1.0
 Sphinx==7.4.7
-sphinx-basic-ng>=1.0.0
+sphinx-basic-ng==1.0.0b2
 sphinx-gallery==0.19.0
 sphinx-jsonschema==1.19.1
 sphinx-rtd-theme==3.0.2
@@ -320,8 +305,6 @@ sympy==1.13.3
 tabulate==0.9.0
 tb-mqtt-client==1.11.0
 tb-paho-mqtt-client==1.6.3
-tb-rest-client==3.9.0
-tenacity==9.0.0
 tensorboard==2.19.0
 tensorboard-data-server==0.7.2
 termcolor==2.5.0
