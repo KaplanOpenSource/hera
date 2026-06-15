@@ -666,4 +666,8 @@ def workflow_buildExecute(arguments):
         else:
             raise ValueError(f"The workflowName {arguments.workflowName} is not in the DB and not a file on the disk")
 
-    wftk.executeWorkflowFromDB(workflowName)
+    wftk.executeWorkflowFromDB(workflowName,
+                               scheduler=getattr(arguments, "scheduler", "local"),
+                               schedulerHost=getattr(arguments, "scheduler_host", None),
+                               schedulerPort=getattr(arguments, "scheduler_port", None),
+                               dispatch_id=getattr(arguments, "dispatch_id", None))
