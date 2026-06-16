@@ -12,6 +12,7 @@ from hera.utils.query import dictToMongoQuery
 from hera.datalayer import datatypes
 import numpy
 import pydoc
+import uuid
 import warnings
 from ..utils.logging import get_classMethod_logger
 
@@ -21,6 +22,52 @@ except ImportError:
     #    raise ImportError("hermes is not installed. please install it to use the hermes workflow toolkit.")
     warnings.warn("hermes is not installed. some features will not work.")
     workflow = None
+
+
+# Default Luigi scheduler selection values, used by buildLuigiExecutionCommand below.
+SCHEDULER_LOCAL = "local"
+SCHEDULER_CENTRAL = "central"
+
+
+def buildLuigiExecutionCommand(moduleName, dispatch_id, scheduler=SCHEDULER_LOCAL,
+                               schedulerHost=None, schedulerPort=None,
+                               targetTask="finalnode_xx_0"):
+    """Build the ``python3 -m luigi`` command line used to execute a workflow.
+
+    A single definition shared by every place that runs a Hermes workflow so the
+    local/central scheduler logic and the ``dispatch_id`` propagation stay consistent.
+
+    Parameters
+    ----------
+    moduleName : str
+        The name (without ``.py``) of the generated Luigi module to run with ``--module``.
+    dispatch_id : str
+        Unique identifier for this execution, passed to Luigi as ``--dispatch-id``. Luigi
+        maps the task's ``dispatch_id`` Parameter to the ``--dispatch-id`` CLI flag.
+    scheduler : str
+        ``"local"`` (default) adds ``--local-scheduler``; ``"central"`` connects to a
+        running ``luigid`` central scheduler (optionally at ``schedulerHost``/``schedulerPort``).
+    schedulerHost, schedulerPort : str, int
+        Optional central scheduler address. When omitted Luigi uses its defaults
+        (localhost:8082). Ignored for the local scheduler.
+    targetTask : str
+        The terminal task that triggers the whole DAG (default ``finalnode_xx_0``).
+
+    Returns
+    -------
+    str
+        The full shell command.
+    """
+    cmd = f"python3 -m luigi --module {moduleName} {targetTask}"
+    if scheduler == SCHEDULER_CENTRAL:
+        if schedulerHost is not None:
+            cmd += f" --scheduler-host {schedulerHost}"
+        if schedulerPort is not None:
+            cmd += f" --scheduler-port {schedulerPort}"
+    else:
+        cmd += " --local-scheduler"
+    cmd += f" --dispatch-id {dispatch_id}"
+    return cmd
 
 
 @unique
@@ -685,7 +732,9 @@ class hermesWorkflowToolkit(abstractToolkit):
         return doc
 
 
-    def executeWorkflowFromDB(self, nameOrWorkflowFileOrJSONOrResource):
+    def executeWorkflowFromDB(self, nameOrWorkflowFileOrJSONOrResource,
+                              scheduler=SCHEDULER_LOCAL, schedulerHost=None,
+                              schedulerPort=None, dispatch_id=None):
         """
             Building and Executing the workflow.
 
@@ -705,15 +754,30 @@ class hermesWorkflowToolkit(abstractToolkit):
              - Its workflow
              - workfolow dict.
 
-        build : bool [default = True]
-            If true, also builds the workflow.
+        scheduler : str [default = "local"]
+            Which Luigi scheduler to use. ``"local"`` runs with ``--local-scheduler``
+            (no separate process). ``"central"`` connects to a running ``luigid``.
+
+        schedulerHost, schedulerPort : str, int [default = None]
+            Optional central scheduler address (only used when scheduler == "central").
+            When omitted Luigi uses its defaults (localhost:8082).
+
+        dispatch_id : str [default = None]
+            Unique identifier for this execution, propagated to every Luigi node so the
+            central scheduler can tell distinct runs apart. When None a fresh uuid4 is
+            generated.
 
         Returns
         -------
-            None
+            str
+                The dispatch_id used for the execution (generated if not supplied), so
+                callers can correlate the run with the central scheduler.
         """
         logger = get_classMethod_logger(self, "executeWorkflow")
         docList = self.getWorkflowListDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+
+        dispatch_id = dispatch_id or uuid.uuid4().hex
+        logger.info(f"Executing with scheduler='{scheduler}' dispatch_id='{dispatch_id}'")
 
         for doc in docList:
             workflowJSON = doc.desc['workflow']
@@ -751,15 +815,22 @@ class hermesWorkflowToolkit(abstractToolkit):
 
             # Step 5: Execute the Luigi pipeline via command line.
             # 'finalnode_xx_0' is the terminal task that triggers the full DAG.
-            # --local-scheduler avoids requiring a separate Luigi scheduler process.
+            # The dispatch_id makes each run unique so the (optional) central scheduler
+            # does not deduplicate distinct executions of the same workflow.
             pythonPath = os.path.join(self.FilesDirectory, f"{workflowName}")
-            executionStr = f"python3 -m luigi --module {os.path.basename(pythonPath)} finalnode_xx_0 --local-scheduler"
+            executionStr = buildLuigiExecutionCommand(os.path.basename(pythonPath),
+                                                      dispatch_id,
+                                                      scheduler=scheduler,
+                                                      schedulerHost=schedulerHost,
+                                                      schedulerPort=schedulerPort)
             logger.debug(executionStr)
             os.system(executionStr)
 
             # Step 6: Clean up the generated Python module (the workflow JSON stays).
             logger.info(f"Cleaning the executer python for {workflowName}")
             os.remove(pythonFileName)
+
+        return dispatch_id
 
 
     def compareWorkflowObj(self,
