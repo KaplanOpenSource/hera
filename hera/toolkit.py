@@ -6,7 +6,6 @@ import sys
 import logging
 import inspect
 import pydoc
-import pandas as pd
 from typing import Optional, List, Dict, Any
 
 from hera.utils.logging import get_classMethod_logger
@@ -223,7 +222,7 @@ class abstractToolkit(Project):
             ret.append(dta)
         return ret
 
-    def getDataSourceTable(self, **filters) -> pd.DataFrame:
+    def getDataSourceTable(self, **filters) -> "pd.DataFrame":
         """
         Build a pandas DataFrame from all data sources of this toolkit.
 
@@ -236,6 +235,7 @@ class abstractToolkit(Project):
         -------
         pandas.DataFrame
         """
+        import pandas as pd
         tables = []
         for sourceMap in self.getDataSourceMap(**filters):
             table = pd.json_normalize(sourceMap)
@@ -1126,10 +1126,12 @@ class ToolkitHome(abstractToolkit):
             )
 
         if not rows:
+            import pandas as pd
             return pd.DataFrame(
                 columns=["toolkit", "cls", "source", "type", "repositoryName", "version"]
             )
 
+        import pandas as pd
         df = pd.DataFrame(rows).drop_duplicates(subset=["toolkit", "source"], keep="first")
         return df
 
