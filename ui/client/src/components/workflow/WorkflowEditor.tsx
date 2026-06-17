@@ -3,12 +3,11 @@ import { Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { useState } from 'react';
 import { WorkflowBlock, WorkflowData, WorkflowNode } from '../../shared/types';
 import { getWorkflowBlock, isTopLevelBlock } from '../../shared/workflow';
+import { WorkflowGraph } from './WorkflowGraph';
 import { WorkflowNodeEditor } from './WorkflowNodeEditor';
 
-// v1 editor for a Hermes workflow document. It shows the solver and lists the
-// nodes in execution order; each node exposes its type and an editable tree of
-// input parameters. The node-graph (ReactFlow) view will be a later iteration
-// over this same data.
+// Editor for a Hermes workflow document. Shows the solver and a node graph
+// (edges from each node's `requires`); selecting a node opens it for editing.
 export const WorkflowEditor = ({
   workflow,
   setWorkflow,
@@ -17,6 +16,7 @@ export const WorkflowEditor = ({
   setWorkflow: (workflow: WorkflowData) => void,
 }) => {
   const [newNodeName, setNewNodeName] = useState('');
+  const [selectedNode, setSelectedNode] = useState<string | undefined>(undefined);
   const block = getWorkflowBlock(workflow);
 
   // Preserve the original nesting (the block may be wrapped in an extra
@@ -48,6 +48,9 @@ export const WorkflowEditor = ({
     const nodes = { ...block?.nodes };
     delete nodes[name];
     setBlock({ ...block, nodeList: nodeNames.filter(n => n !== name), nodes });
+    if (selectedNode === name) {
+      setSelectedNode(undefined);
+    }
   };
 
   return (
@@ -63,20 +66,13 @@ export const WorkflowEditor = ({
               onChange={(e) => setBlock({ ...block, solver: e.target.value })}
               sx={{ mb: 2 }}
             />
-            <Typography variant="h6" sx={{ mb: 1 }}>
-              Nodes ({nodeNames.length})
-            </Typography>
-            {nodeNames.map((name) => (
-              <WorkflowNodeEditor
-                key={name}
-                name={name}
-                node={block.nodes?.[name] ?? {}}
-                otherNodeNames={nodeNames.filter(n => n !== name)}
-                setNode={(node) => setNode(name, node)}
-                deleteNode={() => deleteNode(name)}
-              />
-            ))}
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+            <WorkflowGraph
+              nodeNames={nodeNames}
+              nodes={block.nodes ?? {}}
+              selectedNode={selectedNode}
+              onSelectNode={setSelectedNode}
+            />
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
               <TextField
                 label="New node name"
                 size="small"
@@ -92,6 +88,15 @@ export const WorkflowEditor = ({
                 Add node
               </Button>
             </Stack>
+            {selectedNode && block.nodes?.[selectedNode] && (
+              <WorkflowNodeEditor
+                name={selectedNode}
+                node={block.nodes[selectedNode]}
+                otherNodeNames={nodeNames.filter(n => n !== selectedNode)}
+                setNode={(node) => setNode(selectedNode, node)}
+                deleteNode={() => deleteNode(selectedNode)}
+              />
+            )}
           </>
         )
       }
