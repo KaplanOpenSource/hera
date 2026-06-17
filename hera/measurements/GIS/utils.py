@@ -1,11 +1,39 @@
-import numpy
-import geopandas
-import pandas
-import math
-import numpy as np
-import geopandas as gpd
-import pandas as pd
-import xarray as xr
+import math  # stdlib, cheap
+
+# Heavy libraries are loaded on first attribute access so that
+# `from hera.measurements.GIS.utils import WSG84, ITM, convertCRS`
+# is instant even when geopandas / xarray are not yet imported.
+class _LazyModule:
+    """Proxy that imports a module the first time any attribute is accessed."""
+    __slots__ = ("_name", "_mod")
+
+    def __init__(self, name):
+        object.__setattr__(self, "_name", name)
+        object.__setattr__(self, "_mod", None)
+
+    def _load(self):
+        import importlib
+        mod = importlib.import_module(object.__getattribute__(self, "_name"))
+        object.__setattr__(self, "_mod", mod)
+        return mod
+
+    def __getattr__(self, item):
+        mod = object.__getattribute__(self, "_mod") or self._load()
+        return getattr(mod, item)
+
+    def __call__(self, *a, **kw):
+        mod = object.__getattribute__(self, "_mod") or self._load()
+        return mod(*a, **kw)
+
+
+numpy    = _LazyModule("numpy")
+np       = numpy
+geopandas = _LazyModule("geopandas")
+gpd      = geopandas
+pandas   = _LazyModule("pandas")
+pd       = pandas
+xarray   = _LazyModule("xarray")
+xr       = xarray
 
 
 # ESPG codes
