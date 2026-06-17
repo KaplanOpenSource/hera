@@ -58,6 +58,15 @@ export const DetailsViewDocumentContent = ({
   const showAgentConfig = docView === TabKind.Agent;
   const showWorkflow = docView === TabKind.Workflow;
 
+  // Agent/workflow views render the document's payload in a dedicated editor, so
+  // the unchangeable meta fields move to the header (read-only) and are hidden
+  // from the editable tree. Agent also hides resource (it IS the agent config);
+  // the workflow's resource is a separate export path, so it stays editable.
+  const showKindEditor = showAgentConfig || showWorkflow;
+  const headerHiddenFields = showAgentConfig
+    ? ['resource', 'type', 'dataFormat']
+    : (showWorkflow ? ['type', 'dataFormat'] : []);
+
   const isChanged = JSON.stringify(doc.data) !== JSON.stringify(shownDoc);
   return (
     <>
@@ -92,7 +101,7 @@ export const DetailsViewDocumentContent = ({
         shownDoc={shownDoc}
         setShownDoc={setShownDoc}
         showFormulated={showFormulated}
-        extraFields={!showAgentConfig
+        extraFields={!showKindEditor
           ? []
           : [
             { name: 'type', value: shownDoc.type },
@@ -107,7 +116,7 @@ export const DetailsViewDocumentContent = ({
           if (FORBIDDEN_FIELDS.includes(k)) {
             return null;
           }
-          if (showAgentConfig && ['resource', 'type', 'dataFormat'].includes(k)) {
+          if (headerHiddenFields.includes(k)) {
             return null;
           }
           const hideOnDesc = showFormulated && k === 'desc';
