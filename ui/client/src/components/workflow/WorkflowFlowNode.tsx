@@ -1,22 +1,27 @@
 import { Close } from '@mui/icons-material';
-import { Box, IconButton, InputBase, Typography } from '@mui/material';
+import { Box, IconButton, InputBase, TextField } from '@mui/material';
+import { SimpleTreeView } from '@mui/x-tree-view';
 import { Handle, NodeProps, Position } from '@xyflow/react';
 import { useState } from 'react';
+import { WorkflowNode } from '../../shared/types';
+import { DetailsViewItem, keyForDetailsViewItem } from '../details/DetailsViewItem';
 
 export interface WorkflowFlowNodeData {
   name: string;
-  type?: string;
+  node: WorkflowNode;
   onRename: (newName: string) => void;
+  onChange: (node: WorkflowNode) => void;
   onDelete: () => void;
   [key: string]: unknown;
 }
 
-// Custom ReactFlow node: shows the node's name (editable inline) and its type,
-// with a delete button on hover.
+// Custom ReactFlow node: edits the node name, type, and input parameters in
+// place. Delete on hover.
 export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
-  const { name, type, onRename, onDelete } = data as WorkflowFlowNodeData;
+  const { name, node, onRename, onChange, onDelete } = data as WorkflowFlowNodeData;
   const [draft, setDraft] = useState(name);
   const [hover, setHover] = useState(false);
+  const params = node.Execution?.input_parameters ?? {};
 
   const commit = () => {
     const next = draft.trim();
@@ -35,7 +40,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
         position: 'relative',
         px: 1,
         py: 0.5,
-        minWidth: 120,
+        minWidth: 260,
         borderRadius: 1,
         bgcolor: 'background.paper',
         border: '1px solid',
@@ -62,7 +67,29 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
         inputProps={{ style: { padding: 0 }, 'aria-label': 'node name' }}
         sx={{ fontSize: 13, fontWeight: 600 }}
       />
-      <Typography sx={{ fontSize: 10, opacity: 0.7 }}>{type || '—'}</Typography>
+      <Box className="nodrag" sx={{ mt: 1 }}>
+        <TextField
+          label="type"
+          size="small"
+          fullWidth
+          value={node.type ?? ''}
+          onChange={(e) => onChange({ ...node, type: e.target.value })}
+        />
+        <SimpleTreeView
+          defaultExpandedItems={[keyForDetailsViewItem('input_parameters')]}
+          sx={{ mt: 1 }}
+        >
+          <DetailsViewItem
+            itemKey="input_parameters"
+            itemValue={params}
+            parentKey={undefined}
+            setItemValue={(newVal) => onChange({
+              ...node,
+              Execution: { ...node.Execution, input_parameters: newVal },
+            })}
+          />
+        </SimpleTreeView>
+      </Box>
       <Handle type="source" position={Position.Right} />
     </Box>
   );

@@ -1,6 +1,6 @@
-import { Add } from '@mui/icons-material';
+import { Add, AutoFixHigh } from '@mui/icons-material';
 import { Box, IconButton, Menu, MenuItem, Tooltip } from '@mui/material';
-import { Background, Connection, Controls, Edge, MarkerType, Node, Panel, ReactFlow, useNodesState } from '@xyflow/react';
+import { Background, Connection, Controls, Edge, MarkerType, Node, Panel, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useEffect, useMemo, useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
@@ -8,8 +8,10 @@ import { normalizeRequires } from '../../shared/workflow';
 import { WorkflowFlowNode } from './WorkflowFlowNode';
 import { WorkflowRequiresEdge } from './WorkflowRequiresEdge';
 
-const X_GAP = 240;
-const Y_GAP = 90;
+const X_GAP = 340;       // horizontal distance between dependency layers
+const V_GAP = 30;        // vertical gap between nodes in a column
+const BASE_HEIGHT = 110; // node height without params (name + type)
+const ROW_HEIGHT = 28;   // estimated height per parameter row
 
 // Defined once (module scope) so ReactFlow doesn't warn about changing types.
 const NODE_TYPES = { workflow: WorkflowFlowNode };
@@ -43,32 +45,65 @@ const computeLayers = (nodeNames: string[], nodes: { [name: string]: WorkflowNod
   return layer;
 };
 
+// Estimated render height of a node from its parameter tree, so columns can be
+// laid out before the nodes are measured (avoids a layout flash).
+const countRows = (value: unknown): number => {
+  if (value && typeof value === 'object') {
+    return Object.values(value).reduce((sum: number, child) => sum + 1 + countRows(child), 0);
+  }
+  return 0;
+};
+
+const estimateHeight = (node: WorkflowNode): number => {
+  const params = node.Execution?.input_parameters ?? {};
+  return BASE_HEIGHT + (1 + countRows(params)) * ROW_HEIGHT;
+};
+
+// Stacks each dependency layer into a column using estimated node heights.
+const computeLayout = (nodeNames: string[], nodes: { [name: string]: WorkflowNode }): { [name: string]: { x: number, y: number } } => {
+  const layers = computeLayers(nodeNames, nodes);
+  const columnBottom: { [layer: number]: number } = {};
+  const positions: { [name: string]: { x: number, y: number } } = {};
+  nodeNames.forEach(name => {
+    const layer = layers[name] ?? 0;
+    const y = columnBottom[layer] ?? 0;
+    positions[name] = { x: layer * X_GAP, y };
+    columnBottom[layer] = y + estimateHeight(nodes[name] ?? {}) + V_GAP;
+  });
+  return positions;
+};
+
+interface WorkflowGraphProps {
+  nodeNames: string[];
+  nodes: { [name: string]: WorkflowNode };
+  selectedNode?: string;
+  onSelectNode: (name: string) => void;
+  onAddNode: () => void;
+  onRenameNode: (oldName: string, newName: string) => void;
+  onSetNode: (name: string, node: WorkflowNode) => void;
+  onAddRequire: (source: string, target: string) => void;
+  onRemoveRequire: (source: string, target: string) => void;
+  onDeleteNode: (name: string) => void;
+}
+
 // Node graph view of a workflow: one node per workflow node, edges from the
 // `requires` field. Nodes are draggable, their names editable inline, and the
 // on-canvas button adds a node. Clicking a node selects it for editing.
-export const WorkflowGraph = ({
+const WorkflowGraphInner = ({
   nodeNames,
   nodes,
   selectedNode,
   onSelectNode,
   onAddNode,
   onRenameNode,
+  onSetNode,
   onAddRequire,
   onRemoveRequire,
   onDeleteNode,
-}: {
-  nodeNames: string[],
-  nodes: { [name: string]: WorkflowNode },
-  selectedNode?: string,
-  onSelectNode: (name: string) => void,
-  onAddNode: () => void,
-  onRenameNode: (oldName: string, newName: string) => void,
-  onAddRequire: (source: string, target: string) => void,
-  onRemoveRequire: (source: string, target: string) => void,
-  onDeleteNode: (name: string) => void,
-}) => {
+}: WorkflowGraphProps) => {
   const [menu, setMenu] = useState<ContextMenu | null>(null);
   const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
+  const { fitView } = useReactFlow();
   // useNodesState owns only position and identity; the structure effect rebuilds
   // it (preserving dragged positions) when nodes are added/removed/reordered.
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState<Node>([]);
@@ -78,23 +113,31 @@ export const WorkflowGraph = ({
   const structureKey = JSON.stringify(nodeNames.map(name => [name, nodes[name]?.type, nodes[name]?.requires]));
 
   useEffect(() => {
-    const layers = computeLayers(nodeNames, nodes);
-    const rowInLayer: { [layer: number]: number } = {};
+    const layout = computeLayout(nodeNames, nodes);
     setRfNodes(prev => {
       const prevPos = new Map(prev.map(n => [n.id, n.position]));
-      return nodeNames.map(name => {
-        const layer = layers[name] ?? 0;
-        const row = rowInLayer[layer] ?? 0;
-        rowInLayer[layer] = row + 1;
-        return {
-          id: name,
-          type: 'workflow',
-          position: prevPos.get(name) ?? { x: layer * X_GAP, y: row * Y_GAP },
-          data: {},
-        };
-      });
+      return nodeNames.map(name => ({
+        id: name,
+        type: 'workflow',
+        position: prevPos.get(name) ?? layout[name],
+        data: {},
+      }));
     });
   }, [structureKey]);
+
+  // Re-stack all nodes by estimated height and zoom to fit.
+  const tidyLayout = () => {
+    const layout = computeLayout(nodeNames, nodes);
+    setRfNodes(prev => prev.map(node => ({ ...node, position: layout[node.id] ?? node.position })));
+    requestAnimationFrame(() => fitView({ duration: 300 }));
+  };
+
+  // Tidy and zoom to fit whenever nodes are added or removed (and on mount) —
+  // but not on every drag or param edit.
+  const membershipKey = JSON.stringify([...nodeNames].sort());
+  useEffect(() => {
+    tidyLayout();
+  }, [membershipKey]);
 
   // Overlay current selection and data (with fresh handlers) each render, so the
   // node always calls the latest rename handler — no stale closures, no ref.
@@ -103,8 +146,9 @@ export const WorkflowGraph = ({
     selected: node.id === selectedNode,
     data: {
       name: node.id,
-      type: nodes[node.id]?.type,
+      node: nodes[node.id] ?? {},
       onRename: (newName: string) => onRenameNode(node.id, newName),
+      onChange: (updated: WorkflowNode) => onSetNode(node.id, updated),
       onDelete: () => onDeleteNode(node.id),
     },
   }));
@@ -205,10 +249,15 @@ export const WorkflowGraph = ({
       >
         <Panel position="top-right">
           <Tooltip title="Add node">
-            <IconButton size="small" onClick={onAddNode} sx={{ bgcolor: 'background.paper', boxShadow: 1 }}>
+            <IconButton size="small" onClick={onAddNode} sx={{ bgcolor: 'background.paper', boxShadow: 1, mr: 1 }}>
               <Add />
             </IconButton>
           </Tooltip>
+          {/* <Tooltip title="Tidy layout">
+            <IconButton size="small" onClick={tidyLayout} sx={{ bgcolor: 'background.paper', boxShadow: 1 }}>
+              <AutoFixHigh />
+            </IconButton>
+          </Tooltip> */}
         </Panel>
         <Background />
         <Controls />
@@ -231,5 +280,15 @@ export const WorkflowGraph = ({
         )}
       </Menu>
     </Box>
+  );
+};
+
+// ReactFlowProvider supplies the store that hooks like useNodesInitialized read,
+// so the inner component must live inside it.
+export const WorkflowGraph = (props: WorkflowGraphProps) => {
+  return (
+    <ReactFlowProvider>
+      <WorkflowGraphInner {...props} />
+    </ReactFlowProvider>
   );
 };

@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { WorkflowBlock, WorkflowData, WorkflowNode } from '../../shared/types';
 import { getWorkflowBlock, isTopLevelBlock, normalizeRequires } from '../../shared/workflow';
 import { WorkflowGraph } from './WorkflowGraph';
-import { WorkflowNodeEditor } from './WorkflowNodeEditor';
 
 // Returns the node's `requires` with oldName replaced by newName, preserving
 // its single-name / list shape (or undefined when the node had no requires).
@@ -134,18 +133,11 @@ export const WorkflowEditor = ({
               onSelectNode={setSelectedNode}
               onAddNode={addNode}
               onRenameNode={renameNode}
+              onSetNode={setNode}
               onAddRequire={addRequire}
               onRemoveRequire={removeRequire}
               onDeleteNode={deleteNode}
             />
-            {selectedNode && block.nodes?.[selectedNode] && (
-              <WorkflowNodeEditor
-                name={selectedNode}
-                node={block.nodes[selectedNode]}
-                setNode={(node) => setNode(selectedNode, node)}
-                deleteNode={() => deleteNode(selectedNode)}
-              />
-            )}
           </>
         )
       }
