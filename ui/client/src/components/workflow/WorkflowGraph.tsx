@@ -8,8 +8,8 @@ import { normalizeRequires } from '../../shared/workflow';
 import { WorkflowFlowNode } from './WorkflowFlowNode';
 import { WorkflowRequiresEdge } from './WorkflowRequiresEdge';
 
-const X_GAP = 340;       // horizontal distance between dependency layers
-const V_GAP = 30;        // vertical gap between nodes in a column
+const X_GAP = 700;       // horizontal distance between dependency layers
+const V_GAP = 100;        // vertical gap between nodes in a column
 const BASE_HEIGHT = 110; // node height without params (name + type)
 const ROW_HEIGHT = 28;   // estimated height per parameter row
 
