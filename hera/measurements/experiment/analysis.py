@@ -1,5 +1,20 @@
-import pandas
 from hera.datalayer import datatypes
+
+class _LazyModule:
+    __slots__ = ("_name", "_mod")
+    def __init__(self, name):
+        object.__setattr__(self, "_name", name)
+        object.__setattr__(self, "_mod", None)
+    def _load(self):
+        import importlib
+        mod = importlib.import_module(object.__getattribute__(self, "_name"))
+        object.__setattr__(self, "_mod", mod)
+        return mod
+    def __getattr__(self, item):
+        mod = object.__getattribute__(self, "_mod") or self._load()
+        return getattr(mod, item)
+
+pandas = _LazyModule("pandas")
 
 class experimentAnalysis:
     """

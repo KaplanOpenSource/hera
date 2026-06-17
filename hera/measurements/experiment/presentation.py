@@ -1,10 +1,29 @@
-import numpy
-from hera.measurements.GIS.utils import WSG84,ITM,convertCRS
-import pandas as pd
-import numpy as np
-from hera import toolkitHome
-import jinja2
 import os
+from hera.measurements.GIS.utils import WSG84, ITM, convertCRS  # constants, now fast
+from hera import toolkitHome  # lazy singleton
+
+# numpy, pandas, jinja2 are deferred to the methods that use them.
+class _LazyModule:
+    __slots__ = ("_name", "_mod")
+    def __init__(self, name):
+        object.__setattr__(self, "_name", name)
+        object.__setattr__(self, "_mod", None)
+    def _load(self):
+        import importlib
+        mod = importlib.import_module(object.__getattribute__(self, "_name"))
+        object.__setattr__(self, "_mod", mod)
+        return mod
+    def __getattr__(self, item):
+        mod = object.__getattribute__(self, "_mod") or self._load()
+        return getattr(mod, item)
+    def __call__(self, *a, **kw):
+        mod = object.__getattribute__(self, "_mod") or self._load()
+        return mod(*a, **kw)
+
+numpy  = _LazyModule("numpy")
+np     = numpy
+pd     = _LazyModule("pandas")
+jinja2 = _LazyModule("jinja2")
 
 class experimentPresentation:
     """
