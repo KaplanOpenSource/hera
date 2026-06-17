@@ -1,0 +1,31 @@
+// Helpers for Hermes workflow documents.
+//
+// A Hermes workflow is stored inside a Simulations document under
+// `desc.workflow`. That value sometimes wraps the actual block in an extra
+// `{ workflow: {...} }` level. The block of interest holds `nodeList` (the
+// ordered node names) and `nodes` (each node's type + input parameters).
+
+import { WorkflowBlock, WorkflowData, WorkflowDesc } from './types';
+
+// Document type string set by the hermes workflow toolkit (DOCTYPE_WORKFLOW).
+export const WORKFLOW_DOC_TYPE = 'hermesWorkflow';
+
+// Returns the inner workflow block (the one carrying nodeList/nodes),
+// unwrapping the optional extra { workflow: {...} } level.
+export const getWorkflowBlock = (workflow?: WorkflowData): WorkflowBlock | undefined => {
+  if (!workflow) return undefined;
+  if ('nodeList' in workflow || 'nodes' in workflow) return workflow;
+  return getWorkflowBlock(workflow.workflow);
+};
+
+// True when the workflow value is the bare block (carries nodeList/nodes
+// directly), false when the block is nested under an extra { workflow } level.
+export const isTopLevelBlock = (workflow?: WorkflowData): boolean => {
+  return !!workflow && ('nodeList' in workflow || 'nodes' in workflow);
+};
+
+export const isWorkflowDoc = (doc?: { type?: string; desc?: WorkflowDesc }) => {
+  if (!doc) return false;
+  if (doc.type === WORKFLOW_DOC_TYPE) return true;
+  return getWorkflowBlock(doc.desc?.workflow) !== undefined;
+};

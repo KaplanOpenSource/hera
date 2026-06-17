@@ -29,6 +29,30 @@ export interface DocumentDesc {
   // docid?: string;
 }
 
+export interface WorkflowNode {
+  type?: string;
+  Execution?: { input_parameters?: Record<string, any> };
+}
+
+export interface WorkflowBlock {
+  root?: any;
+  solver?: string;
+  nodeList?: string[];
+  nodes?: Record<string, WorkflowNode>;
+  [key: string]: any;
+}
+
+// desc.workflow holds the block, optionally wrapped in one extra { workflow }
+// level (the shape Hermes writes).
+export type WorkflowData = WorkflowBlock | { workflow?: WorkflowBlock };
+
+// Desc of a Hermes workflow document — the base desc plus workflow-specific
+// fields, kept off DocumentDesc so the base doesn't accumulate optionals.
+export interface WorkflowDesc extends DocumentDesc {
+  workflowName?: string;
+  workflow?: WorkflowData;
+}
+
 export interface ProjectDocument {
   _cls: string;
   _id: { '$oid': string };

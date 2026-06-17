@@ -2,11 +2,13 @@ import { DocumentObj } from '../objects/DocumentObj';
 import { ProjectObj } from '../objects/ProjectObj';
 import { VALUE_GROUP_UNDEFINED } from '../utils/splitTree';
 import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId, isSplitId, toolkitNameFromSplitId } from './idDocId';
+import { isWorkflowDoc } from './workflow';
 
 export enum TabKind {
   Notebook = 'notebook',
   Document = 'document',
   Agent = 'agent',
+  Workflow = 'workflow',
   ProjectConfig = 'projectConfig',
   Repository = 'repository',
   CentralRepository = 'centralRepository',
@@ -31,6 +33,7 @@ export const classifyTab = (showItemId: string, project: ProjectObj): TabKind | 
     if (!doc) return undefined;
     if (doc.isConfig) return TabKind.ProjectConfig;
     if (doc.isNotebook) return TabKind.Notebook;
+    if (isWorkflowDoc(doc.data)) return TabKind.Workflow;
     if (isAgentDoc(doc)) return TabKind.Agent;
     return TabKind.Document;
   }
