@@ -681,12 +681,9 @@ class ToolkitHome(abstractToolkit):
             ),
         )
 
-        # Optional: keep a handle to the experiment toolkit (if available)
+        # experimentTK is populated lazily on first getToolkit(EXPERIMENT) call.
+        # Loading it eagerly here pulled geopandas+xarray+pint at import time.
         self.experimentTK = None
-        try:
-            self.experimentTK = self.getToolkit(self.EXPERIMENT)
-        except Exception:
-            self.experimentTK = None
 
     # ------------------------------------------------------------------
     # Internal helper for repository config (uses generic dataToolkit)
