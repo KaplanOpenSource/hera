@@ -1,7 +1,7 @@
 import { Box, TextField, Typography } from '@mui/material';
 import { useState } from 'react';
 import { WorkflowBlock, WorkflowData, WorkflowNode } from '../../shared/types';
-import { getWorkflowBlock, isTopLevelBlock } from '../../shared/workflow';
+import { getWorkflowBlock, isTopLevelBlock, normalizeRequires } from '../../shared/workflow';
 import { WorkflowGraph } from './WorkflowGraph';
 import { WorkflowNodeEditor } from './WorkflowNodeEditor';
 
@@ -91,6 +91,29 @@ export const WorkflowEditor = ({
     }
   };
 
+  // Add/remove a requires edge (source must run before target).
+  const addRequire = (source: string, target: string) => {
+    const node = block?.nodes?.[target];
+    if (!node) {
+      return;
+    }
+    const current = normalizeRequires(node.requires);
+    if (current.includes(source)) {
+      return;
+    }
+    setNode(target, { ...node, requires: [...current, source] });
+  };
+
+  const removeRequire = (source: string, target: string) => {
+    const node = block?.nodes?.[target];
+    if (!node) {
+      return;
+    }
+    const requires = normalizeRequires(node.requires).filter(r => r !== source);
+    const { requires: _drop, ...rest } = node;
+    setNode(target, requires.length > 0 ? { ...rest, requires } : rest);
+  };
+
   return (
     <Box sx={{ maxWidth: 900 }}>
       {!block
@@ -111,12 +134,13 @@ export const WorkflowEditor = ({
               onSelectNode={setSelectedNode}
               onAddNode={addNode}
               onRenameNode={renameNode}
+              onAddRequire={addRequire}
+              onRemoveRequire={removeRequire}
             />
             {selectedNode && block.nodes?.[selectedNode] && (
               <WorkflowNodeEditor
                 name={selectedNode}
                 node={block.nodes[selectedNode]}
-                otherNodeNames={nodeNames.filter(n => n !== selectedNode)}
                 setNode={(node) => setNode(selectedNode, node)}
                 deleteNode={() => deleteNode(selectedNode)}
               />

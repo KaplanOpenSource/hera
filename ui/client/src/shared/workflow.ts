@@ -10,6 +10,14 @@ import { WorkflowBlock, WorkflowData, WorkflowDesc } from './types';
 // Document type string set by the hermes workflow toolkit (DOCTYPE_WORKFLOW).
 export const WORKFLOW_DOC_TYPE = 'hermesWorkflow';
 
+// A node's `requires` as an array (it may be stored as a single name or a list).
+export const normalizeRequires = (requires?: string | string[]): string[] => {
+  if (requires === undefined) {
+    return [];
+  }
+  return Array.isArray(requires) ? requires : [requires];
+};
+
 // Returns the inner workflow block (the one carrying nodeList/nodes),
 // unwrapping the optional extra { workflow: {...} } level.
 export const getWorkflowBlock = (workflow?: WorkflowData): WorkflowBlock | undefined => {

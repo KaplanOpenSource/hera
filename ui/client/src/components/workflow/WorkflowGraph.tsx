@@ -1,9 +1,10 @@
 import { Add } from '@mui/icons-material';
 import { Box, IconButton, Tooltip } from '@mui/material';
-import { Background, Controls, Edge, Node, Panel, ReactFlow, useNodesState } from '@xyflow/react';
+import { Background, Connection, Controls, Edge, Node, Panel, ReactFlow, useNodesState } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useEffect, useMemo } from 'react';
 import { WorkflowNode } from '../../shared/types';
+import { normalizeRequires } from '../../shared/workflow';
 import { WorkflowFlowNode } from './WorkflowFlowNode';
 
 const X_GAP = 240;
@@ -11,13 +12,6 @@ const Y_GAP = 90;
 
 // Defined once (module scope) so ReactFlow doesn't warn about changing nodeTypes.
 const NODE_TYPES = { workflow: WorkflowFlowNode };
-
-const normalizeRequires = (requires?: string | string[]): string[] => {
-  if (requires === undefined) {
-    return [];
-  }
-  return Array.isArray(requires) ? requires : [requires];
-};
 
 // Assigns each node a layer = longest `requires` chain depth, so the graph lays
 // out left-to-right by dependency order. Cycles are broken at layer 0.
@@ -52,6 +46,8 @@ export const WorkflowGraph = ({
   onSelectNode,
   onAddNode,
   onRenameNode,
+  onAddRequire,
+  onRemoveRequire,
 }: {
   nodeNames: string[],
   nodes: { [name: string]: WorkflowNode },
@@ -59,6 +55,8 @@ export const WorkflowGraph = ({
   onSelectNode: (name: string) => void,
   onAddNode: () => void,
   onRenameNode: (oldName: string, newName: string) => void,
+  onAddRequire: (source: string, target: string) => void,
+  onRemoveRequire: (source: string, target: string) => void,
 }) => {
   // useNodesState owns only position and identity; the structure effect rebuilds
   // it (preserving dragged positions) when nodes are added/removed/reordered.
@@ -109,6 +107,55 @@ export const WorkflowGraph = ({
     return edges;
   }, [structureKey]);
 
+  // A connection source→target means "target requires source". Reject it if it
+  // points the wrong way — i.e. would create a cycle because target can already
+  // reach source through existing requires.
+  const isValidConnection = (connection: Connection | Edge): boolean => {
+    const { source, target } = connection;
+    if (!source || !target || source === target) {
+      return false;
+    }
+    if (normalizeRequires(nodes[target]?.requires).includes(source)) {
+      return false;
+    }
+    const successors: { [name: string]: string[] } = {};
+    nodeNames.forEach(name => {
+      normalizeRequires(nodes[name]?.requires).forEach(pred => {
+        if (!successors[pred]) {
+          successors[pred] = [];
+        }
+        successors[pred].push(name);
+      });
+    });
+    const reaches = (from: string, goal: string): boolean => {
+      const seen = new Set<string>();
+      const stack = [from];
+      while (stack.length > 0) {
+        const current = stack.pop() as string;
+        if (current === goal) {
+          return true;
+        }
+        if (seen.has(current)) {
+          continue;
+        }
+        seen.add(current);
+        (successors[current] ?? []).forEach(next => stack.push(next));
+      }
+      return false;
+    };
+    return !reaches(target, source);
+  };
+
+  const onConnect = (connection: Connection) => {
+    if (connection.source && connection.target) {
+      onAddRequire(connection.source, connection.target);
+    }
+  };
+
+  const onEdgesDelete = (deleted: Edge[]) => {
+    deleted.forEach(edge => onRemoveRequire(edge.source, edge.target));
+  };
+
   return (
     <Box sx={{ height: 400, border: '1px solid', borderColor: 'divider', mb: 2 }}>
       <ReactFlow
@@ -116,6 +163,9 @@ export const WorkflowGraph = ({
         edges={rfEdges}
         nodeTypes={NODE_TYPES}
         onNodesChange={onNodesChange}
+        onConnect={onConnect}
+        onEdgesDelete={onEdgesDelete}
+        isValidConnection={isValidConnection}
         fitView
         onNodeClick={(_e, node) => onSelectNode(node.id)}
       >
