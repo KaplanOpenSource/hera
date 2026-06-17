@@ -3,10 +3,8 @@ import json
 import os
 import pickle
 import zipfile
-import pandas
 import inspect
 
-from tqdm import tqdm
 from deprecated import deprecated
 
 from hera.datalayer.datahandler import datatypes
@@ -326,8 +324,9 @@ class Project:
         with zipfile.ZipFile(path, mode='w', compression=zipfile.ZIP_DEFLATED) as zf:
             i = 0
             if show_progressbar:
+                from tqdm import tqdm
                 docs_iterator= tqdm(self._batched_cursor(docs_cursor, export_chunk_size),
-                                    desc="Exporting documents", unit="batchedDocs", unit_scale=True) 
+                                    desc="Exporting documents", unit="batchedDocs", unit_scale=True)
             else:
                 docs_iterator = docs_cursor
             for docs_batch in docs_iterator:
@@ -394,12 +393,14 @@ class Project:
             if is_hard_import:
                 pickled_docs_iterator = Project._iter_pickled_docs(zf, return_batched=True)
                 if show_progressbar:
+                    from tqdm import tqdm
                     pickled_docs_iterator = tqdm(pickled_docs_iterator, desc="Loading documents", unit="docsBatch", unit_scale=True)
                 for pickled_docs_batch in pickled_docs_iterator:
                     proj._all._metadataCol._get_collection().insert_many([proj.updateProjectNameOnDoc(doc_son) for doc_son in pickled_docs_batch])
             else:
                 pickled_docs_iterator = Project._iter_pickled_docs(zf, return_batched=False)
                 if show_progressbar:
+                    from tqdm import tqdm
                     pickled_docs_iterator = tqdm(pickled_docs_iterator, desc="Loading documents", unit="docs", unit_scale=True)
                 for pickled_doc in pickled_docs_iterator:
                     proj._all._metadataCol.objects.insert(proj._all._metadataCol(**(proj.updateProjectNameOnDoc(pickled_doc))), load_bulk=False)
@@ -601,6 +602,7 @@ class Project:
     -------
              pandas.DataFrame
         """
+        import pandas
         descList = [doc.desc for doc in AbstractCollection().getDocuments(projectName=self._projectName)]
         return pandas.DataFrame(descList)
 

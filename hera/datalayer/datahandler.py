@@ -1,9 +1,33 @@
-import numpy
-import pandas
 import json
 import pickle
 import importlib
 import os
+
+
+class _LazyModule:
+    """Import a module on first attribute access."""
+    __slots__ = ("_name", "_mod")
+
+    def __init__(self, name):
+        object.__setattr__(self, "_name", name)
+        object.__setattr__(self, "_mod", None)
+
+    def _load(self):
+        mod = importlib.import_module(object.__getattribute__(self, "_name"))
+        object.__setattr__(self, "_mod", mod)
+        return mod
+
+    def __getattr__(self, item):
+        mod = object.__getattribute__(self, "_mod") or self._load()
+        return getattr(mod, item)
+
+    def __call__(self, *a, **kw):
+        mod = object.__getattribute__(self, "_mod") or self._load()
+        return mod(*a, **kw)
+
+
+numpy  = _LazyModule("numpy")
+pandas = _LazyModule("pandas")
 
 
 class datatypes:
