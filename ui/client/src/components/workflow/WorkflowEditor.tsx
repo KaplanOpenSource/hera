@@ -71,6 +71,7 @@ export const WorkflowEditor = ({
                 key={name}
                 name={name}
                 node={block.nodes?.[name] ?? {}}
+                otherNodeNames={nodeNames.filter(n => n !== name)}
                 setNode={(node) => setNode(name, node)}
                 deleteNode={() => deleteNode(name)}
               />

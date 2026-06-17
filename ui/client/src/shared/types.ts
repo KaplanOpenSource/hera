@@ -31,6 +31,9 @@ export interface DocumentDesc {
 
 export interface WorkflowNode {
   type?: string;
+  // Names of node(s) that must run before this one. Hermes accepts a single
+  // name or a list.
+  requires?: string | string[];
   Execution?: { input_parameters?: Record<string, any> };
 }
 
