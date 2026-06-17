@@ -1,19 +1,64 @@
 import os
-from ... import toolkitHome
 import getpass
 import json
 import logging
-from ...datalayer import getProjectList, Project, createProjectDirectory, removeConnection, addOrUpdateDatabase, getMongoJSON
-from ...datalayer import All as datalayer_All
-from .. import loadJSON
-from .toolkit import dataToolkit
-import pandas
-from ...toolkit import ToolkitHome
-from pydoc import locate  # for resolving classpath -> class
-from tabulate import tabulate
+from pydoc import locate
+
+# All heavy imports are deferred to _setup() so that importing this module is
+# instant.  _setup() is called at the start of every public function.
+_initialized = False
+toolkitHome = None
+getProjectList = createProjectDirectory = Project = None
+removeConnection = addOrUpdateDatabase = getMongoJSON = None
+datalayer_All = None
+loadJSON = None
+dataToolkit = None
+ToolkitHome = None
+pandas = None
+tabulate = None
+
+
+def _setup():
+    """Import all heavy dependencies once, on first function call."""
+    global _initialized
+    global toolkitHome, getProjectList, createProjectDirectory, Project
+    global removeConnection, addOrUpdateDatabase, getMongoJSON, datalayer_All
+    global loadJSON, dataToolkit, ToolkitHome, pandas, tabulate
+    if _initialized:
+        return
+    _initialized = True
+    from ... import toolkitHome as _th
+    toolkitHome = _th
+    from ...datalayer import (
+        getProjectList as _gpl,
+        Project as _P,
+        createProjectDirectory as _cpd,
+        removeConnection as _rc,
+        addOrUpdateDatabase as _aoD,
+        getMongoJSON as _gMJ,
+    )
+    from ...datalayer import All as _All
+    getProjectList = _gpl
+    Project = _P
+    createProjectDirectory = _cpd
+    removeConnection = _rc
+    addOrUpdateDatabase = _aoD
+    getMongoJSON = _gMJ
+    datalayer_All = _All
+    from .. import loadJSON as _lj
+    loadJSON = _lj
+    from .toolkit import dataToolkit as _dt
+    dataToolkit = _dt
+    from ...toolkit import ToolkitHome as _TH
+    ToolkitHome = _TH
+    import pandas as _pd
+    pandas = _pd
+    from tabulate import tabulate as _tab
+    tabulate = _tab
 
 
 def project_list(arguments):
+    _setup()
     """
         List all the projects of the user.
     """
@@ -54,6 +99,7 @@ def project_list(arguments):
 
 
 def project_create(arguments):
+    _setup()
     """
         Creating a directory and a project.
     """
@@ -115,6 +161,7 @@ def _parse_query_value(value_str):
 
 
 def project_dump(arguments):
+    _setup()
     """
     Dump documents from a project as JSON or table output.
     """
@@ -152,6 +199,7 @@ def project_dump(arguments):
 
 
 def project_load(arguments):
+    _setup()
     """
     Load documents from a JSON file into a project.
 
@@ -171,6 +219,7 @@ def project_load(arguments):
 
 
 def repository_list(argumets):
+    _setup()
     """
     List all registered repositories.
     """
@@ -190,6 +239,7 @@ def repository_list(argumets):
 
 
 def repository_add(argumets):
+    _setup()
     """
     Register a new repository from a JSON file path.
     """
@@ -205,6 +255,7 @@ def repository_add(argumets):
 
 
 def repository_remove(arguments):
+    _setup()
     """
     Remove a registered repository by name.
     """
@@ -217,6 +268,7 @@ def repository_remove(arguments):
 
 
 def repository_show(arguments):
+    _setup()
     """
     Display the contents of a registered repository (toolkits, data sources, etc.).
     """
@@ -255,6 +307,7 @@ def repository_show(arguments):
 
 
 def repository_load(arguments):
+    _setup()
     """
     Load data sources from a repository JSON file into a project.
     """
@@ -275,6 +328,7 @@ def repository_load(arguments):
                                                     overwrite=arguments.overwrite)
 
 def add_toolkit(arguments):
+    _setup()
     """
     CLI entry point for:
         hera-project addToolkit <toolkit_name> <toolkit_path>
@@ -324,6 +378,7 @@ def add_toolkit(arguments):
         raise
 
 def display_datasource_versions(arguments):
+    _setup()
     """
     Display data source versions for a project, optionally filtering by name or default versions only.
     """
@@ -380,6 +435,7 @@ def display_datasource_versions(arguments):
 
 
 def update_datasource_default_version(arguments):
+    _setup()
     """
     Set the default version for a data source in a project.
     """
@@ -390,6 +446,7 @@ def update_datasource_default_version(arguments):
 
 
 def update(arguments):
+    _setup()
     """
     Load all repositories into a project, creating it from caseConfiguration.json if needed.
     """
@@ -421,6 +478,7 @@ def update(arguments):
 
 
 def populate(arguments):
+    _setup()
     """
     Load all registered repositories into all existing projects (or a specific project).
 
@@ -469,6 +527,7 @@ def populate(arguments):
 
 
 def db_list(arguments):
+    _setup()
     """
     List all configured database connections.
     """
@@ -492,6 +551,7 @@ def db_list(arguments):
 
 
 def db_create(arguments):
+    _setup()
     """
     Create or update a database connection in the configuration file.
     """
@@ -503,6 +563,7 @@ def db_create(arguments):
 
 
 def db_remove(arguments):
+    _setup()
     """
     Remove a database connection from the configuration file.
     """
@@ -512,6 +573,7 @@ def db_remove(arguments):
 # --- Toolkit related CLI ---
 
 def toolkit_list(arguments):
+    _setup()
     """
     Print a combined list of toolkits (static + dynamic from DB) for a project.
     Uses ToolkitHome.getToolkitDocuments(...) as the single source of truth.
@@ -546,6 +608,7 @@ def toolkit_list(arguments):
 
 
 def toolkit_register(arguments):
+    _setup()
     """
     Register a toolkit using a classpath and metadata.
     Delegates to ToolkitHome.registerToolkit (expects a class object).
@@ -604,6 +667,7 @@ def load_project_name(config_file: str = "caseConfiguration.json") -> str:
 
 
 def toolkit_load(arguments):
+    _setup()
     """
     Instantiate a toolkit by name.
     Delegates to ToolkitHome.getToolkit (static + dynamic + experiments).
@@ -622,6 +686,7 @@ def toolkit_load(arguments):
 
 
 def toolkit_default_repo_show(arguments):
+    _setup()
     """
     Show the project's default repository, via ToolkitHome.getDefaultRepository(projectName=...).
     """
@@ -637,6 +702,7 @@ def toolkit_default_repo_show(arguments):
 
 
 def toolkit_default_repo_set(arguments):
+    _setup()
     """
     Set the project's default repository, via ToolkitHome.setDefaultRepository(projectName=..., repositoryName=...).
     """
@@ -656,6 +722,7 @@ def toolkit_default_repo_set(arguments):
 
 
 def toolkit_import_json(arguments):
+    _setup()
     """
     Import a JSON repository that declares toolkits (and optionally experiments),
     and register them into the project.
@@ -682,6 +749,7 @@ def toolkit_import_json(arguments):
 
 
 def project_measurements_list(args):
+    _setup()
     """
     Implementation for:
       hera-project project measurements list

@@ -3,11 +3,10 @@
 
 import argparse, argcomplete
 import logging
-from hera.utils.logging import initialize_logging,with_logger
-from hera.simulations import CLI
-
 
 if __name__ == "__main__":
+    from hera.simulations import CLI
+    from hera.utils.logging import initialize_logging, with_logger
     initialize_logging(
           with_logger("hera.simulations", handlers=['console'], level='INFO', propagate=False)
     #     with_logger("hera.simulations.hermesWorkflowToolkit", handlers=['console'], level='INFO', propagate=False),

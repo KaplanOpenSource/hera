@@ -2,12 +2,37 @@
 
 
 import os
+import logging as _stdlib_logging
 
-from hera import ToolkitHome, toolkitHome
-from hera.utils import logging
-from hera.utils.jsonutils import loadJSON
+_initialized = False
+ToolkitHome = toolkitHome = loadJSON = None
+_get_logger = None  # hera's get_logger, deferred
+
+def _setup():
+    global _initialized, ToolkitHome, toolkitHome, loadJSON, _get_logger
+    if _initialized:
+        return
+    _initialized = True
+    from hera import ToolkitHome as _TH, toolkitHome as _th
+    ToolkitHome, toolkitHome = _TH, _th
+    from hera.utils.jsonutils import loadJSON as _lj
+    loadJSON = _lj
+    from hera.utils.logging import get_logger as _gl
+    _get_logger = _gl
+
+# Compatibility shim so existing 'logging.get_logger(...)' calls still work
+class _LoggingShim:
+    def get_logger(self, *a, **kw):
+        if _get_logger is not None:
+            return _get_logger(*a, **kw)
+        return _stdlib_logging.getLogger(*a, **kw)
+    def __getattr__(self, item):
+        return getattr(_stdlib_logging, item)
+
+logging = _LoggingShim()
 
 def _confirm_project_name(arguments, logger):
+    _setup()
     if arguments.projectName is None:
         logger.debug(
             f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
@@ -15,6 +40,7 @@ def _confirm_project_name(arguments, logger):
         arguments.projectName = caseConfiguration['projectName']
 
 def list_templates(arguments):
+    _setup()
     # for template in os.listdir("templates"):
     logger = logging.get_logger("hera.bin.hera_lsm.load_template")
     _confirm_project_name(arguments, logger)
@@ -31,6 +57,7 @@ def list_templates(arguments):
         print(f"\t model folder: {template.modelFolder}")
     
 def setup_template(arguments):
+    _setup()
     # for template in os.listdir("templates"):
     logger = logging.get_logger("hera.bin.hera_lsm.load_template")
     _confirm_project_name(arguments, logger)
