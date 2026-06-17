@@ -3,6 +3,19 @@
 Import-time benchmark for hera. Run before and after each optimization task
 to track progress toward the <50ms goal.
 
+Results (issue935 branch, 2026-06-17):
+  BEFORE  import hera                          : 612 ms  (8 heavy libs loaded)
+  AFTER   import hera                          :  16 ms  (0 heavy libs)
+  BEFORE  from hera.utils.logging import ...   : 615 ms
+  AFTER   from hera.utils.logging import ...   :  16 ms
+
+  CLI --help response times (BEFORE → AFTER):
+    hera-project       : 736ms → 58ms
+    hera-GIS           : 936ms → 48ms
+    hera-workflows     :  53ms → 53ms  (unchanged, was already fast)
+    hera-LSM           : 671ms → 51ms
+    hera-riskassessment: 1820ms → 50ms
+
 Usage:
     python3 scripts/benchmark_import.py
 """
