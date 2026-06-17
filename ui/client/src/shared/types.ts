@@ -34,14 +34,14 @@ export interface WorkflowNode {
   // Names of node(s) that must run before this one. Hermes accepts a single
   // name or a list.
   requires?: string | string[];
-  Execution?: { input_parameters?: Record<string, any> };
+  Execution?: { input_parameters?: { [key: string]: any } };
 }
 
 export interface WorkflowBlock {
   root?: any;
   solver?: string;
   nodeList?: string[];
-  nodes?: Record<string, WorkflowNode>;
+  nodes?: { [name: string]: WorkflowNode };
   [key: string]: any;
 }
 

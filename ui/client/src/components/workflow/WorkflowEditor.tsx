@@ -1,10 +1,21 @@
-import { Add } from '@mui/icons-material';
-import { Box, Button, Stack, TextField, Typography } from '@mui/material';
+import { Box, TextField, Typography } from '@mui/material';
 import { useState } from 'react';
 import { WorkflowBlock, WorkflowData, WorkflowNode } from '../../shared/types';
 import { getWorkflowBlock, isTopLevelBlock } from '../../shared/workflow';
 import { WorkflowGraph } from './WorkflowGraph';
 import { WorkflowNodeEditor } from './WorkflowNodeEditor';
+
+// Returns the node's `requires` with oldName replaced by newName, preserving
+// its single-name / list shape (or undefined when the node had no requires).
+const normalizeRenamed = (requires: string | string[] | undefined, oldName: string, newName: string): string | string[] | undefined => {
+  if (requires === undefined) {
+    return undefined;
+  }
+  if (Array.isArray(requires)) {
+    return requires.map(r => (r === oldName ? newName : r));
+  }
+  return requires === oldName ? newName : requires;
+};
 
 // Editor for a Hermes workflow document. Shows the solver and a node graph
 // (edges from each node's `requires`); selecting a node opens it for editing.
@@ -15,7 +26,6 @@ export const WorkflowEditor = ({
   workflow?: WorkflowData,
   setWorkflow: (workflow: WorkflowData) => void,
 }) => {
-  const [newNodeName, setNewNodeName] = useState('');
   const [selectedNode, setSelectedNode] = useState<string | undefined>(undefined);
   const block = getWorkflowBlock(workflow);
 
@@ -33,15 +43,43 @@ export const WorkflowEditor = ({
     ? block.nodeList
     : Object.keys(block?.nodes ?? {});
 
+  const uniqueNodeName = (): string => {
+    let i = nodeNames.length + 1;
+    let name = `node${i}`;
+    while (nodeNames.includes(name)) {
+      i += 1;
+      name = `node${i}`;
+    }
+    return name;
+  };
+
   const addNode = () => {
-    const name = newNodeName.trim();
-    if (!name || nodeNames.includes(name)) return;
+    const name = uniqueNodeName();
     setBlock({
       ...block,
       nodeList: [...nodeNames, name],
       nodes: { ...block?.nodes, [name]: { type: '', Execution: { input_parameters: {} } } },
     });
-    setNewNodeName('');
+    setSelectedNode(name);
+  };
+
+  // Rename a node: update its key, the node list, and any `requires` references.
+  const renameNode = (oldName: string, newName: string) => {
+    const name = newName.trim();
+    if (!name || name === oldName || nodeNames.includes(name)) {
+      return;
+    }
+    const oldNodes = block?.nodes ?? {};
+    const nodes: { [name: string]: WorkflowNode } = {};
+    for (const key of Object.keys(oldNodes)) {
+      const node = oldNodes[key];
+      const requires = normalizeRenamed(node.requires, oldName, name);
+      nodes[key === oldName ? name : key] = requires === undefined ? node : { ...node, requires };
+    }
+    setBlock({ ...block, nodeList: nodeNames.map(n => (n === oldName ? name : n)), nodes });
+    if (selectedNode === oldName) {
+      setSelectedNode(name);
+    }
   };
 
   const deleteNode = (name: string) => {
@@ -71,23 +109,9 @@ export const WorkflowEditor = ({
               nodes={block.nodes ?? {}}
               selectedNode={selectedNode}
               onSelectNode={setSelectedNode}
+              onAddNode={addNode}
+              onRenameNode={renameNode}
             />
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
-              <TextField
-                label="New node name"
-                size="small"
-                value={newNodeName}
-                onChange={(e) => setNewNodeName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') addNode(); }}
-              />
-              <Button
-                startIcon={<Add />}
-                onClick={addNode}
-                disabled={!newNodeName.trim() || nodeNames.includes(newNodeName.trim())}
-              >
-                Add node
-              </Button>
-            </Stack>
             {selectedNode && block.nodes?.[selectedNode] && (
               <WorkflowNodeEditor
                 name={selectedNode}
