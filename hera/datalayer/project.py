@@ -11,7 +11,6 @@ from deprecated import deprecated
 
 from hera.datalayer.datahandler import datatypes
 from hera.utils.logging import get_classMethod_logger
-from hera import toolkit
 from hera.datalayer.collection import AbstractCollection,\
     Cache_Collection,\
     Measurements_Collection,\
