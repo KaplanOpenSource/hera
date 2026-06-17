@@ -1,17 +1,24 @@
 import { Add } from '@mui/icons-material';
-import { Box, IconButton, Tooltip } from '@mui/material';
-import { Background, Connection, Controls, Edge, Node, Panel, ReactFlow, useNodesState } from '@xyflow/react';
+import { Box, IconButton, Menu, MenuItem, Tooltip } from '@mui/material';
+import { Background, Connection, Controls, Edge, MarkerType, Node, Panel, ReactFlow, useNodesState } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
 import { normalizeRequires } from '../../shared/workflow';
 import { WorkflowFlowNode } from './WorkflowFlowNode';
+import { WorkflowRequiresEdge } from './WorkflowRequiresEdge';
 
 const X_GAP = 240;
 const Y_GAP = 90;
 
-// Defined once (module scope) so ReactFlow doesn't warn about changing nodeTypes.
+// Defined once (module scope) so ReactFlow doesn't warn about changing types.
 const NODE_TYPES = { workflow: WorkflowFlowNode };
+const EDGE_TYPES = { requires: WorkflowRequiresEdge };
+
+// Right-click target: a node, or an edge (a requires link), anchored at a point.
+type ContextMenu =
+  | { kind: 'node', name: string, x: number, y: number }
+  | { kind: 'edge', source: string, target: string, x: number, y: number };
 
 // Assigns each node a layer = longest `requires` chain depth, so the graph lays
 // out left-to-right by dependency order. Cycles are broken at layer 0.
@@ -48,6 +55,7 @@ export const WorkflowGraph = ({
   onRenameNode,
   onAddRequire,
   onRemoveRequire,
+  onDeleteNode,
 }: {
   nodeNames: string[],
   nodes: { [name: string]: WorkflowNode },
@@ -57,7 +65,10 @@ export const WorkflowGraph = ({
   onRenameNode: (oldName: string, newName: string) => void,
   onAddRequire: (source: string, target: string) => void,
   onRemoveRequire: (source: string, target: string) => void,
+  onDeleteNode: (name: string) => void,
 }) => {
+  const [menu, setMenu] = useState<ContextMenu | null>(null);
+  const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
   // useNodesState owns only position and identity; the structure effect rebuilds
   // it (preserving dragged positions) when nodes are added/removed/reordered.
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState<Node>([]);
@@ -94,6 +105,7 @@ export const WorkflowGraph = ({
       name: node.id,
       type: nodes[node.id]?.type,
       onRename: (newName: string) => onRenameNode(node.id, newName),
+      onDelete: () => onDeleteNode(node.id),
     },
   }));
 
@@ -106,6 +118,17 @@ export const WorkflowGraph = ({
     });
     return edges;
   }, [structureKey]);
+
+  // Overlay edge type, direction arrow, hover state, and a fresh remove handler.
+  const displayEdges = rfEdges.map(edge => ({
+    ...edge,
+    type: 'requires',
+    markerEnd: { type: MarkerType.ArrowClosed },
+    data: {
+      hovered: edge.id === hoveredEdge,
+      onRemove: () => onRemoveRequire(edge.source, edge.target),
+    },
+  }));
 
   // A connection source→target means "target requires source". Reject it if it
   // points the wrong way — i.e. would create a cycle because target can already
@@ -160,14 +183,25 @@ export const WorkflowGraph = ({
     <Box sx={{ height: 400, border: '1px solid', borderColor: 'divider', mb: 2 }}>
       <ReactFlow
         nodes={displayNodes}
-        edges={rfEdges}
+        edges={displayEdges}
         nodeTypes={NODE_TYPES}
+        edgeTypes={EDGE_TYPES}
         onNodesChange={onNodesChange}
         onConnect={onConnect}
         onEdgesDelete={onEdgesDelete}
         isValidConnection={isValidConnection}
         fitView
         onNodeClick={(_e, node) => onSelectNode(node.id)}
+        onEdgeMouseEnter={(_e, edge) => setHoveredEdge(edge.id)}
+        onEdgeMouseLeave={() => setHoveredEdge(null)}
+        onNodeContextMenu={(event, node) => {
+          event.preventDefault();
+          setMenu({ kind: 'node', name: node.id, x: event.clientX, y: event.clientY });
+        }}
+        onEdgeContextMenu={(event, edge) => {
+          event.preventDefault();
+          setMenu({ kind: 'edge', source: edge.source, target: edge.target, x: event.clientX, y: event.clientY });
+        }}
       >
         <Panel position="top-right">
           <Tooltip title="Add node">
@@ -179,6 +213,23 @@ export const WorkflowGraph = ({
         <Background />
         <Controls />
       </ReactFlow>
+      <Menu
+        open={menu !== null}
+        onClose={() => setMenu(null)}
+        anchorReference="anchorPosition"
+        anchorPosition={menu ? { top: menu.y, left: menu.x } : undefined}
+      >
+        {menu?.kind === 'node' && (
+          <MenuItem onClick={() => { onDeleteNode(menu.name); setMenu(null); }}>
+            Delete node “{menu.name}”
+          </MenuItem>
+        )}
+        {menu?.kind === 'edge' && (
+          <MenuItem onClick={() => { onRemoveRequire(menu.source, menu.target); setMenu(null); }}>
+            Remove requirement ({menu.source} → {menu.target})
+          </MenuItem>
+        )}
+      </Menu>
     </Box>
   );
 };

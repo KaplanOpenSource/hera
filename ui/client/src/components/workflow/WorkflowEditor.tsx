@@ -136,6 +136,7 @@ export const WorkflowEditor = ({
               onRenameNode={renameNode}
               onAddRequire={addRequire}
               onRemoveRequire={removeRequire}
+              onDeleteNode={deleteNode}
             />
             {selectedNode && block.nodes?.[selectedNode] && (
               <WorkflowNodeEditor
