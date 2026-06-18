@@ -310,9 +310,8 @@ class abstractGasCloud:
         :return: The Depletion Factor
         """
         # Deposition velocity normalized to standard m/s units
-        v = tonumber(0.003 * m / s, m / s) #Deposition velocity. By default we take this value to be 0.003 [m/s]
-        u_ms = tonumber(u, m / s)
-        print(u_ms)
+        v = tonumber(0.003 * m / s, m / min) #Deposition velocity. By default we take this value to be 0.003 [m/s]
+        u = tonumber(u, m / min)
 
         X, Z = numpy.meshgrid(xcoordRange, zcoordRange, indexing='ij')
         sigmaZ = self.sigmaType.getSigma(x=X, stability=stability, sigma0=self.initialCloudSize, units=False)['sigmaZ']
@@ -328,7 +327,7 @@ class abstractGasCloud:
         exponent_sum = numpy.cumsum(inner_term, axis=0)
 
         # 3. Apply the constants and the negative multiplier in log-space
-        outer_multiplier = (-v / u_ms) * numpy.sqrt(2 / numpy.pi)
+        outer_multiplier = (-v / u) * numpy.sqrt(2 / numpy.pi)
         total_exponent = exponent_sum * outer_multiplier
 
         # 4. Bring back to standard space safely
@@ -370,11 +369,11 @@ class instantaneousReleaseGasCloud(abstractGasCloud):
         tcoordRange = numpy.arange(0,tonumber(timeSpan,min),tonumber(dt,min))
 
         stability = meteorology.stability
-        u = tonumber(meteorology.u10, m/min)
+        u = meteorology.u10
         # u = tonumber(meteorology.getWindVelocity(height=self.sourceHeight), m / min)
         inversion = tonumber(meteorology.inversion, m)
 
-        TX = self._getTXterm(stability=stability, u=u, xcoordRange=xcoordRange, tcoordRange=tcoordRange)
+        TX = self._getTXterm(stability=stability, u=tonumber(u, m/min), xcoordRange=xcoordRange, tcoordRange=tcoordRange)
         XY = self._getXYterm(stability=stability, xcoordRange=xcoordRange, ycoordRange=ycoordRange)
         XZ = self._getXZterm(stability=stability, inversion=inversion, xcoordRange=xcoordRange, zcoordRange=zcoordRange,
                              numOfReflections=numOfReflections)
@@ -388,7 +387,7 @@ class instantaneousReleaseGasCloud(abstractGasCloud):
     def getDosageFromMinMaxRange_inst_noQ(self, meteorology, minx, miny, minz, maxx, maxy, maxz, timeSpan,
                            dxdy=10*m, dz=1*m, dt=1*min, numOfReflections=3, DF=False):
         stability = meteorology.stability
-        u = tonumber(meteorology.u10, m/min)
+        u = meteorology.u10
         # u = tonumber(meteorology.getWindVelocity(height=self.sourceHeight), m / min)
         inversion = tonumber(meteorology.inversion, m)
 
@@ -397,7 +396,7 @@ class instantaneousReleaseGasCloud(abstractGasCloud):
         zcoordRange = numpy.arange(tonumber(minz, m), tonumber(maxz, m), tonumber(dz, m))
         tcoordRange = numpy.arange(0, tonumber(timeSpan, min), tonumber(dt, min))
 
-        TX = self._getTXDosage(stability=stability, u=u, xcoordRange=xcoordRange, tcoordRange=tcoordRange)
+        TX = self._getTXDosage(stability=stability, u=tonumber(u, m/min), xcoordRange=xcoordRange, tcoordRange=tcoordRange)
         XY = self._getXYterm(stability=meteorology.stability, xcoordRange=xcoordRange, ycoordRange=ycoordRange)
         XZ = self._getXZterm(stability=stability, inversion=inversion, xcoordRange=xcoordRange, zcoordRange=zcoordRange,
                              numOfReflections=numOfReflections)
