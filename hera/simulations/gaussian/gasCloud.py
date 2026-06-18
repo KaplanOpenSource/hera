@@ -310,8 +310,8 @@ class abstractGasCloud:
         :return: The Depletion Factor
         """
         # Deposition velocity normalized to standard m/s units
-        v = tonumber(0.003 * m / s, m / min) #Deposition velocity. By default we take this value to be 0.003 [m/s]
-        u = tonumber(u, m / min)
+        v = tonumber(0.003 * m/s, m/min) #Deposition velocity. By default we take this value to be 0.003 [m/s]
+        u = tonumber(u, m/min)
 
         X, Z = numpy.meshgrid(xcoordRange, zcoordRange, indexing='ij')
         sigmaZ = self.sigmaType.getSigma(x=X, stability=stability, sigma0=self.initialCloudSize, units=False)['sigmaZ']
