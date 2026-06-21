@@ -310,7 +310,7 @@ class presentationLayer:
         plt.plot(x_array, dos_x_inst )
         plt.xlabel("Distance from source $[m]$")
 
-        plt.ylabel(r"Dosage $\left[\frac{1*min}{m^3}\right]$")
+        plt.ylabel(r"Dosage $\left[\frac{1}{m^3} \cdot min\right]$")
         plt.title(f"Dosage per distance. y={y}[m], z={z}[m], time={time}[min]")
         plt.grid()
         plt.show()
@@ -335,7 +335,7 @@ class presentationLayer:
 
         plt.plot(time_array, dos_inst_t )
         plt.xlabel("Time from release $[min]$")
-        plt.ylabel(r"Dosage over time $\left[\frac{1*min}{m^3}\right]$")
+        plt.ylabel(r"Dosage over time $\left[\frac{1}{m^3} \cdot min\right]$")
         plt.title(f"Receptor at x={x}[m], y={y}[m], z={z}[m].")
         plt.grid()
         plt.show()
