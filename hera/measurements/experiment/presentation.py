@@ -1,6 +1,3 @@
-import matplotlib.pyplot as plt
-import seaborn
-import matplotlib.colors as mcolors
 import numpy
 from hera.measurements.GIS.utils import WSG84,ITM,convertCRS
 import pandas as pd
@@ -130,6 +127,8 @@ class experimentPresentation:
         -------
         matplotlib.axes.Axes
         """
+        import matplotlib.pyplot as plt
+        
         if ax is None:
             fig, ax = plt.subplots(1, 1)
 
@@ -169,7 +168,7 @@ class experimentPresentation:
         -------
             Axes
         """
-
+        import matplotlib.pyplot as plt
         if ax is None:
             fig, ax = plt.subplots(1, 1)
         else:
@@ -228,6 +227,7 @@ class experimentPresentation:
         -------
 
         """
+        import matplotlib.pyplot as plt
         devices_df = self.trialSet[trialSetName][trialName].entitiesTable
 
         if ax is None:
@@ -272,6 +272,7 @@ class experimentPresentation:
         :return:
             axis
         """
+        import matplotlib.pyplot as plt
 
         data = self.datalayer.experimentSetup.trialSet[trialSet][trialName].entitiesTable(status).query("locationName==@floorName and entityType==@entityTypeName")
 
@@ -334,11 +335,12 @@ class experimentPresentation:
         :return:
             axis
         """
+        import matplotlib.pyplot as plt
         entities = self.datalayer.experimentSetup.trialSet[trialSet][trialName].entitiesTable(status)
         if len(entities) > 0:
             data = entities.query("locationName==@floorName and entityType==@entityTypeName")
         else:
-            data = pandas.DataFrame()
+            data = pd.DataFrame()
 
 
         if ax is None:
@@ -411,6 +413,7 @@ class experimentPresentation:
             fig
             ax
         """
+        import matplotlib.pyplot as plt
         scatterkwargs.setdefault("s",50)
         scatterkwargs.setdefault("c", "r")
         devices_df = self.datalayer.trialSet[trialSetName][trialName].entitiesTable.query("deviceTypeName==@deviceType and mapName==@mapName")
@@ -464,6 +467,7 @@ class experimentPresentation:
             fig
             ax
         """
+        import matplotlib.pyplot as plt
         if ax is None:
             plot_kwargs = plot_kwargs or {}
             fig, ax = plt.subplots(1, 1, **plot_kwargs)
@@ -509,6 +513,7 @@ class experimentPresentation:
         -------
         matplotlib.colors.LinearSegmentedColormap
         """
+        import matplotlib.colors as mcolors
         cdict = dict()
 
         if float_list is None:
@@ -582,6 +587,8 @@ class experimentPresentation:
 
 
         """
+        import matplotlib.pyplot as plt
+        import seaborn
         # get all the data from the DB. Right now, getting the raw. Maybe to accelerate we will
         # add a flag to try to obtain the data from a cached database.
         trialSetName = self.datalayer.defaultTrialSet if trialSetName is None else trialSetName

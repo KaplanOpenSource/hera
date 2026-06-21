@@ -9,13 +9,17 @@ from pathlib import Path
 DEFAULT_JUPYTER_PORT = 8888
 
 
+LOOPBACK_HOSTS = ('127.0.0.1', 'localhost', '::1')
+
+
 class JupyterServerThread:
-    def __init__(self, root_dir: str, port: int = DEFAULT_JUPYTER_PORT):
+    def __init__(self, root_dir: str, port: int = DEFAULT_JUPYTER_PORT, ip: str = '127.0.0.1'):
         self._port = port
         self._root_dir = root_dir
+        self._ip = ip
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
-        print(f"Jupyter server starting on port {port}, root_dir={root_dir}")
+        print(f"Jupyter server starting on {ip}:{port}, root_dir={root_dir}")
 
     def wait_until_ready(self, timeout: float = 30) -> bool:
         import time
@@ -89,6 +93,10 @@ class JupyterServerThread:
                 'fetchNews': 'false',
                 'checkForUpdates': False,
             }
+            overrides['@jupyterlab/docmanager-extension:plugin'] = {
+                'autosave': True,
+                'autosaveInterval': 2,
+            }
             overrides_path.write_text(json.dumps(overrides, indent=2))
         except OSError:
             print("WARNING: Could not write Jupyter overrides (permission denied) — news popup may appear")
@@ -101,10 +109,16 @@ class JupyterServerThread:
             from jupyter_server.serverapp import ServerApp
             ServerApp.clear_instance()
             ServerApp.init_signal = lambda self: None  # signals only work in main thread
+            # Match the bind address of the API server. When bound to a non-loopback
+            # address the notebook is opened remotely, so allow access via any hostname/IP
+            # (otherwise API/WebSocket calls get blocked by Jupyter's Host check).
+            allow_remote = self._ip not in LOOPBACK_HOSTS
             app = ServerApp.instance()
             app.initialize([
                 f'--port={self._port}',
                 f'--notebook-dir={self._root_dir}',
+                f'--ServerApp.ip={self._ip}',
+                f'--ServerApp.allow_remote_access={allow_remote}',
                 '--no-browser',
                 '--allow-root',
                 '--ServerApp.token=',

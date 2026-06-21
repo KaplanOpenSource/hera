@@ -2,7 +2,7 @@ import { ProjectEntire, ProjectName, Toolkit } from "@shared/types";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { NO_PROJECT, useProjectStore } from "../stores/useProjectStore";
-import { fetchPython } from "./fetchPython";
+import { fetchPython, fetchPythonClean } from "./fetchPython";
 import { ProjectCommands } from "./ProjectCommands";
 
 export const fetchProjectsNames = async () => {
@@ -12,16 +12,19 @@ export const fetchProjectsNames = async () => {
   }
 }
 
-export const fetchProjectDetails = async (projectName: string) => {
-  const { data, problem } = await fetchPython({
+// silent: use the no-notification fetch (e.g. for the periodic auto-reload).
+export const fetchProjectDetails = async (projectName: string, silent = false) => {
+  const run = silent ? fetchPythonClean : fetchPython;
+  const { data } = await run({
     results: ['project'],
+    label: `project details ${projectName}`,
     code: `
 from hera.datalayer import All
 docs = All.getDocumentsAsDict('${projectName}', with_id=True)
 project = {"name": '${projectName}', "documents": docs['documents']}
 `,
   });
-  if (!problem) {
+  if (data) {
     // Skip if the user switched projects while this fetch was in flight
     const { currProjectName, setCurrentProject } = useProjectStore.getState();
     if (currProjectName === projectName) {
@@ -50,9 +53,10 @@ const parseToolkits = (toolkitDocs: any[]): Toolkit[] =>
   });
 
 export const fetchProjectData = async (projectName: string) => {
-  const { data, problem } = await fetchPython(
+  const { data } = await fetchPython(
     {
       results: ['toolkitDocs'],
+      label: 'toolkits',
       code: `
 from hera import toolkitHome
 toolkitDocs = toolkitHome.getToolkitDocuments()
@@ -60,6 +64,7 @@ toolkitDocs = toolkitHome.getToolkitDocuments()
     },
     {
       results: ['project'],
+      label: `project ${projectName}`,
       code: `
 from hera.datalayer import All
 docs = All.getDocumentsAsDict('${projectName}', with_id=True)
@@ -67,7 +72,7 @@ project = {"name": '${projectName}', "documents": docs['documents']}
 `,
     },
   );
-  if (!problem) {
+  if (data) {
     const { currProjectName, setCurrentProject, setToolkits } = useProjectStore.getState();
     setToolkits(parseToolkits(data.toolkitDocs));
     if (currProjectName === projectName) {

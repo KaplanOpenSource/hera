@@ -1,33 +1,54 @@
 import { BASEURL } from '../shared/baseurl';
-import { ExecRequest } from '../shared/types';
+import { ExecRequest, ExecResponse } from '../shared/types';
+import { pushRunning, pushError, dismiss } from './snackbar';
 
 export type PythonCommand = {
   results: string[];
   code: string;
+  label?: string;
 };
 
-const fetchPythonDirect = async (code: string): Promise<{ data: any; problem: undefined | string }> => {
+const SHORT_ERROR_MAX = 120;
+
+const shortenError = (error: string) => {
+  const firstLine = error.split('\n')[0];
+  return firstLine.length > SHORT_ERROR_MAX
+    ? firstLine.slice(0, SHORT_ERROR_MAX - 1) + '…'
+    : firstLine;
+};
+
+const fetchPythonDirect = async (code: string): Promise<ExecResponse> => {
+  console.log('executing', code);
+  const payload: ExecRequest = { code };
+  let text: string | undefined;
   try {
-    console.log('executing', code);
-    const payload: ExecRequest = {
-      code,
-    };
+    // await new Promise(r => setTimeout(r, 1500));
     const r = await fetch(`${BASEURL}/exec`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    const data = await r.json();
-    console.log('result =', data);
-    return { data, problem: undefined };
+    text = await r.text();
+    const parsed = JSON.parse(text) as ExecResponse;
+    if (parsed.problem) {
+      console.error('python error:', parsed.problem.error, parsed.problem.traceback);
+    } else {
+      console.log('result =', parsed.data);
+    }
+    return parsed;
   } catch (e: any) {
-    const problem = e?.message ?? 'Failed to run';
-    console.trace('problem:', problem);
-    return { data: undefined, problem };
+    const error = text !== undefined
+      ? `unexpected response: ${text.slice(0, 500)}`
+      : `network error: ${e?.message ?? e}`;
+    console.error(error);
+    return {
+      data: null,
+      problem: { error, traceback: '' },
+    };
   }
 };
 
-export const fetchPython = async (...commands: PythonCommand[]): Promise<{ data: any; problem: string | undefined }> => {
+const assembleCode = (commands: PythonCommand[]) => {
   const lines: string[] = [];
   const resultVars: string[] = [];
 
@@ -36,13 +57,30 @@ export const fetchPython = async (...commands: PythonCommand[]): Promise<{ data:
     resultVars.push(...cmd.results);
   }
 
-  if (resultVars.length > 0) {
-    lines.push('result = {}');
-    for (const name of resultVars) {
-      lines.push(`result["${name}"] = ${name}`);
-    }
+  lines.push('result = {}');
+  for (const name of resultVars) {
+    lines.push(`result["${name}"] = ${name}`);
   }
 
-  const { data, problem } = await fetchPythonDirect(lines.join('\n'));
-  return { data: problem ? undefined : data, problem };
+  return lines.join('\n');
+};
+
+export const fetchPythonClean = async (...commands: PythonCommand[]): Promise<ExecResponse> => {
+  return fetchPythonDirect(assembleCode(commands));
+};
+
+export const fetchPython = async (...commands: PythonCommand[]): Promise<{ data: any }> => {
+  const labels = commands.map(c => c.label).filter(Boolean);
+  const label = labels.length > 0 ? labels.join(', ') : 'Python';
+  const key = pushRunning(label);
+  try {
+    const response = await fetchPythonClean(...commands);
+    if (response.problem) {
+      pushError(`${label}: ${shortenError(response.problem.error)}`);
+      return { data: null };
+    }
+    return { data: response.data };
+  } finally {
+    dismiss(key);
+  }
 };

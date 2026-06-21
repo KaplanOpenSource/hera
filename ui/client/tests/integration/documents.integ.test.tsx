@@ -1,36 +1,23 @@
 /// <reference types="node" />
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import { screen, fireEvent, waitFor, within, cleanup, act } from '@testing-library/react';
-import { startDockerEnv, type DockerEnv } from './dockerSetup';
 import { createProjectViaUI, renderApp, resetStore } from './integHelpers';
 import type { ProjectDocument } from '../../src/shared/types';
 
-vi.mock('../../src/shared/baseurl', async () => (await import('./mockFactories')).createBaseurlMock(8003));
+vi.mock('../../src/shared/baseurl', async () => (await import('./mockFactories')).createBaseurlMock());
 vi.mock('../../src/stores/useServerConstants', async () => (await import('./mockFactories')).createServerConstantsMock());
+vi.mock('../../src/io/snackbar', async () => (await import('./mockFactories')).createSnackbarMock());
 
 import { useProjectStore } from '../../src/stores/useProjectStore';
 
-let env: DockerEnv;
-
 describe('Documents UI integration', () => {
   beforeAll(async () => {
-    env = await startDockerEnv({
-      network: 'hera-test-docs-net',
-      mongoContainer: 'hera-test-docs-mongo',
-      serverContainer: 'hera-test-docs-server',
-      serverPort: 8003,
-      dbName: 'hera_test_docs',
-    });
     await createProjectViaUI('DocTestProject');
   }, 60000);
 
   beforeEach(() => { resetStore(); });
   afterEach(() => { cleanup(); });
-
-  afterAll(() => {
-    cleanup();
-    env?.cleanup();
-  }, 15000);
+  afterAll(() => { cleanup(); });
 
   const loadProject = async () => {
     renderApp('/DocTestProject');
@@ -73,7 +60,8 @@ describe('Documents UI integration', () => {
     fireEvent.change(within(dialog).getByRole('textbox', { name: /^name$/i }), {
       target: { value: 'AgentDoc1' },
     });
-    fireEvent.click(within(dialog).getByRole('checkbox', { name: /agent/i }));
+    fireEvent.mouseDown(within(dialog).getByText('Regular'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Agent' }));
 
     await act(async () => {
       fireEvent.click(within(dialog).getByRole('button', { name: /add document/i }));

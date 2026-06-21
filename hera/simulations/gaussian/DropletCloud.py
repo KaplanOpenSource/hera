@@ -1,4 +1,4 @@
-from hera.utils.unitHandler import  *
+from hera.utils.unitHandler import ureg, unumToPint
 import pandas
 import numpy
 from scipy.stats import lognorm
@@ -56,7 +56,7 @@ class FixedPositionDropletsCloud(object):
             print(f"solving droplets {i}/{total}" ,end="\r")
             res = droplet.solveToTime(T)
             res['N'] = droplet.N 
-            res['DropletArea'] = droplet.AreaOnSurface.asNumber(um**2)
+            res['DropletArea'] = unumToPint(droplet.AreaOnSurface).m_as(ureg.um**2)
             retList.append(res.iloc[-1].to_frame().T)
 
         ret = pandas.concat(retList, ignore_index=True)
@@ -65,22 +65,22 @@ class FixedPositionDropletsCloud(object):
 
     def _initDropletPosition(self, mmd, geometricstd, position, Q, clouds=30, meteorologyname="logNormal",met_kwargs={}, **kwargs):
 
-        rv = lognorm(numpy.log(geometricstd), scale=tonumber(mmd, m))
+        rv = lognorm(numpy.log(geometricstd), scale=tonumber(mmd, ureg.m))
         lower = rv.ppf(1e-4)
         upper = rv.ppf(1-1e-4)
 
-        met_params = dict(z0=10*cm)
+        met_params = dict(z0=10*ureg.cm)
         met_params.update(met_kwargs)
 
         interval = numpy.logspace(numpy.log(lower),numpy.log(upper),clouds,base=numpy.e)
         dh = numpy.diff(numpy.log(interval))[0]
 
-        massFractionVector = numpy.diff(rv.cdf(interval))*tonumber(Q,kg)
+        massFractionVector = numpy.diff(rv.cdf(interval))*tonumber(Q,ureg.kg)
         diameterVector     = numpy.exp(numpy.log(interval[:-1])+dh/2.)  # [m]
 
         for dropletDiam,dropletQ in zip(diameterVector,massFractionVector):
-            droplets = FallingNonEvaporatingDroplets(particleDiameter=dropletDiam*m,
-                                                     Q=dropletQ*kg,
+            droplets = FallingNonEvaporatingDroplets(particleDiameter=dropletDiam*ureg.m,
+                                                     Q=dropletQ*ureg.kg,
                                                      position=position,
                                                      meteorologyName=meteorologyname,
                                                      met_kwargs=met_params,
@@ -120,8 +120,8 @@ class LinePositionDropletsCloud(FixedPositionDropletsCloud):
         self._dropletList = []
 
         qCloud = Q/linepositions
-        for Ypos in numpy.linspace(0,tonumber(linelength,m),linepositions):
-            curpos = (position[0],tounit(Ypos,m),position[2])
+        for Ypos in numpy.linspace(0,tonumber(linelength,ureg.m),linepositions):
+            curpos = (position[0],tounit(Ypos,ureg.m),position[2])
             self._initDropletPosition(mmd, geometricstd, curpos, qCloud, clouds=clouds,meteorologyname=meteorologyname, **kwargs)
 
 
@@ -158,9 +158,9 @@ class FixedPointClippedDropletCloud(FixedPositionDropletsCloud):
 
     def _initDropletPosition(self, mmd, geometricstd, position, Q, clouds=30, meteorologyname="StandardMeteorolgyConstant", **kwargs):
 
-        clippedDiameter = tonumber(self.clippedDiameter,m)
+        clippedDiameter = tonumber(self.clippedDiameter,ureg.m)
 
-        rv = lognorm(numpy.log(geometricstd), scale=tonumber(mmd, m))
+        rv = lognorm(numpy.log(geometricstd), scale=tonumber(mmd, ureg.m))
         lower = rv.ppf(1e-4)
         upper = clippedDiameter
 
@@ -169,13 +169,13 @@ class FixedPointClippedDropletCloud(FixedPositionDropletsCloud):
 
         maxMass = rv.cdf(interval[-1])
 
-        massFractionVector = numpy.diff(rv.cdf(interval))*tonumber(Q,kg)
+        massFractionVector = numpy.diff(rv.cdf(interval))*tonumber(Q,ureg.kg)
         diameterVector     = numpy.exp(numpy.log(interval[:-1])+dh/2.)  # [m]
 
         massFractionVector /= maxMass
 
         for dropletDiam,dropletQ in zip(diameterVector,massFractionVector):
-            droplets = FallingNonEvaporatingDroplets(particleDiameter=dropletDiam*m, Q=dropletQ*kg, position=position, meteorologyName=meteorologyname, **kwargs)
+            droplets = FallingNonEvaporatingDroplets(particleDiameter=dropletDiam*ureg.m, Q=dropletQ*ureg.kg, position=position, meteorologyName=meteorologyname, **kwargs)
             self._dropletList.append(droplets)
 
 
@@ -184,7 +184,7 @@ class CirclePositionClippedDropletsCloud(FixedPointClippedDropletCloud):
     """
         A line across the wind.
     """
-    def __init__(self, mmd, geometricstd, position, Q, clippedDiameter, clouds=30,radius=10*m,circlepositions=4, meteorologyname="StandardMeteorolgyConstant", **kwargs):
+    def __init__(self, mmd, geometricstd, position, Q, clippedDiameter, clouds=30,radius=10*ureg.m,circlepositions=4, meteorologyname="StandardMeteorolgyConstant", **kwargs):
         """
             Creates a list of clouds (discretization according to the number of clouds).
 
@@ -212,7 +212,7 @@ class CirclePositionClippedDropletsCloud(FixedPointClippedDropletCloud):
         self._dropletList = []
 
         self.clippedDiameter = clippedDiameter
-        radius_m = tounit(radius,m)
+        radius_m = tounit(radius,ureg.m)
 
         qCloud = Q/circlepositions
         for deg in numpy.linspace(0,2*numpy.pi,circlepositions):

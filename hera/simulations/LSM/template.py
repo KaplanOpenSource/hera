@@ -9,7 +9,7 @@ from itertools import product
 from ..utils.inputForModelsCreation import InputForModelsCreator
 from hera.simulations.LSM.singleSimulation import SingleSimulation
 from hera.datalayer import datatypes
-from hera.utils.unitHandler import  *
+from hera.utils.unitHandler import Quantity, ureg, unumToPint
 from hera import toolkit
 from hera.utils.jsonutils import JSONToConfiguration, stripConfigurationUnits
 from hera.utils import dictToMongoQuery, get_classMethod_logger
@@ -160,6 +160,11 @@ class LSMTemplate:
                                      f"{toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE} in order to replace it.")
                 if saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE:
                     docList.delete()
+
+            curr_counter = self.Toolkit.getCounterAndAdd(f"LSM_SIMULATION_{self.Toolkit.projectName}")
+            simulationName = simulationName if simulationName is not None else f"LSM_Simulation_{curr_counter}"
+            saveDir = os.path.join(saveDir, simulationName)
+
             doc = self.Toolkit.addSimulationsDocument(
                 type=self.doctype_simulation,
                 resource='None',
@@ -170,8 +175,7 @@ class LSMTemplate:
                           simulationName=simulationName,
                           params=updated_params)
             )
-            curr_counter = self.Toolkit.getCounterAndAdd(f"LSM_SIMULATION_{self.Toolkit.projectName}")
-            saveDir = os.path.join(saveDir, f"LSM_Simulation_{curr_counter}")
+
             if self.to_xarray:
                 doc['resource'] = os.path.join(saveDir, 'netcdf', '*')
                 doc['dataFormat'] = datatypes.NETCDF_XARRAY
@@ -315,17 +319,19 @@ class LSMTemplate:
     @staticmethod
     def prepareParams(desc, paramsToPrepare):
         logger = get_logger(instance=None, name="hera.simulations.LSM.prepareParams")
-        if desc is not None and 'units' in desc:
-            for key in desc["units"].keys():
-                param_item= paramsToPrepare[key]
-                if isinstance(param_item, Unum):
-                    paramsToPrepare[key] = param_item.asNumber(eval(desc["units"][key]))
-                elif isinstance(param_item, Quantity):
-                    paramsToPrepare[key] = param_item.m_as(desc["units"][key])
-                else:
-                    raise ValueError(f"parameters must use either pint or unum to specify units, currently type({param_item})={type(param_item)}")
-        if 'duration' in paramsToPrepare and isinstance(paramsToPrepare['duration'], Quantity):
-            paramsToPrepare['duration'] = paramsToPrepare['duration'].to(ureg.minutes)
+        try:
+            if desc is not None and 'units' in desc:
+                for key in desc["units"].keys():
+                    param_item= paramsToPrepare[key]
+                    if hasattr(param_item, 'asNumber') or hasattr(param_item, 'magnitude'):
+                        paramsToPrepare[key] = unumToPint(param_item).m_as(ureg.parse_expression(desc["units"][key]))
+                    elif key=='duration':
+                        paramsToPrepare[key] = param_item*ureg.minutes
+                    else:
+                        paramsToPrepare[key] = ureg.parse_expression(param_item).m_as(ureg.parse_expression(desc["units"][key]))
+        except:
+            raise ValueError(f"parameters must use either pint or unum to specify units, currently type({param_item})={type(param_item)}")
+
         paramsToPrepare = stripConfigurationUnits(paramsToPrepare, returnStandardize=True, ignoreStandardization=["duration"])
         for integer_field in ["TopoXn", "TopoYn"]:
             if not isinstance(paramsToPrepare[integer_field], int):
@@ -366,14 +372,14 @@ class LSMTemplate:
 
         for (i, curData) in enumerate(combined):
             logger.info("\t... reading %s" % curData[0])
-            cur = pandas.read_csv(curData[0], sep="\s+",
-                                  names=["y", "x", "z", "Dosage"])  # ,dtype={'x':int,'y':int,'z':int,'Dosage':float})
+            cur = pandas.read_csv(curData[0], sep=r"\s+",
+                                  names=["x", "y", "z", "Dosage"])  # ,dtype={'x':int,'y':int,'z':int,'Dosage':float})
 
             cur['time'] = curData[1]
             if dt is None:
-                dt = cur.iloc[0]['time'] * s
+                dt = cur.iloc[0]['time'] * ureg.s
 
-            cur['Dosage'] *= (s / m ** 3).asNumber(min / m ** 3)
+            cur['Dosage'] *= (1*ureg.s / ureg.m ** 3).m_as(ureg.minute / ureg.m ** 3)
             xray = cur.sort_values(['time', 'x', 'y', 'z']).set_index(['time', 'x', 'y', 'z']).to_xarray()
             if datetimeFormat == "timestamp":
                 datetime = pandas.to_datetime("1-1-2016 12:00") + pandas.to_timedelta(xray.time.values, 's')
@@ -390,14 +396,14 @@ class LSMTemplate:
 
                 finalxarray = xarray.DataArray(numpy.zeros(xray['Dosage'].values.shape), \
                                                coords={'x': xray.x, 'y': xray.y, 'z': xray.z, 'datetime': zdatetime},
-                                               dims=['datetime', 'y', 'x', 'z']).to_dataset(name='Dosage')
+                                               dims=['datetime', 'x', 'y', 'z']).to_dataset(name='Dosage')
 
                 yield finalxarray
             # finalxarray.to_netcdf(os.path.join(topath,name,"%s_0_0.nc" % outfilename) )
 
             finalxarray = xarray.DataArray(xray['Dosage'].values, \
                                            coords={'x': xray.x, 'y': xray.y, 'z': xray.z, 'datetime': datetime},
-                                           dims=['datetime', 'y', 'x', 'z']).to_dataset(name='Dosage')
+                                           dims=['datetime', 'x', 'y', 'z']).to_dataset(name='Dosage')
 
             yield finalxarray
 
@@ -436,6 +442,15 @@ class LSMTemplate:
         :return:
         """
         return SingleSimulation(self.getDocumentByID(id))
+
+    def getSimulationByName(self,simulationName):
+        """
+        get a simulation by document id
+
+        :param id:
+        :return:
+        """
+        return SingleSimulation(self.getSimulationsDocuments(type=self.doctype_simulation,templateName=self.templateName,simulationName=simulationName))
 
     def _getSimulationsList(self, **query):
         """
@@ -484,4 +499,4 @@ class LSMTemplate:
 
             return df
         except ValueError:
-            raise FileNotFoundError('No simulations.old found')
+            raise FileNotFoundError('No simulations found')

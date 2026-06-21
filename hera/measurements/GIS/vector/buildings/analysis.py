@@ -8,7 +8,7 @@ import pandas as pd
 import shapely.wkt
 from shapely.geometry import box, Polygon
 from .....utils.logging import get_classMethod_logger
-import fiona
+from .._io_utils import readGeoJSONString, GEO_READ_ERRORS
 
 BUILDINGS_LAMBDA_WIND_DIRECTION = 'wind'
 BUILDINGS_LAMBDA_RESOLUTION = 'resolution'
@@ -120,8 +120,8 @@ class analysis():
         logger.info("--- Start ---")
 
         if isinstance(buildingsData,str):
-            logger.debug("Reading the bounds from StringIO")
-            data = geopandas.read_file(io.StringIO(buildingsData))
+            logger.debug("Reading the bounds from GeoJSON string")
+            data = readGeoJSONString(buildingsData)
         elif isinstance(buildingsData, geopandas.GeoDataFrame):
             logger.debug("Using the user input")
             data = buildingsData
@@ -175,7 +175,7 @@ class analysis():
             logger.debug("Return found data in DB")
             try:
                 domainLambda = dataDoc[0].getData()
-            except fiona.errors.DriverError:
+            except GEO_READ_ERRORS:
                 errmsg = f"The cached data in location {dataDoc[0].resource} is not found on the disk. Maybe it was removed?. Use overwrite=True to recalculate and update the cache."
                 logger.error(errmsg)
                 raise FileNotFoundError(errmsg)

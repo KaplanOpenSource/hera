@@ -27,6 +27,13 @@ class RagSettings(BaseSettings):
     embed_model: str = "BAAI/bge-small-en-v1.5"
     embed_dim: int = 384
 
+    # ── Offline / local model cache ──────────────────────────────────────────
+    # When offline_mode=True, no network fetches are attempted: embedding
+    # models must already exist under models_cache_dir, and the Ollama server
+    # must already be reachable at ollama_base_url (typically a native install).
+    offline_mode: bool = False
+    models_cache_dir: str = "~/.pyhera/rag_models"
+
     # ── Chunking ─────────────────────────────────────────────────────────────
     chunk_size: int = 1_000
     chunk_overlap: int = 150

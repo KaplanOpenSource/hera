@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-import argparse
+import argparse, argcomplete
 import mimetypes
+import traceback
 from pathlib import Path
+
+from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.encoders import jsonable_encoder
@@ -20,7 +23,10 @@ parser = argparse.ArgumentParser(description="Hera UI API server")
 cors_handler.add_argument(parser)
 parser.add_argument('--debug', action='store_true', help='Enable debugpy remote debugging on port 5678')
 parser.add_argument('-y', '--yes', action='store_true', help='Skip confirmation prompts')
+parser.add_argument('--host', default='0.0.0.0', help='Address to bind to (default: 0.0.0.0, all interfaces; use 127.0.0.1 for local-only, e.g. behind a reverse proxy).')
+parser.add_argument('--port', type=int, default=8000, help='Port for the API server')
 parser.add_argument('--jupyter-port', type=int, default=8888, help='Port for Jupyter server (0 to disable)')
+argcomplete.autocomplete(parser)
 args = parser.parse_args()
 
 app = FastAPI(title="Hera UI API")
@@ -60,7 +66,10 @@ def jupyter_ensure(payload: JupyterStartPayload) -> dict:
         if jupyter.root_dir == payload.root_dir:
             return {"port": jupyter.port, "root_dir": jupyter.root_dir}
         jupyter.stop()
-    jupyter = JupyterServerThread(payload.root_dir, jupyter_port)
+    # Only expose the notebook server beyond localhost when CORS is enabled (i.e. the user
+    # opted into remote access). With no --cors, keep it local-only regardless of --host.
+    jupyter_ip = args.host if args.cors is not None else '127.0.0.1'
+    jupyter = JupyterServerThread(payload.root_dir, jupyter_port, ip=jupyter_ip)
     jupyter.wait_until_ready()
     return {"port": jupyter.port, "root_dir": jupyter.root_dir}
 
@@ -76,18 +85,34 @@ class ExecPayload(BaseModel):
     code: str
 
 
+class Problem(BaseModel):
+    error: str
+    traceback: str
+
+
+class ExecResponse(BaseModel):
+    data: Any = None
+    problem: Optional[Problem] = None
+
+
 # Code execution endpoint (simple: eval expression and return its value)
-@app.post("/exec")
-def exec_code(payload: ExecPayload):
+@app.post("/exec", response_model=ExecResponse)
+def exec_code(payload: ExecPayload) -> ExecResponse:
     # DANGER: This is a security risk. It allows arbitrary code execution.
     # Only use this in a trusted environment.
     # The `_locals` dict will be updated with any variables created in the code.
     _locals = {} # "MOCK_PROJECTS": MOCK_PROJECTS}
     print("executing: " + payload.code)
-    exec(payload.code, {}, _locals)
+    try:
+        exec(payload.code, _locals)
+    except Exception as e:
+        error = f"{type(e).__name__}: {e}"
+        tb = traceback.format_exc()
+        print("exec error:", tb)
+        return ExecResponse(problem=Problem(error=error, traceback=tb))
     result = _locals.get("result", None)
     print("got:", result)
-    return jsonable_encoder(result)
+    return ExecResponse(data=jsonable_encoder(result))
 
 
 @app.get("/file/{file_path:path}")
@@ -132,6 +157,21 @@ def spa_fallback(full_path: str):  # noqa: ARG001 (unused)
     return {"message": "Not found"}
 
 
+def find_available_port(host: str, start_port: int, attempts: int = 79) -> int:
+    """Return the first free port at or after start_port, trying up to `attempts` ports."""
+    import socket
+
+    for port in range(start_port, start_port + attempts):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            if sock.connect_ex((host, port)) != 0:
+                return port
+            print(f"Port {port} is in use, trying the next one...")
+    raise SystemExit(
+        f"No free port found in range {start_port}-{start_port + attempts - 1}."
+    )
+
+
 if __name__ == "__main__":
     # Use a single process: no reload watcher
     import uvicorn
@@ -145,10 +185,16 @@ if __name__ == "__main__":
         debugpy.listen(("0.0.0.0", 5678))
         print("debugpy listening on 0.0.0.0:5678 - attach your debugger")
 
+    # The bind address may be 0.0.0.0 (all interfaces); probe against localhost.
+    probe_host = "127.0.0.1" if args.host == "0.0.0.0" else args.host
+    port = find_available_port(probe_host, args.port)
+    if port != args.port:
+        print(f"Requested port {args.port} unavailable; starting on port {port} instead.")
+
     uvicorn.run(
         app,
-        host="0.0.0.0",
-        port=8000,
+        host=args.host,
+        port=port,
         reload=False,
         workers=1,
     )

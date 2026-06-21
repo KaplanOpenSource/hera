@@ -2,7 +2,7 @@ import os
 import xarray
 import numpy
 import os
-from hera.utils.unitHandler import  *
+from hera.utils.unitHandler import ureg, unumToPint
 
 from ...utils import tounit,tonumber
 
@@ -32,19 +32,22 @@ class SingleSimulation(object):
             if type(self._finalxarray) is str:
                 self._finalxarray = xarray.open_mfdataset(self._finalxarray, combine='by_coords')
 
-    def getDosage(self, Q=1 * kg, time_units=min, q_units=mg, ret_pint=False):
+    def getDosage(self, Q=1 * ureg.kg, time_units=ureg.min, q_units=ureg.mg):
         """
-        Calculates the dosage
+        Calculates the dosage from the LSM simulation.
+        The default are pint units, but we still support unum inputs.
+
+        The outputs (in the attrs) are always pint.
 
         Parameters
         ----------
-        Q : unum.units
+        Q : pint|unum.units
             Default value is 1*kg
 
-        time_units: unum.units
+        time_units: pint|unum.units
             Default value is min
 
-        q_units: unum.units
+        q_units: pint|unum.units
             Default value is mg
 
         Returns
@@ -64,10 +67,6 @@ class SingleSimulation(object):
         final_xarray.attrs['dt'] = dt_minutes.to(time_units)
         final_xarray.attrs['Q']  = Q.to(q_units)
         final_xarray.attrs['C']  = q_units/ ureg.m ** 3
-        if not ret_pint:
-            final_xarray.attrs['dt'] = pintToUnum(final_xarray.attrs['dt']) 
-            final_xarray.attrs['Q']  = pintToUnum(final_xarray.attrs['Q'])
-            final_xarray.attrs['C']  = pintToUnum(final_xarray.attrs['C'])
 
         Qfactor = (Q.to(q_units) * ureg.min / ureg.m ** 3).m_as(q_units * time_units / ureg.m ** 3)
 
@@ -75,7 +74,7 @@ class SingleSimulation(object):
 
         return final_xarray
 
-    def getConcentration(self, Q=1*kg, time_units=min, q_units=mg, ret_pint=False):
+    def getConcentration(self, Q=1*ureg.kg, time_units=ureg.min, q_units=ureg.mg):
         """
         Calculates the concentration
 
@@ -95,15 +94,15 @@ class SingleSimulation(object):
         dDosage: xarray
             The calculated concentration in 'C' key
         """
-        finalxarray = self.getDosage(Q=Q, time_units=time_units, q_units=q_units, ret_pint=ret_pint)
+        finalxarray = self.getDosage(Q=Q, time_units=time_units, q_units=q_units)
 
         dDosage = finalxarray['Dosage'].diff('datetime').to_dataset().rename({'Dosage': 'dDosage'})
-        dDosage['C'] = dDosage['dDosage'] / finalxarray.attrs['dt'].asNumber()
+        dDosage['C'] = dDosage['dDosage'] / finalxarray.attrs['dt'].m_as(time_units)
         dDosage.attrs = finalxarray.attrs
 
         return dDosage
 
-    def getConcentrationAtPoint(self, x, y, datetime, Q=1*kg, time_units=min, q_units=mg, ret_pint=False):
+    def getConcentrationAtPoint(self, x, y, datetime, Q=1*ureg.kg, time_units=ureg.min, q_units=ureg.mg):
         """
         Calculates the concentration at requested point and time
 
@@ -123,7 +122,7 @@ class SingleSimulation(object):
         con: float
             The concentration at the requested point and time
         """
-        return self.getConcentration(Q=Q, time_units=time_units, q_units=q_units, ret_pint=ret_pint)['C'].interp(x=x, y=y, datetime=datetime).values[0]
+        return self.getConcentration(Q=Q, time_units=time_units, q_units=q_units)['C'].interp(x=x, y=y, datetime=datetime).values[0]
 
     # def toVTK(self, data, outputdir, name, fields):
     #     from pyevtk.hl import gridToVTK

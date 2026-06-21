@@ -1,8 +1,8 @@
 # import pandas
 import numpy
 import os
-from simulations.openFoam import HERAMETADATA
-from utils import loadJSON
+from hera.simulations.openFoam import HERAMETADATA
+from hera.utils import loadJSON
 # from ..utils.coordinateHandler import coordinateHandler
 # handler = coordinateHandler()
 

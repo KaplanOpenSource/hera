@@ -1,6 +1,7 @@
 import geopandas
 import pandas
 from hera.utils import tounit, ureg
+from hera.utils.unitHandler import unumToPint
 import numpy
 import json
 
@@ -338,7 +339,7 @@ class InjuryLevelThreshold(InjuryLevel):
 		"""
 			Return the correct geopandas of the  Injury level
 		"""
-		level = self.threshold.asNumber()
+		level = unumToPint(self.threshold).magnitude
 		CS =  plt.contour(concentrationField[x],concentrationField[y],concentrationField.squeeze(),levels=numpy.atleast_1d(level))
 		if numpy.max(CS.levels) < level:
 			ret = geopandas.GeoDataFrame()

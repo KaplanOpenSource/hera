@@ -2,8 +2,10 @@ import json
 import pandas
 from hera.utils import ureg
 import xarray
+from hera.utils.unitHandler import unumToPint
 
-class AbstractCalculator(object): 
+
+class AbstractCalculator(object):
 	"""
 		Holds the abstract calculator. 
 	"""
@@ -88,11 +90,10 @@ class CalculatorHaber(AbstractCalculator):
 
 
 		"""
+		breathingRate = unumToPint(breathingRate)
 		breathingRatio = (breathingRate/self.injuryBreathingRate).magnitude
 		if inUnits is None:
-			if hasattr(concentrationField, "attrs"):
-				attrs_units = concentrationField.attrs.get("field", None)
-			inUnits = concentrationField.attrs[field] if attrs_units is not None  else ureg.mg / ureg.m ** 3
+			inUnits = concentrationField.attrs[field] if hasattr(concentrationField, "attrs") else 1*(ureg.mg / ureg.m ** 3)
 
 		CunitConversion = inUnits.m_as(ureg.mg / ureg.m ** 3)
 
@@ -165,12 +166,10 @@ class CalculatorTenBerge(AbstractCalculator):
 
 
         """
+		breathingRate = unumToPint(breathingRate)
 		breathingRatio = (breathingRate/self.injuryBreathingRate).magnitude
-
 		if inUnits is None:
-			if hasattr(concentrationField, "attrs"):
-				attrs_units = concentrationField.attrs.get("field", None)
-			inUnits = concentrationField.attrs[field] if attrs_units is not None  else ureg.mg / ureg.m ** 3
+			inUnits = concentrationField.attrs[field] if hasattr(concentrationField, "attrs") else 1*(ureg.mg / ureg.m ** 3)
 		CunitConversion = inUnits.m_as(ureg.mg / ureg.m ** 3)
 
 		if isinstance(concentrationField, xarray.Dataset):
@@ -236,12 +235,10 @@ class CalculatorMaxConcentration(AbstractCalculator):
 
 
         """
-		breathingRatio = (breathingRate / self.injuryBreathingRate).magnitude
-
+		breathingRate = unumToPint(breathingRate)
+		breathingRatio = (breathingRate/self.injuryBreathingRate).magnitude
 		if inUnits is None:
-			if hasattr(concentrationField, "attrs"):
-				attrs_units = concentrationField.attrs.get("field", None)
-			inUnits = attrs_units[field] if attrs_units is not None  else ureg.mg / ureg.m ** 3
+			inUnits = concentrationField.attrs[field] if hasattr(concentrationField, "attrs") else 1*(ureg.mg / ureg.m ** 3)
 		CunitConversion = inUnits.m_as(ureg.mg / ureg.m ** 3)
 
 		if isinstance(concentrationField, xarray.Dataset):

@@ -1,5 +1,7 @@
 #! /usr/bin/env python
-import argparse
+# PYTHON_ARGCOMPLETE_OK
+
+import argparse, argcomplete
 
 from hera.simulations.LSM import CLI
 from hera.utils import logging
@@ -37,7 +39,8 @@ if __name__ == "__main__":
     list_templates.set_defaults(func=CLI.list_templates)
 
 
-    parsed = parser.parse_args()
+    argcomplete.autocomplete(parser)
+    parsed = parser.parse_args()()
     logger.debug(f"Got {parsed} in the command line")
     if 'func' not in parsed:
         parser.print_help()

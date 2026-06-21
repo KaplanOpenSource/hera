@@ -6,6 +6,7 @@ import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { useConfirm } from "../../elements/useConfirm";
 import { idRepoId, TEMP_REPO_NAME } from "../../shared/idDocId";
 import { CentralRepoFolder } from "../repo/CentralRepoFolder";
+import { RegisteredRepositories } from "../repo/RegisteredRepositories";
 
 export const RepoTreeWhole = ({ }) => {
   const [repositories, setRepositories] = useState<string[]>(['hera/doc/jupyter/Developer/Documentation_Repository.json']);
@@ -49,6 +50,7 @@ export const RepoTreeWhole = ({ }) => {
       )}
     >
       <CentralRepoFolder />
+      <RegisteredRepositories showUpdateButton />
       {repositories.map(repoPath => (
         <TreeItem
           key={idRepoId(repoPath)}

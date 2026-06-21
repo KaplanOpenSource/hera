@@ -1,6 +1,8 @@
 #! /usr/bin/env python
+# PYTHON_ARGCOMPLETE_OK
+
 import json
-import argparse
+import argparse, argcomplete
 from hera.measurements.experiment import CLI
 
 import os
@@ -59,6 +61,7 @@ if __name__ =="__main__":
 
 
     ##################### exec
+    argcomplete.autocomplete(parser)
     parsed = parser.parse_args()
     if 'func' not in parsed:
         parser.print_help()

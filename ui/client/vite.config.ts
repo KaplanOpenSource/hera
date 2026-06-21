@@ -15,7 +15,8 @@ export default defineConfig({
     strictPort: true
   },
   build: {
-    outDir: 'bundle'
+    outDir: 'bundle',
+    chunkSizeWarningLimit: 2000,
   },
   test: {
     environment: 'jsdom',

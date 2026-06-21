@@ -2,7 +2,7 @@ import pandas
 import xarray
 
 import numpy
-from hera.utils.unitHandler import  *
+from hera.utils.unitHandler import ureg, unumToPint
 from scipy.special import erf
 
 class GaussianToMesh(object):
@@ -95,7 +95,7 @@ class GaussianToMesh(object):
 
         return xCoord,yCoord
 
-    def gaussianToMesh(self,gaussians,groupby=None,QName="Q",QUnits=kg):
+    def gaussianToMesh(self,gaussians,groupby=None,QName="Q",QUnits=ureg.kg):
         """
 		Spreads the list of gaussians on the regular mesh. 
 		if groupby is None then sum all the gaussians, 
@@ -125,7 +125,7 @@ class GaussianToMesh(object):
         return ret
 
 
-    def _gaussianToMesh(self,gaussian,xCoords,yCoords,addTo=None,QName="Q",QUnits=kg):
+    def _gaussianToMesh(self,gaussian,xCoords,yCoords,addTo=None,QName="Q",QUnits=ureg.kg):
         """
             Return a single gaussian that was spread on the mesh.
 
@@ -154,7 +154,7 @@ class GaussianToMesh(object):
         gaussY = xarray.DataArray(1/(twoPiFactor*sigy)*numpy.exp(-0.5*((yCoords-y)/sigy)**2), dims='y',coords={'y':yCoords})
 
         fullX, fullY = xarray.broadcast(gaussX, gaussY)
-        ret = fullX*fullY*gaussian[QName] *((1*kg).asNumber(QUnits))
+        ret = fullX*fullY*gaussian[QName] * (1*ureg.kg).m_as(unumToPint(QUnits))
         if addTo is not None:
             ret = addTo+ ret
 
@@ -166,7 +166,7 @@ class GaussianIntegrationToMesh(GaussianToMesh):
        This class calculates the concentration of meterial there is in the mesh by subtracting erf.
        This is more accurate than estimating the gaussian.  	
     """
-    def _gaussianToMesh(self,gaussian,xCoords,yCoords,addTo=None,QName="Q",QUnits=kg):
+    def _gaussianToMesh(self,gaussian,xCoords,yCoords,addTo=None,QName="Q",QUnits=ureg.kg):
         """
             Return the concentration a single gaussian that was spread on the mesh.
 
@@ -198,7 +198,7 @@ class GaussianIntegrationToMesh(GaussianToMesh):
 
         fullX, fullY = xarray.broadcast(gaussX, gaussY)
 
-        ret = fullX*fullY*gaussian[QName].asNumber(QUnits)
+        ret = fullX*fullY*unumToPint(gaussian[QName]).m_as(unumToPint(QUnits))
         if addTo is not None:
             ret = addTo+ ret
         return ret

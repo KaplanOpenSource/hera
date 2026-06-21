@@ -1,19 +1,27 @@
 import { Settings } from "@mui/icons-material";
-import { Button, DialogActions, DialogContent, DialogTitle, Stack } from "@mui/material";
+import { Button, createTheme, DialogActions, DialogContent, DialogTitle, Stack } from "@mui/material";
 import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonDialog } from "../../elements/ButtonDialog";
 import { NumberProperty } from "../../elements/NumberProperty";
+import { ReloadIntervalSlider } from "../../elements/ReloadIntervalSlider";
 import { useViewSettingsStore } from "../../stores/useViewSettingsStore";
+
+// Own (light) theme so the dialog isn't tinted by the dark app-header theme it opens from.
+const dialogTheme = createTheme();
 
 export const ProjectViewSettingsButton = ({ }) => {
   const { viewSettings, setViewSettings } = useViewSettingsStore();
   return (
-    <ButtonDialog icon={<Settings />} title="Change tree settings">
+    <ButtonDialog icon={<Settings />} title="Settings" dialogTheme={dialogTheme}>
       {(close) => (
         <>
-          <DialogTitle>Change tree settings</DialogTitle>
+          <DialogTitle>Settings</DialogTitle>
           <DialogContent>
             <Stack direction="column" spacing={1} sx={{ mt: 1 }}>
+              <ReloadIntervalSlider
+                value={viewSettings.reloadIntervalSeconds}
+                setValue={(v) => setViewSettings({ ...viewSettings, reloadIntervalSeconds: v })}
+              />
               <NumberProperty
                 label="Max depth"
                 value={viewSettings.maxDepth}
@@ -34,7 +42,7 @@ export const ProjectViewSettingsButton = ({ }) => {
                 setValue={(v) => setViewSettings({ ...viewSettings, maxBranches: v })}
               />
               <BooleanProperty
-                label="First branch by header fields (toolkit, type, etc...)"
+                label="First branch by header fields (toolkit, notebooks, type, etc...)"
                 value={viewSettings.firstBranchHeadFields}
                 setValue={v => setViewSettings({ ...viewSettings, firstBranchHeadFields: v })}
               />

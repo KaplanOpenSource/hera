@@ -2,8 +2,10 @@
     DEPRACATED!.
 """
 #! /usr/bin/env python
+# PYTHON_ARGCOMPLETE_OK
 
-import argparse
+
+import argparse, argcomplete
 import os
 from hera.simulations.openFoam import DECOMPOSED_CASE, RECONSTRUCTED_CASE
 from hera import toolkitHome

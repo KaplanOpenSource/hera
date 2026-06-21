@@ -1,0 +1,149 @@
+{
+   "effectParameters" : {
+        "tenbergeCoefficient" : 2.75
+   },
+   "effects" : {
+     "AEGL10min": {
+       "type": "Threshold",
+       "calculator": {
+         "MaxConcentration": {
+           "sampling": "10min"
+         }
+       },
+       "parameters": {
+         "type": "Threshold",
+         "levels": [
+           "3",
+           "2",
+           "1"
+         ],
+         "parameters": {
+           "3": {
+             "threshold": "145.0*mg/m**3"
+           },
+           "2": {
+             "threshold": "8.12*mg/m**3"
+           },
+           "1": {
+             "threshold": "1.45*mg/m**3"
+           }
+         }
+       }
+     },
+     "AEGL30min": {
+       "type": "Threshold",
+       "calculator": {
+         "MaxConcentration": {
+           "sampling": "30min"
+         }
+       },
+       "parameters": {
+         "type": "Threshold",
+         "levels": [
+           "3",
+           "2",
+           "1"
+         ],
+         "parameters": {
+           "3": {
+             "threshold": "81.2*mg/m**3"
+           },
+           "2": {
+             "threshold": "8.12*mg/m**3"
+           },
+           "1": {
+             "threshold": "1.45*mg/m**3"
+           }
+         }
+       }
+     },
+     "AEGL60min": {
+       "type": "Threshold",
+       "calculator": {
+         "MaxConcentration": {
+           "sampling": "60min"
+         }
+       },
+       "parameters": {
+         "type": "Threshold",
+         "levels": [
+           "3",
+           "2",
+           "1"
+         ],
+         "parameters": {
+           "3": {
+             "threshold": "58.0*mg/m**3"
+           },
+           "2": {
+             "threshold": "5.80*mg/m**3"
+           },
+           "1": {
+             "threshold": "1.45*mg/m**3"
+           }
+         }
+       }
+     },
+     "AEGL4hours": {
+       "type": "Threshold",
+       "calculator": {
+         "MaxConcentration": {
+           "sampling": "4h"
+         }
+       },
+       "parameters": {
+         "type": "Threshold",
+         "levels": [
+           "3",
+           "2",
+           "1"
+         ],
+         "parameters": {
+           "3": {
+             "threshold": "29.0*mg/m**3"
+           },
+           "2": {
+             "threshold": "2.90*mg/m**3"
+           },
+           "1": {
+             "threshold": "1.45*mg/m**3"
+           }
+         }
+       }
+     },
+     "AEGL8hours": {
+       "type": "Threshold",
+       "calculator": {
+         "MaxConcentration": {
+           "sampling": "8h"
+         }
+       },
+       "parameters": {
+         "type": "Threshold",
+         "levels": [
+           "3",
+           "2",
+           "1"
+         ],
+         "parameters": {
+           "3": {
+             "threshold": "20.6*mg/m**3"
+           },
+           "2": {
+             "threshold": "2.06*mg/m**3"
+           },
+           "1": {
+             "threshold": "1.45*mg/m**3"
+           }
+         }
+       }
+     }
+   },
+  "physicalProperties": {
+      "molecularWeight"     : "70.906*g/mol",
+      "sorptionCoefficient" : "0.15*cm/s",
+      "spreadFactor"        : 4.0,
+      "volatilityConstants" : [6.94,861.34,246.33,0],
+      "densityConstants"    : [1.468,0.00186,20]
+  }
+}

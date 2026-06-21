@@ -2,7 +2,6 @@ from hera.datalayer import getDBObject
 from mongoengine import ValidationError, MultipleObjectsReturned, DoesNotExist
 import warnings
 import sys
-from hera.utils import ConfigurationToJSON,dictToMongoQuery
 version = sys.version_info[0]
 
 class AbstractCollection(object):
@@ -95,6 +94,8 @@ class AbstractCollection(object):
         if projectName is not None:
             query['projectName'] = projectName
 
+        from hera.utils.jsonutils import ConfigurationToJSON
+        from hera.utils.query import dictToMongoQuery
         descAsJSON = ConfigurationToJSON(desc,standardize=True,splitUnits=True,keepOriginalUnits=False)
         query.update(dictToMongoQuery(descAsJSON, prefix="desc"))
 

@@ -11,14 +11,11 @@ from deprecated import deprecated
 
 from hera.datalayer.datahandler import datatypes
 from hera.utils.logging import get_classMethod_logger
-from hera.utils import loadJSON
 from hera import toolkit
 from hera.datalayer.collection import AbstractCollection,\
     Cache_Collection,\
     Measurements_Collection,\
     Simulations_Collection
-
-from hera.utils import ConfigurationToJSON
 
 def getProjectList(connectionName=None):
     """
@@ -51,6 +48,11 @@ def createProjectDirectory(outputPath,projectName=None):
     -------
         None.
     """
+    from hera.utils import get_logger
+    logger = get_logger(None,"hera.datalayer.project.createProjectDirectory")
+    if projectName == "defaultProject":
+        logger.warning("Cannot create default project")
+        return
     os.makedirs(os.path.abspath(outputPath),exist_ok=True)
     basicOut = dict(projectName=projectName)
     with open(os.path.join(os.path.abspath(outputPath),"caseConfiguration.json"),'w') as outFile:
@@ -233,6 +235,7 @@ class Project:
             logger.debug(f"projectName is None, try to load file {confFile}")
             if os.path.exists(confFile):
                 logger.debug(f"Load as JSON")
+                from hera.utils.jsonutils import loadJSON
                 configuration = loadJSON(confFile)
                 if 'projectName' not in configuration:
                     err = f"Got projectName=None and the key 'projectName' does not exist in the JSON. "
@@ -261,22 +264,24 @@ class Project:
             logger.info(f"Attempting to get default directory from the disk")
             savedFilesDirectory = self.getConfig().get("filesDirectory", None)
         else:
-            logger.info(f"Default project, setting to current directory")
+            logger.info(f"Default project, setting to current directory(not saving on disk)")
             savedFilesDirectory = None
 
-        if savedFilesDirectory is None:
-            if filesDirectory is None:
-                filesDirectory = os.path.join(os.path.abspath(os.getcwd()), projectName)
-            else:
-                filesDirectory = os.path.abspath(filesDirectory)
-
-            if self.projectName != self.DEFAULTPROJECT:
-                logger.info(f"Files directory is not saved for the project, using {filesDirectory}")
+        if filesDirectory is not None:
+            # Caller explicitly passed a directory — always honor it and persist it.
+            filesDirectory = os.path.abspath(filesDirectory)
+            if filesDirectory != savedFilesDirectory and self.projectName != self.DEFAULTPROJECT:
                 self.setConfig(filesDirectory=filesDirectory)
-        else:
+        elif savedFilesDirectory is not None:
             filesDirectory = savedFilesDirectory
+        elif self.projectName != self.DEFAULTPROJECT:
+            # No saved path and none passed — default to ~/.hera/<projectName>
+            filesDirectory = os.path.join(os.path.expanduser("~"), ".hera", projectName)
+            logger.info(f"Files directory is not saved for the project, using {filesDirectory}")
+            self.setConfig(filesDirectory=filesDirectory)
 
-        os.makedirs(os.path.abspath(filesDirectory),exist_ok=True)
+        if self.projectName != self.DEFAULTPROJECT:
+            os.makedirs(os.path.abspath(filesDirectory),exist_ok=True)
         self._FilesDirectory = filesDirectory
 
     @staticmethod
@@ -314,6 +319,10 @@ class Project:
 
         show_progressbar: bool
         """
+        logger = get_classMethod_logger(self,"export")
+        if self.projectName == self.DEFAULTPROJECT:
+            logger.warning("Can't export default project")
+            return
         docs_cursor = self._all._metadataCol._get_collection().find({"projectName":self.projectName})
         with zipfile.ZipFile(path, mode='w', compression=zipfile.ZIP_DEFLATED) as zf:
             i = 0
@@ -971,6 +980,7 @@ class Project:
         funcName = getattr(self,f"add{kind}Document")
         fullType = type if type is not None else name
 
+        from hera.utils.jsonutils import ConfigurationToJSON
         qry = ConfigurationToJSON(desc, standardize=True, splitUnits=True, keepOriginalUnits=True)
         storeParamsDict = qry.get("storeParameters",{})
         storeParamsDict.update(saveParamsUpdatedDict)

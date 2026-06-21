@@ -110,11 +110,51 @@ def _qdrant() -> QdrantClient:
     return _qdrant_client
 
 
+def _local_model_path(model_name: str) -> Path:
+    """Return the on-disk directory where a HuggingFace model is cached."""
+    return Path(settings.models_cache_dir).expanduser() / model_name.replace("/", "_")
+
+
+def download_embed_model(model_name: str | None = None) -> Path:
+    """Fetch the embedding model from HuggingFace and save a clean local copy.
+
+    Safe to re-run; skips download if the local copy already exists.
+    Returns the local path.
+    """
+    name = model_name or settings.embed_model
+    local = _local_model_path(name)
+    if local.exists():
+        return local
+    local.parent.mkdir(parents=True, exist_ok=True)
+    model = SentenceTransformer(name)
+    model.save(str(local))
+    return local
+
+
 def _embed_model() -> SentenceTransformer:
-    """Get or create the embedding model singleton."""
+    """Get or create the embedding model singleton.
+
+    Loads from the local cache when available. In online mode, a missing
+    model is downloaded from HuggingFace and then saved for offline reuse.
+    In offline mode, a missing model raises instead of reaching the network.
+    """
     global _embedder
     if _embedder is None:
-        _embedder = SentenceTransformer(settings.embed_model)
+        local = _local_model_path(settings.embed_model)
+        if local.exists():
+            _embedder = SentenceTransformer(str(local))
+        elif settings.offline_mode:
+            raise RuntimeError(
+                f"RAG offline mode is enabled, but embedding model "
+                f"'{settings.embed_model}' is not cached at {local}. "
+                f"Run `hera-rag-search download-models` once while online "
+                f"to populate the cache."
+            )
+        else:
+            local.parent.mkdir(parents=True, exist_ok=True)
+            model = SentenceTransformer(settings.embed_model)
+            model.save(str(local))
+            _embedder = model
     return _embedder
 
 

@@ -1,4 +1,4 @@
-import { Close, Done, DynamicForm, Science } from '@mui/icons-material';
+import { Close, Done } from '@mui/icons-material';
 import { Stack, Typography } from '@mui/material';
 import { SimpleTreeView } from '@mui/x-tree-view';
 import { useEffect, useState } from 'react';
@@ -6,16 +6,24 @@ import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DocumentObj } from '../../objects/ProjectObj';
 import { AgentConfig } from '../../shared/AgentConfig';
 import { FORBIDDEN_FIELDS } from '../../shared/constants';
-import { ProjectDocument } from '../../shared/types';
+import { TabKind } from '../../shared/tabKind';
+import { ProjectDocument, WorkflowDesc } from '../../shared/types';
+import { isWorkflowDoc } from '../../shared/workflow';
 import { copyWithout, reorderEntries } from '../../utils/utils';
 import { AgentConfigEditor } from '../agents/AgentConfigEditor';
+import { WorkflowEditor } from '../workflow/WorkflowEditor';
 import { DetailsViewDocumentHeader } from './DetailsViewDocumentHeader';
+import { DocView, DocViewSelector } from './DocViewSelector';
 import { DetailsViewItem, keyForDetailsViewItem } from './DetailsViewItem';
 
 const HIDE_ON_DESC = ['datasourceName', 'toolkit', 'version'];
 const isAgentConfigDoc = (doc: ProjectDocument) => {
   return doc && typeof doc?.resource === 'object' && doc?.resource.effects !== undefined;
 }
+
+const defaultView = (doc: ProjectDocument): DocView => {
+  return isAgentConfigDoc(doc) ? TabKind.Agent : isWorkflowDoc(doc) ? TabKind.Workflow : 'formulated';
+};
 
 export const DetailsViewDocumentContent = ({
   doc,
@@ -28,32 +36,36 @@ export const DetailsViewDocumentContent = ({
   shownDoc: ProjectDocument,
   setShownDoc: (newDoc: ProjectDocument) => void,
 }) => {
-  const [showFormulated, setShowFormulated] = useState(true);
-  const [showAgentConfig, setShowAgentConfig] = useState(isAgentConfigDoc(doc.data));
-
   const isAgent = isAgentConfigDoc(shownDoc);
+  const isWorkflow = isWorkflowDoc(shownDoc);
 
-  useEffect(() => {
-    if (!isAgent) {
-      setShowAgentConfig(false);
-    }
-  }, [isAgent]);
+  const [docView, setDocView] = useState<DocView>(() => defaultView(doc.data));
 
+  // When switching to a different document, reset to its default view.
   useEffect(() => {
-    setShowAgentConfig(isAgentConfigDoc(doc.data));
+    setDocView(defaultView(doc.data));
   }, [doc.docid]);
 
+  // The agent/workflow views only apply to those document kinds; if the shown
+  // doc is no longer one of them, fall back to the formulated view.
   useEffect(() => {
-    if (!showFormulated) {
-      setShowAgentConfig(false);
+    if ((docView === TabKind.Agent && !isAgent) || (docView === TabKind.Workflow && !isWorkflow)) {
+      setDocView('formulated');
     }
-  }, [showFormulated])
+  }, [isAgent, isWorkflow, docView]);
 
-  useEffect(() => {
-    if (showAgentConfig) {
-      setShowFormulated(true);
-    }
-  }, [showAgentConfig])
+  const showFormulated = docView !== 'raw';
+  const showAgentConfig = docView === TabKind.Agent;
+  const showWorkflow = docView === TabKind.Workflow;
+
+  // Agent/workflow views render the document's payload in a dedicated editor, so
+  // the unchangeable meta fields move to the header (read-only) and are hidden
+  // from the editable tree. Agent also hides resource (it IS the agent config);
+  // the workflow's resource is a separate export path, so it stays editable.
+  const showKindEditor = showAgentConfig || showWorkflow;
+  const headerHiddenFields = showAgentConfig
+    ? ['resource', 'type', 'dataFormat']
+    : (showWorkflow ? ['type', 'dataFormat'] : []);
 
   const isChanged = JSON.stringify(doc.data) !== JSON.stringify(shownDoc);
   return (
@@ -62,19 +74,11 @@ export const DetailsViewDocumentContent = ({
         <Typography variant='h6' sx={{ marginRight: 1 }}>
           {doc.isConfig ? doc.project.name + ' config' : doc.name}
         </Typography>
-        <ButtonTooltip
-          title={'Show Formulated'}
-          onClick={() => setShowFormulated(!showFormulated)}
-        >
-          <DynamicForm color={showFormulated ? 'primary' : 'inherit'} />
-        </ButtonTooltip>
-        <ButtonTooltip
-          title={'Show Agent Config'}
-          onClick={() => setShowAgentConfig(!showAgentConfig)}
-          disabled={!isAgent}
-        >
-          <Science color={showAgentConfig ? 'primary' : 'inherit'} />
-        </ButtonTooltip>
+        <DocViewSelector
+          docView={docView}
+          setDocView={setDocView}
+          enabled={{ [TabKind.Agent]: isAgent, [TabKind.Workflow]: isWorkflow }}
+        />
         {isChanged
           ? (<>
             <ButtonTooltip
@@ -97,7 +101,7 @@ export const DetailsViewDocumentContent = ({
         shownDoc={shownDoc}
         setShownDoc={setShownDoc}
         showFormulated={showFormulated}
-        extraFields={!showAgentConfig
+        extraFields={!showKindEditor
           ? []
           : [
             { name: 'type', value: shownDoc.type },
@@ -112,15 +116,16 @@ export const DetailsViewDocumentContent = ({
           if (FORBIDDEN_FIELDS.includes(k)) {
             return null;
           }
-          if (showAgentConfig && ['resource', 'type', 'dataFormat'].includes(k)) {
+          if (headerHiddenFields.includes(k)) {
             return null;
           }
           const hideOnDesc = showFormulated && k === 'desc';
+          const descHideFields = showWorkflow ? [...HIDE_ON_DESC, 'workflow'] : HIDE_ON_DESC;
           return (
             <DetailsViewItem
               key={k}
               itemKey={k}
-              itemValue={!hideOnDesc ? v : copyWithout(v, HIDE_ON_DESC)}
+              itemValue={!hideOnDesc ? v : copyWithout(v, descHideFields)}
               parentKey={undefined}
               setItemValue={newVal => {
                 if (!hideOnDesc) {
@@ -142,6 +147,12 @@ export const DetailsViewDocumentContent = ({
         )
         : null
       }
+      {showWorkflow && (
+        <WorkflowEditor
+          workflow={(shownDoc.desc as WorkflowDesc).workflow}
+          setWorkflow={newVal => setShownDoc({ ...shownDoc, desc: { ...shownDoc.desc, workflow: newVal } as WorkflowDesc })}
+        />
+      )}
     </>
   );
 }

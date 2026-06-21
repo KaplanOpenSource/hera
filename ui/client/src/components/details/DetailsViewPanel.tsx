@@ -1,8 +1,12 @@
+import { Box } from '@mui/material';
 import { ProjectObj } from '../../objects/ProjectObj';
-import { idFromDocId, idFromNotebookId, idFromRepoId } from '../../shared/idDocId';
+import { classifyItemId, idFromDocId, idFromRepoId, ItemKind, toolkitNameFromSplitId } from '../../shared/idDocId';
 import { DetailsViewDocId } from './DetailsViewDocId';
-import { DetailsViewNotebook } from './DetailsViewNotebook';
+import { DetailsViewMergedRepo } from './DetailsViewMergedRepo';
 import { DetailsViewRepo } from './DetailsViewRepo';
+import { DetailsViewToolkit } from './toolkit/DetailsViewToolkit';
+
+export { detailsTabName } from '../../shared/tabKind';
 
 export const DetailsViewPanel = ({
   project,
@@ -11,34 +15,50 @@ export const DetailsViewPanel = ({
   project: ProjectObj,
   showItemId: string,
 }) => {
-  const docid = idFromDocId(showItemId);
-  if (docid) {
+  const kind = classifyItemId(showItemId);
+
+  if (kind === ItemKind.CentralRepo) {
     return (
-      <DetailsViewDocId
-        project={project}
-        docid={docid}
-      />
+      <Box sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+        <DetailsViewMergedRepo />
+      </Box>
     )
   }
 
-  const repoid = idFromRepoId(showItemId);
-  if (repoid) {
-    return (
-      <DetailsViewRepo
-        repoPath={repoid}
-      />
-    )
+  if (kind === ItemKind.Split) {
+    const toolkitName = toolkitNameFromSplitId(showItemId, project.documents);
+    if (toolkitName) {
+      return (
+        <Box sx={{ height: '100%', overflow: 'auto' }}>
+          <DetailsViewToolkit toolkitName={toolkitName} />
+        </Box>
+      )
+    }
   }
 
-  const notebookName = idFromNotebookId(showItemId);
-  if (notebookName) {
-    const filesDir = project?.configDocument?.data.desc.filesDirectory ?? '';
-    return (
-      <DetailsViewNotebook
-        rootDir={filesDir}
-        notebookName={notebookName}
-      />
-    )
+  if (kind === ItemKind.Document) {
+    const docid = idFromDocId(showItemId);
+    if (docid) {
+      return (
+        <DetailsViewDocId
+          project={project}
+          docid={docid}
+        />
+      )
+    }
+  }
+
+  if (kind === ItemKind.Repo) {
+    const repoid = idFromRepoId(showItemId);
+    if (repoid) {
+      return (
+        <Box sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+          <DetailsViewRepo
+            repoPath={repoid}
+          />
+        </Box>
+      )
+    }
   }
 
   if (project?.configDocument?.docid) {
@@ -52,4 +72,3 @@ export const DetailsViewPanel = ({
     return null;
   }
 };
-

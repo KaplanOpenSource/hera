@@ -1,3 +1,4 @@
+import glob
 from setuptools import setup, find_packages
 
 setup(
@@ -15,6 +16,7 @@ setup(
         "Operating System :: POSIX :: Linux",
     ],
     python_requires=">=3.9",
+    scripts=[s for s in glob.glob("hera/bin/hera-*") if not s.endswith(".old")],
     extras_require={
         "rag": [
             "sentence-transformers>=2.7",

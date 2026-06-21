@@ -1,11 +1,17 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { ProjectTreeView } from '../src/components/project/ProjectTreeView';
 import { ProjectObj } from '../src/objects/ProjectObj';
 import { ProjectEntire } from '../src/shared/types';
 
 vi.mock('../src/io/FetchProjects', () => ({
   fetchProjectDetails: vi.fn(),
+}));
+vi.mock('../src/io/snackbar', () => ({
+  pushRunning: () => 'mock-key',
+  pushError: () => 'mock-key',
+  dismiss: () => {},
 }));
 vi.mock('../src/components/project/AddDocumentButton', () => ({
   AddDocumentButton: () => null,
@@ -37,10 +43,12 @@ const makeProject = (documents: ProjectEntire['documents'] = []): ProjectObj => 
 
 const renderTree = (project: ProjectObj) => {
   return render(
-    <ProjectTreeView
-      project={project}
-      setSelectedItemIds={vi.fn()}
-    />
+    <MemoryRouter>
+      <ProjectTreeView
+        project={project}
+        onSelectItem={vi.fn()}
+      />
+    </MemoryRouter>
   );
 };
 

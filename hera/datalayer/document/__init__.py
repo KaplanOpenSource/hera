@@ -1,3 +1,4 @@
+from hera.utils.logging import get_logger
 from mongoengine import *
 from mongoengine.connection import disconnect
 import os
@@ -17,7 +18,7 @@ def getMongoJSON():
     -------
         dict
     """
-    configFile = Path.home() / '.your_hidden_config_dir' / 'config.json' #X-platform support
+    configFile = Path.home() / '.pyhera' / 'config.json' #X-platform support
     # configFile = os.path.join(os.environ.get('HOME'), '.pyhera', 'config.json')
     if os.path.isfile(configFile):
         with open(configFile, 'r') as jsonFile:
@@ -174,20 +175,25 @@ def connectToDatabase(mongoConfig,alias=None):
     -------
         mongodb connection.
     """
+    logger = get_logger(None, "hera.datalayer.document.connectToDatabase")
+    logger.debug("Connecting to DB")
     if isinstance(mongoConfig,str):
         mongoConfig = parseConnectionString(mongoConfig)
 
     alias = '%s-alias' % mongoConfig['dbName'] if alias is None else alias
 
     disconnect(alias)
+    logger.debug("Closed all prior connections to DB")
 
     con = connect(alias=alias,
             host=mongoConfig['dbIP'],
             db=mongoConfig['dbName'],
             username=mongoConfig['username'],
             password=mongoConfig['password'],
-            authentication_source='admin'
+            authentication_source='admin',
+            uuidRepresentation='standard',
             )
+    logger.info("Successfuly connected to DB")
     return con
 
 

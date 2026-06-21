@@ -33,7 +33,6 @@ describe('fetchProjectsNames', () => {
   it('sets project names in store on success', async () => {
     vi.mocked(fetchPython).mockResolvedValue({
       data: { projects: [{ name: 'Alpha' }, { name: 'Beta' }] },
-      problem: undefined,
     });
 
     await fetchProjectsNames();
@@ -44,8 +43,7 @@ describe('fetchProjectsNames', () => {
 
   it('does not update store when there is a problem', async () => {
     vi.mocked(fetchPython).mockResolvedValue({
-      data: undefined,
-      problem: 'connection failed',
+      data: null,
     });
 
     await fetchProjectsNames();
@@ -63,7 +61,7 @@ describe('fetchProjectsNames', () => {
     const promise = fetchProjectsNames();
     expect(useProjectStore.getState().projectNames).toEqual([]);
 
-    resolve({ data: { projects: [{ name: 'Gamma' }] }, problem: undefined });
+    resolve({ data: { projects: [{ name: 'Gamma' }] } });
     await promise;
 
     expect(useProjectStore.getState().projectNames).toEqual([{ name: 'Gamma' }]);
@@ -83,7 +81,6 @@ describe('fetchProjectDetails', () => {
     const project = { name: 'TestProject', documents: [] };
     vi.mocked(fetchPython).mockResolvedValueOnce({
       data: { project },
-      problem: undefined,
     });
 
     await fetchProjectDetails('TestProject');
@@ -93,8 +90,7 @@ describe('fetchProjectDetails', () => {
 
   it('does not update store when there is a problem', async () => {
     vi.mocked(fetchPython).mockResolvedValueOnce({
-      data: undefined,
-      problem: 'error',
+      data: null,
     });
 
     await fetchProjectDetails('TestProject');
@@ -106,7 +102,7 @@ describe('fetchProjectDetails', () => {
     const project = { name: 'TestProject', documents: [] };
     vi.mocked(fetchPython).mockImplementationOnce(async () => {
       useProjectStore.setState({ currProjectName: 'OtherProject' });
-      return { data: { project }, problem: undefined };
+      return { data: { project } };
     });
 
     await fetchProjectDetails('TestProject');
@@ -127,12 +123,12 @@ describe('fetchProjectDetails', () => {
     const betaPromise = fetchProjectDetails('Beta');
 
     // Beta responds first
-    resolveBeta({ data: { project: { name: 'Beta', documents: [{ x: 1 }] } }, problem: undefined });
+    resolveBeta({ data: { project: { name: 'Beta', documents: [{ x: 1 }] } } });
     await betaPromise;
     expect(useProjectStore.getState().currProject).toEqual({ name: 'Beta', documents: [{ x: 1 }] });
 
     // Alpha responds late — should be discarded since currProjectName is now Beta
-    resolveAlpha({ data: { project: { name: 'Alpha', documents: [] } }, problem: undefined });
+    resolveAlpha({ data: { project: { name: 'Alpha', documents: [] } } });
     await alphaPromise;
     expect(useProjectStore.getState().currProject).toEqual({ name: 'Beta', documents: [{ x: 1 }] });
   });
@@ -140,7 +136,6 @@ describe('fetchProjectDetails', () => {
   it('sends correct Python code', async () => {
     vi.mocked(fetchPython).mockResolvedValueOnce({
       data: { project: { name: 'TestProject', documents: [] } },
-      problem: undefined,
     });
 
     await fetchProjectDetails('TestProject');
@@ -159,7 +154,7 @@ describe('fetchProjectDetails', () => {
     const promise = fetchProjectDetails('TestProject');
     expect(useProjectStore.getState().currProject).toBeNull();
 
-    resolve({ data: { project }, problem: undefined });
+    resolve({ data: { project } });
     await promise;
 
     expect(useProjectStore.getState().currProject).toEqual(project);
@@ -186,7 +181,6 @@ describe('fetchProjectData', () => {
         ],
         project,
       },
-      problem: undefined,
     });
 
     await fetchProjectData('TestProject');
@@ -200,8 +194,7 @@ describe('fetchProjectData', () => {
 
   it('does not update store when there is a problem', async () => {
     vi.mocked(fetchPython).mockResolvedValueOnce({
-      data: undefined,
-      problem: 'error',
+      data: null,
     });
 
     await fetchProjectData('TestProject');
@@ -225,7 +218,6 @@ describe('fetchProjectData', () => {
         toolkitDocs: [{ toolkit: 'T1', desc: { classpath: 't1.cls' } }],
         project: { name: 'TestProject', documents: [] },
       },
-      problem: undefined,
     });
     await promise;
 
@@ -241,7 +233,6 @@ describe('fetchProjectData', () => {
         toolkitDocs: [],
         project: { name: 'TestProject', documents: [] },
       },
-      problem: undefined,
     });
 
     await fetchProjectData('TestProject');

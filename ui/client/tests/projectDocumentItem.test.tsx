@@ -49,7 +49,7 @@ const clickDeleteAndConfirm = async () => {
 
 describe('ProjectDocumentItem', () => {
   it('calls execPython to delete document on confirm', async () => {
-    mockFetchPython.mockResolvedValueOnce({ data: undefined, problem: undefined });
+    mockFetchPython.mockResolvedValueOnce({ data: {}, problem: undefined });
     renderItem();
 
     await clickDeleteAndConfirm();
@@ -62,7 +62,7 @@ describe('ProjectDocumentItem', () => {
   });
 
   it('calls fetchProjectDetails after successful delete', async () => {
-    mockFetchPython.mockResolvedValueOnce({ data: undefined, problem: undefined });
+    mockFetchPython.mockResolvedValueOnce({ data: {}, problem: undefined });
     renderItem();
 
     await clickDeleteAndConfirm();
@@ -99,7 +99,7 @@ describe('ProjectDocumentItem', () => {
 
     // Resolve after delay
     await act(async () => {
-      resolveExec({ data: undefined, problem: undefined });
+      resolveExec({ data: {}, problem: undefined });
     });
 
     await waitFor(() => {

@@ -29,7 +29,10 @@ from hera.measurements.meteorology.highfreqdata.analysis.turbulencestatistics im
 @pytest.fixture(scope="module")
 def sonic_df(hf_toolkit):
     """Computed Pandas DataFrame from the sonic datasource in the project."""
-    ds = hf_toolkit.getDataSourceData("slicedYamim_sonic")
+    try:
+        ds = hf_toolkit.getDataSourceData("slicedYamim_sonic")
+    except FileNotFoundError as exc:
+        pytest.skip(f"slicedYamim_sonic data file missing in TEST_HERA: {exc}")
     if ds is None:
         pytest.skip("slicedYamim_sonic datasource not loaded in project")
     # dask → pandas
@@ -39,7 +42,10 @@ def sonic_df(hf_toolkit):
 @pytest.fixture(scope="module")
 def trh_df(hf_toolkit):
     """Computed Pandas DataFrame from the TRH datasource in the project."""
-    ds = hf_toolkit.getDataSourceData("slicedYamim_TRH")
+    try:
+        ds = hf_toolkit.getDataSourceData("slicedYamim_TRH")
+    except FileNotFoundError as exc:
+        pytest.skip(f"slicedYamim_TRH data file missing in TEST_HERA: {exc}")
     if ds is None:
         pytest.skip("slicedYamim_TRH datasource not loaded in project")
     return ds.compute() if hasattr(ds, "compute") else ds
@@ -129,11 +135,11 @@ class TestSpecificPoints:
 
 class TestErrorPaths:
     def test_campbelToParquet_nonexistent(self, hf_toolkit):
-        with pytest.raises(ValueError):
+        with pytest.warns(DeprecationWarning), pytest.raises(ValueError):
             hf_toolkit.campbelToParquet(binaryFile="/path/to/nonexistent_file.dat")
 
     def test_asciiToParquet_nonexistent(self, hf_toolkit):
-        with pytest.raises(FileNotFoundError):
+        with pytest.warns(DeprecationWarning), pytest.raises(FileNotFoundError):
             hf_toolkit.asciiToParquet(path="/path/to/nonexistent_file.txt")
 
 
@@ -144,26 +150,26 @@ class TestErrorPaths:
 class TestAbstractCalculator:
     def test_init_basic(self, sonic_df):
         ac = AbstractCalculator(
-            rawData=sonic_df, metadata={"samplingWindow": "10S", "isMissingData": False}
+            rawData=sonic_df, metadata={"samplingWindow": "10s", "isMissingData": False}
         )
         assert ac.RawData is not None
-        assert ac.metaData["samplingWindow"] == "10S"
+        assert ac.metaData["samplingWindow"] == "10s"
 
     def test_sampling_window(self, sonic_df):
         ac = AbstractCalculator(
-            rawData=sonic_df, metadata={"samplingWindow": "10S", "isMissingData": False}
+            rawData=sonic_df, metadata={"samplingWindow": "10s", "isMissingData": False}
         )
-        assert ac.SamplingWindow == "10S"
+        assert ac.SamplingWindow == "10s"
 
     def test_compute_methods_exist(self, sonic_df):
         ac = AbstractCalculator(
-            rawData=sonic_df, metadata={"samplingWindow": "10S", "isMissingData": False}
+            rawData=sonic_df, metadata={"samplingWindow": "10s", "isMissingData": False}
         )
         assert hasattr(ac, "compute")
         assert hasattr(ac, "_compute")
 
     def test_set_save_properties(self, sonic_df):
-        ac = AbstractCalculator(rawData=sonic_df, metadata={"samplingWindow": "10S"})
+        ac = AbstractCalculator(rawData=sonic_df, metadata={"samplingWindow": "10s"})
         props = ac.set_saveProperties(dataFormat="testFormat")
         assert props is None or isinstance(props, dict)
 
@@ -178,7 +184,7 @@ class TestMeanDataCalculator:
         df = sonic_df_indexed.copy()
         df["TC_T_bar"] = df["T"]
         metadata = {
-            "samplingWindow": "10S",
+            "samplingWindow": "10s",
             "isMissingData": False,
             "start": df.index.min(),
             "end": df.index.max(),
@@ -221,7 +227,7 @@ class TestMeanDataCalculatorAdvanced:
     def test_TKE(self, sonic_df_indexed):
         df = sonic_df_indexed.head(100).copy()
         metadata = {
-            "samplingWindow": "10S",
+            "samplingWindow": "10s",
             "isMissingData": False,
             "start": df.index.min(),
             "end": df.index.max(),
@@ -235,7 +241,7 @@ class TestMeanDataCalculatorAdvanced:
     def test_MOLength(self, sonic_df_indexed):
         df = sonic_df_indexed.head(100).copy()
         metadata = {
-            "samplingWindow": "10S",
+            "samplingWindow": "10s",
             "isMissingData": False,
             "start": df.index.min(),
             "end": df.index.max(),
@@ -259,7 +265,7 @@ class TestRawdataAnalysis:
         analysis = RawdataAnalysis(datalayer=hf_toolkit)
         result = analysis.singlePointTurbulenceStatistics(
             sonicData=df,
-            samplingWindow="10S",
+            samplingWindow="10s",
             start=df.index.min(),
             end=df.index.max(),
             height=10,
@@ -305,7 +311,7 @@ class TestSinglePointTurbulenceStatistics:
             "T": [20.0, 21.0, 22.0],
         })
         metadata = {
-            "samplingWindow": "10S",
+            "samplingWindow": "10s",
             "start": pd.Timestamp("2020-01-01 00:00:00"),
             "end": pd.Timestamp("2020-01-01 00:00:02"),
             "height": 10,
@@ -313,7 +319,7 @@ class TestSinglePointTurbulenceStatistics:
             "averagedHeight": 6,
             "isMissingData": False,
         }
-        df["Time"] = pd.date_range(start=metadata["start"], periods=len(df), freq="1S")
+        df["Time"] = pd.date_range(start=metadata["start"], periods=len(df), freq="1s")
         df = df.set_index("Time")
         return singlePointTurbulenceStatistics(df, metadata)
 
@@ -324,7 +330,7 @@ class TestSinglePointTurbulenceStatistics:
 
     def test_invalid_input_type(self):
         with pytest.raises(ValueError):
-            singlePointTurbulenceStatistics("not_a_dataframe", {"samplingWindow": "10S"})
+            singlePointTurbulenceStatistics("not_a_dataframe", {"samplingWindow": "10s"})
 
     def test_fluctuations(self, turb_calc):
         turb_calc.fluctuations()

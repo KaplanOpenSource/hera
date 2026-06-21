@@ -17,6 +17,7 @@ export const LoadRepositoryButton = ({
     setLoading(true);
     await fetchPython({
       results: [],
+      label: `load repository ${repositoryName}`,
       code: `
 from hera.utils.data.toolkit import dataToolkit
 dataToolkit().loadAllDatasourcesInRepositoryToProject(projectName='${currProjectName}', repositoryName='${repositoryName}', overwrite=False)

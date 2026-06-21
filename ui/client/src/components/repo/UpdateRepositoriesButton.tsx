@@ -13,6 +13,7 @@ export const UpdateRepositoriesButton = () => {
     setLoading(true);
     await fetchPython({
       results: [],
+      label: 'update repositories',
       code: `
 from types import SimpleNamespace
 from hera.utils.data.CLI import update

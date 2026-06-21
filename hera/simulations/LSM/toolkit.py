@@ -11,7 +11,7 @@ from itertools import product
 from ... import datalayer
 from ... import toolkit
 from .singleSimulation import SingleSimulation
-from unum.units import *
+from hera.utils.unitHandler import ureg, unumToPint
 from ..utils.coordinateHandler import coordinateHandler
 from pathlib import Path
 
@@ -238,10 +238,10 @@ class LSMToolkit(toolkit.abstractToolkit):
             for key in template._document['desc']["units"].keys():
                 if key in query.keys():
                     query_item= query[key]
-                    if isinstance(query_item, Unum):
-                        query[key] = query_item.asNumber(eval(template._document['desc']["units"][key]))
-                    elif isinstance(query_item, Quantity):
-                        query[key] = query_item.m_as(template._document['desc']["units"][key])
+                    if hasattr(query_item, 'asNumber') or hasattr(query_item, 'magnitude'):
+                        pint_item = unumToPint(query_item)
+                        unit_expr = template._document['desc']["units"][key]
+                        query[key] = pint_item.m_as(ureg.parse_expression(unit_expr))
                     else:
                         raise ValueError(f"query must use either pint or unum to specify units, currently type({query[key]})={type(query[key])}")
         else:

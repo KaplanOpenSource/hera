@@ -1,18 +1,10 @@
 import numpy
 import geopandas
-import shapely
 import pandas
-import geopandas
-import io
-import scipy
-import numpy
 import math
-import os
-from scipy.interpolate import griddata
 import numpy as np
 import geopandas as gpd
 import pandas as pd
-from shapely.geometry import Point
 import xarray as xr
 
 
@@ -111,6 +103,8 @@ def create_xarray(minx,miny,maxx,maxy,dxdy=30, inputCRS=WSG84):
     xarray.DataArray
         Grid with lat/lon coordinates over (i, j) dimensions.
     """
+    from shapely.geometry import Point
+    
     if inputCRS == WSG84:
         min_pp = convertCRS(points=[[miny, minx]], inputCRS=inputCRS, outputCRS=ITM)[0]
         max_pp = convertCRS(points=[[maxy, maxx]], inputCRS=inputCRS, outputCRS=ITM)[0]
@@ -227,6 +221,7 @@ class stlFactory:
 
 
         """
+        from scipy.interpolate import griddata
         # 1. Convert contour map to regular height map.
         # 1.1 get boundaries
         xmin = gpandas.bounds.min()["minx"]
@@ -242,6 +237,7 @@ class stlFactory:
         Height = []
         XY = []
         for i, line in enumerate(gpandas.iterrows()):
+            from shapely import LineString
             if isinstance(line[1]['geometry'], LineString):
                 linecoords = [x for x in line[1]['geometry'].coords]
                 lineheight = [line[1][self.heightColumnsNames]] * len(linecoords)
@@ -304,12 +300,16 @@ class stlFactory:
 
                 # dem facet 1
                 n = numpy.cross(numpy.array(v1) - numpy.array(v2), numpy.array(v1) - numpy.array(v3))
-                n = n / numpy.sqrt(sum(n ** 2))
+                mag = numpy.sqrt(sum(n ** 2))
+                if mag > 0:
+                    n = n / mag
                 stl_str += self._make_facet_str(n, v1, v2, v3)
 
                 # dem facet 2
                 n = numpy.cross(numpy.array(v2) - numpy.array(v3), numpy.array(v2) - numpy.array(v4))
-                n = n / numpy.sqrt(sum(n ** 2))
+                mag = numpy.sqrt(sum(n ** 2))
+                if mag > 0:
+                    n = n / mag
                 # stl_str += self._make_facet_str( n, v2, v3, v4 )
                 stl_str += self._make_facet_str(n, v2, v4, v3)
 
@@ -408,7 +408,8 @@ class stlFactory:
         # 2. Get the points from the geom
         Nx = int(((xmax - xmin) / dxdy))
         Ny = int(((ymax - ymin) / dxdy))
-        grid_z2 = coordinateHandler.regularizeTimeSteps(data=gpandas, fieldList=[heightColumn],
+        from hera.simulations.utils.coordinateHandler import coordinateHandler
+        grid_z2 = coordinateHandler().regularizeTimeSteps(data=gpandas, fieldList=[heightColumn],
                                               coord1=xColumn,
                                               coord2=yColumn,
                                               n=(Nx, Ny), addSurface=False, toPandas=False)[0][heightColumn]

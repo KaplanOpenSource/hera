@@ -10,7 +10,6 @@ import pandas as pd
 from typing import Optional, List, Dict, Any
 
 from hera.utils.logging import get_classMethod_logger
-from sympy.physics.units import second
 
 # ---------------------------------------------------------------------------
 # Constants for Toolkit data sources
@@ -1114,7 +1113,7 @@ class ToolkitHome(abstractToolkit):
         pandas.DataFrame
             Table with columns: toolkit, cls, source, type, repositoryName, version.
         """
-        docs = self.getToolkitDocuments(name=None, projectName=projectName) or []
+        docs = self.getToolkitDocuments(name=None) or []
         rows = []
         for d in docs:
             desc = d.get("desc", {})

@@ -1,39 +1,9 @@
 import numpy
 import pandas
-import dask.dataframe
-import xarray
 import json
-
-try:
-    import geopandas
-except ImportError:
-    print("geopandas not installed, no support for gis data format")
-try:
-    from osgeo import gdal
-except ImportError:
-    print("gdal not installed, no support for shapefiles")
-
-import matplotlib.image as mpimg
-import sys
 import pickle
-import io
-try:
-    import rasterio
-except ImportError:
-    print("rasterio not installed, no support for image data types. ")
-
-from hera.utils import loadJSON
 import importlib
 import os
-
-
-version = sys.version_info[0]
-if version == 3:
-    from json import JSONDecodeError
-elif version == 2:
-    from simplejson import JSONDecodeError
-
-
 
 
 class datatypes:
@@ -244,7 +214,7 @@ class DataHandler_geotiff(object):
         raise NotImplementedError("Not implemented yet")
 
     @staticmethod
-    def getData(resource, rasterBand=1):
+    def getData(resource, rasterBand=1, desc=None, **kwargs):
         """
         Reads a geotiff
 
@@ -258,6 +228,10 @@ class DataHandler_geotiff(object):
         -------
             The gdal at image coordinates.
         """
+        try:
+            from osgeo import gdal
+        except ImportError as exc:
+            raise ImportError("gdal not installed, no support for shapefiles") from exc
         ds = gdal.Open(resource)
         return ds
 
@@ -395,6 +369,7 @@ class DataHandler_HDF(object):
         -------
         dask.DataFrame or pandas.DataFrame
         """
+        import dask.dataframe
         df = dask.dataframe.read_hdf(resource['path'], resource['key'], sorted_index=True)
 
         if usePandas:
@@ -429,6 +404,7 @@ class DataHandler_netcdf_xarray(object):
         -------
         xarray
         """
+        import xarray
         df = xarray.open_mfdataset(resource, combine='by_coords', **kwargs)
 
         return df
@@ -471,6 +447,7 @@ class DataHandler_zarr_xarray(object):
         -------
         xarray
         """
+        import xarray
         df = xarray.open_zarr(resource, **kwargs)
         return df
 
@@ -499,6 +476,7 @@ class DataHandler_JSON_dict(object):
         -------
         dict
         """
+        from hera.utils.jsonutils import loadJSON
         df = loadJSON(resource)
         return df
 
@@ -545,6 +523,7 @@ class DataHandler_JSON_pandas(object):
                 readParams = dict()
             df = pandas.read_json(resource,**readParams)
         else:
+            import dask.dataframe
             df = dask.dataframe.read_json(resource)
 
         return df
@@ -562,6 +541,8 @@ class DataHandler_JSON_geopandas(object):
     @staticmethod
     def getData(resource, desc={}, **kwargs):
         """Load a GeoDataFrame from a GeoJSON file."""
+        import geopandas
+        from hera.utils.jsonutils import loadJSON
         df = geopandas.GeoDataFrame.from_features(loadJSON(resource)["features"])
         if "crs" in desc:
             df.crs = desc['crs']
@@ -581,6 +562,7 @@ class DataHandler_geopandas(object):
     @staticmethod
     def getData(resource, desc={}, **kwargs):
         """Load a GeoDataFrame from a geospatial file."""
+        import geopandas
         df = geopandas.read_file(resource, **kwargs)
         if "crs" in desc:
             df.crs = desc['crs']
@@ -623,12 +605,12 @@ class DataHandler_parquet(object):
         -------
         dask.Dataframe or pandas.DataFrame
         """
+        import dask.dataframe
         try:
             df = dask.dataframe.read_parquet(resource, **kwargs)
             if usePandas:
                 df = df.compute()
         except ValueError:
-            # dask cannot read parquet with multi index. so we try to load it with pandas.
             df = pandas.read_parquet(resource, **kwargs)
 
         return df
@@ -640,6 +622,7 @@ class DataHandler_image(object):
     @staticmethod
     def saveData(resource, fileName,**kwargs):
         """Save an image array to a file using ``matplotlib.image.imsave``."""
+        import matplotlib.image as mpimg
         mpimg.imsave(fileName, resource,**kwargs)
         return dict()
 
@@ -657,6 +640,7 @@ class DataHandler_image(object):
         -------
         img
         """
+        import matplotlib.image as mpimg
         img = mpimg.imread(resource)
 
         return img
@@ -750,6 +734,10 @@ class DataHandler_tif(object):
         -------
         img
         """
+        try:
+            import rasterio
+        except ImportError as exc:
+            raise ImportError("rasterio not installed, no support for image data types.") from exc
         obj = rasterio.open(resource)
 
         return obj

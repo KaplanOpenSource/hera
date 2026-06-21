@@ -4,6 +4,7 @@ import { DEFAULT_PROJECT } from '../stores/useProjectStore';
 export const ProjectCommands = {
   projectNames: (): PythonCommand => ({
     results: ['projects'],
+    label: 'project names',
     code: `
 from hera.datalayer.project import getProjectList
 names = getProjectList()

@@ -74,8 +74,8 @@ class ASCIIParser:
                 columnNameMapping = dict([(f"{x}_{device_ID}", f"{x}") for x in cols])
                 device = "Raw_Sonic"
             else:
-                columnsName = ['TIMESTAMP', 'RECORD'] + [f"{x}_{device_ID}" for x in cols]                               ## For TCT there is no _
-                columnNameMapping = dict([(f"{x}_{device_ID}", f"{x}") for x in cols])
+                columnsName = ['TIMESTAMP', 'RECORD'] + [f"{x}{device_ID}" for x in cols]                                ## For TCT there is no _ before device number
+                columnNameMapping = dict([(f"{x}{device_ID}", f"{x}") for x in cols])
                 device = "TCT_TRH"
 
             columnNameMapping['TIMESTAMP'] = 'TIMESTAMP'
@@ -105,14 +105,14 @@ class ASCIIParser:
             if device_type[-1]=="Raw_Sonic":
                 cols = ['U','V','W','T']
                 number_of_devices = len([word for word in next(meta_data_reader) if word.startswith(cols[0])])
-            elif device_type[-1]=="Tct_Trh":
+            elif device_type[-1].lower() == "tct_trh":
                 cols = ['TC_T', 'TRH', 'RH']
                 number_of_devices = len([word for word in next(meta_data_reader) if word.startswith(cols[0])])
             else:                                       ##No metadata in file
                 include_metadata = False
                 if 'Raw_Sonic' in path:
                     cols = ['U', 'V', 'W', 'T']
-                elif 'TcT' in path:
+                elif 'tct' in path.lower():
                     cols = ['TC_T', 'TRH', 'RH']
                 else:
                     raise ValueError("No Device could be detected by given file. File should include metadata or device name in file name.")

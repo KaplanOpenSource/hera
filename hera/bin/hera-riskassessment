@@ -1,6 +1,8 @@
 #! /usr/bin/env python
+# PYTHON_ARGCOMPLETE_OK
 
-import argparse
+
+import argparse, argcomplete
 import logging
 from hera.utils.logging import initialize_logging,with_logger
 from hera.riskassessment import CLI
@@ -27,6 +29,7 @@ if __name__=="__main__":
     parser_create_rep.add_argument('--path', type=str, default=None, help='Path to directory. If not provided will use the current directory.')
     parser_create_rep.set_defaults(func=CLI.createRepository)
 
+    argcomplete.autocomplete(parser)
     parsed = parser.parse_args()
     if 'func' not in parsed:
         parser.print_help()

@@ -6,14 +6,15 @@ export const useRegisteredRepositories = () => {
   const [repositories, setRepositories] = useState<Repository[]>([]);
 
   const fetchRepositories = async () => {
-    const { data, problem } = await fetchPython({
+    const { data } = await fetchPython({
       results: ['repos'],
+      label: 'registered repositories',
       code: `
 from hera.utils.data.toolkit import dataToolkit
 repos = dataToolkit().getRepositoryTable().to_dict(orient='records')
 `,
     });
-    if (!problem && data?.repos) {
+    if (data?.repos) {
       setRepositories(data.repos);
     }
   };

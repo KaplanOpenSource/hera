@@ -12,7 +12,6 @@ Usage::
     area = 10 * ureg.dunam          # custom: 1 dunam = 1000 m²
 """
 
-from hera.utils.logging import get_logger
 from pint import Unit, UnitRegistry
 from pint import Quantity
 from pint.errors import UndefinedUnitError, DimensionalityError
@@ -113,6 +112,7 @@ def tounit(x, theunit):
     -------
     Quantity or Unum
     """
+    from hera.utils.logging import get_logger
     logger = get_logger(None, "hera.utils.tounit")
     if isinstance(x, Unum) and unumSupport:
         logger.warning("Please prefer using pint (ureg) for units")
@@ -133,7 +133,10 @@ def tounit(x, theunit):
             logger.error(f"can't convert {x} to units {theunit}")
             ret = x
     else:
-        ret = Quantity(x, theunit)
+        if isinstance(theunit, Unum) and unumSupport:
+            ret = x * theunit
+        else:
+            ret = Quantity(x, theunit)
     return ret
 
 
@@ -253,6 +256,16 @@ if unumSupport:
     }
     # Remove None entries
     PINT_TO_UNUM_MAP = {k: v for k, v in PINT_TO_UNUM_MAP.items() if v is not None}
+
+    # Expose custom unum units as public names for backward compatibility
+    atm = _unum_atm
+    mbar = _unum_mbar
+    mmHg = _unum_mmHg
+    mmH2O = _unum_mmH2O
+    torr = _unum_torr
+    dyne = _unum_dyne
+    poise = _unum_poise
+    cpoise = _unum_cpoise
 
     @deprecated(reason="Doesn't work for some cases. Move to Pint")
     def convert_unum_units_to_eval_str(unit_str):

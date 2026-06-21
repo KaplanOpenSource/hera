@@ -1,7 +1,9 @@
 #! /usr/bin/env python
+# PYTHON_ARGCOMPLETE_OK
+
 import requests
 import os
-import argparse
+import argparse, argcomplete
 """
 creats a .bib file from all the alfresco files available to the user 
 """
@@ -155,6 +157,7 @@ if __name__ == "__main__":
     username = os.getenv("USER")
     parser = argparse.ArgumentParser(description="Read user information.")
     parser.add_argument('--password', type=str, help='The password of the current user', required=True)
+    argcomplete.autocomplete(parser)
     args = parser.parse_args()
     password = args.password
 

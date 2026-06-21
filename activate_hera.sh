@@ -16,7 +16,11 @@ export HERA_REPO_ROOT="${SCRIPT_DIR}"
 export PYHERA_DIR="${HOME}/.pyhera"
 export PYTHONPATH="${SCRIPT_DIR}${PYTHONPATH:+:${PYTHONPATH}}"
 
-# Activate the virtual environment
+# Activate the virtual environment first — its activate script calls
+# `deactivate nondestructive`, which restores PATH from _OLD_VIRTUAL_PATH
+# and would drop any PATH edits made before sourcing it.
 source "${VENV_DIR}/bin/activate"
+
+export PATH="${SCRIPT_DIR}/hera/bin${PATH:+:${PATH}}"
 
 echo "Hera environment activated (venv: ${VENV_DIR})"

@@ -1,10 +1,13 @@
 import { ProjectDocument } from "@shared/types";
-import { fetchPython } from "./fetchPython";
+import { fetchPython, fetchPythonClean } from "./fetchPython";
 import { FORBIDDEN_FIELDS } from "../shared/constants";
 
-export const fetchDocument = async (docid: string) => {
-  const { data } = await fetchPython({
+// silent: use the no-notification fetch (e.g. for periodic background reloads).
+export const fetchDocument = async (docid: string, silent = false) => {
+  const run = silent ? fetchPythonClean : fetchPython;
+  const { data } = await run({
     results: ['docData'],
+    label: `get document ${docid}`,
     code: `
 from hera.datalayer import All
 docData = All.getDocumentByID('${docid}').asDict(with_id=True)
@@ -15,12 +18,16 @@ docData = All.getDocumentByID('${docid}').asDict(with_id=True)
 
 const stringifyToPython = (obj: any) => {
   const jsonString = JSON.stringify(obj, (key, value) => {
-    // Convert null to a unique placeholder for replacement
-    return value === null ? '=-=None=-=' : value;
+    if (value === null) return '=-=None=-=';
+    if (value === true) return '=-=True=-=';
+    if (value === false) return '=-=False=-=';
+    return value;
   });
 
-  // Replace the placeholder 'None' without quotes
-  return jsonString.replace(/"=-=None=-="/g, 'None');
+  return jsonString
+    .replace(/"=-=None=-="/g, 'None')
+    .replace(/"=-=True=-="/g, 'True')
+    .replace(/"=-=False=-="/g, 'False');
 }
 
 export const updateDocument = async (newDoc: any, prevDoc: any) => {
@@ -40,6 +47,7 @@ docData = All.getDocumentByID('${docid}').asDict(with_id=True)
 `)
   const { data } = await fetchPython({
     results: ['docData'],
+    label: 'update document',
     code: lines.join('\n'),
   });
   return data?.docData;
