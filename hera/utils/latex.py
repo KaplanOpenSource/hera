@@ -221,7 +221,7 @@ class bibtexFile:
 
 
 if __name__ == "__main__":
-    bb = bibtexFile("/home/yehudaa/Projects/2020/hebrewCrossTex/output.bbl")
+    bb = bibtexFile("hebrewCrossTex/output.bbl")
     print(bb.convert())
 
 
