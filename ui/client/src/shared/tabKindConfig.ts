@@ -1,4 +1,4 @@
-import { Code, Description, FolderOpen, Handyman, Science, Settings, Source } from '@mui/icons-material';
+import { AccountTree, Code, Description, FolderOpen, Handyman, Science, Settings, Source } from '@mui/icons-material';
 import { SvgIconComponent } from '@mui/icons-material';
 import { TabKind } from './tabKind';
 
@@ -14,6 +14,7 @@ export const TAB_KIND_STYLES: Record<TabKind, TabKindStyle> = {
   [TabKind.Notebook]: { icon: Code, color: '#4a6b3a', bg: '126, 154, 110' },
   [TabKind.Document]: { icon: Description, color: '#3a5f80', bg: '106, 140, 175' },
   [TabKind.Agent]: { icon: Science, color: '#7a4a76', bg: '176, 122, 171' },
+  [TabKind.Workflow]: { icon: AccountTree, color: '#2f6f73', bg: '94, 168, 176' },
   [TabKind.ProjectConfig]: { icon: Settings, color: '#555555', bg: '138, 138, 138', bgOpacity: 0.15, selectedBgOpacity: 0.25 },
   [TabKind.Repository]: { icon: Source, color: '#7a5530', bg: '192, 145, 94' },
   [TabKind.CentralRepository]: { icon: FolderOpen, color: '#6e5c30', bg: '176, 151, 94' },

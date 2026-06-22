@@ -33,6 +33,7 @@ export enum DocKind {
   Document = 'Document',
   Agent = 'Agent',
   Notebook = 'Notebook',
+  Workflow = 'Workflow',
 }
 
 const DOC_KINDS = Object.values(DocKind);
