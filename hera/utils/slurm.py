@@ -73,7 +73,7 @@ def prepareSlurmScriptExecution(*, scriptPath=None, script=None,
 # Read the directory for this array task
 dir=$(sed -n "${{SLURM_ARRAY_TASK_ID}}p" {jobDirListFilePath})
 
-{'echo "Running script for job in directory: $dir"' if quiet else ""}
+{'echo "Running script for job in directory: $dir"' if not quiet else ""}
 
 {script}
 """
