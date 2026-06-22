@@ -1,5 +1,6 @@
 import json
 from enum import Enum, auto, unique
+from pathlib import Path
 import resource
 from typing import Union
 import pandas
@@ -622,6 +623,13 @@ class hermesWorkflowToolkit(abstractToolkit):
             return "".join(split_name[:-1]), split_name[-1]
         return workflow_name, None
 
+    @staticmethod
+    def isInFolder(base_path, test_path):
+        base_path = Path(base_path).expanduser().resolve()
+        test_path = Path(test_path).expanduser().resolve()
+        return test_path.is_relative_to(base_path)
+        
+
     def addWorkflowFileInGroup(self,workflowFilePath, write_file=False):
         """adds the workflow to the database and assigning group based on the name
         
@@ -640,7 +648,7 @@ class hermesWorkflowToolkit(abstractToolkit):
 
         workflowFileName = os.path.basename(workflowFilePath)
         workflowName = os.path.splitext(workflowFileName)[0]
-        if not os.path.abspath(workflowFilePath).startswith(self.FilesDirectory):
+        if not self.isInFolder(self.FilesDirectory, workflowFilePath):
             raise ValueError(f"{os.path.abspath(workflowFilePath)} is not in {self.FilesDirectory}")
         doc = self.getWorkflowDocumentByName(workflowName)
         
