@@ -4,6 +4,8 @@ from hera.simulations.gaussian.gasCloud import abstractGasCloud
 from hera.simulations.gaussian.Meteorology import MeteorologyFactory
 from hera.utils.unitHandler import ureg, unumToPint, celsius, K
 import matplotlib.pyplot as plt
+import scipy
+import numpy
 
 
 
@@ -24,6 +26,8 @@ class gaussianToolkit(abstractToolkit):
         self._sigmaDict = dict(briggsRural=BriggsRural)
 
         self._presentation = presentationLayer()
+        self.spaceTime = dict()
+
 
     def getSigmaType(self,sigmaName):
         """
@@ -56,22 +60,69 @@ class gaussianToolkit(abstractToolkit):
 
 
 
-
-
-    def getMeteorologyFromU10(self, u10, inversion, verticalProfileType="log", temperature=20*ureg.degC, stability="D",
-                              z0=0.1*ureg.m, ustar=0.3*ureg.m/ureg.s, skinSurfaceTemperature=35*ureg.degC):
+    def getMeteorologyFromU10(self, u10, inversion, verticalProfileType="log", temperature=ureg.Quantity(20, ureg.degC), stability="D",
+                              z0=0.1*ureg.m, ustar=0.3*ureg.m/ureg.s, skinSurfaceTemperature=ureg.Quantity(35, ureg.degC)):
         return MeteorologyFactory().getMeteorologyFromU10(u10=u10, inversion=inversion, verticalProfileType=verticalProfileType,
                     temperature=temperature, stability=stability, z0=z0, ustar=ustar, skinSurfaceTemperature=skinSurfaceTemperature)
 
 
-    def getMeteorologyFromURefHeight(self, u, refHeight, inversion, verticalProfileType="log", temperature=20*ureg.degC, stability="D",
-                              z0=0.1*ureg.m, ustar=0.3*ureg.m/ureg.s, skinSurfaceTemperature=35*ureg.degC):
+    def getMeteorologyFromURefHeight(self, u, refHeight, inversion, verticalProfileType="log", temperature=ureg.Quantity(20, ureg.degC), stability="D",
+                              z0=0.1*ureg.m, ustar=0.3*ureg.m/ureg.s, skinSurfaceTemperature=ureg.Quantity(35, ureg.degC)):
         return MeteorologyFactory().getMeteorologyFromURefHeight(u=u, refHeight=refHeight,  inversion=inversion,
                     verticalProfileType=verticalProfileType, temperature=temperature, stability=stability, z0=z0,
                     ustar=ustar,skinSurfaceTemperature=skinSurfaceTemperature)
 
 
-    def getGasCloud(self, sourceQ, sourceHeight, initialCloudSize, sigmaTypeName="briggsRural"):
+
+
+
+    def getSpaceTime(self, stabilityType, windSpeed, maxx, dt, dxdy_multiplier,
+                     dz=0.5,
+                     minimal_maxy=0*ureg.m,
+                     initialCloudSize=[0.1*ureg.m,0.1*ureg.m,0.1*ureg.m]):
+
+        # it is preferable to take dxdy as a multiple of dt*windSpeed, so that the cloud center is directly above a grid-point.
+        # the dxdy_multiplier makes the cloud above every dxdy_multiplier-th grid-point (on the datetime axis).
+        dxdy = dt.m_as(ureg.s) * windSpeed.m_as(ureg.m / ureg.s) * dxdy_multiplier * ureg.m
+
+        # the Y-span should be the smallest multiple of dxdy that is greater/equal to the initially given maxy.
+        # the purpose is to limit the grid along the y-axis, to reduce runtime.
+        maxy = numpy.ceil(minimal_maxy.m_as(ureg.m) / dxdy.m_as(ureg.m)) * dxdy
+
+        # the time span should be such that the cloud has passed far enough beyond the maximum X (maxx),
+        # yet not too far as to calculate for times that don't affect the concentraion up to maxx.
+        # therefore we take a time span for which maxx is 3*sigmas away from the cloud center:
+        def find_x_for_timeSpan(maxx):
+            maxx = maxx.m_as(ureg.m)
+
+            def get_function(x, maxx):
+                sigmaX = self.getSigmaType(sigmaName='briggsRural').getSigma(x=x, stability=stabilityType,
+                                                                           sigma0=initialCloudSize,
+                                                                           units=False)['sigmaX'][0]
+                return x - 3 * sigmaX - maxx
+
+            root = scipy.optimize.root_scalar(get_function, bracket=[0, 10 ** 6], args=maxx).root
+            return root
+
+        x_timeSpan = find_x_for_timeSpan(maxx) * ureg.m
+        timeSpan = x_timeSpan / (windSpeed * 60 * (ureg.s / ureg.min))
+        timeSpan = numpy.ceil(timeSpan.m_as(ureg.min)) * ureg.min
+
+        # when we only care about the concentration along the x-axis: Set the parameter minimal_maxy=0*m.
+
+        spaceTime = {
+            'minx': 0 * ureg.m, 'maxx': maxx,
+            'miny': -maxy, 'maxy': maxy + 1 * ureg.m,
+            'minz': 0 * ureg.m, 'maxz': 2 * ureg.m,
+            'dxdy': dxdy, 'dz': dz,
+            'timeSpan': timeSpan, 'dt': dt}
+
+        return spaceTime
+
+
+
+
+    def getGasCloud(self, sourceQ, sourceHeight, initialCloudSize, meteorology, wind_profile_type, sigmaTypeName="briggsRural"):
         """
 
         Parameters
@@ -86,6 +137,7 @@ class gaussianToolkit(abstractToolkit):
 
         sourceHeight : unum
         initialCloudSize : 3-touple unum, the sigmas in each axis.
+        wind_profile_type : str, gets either "HotSpot" or "default".
         sigmaTypeName : Name of the sigma type, for example from Briggs, rural/urban.
 
         Returns
@@ -94,7 +146,9 @@ class gaussianToolkit(abstractToolkit):
 
         """
         sigmaType = self.getSigmaType(sigmaTypeName)
-        gascloud = abstractGasCloud.createGasCloud(sourceQ=sourceQ,sourceHeight=sourceHeight,initialCloudSize=initialCloudSize,sigmaType=sigmaType)
+        gascloud = abstractGasCloud.createGasCloud(sourceQ=sourceQ,sourceHeight=sourceHeight,
+                                                   initialCloudSize=initialCloudSize,meteorology=meteorology,
+                                                   wind_profile_type=wind_profile_type,sigmaType=sigmaType)
         return gascloud
 
 
@@ -227,7 +281,7 @@ class presentationLayer:
 
         plt.plot(time_array, dos_inst_t )
         plt.xlabel("Time from release $[min]$")
-        plt.ylabel(f"Dosage over time {units}")
+        plt.ylabel(f"TIAC over time {units}")
         plt.title(f"Receptor at x={x}[m], y={y}[m], z={z}[m].")
         plt.grid()
         plt.show()
@@ -256,10 +310,12 @@ class presentationLayer:
         plt.ylabel(r"Concentration $\left[\frac{1}{m^3}\right]$")
         plt.title(f"Maximum concentration over time. y={y}[m], z={z}[m]")
         plt.grid()
-        if x_min is not None and x_max is not None:
-            x_min = unumToPint(x_min).m_as(ureg.m)
-            x_max = unumToPint(x_max).m_as(ureg.m)
-            plt.xlim(x_min, x_max)
+
+        x_min = (C.x[0].values)*ureg.meter if x_min is None else x_min
+        x_max = (C.x[-1].values)*ureg.meter if x_max is None else x_max
+        x_min = unumToPint(x_min).m_as(ureg.m)
+        x_max = unumToPint(x_max).m_as(ureg.m)
+        plt.xlim(x_min, x_max)
         plt.show()
 
 
@@ -285,15 +341,16 @@ class presentationLayer:
         plt.ylabel(r"Concentration $\left[\frac{1}{m^3}\right]$")
         plt.title(f"Receptor at x={x}[m], y={y}[m], z={z}[m].")
         plt.grid()
-        if t_min is not None and t_max is not None:
-            t_min = unumToPint(t_min).m_as(ureg.min)
-            t_max = unumToPint(t_max).m_as(ureg.min)
-            plt.xlim(t_min, t_max)
+        t_min = (C.time[0].values)*ureg.min if t_min is None else t_min
+        t_max = (C.time[-1].values)*ureg.min if t_max is None else t_max
+        t_min = unumToPint(t_min).m_as(ureg.min)
+        t_max = unumToPint(t_max).m_as(ureg.min)
+        plt.xlim(t_min, t_max)
         plt.show()
 
 
 
-    def plotTIACPerDistance_noQ(self,TIAC, y, z, time):
+    def plotTIACPerDistance_noQ(self,TIAC, y, z, time, x_min=None,x_max=None):
         """
         Given a line along the X-axis, this function plots the dosage over distance.
         :param TIAC: xarray of the TIAC in units of [1*time/volume]
@@ -310,13 +367,18 @@ class presentationLayer:
         plt.plot(x_array, dos_x_inst )
         plt.xlabel("Distance from source $[m]$")
 
-        plt.ylabel(r"Dosage $\left[\frac{1}{m^3} \cdot min\right]$")
-        plt.title(f"Dosage per distance. y={y}[m], z={z}[m], time={time}[min]")
+        plt.ylabel(r"TIAC $\left[\frac{1}{m^3} \cdot min\right]$")
+        plt.title(f"TIAC per distance. y={y}[m], z={z}[m], time={time}[min]")
         plt.grid()
+        x_min = (TIAC.x[0].values)*ureg.meter if x_min is None else x_min
+        x_max = (TIAC.x[-1].values)*ureg.meter if x_max is None else x_max
+        x_min = unumToPint(x_min).m_as(ureg.m)
+        x_max = unumToPint(x_max).m_as(ureg.m)
+        plt.xlim(x_min, x_max)
         plt.show()
 
 
-    def plotFixedPointTIACOverTime_noQ(self, TIAC, x, y, z):
+    def plotFixedPointTIACOverTime_noQ(self, TIAC, x, y, z, t_min=None,t_max=None):
         """
         Given a point in space, this function plots the dosage as a function of time.
         :param TIAC: xarray of the TIAC in units of [1*time/volume]
@@ -335,9 +397,15 @@ class presentationLayer:
 
         plt.plot(time_array, dos_inst_t )
         plt.xlabel("Time from release $[min]$")
-        plt.ylabel(r"Dosage over time $\left[\frac{1}{m^3} \cdot min\right]$")
+        plt.ylabel(r"TIAC over time $\left[\frac{1}{m^3} \cdot min\right]$")
         plt.title(f"Receptor at x={x}[m], y={y}[m], z={z}[m].")
         plt.grid()
+
+        t_min = (TIAC.time[0].values)*ureg.min if t_min is None else t_min
+        t_max = (TIAC.time[-1].values)*ureg.min if t_max is None else t_max
+        t_min = unumToPint(t_min).m_as(ureg.min)
+        t_max = unumToPint(t_max).m_as(ureg.min)
+        plt.xlim(t_min, t_max)
         plt.show()
 
 

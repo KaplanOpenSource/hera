@@ -270,6 +270,13 @@ class StandardMeteorolgyConstant_powerLaw:
         return self.u_refHeight * (height / refHeight) ** self.wind_p
 
 
+    def getWindVelocity_hotSpot(self, height):
+        facfor_dict = dict(A=0.07, B=0.07, C=0.1, D=0.15, E=0.35, F=0.55)
+        u_H = self.u10*(height/(10*ureg.m))**facfor_dict[self.stability]  # The value 10*m in the denominator is the reference height for u10.
+        # u_H_float = round(u_H.m_as(ureg.m/ureg.s), 2)
+        # ret = u_H_float*ureg.m/ureg.s
+        return u_H
+
 class StandardMeteorolgyConstant_log(StandardMeteorolgyConstant_powerLaw):
 
     def getWindVelocity(self, height):
@@ -333,7 +340,7 @@ class MeteorologyFactory:
                                 log=StandardMeteorolgyConstant_log,
                                 uniformWind=StandardMeteorolgyConstant_uniformWind)
 
-    def getMeteorologyFromU10(self, u10, inversion, verticalProfileType="log", temperature=20*ureg.degC, stability="D", z0=0.1*ureg.m, ustar=0.3*ureg.m/ureg.s, skinSurfaceTemperature=35*ureg.degC):
+    def getMeteorologyFromU10(self, u10, inversion, verticalProfileType="log", temperature=ureg.Quantity(20, ureg.degC), stability="D", z0=0.1*ureg.m, ustar=0.3*ureg.m/ureg.s, skinSurfaceTemperature=ureg.Quantity(35, ureg.degC)):
         """
            Creating a meteorology object.
 
@@ -348,8 +355,8 @@ class MeteorologyFactory:
         return self.meteorology[verticalProfileType](u10=u10, inversion=inversion, temperature=temperature, stability=stability,
                                                      z0=z0, ustar=ustar, skinSurfaceTemperature=skinSurfaceTemperature)
 
-    def getMeteorologyFromURefHeight(self, u, inversion, refHeight, verticalProfileType="log", temperature=20*ureg.degC, stability="D",
-                                     z0=0.1*ureg.m, ustar=0.3*ureg.m/ureg.s, skinSurfaceTemperature=35*ureg.degC):
+    def getMeteorologyFromURefHeight(self, u, inversion, refHeight, verticalProfileType="log", temperature=ureg.Quantity(20, ureg.degC), stability="D",
+                                     z0=0.1*ureg.m, ustar=0.3*ureg.m/ureg.s, skinSurfaceTemperature=ureg.Quantity(35, ureg.degC)):
         """
            Creating a meteorology object.
 
