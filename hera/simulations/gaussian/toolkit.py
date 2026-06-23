@@ -26,7 +26,6 @@ class gaussianToolkit(abstractToolkit):
         self._sigmaDict = dict(briggsRural=BriggsRural)
 
         self._presentation = presentationLayer()
-        self.spaceTime = dict()
 
 
     def getSigmaType(self,sigmaName):
@@ -76,10 +75,15 @@ class gaussianToolkit(abstractToolkit):
 
 
 
-    def getSpaceTime(self, stabilityType, windSpeed, maxx, dt, dxdy_multiplier,
-                     dz=0.5,
-                     minimal_maxy=0*ureg.m,
-                     initialCloudSize=[0.1*ureg.m,0.1*ureg.m,0.1*ureg.m]):
+    def getSpaceTime(self, meteorology, sourceHeight, wind_profile_type, maxx, dt, dz, dxdy_multiplier, minimal_maxy, initialCloudSize):
+
+        # setting the wind speed at the source height according to the Hot Spot's manual, or Hera's built-in functions.
+        if wind_profile_type == 'HotSpot':
+            windSpeed = meteorology.getWindVelocity_hotSpot(height=sourceHeight)
+        elif wind_profile_type == 'default':
+            windSpeed = meteorology.getWindVelocity(height=sourceHeight)
+        else:
+            raise ValueError("wind_profile_type must be either 'default' or 'HotSpot'")
 
         # it is preferable to take dxdy as a multiple of dt*windSpeed, so that the cloud center is directly above a grid-point.
         # the dxdy_multiplier makes the cloud above every dxdy_multiplier-th grid-point (on the datetime axis).
@@ -96,7 +100,7 @@ class gaussianToolkit(abstractToolkit):
             maxx = maxx.m_as(ureg.m)
 
             def get_function(x, maxx):
-                sigmaX = self.getSigmaType(sigmaName='briggsRural').getSigma(x=x, stability=stabilityType,
+                sigmaX = self.getSigmaType(sigmaName='briggsRural').getSigma(x=x, stability=meteorology.stability,
                                                                            sigma0=initialCloudSize,
                                                                            units=False)['sigmaX'][0]
                 return x - 3 * sigmaX - maxx
@@ -107,8 +111,6 @@ class gaussianToolkit(abstractToolkit):
         x_timeSpan = find_x_for_timeSpan(maxx) * ureg.m
         timeSpan = x_timeSpan / (windSpeed * 60 * (ureg.s / ureg.min))
         timeSpan = numpy.ceil(timeSpan.m_as(ureg.min)) * ureg.min
-
-        # when we only care about the concentration along the x-axis: Set the parameter minimal_maxy=0*m.
 
         spaceTime = {
             'minx': 0 * ureg.m, 'maxx': maxx,
@@ -122,7 +124,8 @@ class gaussianToolkit(abstractToolkit):
 
 
 
-    def getGasCloud(self, sourceQ, sourceHeight, initialCloudSize, meteorology, wind_profile_type, sigmaTypeName="briggsRural"):
+    def getGasCloud(self, sourceQ, sourceHeight, initialCloudSize, meteorology, wind_profile_type,
+                    spaceTime, sigmaTypeName="briggsRural"):
         """
 
         Parameters
@@ -148,7 +151,8 @@ class gaussianToolkit(abstractToolkit):
         sigmaType = self.getSigmaType(sigmaTypeName)
         gascloud = abstractGasCloud.createGasCloud(sourceQ=sourceQ,sourceHeight=sourceHeight,
                                                    initialCloudSize=initialCloudSize,meteorology=meteorology,
-                                                   wind_profile_type=wind_profile_type,sigmaType=sigmaType)
+                                                   wind_profile_type=wind_profile_type, spaceTime=spaceTime,
+                                                   sigmaType=sigmaType)
         return gascloud
 
 
