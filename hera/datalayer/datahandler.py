@@ -832,30 +832,16 @@ class DataHandler_Class(object):
 
     @staticmethod
     def getData(resource, desc=None, **kwargs):
-        """Import and optionally instantiate a class from ``desc['classpath']``."""
+        """Import and optionally instantiate a class from ``desc['classpath']``.
+
+        Uses importlib.util.spec_from_file_location for resource-based loading
+        so that sys.path is never mutated by DB-supplied paths [1.6, 3.3].
+        """
         import os
-        import sys
         import importlib
+        import importlib.util
 
-        # 1) Add search paths to sys.path:
-        #    - If resource points to the package directory itself (contains __init__.py),
-        #      also add its parent so that `import top_pkg...` resolves.
-        search_paths = []
-        if resource:
-            abs_path = os.path.abspath(resource)
-            if os.path.isdir(abs_path):
-                pkg_init = os.path.join(abs_path, "__init__.py")
-                if os.path.isfile(pkg_init):
-                    parent = os.path.dirname(abs_path)
-                    if parent not in sys.path:
-                        search_paths.append(parent)
-                if abs_path not in sys.path:
-                    search_paths.append(abs_path)
-        # Prepend for priority (keep user-provided paths before existing ones)
-        for pth in reversed(search_paths):
-            sys.path.insert(0, pth)
-
-        # 2) Resolve metadata
+        # 1) Resolve metadata
         desc = desc or {}
         classpath = desc.get("classpath") or kwargs.get("classpath")
         if not classpath:
@@ -864,15 +850,32 @@ class DataHandler_Class(object):
         params = desc.get("parameters") or desc.get("params") or {}
         instantiate = desc.get("instantiate", True)
 
-        # 3) Import module and get class by name
+        # 2) Import module and get class by name
         module_name, _, class_name = classpath.rpartition(".")
         if not module_name or not class_name:
             raise ValueError(
                 f"Invalid classpath '{classpath}'. Expected something like 'pkg.mod.Class'."
             )
 
+        # Try loading via existing sys.path first (safe path)
         try:
             module = importlib.import_module(module_name)
+        except ModuleNotFoundError:
+            # Fall back to loading from resource directory without mutating sys.path
+            if not resource:
+                raise ImportError(
+                    f"Cannot import module '{module_name}' and no resource path provided."
+                )
+            abs_resource = os.path.abspath(resource)
+            module_rel = module_name.replace(".", os.sep)
+            module_file = os.path.join(abs_resource, module_rel + ".py")
+            if not os.path.isfile(module_file):
+                raise ImportError(
+                    f"Cannot find module '{module_name}' in sys.path or in {abs_resource!r}"
+                )
+            spec = importlib.util.spec_from_file_location(module_name, module_file)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
         except Exception as e:
             raise ImportError(
                 f"Cannot import module '{module_name}' for classpath '{classpath}': {e}"
@@ -883,9 +886,9 @@ class DataHandler_Class(object):
         except AttributeError:
             raise ImportError(f"Module '{module_name}' has no attribute '{class_name}'")
 
-        # 4) Merge constructor kwargs so that desc.parameters override duplicates (Option B)
-        call_kwargs = dict(kwargs)   # baseline from **kwargs
-        call_kwargs.update(params)   # desc.parameters WIN on duplicates
+        # 3) Merge constructor kwargs so that desc.parameters override duplicates
+        call_kwargs = dict(kwargs)
+        call_kwargs.update(params)
 
-        # 5) Return an instance or the class object
+        # 4) Return an instance or the class object
         return cls(**call_kwargs) if instantiate else cls

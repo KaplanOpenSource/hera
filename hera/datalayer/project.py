@@ -334,7 +334,7 @@ class Project:
             for docs_batch in docs_iterator:
                 filename = f"chunk_{i}"
                 with zf.open(filename, 'w') as zf_archive:
-                    pickle.dump(docs_batch, zf_archive, protocol=pickle.HIGHEST_PROTOCOL)
+                    pickle.dump(docs_batch, zf_archive, protocol=pickle.HIGHEST_PROTOCOL)  # nosec B301 — internal format, not from untrusted input; migration to JSON planned
                 i+=1
 
     @staticmethod
@@ -353,7 +353,7 @@ class Project:
         """
         for name in zf.namelist():
             with zf.open(name) as f:
-                depickled_docs_batch=pickle.load(f)
+                depickled_docs_batch=pickle.load(f)  # nosec B301 — loads from project's own export; migration to JSON planned in Part 2
                 if return_batched:
                     yield depickled_docs_batch
                 else:

@@ -800,13 +800,29 @@ class ToolkitHome(abstractToolkit):
 
             # ------------------------------------------------------------
             # Add toolkit path to sys.path (highest priority)
+            # Validate before inserting: must be an existing directory and must
+            # not shadow well-known stdlib modules [1.6, 3.3]
             # ------------------------------------------------------------
-            if toolkitPath in sys.path:
+            _toolkit_abs = os.path.abspath(toolkitPath)
+            if not os.path.isdir(_toolkit_abs):
+                raise ValueError(
+                    f"Dynamic toolkit path does not exist: {_toolkit_abs!r}. "
+                    "Only real directories may be added to sys.path."
+                )
+            _stdlib_shadows = {"json", "logging", "os", "sys", "collections", "io", "re"}
+            for _mod in _stdlib_shadows:
+                if os.path.isfile(os.path.join(_toolkit_abs, f"{_mod}.py")):
+                    raise ValueError(
+                        f"Dynamic toolkit path {_toolkit_abs!r} contains {_mod}.py "
+                        "which would shadow the standard library — loading aborted."
+                    )
+            if _toolkit_abs in sys.path:
                 try:
-                    sys.path.remove(toolkitPath)
+                    sys.path.remove(_toolkit_abs)
                 except ValueError:
                     pass
-            sys.path.insert(0, toolkitPath)
+            sys.path.insert(0, _toolkit_abs)
+            toolkitPath = _toolkit_abs
 
             # self.logger.debug(f"Toolkit path (raw): {toolkitPath_raw}")
             # self.logger.debug(f"Toolkit path (resolved): {toolkitPath}")
