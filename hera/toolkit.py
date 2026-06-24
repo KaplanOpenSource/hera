@@ -107,7 +107,7 @@ class abstractToolkit(Project):
         return self._projectName
 
     def __init__(self, toolkitName: str, projectName: Optional[str] = None,
-                 connectionName: Optional[str] = None, filesDirectory: Optional[str] = None):
+                 connectionName: Optional[str] = None, filesDirectory: Optional[str] = None, **kwargs):
         """
         Initialize a new toolkit.
 
