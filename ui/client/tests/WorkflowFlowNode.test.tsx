@@ -89,4 +89,14 @@ describe('WorkflowFlowNode', () => {
     fireEvent.blur(screen.getByLabelText('node name'));
     expect(onRename).not.toHaveBeenCalled();
   });
+
+  it('warns when the type is not in the catalog', () => {
+    renderNode({ type: 'made.up' });
+    expect(screen.getByText('unknown type: made.up')).toBeDefined();
+  });
+
+  it('warns about empty required parameters', () => {
+    renderNode({ type: 'openFOAM.constant.g', Execution: { input_parameters: {} } });
+    expect(screen.getByText(/missing required: x/)).toBeDefined();
+  });
 });

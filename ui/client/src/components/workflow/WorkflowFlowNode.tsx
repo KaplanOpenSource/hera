@@ -1,10 +1,10 @@
-import { Autocomplete, Box, InputBase, TextField } from '@mui/material';
+import { Autocomplete, Box, InputBase, TextField, Typography } from '@mui/material';
 import { SimpleTreeView } from '@mui/x-tree-view';
 import { Handle, NodeProps, Position } from '@xyflow/react';
 import { useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
 import { DetailsViewItem, keyForDetailsViewItem } from '../details/DetailsViewItem';
-import { NodeCatalogEntry, nodeTypeGroup, prefilledParameters } from './nodeCatalog';
+import { NodeCatalogEntry, nodeTypeGroup, prefilledParameters, validateNode } from './nodeCatalog';
 import { WorkflowNodeDeleteButton } from './WorkflowNodeDeleteButton';
 
 export interface WorkflowFlowNodeData {
@@ -25,6 +25,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
   const [hover, setHover] = useState(false);
   const params = node.Execution?.input_parameters ?? {};
   const typeOptions = catalog.map(entry => entry.type);
+  const problems = validateNode(node, catalog);
 
   // Free-form typing keeps the type as-is (custom types stay allowed); picking a
   // known type also seeds its parameters from the catalog.
@@ -59,7 +60,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
         borderRadius: 1,
         bgcolor: 'background.paper',
         border: '1px solid',
-        borderColor: selected ? 'primary.main' : 'divider',
+        borderColor: problems.length > 0 ? 'warning.main' : selected ? 'primary.main' : 'divider',
       }}
     >
       <Handle type="target" position={Position.Left} />
@@ -105,6 +106,16 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
             })}
           />
         </SimpleTreeView>
+        {problems.length > 0 && (
+          <Typography
+            className="nodrag"
+            variant="caption"
+            color="warning.main"
+            sx={{ display: 'block', mt: 0.5, whiteSpace: 'pre-wrap', userSelect: 'text' }}
+          >
+            {problems.join('\n')}
+          </Typography>
+        )}
       </Box>
       <Handle type="source" position={Position.Right} />
     </Box>
