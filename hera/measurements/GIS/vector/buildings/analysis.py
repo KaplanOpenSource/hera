@@ -9,7 +9,7 @@ import shapely.wkt
 from shapely.geometry import box, Polygon
 from .....utils.logging import get_classMethod_logger
 from .._io_utils import readGeoJSONString, GEO_READ_ERRORS
-from .... import ITM
+from ...utils import ITM
 
 BUILDINGS_LAMBDA_WIND_DIRECTION = 'wind'
 BUILDINGS_LAMBDA_RESOLUTION = 'resolution'

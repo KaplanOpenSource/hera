@@ -17,7 +17,7 @@ from ....utils.logging import get_classMethod_logger
 from ....toolkit import TOOLKIT_SAVEMODE_ONLYFILE
 from ._io_utils import readGeoJSONString
 from .toolkit import VectorToolkit
-from ... import ITM
+from ..utils import ITM
 from ..utils import stlFactory
 
 class TopographyToolkit(VectorToolkit):
