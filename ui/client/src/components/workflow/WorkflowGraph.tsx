@@ -224,7 +224,7 @@ const WorkflowGraphInner = ({
   };
 
   return (
-    <Box sx={{ flex: 1, minHeight: 200, border: '1px solid', borderColor: 'divider' }}>
+    <Box sx={{ flex: 1, minHeight: 200, ml: -2, mr: -2, mb: -2, borderTop: '1px solid', borderColor: 'divider' }}>
       <ReactFlow
         nodes={displayNodes}
         edges={displayEdges}
@@ -249,8 +249,8 @@ const WorkflowGraphInner = ({
       >
         <Panel position="top-right">
           <Tooltip title="Add node">
-            <IconButton size="small" onClick={onAddNode} sx={{ bgcolor: 'background.paper', boxShadow: 1, mr: 1 }}>
-              <Add />
+            <IconButton size="small" onClick={onAddNode} sx={{ bgcolor: 'background.paper', boxShadow: 1, mr: 1, p: 0.5 }}>
+              <Add fontSize="small" />
             </IconButton>
           </Tooltip>
           {/* <Tooltip title="Tidy layout">
