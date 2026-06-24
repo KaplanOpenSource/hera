@@ -1,6 +1,6 @@
 import { Add, AutoFixHigh } from '@mui/icons-material';
 import { Box, IconButton, Menu, MenuItem, Tooltip } from '@mui/material';
-import { Background, Connection, Controls, Edge, MarkerType, Node, Panel, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow } from '@xyflow/react';
+import { Background, Connection, Controls, Edge, MarkerType, Node, Panel, ReactFlow, ReactFlowProvider, useNodesInitialized, useNodesState, useReactFlow } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
@@ -103,9 +103,15 @@ const WorkflowGraphInner = ({
 }: WorkflowGraphProps) => {
   const [menu, setMenu] = useState<ContextMenu | null>(null);
   const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
-  const { fitView, getViewport, setViewport } = useReactFlow();
+  const { fitView, getViewport, setViewport, getNode, setCenter } = useReactFlow();
+  const nodesInitialized = useNodesInitialized();
   const containerRef = useRef<HTMLDivElement>(null);
   const prevHeightRef = useRef<number | null>(null);
+  // What to do once nodes are measured after a structure change: 'all' fits the
+  // whole graph (initial load / bulk), a node name pans to focus that newly
+  // added node while keeping the current zoom. prevNames detects the change.
+  const pendingRef = useRef<'all' | string | null>(null);
+  const prevNamesRef = useRef<string[]>([]);
   // useNodesState owns only position and identity; the structure effect rebuilds
   // it (preserving dragged positions) when nodes are added/removed/reordered.
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState<Node>([]);
@@ -127,19 +133,46 @@ const WorkflowGraphInner = ({
     });
   }, [structureKey]);
 
-  // Re-stack all nodes by estimated height and zoom to fit.
-  const tidyLayout = () => {
-    const layout = computeLayout(nodeNames, nodes);
-    setRfNodes(prev => prev.map(node => ({ ...node, position: layout[node.id] ?? node.position })));
-    requestAnimationFrame(() => fitView({ duration: 300 }));
-  };
-
-  // Tidy and zoom to fit whenever nodes are added or removed (and on mount) —
-  // but not on every drag or param edit.
+  // Re-stack whenever nodes are added or removed (and on mount) — but not on
+  // every drag or param edit. A single added node is focused (pan to it, keep
+  // zoom) so it isn't lost off-screen when fitting all would zoom out too far;
+  // initial load / bulk changes fit the whole graph; removes fit what remains.
   const membershipKey = JSON.stringify([...nodeNames].sort());
   useEffect(() => {
-    tidyLayout();
+    const layout = computeLayout(nodeNames, nodes);
+    setRfNodes(prev => prev.map(node => ({ ...node, position: layout[node.id] ?? node.position })));
+    const isInitial = prevNamesRef.current.length === 0;
+    const added = nodeNames.filter(n => !prevNamesRef.current.includes(n));
+    const removed = prevNamesRef.current.filter(n => !nodeNames.includes(n));
+    prevNamesRef.current = nodeNames;
+    if (isInitial) {
+      pendingRef.current = 'all';
+    } else if (added.length > 0 && removed.length === 0) {
+      pendingRef.current = added.length === 1 ? added[0] : 'all';
+    } else if (removed.length > 0 && added.length === 0) {
+      requestAnimationFrame(() => fitView({ duration: 300 }));
+    }
   }, [membershipKey]);
+
+  // Once nodes are measured after a structure change, fit the whole graph or pan
+  // to focus the newly added node (keeping the current zoom).
+  useEffect(() => {
+    if (!nodesInitialized || pendingRef.current === null) {
+      return;
+    }
+    const pending = pendingRef.current;
+    pendingRef.current = null;
+    if (pending === 'all') {
+      fitView({ duration: 300 });
+      return;
+    }
+    const node = getNode(pending);
+    if (node) {
+      const x = node.position.x + (node.measured?.width ?? 0) / 2;
+      const y = node.position.y + (node.measured?.height ?? 0) / 2;
+      setCenter(x, y, { zoom: getViewport().zoom, duration: 300 });
+    }
+  }, [nodesInitialized]);
 
   // When the canvas height changes, scale the zoom by the same ratio so the same
   // slice of the graph stays framed (anchored at the top-left) instead of
