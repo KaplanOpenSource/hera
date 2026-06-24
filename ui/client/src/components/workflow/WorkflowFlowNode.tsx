@@ -1,14 +1,16 @@
-import { Box, InputBase, TextField } from '@mui/material';
+import { Autocomplete, Box, InputBase, TextField } from '@mui/material';
 import { SimpleTreeView } from '@mui/x-tree-view';
 import { Handle, NodeProps, Position } from '@xyflow/react';
 import { useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
 import { DetailsViewItem, keyForDetailsViewItem } from '../details/DetailsViewItem';
+import { NodeCatalogEntry, nodeTypeGroup, prefilledParameters } from './nodeCatalog';
 import { WorkflowNodeDeleteButton } from './WorkflowNodeDeleteButton';
 
 export interface WorkflowFlowNodeData {
   name: string;
   node: WorkflowNode;
+  catalog: NodeCatalogEntry[];
   onRename: (newName: string) => void;
   onChange: (node: WorkflowNode) => void;
   onDelete: () => void;
@@ -18,10 +20,23 @@ export interface WorkflowFlowNodeData {
 // Custom ReactFlow node: edits the node name, type, and input parameters in
 // place. Delete on hover.
 export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
-  const { name, node, onRename, onChange, onDelete } = data as WorkflowFlowNodeData;
+  const { name, node, catalog, onRename, onChange, onDelete } = data as WorkflowFlowNodeData;
   const [draft, setDraft] = useState(name);
   const [hover, setHover] = useState(false);
   const params = node.Execution?.input_parameters ?? {};
+  const typeOptions = catalog.map(entry => entry.type);
+
+  // Free-form typing keeps the type as-is (custom types stay allowed); picking a
+  // known type also seeds its parameters from the catalog.
+  const setType = (type: string) => onChange({ ...node, type });
+  const pickType = (type: string) => {
+    const entry = catalog.find(e => e.type === type);
+    onChange({
+      ...node,
+      type,
+      Execution: { ...node.Execution, input_parameters: prefilledParameters(entry, params) },
+    });
+  };
 
   const commit = () => {
     const next = draft.trim();
@@ -59,12 +74,22 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
         sx={{ fontSize: 13, fontWeight: 600 }}
       />
       <Box className="nodrag" sx={{ mt: 1 }}>
-        <TextField
-          label="type"
+        <Autocomplete
+          className="nodrag"
+          freeSolo
           size="small"
-          fullWidth
-          value={node.type ?? ''}
-          onChange={(e) => onChange({ ...node, type: e.target.value })}
+          options={typeOptions}
+          groupBy={(option) => nodeTypeGroup(option)}
+          inputValue={node.type ?? ''}
+          onInputChange={(_e, value, reason) => {
+            if (reason === 'input') {
+              setType(value);
+            } else if (reason === 'clear') {
+              setType('');
+            }
+          }}
+          onChange={(_e, value) => pickType(typeof value === 'string' ? value : value ?? '')}
+          renderInput={(inputParams) => <TextField {...inputParams} label="type" fullWidth />}
         />
         <SimpleTreeView
           defaultExpandedItems={[keyForDetailsViewItem('input_parameters')]}

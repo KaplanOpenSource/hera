@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, cleanup, render, screen } from '@testing-library/react';
 
+// The editor fetches the node catalog on mount; keep it from hitting the network.
+vi.mock('../src/components/workflow/useNodeCatalog', () => ({
+  useNodeCatalog: () => ({ catalog: [] }),
+}));
+
 // Replace the ReactFlow-based graph with a stub that just captures the handler
 // props, so we can drive WorkflowEditor's logic without rendering ReactFlow.
 let graphProps: any = null;

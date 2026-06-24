@@ -4,6 +4,7 @@ import { Background, Connection, Controls, Edge, MarkerType, Node, Panel, ReactF
 import '@xyflow/react/dist/style.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
+import { NodeCatalogEntry } from './nodeCatalog';
 import { WorkflowContextMenu, WorkflowContextMenuKind, WorkflowContextMenuTarget } from './WorkflowContextMenu';
 import { WorkflowFlowNode } from './WorkflowFlowNode';
 import { WorkflowRequiresEdge } from './WorkflowRequiresEdge';
@@ -15,6 +16,7 @@ const NODE_TYPES = { workflow: WorkflowFlowNode };
 const EDGE_TYPES = { requires: WorkflowRequiresEdge };
 
 interface WorkflowGraphProps {
+  catalog: NodeCatalogEntry[];
   nodeNames: string[];
   nodes: { [name: string]: WorkflowNode };
   selectedNode?: string;
@@ -31,6 +33,7 @@ interface WorkflowGraphProps {
 // `requires` field. Nodes are draggable, their names editable inline, and the
 // on-canvas button adds a node. Clicking a node selects it for editing.
 const WorkflowGraphInner = ({
+  catalog,
   nodeNames,
   nodes,
   selectedNode,
@@ -145,6 +148,7 @@ const WorkflowGraphInner = ({
     data: {
       name: node.id,
       node: nodes[node.id] ?? {},
+      catalog,
       onRename: (newName: string) => onRenameNode(node.id, newName),
       onChange: (updated: WorkflowNode) => onSetNode(node.id, updated),
       onDelete: () => onDeleteNode(node.id),

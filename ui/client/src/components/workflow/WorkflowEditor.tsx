@@ -2,6 +2,7 @@ import { Box, Typography } from '@mui/material';
 import { useState } from 'react';
 import { WorkflowBlock, WorkflowData, WorkflowNode } from '../../shared/types';
 import { getWorkflowBlock, isTopLevelBlock, normalizeRequires } from '../../shared/workflow';
+import { useNodeCatalog } from './useNodeCatalog';
 import { WorkflowGraph } from './WorkflowGraph';
 
 // Returns the node's `requires` with oldName replaced by newName, preserving
@@ -26,6 +27,7 @@ export const WorkflowEditor = ({
   setWorkflow: (workflow: WorkflowData) => void,
 }) => {
   const [selectedNode, setSelectedNode] = useState<string | undefined>(undefined);
+  const { catalog } = useNodeCatalog();
   const block = getWorkflowBlock(workflow);
 
   // Preserve the original nesting (the block may be wrapped in an extra
@@ -120,6 +122,7 @@ export const WorkflowEditor = ({
         : (
           <>
             <WorkflowGraph
+              catalog={catalog}
               nodeNames={nodeNames}
               nodes={block.nodes ?? {}}
               selectedNode={selectedNode}
