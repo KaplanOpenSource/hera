@@ -8,7 +8,7 @@ import { AgentConfig } from '../../shared/AgentConfig';
 import { FORBIDDEN_FIELDS } from '../../shared/constants';
 import { TabKind } from '../../shared/tabKind';
 import { ProjectDocument, WorkflowDesc } from '../../shared/types';
-import { isWorkflowDoc } from '../../shared/workflow';
+import { getWorkflowSolver, isWorkflowDoc, setWorkflowSolver } from '../../shared/workflow';
 import { copyWithout, reorderEntries } from '../../utils/utils';
 import { AgentConfigEditor } from '../agents/AgentConfigEditor';
 import { WorkflowEditor } from '../workflow/WorkflowEditor';
@@ -148,6 +148,17 @@ export const DetailsViewDocumentContent = ({
             />
           );
         })}
+        {showWorkflow && (
+          <DetailsViewItem
+            itemKey="solver"
+            itemValue={getWorkflowSolver((shownDoc.desc as WorkflowDesc).workflow)}
+            parentKey={undefined}
+            setItemValue={newVal => setShownDoc({
+              ...shownDoc,
+              desc: { ...shownDoc.desc, workflow: setWorkflowSolver((shownDoc.desc as WorkflowDesc).workflow, newVal) } as WorkflowDesc,
+            })}
+          />
+        )}
         </SimpleTreeView>
       )}
       {showAgentConfig

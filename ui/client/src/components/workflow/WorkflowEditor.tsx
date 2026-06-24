@@ -1,4 +1,4 @@
-import { Box, TextField, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useState } from 'react';
 import { WorkflowBlock, WorkflowData, WorkflowNode } from '../../shared/types';
 import { getWorkflowBlock, isTopLevelBlock, normalizeRequires } from '../../shared/workflow';
@@ -119,13 +119,6 @@ export const WorkflowEditor = ({
         ? <Typography color="text.secondary">No workflow found in this document.</Typography>
         : (
           <>
-            <TextField
-              label="Solver"
-              size="small"
-              value={block.solver ?? ''}
-              onChange={(e) => setBlock({ ...block, solver: e.target.value })}
-              sx={{ mb: 2 }}
-            />
             <WorkflowGraph
               nodeNames={nodeNames}
               nodes={block.nodes ?? {}}
