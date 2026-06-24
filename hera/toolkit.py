@@ -324,14 +324,6 @@ class abstractToolkit(Project):
             docList = [doc for doc in docList if doc['desc']['version'] == latestVersion]
             ret = docList[0]
 
-            # No default was set and multiple versions exist — persist the
-            # latest version as the default so subsequent calls are stable.
-            if version is None and datasourceName is not None:
-                try:
-                    self.setConfig(**{f"{datasourceName}_defaultVersion": latestVersion})
-                except Exception:
-                    pass
-
         return ret
 
     def getToolkitDocument(self, toolkit_name: str):
@@ -641,7 +633,7 @@ class ToolkitHome(abstractToolkit):
                 type="simulations",
             ),
             OF_LSM=dict(
-                cls="hera.simulations.openFoam.LSM.toolkit.OFLSMToolkit",
+                cls="hera.simulations.openFoam.lagrangian.LSM.toolkit.OFLSMToolkit",
                 desc=None,
                 type="simulations",
             ),
