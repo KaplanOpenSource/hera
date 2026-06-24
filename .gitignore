@@ -46,3 +46,7 @@ cache/*
 
 # Personal MongoDB config (never commit credentials)
 config.json
+
+# Conda package tarballs — large binary blobs, not needed in source repo
+additional installations/*.tar.bz2
+additional installations/*.conda
