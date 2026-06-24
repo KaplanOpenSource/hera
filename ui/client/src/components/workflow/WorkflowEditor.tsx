@@ -114,7 +114,7 @@ export const WorkflowEditor = ({
   };
 
   return (
-    <Box sx={{ maxWidth: 900 }}>
+    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       {!block
         ? <Typography color="text.secondary">No workflow found in this document.</Typography>
         : (

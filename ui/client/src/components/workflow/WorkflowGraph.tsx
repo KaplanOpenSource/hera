@@ -224,7 +224,7 @@ const WorkflowGraphInner = ({
   };
 
   return (
-    <Box sx={{ height: 400, border: '1px solid', borderColor: 'divider', mb: 2 }}>
+    <Box sx={{ flex: 1, minHeight: 200, border: '1px solid', borderColor: 'divider' }}>
       <ReactFlow
         nodes={displayNodes}
         edges={displayEdges}
