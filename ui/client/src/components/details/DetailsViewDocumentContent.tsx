@@ -8,13 +8,14 @@ import { AgentConfig } from '../../shared/AgentConfig';
 import { FORBIDDEN_FIELDS } from '../../shared/constants';
 import { TabKind } from '../../shared/tabKind';
 import { ProjectDocument, WorkflowDesc } from '../../shared/types';
-import { isWorkflowDoc } from '../../shared/workflow';
+import { getWorkflowSolver, isWorkflowDoc, setWorkflowSolver } from '../../shared/workflow';
 import { copyWithout, reorderEntries } from '../../utils/utils';
 import { AgentConfigEditor } from '../agents/AgentConfigEditor';
 import { WorkflowEditor } from '../workflow/WorkflowEditor';
 import { DetailsViewDocumentHeader } from './DetailsViewDocumentHeader';
 import { DocView, DocViewSelector } from './DocViewSelector';
 import { DetailsViewItem, keyForDetailsViewItem } from './DetailsViewItem';
+import { DetailsVisibility, DetailsVisibilityToggle } from './DetailsVisibilityToggle';
 
 const HIDE_ON_DESC = ['datasourceName', 'toolkit', 'version'];
 const isAgentConfigDoc = (doc: ProjectDocument) => {
@@ -40,6 +41,9 @@ export const DetailsViewDocumentContent = ({
   const isWorkflow = isWorkflowDoc(shownDoc);
 
   const [docView, setDocView] = useState<DocView>(() => defaultView(doc.data));
+  const [detailsVisibility, setDetailsVisibility] = useState<DetailsVisibility>(DetailsVisibility.Both);
+  const showHeader = detailsVisibility === DetailsVisibility.Both;
+  const showTree = detailsVisibility !== DetailsVisibility.None;
 
   // When switching to a different document, reset to its default view.
   useEffect(() => {
@@ -79,6 +83,10 @@ export const DetailsViewDocumentContent = ({
           setDocView={setDocView}
           enabled={{ [TabKind.Agent]: isAgent, [TabKind.Workflow]: isWorkflow }}
         />
+        <DetailsVisibilityToggle
+          value={detailsVisibility}
+          onChange={setDetailsVisibility}
+        />
         {isChanged
           ? (<>
             <ButtonTooltip
@@ -96,23 +104,26 @@ export const DetailsViewDocumentContent = ({
           </>)
           : null}
       </Stack>
-      <DetailsViewDocumentHeader
-        docid={doc.docid}
-        shownDoc={shownDoc}
-        setShownDoc={setShownDoc}
-        showFormulated={showFormulated}
-        extraFields={!showKindEditor
-          ? []
-          : [
-            { name: 'type', value: shownDoc.type },
-            { name: 'dataFormat', value: shownDoc.dataFormat },
-          ]
-        }
-      />
-      <SimpleTreeView
-        defaultExpandedItems={[keyForDetailsViewItem('desc'), keyForDetailsViewItem('resource')]}
-      >
-        {reorderEntries(Object.entries(shownDoc), ['desc', 'resource']).map(([k, v]) => {
+      {showHeader && (
+        <DetailsViewDocumentHeader
+          docid={doc.docid}
+          shownDoc={shownDoc}
+          setShownDoc={setShownDoc}
+          showFormulated={showFormulated}
+          extraFields={!showKindEditor
+            ? []
+            : [
+              { name: 'type', value: shownDoc.type },
+              { name: 'dataFormat', value: shownDoc.dataFormat },
+            ]
+          }
+        />
+      )}
+      {showTree && (
+        <SimpleTreeView
+          defaultExpandedItems={[keyForDetailsViewItem('desc'), keyForDetailsViewItem('resource')]}
+        >
+          {reorderEntries(Object.entries(shownDoc), ['desc', 'resource']).map(([k, v]) => {
           if (FORBIDDEN_FIELDS.includes(k)) {
             return null;
           }
@@ -137,7 +148,19 @@ export const DetailsViewDocumentContent = ({
             />
           );
         })}
-      </SimpleTreeView>
+        {showWorkflow && (
+          <DetailsViewItem
+            itemKey="solver"
+            itemValue={getWorkflowSolver((shownDoc.desc as WorkflowDesc).workflow)}
+            parentKey={undefined}
+            setItemValue={newVal => setShownDoc({
+              ...shownDoc,
+              desc: { ...shownDoc.desc, workflow: setWorkflowSolver((shownDoc.desc as WorkflowDesc).workflow, newVal) } as WorkflowDesc,
+            })}
+          />
+        )}
+        </SimpleTreeView>
+      )}
       {showAgentConfig
         ? (
           <AgentConfigEditor

@@ -1,7 +1,8 @@
-import { Box, TextField, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useState } from 'react';
 import { WorkflowBlock, WorkflowData, WorkflowNode } from '../../shared/types';
 import { getWorkflowBlock, isTopLevelBlock, normalizeRequires } from '../../shared/workflow';
+import { useNodeCatalog } from './useNodeCatalog';
 import { WorkflowGraph } from './WorkflowGraph';
 
 // Returns the node's `requires` with oldName replaced by newName, preserving
@@ -26,6 +27,7 @@ export const WorkflowEditor = ({
   setWorkflow: (workflow: WorkflowData) => void,
 }) => {
   const [selectedNode, setSelectedNode] = useState<string | undefined>(undefined);
+  const { catalog } = useNodeCatalog();
   const block = getWorkflowBlock(workflow);
 
   // Preserve the original nesting (the block may be wrapped in an extra
@@ -114,19 +116,13 @@ export const WorkflowEditor = ({
   };
 
   return (
-    <Box sx={{ maxWidth: 900 }}>
+    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       {!block
         ? <Typography color="text.secondary">No workflow found in this document.</Typography>
         : (
           <>
-            <TextField
-              label="Solver"
-              size="small"
-              value={block.solver ?? ''}
-              onChange={(e) => setBlock({ ...block, solver: e.target.value })}
-              sx={{ mb: 2 }}
-            />
             <WorkflowGraph
+              catalog={catalog}
               nodeNames={nodeNames}
               nodes={block.nodes ?? {}}
               selectedNode={selectedNode}

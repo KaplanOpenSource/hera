@@ -4,6 +4,7 @@ import { TreeItem } from '@mui/x-tree-view';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DetailsViewItemName } from './DetailsViewItemName';
 import { DetailsViewItemSingle } from './DetailsViewItemSingle';
+import { FieldDef } from './fieldDef';
 import { EditAsJsonButton } from './EditAsJsonButton';
 import { SelectDataFormat } from './SelectDataFormat';
 
@@ -17,12 +18,16 @@ export const DetailsViewItem = ({
   setItemValue,
   setItemKey = undefined,
   parentKey,
+  def = undefined,
 }: {
   itemKey: string,
   itemValue: any,
   setItemValue: (newVal: any) => void,
   setItemKey?: (newKey: string | undefined) => void | undefined,
   parentKey?: string,
+  // Definition of this field: `required` for the value editor, `children` for
+  // the sub-fields below it.
+  def?: FieldDef,
 }) => {
   const key = keyForDetailsViewItem(itemKey, parentKey);
   const isTree = typeof itemValue === 'object' && itemValue !== null;
@@ -50,7 +55,9 @@ export const DetailsViewItem = ({
           spacing={1}
           justifyItems={'stretch'}
           alignItems={'center'}
-          style={{ marginTop: 7 }}
+          // Bottom space on every row reserves room for a field's "required"
+          // helper text, so it shows without moving anything.
+          style={{ marginTop: 7, marginBottom: 14 }}
         >
 
           <DetailsViewItemName
@@ -90,6 +97,7 @@ export const DetailsViewItem = ({
                 <DetailsViewItemSingle
                   itemValue={itemValue}
                   setItemValue={newVal => setItemValue(newVal)}
+                  def={def}
                 />
               )
             )
@@ -138,6 +146,7 @@ export const DetailsViewItem = ({
               parentKey={key}
               setItemValue={newVal => setItemValue({ ...itemValue, [k]: newVal })}
               setItemKey={isDir ? undefined : changeKey}
+              def={def?.children?.[k]}
             />
           )
         })}

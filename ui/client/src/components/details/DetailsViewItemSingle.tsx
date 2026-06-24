@@ -1,6 +1,7 @@
 import { TextField } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { SelectProperty } from '../../elements/SelectProperty';
+import { FieldDef } from './fieldDef';
 
 enum ItemTypesEnum {
   number = 'number',
@@ -21,11 +22,14 @@ const calcItemType = (val: any) => {
 export const DetailsViewItemSingle = ({
   itemValue,
   setItemValue,
+  def = undefined,
 }: {
   itemValue: any,
   setItemValue: (newVal: any) => void,
+  def?: FieldDef,
 }) => {
   const [itemType, setItemType] = useState<ItemTypesEnum>(() => calcItemType(itemValue));
+  const missing = !!def?.required && (itemValue === undefined || itemValue === null || itemValue === '');
 
   useEffect(() => {
     setItemType(calcItemType(itemValue));
@@ -50,6 +54,17 @@ export const DetailsViewItemSingle = ({
         onKeyDown={e => e.stopPropagation()}
         fullWidth
         disabled={itemType === ItemTypesEnum.null}
+        error={missing}
+        helperText={missing ? 'required' : undefined}
+        // Float the "required" text just below the field: absolute so it adds no
+        // height (required and normal rows stay the same height), zIndex so it is
+        // not painted over by the next row.
+        sx={{ position: 'relative' }}
+        slotProps={{
+          formHelperText: {
+            sx: { position: 'absolute', top: '100%', left: 0, m: 0, lineHeight: 1, zIndex: 1 },
+          },
+        }}
       />
       <SelectProperty
         label="Type"

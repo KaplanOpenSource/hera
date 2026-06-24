@@ -32,6 +32,18 @@ export const isTopLevelBlock = (workflow?: WorkflowData): boolean => {
   return !!workflow && ('nodeList' in workflow || 'nodes' in workflow);
 };
 
+// The solver name from the workflow block (empty string when unset).
+export const getWorkflowSolver = (workflow?: WorkflowData): string => {
+  return getWorkflowBlock(workflow)?.solver ?? '';
+};
+
+// Returns the workflow with its block's solver set, preserving the optional
+// extra { workflow } nesting level.
+export const setWorkflowSolver = (workflow: WorkflowData | undefined, solver: string): WorkflowData => {
+  const block = { ...getWorkflowBlock(workflow), solver };
+  return isTopLevelBlock(workflow) ? block : { ...workflow, workflow: block };
+};
+
 export const isWorkflowDoc = (doc?: { type?: string; desc?: WorkflowDesc }) => {
   if (!doc) return false;
   if (doc.type === WORKFLOW_DOC_TYPE) return true;

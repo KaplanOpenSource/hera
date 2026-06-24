@@ -1,79 +1,22 @@
-import { Add, AutoFixHigh } from '@mui/icons-material';
-import { Box, IconButton, Menu, MenuItem, Tooltip } from '@mui/material';
-import { Background, Connection, Controls, Edge, MarkerType, Node, Panel, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow } from '@xyflow/react';
+import { Add } from '@mui/icons-material';
+import { Box, IconButton, Tooltip } from '@mui/material';
+import { Background, Connection, Controls, Edge, MarkerType, Node, Panel, ReactFlow, ReactFlowProvider, useNodesInitialized, useNodesState, useReactFlow } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
-import { normalizeRequires } from '../../shared/workflow';
+import { NodeCatalogEntry } from './nodeCatalog';
+import { WorkflowContextMenu, WorkflowContextMenuKind, WorkflowContextMenuTarget } from './WorkflowContextMenu';
 import { WorkflowFlowNode } from './WorkflowFlowNode';
 import { WorkflowRequiresEdge } from './WorkflowRequiresEdge';
-
-const X_GAP = 700;       // horizontal distance between dependency layers
-const V_GAP = 100;        // vertical gap between nodes in a column
-const BASE_HEIGHT = 110; // node height without params (name + type)
-const ROW_HEIGHT = 28;   // estimated height per parameter row
+import { buildWorkflowEdges, isValidConnection as isValidConnectionPure } from './workflowEdges';
+import { WorkflowLayout } from './WorkflowLayout';
 
 // Defined once (module scope) so ReactFlow doesn't warn about changing types.
 const NODE_TYPES = { workflow: WorkflowFlowNode };
 const EDGE_TYPES = { requires: WorkflowRequiresEdge };
 
-// Right-click target: a node, or an edge (a requires link), anchored at a point.
-type ContextMenu =
-  | { kind: 'node', name: string, x: number, y: number }
-  | { kind: 'edge', source: string, target: string, x: number, y: number };
-
-// Assigns each node a layer = longest `requires` chain depth, so the graph lays
-// out left-to-right by dependency order. Cycles are broken at layer 0.
-const computeLayers = (nodeNames: string[], nodes: { [name: string]: WorkflowNode }): { [name: string]: number } => {
-  const layer: { [name: string]: number } = {};
-  const visiting = new Set<string>();
-  const resolve = (name: string): number => {
-    if (layer[name] !== undefined) {
-      return layer[name];
-    }
-    if (visiting.has(name)) {
-      return 0;
-    }
-    visiting.add(name);
-    const reqs = normalizeRequires(nodes[name]?.requires).filter(r => nodeNames.includes(r));
-    const value = reqs.length === 0 ? 0 : Math.max(...reqs.map(resolve)) + 1;
-    visiting.delete(name);
-    layer[name] = value;
-    return value;
-  };
-  nodeNames.forEach(resolve);
-  return layer;
-};
-
-// Estimated render height of a node from its parameter tree, so columns can be
-// laid out before the nodes are measured (avoids a layout flash).
-const countRows = (value: unknown): number => {
-  if (value && typeof value === 'object') {
-    return Object.values(value).reduce((sum: number, child) => sum + 1 + countRows(child), 0);
-  }
-  return 0;
-};
-
-const estimateHeight = (node: WorkflowNode): number => {
-  const params = node.Execution?.input_parameters ?? {};
-  return BASE_HEIGHT + (1 + countRows(params)) * ROW_HEIGHT;
-};
-
-// Stacks each dependency layer into a column using estimated node heights.
-const computeLayout = (nodeNames: string[], nodes: { [name: string]: WorkflowNode }): { [name: string]: { x: number, y: number } } => {
-  const layers = computeLayers(nodeNames, nodes);
-  const columnBottom: { [layer: number]: number } = {};
-  const positions: { [name: string]: { x: number, y: number } } = {};
-  nodeNames.forEach(name => {
-    const layer = layers[name] ?? 0;
-    const y = columnBottom[layer] ?? 0;
-    positions[name] = { x: layer * X_GAP, y };
-    columnBottom[layer] = y + estimateHeight(nodes[name] ?? {}) + V_GAP;
-  });
-  return positions;
-};
-
 interface WorkflowGraphProps {
+  catalog: NodeCatalogEntry[];
   nodeNames: string[];
   nodes: { [name: string]: WorkflowNode };
   selectedNode?: string;
@@ -90,6 +33,7 @@ interface WorkflowGraphProps {
 // `requires` field. Nodes are draggable, their names editable inline, and the
 // on-canvas button adds a node. Clicking a node selects it for editing.
 const WorkflowGraphInner = ({
+  catalog,
   nodeNames,
   nodes,
   selectedNode,
@@ -101,9 +45,17 @@ const WorkflowGraphInner = ({
   onRemoveRequire,
   onDeleteNode,
 }: WorkflowGraphProps) => {
-  const [menu, setMenu] = useState<ContextMenu | null>(null);
+  const [menu, setMenu] = useState<WorkflowContextMenuTarget | null>(null);
   const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
-  const { fitView } = useReactFlow();
+  const { fitView, getViewport, setViewport, getNode, setCenter } = useReactFlow();
+  const nodesInitialized = useNodesInitialized();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const prevHeightRef = useRef<number | null>(null);
+  // What to do once nodes are measured after a structure change: 'all' fits the
+  // whole graph (initial load / bulk), a node name pans to focus that newly
+  // added node while keeping the current zoom. prevNames detects the change.
+  const pendingRef = useRef<'all' | string | null>(null);
+  const prevNamesRef = useRef<string[]>([]);
   // useNodesState owns only position and identity; the structure effect rebuilds
   // it (preserving dragged positions) when nodes are added/removed/reordered.
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState<Node>([]);
@@ -113,7 +65,7 @@ const WorkflowGraphInner = ({
   const structureKey = JSON.stringify(nodeNames.map(name => [name, nodes[name]?.type, nodes[name]?.requires]));
 
   useEffect(() => {
-    const layout = computeLayout(nodeNames, nodes);
+    const layout = WorkflowLayout.stacked(nodeNames, nodes).positions();
     setRfNodes(prev => {
       const prevPos = new Map(prev.map(n => [n.id, n.position]));
       return nodeNames.map(name => ({
@@ -125,19 +77,89 @@ const WorkflowGraphInner = ({
     });
   }, [structureKey]);
 
-  // Re-stack all nodes by estimated height and zoom to fit.
-  const tidyLayout = () => {
-    const layout = computeLayout(nodeNames, nodes);
-    setRfNodes(prev => prev.map(node => ({ ...node, position: layout[node.id] ?? node.position })));
-    requestAnimationFrame(() => fitView({ duration: 300 }));
-  };
-
-  // Tidy and zoom to fit whenever nodes are added or removed (and on mount) —
-  // but not on every drag or param edit.
+  // Re-stack whenever nodes are added or removed (and on mount) — but not on
+  // every drag or param edit. A single added node is focused (pan to it, keep
+  // zoom) so it isn't lost off-screen when fitting all would zoom out too far;
+  // initial load / bulk changes fit the whole graph; removes fit what remains.
   const membershipKey = JSON.stringify([...nodeNames].sort());
   useEffect(() => {
-    tidyLayout();
+    const layout = WorkflowLayout.stacked(nodeNames, nodes).positions();
+    setRfNodes(prev => prev.map(node => ({ ...node, position: layout[node.id] ?? node.position })));
+    const isInitial = prevNamesRef.current.length === 0;
+    const added = nodeNames.filter(n => !prevNamesRef.current.includes(n));
+    const removed = prevNamesRef.current.filter(n => !nodeNames.includes(n));
+    prevNamesRef.current = nodeNames;
+    if (isInitial) {
+      pendingRef.current = 'all';
+    } else if (added.length > 0 && removed.length === 0) {
+      pendingRef.current = added.length === 1 ? added[0] : 'all';
+    } else if (removed.length > 0 && added.length === 0) {
+      requestAnimationFrame(() => fitView({ duration: 300 }));
+    }
   }, [membershipKey]);
+
+  // Once nodes are measured after a structure change, fit the whole graph or pan
+  // to focus the newly added node (keeping the current zoom).
+  useEffect(() => {
+    if (!nodesInitialized || pendingRef.current === null) {
+      return;
+    }
+    const pending = pendingRef.current;
+    pendingRef.current = null;
+    if (pending === 'all') {
+      fitView({ duration: 300 });
+      return;
+    }
+    const node = getNode(pending);
+    if (node) {
+      const x = node.position.x + (node.measured?.width ?? 0) / 2;
+      const y = node.position.y + (node.measured?.height ?? 0) / 2;
+      setCenter(x, y, { zoom: getViewport().zoom, duration: 300 });
+    }
+  }, [nodesInitialized]);
+
+  // Once nodes are measured, push down only the ones that overlap within their
+  // column (using real measured heights) — so growing a node, e.g. by picking a
+  // type with more parameters, shoves the nodes below it instead of overlapping
+  // them, while leaving every non-colliding position (including drags) untouched.
+  const measuredKey = JSON.stringify(rfNodes.map(node => [node.id, Math.round(node.measured?.height ?? 0)]));
+  useEffect(() => {
+    const fixed = WorkflowLayout.fromFlowNodes(rfNodes, nodeNames, nodes).fixOverlaps().positions();
+    setRfNodes(prev => {
+      let changed = false;
+      const next = prev.map(node => {
+        const y = fixed[node.id]?.y;
+        if (y === undefined || y === node.position.y) {
+          return node;
+        }
+        changed = true;
+        return { ...node, position: { ...node.position, y } };
+      });
+      return changed ? next : prev;
+    });
+  }, [measuredKey]);
+
+  // When the canvas height changes, scale the zoom by the same ratio so the same
+  // slice of the graph stays framed (anchored at the top-left) instead of
+  // revealing more or less of it as the height grows or shrinks.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) {
+      return;
+    }
+    const observer = new ResizeObserver(entries => {
+      const height = entries[0].contentRect.height;
+      const prev = prevHeightRef.current;
+      prevHeightRef.current = height;
+      if (prev && height && prev !== height) {
+        const ratio = height / prev;
+        const { x, y, zoom } = getViewport();
+        setViewport({ x: x * ratio, y: y * ratio, zoom: zoom * ratio });
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [getViewport, setViewport]);
 
   // Overlay current selection and data (with fresh handlers) each render, so the
   // node always calls the latest rename handler — no stale closures, no ref.
@@ -147,21 +169,14 @@ const WorkflowGraphInner = ({
     data: {
       name: node.id,
       node: nodes[node.id] ?? {},
+      catalog,
       onRename: (newName: string) => onRenameNode(node.id, newName),
       onChange: (updated: WorkflowNode) => onSetNode(node.id, updated),
       onDelete: () => onDeleteNode(node.id),
     },
   }));
 
-  const rfEdges = useMemo<Edge[]>(() => {
-    const edges: Edge[] = [];
-    nodeNames.forEach(name => {
-      normalizeRequires(nodes[name]?.requires)
-        .filter(req => nodeNames.includes(req))
-        .forEach(req => edges.push({ id: `${req}->${name}`, source: req, target: name }));
-    });
-    return edges;
-  }, [structureKey]);
+  const rfEdges = useMemo<Edge[]>(() => buildWorkflowEdges(nodeNames, nodes), [structureKey]);
 
   // Overlay edge type, direction arrow, hover state, and a fresh remove handler.
   const displayEdges = rfEdges.map(edge => ({
@@ -174,43 +189,8 @@ const WorkflowGraphInner = ({
     },
   }));
 
-  // A connection source→target means "target requires source". Reject it if it
-  // points the wrong way — i.e. would create a cycle because target can already
-  // reach source through existing requires.
   const isValidConnection = (connection: Connection | Edge): boolean => {
-    const { source, target } = connection;
-    if (!source || !target || source === target) {
-      return false;
-    }
-    if (normalizeRequires(nodes[target]?.requires).includes(source)) {
-      return false;
-    }
-    const successors: { [name: string]: string[] } = {};
-    nodeNames.forEach(name => {
-      normalizeRequires(nodes[name]?.requires).forEach(pred => {
-        if (!successors[pred]) {
-          successors[pred] = [];
-        }
-        successors[pred].push(name);
-      });
-    });
-    const reaches = (from: string, goal: string): boolean => {
-      const seen = new Set<string>();
-      const stack = [from];
-      while (stack.length > 0) {
-        const current = stack.pop() as string;
-        if (current === goal) {
-          return true;
-        }
-        if (seen.has(current)) {
-          continue;
-        }
-        seen.add(current);
-        (successors[current] ?? []).forEach(next => stack.push(next));
-      }
-      return false;
-    };
-    return !reaches(target, source);
+    return isValidConnectionPure(connection, nodeNames, nodes);
   };
 
   const onConnect = (connection: Connection) => {
@@ -224,7 +204,7 @@ const WorkflowGraphInner = ({
   };
 
   return (
-    <Box sx={{ height: 400, border: '1px solid', borderColor: 'divider', mb: 2 }}>
+    <Box ref={containerRef} sx={{ flex: 1, minHeight: 200, ml: -2, mr: -2, mb: -2, borderTop: '1px solid', borderColor: 'divider' }}>
       <ReactFlow
         nodes={displayNodes}
         edges={displayEdges}
@@ -240,45 +220,29 @@ const WorkflowGraphInner = ({
         onEdgeMouseLeave={() => setHoveredEdge(null)}
         onNodeContextMenu={(event, node) => {
           event.preventDefault();
-          setMenu({ kind: 'node', name: node.id, x: event.clientX, y: event.clientY });
+          setMenu({ kind: WorkflowContextMenuKind.Node, name: node.id, x: event.clientX, y: event.clientY });
         }}
         onEdgeContextMenu={(event, edge) => {
           event.preventDefault();
-          setMenu({ kind: 'edge', source: edge.source, target: edge.target, x: event.clientX, y: event.clientY });
+          setMenu({ kind: WorkflowContextMenuKind.Edge, source: edge.source, target: edge.target, x: event.clientX, y: event.clientY });
         }}
       >
         <Panel position="top-right">
           <Tooltip title="Add node">
-            <IconButton size="small" onClick={onAddNode} sx={{ bgcolor: 'background.paper', boxShadow: 1, mr: 1 }}>
-              <Add />
+            <IconButton size="small" onClick={onAddNode} sx={{ bgcolor: 'background.paper', boxShadow: 1, mr: 1, p: 0.5 }}>
+              <Add fontSize="small" />
             </IconButton>
           </Tooltip>
-          {/* <Tooltip title="Tidy layout">
-            <IconButton size="small" onClick={tidyLayout} sx={{ bgcolor: 'background.paper', boxShadow: 1 }}>
-              <AutoFixHigh />
-            </IconButton>
-          </Tooltip> */}
         </Panel>
         <Background />
         <Controls />
       </ReactFlow>
-      <Menu
-        open={menu !== null}
+      <WorkflowContextMenu
+        menu={menu}
         onClose={() => setMenu(null)}
-        anchorReference="anchorPosition"
-        anchorPosition={menu ? { top: menu.y, left: menu.x } : undefined}
-      >
-        {menu?.kind === 'node' && (
-          <MenuItem onClick={() => { onDeleteNode(menu.name); setMenu(null); }}>
-            Delete node “{menu.name}”
-          </MenuItem>
-        )}
-        {menu?.kind === 'edge' && (
-          <MenuItem onClick={() => { onRemoveRequire(menu.source, menu.target); setMenu(null); }}>
-            Remove requirement ({menu.source} → {menu.target})
-          </MenuItem>
-        )}
-      </Menu>
+        onDeleteNode={onDeleteNode}
+        onRemoveRequire={onRemoveRequire}
+      />
     </Box>
   );
 };
