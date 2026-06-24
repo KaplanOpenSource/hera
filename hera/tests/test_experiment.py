@@ -31,10 +31,21 @@ import pytest
 # ---------------------------------------------------------------------------
 
 def _mongo_is_available():
+    """Return True if the configured MongoDB server is reachable.
+
+    Uses a direct pymongo ping with a 1 s server-selection timeout so that
+    collection-time probing does not hang for 30 s when Mongo is down.
+    """
     try:
-        from hera.datalayer.project import Project
-        p = Project(projectName="defaultProject")
-        list(p.getMeasurementsDocuments())
+        import pymongo
+        from hera.datalayer.document import getMongoConfigFromJson
+        cfg = getMongoConfigFromJson()
+        host = cfg.get("dbIP", "localhost")
+        port = int(cfg.get("port", 27017))
+        client = pymongo.MongoClient(
+            host=host, port=port, serverSelectionTimeoutMS=1000
+        )
+        client.server_info()
         return True
     except Exception:
         return False
