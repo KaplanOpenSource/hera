@@ -53,6 +53,8 @@ done
 
 # 6. Create config.json
 CONFIG_FILE="${PYHERA_DIR}/config.json"
+MONGO_HERA_USER="${MONGO_HERA_USER:-hera}"
+MONGO_HERA_PWD="${MONGO_HERA_PWD:-heracles}"
 if [ -f "${CONFIG_FILE}" ]; then
     echo "config.json already exists at ${CONFIG_FILE}, skipping creation."
 else
@@ -62,8 +64,8 @@ else
     "${SYSTEM_USER}": {
         "dbIP": "127.0.0.1",
         "dbName": "olymp",
-        "password": "heracles",
-        "username": "hera"
+        "password": "${MONGO_HERA_PWD}",
+        "username": "${MONGO_HERA_USER}"
     }
 }
 EOF
