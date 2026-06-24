@@ -44,17 +44,6 @@ export const estimateHeight = (node: WorkflowNode): number => {
   return BASE_HEIGHT + (1 + countRows(params)) * ROW_HEIGHT;
 };
 
-// Stacks each dependency layer into a column using estimated node heights.
-export const computeLayout = (nodeNames: string[], nodes: { [name: string]: WorkflowNode }): { [name: string]: { x: number, y: number } } => {
-  const layers = computeLayers(nodeNames, nodes);
-  const columnBottom: { [layer: number]: number } = {};
-  const positions: { [name: string]: { x: number, y: number } } = {};
-  nodeNames.forEach(name => {
-    const layer = layers[name] ?? 0;
-    const y = columnBottom[layer] ?? 0;
-    positions[name] = { x: layer * X_GAP, y };
-    columnBottom[layer] = y + estimateHeight(nodes[name] ?? {}) + V_GAP;
-  });
-  return positions;
-};
+// WorkflowLayout (in ./WorkflowLayout) builds on these helpers to place nodes and
+// resolve overlaps.
 

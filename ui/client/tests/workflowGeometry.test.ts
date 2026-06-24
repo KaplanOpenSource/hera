@@ -2,13 +2,10 @@ import { describe, it, expect } from 'vitest';
 import {
   BASE_HEIGHT,
   ROW_HEIGHT,
-  V_GAP,
-  X_GAP,
   computeLayers,
-  computeLayout,
   countRows,
   estimateHeight,
-} from '../src/components/workflow/workflowLayout';
+} from '../src/components/workflow/workflowGeometry';
 
 describe('computeLayers', () => {
   it('puts nodes with no requires on layer 0', () => {
@@ -67,20 +64,6 @@ describe('estimateHeight', () => {
   it('grows by a row per parameter', () => {
     const node = { Execution: { input_parameters: { a: 1, b: 2 } } };
     expect(estimateHeight(node)).toBe(BASE_HEIGHT + (1 + 2) * ROW_HEIGHT);
-  });
-});
-
-describe('computeLayout', () => {
-  it('stacks independent nodes in one column', () => {
-    const layout = computeLayout(['a', 'b'], { a: {}, b: {} });
-    expect(layout.a).toEqual({ x: 0, y: 0 });
-    expect(layout.b).toEqual({ x: 0, y: estimateHeight({}) + V_GAP });
-  });
-
-  it('places dependent nodes in successive columns', () => {
-    const layout = computeLayout(['a', 'b'], { a: {}, b: { requires: 'a' } });
-    expect(layout.a).toEqual({ x: 0, y: 0 });
-    expect(layout.b).toEqual({ x: X_GAP, y: 0 });
   });
 });
 

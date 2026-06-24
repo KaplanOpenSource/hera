@@ -9,7 +9,7 @@ import { WorkflowContextMenu, WorkflowContextMenuKind, WorkflowContextMenuTarget
 import { WorkflowFlowNode } from './WorkflowFlowNode';
 import { WorkflowRequiresEdge } from './WorkflowRequiresEdge';
 import { buildWorkflowEdges, isValidConnection as isValidConnectionPure } from './workflowEdges';
-import { computeLayout } from './workflowLayout';
+import { WorkflowLayout } from './WorkflowLayout';
 
 // Defined once (module scope) so ReactFlow doesn't warn about changing types.
 const NODE_TYPES = { workflow: WorkflowFlowNode };
@@ -65,7 +65,7 @@ const WorkflowGraphInner = ({
   const structureKey = JSON.stringify(nodeNames.map(name => [name, nodes[name]?.type, nodes[name]?.requires]));
 
   useEffect(() => {
-    const layout = computeLayout(nodeNames, nodes);
+    const layout = WorkflowLayout.stacked(nodeNames, nodes).positions();
     setRfNodes(prev => {
       const prevPos = new Map(prev.map(n => [n.id, n.position]));
       return nodeNames.map(name => ({
@@ -83,7 +83,7 @@ const WorkflowGraphInner = ({
   // initial load / bulk changes fit the whole graph; removes fit what remains.
   const membershipKey = JSON.stringify([...nodeNames].sort());
   useEffect(() => {
-    const layout = computeLayout(nodeNames, nodes);
+    const layout = WorkflowLayout.stacked(nodeNames, nodes).positions();
     setRfNodes(prev => prev.map(node => ({ ...node, position: layout[node.id] ?? node.position })));
     const isInitial = prevNamesRef.current.length === 0;
     const added = nodeNames.filter(n => !prevNamesRef.current.includes(n));
@@ -117,6 +117,27 @@ const WorkflowGraphInner = ({
       setCenter(x, y, { zoom: getViewport().zoom, duration: 300 });
     }
   }, [nodesInitialized]);
+
+  // Once nodes are measured, push down only the ones that overlap within their
+  // column (using real measured heights) — so growing a node, e.g. by picking a
+  // type with more parameters, shoves the nodes below it instead of overlapping
+  // them, while leaving every non-colliding position (including drags) untouched.
+  const measuredKey = JSON.stringify(rfNodes.map(node => [node.id, Math.round(node.measured?.height ?? 0)]));
+  useEffect(() => {
+    const fixed = WorkflowLayout.fromFlowNodes(rfNodes, nodeNames, nodes).fixOverlaps().positions();
+    setRfNodes(prev => {
+      let changed = false;
+      const next = prev.map(node => {
+        const y = fixed[node.id]?.y;
+        if (y === undefined || y === node.position.y) {
+          return node;
+        }
+        changed = true;
+        return { ...node, position: { ...node.position, y } };
+      });
+      return changed ? next : prev;
+    });
+  }, [measuredKey]);
 
   // When the canvas height changes, scale the zoom by the same ratio so the same
   // slice of the graph stays framed (anchored at the top-left) instead of
