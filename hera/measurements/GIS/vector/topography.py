@@ -295,7 +295,7 @@ class analysis():
             if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,
                             toolkit.TOOLKIT_SAVEMODE_FILEANDDB]:
 
-                regionDoc = self.datalayer.getCacheDcouments(resource=file, dataFormat="parquet",type="cellData", desc=dict(resolution=resolution,**kwargs))
+                regionDoc = self.datalayer.getCacheDocuments(resource=file, dataFormat="parquet",type="cellData", **dict(resolution=resolution,**kwargs))
 
                 if len(regionDoc) >0 and saveMode== toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
                     raise ValueError(f"{file} already exists in the DB")

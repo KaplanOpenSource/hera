@@ -688,9 +688,9 @@ class Project:
             List of documents.
         """
         docs = []
-        docs.extend(self.getSimulationsDocuments(resource=resource, dataFormat=dataFormat, type=type, desc=desc))
-        docs.extend(self.getMeasurementsDocuments(resource=resource, dataFormat=dataFormat, type=type, desc=desc))
-        docs.extend(self.getCacheDocuments(resource=resource, dataFormat=dataFormat, type=type, desc=desc))
+        docs.extend(self.getSimulationsDocuments(resource=resource, dataFormat=dataFormat, type=type, **desc))
+        docs.extend(self.getMeasurementsDocuments(resource=resource, dataFormat=dataFormat, type=type, **desc))
+        docs.extend(self.getCacheDocuments(resource=resource, dataFormat=dataFormat, type=type, **desc))
         return docs
     
     def addDocumentFromDict(self,documentDict):
