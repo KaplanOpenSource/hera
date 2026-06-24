@@ -4,7 +4,7 @@ import { Handle, NodeProps, Position } from '@xyflow/react';
 import { useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
 import { DetailsViewItem, keyForDetailsViewItem } from '../details/DetailsViewItem';
-import { NodeCatalogEntry, nodeTypeGroup, prefilledParameters, validateNode } from './nodeCatalog';
+import { NodeCatalogEntry, nodeTypeGroup, nodeTypeIssue, paramsFieldDef, prefilledParameters } from './nodeCatalog';
 import { WorkflowNodeDeleteButton } from './WorkflowNodeDeleteButton';
 
 export interface WorkflowFlowNodeData {
@@ -25,7 +25,8 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
   const [hover, setHover] = useState(false);
   const params = node.Execution?.input_parameters ?? {};
   const typeOptions = catalog.map(entry => entry.type);
-  const problems = validateNode(node, catalog);
+  const typeIssue = nodeTypeIssue(node, catalog);
+  const paramsDef = paramsFieldDef(node, catalog);
 
   // Free-form typing keeps the type as-is (custom types stay allowed); picking a
   // known type also seeds its parameters from the catalog.
@@ -60,7 +61,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
         borderRadius: 1,
         bgcolor: 'background.paper',
         border: '1px solid',
-        borderColor: problems.length > 0 ? 'warning.main' : selected ? 'primary.main' : 'divider',
+        borderColor: typeIssue ? 'warning.main' : selected ? 'primary.main' : 'divider',
       }}
     >
       <Handle type="target" position={Position.Left} />
@@ -100,20 +101,21 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
             itemKey="input_parameters"
             itemValue={params}
             parentKey={undefined}
+            def={paramsDef}
             setItemValue={(newVal) => onChange({
               ...node,
               Execution: { ...node.Execution, input_parameters: newVal },
             })}
           />
         </SimpleTreeView>
-        {problems.length > 0 && (
+        {typeIssue && (
           <Typography
             className="nodrag"
             variant="caption"
             color="warning.main"
-            sx={{ display: 'block', mt: 0.5, whiteSpace: 'pre-wrap', userSelect: 'text' }}
+            sx={{ display: 'block', mt: 0.5, userSelect: 'text' }}
           >
-            {problems.join('\n')}
+            {typeIssue}
           </Typography>
         )}
       </Box>

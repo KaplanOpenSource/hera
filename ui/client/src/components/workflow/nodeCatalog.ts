@@ -1,4 +1,5 @@
 import { WorkflowNode } from '../../shared/types';
+import { FieldDef } from '../details/fieldDef';
 
 // One parameter a node type accepts. Values (defaults) are not provided by the
 // catalog — only the name, whether it is required, and where it was discovered.
@@ -49,30 +50,37 @@ export const prefilledParameters = (
   return next;
 };
 
-// Problems with a node, for a soft warning in the editor (never blocks editing).
-// Returns an empty list when the node is fine, or while the catalog is still
-// loading (we can't judge a type we don't have yet).
-export const validateNode = (node: WorkflowNode, catalog: NodeCatalogEntry[]): string[] => {
+// The type-level problem with a node, for a soft warning (never blocks editing).
+// undefined when the type is fine, or while the catalog is still loading.
+export const nodeTypeIssue = (node: WorkflowNode, catalog: NodeCatalogEntry[]): string | undefined => {
   if (catalog.length === 0) {
-    return [];
+    return undefined;
   }
   const type = node.type ?? '';
   if (!type) {
-    return ['no type selected'];
+    return 'no type selected';
   }
-  const entry = catalog.find(e => e.type === type);
-  if (!entry) {
-    return [`unknown type: ${type}`];
+  if (!catalog.some(entry => entry.type === type)) {
+    return `unknown type: ${type}`;
   }
-  const params = node.Execution?.input_parameters ?? {};
-  const problems: string[] = [];
-  for (const param of entry.parameters) {
-    if (param.is_required && isParameterKey(param.name)) {
-      const value = params[param.name];
-      if (value === undefined || value === null || value === '') {
-        problems.push(`missing required: ${param.name}`);
-      }
+  return undefined;
+};
+
+// The field def for a node's input_parameters: a `children` map (keyed by
+// parameter name) marking which params are required. The single place that maps
+// the Hermes catalog to the generic FieldDef — extend the mapping here as the
+// catalog gains detail (type, default, …). Skips the noisy nested/template
+// names, same as prefill.
+export const paramsFieldDef = (
+  node: WorkflowNode,
+  catalog: NodeCatalogEntry[],
+): FieldDef => {
+  const entry = catalog.find(e => e.type === (node.type ?? ''));
+  const children: { [key: string]: FieldDef } = {};
+  for (const param of entry?.parameters ?? []) {
+    if (isParameterKey(param.name)) {
+      children[param.name] = { required: param.is_required };
     }
   }
-  return problems;
+  return { children };
 };

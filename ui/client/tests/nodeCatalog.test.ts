@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { NodeCatalogEntry, nodeTypeGroup, prefilledParameters, validateNode } from '../src/components/workflow/nodeCatalog';
+import { NodeCatalogEntry, nodeTypeGroup, prefilledParameters, nodeTypeIssue, paramsFieldDef } from '../src/components/workflow/nodeCatalog';
 
 describe('nodeTypeGroup', () => {
   it('drops the last dotted segment', () => {
@@ -39,36 +39,49 @@ describe('prefilledParameters', () => {
   });
 });
 
-describe('validateNode', () => {
-  const catalog = [entry('openFOAM.constant.g', ['x', 'y', 'z'])];
+describe('nodeTypeIssue', () => {
+  const catalog = [entry('openFOAM.constant.g', ['x'])];
 
   it('reports nothing while the catalog is empty (still loading)', () => {
-    expect(validateNode({ type: 'anything' }, [])).toEqual([]);
+    expect(nodeTypeIssue({ type: 'anything' }, [])).toBeUndefined();
   });
 
   it('flags a node with no type', () => {
-    expect(validateNode({ type: '' }, catalog)).toEqual(['no type selected']);
+    expect(nodeTypeIssue({ type: '' }, catalog)).toBe('no type selected');
   });
 
   it('flags an unknown type', () => {
-    expect(validateNode({ type: 'made.up' }, catalog)).toEqual(['unknown type: made.up']);
+    expect(nodeTypeIssue({ type: 'made.up' }, catalog)).toBe('unknown type: made.up');
   });
 
-  it('flags each empty required parameter', () => {
-    const node = { type: 'openFOAM.constant.g', Execution: { input_parameters: { x: 1, y: '' } } };
-    expect(validateNode(node, catalog)).toEqual(['missing required: y', 'missing required: z']);
+  it('is fine for a known type', () => {
+    expect(nodeTypeIssue({ type: 'openFOAM.constant.g' }, catalog)).toBeUndefined();
+  });
+});
+
+describe('paramsFieldDef', () => {
+  const catalog = [entry('openFOAM.constant.g', ['x', 'y'])];
+
+  it('puts each parameter under children, marked required or not', () => {
+    expect(paramsFieldDef({ type: 'openFOAM.constant.g' }, catalog)).toEqual({
+      children: { x: { required: true }, y: { required: true } },
+    });
   });
 
-  it('passes when all required parameters have values', () => {
-    const node = { type: 'openFOAM.constant.g', Execution: { input_parameters: { x: 1, y: 2, z: 0 } } };
-    expect(validateNode(node, catalog)).toEqual([]);
-  });
-
-  it('ignores optional parameters', () => {
+  it('reflects optional parameters as not required', () => {
     const cat: NodeCatalogEntry[] = [{
       type: 't',
-      parameters: [{ name: 'opt', is_required: false, source: 'template' }],
+      parameters: [
+        { name: 'req', is_required: true, source: 'jsonForm' },
+        { name: 'opt', is_required: false, source: 'template' },
+      ],
     }];
-    expect(validateNode({ type: 't', Execution: { input_parameters: {} } }, cat)).toEqual([]);
+    expect(paramsFieldDef({ type: 't' }, cat)).toEqual({
+      children: { req: { required: true }, opt: { required: false } },
+    });
+  });
+
+  it('has empty children for an unknown type', () => {
+    expect(paramsFieldDef({ type: 'made.up' }, catalog)).toEqual({ children: {} });
   });
 });
