@@ -2,7 +2,7 @@ import { Add, AutoFixHigh } from '@mui/icons-material';
 import { Box, IconButton, Menu, MenuItem, Tooltip } from '@mui/material';
 import { Background, Connection, Controls, Edge, MarkerType, Node, Panel, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
 import { normalizeRequires } from '../../shared/workflow';
 import { WorkflowFlowNode } from './WorkflowFlowNode';
@@ -103,7 +103,9 @@ const WorkflowGraphInner = ({
 }: WorkflowGraphProps) => {
   const [menu, setMenu] = useState<ContextMenu | null>(null);
   const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
-  const { fitView } = useReactFlow();
+  const { fitView, getViewport, setViewport } = useReactFlow();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const prevHeightRef = useRef<number | null>(null);
   // useNodesState owns only position and identity; the structure effect rebuilds
   // it (preserving dragged positions) when nodes are added/removed/reordered.
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState<Node>([]);
@@ -138,6 +140,28 @@ const WorkflowGraphInner = ({
   useEffect(() => {
     tidyLayout();
   }, [membershipKey]);
+
+  // When the canvas height changes, scale the zoom by the same ratio so the same
+  // slice of the graph stays framed (anchored at the top-left) instead of
+  // revealing more or less of it as the height grows or shrinks.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) {
+      return;
+    }
+    const observer = new ResizeObserver(entries => {
+      const height = entries[0].contentRect.height;
+      const prev = prevHeightRef.current;
+      prevHeightRef.current = height;
+      if (prev && height && prev !== height) {
+        const ratio = height / prev;
+        const { x, y, zoom } = getViewport();
+        setViewport({ x: x * ratio, y: y * ratio, zoom: zoom * ratio });
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [getViewport, setViewport]);
 
   // Overlay current selection and data (with fresh handlers) each render, so the
   // node always calls the latest rename handler — no stale closures, no ref.
@@ -224,7 +248,7 @@ const WorkflowGraphInner = ({
   };
 
   return (
-    <Box sx={{ flex: 1, minHeight: 200, ml: -2, mr: -2, mb: -2, borderTop: '1px solid', borderColor: 'divider' }}>
+    <Box ref={containerRef} sx={{ flex: 1, minHeight: 200, ml: -2, mr: -2, mb: -2, borderTop: '1px solid', borderColor: 'divider' }}>
       <ReactFlow
         nodes={displayNodes}
         edges={displayEdges}
