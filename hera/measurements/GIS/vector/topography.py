@@ -17,6 +17,7 @@ from ....utils.logging import get_classMethod_logger
 from ....toolkit import TOOLKIT_SAVEMODE_ONLYFILE
 from ._io_utils import readGeoJSONString
 from .toolkit import VectorToolkit
+from ... import ITM
 from ..utils import stlFactory
 
 class TopographyToolkit(VectorToolkit):
@@ -81,7 +82,7 @@ class TopographyToolkit(VectorToolkit):
             shape = self._RegionToGeopandas(shapeDataOrName, crs=crs)
             doc = self.getDatasourceDocument(datasourceName=datasourceName)
             logger.debug(f"The datasource {datasourceName} is pointing to {doc.resource}")
-            doc.desc['desc'].update({'crs': 2039})
+            doc.desc['desc'].update({'crs': ITM})
             if 'crs' not in doc.desc['desc']:
                 logger.error(f"The datasource {datasourceName} has no CRS defined in the metadata. please add it")
                 raise ValueError(f"The datasource {datasourceName} has no CRS defined in the metadata. please add it")

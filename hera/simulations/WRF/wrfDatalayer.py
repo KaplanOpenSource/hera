@@ -12,6 +12,7 @@ except ImportError:
     print("You must install python-wrf to use this package ")
 
 import xarray
+from hera.measurements.GIS import WSG84, ITM
 
 class wrfDatalayer():
 
@@ -81,8 +82,8 @@ class wrfDatalayer():
         if lat is not None:
             if lat > 360:
                 geo = geopandas.GeoDataFrame(dict(geometry=geopandas.points_from_xy([compare_lon],[lat])),index=[0])
-                geo.crs = 2039
-                geo = geo.to_crs(epsg=4326)
+                geo.crs = ITM
+                geo = geo.to_crs(epsg=WSG84)
                 lat = geo.geometry[0].y
             changes = ["south_north", "south_north", "south_north_stag"]
             request_i_u = request_i = self.find_i(lat, xdata, "south_north", "XLAT")
@@ -91,8 +92,8 @@ class wrfDatalayer():
         elif lon is not None:
             if lon > 360:
                 geo = geopandas.GeoDataFrame(dict(geometry=geopandas.points_from_xy([lon],[compare_lat])),index=[0])
-                geo.crs = 2039
-                geo = geo.to_crs(epsg=4326)
+                geo.crs = ITM
+                geo = geo.to_crs(epsg=WSG84)
                 lon = geo.geometry[0].x
             changes = ["west_east", "west_east_stag", "west_east"]
             request_i_v = request_i = self.find_i(lon, xdata, "west_east", "XLONG")
@@ -147,8 +148,8 @@ class wrfDatalayer():
                 d = pandas.concat([d, new_d])
 
         gdf = geopandas.GeoDataFrame(d, geometry=geopandas.points_from_xy(d.LONG, d.LAT))
-        gdf.crs = {'init' :'epsg:4326'}
-        gdf = gdf.to_crs(epsg=2039)
+        gdf.crs = WSG84
+        gdf = gdf.to_crs(epsg=ITM)
         gdf["LAT"] = gdf.geometry.y
         gdf["LONG"] = gdf.geometry.x
         gdf["height_over_terrain"] = gdf.height - gdf.terrain
