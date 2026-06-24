@@ -192,13 +192,20 @@ class LSMTemplate:
             if saveMode == toolkit.TOOLKIT_SAVEMODE_ONLYFILE:
                 raise ValueError(f"The outputfile {os.path.join(saveDir,'netcdf')} exists. Either remove it or run a saveMode that ends with _REPLACE")
             elif saveMode == toolkit.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE:
-                os.system(f"rm -r {os.path.join(saveDir,'netcdf')}")
+                import shutil
+                shutil.rmtree(os.path.join(saveDir, 'netcdf'), ignore_errors=True)
 
         ## If overwrite, or document does not exist in DB, or running without DB.
         os.makedirs(saveDir, exist_ok=True)
 
         print([x for x in os.listdir(self.modelFolder)])
-        os.system('cp -rf %s %s' % (os.path.join(self.modelFolder, '*'), saveDir))
+        import shutil as _shutil
+        for _src in glob.glob(os.path.join(self.modelFolder, '*')):
+            _dst = os.path.join(saveDir, os.path.basename(_src))
+            if os.path.isdir(_src):
+                _shutil.copytree(_src, _dst, dirs_exist_ok=True)
+            else:
+                _shutil.copy2(_src, _dst)
         logger.info(f"copied contents from {self.modelFolder} to {saveDir}")
         # write to file.
         ifmc.render(os.path.join(saveDir, 'INPUT'))
@@ -271,7 +278,8 @@ class LSMTemplate:
 
         logger.info("running the model")
         # run the model.
-        lsm_return = os.system('./a.out')
+        import subprocess as _subprocess
+        lsm_return = _subprocess.run(['./a.out']).returncode
         logger.info("simulation finished running")
         logger.info(f"returning context back to {cur_dir}")
         os.chdir(cur_dir)
@@ -306,8 +314,9 @@ class LSMTemplate:
             logger.info(f"saved xarray in {netcdf_output}")
             if not self.forceKeep:
                 machsanPath = os.path.dirname(results_full_path)
-                allfiles = os.path.join(machsanPath ,"*")
-                os.system(f"rm {allfiles}")
+                for _f in glob.glob(os.path.join(machsanPath, '*')):
+                    if os.path.isfile(_f):
+                        os.remove(_f)
             if saveMode != toolkit.TOOLKIT_SAVEMODE_NOSAVE:
                 finalxarray.to_netcdf(os.path.join(netcdf_output, "data%s.nc" % i))
 

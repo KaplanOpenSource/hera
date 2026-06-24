@@ -4,6 +4,7 @@ import resource
 from typing import Union
 import pandas
 import shutil
+import subprocess
 import os
 from collections.abc import Iterable
 from hera.toolkit import abstractToolkit
@@ -753,9 +754,10 @@ class hermesWorkflowToolkit(abstractToolkit):
             # 'finalnode_xx_0' is the terminal task that triggers the full DAG.
             # --local-scheduler avoids requiring a separate Luigi scheduler process.
             pythonPath = os.path.join(self.FilesDirectory, f"{workflowName}")
-            executionStr = f"python3 -m luigi --module {os.path.basename(pythonPath)} finalnode_xx_0 --local-scheduler"
-            logger.debug(executionStr)
-            os.system(executionStr)
+            module_name = os.path.basename(pythonPath)
+            luigi_cmd = ["python3", "-m", "luigi", "--module", module_name, "finalnode_xx_0", "--local-scheduler"]
+            logger.debug(" ".join(luigi_cmd))
+            subprocess.run(luigi_cmd, check=True)
 
             # Step 6: Clean up the generated Python module (the workflow JSON stays).
             logger.info(f"Cleaning the executer python for {workflowName}")

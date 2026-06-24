@@ -2,6 +2,7 @@ from enum import Enum, auto, unique
 from typing import Union
 import pandas
 import shutil
+import subprocess
 import os
 from ..toolkit import abstractToolkit
 from ..utils import loadJSON,compareJSONS
@@ -580,9 +581,10 @@ class workflowToolkit(abstractToolkit):
             shutil.rmtree(executionfileDir, ignore_errors=True)
 
             pythonPath = os.path.join(self.FilesDirectory, f"{workflowName}")
-            executionStr = f"python3 -m luigi --module {os.path.basename(pythonPath)} finalnode_xx_0 --local-scheduler"
-            self.logger.debug(executionStr)
-            os.system(executionStr)
+            module_name = os.path.basename(pythonPath)
+            luigi_cmd = ["python3", "-m", "luigi", "--module", module_name, "finalnode_xx_0", "--local-scheduler"]
+            self.logger.debug(" ".join(luigi_cmd))
+            subprocess.run(luigi_cmd, check=True)
 
 
 

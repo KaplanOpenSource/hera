@@ -620,9 +620,11 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             logger.debug(f"\t Linking: ln -s {fullpath} {destination}")
             logger.debug(
                 f"\t Linking root case : ln -s {os.path.abspath(proc)} {os.path.join(dispersionDirectory, os.path.basename(proc))}/rootCase")
-            os.system(f"ln -s {fullpath} {destination}")
-            os.system(
-                f"ln -s {os.path.abspath(proc)} {os.path.join(dispersionDirectory, os.path.basename(proc))}/rootCase")
+            if not os.path.exists(destination):
+                os.symlink(fullpath, destination)
+            rootcase_link = os.path.join(dispersionDirectory, os.path.basename(proc), "rootCase")
+            if not os.path.exists(rootcase_link):
+                os.symlink(os.path.abspath(proc), rootcase_link)
 
             # create the 0 directory in all processors.
             os.makedirs(os.path.join(dispersionDirectory, os.path.basename(proc), '0'), exist_ok=True)
@@ -636,7 +638,9 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         # linking the rootCase in the root directory of the dispersion dispersionDirectory.
         logger.debug(
             f"Linking the root case: ln -s {dispersionFlowDirectory} {os.path.join(dispersionDirectory, 'rootCase')}")
-        os.system(f"ln -s {dispersionFlowDirectory} {os.path.join(dispersionDirectory, 'rootCase')}")
+        rootcase_root = os.path.join(dispersionDirectory, 'rootCase')
+        if not os.path.exists(rootcase_root):
+            os.symlink(dispersionFlowDirectory, rootcase_root)
 
         # create the 0 directory in the root.
         logger.debug(f"Making the 0 in {os.path.join(dispersionDirectory, '0')}")
@@ -1742,15 +1746,17 @@ def robustOpenFOAMFileValuesParser(path, columnNames):
     START_OF_FILE_VALUES = 18
     FILE_SAMPLE_SIZE = 2048
 
-    sed_command = (
-        f"sed -e '1,{START_OF_FILE_VALUES}d' "
-        f"-e 's/[()]//g' "
-        f"-e 's/^[[:space:]]*//; s/[[:space:]]*$//' "
-        f"-e 's/[[:space:]]\\+/,/g' "
-        f"-e '/^$/d' "
-        f"-e '/\\/\\//d' "
-        f"{path}"
-    )
+    sed_command = [
+        "sed",
+        "-e", f"1,{START_OF_FILE_VALUES}d",
+        "-e", r"s/[()]//g",
+        "-e", r"s/^[[:space:]]*//",
+        "-e", r"s/[[:space:]]*$//",
+        "-e", r"s/[[:space:]]\+/,/g",
+        "-e", r"/^$/d",
+        "-e", r"/\/\//d",
+        path,
+    ]
     with open(path, 'r') as f:
         content = f.read(FILE_SAMPLE_SIZE)
 
@@ -1761,12 +1767,12 @@ def robustOpenFOAMFileValuesParser(path, columnNames):
         # Clean up the value string (remove brackets if vector)
         val_str = uniform_match.group(2).replace('(', '').replace(')', '')
         single_val = numpy.array([float(x) for x in val_str.split()])
-        
+
         data = numpy.tile(single_val, (count, 1))
         return pandas.DataFrame(data, columns=columnNames).astype(float)
 
     # failing in the process should give an unexpected error meaning we missed some case
-    proc = subprocess.run(sed_command, shell=True, capture_output=True, text=True, check=True)
+    proc = subprocess.run(sed_command, capture_output=True, text=True, check=True)
     
     if not proc.stdout.strip():
         return pandas.DataFrame(columns=columnNames).astype(float)

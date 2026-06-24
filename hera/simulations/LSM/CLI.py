@@ -65,7 +65,12 @@ def setup_template(arguments):
     logger.info(f"setup directories successfully")
 
 
-    os.system(f"ln -s {os.path.join(codeDir,'a.out')} {outDir}")
-    logger.info(f"linked {os.path.join(outDir,'a.out')} from template")
-    os.system(f"ln -s {os.path.join(codeDir,'tozaot/Meteorology')} {metDir}")
-    logger.info(f"linked {os.path.join(codeDir,'tozaot/Meteorology')} from template")
+    src_aout = os.path.join(codeDir, 'a.out')
+    dst_aout = os.path.join(outDir, 'a.out')
+    if not os.path.exists(dst_aout):
+        os.symlink(src_aout, dst_aout)
+    logger.info(f"linked {dst_aout} from template")
+    src_met = os.path.join(codeDir, 'tozaot', 'Meteorology')
+    if not os.path.exists(metDir):
+        os.symlink(src_met, metDir)
+    logger.info(f"linked {src_met} from template")
