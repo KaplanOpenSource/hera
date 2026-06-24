@@ -7,11 +7,7 @@ import { WorkflowNode } from '../../shared/types';
 import { normalizeRequires } from '../../shared/workflow';
 import { WorkflowFlowNode } from './WorkflowFlowNode';
 import { WorkflowRequiresEdge } from './WorkflowRequiresEdge';
-
-const X_GAP = 700;       // horizontal distance between dependency layers
-const V_GAP = 100;        // vertical gap between nodes in a column
-const BASE_HEIGHT = 110; // node height without params (name + type)
-const ROW_HEIGHT = 28;   // estimated height per parameter row
+import { computeLayout, isValidConnection as isValidConnectionPure } from './workflowLayout';
 
 // Defined once (module scope) so ReactFlow doesn't warn about changing types.
 const NODE_TYPES = { workflow: WorkflowFlowNode };
@@ -21,57 +17,6 @@ const EDGE_TYPES = { requires: WorkflowRequiresEdge };
 type ContextMenu =
   | { kind: 'node', name: string, x: number, y: number }
   | { kind: 'edge', source: string, target: string, x: number, y: number };
-
-// Assigns each node a layer = longest `requires` chain depth, so the graph lays
-// out left-to-right by dependency order. Cycles are broken at layer 0.
-const computeLayers = (nodeNames: string[], nodes: { [name: string]: WorkflowNode }): { [name: string]: number } => {
-  const layer: { [name: string]: number } = {};
-  const visiting = new Set<string>();
-  const resolve = (name: string): number => {
-    if (layer[name] !== undefined) {
-      return layer[name];
-    }
-    if (visiting.has(name)) {
-      return 0;
-    }
-    visiting.add(name);
-    const reqs = normalizeRequires(nodes[name]?.requires).filter(r => nodeNames.includes(r));
-    const value = reqs.length === 0 ? 0 : Math.max(...reqs.map(resolve)) + 1;
-    visiting.delete(name);
-    layer[name] = value;
-    return value;
-  };
-  nodeNames.forEach(resolve);
-  return layer;
-};
-
-// Estimated render height of a node from its parameter tree, so columns can be
-// laid out before the nodes are measured (avoids a layout flash).
-const countRows = (value: unknown): number => {
-  if (value && typeof value === 'object') {
-    return Object.values(value).reduce((sum: number, child) => sum + 1 + countRows(child), 0);
-  }
-  return 0;
-};
-
-const estimateHeight = (node: WorkflowNode): number => {
-  const params = node.Execution?.input_parameters ?? {};
-  return BASE_HEIGHT + (1 + countRows(params)) * ROW_HEIGHT;
-};
-
-// Stacks each dependency layer into a column using estimated node heights.
-const computeLayout = (nodeNames: string[], nodes: { [name: string]: WorkflowNode }): { [name: string]: { x: number, y: number } } => {
-  const layers = computeLayers(nodeNames, nodes);
-  const columnBottom: { [layer: number]: number } = {};
-  const positions: { [name: string]: { x: number, y: number } } = {};
-  nodeNames.forEach(name => {
-    const layer = layers[name] ?? 0;
-    const y = columnBottom[layer] ?? 0;
-    positions[name] = { x: layer * X_GAP, y };
-    columnBottom[layer] = y + estimateHeight(nodes[name] ?? {}) + V_GAP;
-  });
-  return positions;
-};
 
 interface WorkflowGraphProps {
   nodeNames: string[];
@@ -231,43 +176,8 @@ const WorkflowGraphInner = ({
     },
   }));
 
-  // A connection source→target means "target requires source". Reject it if it
-  // points the wrong way — i.e. would create a cycle because target can already
-  // reach source through existing requires.
   const isValidConnection = (connection: Connection | Edge): boolean => {
-    const { source, target } = connection;
-    if (!source || !target || source === target) {
-      return false;
-    }
-    if (normalizeRequires(nodes[target]?.requires).includes(source)) {
-      return false;
-    }
-    const successors: { [name: string]: string[] } = {};
-    nodeNames.forEach(name => {
-      normalizeRequires(nodes[name]?.requires).forEach(pred => {
-        if (!successors[pred]) {
-          successors[pred] = [];
-        }
-        successors[pred].push(name);
-      });
-    });
-    const reaches = (from: string, goal: string): boolean => {
-      const seen = new Set<string>();
-      const stack = [from];
-      while (stack.length > 0) {
-        const current = stack.pop() as string;
-        if (current === goal) {
-          return true;
-        }
-        if (seen.has(current)) {
-          continue;
-        }
-        seen.add(current);
-        (successors[current] ?? []).forEach(next => stack.push(next));
-      }
-      return false;
-    };
-    return !reaches(target, source);
+    return isValidConnectionPure(connection, nodeNames, nodes);
   };
 
   const onConnect = (connection: Connection) => {
