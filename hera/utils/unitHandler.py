@@ -289,17 +289,14 @@ if unumSupport:
             ret = str(obj)
         return ret
 
-    @deprecated(reason="Doesn't work for some cases")
+    @deprecated(reason="Cannot safely evaluate arbitrary strings; use ureg.Quantity directly")
     def strToUnum(value):
         """Convert a string to a Unum object."""
         if isinstance(value, Unum):
-            ret = value
-        else:
-            try:
-                ret = eval(str(value))
-            except:
-                ret = value
-        return ret
+            return value
+        # eval() removed: arbitrary code execution risk [1.5]
+        # Callers should migrate to ureg.Quantity(value)
+        return value
 
     def extractUnumUnitsFromPint(pint_quantity):
         """Extract unum unit equivalent from a pint Quantity."""
