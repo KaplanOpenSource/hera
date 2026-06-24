@@ -43,3 +43,6 @@ cache/*
 !cache/.gitkeep
 
 .claude/settings.json
+
+# Personal MongoDB config (never commit credentials)
+config.json
