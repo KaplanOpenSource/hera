@@ -1,10 +1,10 @@
-import { Close } from '@mui/icons-material';
-import { Box, IconButton, InputBase, TextField } from '@mui/material';
+import { Box, InputBase, TextField } from '@mui/material';
 import { SimpleTreeView } from '@mui/x-tree-view';
 import { Handle, NodeProps, Position } from '@xyflow/react';
 import { useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
 import { DetailsViewItem, keyForDetailsViewItem } from '../details/DetailsViewItem';
+import { WorkflowNodeDeleteButton } from './WorkflowNodeDeleteButton';
 
 export interface WorkflowFlowNodeData {
   name: string;
@@ -48,16 +48,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
       }}
     >
       <Handle type="target" position={Position.Left} />
-      {hover && (
-        <IconButton
-          className="nodrag"
-          size="small"
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          sx={{ position: 'absolute', top: -12, right: -12, p: '2px', bgcolor: 'background.paper', boxShadow: 1 }}
-        >
-          <Close sx={{ fontSize: 14 }} />
-        </IconButton>
-      )}
+      {hover && <WorkflowNodeDeleteButton onDelete={onDelete} />}
       <InputBase
         className="nodrag"
         value={draft}

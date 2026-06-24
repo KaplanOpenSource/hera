@@ -1,10 +1,11 @@
-import { Add, AutoFixHigh } from '@mui/icons-material';
-import { Box, IconButton, Menu, MenuItem, Tooltip } from '@mui/material';
+import { Add } from '@mui/icons-material';
+import { Box, IconButton, Tooltip } from '@mui/material';
 import { Background, Connection, Controls, Edge, MarkerType, Node, Panel, ReactFlow, ReactFlowProvider, useNodesInitialized, useNodesState, useReactFlow } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
 import { normalizeRequires } from '../../shared/workflow';
+import { WorkflowContextMenu, WorkflowContextMenuKind, WorkflowContextMenuTarget } from './WorkflowContextMenu';
 import { WorkflowFlowNode } from './WorkflowFlowNode';
 import { WorkflowRequiresEdge } from './WorkflowRequiresEdge';
 import { computeLayout, isValidConnection as isValidConnectionPure } from './workflowLayout';
@@ -12,11 +13,6 @@ import { computeLayout, isValidConnection as isValidConnectionPure } from './wor
 // Defined once (module scope) so ReactFlow doesn't warn about changing types.
 const NODE_TYPES = { workflow: WorkflowFlowNode };
 const EDGE_TYPES = { requires: WorkflowRequiresEdge };
-
-// Right-click target: a node, or an edge (a requires link), anchored at a point.
-type ContextMenu =
-  | { kind: 'node', name: string, x: number, y: number }
-  | { kind: 'edge', source: string, target: string, x: number, y: number };
 
 interface WorkflowGraphProps {
   nodeNames: string[];
@@ -46,7 +42,7 @@ const WorkflowGraphInner = ({
   onRemoveRequire,
   onDeleteNode,
 }: WorkflowGraphProps) => {
-  const [menu, setMenu] = useState<ContextMenu | null>(null);
+  const [menu, setMenu] = useState<WorkflowContextMenuTarget | null>(null);
   const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
   const { fitView, getViewport, setViewport, getNode, setCenter } = useReactFlow();
   const nodesInitialized = useNodesInitialized();
@@ -207,11 +203,11 @@ const WorkflowGraphInner = ({
         onEdgeMouseLeave={() => setHoveredEdge(null)}
         onNodeContextMenu={(event, node) => {
           event.preventDefault();
-          setMenu({ kind: 'node', name: node.id, x: event.clientX, y: event.clientY });
+          setMenu({ kind: WorkflowContextMenuKind.Node, name: node.id, x: event.clientX, y: event.clientY });
         }}
         onEdgeContextMenu={(event, edge) => {
           event.preventDefault();
-          setMenu({ kind: 'edge', source: edge.source, target: edge.target, x: event.clientX, y: event.clientY });
+          setMenu({ kind: WorkflowContextMenuKind.Edge, source: edge.source, target: edge.target, x: event.clientX, y: event.clientY });
         }}
       >
         <Panel position="top-right">
@@ -220,32 +216,16 @@ const WorkflowGraphInner = ({
               <Add fontSize="small" />
             </IconButton>
           </Tooltip>
-          {/* <Tooltip title="Tidy layout">
-            <IconButton size="small" onClick={tidyLayout} sx={{ bgcolor: 'background.paper', boxShadow: 1 }}>
-              <AutoFixHigh />
-            </IconButton>
-          </Tooltip> */}
         </Panel>
         <Background />
         <Controls />
       </ReactFlow>
-      <Menu
-        open={menu !== null}
+      <WorkflowContextMenu
+        menu={menu}
         onClose={() => setMenu(null)}
-        anchorReference="anchorPosition"
-        anchorPosition={menu ? { top: menu.y, left: menu.x } : undefined}
-      >
-        {menu?.kind === 'node' && (
-          <MenuItem onClick={() => { onDeleteNode(menu.name); setMenu(null); }}>
-            Delete node “{menu.name}”
-          </MenuItem>
-        )}
-        {menu?.kind === 'edge' && (
-          <MenuItem onClick={() => { onRemoveRequire(menu.source, menu.target); setMenu(null); }}>
-            Remove requirement ({menu.source} → {menu.target})
-          </MenuItem>
-        )}
-      </Menu>
+        onDeleteNode={onDeleteNode}
+        onRemoveRequire={onRemoveRequire}
+      />
     </Box>
   );
 };
