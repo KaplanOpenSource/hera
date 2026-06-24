@@ -16,7 +16,7 @@ def _confirm_project_name(arguments, logger):
 
 def list_templates(arguments):
     # for template in os.listdir("templates"):
-    logger = logging.getLogger("hera.bin.hera_lsm.load_template")
+    logger = logging.get_logger("hera.bin.hera_lsm.load_template")
     _confirm_project_name(arguments, logger)
     lsm = toolkitHome.getToolkit(toolkitName=ToolkitHome.LSM, projectName=arguments.projectName)
     templates = lsm.getTemplates()
@@ -32,7 +32,7 @@ def list_templates(arguments):
     
 def setup_template(arguments):
     # for template in os.listdir("templates"):
-    logger = logging.getLogger("hera.bin.hera_lsm.load_template")
+    logger = logging.get_logger("hera.bin.hera_lsm.load_template")
     _confirm_project_name(arguments, logger)
     lsm = toolkitHome.getToolkit(toolkitName=ToolkitHome.LSM, projectName=arguments.projectName)
     template = lsm.getTemplateByName(arguments.templateName,templateVersion=arguments.templateVersion)

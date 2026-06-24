@@ -246,7 +246,6 @@ class LSMToolkit(toolkit.abstractToolkit):
                         raise ValueError(f"query must use either pint or unum to specify units, currently type({query[key]})={type(query[key])}")
         else:
             query = ConfigurationToJSON(query)
-        print(query)
         queryWithParams = {}
         for key in query.keys():
             queryWithParams[f"params__{key}"] = query[key]
@@ -347,7 +346,7 @@ class LSMToolkit(toolkit.abstractToolkit):
             logger.info(f"Assuming {jsonVariations} is path to variations file")
             with open(jsonVariations, 'r') as variationsFile:
                 jsonVariations = json.load(variationsFile)
-        elif not isinstance(jsonVariations, dict):
+        elif not isinstance(jsonVariations, list):
             logger.error("Slurm preparation only supports json variation input as path or dict")
 
         SIMULATIONS_SCRIPT_DIR_NAME= "simulationsScripts"
@@ -356,21 +355,18 @@ class LSMToolkit(toolkit.abstractToolkit):
 
         simulations_scripts_dir = Path(self.filesDirectory,SIMULATIONS_SCRIPT_DIR_NAME)
         os.makedirs(simulations_scripts_dir, exist_ok=True)
+        if isinstance(topography, str):
+            topography = f'"{topography}"'
+        if isinstance(canopy, str):
+            canopy = f'"{canopy}"'
         if stations is not None:
             stations.to_parquet(simulations_scripts_dir / STATIONS_PATH)
         for i, jsonConfig in enumerate(JSONVariations(baseParameters, jsonVariations)):
             jsonConfig = JSONToConfiguration(jsonConfig)
             jsonConfig = LSMTemplate.prepareParams(desc=None, paramsToPrepare=jsonConfig)
             simName = f"LSM_Simulation_{i}"
-            simSavePath = simulations_scripts_dir/ (simName+".py")
+            simSavePath = simulations_scripts_dir /simName/RUN_SIM_FILE_NAME
 
-            os.makedirs(simulations_scripts_dir / simName, exist_ok=True)
-            if isinstance(topography, str):
-                topography = f'"{topography}"'
-            if isinstance(canopy, str):
-                canopy = f'"{canopy}"'
-            if isinstance(topography, str):
-                topography = f'"{topography}"'
             read_stations_line = f'stations = pandas.read_parquet("'+STATIONS_PATH+'")'
             connectionNameParam = f'"{connectionName}"' if connectionName is not None else "None" 
 
@@ -385,6 +381,8 @@ params={jsonConfig}
 {read_stations_line if stations is not None else ""}
 lsm_template.run(topography={topography}, stations={"None" if stations is None else "stations"},canopy={"None" if canopy is None else canopy},depositionRates={"None" if depositionRates is None else depositionRates}, saveMode="{saveMode}",simulationName="{simName}",**params)
 """
+            os.makedirs(simulations_scripts_dir /simName, exist_ok=True)
+
             with open(simSavePath, "w") as f:
                 f.write(sim_script)
                 

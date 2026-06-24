@@ -172,7 +172,6 @@ def JSONToConfiguration(valueToProcess,returnUnum=False,returnStandardize=False)
             logger.debug(f"\t {valueToProcess} is a String, use as is")
             ret = valueToProcess
         else:
-            print(valueToProcess)
             logger.debug(f"\t Try to convert {valueToProcess} to pint")
             try:
                 from hera.utils.unitHandler import ureg, pintToUnum, UndefinedUnitError, DimensionalityError

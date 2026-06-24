@@ -2,6 +2,7 @@ from enum import Enum, auto, unique
 from typing import Union
 import pandas
 import shutil
+import shlex
 import subprocess
 import os
 from ..toolkit import abstractToolkit
@@ -11,8 +12,10 @@ from ..utils.dataframeutils import compareDataframeConfigurations
 from ..datalayer import datatypes
 import numpy
 import pydoc
+import uuid
 import warnings
 from ..utils.logging import with_logger,get_classMethod_logger
+from ..hermesWorkflowToolkit import buildLuigiExecutionCommand, SCHEDULER_LOCAL, SCHEDULER_CENTRAL
 
 try:
     from hermes import workflow
@@ -408,7 +411,11 @@ class workflowToolkit(abstractToolkit):
                        force: bool = False,
                        assignName: bool = False,
                        execute: bool = False,
-                       parameters: dict = dict()):
+                       parameters: dict = dict(),
+                       scheduler: str = SCHEDULER_LOCAL,
+                       schedulerHost: str = None,
+                       schedulerPort: int = None,
+                       dispatch_id: str = None):
         """
             1. Adds the workflow to the database in the requested group
             2. Builds the template (.json) and python executer
@@ -581,10 +588,15 @@ class workflowToolkit(abstractToolkit):
             shutil.rmtree(executionfileDir, ignore_errors=True)
 
             pythonPath = os.path.join(self.FilesDirectory, f"{workflowName}")
-            module_name = os.path.basename(pythonPath)
-            luigi_cmd = ["python3", "-m", "luigi", "--module", module_name, "finalnode_xx_0", "--local-scheduler"]
-            self.logger.debug(" ".join(luigi_cmd))
-            subprocess.run(luigi_cmd, check=True)
+            runDispatchId = dispatch_id or uuid.uuid4().hex
+            logger.info(f"Executing with scheduler='{scheduler}' dispatch_id='{runDispatchId}'")
+            executionStr = buildLuigiExecutionCommand(os.path.basename(pythonPath),
+                                                      runDispatchId,
+                                                      scheduler=scheduler,
+                                                      schedulerHost=schedulerHost,
+                                                      schedulerPort=schedulerPort)
+            self.logger.debug(executionStr)
+            subprocess.run(shlex.split(executionStr), check=True)
 
 
 

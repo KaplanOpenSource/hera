@@ -69,7 +69,9 @@ class OFToolkit(hermesWorkflowToolkit):
         self.buoyantReactingFoam  = buoyantReactingFoam_toolkitExtension(self)
 
 
-    def runOFSimulation(self,nameOrWorkflowFileOrJSONOrResource):
+    def runOFSimulation(self,nameOrWorkflowFileOrJSONOrResource,
+                        scheduler="local", schedulerHost=None,
+                        schedulerPort=None, dispatch_id=None):
         """
             Build the workflow and then runs the simulation.
 
@@ -77,13 +79,21 @@ class OFToolkit(hermesWorkflowToolkit):
         ----------
         nameOrWorkflowFileOrJSONOrResource
 
+        scheduler, schedulerHost, schedulerPort, dispatch_id
+            Luigi scheduler selection and execution identity, forwarded to
+            executeWorkflowFromDB. See its docstring for details.
+
         Returns
         -------
 
         """
         logger = get_classMethod_logger(self,"runOFSimulation")
         logger.info("Building the case")
-        self.executeWorkflowFromDB(nameOrWorkflowFileOrJSONOrResource)
+        self.executeWorkflowFromDB(nameOrWorkflowFileOrJSONOrResource,
+                                   scheduler=scheduler,
+                                   schedulerHost=schedulerHost,
+                                   schedulerPort=schedulerPort,
+                                   dispatch_id=dispatch_id)
 
         logger.info("Executing the cases")
         docList = self.getWorkflowListDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)

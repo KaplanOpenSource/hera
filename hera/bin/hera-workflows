@@ -63,6 +63,14 @@ if __name__ == "__main__":
     workflow_build_exec_parser = subparsers.add_parser('buildExecute', help='Adds the workflow and executes it.')
     workflow_build_exec_parser.add_argument('workflowName', type=str, help='The workflow file to load')
     workflow_build_exec_parser.add_argument('--projectName', type=str, default=None, help=PROJECT_NAME_HELP_DESC)
+    workflow_build_exec_parser.add_argument('--scheduler', dest="scheduler", choices=["local", "central"], default="local",
+                                            help="Luigi scheduler to use. 'local' (default) runs with --local-scheduler; 'central' connects to a running luigid.")
+    workflow_build_exec_parser.add_argument('--scheduler-host', dest="scheduler_host", type=str, default=None,
+                                            help="Host of the central Luigi scheduler (only used with --scheduler central). Defaults to Luigi's default (localhost).")
+    workflow_build_exec_parser.add_argument('--scheduler-port', dest="scheduler_port", type=int, default=None,
+                                            help="Port of the central Luigi scheduler (only used with --scheduler central). Defaults to Luigi's default (8082).")
+    workflow_build_exec_parser.add_argument('--dispatch-id', dest="dispatch_id", type=str, default=None,
+                                            help="Unique id for this execution, propagated to all nodes. If omitted a uuid4 is generated.")
     workflow_build_exec_parser.set_defaults(func=CLI.workflow_buildExecute)
 
 

@@ -343,7 +343,7 @@ class LSMTemplate:
 
         paramsToPrepare = stripConfigurationUnits(paramsToPrepare, returnStandardize=True, ignoreStandardization=["duration"])
         for integer_field in ["TopoXn", "TopoYn"]:
-            if not isinstance(paramsToPrepare[integer_field], int):
+            if integer_field in paramsToPrepare and not isinstance(paramsToPrepare[integer_field], int):
                 logger.warning(f"field {integer_field} must be an integer, will cast the current value {paramsToPrepare[integer_field]} to int")
                 paramsToPrepare[integer_field] = int(paramsToPrepare[integer_field])
         return paramsToPrepare

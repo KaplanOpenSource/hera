@@ -145,7 +145,6 @@ class WindProfileToolkit(toolkit.abstractToolkit):
                     response = requests.request('GET', url, headers=headers)
                     data = json.loads(response.text.encode('utf8'))
                     datetime_str = data['data'][0]['datetime']
-                    print(f"{data['data'][0]['datetime']}, station: {station_dict['name']}")
                     break
                 except Exception:
                     trials += 1

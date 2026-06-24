@@ -520,7 +520,8 @@ class abstractToolkit(Project):
             raise ValueError(f"No DataSource with name={datasourceName} and version={version}.")
 
         self.setConfig(**{f"{datasourceName}_defaultVersion": version})
-        print(f"{version} for dataSource {datasourceName} is now set to default.")
+        logger = get_classMethod_logger(self, "setDataSourceDefaultVersion")
+        logger.info(f"{version} for dataSource {datasourceName} is now set to default.")
 
 
 # ======================================================================
