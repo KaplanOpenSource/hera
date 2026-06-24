@@ -869,8 +869,16 @@ class DataHandler_Class(object):
                     f"Cannot import module '{module_name}' and no resource path provided."
                 )
             abs_resource = os.path.abspath(resource)
-            module_rel = module_name.replace(".", os.sep)
-            module_file = os.path.join(abs_resource, module_rel + ".py")
+            parts = module_name.split(".")
+            # resource may point to the top-level package dir or to its parent.
+            # When its basename matches the first package component, strip that
+            # component so we look inside the package dir rather than for a
+            # nested sub-directory with the same name.
+            if parts[0] == os.path.basename(abs_resource):
+                inner_parts = parts[1:]
+            else:
+                inner_parts = parts
+            module_file = os.path.join(abs_resource, os.sep.join(inner_parts) + ".py")
             if not os.path.isfile(module_file):
                 raise ImportError(
                     f"Cannot find module '{module_name}' in sys.path or in {abs_resource!r}"
