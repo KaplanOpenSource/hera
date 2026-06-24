@@ -4,11 +4,11 @@ import { Background, Connection, Controls, Edge, MarkerType, Node, Panel, ReactF
 import '@xyflow/react/dist/style.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
-import { normalizeRequires } from '../../shared/workflow';
 import { WorkflowContextMenu, WorkflowContextMenuKind, WorkflowContextMenuTarget } from './WorkflowContextMenu';
 import { WorkflowFlowNode } from './WorkflowFlowNode';
 import { WorkflowRequiresEdge } from './WorkflowRequiresEdge';
-import { computeLayout, isValidConnection as isValidConnectionPure } from './workflowLayout';
+import { buildWorkflowEdges, isValidConnection as isValidConnectionPure } from './workflowEdges';
+import { computeLayout } from './workflowLayout';
 
 // Defined once (module scope) so ReactFlow doesn't warn about changing types.
 const NODE_TYPES = { workflow: WorkflowFlowNode };
@@ -151,15 +151,7 @@ const WorkflowGraphInner = ({
     },
   }));
 
-  const rfEdges = useMemo<Edge[]>(() => {
-    const edges: Edge[] = [];
-    nodeNames.forEach(name => {
-      normalizeRequires(nodes[name]?.requires)
-        .filter(req => nodeNames.includes(req))
-        .forEach(req => edges.push({ id: `${req}->${name}`, source: req, target: name }));
-    });
-    return edges;
-  }, [structureKey]);
+  const rfEdges = useMemo<Edge[]>(() => buildWorkflowEdges(nodeNames, nodes), [structureKey]);
 
   // Overlay edge type, direction arrow, hover state, and a fresh remove handler.
   const displayEdges = rfEdges.map(edge => ({
