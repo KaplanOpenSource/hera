@@ -147,7 +147,7 @@ class WindProfileToolkit(toolkit.abstractToolkit):
                     datetime_str = data['data'][0]['datetime']
                     print(f"{data['data'][0]['datetime']}, station: {station_dict['name']}")
                     break
-                except:
+                except Exception:
                     trials += 1
                     # print(f"Trial {trials} for Station {station_id}")
             if data:

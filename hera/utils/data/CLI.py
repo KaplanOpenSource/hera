@@ -343,7 +343,7 @@ def display_datasource_versions(arguments):
                         datasources.append(d)
                 else:
                     datasources.append(d)
-            except:
+            except Exception:
                 pass
     else:
         config = proj.getConfig()
@@ -365,7 +365,7 @@ def display_datasource_versions(arguments):
                     d['DEFAULT_VERSION'] = default_version
                     datasources.append(d)
 
-            except:
+            except Exception:
                 pass
 
     if len(datasources) != 0:
