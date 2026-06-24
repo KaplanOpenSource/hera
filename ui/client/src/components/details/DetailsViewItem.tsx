@@ -55,7 +55,9 @@ export const DetailsViewItem = ({
           spacing={1}
           justifyItems={'stretch'}
           alignItems={'center'}
-          style={{ marginTop: 7 }}
+          // Bottom space on every row reserves room for a field's "required"
+          // helper text, so it shows without moving anything.
+          style={{ marginTop: 7, marginBottom: 14 }}
         >
 
           <DetailsViewItemName

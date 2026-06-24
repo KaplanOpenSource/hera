@@ -95,7 +95,7 @@ describe('WorkflowFlowNode', () => {
     expect(screen.getByText('unknown type: made.up')).toBeDefined();
   });
 
-  it('marks empty required fields with a "required" error under the field', () => {
+  it('shows "required" under empty required fields', () => {
     // x and z empty, y filled -> two "required" helper texts.
     renderNode({ type: 'openFOAM.constant.g', Execution: { input_parameters: { x: '', y: 2, z: '' } } });
     expect(screen.getAllByText('required')).toHaveLength(2);
