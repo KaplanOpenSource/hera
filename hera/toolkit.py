@@ -142,32 +142,38 @@ class abstractToolkit(Project):
     # Document overrides — automatically tag with toolkit name
     # ------------------------------------------------------------------
 
-    def addCacheDocument(self, resource="", dataFormat="string", type="", desc={}):
+    def addCacheDocument(self, resource="", dataFormat="string", type="", desc=None):
         """
         Add a cache document, automatically tagging it with the toolkit name.
 
         See ``Project.addCacheDocument`` for parameter details.
         """
+        if desc is None:
+            desc = {}
         if self.toolkitName is not None:
             desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName)
         return super().addCacheDocument(resource, dataFormat, type, desc)
 
-    def addMeasurementsDocument(self, resource="", dataFormat="string", type="", desc={}):
+    def addMeasurementsDocument(self, resource="", dataFormat="string", type="", desc=None):
         """
         Add a measurements document, automatically tagging it with the toolkit name.
 
         See ``Project.addMeasurementsDocument`` for parameter details.
         """
+        if desc is None:
+            desc = {}
         if self.toolkitName is not None:
             desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName)
         return super().addMeasurementsDocument(resource, dataFormat, type, desc)
 
-    def addSimulationsDocument(self, resource="", dataFormat="string", type="", desc={}):
+    def addSimulationsDocument(self, resource="", dataFormat="string", type="", desc=None):
         """
         Add a simulations document, automatically tagging it with the toolkit name.
 
         See ``Project.addSimulationsDocument`` for parameter details.
         """
+        if desc is None:
+            desc = {}
         if self.toolkitName is not None:
             desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName)
         return super().addSimulationsDocument(resource, dataFormat, type, desc)

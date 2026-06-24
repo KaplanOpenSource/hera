@@ -726,7 +726,7 @@ class Project:
 
         addingFunc(**addingDict)
 
-    def addMeasurementsDocument(self, resource="", dataFormat="string", type="", desc={}):
+    def addMeasurementsDocument(self, resource="", dataFormat="string", type="", desc=None):
         """
             Adds a new measurement document.
 
@@ -748,6 +748,8 @@ class Project:
         -------
             The new document
         """
+        if desc is None:
+            desc = {}
         logger = get_classMethod_logger(self, "init")
         if self.projectName == self.DEFAULTPROJECT and not self._allowWritingToDefaultProject:
             err = f"project {self.projectName} is read-only. "
@@ -814,7 +816,7 @@ class Project:
         return self.simulations.getDocuments(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
                                 **desc)
 
-    def addSimulationsDocument(self, resource="", dataFormat="string", type="", desc={}):
+    def addSimulationsDocument(self, resource="", dataFormat="string", type="", desc=None):
         """
             Adds a new simulations.old document.
 
@@ -836,6 +838,8 @@ class Project:
         -------
             The new document
         """
+        if desc is None:
+            desc = {}
         logger = get_classMethod_logger(self, "init")
         if self.projectName == self.DEFAULTPROJECT and not self._allowWritingToDefaultProject:
             err = f"project {self.projectName} is read-only. "
@@ -901,7 +905,7 @@ class Project:
         return self.cache.getDocuments(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
                                        **desc)
 
-    def addCacheDocument(self, resource="", dataFormat="string", type="", desc={}):
+    def addCacheDocument(self, resource="", dataFormat="string", type="", desc=None):
         """
             Adds a new cache document.
 
@@ -923,6 +927,8 @@ class Project:
         -------
             The new document
         """
+        if desc is None:
+            desc = {}
         logger = get_classMethod_logger(self, "init")
         if self.projectName == self.DEFAULTPROJECT and not self._allowWritingToDefaultProject:
             err = f"project {self.projectName} is read-only. "

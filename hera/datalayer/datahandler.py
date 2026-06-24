@@ -249,7 +249,7 @@ class DataHandler_string(object):
         return dict()
 
     @staticmethod
-    def getData(resource, desc={},**kwargs):
+    def getData(resource, desc=None, **kwargs):
         """
         The data in the record is a string.
 
@@ -287,7 +287,7 @@ class DataHandler_time(object):
         return dict()
 
     @staticmethod
-    def getData(resource, desc={},**kwargs):
+    def getData(resource, desc=None, **kwargs):
         """
         The data in the record is a timestamp.
 
@@ -317,7 +317,7 @@ class DataHandler_csv_pandas(object):
         return dict()
 
     @staticmethod
-    def getData(resource, desc={},**kwargs):
+    def getData(resource, desc=None, **kwargs):
         """
         Loads a csv file into pandas dataframe.
 
@@ -388,7 +388,7 @@ class DataHandler_netcdf_xarray(object):
         return dict()
 
     @staticmethod
-    def getData(resource, desc={}, **kwargs):
+    def getData(resource, desc=None, **kwargs):
         """
         Loads netcdf file into xarray using the open_mfdataset.
 
@@ -431,7 +431,7 @@ class DataHandler_zarr_xarray(object):
         return dict()
 
     @staticmethod
-    def getData(resource, desc={}, **kwargs):
+    def getData(resource, desc=None, **kwargs):
         """
         Loads netcdf file into xarray using the open_mfdataset.
 
@@ -463,7 +463,7 @@ class DataHandler_JSON_dict(object):
         return dict()
 
     @staticmethod
-    def getData(resource, desc={},**kwargs):
+    def getData(resource, desc=None, **kwargs):
         """
         Loads JSON to dict
 
@@ -499,7 +499,7 @@ class DataHandler_JSON_pandas(object):
         return ret
 
     @staticmethod
-    def getData(resource, usePandas=True, desc={},**kwargs):
+    def getData(resource, usePandas=True, desc=None, **kwargs):
         """
         Loads JSON to pandas/dask
 
@@ -539,10 +539,11 @@ class DataHandler_JSON_geopandas(object):
         return dict(crs = resource.crs )
 
     @staticmethod
-    def getData(resource, desc={}, **kwargs):
+    def getData(resource, desc=None, **kwargs):
         """Load a GeoDataFrame from a GeoJSON file."""
         import geopandas
         from hera.utils.jsonutils import loadJSON
+        desc = desc or {}
         df = geopandas.GeoDataFrame.from_features(loadJSON(resource)["features"])
         if "crs" in desc:
             df.crs = desc['crs']
@@ -560,9 +561,10 @@ class DataHandler_geopandas(object):
         return dict(crs=resource.crs)
 
     @staticmethod
-    def getData(resource, desc={}, **kwargs):
+    def getData(resource, desc=None, **kwargs):
         """Load a GeoDataFrame from a geospatial file."""
         import geopandas
+        desc = desc or {}
         df = geopandas.read_file(resource, **kwargs)
         if "crs" in desc:
             df.crs = desc['crs']
@@ -589,7 +591,7 @@ class DataHandler_parquet(object):
         return ret
 
     @staticmethod
-    def getData(resource, desc={}, usePandas=False, **kwargs):
+    def getData(resource, desc=None, usePandas=False, **kwargs):
         """
         Loads a parquet file to dask/pandas.
 
@@ -627,7 +629,7 @@ class DataHandler_image(object):
         return dict()
 
     @staticmethod
-    def getData(resource, desc={},**kwargs):
+    def getData(resource, desc=None, **kwargs):
         """
         Loads an image using the resource.
 
@@ -657,7 +659,7 @@ class DataHandler_pickle(object):
         return dict()
 
     @staticmethod
-    def getData(resource, desc={},**kwargs):
+    def getData(resource, desc=None, **kwargs):
         """
         Loads an pickled object using the resource.
 
@@ -721,7 +723,7 @@ class DataHandler_tif(object):
         raise NotImplementedError("tif format is not implemented")
 
     @staticmethod
-    def getData(resource, desc={},**kwargs):
+    def getData(resource, desc=None, **kwargs):
         """
         Loads an pickled object using the resource.
 
@@ -753,7 +755,7 @@ class DataHandler_numpy_array:
         return dict()
 
     @staticmethod
-    def getData(resource, desc={},**kwargs):
+    def getData(resource, desc=None, **kwargs):
         """
         Loads a numpy array
 
@@ -783,7 +785,7 @@ class DataHandler_numpy_dict_array:
         return dict()
 
     @staticmethod
-    def getData(resource, desc={},**kwargs):
+    def getData(resource, desc=None, **kwargs):
         """
         Loads a numpy array
 

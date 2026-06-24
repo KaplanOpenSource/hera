@@ -1,4 +1,6 @@
-def andClause(excludeFields=[], **kwargs):
+def andClause(excludeFields=None, **kwargs):
+    if excludeFields is None:
+        excludeFields = []
     """
         Builds a pandas query str
     Parameters
