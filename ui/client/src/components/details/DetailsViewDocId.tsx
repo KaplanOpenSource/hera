@@ -36,7 +36,7 @@ export const DetailsViewDocId = ({
             />
           )
           : (
-            <Box sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+            <Box sx={{ p: 2, height: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               <DetailsViewDocument
                 doc={docObj}
                 setDoc={(newDoc) => changeDocument(newDoc.data)}

@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from cors_handler import CorsHandler
 from jupyter_server_thread import JupyterServerThread, DEFAULT_JUPYTER_PORT
 from mock_data import MOCK_PROJECTS
+from node_catalog import get_node_catalog
 
 cors_handler = CorsHandler()
 parser = argparse.ArgumentParser(description="Hera UI API server")
@@ -113,6 +114,15 @@ def exec_code(payload: ExecPayload) -> ExecResponse:
     result = _locals.get("result", None)
     print("got:", result)
     return ExecResponse(data=jsonable_encoder(result))
+
+
+@app.get("/node-catalog")
+def node_catalog() -> list:
+    """Available Hermes node types and the parameters each one accepts.
+
+    See ``node_catalog.get_node_catalog``.
+    """
+    return get_node_catalog()
 
 
 @app.get("/file/{file_path:path}")
