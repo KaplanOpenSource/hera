@@ -30,7 +30,7 @@ SCHEDULER_LOCAL = "local"
 SCHEDULER_CENTRAL = "central"
 
 
-def buildLuigiExecutionCommand(moduleName, dispatch_id, scheduler=SCHEDULER_LOCAL,
+def buildLuigiExecutionCommand(moduleName, scheduler=SCHEDULER_LOCAL,
                                schedulerHost=None, schedulerPort=None,
                                targetTask="finalnode_xx_0"):
     """Build the ``python3 -m luigi`` command line used to execute a workflow.
@@ -67,7 +67,6 @@ def buildLuigiExecutionCommand(moduleName, dispatch_id, scheduler=SCHEDULER_LOCA
             cmd += f" --scheduler-port {schedulerPort}"
     else:
         cmd += " --local-scheduler"
-    cmd += f" --dispatch-id {dispatch_id}"
     return cmd
 
 
@@ -801,7 +800,7 @@ class hermesWorkflowToolkit(abstractToolkit):
             # hermes.build() traverses the workflow node tree, wraps each node in a
             # Luigi task, and returns the Python source code for the task module.
             logger.info(f"Building and executing the workflow {workflowName}")
-            build = hermesWF.build(buildername=workflow.BUILDER_LUIGI)
+            build = hermesWF.build(buildername=workflow.BUILDER_LUIGI, dispatch_id=dispatch_id)
 
             # Step 3: Write the workflow JSON and generated Python module to disk.
             # The JSON is written to the resource path; the Python module contains
@@ -827,7 +826,6 @@ class hermesWorkflowToolkit(abstractToolkit):
             # does not deduplicate distinct executions of the same workflow.
             pythonPath = os.path.join(self.FilesDirectory, f"{workflowName}")
             executionStr = buildLuigiExecutionCommand(os.path.basename(pythonPath),
-                                                      dispatch_id,
                                                       scheduler=scheduler,
                                                       schedulerHost=schedulerHost,
                                                       schedulerPort=schedulerPort)
