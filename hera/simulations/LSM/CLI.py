@@ -1,6 +1,7 @@
 
 
 
+import functools
 import os
 import logging as _stdlib_logging
 
@@ -20,6 +21,13 @@ def _setup():
     from hera.utils.logging import get_logger as _gl
     _get_logger = _gl
 
+def _lazy_setup(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        _setup()
+        return func(*args, **kwargs)
+    return wrapper
+
 # Compatibility shim so existing 'logging.get_logger(...)' calls still work
 class _LoggingShim:
     def get_logger(self, *a, **kw):
@@ -31,16 +39,16 @@ class _LoggingShim:
 
 logging = _LoggingShim()
 
+@_lazy_setup
 def _confirm_project_name(arguments, logger):
-    _setup()
     if arguments.projectName is None:
         logger.debug(
             f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
         caseConfiguration = loadJSON("caseConfiguration.json")
         arguments.projectName = caseConfiguration['projectName']
 
+@_lazy_setup
 def list_templates(arguments):
-    _setup()
     # for template in os.listdir("templates"):
     logger = logging.get_logger("hera.bin.hera_lsm.load_template")
     _confirm_project_name(arguments, logger)
@@ -56,8 +64,8 @@ def list_templates(arguments):
         print(f"\t path: {template.dirPath}")
         print(f"\t model folder: {template.modelFolder}")
     
+@_lazy_setup
 def setup_template(arguments):
-    _setup()
     # for template in os.listdir("templates"):
     logger = logging.get_logger("hera.bin.hera_lsm.load_template")
     _confirm_project_name(arguments, logger)

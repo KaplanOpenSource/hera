@@ -1,3 +1,4 @@
+import functools
 import os
 import getpass
 import json
@@ -57,8 +58,16 @@ def _setup():
     tabulate = _tab
 
 
+def _lazy_setup(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        _setup()
+        return func(*args, **kwargs)
+    return wrapper
+
+
+@_lazy_setup
 def project_list(arguments):
-    _setup()
     """
         List all the projects of the user.
     """
@@ -98,8 +107,8 @@ def project_list(arguments):
     print("-" * len(ttl))
 
 
+@_lazy_setup
 def project_create(arguments):
-    _setup()
     """
         Creating a directory and a project.
     """
@@ -160,8 +169,8 @@ def _parse_query_value(value_str):
     return stripped
 
 
+@_lazy_setup
 def project_dump(arguments):
-    _setup()
     """
     Dump documents from a project as JSON or table output.
     """
@@ -198,8 +207,8 @@ def project_dump(arguments):
         print("The outputFormat must be 'json' or 'table'")
 
 
+@_lazy_setup
 def project_load(arguments):
-    _setup()
     """
     Load documents from a JSON file into a project.
 
@@ -218,8 +227,8 @@ def project_load(arguments):
         proj.addDocumentFromDict(doc)
 
 
+@_lazy_setup
 def repository_list(argumets):
-    _setup()
     """
     List all registered repositories.
     """
@@ -238,8 +247,8 @@ def repository_list(argumets):
             print(repDataframe)
 
 
+@_lazy_setup
 def repository_add(argumets):
-    _setup()
     """
     Register a new repository from a JSON file path.
     """
@@ -254,8 +263,8 @@ def repository_add(argumets):
                       overwrite=argumets.overwrite)
 
 
+@_lazy_setup
 def repository_remove(arguments):
-    _setup()
     """
     Remove a registered repository by name.
     """
@@ -267,8 +276,8 @@ def repository_remove(arguments):
     dtk.deleteDataSource(datasourceName=datasourceName)
 
 
+@_lazy_setup
 def repository_show(arguments):
-    _setup()
     """
     Display the contents of a registered repository (toolkits, data sources, etc.).
     """
@@ -306,8 +315,8 @@ def repository_show(arguments):
                     print("\n")
 
 
+@_lazy_setup
 def repository_load(arguments):
-    _setup()
     """
     Load data sources from a repository JSON file into a project.
     """
@@ -327,8 +336,8 @@ def repository_load(arguments):
                                                     basedir=os.path.dirname(os.path.abspath(arguments.repositoryName)),
                                                     overwrite=arguments.overwrite)
 
+@_lazy_setup
 def add_toolkit(arguments):
-    _setup()
     """
     CLI entry point for:
         hera-project addToolkit <toolkit_name> <toolkit_path>
@@ -377,8 +386,8 @@ def add_toolkit(arguments):
         logger.error(f"Failed to register toolkit '{arguments.toolkit_name}': {e}")
         raise
 
+@_lazy_setup
 def display_datasource_versions(arguments):
-    _setup()
     """
     Display data source versions for a project, optionally filtering by name or default versions only.
     """
@@ -434,8 +443,8 @@ def display_datasource_versions(arguments):
             print(f"No data to display. Are you sure datasource {arguments.datasource} and project {arguments.projectName} exists?")
 
 
+@_lazy_setup
 def update_datasource_default_version(arguments):
-    _setup()
     """
     Set the default version for a data source in a project.
     """
@@ -445,8 +454,8 @@ def update_datasource_default_version(arguments):
     proj.setDataSourceDefaultVersion(datasourceName=arguments.datasource, version=arguments.version)
 
 
+@_lazy_setup
 def update(arguments):
-    _setup()
     """
     Load all repositories into a project, creating it from caseConfiguration.json if needed.
     """
@@ -477,8 +486,8 @@ def update(arguments):
     dtk.loadAllDatasourcesInAllRepositoriesToProject(projectName=projectName, overwrite=arguments.overwrite)
 
 
+@_lazy_setup
 def populate(arguments):
-    _setup()
     """
     Load all registered repositories into all existing projects (or a specific project).
 
@@ -526,8 +535,8 @@ def populate(arguments):
     print(f"\nDone. Success: {success}, Failed: {failed}")
 
 
+@_lazy_setup
 def db_list(arguments):
-    _setup()
     """
     List all configured database connections.
     """
@@ -550,8 +559,8 @@ def db_list(arguments):
         print(df)
 
 
+@_lazy_setup
 def db_create(arguments):
-    _setup()
     """
     Create or update a database connection in the configuration file.
     """
@@ -562,8 +571,8 @@ def db_create(arguments):
                         databaseName=arguments.databaseName)
 
 
+@_lazy_setup
 def db_remove(arguments):
-    _setup()
     """
     Remove a database connection from the configuration file.
     """
@@ -572,8 +581,8 @@ def db_remove(arguments):
 
 # --- Toolkit related CLI ---
 
+@_lazy_setup
 def toolkit_list(arguments):
-    _setup()
     """
     Print a combined list of toolkits (static + dynamic from DB) for a project.
     Uses ToolkitHome.getToolkitDocuments(...) as the single source of truth.
@@ -607,8 +616,8 @@ def toolkit_list(arguments):
         print(f"[ERROR] {e}")
 
 
+@_lazy_setup
 def toolkit_register(arguments):
-    _setup()
     """
     Register a toolkit using a classpath and metadata.
     Delegates to ToolkitHome.registerToolkit (expects a class object).
@@ -666,8 +675,8 @@ def load_project_name(config_file: str = "caseConfiguration.json") -> str:
     return project_name
 
 
+@_lazy_setup
 def toolkit_load(arguments):
-    _setup()
     """
     Instantiate a toolkit by name.
     Delegates to ToolkitHome.getToolkit (static + dynamic + experiments).
@@ -685,8 +694,8 @@ def toolkit_load(arguments):
         print(f"[ERROR] {e}")
 
 
+@_lazy_setup
 def toolkit_default_repo_show(arguments):
-    _setup()
     """
     Show the project's default repository, via ToolkitHome.getDefaultRepository(projectName=...).
     """
@@ -701,8 +710,8 @@ def toolkit_default_repo_show(arguments):
         print(f"[ERROR] {e}")
 
 
+@_lazy_setup
 def toolkit_default_repo_set(arguments):
-    _setup()
     """
     Set the project's default repository, via ToolkitHome.setDefaultRepository(projectName=..., repositoryName=...).
     """
@@ -721,8 +730,8 @@ def toolkit_default_repo_set(arguments):
         print(f"[ERROR] {e}")
 
 
+@_lazy_setup
 def toolkit_import_json(arguments):
-    _setup()
     """
     Import a JSON repository that declares toolkits (and optionally experiments),
     and register them into the project.
@@ -748,8 +757,8 @@ def toolkit_import_json(arguments):
         print(f"[ERROR] {e}")
 
 
+@_lazy_setup
 def project_measurements_list(args):
-    _setup()
     """
     Implementation for:
       hera-project project measurements list
