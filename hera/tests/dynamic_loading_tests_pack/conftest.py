@@ -154,6 +154,13 @@ def load_dummy_experiment_to_project(hera_repo_root, dummy_experiment_dir, temp_
         "experiment_dir": str(dummy_experiment_dir),
     }
 
-    # Teardown: delete the project's files directory (~/.hera/<project_name>)
+    # Teardown: remove ALL DB documents for the project (incl. the hidden
+    # ``<name>__config__`` doc, so it no longer appears in getProjectList),
+    # then delete its files directory (~/.hera/<project_name>).
+    try:
+        from hera.datalayer.collection import AbstractCollection
+        AbstractCollection().deleteDocuments(projectName=temp_project_name)
+    except Exception:
+        pass
     project_files_dir = os.path.join(os.path.expanduser("~"), ".hera", temp_project_name)
     shutil.rmtree(project_files_dir, ignore_errors=True)
