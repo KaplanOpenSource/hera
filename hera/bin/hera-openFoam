@@ -3,6 +3,9 @@
 
 import argparse, argcomplete
 import logging
+from hera.simulations.openFoam import CLI
+from hera.simulations import CLI as workflowCLI
+from hera.utils.logging import initialize_logging, with_logger
 
 
 def _add_scheduler_arguments(subparser):
@@ -280,9 +283,6 @@ def addSolverPostProcess(subparser, solverName, incompressible):
 
 
 if __name__ == "__main__":
-    from hera.simulations.openFoam import CLI
-    from hera.simulations import CLI as workflowCLI
-    from hera.utils.logging import initialize_logging, with_logger
     initialize_logging(
         with_logger("hermes", handlers=['console'], level='INFO', propagate=False),
         with_logger("hera.simulations", handlers=['console'], level='INFO', propagate=False),
