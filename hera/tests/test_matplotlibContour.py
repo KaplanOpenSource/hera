@@ -38,6 +38,7 @@ def _make_circular_contourf(levels=None):
 # standardize_polygon
 # ---------------------------------------------------------------------------
 
+@pytest.mark.unit
 class TestStandardizePolygon:
     def test_array_input_identity(self):
         pts = np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]])
@@ -63,6 +64,7 @@ class TestStandardizePolygon:
 # toGeopandas — output structure
 # ---------------------------------------------------------------------------
 
+@pytest.mark.unit
 class TestToGeopandasStructure:
     def setup_method(self):
         plt.switch_backend("Agg")
@@ -116,6 +118,7 @@ class TestToGeopandasStructure:
 # toGeopandas — geometry correctness
 # ---------------------------------------------------------------------------
 
+@pytest.mark.unit
 class TestToGeopandasGeometry:
     def setup_method(self):
         plt.switch_backend("Agg")
@@ -148,6 +151,7 @@ class TestToGeopandasGeometry:
 # matplotlib version compatibility
 # ---------------------------------------------------------------------------
 
+@pytest.mark.unit
 class TestMatplotlibCompatibility:
     def setup_method(self):
         plt.switch_backend("Agg")
