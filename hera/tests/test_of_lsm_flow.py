@@ -166,6 +166,7 @@ class _FakeToolkit:
 # Tests
 # ---------------------------------------------------------------------------
 
+@pytest.mark.unit
 class TestOFLSMImport:
     """Import-level sanity checks — catches broken import chains."""
 
@@ -182,6 +183,7 @@ class TestOFLSMImport:
         assert callable(getattr(OFLSMToolkit, "loadData", None))
 
 
+@pytest.mark.unit
 class TestExtractFileVector:
     """_extractFile parses multi-row vector fields correctly."""
 
@@ -223,6 +225,7 @@ class TestExtractFileVector:
         )
 
 
+@pytest.mark.unit
 class TestExtractFileScalar:
     """_extractFile parses scalar fields — both multi-row and compact uniform."""
 
@@ -253,6 +256,7 @@ class TestExtractFileScalar:
         assert (df["procId"] == 0.0).all()
 
 
+@pytest.mark.unit
 class TestReadRecord:
     """_readRecord assembles a complete per-particle DataFrame."""
 
@@ -317,6 +321,7 @@ class TestReadRecord:
         np.testing.assert_allclose(df["globalX"].values, expected_gx)
 
 
+@pytest.mark.integration
 class TestOpenFOAMIntegration:
     """Full OpenFOAM run test — skipped unless blockMesh is in PATH."""
 
