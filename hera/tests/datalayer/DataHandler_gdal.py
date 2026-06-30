@@ -1,9 +1,10 @@
+import os
 from osgeo import gdal
 import numpy as np
 from hera.toolkits.gis.topography import TopographyToolkit
 
 
-file_path = "/home/ilay/hera/hera/tests/UNIT_TEST_GIS_RASTER_TOPOGRAPHY/N33E035.hgt"
+file_path = os.path.join(os.path.dirname(__file__), "UNIT_TEST_GIS_RASTER_TOPOGRAPHY", "N33E035.hgt")
 
 ds = gdal.Open(file_path)
 if ds is None:

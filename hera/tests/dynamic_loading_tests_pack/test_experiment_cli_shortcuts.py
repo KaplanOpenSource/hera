@@ -55,8 +55,8 @@ def env_with_pyargos():
     """
     env = dict(os.environ)
 
-    pyargos = "/home/ilay/pyargos-master"
-    if os.path.isdir(pyargos):
+    pyargos = os.environ.get("PYARGOS_PATH", "")
+    if pyargos and os.path.isdir(pyargos):
         env["PYTHONPATH"] = f"{pyargos}:{env.get('PYTHONPATH', '')}"
 
     return env
