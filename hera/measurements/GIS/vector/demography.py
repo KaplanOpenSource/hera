@@ -11,6 +11,7 @@ from hera.measurements.GIS.vector import toolkit
 from hera.datalayer import datatypes, nonDBMetadataFrame
 from hera import toolkitHome
 from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE, get_classMethod_logger  # ✅ FIXED: added missing import
+from ._io_utils import readGeoJSONString
 
 class DemographyToolkit(toolkit.VectorToolkit):
     """
@@ -245,7 +246,7 @@ class analysis:
                 if os.path.exists(dataSourceOrData):
                     Data = geopandas.read_file(dataSourceOrData)  # ← נתיב לקובץ (shp/geojson/gpkg)
                 else:
-                    Data = geopandas.read_file(io.StringIO(dataSourceOrData))  # ← תוכן טקסטואלי (GeoJSON)
+                    Data = readGeoJSONString(dataSourceOrData)  # ← תוכן טקסטואלי (GeoJSON)
         else:
             Data = dataSourceOrData
 
@@ -253,7 +254,7 @@ class analysis:
         if isinstance(shapeNameOrData, str):
             polydoc = self.datalayer.shapes.getShape(shapeNameOrData)
             if polydoc is None:
-                polydoc = geopandas.read_file(io.StringIO(shapeNameOrData))
+                polydoc = readGeoJSONString(shapeNameOrData)
         elif isinstance(shapeNameOrData, geopandas.geodataframe.GeoDataFrame):
             polydoc = shapeNameOrData
         else:
@@ -373,7 +374,7 @@ class analysis:
                 if os.path.exists(dataSourceOrData):
                     demography = gpd.read_file(dataSourceOrData)  # ← נתיב לקובץ (shp/gpkg/geojson)
                 else:
-                    demography = gpd.read_file(io.StringIO(dataSourceOrData))  # ← טקסט (GeoJSON)
+                    demography = readGeoJSONString(dataSourceOrData)  # ← טקסט (GeoJSON)
         else:
             demography = dataSourceOrData
 
@@ -385,14 +386,19 @@ class analysis:
         res_intersect_poly = demography.loc[demography["geometry"].intersection(poly).is_empty == False]
         intersection_poly = res_intersect_poly["geometry"].intersection(poly)
 
+        # Project to a metric CRS for correct area computation (avoid geographic/degree-based area)
+        intersection_area = intersection_poly.to_crs(epsg=ITM).area
+        original_area = res_intersect_poly["geometry"].to_crs(epsg=ITM).area
+        area_fraction = intersection_area / original_area
+
         res_intersection = geopandas.GeoDataFrame.from_dict(
             {"geometry": intersection_poly.geometry,
-             "areaFraction": intersection_poly.area / res_intersect_poly.area})
+             "areaFraction": area_fraction})
 
         for populationType in populationTypes:
             populationType = self.datalayer.populationTypes.get(populationType,populationType)
             if populationType in res_intersect_poly:
-                res_intersection[populationType] = intersection_poly.area / res_intersect_poly.area * res_intersect_poly[populationType]
+                res_intersection[populationType] = area_fraction * res_intersect_poly[populationType]
 
         return res_intersection
 
@@ -855,8 +861,10 @@ class presentation:
             poly_gdf = _gpd.GeoDataFrame(geometry=[queryPolygon])
             if inputCRS is not None:
                 poly_gdf = poly_gdf.set_crs(epsg=inputCRS if isinstance(inputCRS, int) else inputCRS)
-            if outputCRS is not None:
-                poly_gdf = poly_gdf.to_crs(epsg=outputCRS if isinstance(outputCRS, int) else outputCRS)
+                if outputCRS is not None:
+                    poly_gdf = poly_gdf.to_crs(epsg=outputCRS if isinstance(outputCRS, int) else outputCRS)
+            elif outputCRS is not None:
+                poly_gdf = poly_gdf.set_crs(epsg=outputCRS if isinstance(outputCRS, int) else outputCRS)
             poly_gdf.boundary.plot(ax=ax, color="blue", linewidth=2, linestyle="--")
 
         if xlim is not None:

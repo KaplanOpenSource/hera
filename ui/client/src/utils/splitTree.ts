@@ -28,6 +28,17 @@ export type LeafNode = {
 
 export type SplitTreeNode = SplitNode | LeafNode;
 
+// All split-branch item keys in a tree (used to expand every branch, e.g. during search).
+export const collectBranchKeys = (nodes: SplitTreeNode[]): string[] => {
+  const keys: string[] = [];
+  for (const node of nodes) {
+    if (node.type === SplitTreeNodeType.Split) {
+      keys.push(node.itemKey, ...collectBranchKeys(node.children));
+    }
+  }
+  return keys;
+};
+
 export class SplitTree {
   public readonly nodes: SplitTreeNode[];
   private readonly docIds: Set<string>;
@@ -63,25 +74,28 @@ export class SplitTree {
           value: 'Notebooks',
           children: notebooks.map(doc => ({ type: SplitTreeNodeType.Leaf, doc })),
         };
-        return [notebookNode, ...this.buildNodesInner(rest, depth)];
+        return [notebookNode, ...this.buildNodesInner(rest, depth, '')];
       }
     }
-    return this.buildNodesInner(docs, depth);
+    return this.buildNodesInner(docs, depth, '');
   }
 
-  private buildNodesInner(docs: DocumentObj[], depth: number): SplitTreeNode[] {
+  private buildNodesInner(docs: DocumentObj[], depth: number, parentKey: string): SplitTreeNode[] {
     const compared = this.getCompared(docs, depth);
     if (!compared.length) {
       return docs.map(doc => ({ type: SplitTreeNodeType.Leaf, doc }));
     }
     const groups = this.buildSplitLevel(docs, compared);
-    return groups.map(g => ({
-      type: SplitTreeNodeType.Split,
-      itemKey: g.itemKey,
-      path: g.path,
-      value: g.value,
-      children: this.buildNodesInner(g.docs, depth - 1),
-    }));
+    return groups.map(g => {
+      const itemKey = parentKey ? `${parentKey}/${g.path}=${g.value}` : g.itemKey;
+      return {
+        type: SplitTreeNodeType.Split,
+        itemKey,
+        path: g.path,
+        value: g.value,
+        children: this.buildNodesInner(g.docs, depth - 1, itemKey),
+      };
+    });
   }
 
   private getCompared(docs: DocumentObj[], depth: number) {

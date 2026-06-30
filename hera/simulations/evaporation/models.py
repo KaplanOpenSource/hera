@@ -1,7 +1,7 @@
 from ...datalayer import project
 from ...riskassessment import RiskToolkit
 from ..utils import tonumber, tounit
-from unum.units import *
+from hera.utils.unitHandler import ureg, unumToPint
 import numpy
 
 class evaporationModels(object):
@@ -60,7 +60,7 @@ class evaporationModels(object):
 
     @property
     def Magent(self):
-        return self._agent.physicalproperties.molecularWeight.asNumber(g/mol)
+        return unumToPint(self._agent.physicalproperties.molecularWeight).m_as(ureg.g/ureg.mol)
 
     @property
     def Vagent(self):
@@ -75,14 +75,14 @@ class evaporationModels(object):
         self._dinamicViscocityModel = dinamicViscocityModel
         self._evaporationModel = evaporationModel
         try:
-            self._Vagent = self._agent.physicalproperties.molecularVolume.asNumber(cm ** 3 / mol)  # agent.physicalproperties.molecularVolume.asNumber(ml/mol)
+            self._Vagent = unumToPint(self._agent.physicalproperties.molecularVolume).m_as(ureg.cm**3/ureg.mol)  # agent.physicalproperties.molecularVolume.asNumber(ml/mol)
         except:
             print("Note that the molecular volume is not given, therefore, the molecular diffusion is set to EPA.")
             self._molecularDiffusionModel = "EPA"
             self._Vagent = None
 
     def molecularDiffusion(self,temperature):
-        temperature = tonumber(temperature, K)
+        temperature = tonumber(temperature, ureg.K)
         return getattr(self,f"molecularDiffusion_{self._molecularDiffusionModel}")(temperature)
 
     def molecularDiffusion_FSG(self,temperature):
@@ -92,7 +92,7 @@ class evaporationModels(object):
         return 0.00000000409*(temperature**1.9)*numpy.sqrt(1/self.Mair+1/self.Magent)/numpy.cbrt(self.Magent)
 
     def dynamicViscocityAir(self,temperature):
-        temperature = tonumber(temperature, K)
+        temperature = tonumber(temperature, ureg.K)
         return getattr(self,f"dynamicViscocityAir_{self._dinamicViscocityModel}")(temperature)
 
     def dynamicViscocityAir_powerLaw(self,temperature):
@@ -106,13 +106,15 @@ class evaporationModels(object):
         density = self.Mair / (temperature *  8.205 * 10 ** (-5)) # (g/(m^3))
         return self.dynamicViscocityAir(temperature=temperature)/(density*self.molecularDiffusion(temperature))
 
-    def flux(self,diameter,velocity,temperature,units=g/(m**2*s)):
-        return tounit(getattr(self, f"flux_{self._evaporationModel}")(diameter,velocity,temperature)*g/(m**2*s),units)
+    def flux(self,diameter,velocity,temperature,units=None):
+        if units is None:
+            units = ureg.g/(ureg.m**2*ureg.s)
+        return tounit(getattr(self, f"flux_{self._evaporationModel}")(diameter,velocity,temperature)*ureg.g/(ureg.m**2*ureg.s), unumToPint(units))
 
     def flux_US(self, diameter,velocity,temperature):
-        temperature = tonumber(temperature, K)
-        diameter = tonumber(diameter, m)
-        velocity = tonumber(velocity,m/s)
+        temperature = tonumber(temperature, ureg.K)
+        diameter = tonumber(diameter, ureg.m)
+        velocity = tonumber(velocity, ureg.m/ureg.s)
         Re = self.Reynolds(diameter=diameter,velocity=velocity,temperature=temperature)
         Sc = self.Schmidt(temperature=temperature)
         Km = 0.664*(Re**(-0.5))*(Sc**(-2/3))*velocity if Re<=20000 else 0.0366*(Re**(-0.2))*(Sc**(-2/3))*velocity

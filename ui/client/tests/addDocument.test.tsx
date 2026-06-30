@@ -41,8 +41,7 @@ beforeEach(() => {
 describe('AddDocumentButton', () => {
   it('opens dialog when clicked', async () => {
     render(<AddDocumentButton />);
-    const wrapper = screen.getByLabelText('Add Document');
-    const btn = within(wrapper).getByRole('button');
+    const btn = screen.getByRole('button', { name: /add document/i });
     await act(async () => { fireEvent.click(btn); });
     expect(await screen.findByRole('dialog')).toBeTruthy();
   });
@@ -56,8 +55,7 @@ describe('AddDocumentButton', () => {
 
     render(<AddDocumentButton />);
     await act(async () => {
-      const w = screen.getByLabelText('Add Document');
-      fireEvent.click(within(w).getByRole('button'));
+      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
     });
 
     const dialog = await screen.findByRole('dialog');
@@ -90,8 +88,7 @@ describe('AddDocumentButton', () => {
 
     render(<AddDocumentButton />);
     await act(async () => {
-      const w = screen.getByLabelText('Add Document');
-      fireEvent.click(within(w).getByRole('button'));
+      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
     });
 
     const dialog = await screen.findByRole('dialog');
@@ -99,8 +96,7 @@ describe('AddDocumentButton', () => {
     fireEvent.change(nameInput, { target: { value: 'Agent1' } });
 
     // Select Agent kind
-    fireEvent.mouseDown(within(dialog).getByText('Regular'));
-    fireEvent.click(await screen.findByRole('option', { name: 'Agent' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Agent' }));
 
     await act(async () => {
       fireEvent.click(within(dialog).getByRole('button', { name: /add document/i }));
@@ -124,8 +120,7 @@ describe('AddDocumentButton', () => {
 
     render(<AddDocumentButton />);
     await act(async () => {
-      const w = screen.getByLabelText('Add Document');
-      fireEvent.click(within(w).getByRole('button'));
+      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
     });
 
     const dialog = await screen.findByRole('dialog');
@@ -147,8 +142,7 @@ describe('AddDocumentButton', () => {
 
     render(<AddDocumentButton />);
     await act(async () => {
-      const w = screen.getByLabelText('Add Document');
-      fireEvent.click(within(w).getByRole('button'));
+      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
     });
 
     const dialog = await screen.findByRole('dialog');
@@ -174,8 +168,7 @@ describe('AddDocumentButton', () => {
 
     render(<AddDocumentButton />);
     await act(async () => {
-      const w = screen.getByLabelText('Add Document');
-      fireEvent.click(within(w).getByRole('button'));
+      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
     });
 
     const dialog = await screen.findByRole('dialog');
@@ -213,16 +206,14 @@ describe('AddDocumentButton', () => {
 
     render(<AddDocumentButton />);
     await act(async () => {
-      const w = screen.getByLabelText('Add Document');
-      fireEvent.click(within(w).getByRole('button'));
+      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
     });
 
     const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Notebook' }));
+
     const nameInput = within(dialog).getByRole('textbox', { name: /^name$/i });
     fireEvent.change(nameInput, { target: { value: 'MyNotebook' } });
-
-    fireEvent.mouseDown(within(dialog).getByText('Regular'));
-    fireEvent.click(await screen.findByRole('option', { name: 'Notebook' }));
 
     await act(async () => {
       fireEvent.click(within(dialog).getByRole('button', { name: /add document/i }));
@@ -240,16 +231,14 @@ describe('AddDocumentButton', () => {
   it('shows resource field with auto-generated path when notebook is selected', async () => {
     render(<AddDocumentButton />);
     await act(async () => {
-      const w = screen.getByLabelText('Add Document');
-      fireEvent.click(within(w).getByRole('button'));
+      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
     });
 
     const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Notebook' }));
+
     const nameInput = within(dialog).getByRole('textbox', { name: /^name$/i });
     fireEvent.change(nameInput, { target: { value: 'TestNB' } });
-
-    fireEvent.mouseDown(within(dialog).getByText('Regular'));
-    fireEvent.click(await screen.findByRole('option', { name: 'Notebook' }));
 
     const resourceInput = within(dialog).getByRole('textbox', { name: /resource/i });
     expect(resourceInput).toHaveProperty('disabled', true);
@@ -259,13 +248,11 @@ describe('AddDocumentButton', () => {
   it('shows helper text when notebook is selected', async () => {
     render(<AddDocumentButton />);
     await act(async () => {
-      const w = screen.getByLabelText('Add Document');
-      fireEvent.click(within(w).getByRole('button'));
+      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
     });
 
     const dialog = await screen.findByRole('dialog');
-    fireEvent.mouseDown(within(dialog).getByText('Regular'));
-    fireEvent.click(await screen.findByRole('option', { name: 'Notebook' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Notebook' }));
 
     expect(within(dialog).getByText(/already exists at this path/i)).toBeTruthy();
   });
@@ -273,16 +260,14 @@ describe('AddDocumentButton', () => {
   it('hides class/toolkit when notebook kind is selected', async () => {
     render(<AddDocumentButton />);
     await act(async () => {
-      const w = screen.getByLabelText('Add Document');
-      fireEvent.click(within(w).getByRole('button'));
+      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
     });
 
     const dialog = await screen.findByRole('dialog');
     // Regular mode shows the Toolkit autocomplete
     expect(within(dialog).queryByRole('combobox', { name: /toolkit/i })).toBeTruthy();
 
-    fireEvent.mouseDown(within(dialog).getByText('Regular'));
-    fireEvent.click(await screen.findByRole('option', { name: 'Notebook' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Notebook' }));
 
     // Notebook mode hides the Toolkit autocomplete
     expect(within(dialog).queryByRole('combobox', { name: /toolkit/i })).toBeNull();
@@ -296,8 +281,7 @@ describe('AddDocumentButton', () => {
 
     render(<AddDocumentButton toolkit={{ toolkit: 'LSM', cls: 'lsm.cls' }} />);
     await act(async () => {
-      const w = screen.getByLabelText('Add Document');
-      fireEvent.click(within(w).getByRole('button'));
+      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
     });
 
     const dialog = await screen.findByRole('dialog');

@@ -9,7 +9,7 @@ def standardize_polygon(poly, units_conversion):
     return [(x * units_conversion, y * units_conversion) for (x, y) in zip(xs, ys)]
 
 
-def toGeopandas(ContourData, inunits):
+def toGeopandas(ContourData, inunits=None):
     
     """
         Converts the contours of matplotlib to polygons.
@@ -24,14 +24,16 @@ def toGeopandas(ContourData, inunits):
         A geopandas object with the contours as polygons and levels as attributes.
 
     """
-    from hera.utils.unitHandler import ureg
+    from hera.utils.unitHandler import ureg, unumToPint
 
     try:
         from shapely import geometry
         import geopandas
     except ImportError:
         print("gis support not installed. ")
-    units_conversion = inunits.asNumber(ureg.m)
+    inunits = inunits if inunits is None else 1*ureg.m
+
+    units_conversion = unumToPint(inunits).m_as(ureg.m)
     polyList = []
     levelsList = []
     for col, level in zip(ContourData.collections, ContourData.levels):
@@ -54,4 +56,59 @@ def toGeopandas(ContourData, inunits):
     ret = geopandas.GeoDataFrame({"Level": levelsList, "contour": polyList}, geometry="contour")
     return ret
 
+def plot_polygons(ax, geom, facecolor="none", edgecolor="black", linewidth=1):
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Polygon as MplPolygon
+    from matplotlib.collections import PatchCollection
 
+    from shapely.geometry import (
+        Polygon, MultiPolygon,
+        LineString, MultiLineString,
+        Point, MultiPoint,
+        GeometryCollection
+    )
+
+    if geom.is_empty:
+        return
+
+    if isinstance(geom, Polygon):
+        # exterior
+        patch = MplPolygon(
+            list(geom.exterior.coords),
+            closed=True,
+            facecolor=facecolor,
+            edgecolor=edgecolor,
+            linewidth=linewidth,
+        )
+        ax.add_patch(patch)
+
+        # holes
+        for interior in geom.interiors:
+            x, y = interior.xy
+            ax.plot(x, y, color=edgecolor, linewidth=linewidth)
+
+    elif isinstance(geom, MultiPolygon):
+        for part in geom.geoms:
+            plot_polygons(ax, part, facecolor, edgecolor, linewidth)
+
+    elif isinstance(geom, LineString):
+        x, y = geom.xy
+        ax.plot(x, y, color=edgecolor, linewidth=linewidth)
+
+    elif isinstance(geom, MultiLineString):
+        for part in geom.geoms:
+            plot_polygons(ax, part, facecolor, edgecolor, linewidth)
+
+    elif isinstance(geom, Point):
+        ax.plot(geom.x, geom.y, "o", color=edgecolor)
+
+    elif isinstance(geom, MultiPoint):
+        for part in geom.geoms:
+            plot_polygons(ax, part, facecolor, edgecolor, linewidth)
+
+    elif isinstance(geom, GeometryCollection):
+        for part in geom.geoms:
+            plot_polygons(ax, part, facecolor, edgecolor, linewidth)
+
+    else:
+        raise TypeError(f"Unsupported geometry type: {geom.geom_type}")

@@ -33,6 +33,7 @@ export enum DocKind {
   Document = 'Document',
   Agent = 'Agent',
   Notebook = 'Notebook',
+  Workflow = 'Workflow',
 }
 
 const DOC_KINDS = Object.values(DocKind);
@@ -104,8 +105,13 @@ export const AddDocumentButton = ({
 
   return (
     <ButtonDialog
-      icon={<Add />}
-      title="Add Document"
+      icon={
+        <Stack direction={'row'} alignItems={'center'} spacing={0.5}>
+          <Add fontSize="small" />
+        </Stack>
+      }
+      button
+      title="Add document"
       onOpen={() => {
         setName(getNextDefaultName(DocKind.Document));
         setResource('');

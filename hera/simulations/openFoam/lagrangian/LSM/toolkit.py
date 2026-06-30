@@ -6,11 +6,11 @@ import numpy
 from dask.delayed import delayed
 from dask import dataframe
 
-from datalayer import datatypes
+from hera.datalayer import datatypes
 
-from simulations.openFoam.toberewritten.utils import getCellDataAndGroundData
-from simulations.utils import coordinateHandler
-from datalayer import nonDBMetadataFrame
+from hera.simulations.openFoam.toberewritten.utils import getCellDataAndGroundData
+from hera.simulations.utils import coordinateHandler
+from hera.datalayer import nonDBMetadataFrame
 from hera.toolkit import toolkitHome
 from .sourcesFactoryTool import sourcesFactoryTool
 from itertools import product

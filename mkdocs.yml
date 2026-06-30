@@ -51,7 +51,7 @@ plugins:
             docstring_style: numpy
             show_signature_annotations: true
             members_order: source
-            allow_inspection: true
+            allow_inspection: false
   - mkdocs-jupyter:
       include_source: true
       execute: false

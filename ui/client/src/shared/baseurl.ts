@@ -1,3 +1,5 @@
-const localhost = ['localhost', '127.0.0.1'];
-const isLocal = localhost.includes(window.location.hostname) && window.location.port === '8000';
-export const BASEURL = isLocal ? '' : 'http://localhost:8000';
+const apiHost = import.meta.env.VITE_API_HOST || 'localhost';
+const apiPort = import.meta.env.VITE_API_PORT || '8000';
+// Production: the server serves the bundle, so the API is same-origin (works on any host).
+// Dev: Vite serves on a different port, so target the API host:port explicitly.
+export const BASEURL = import.meta.env.DEV ? `http://${apiHost}:${apiPort}` : '';

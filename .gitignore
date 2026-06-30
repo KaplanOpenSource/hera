@@ -23,4 +23,23 @@ mongo-db-datadir/
 ui/client/data/
 notebooks/
 .vscode/
+# Test-generated project directories (created by hera.datalayer.Project in cwd)
 pytest_*/
+__ping__/
+__ping_experiment__/
+PYTEST_HERA_PROJECT/
+REPOSITORY_PROJECT_TESTING_01/
+TEST_CONN/
+# General hera project dirs created during testing
+*_PROJECT/
+hera_unittest_data/
+
+# Pytest / cache artefacts — always redirect to cache/
+.pytest_cache/
+**/.pytest_cache/
+
+# cache/ directory contents are local-only (bootstrap data, test results, etc.)
+cache/*
+!cache/.gitkeep
+
+.claude/settings.json

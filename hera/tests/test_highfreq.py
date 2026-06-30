@@ -29,7 +29,10 @@ from hera.measurements.meteorology.highfreqdata.analysis.turbulencestatistics im
 @pytest.fixture(scope="module")
 def sonic_df(hf_toolkit):
     """Computed Pandas DataFrame from the sonic datasource in the project."""
-    ds = hf_toolkit.getDataSourceData("slicedYamim_sonic")
+    try:
+        ds = hf_toolkit.getDataSourceData("slicedYamim_sonic")
+    except FileNotFoundError as exc:
+        pytest.skip(f"slicedYamim_sonic data file missing in TEST_HERA: {exc}")
     if ds is None:
         pytest.skip("slicedYamim_sonic datasource not loaded in project")
     # dask → pandas
@@ -39,7 +42,10 @@ def sonic_df(hf_toolkit):
 @pytest.fixture(scope="module")
 def trh_df(hf_toolkit):
     """Computed Pandas DataFrame from the TRH datasource in the project."""
-    ds = hf_toolkit.getDataSourceData("slicedYamim_TRH")
+    try:
+        ds = hf_toolkit.getDataSourceData("slicedYamim_TRH")
+    except FileNotFoundError as exc:
+        pytest.skip(f"slicedYamim_TRH data file missing in TEST_HERA: {exc}")
     if ds is None:
         pytest.skip("slicedYamim_TRH datasource not loaded in project")
     return ds.compute() if hasattr(ds, "compute") else ds
@@ -129,11 +135,11 @@ class TestSpecificPoints:
 
 class TestErrorPaths:
     def test_campbelToParquet_nonexistent(self, hf_toolkit):
-        with pytest.raises(ValueError):
+        with pytest.warns(DeprecationWarning), pytest.raises(ValueError):
             hf_toolkit.campbelToParquet(binaryFile="/path/to/nonexistent_file.dat")
 
     def test_asciiToParquet_nonexistent(self, hf_toolkit):
-        with pytest.raises(FileNotFoundError):
+        with pytest.warns(DeprecationWarning), pytest.raises(FileNotFoundError):
             hf_toolkit.asciiToParquet(path="/path/to/nonexistent_file.txt")
 
 

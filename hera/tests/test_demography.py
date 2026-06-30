@@ -24,6 +24,11 @@ test data repository.
 import os
 import tempfile
 
+try:
+    from pyogrio.errors import DataSourceError as _PyogrioDataSourceError
+except ImportError:
+    _PyogrioDataSourceError = None
+
 import pytest
 
 gpd = pytest.importorskip("geopandas", reason="geopandas not installed")
@@ -94,8 +99,8 @@ def large_polygon_itm():
 
 @pytest.fixture(scope="module")
 def small_polygon_itm():
-    """Polygon that partially overlaps synthetic ITM data."""
-    return box(170500, 660500, 171500, 661500)
+    """Polygon that partially overlaps synthetic ITM data (only intersects block 1)."""
+    return box(170100, 660100, 170900, 660900)
 
 
 # ---------------------------------------------------------------------------
@@ -105,7 +110,18 @@ def small_polygon_itm():
 @pytest.fixture(scope="module")
 def population_gdf(demo_toolkit):
     """Load the population GeoDataFrame through the project's datasource."""
-    gdf = demo_toolkit.getDataSourceData("lamas_population")
+    try:
+        gdf = demo_toolkit.getDataSourceData("lamas_population")
+    except FileNotFoundError as exc:
+        pytest.skip(f"lamas_population data file missing in TEST_HERA: {exc}")
+    except Exception as exc:
+        # pyogrio raises DataSourceError (RuntimeError-derived) when the
+        # shapefile is absent. Match only "no such file" — corruption or
+        # format errors should still surface as real failures.
+        if _PyogrioDataSourceError is not None and isinstance(exc, _PyogrioDataSourceError) \
+                and "No such file" in str(exc):
+            pytest.skip(f"lamas_population data file missing in TEST_HERA: {exc}")
+        raise
     if gdf is None:
         pytest.skip("lamas_population datasource not loaded in project")
     return gdf
@@ -649,6 +665,15 @@ class TestPlotPopulationOnMap:
         class MockTilesToolkit:
             presentation = MockTilesPresentation()
 
+            def getImageFromCorners(self, minx, miny, maxx, maxy, zoomlevel,
+                                    tileServer=None, inputCRS=None, outputCRS=None):
+                return None
+            def getImageFromCorners(self, minx, miny, maxx, maxy,
+                                    zoomlevel=14, tileServer=None,
+                                    inputCRS=None, outputCRS=None):
+                import numpy as np
+                return np.zeros((256, 256, 3), dtype=np.uint8)
+
         return MockTilesToolkit()
 
     def test_density_mode(self, demo_toolkit, synthetic_gdf):
@@ -701,7 +726,8 @@ class TestEdgeCases:
             crs="EPSG:2039",
         )
         # plotPopulation with empty data — should return ax without error
-        ax = demo_toolkit.presentation.plotPopulation(empty)
+        with pytest.warns(UserWarning, match="empty"):
+            ax = demo_toolkit.presentation.plotPopulation(empty)
         assert ax is not None
         plt.close("all")
 

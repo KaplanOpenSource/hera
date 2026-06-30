@@ -354,7 +354,8 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile, toolkit.abstra
         self.trialSet = dict()
 
         if filesDirectory is None:
-            filesDirectory = os.getcwd()
+            import tempfile
+            filesDirectory = tempfile.mkdtemp(prefix="hera_exp_cache_")
 
         cacheDir = os.path.join(filesDirectory, "experimentCache")
         os.makedirs(cacheDir, exist_ok=True)
@@ -431,7 +432,7 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile, toolkit.abstra
             )
 
         if withMetadata:
-            devicemetadata = self.entitiesTable()
+            devicemetadata = self.entitiesTable
             if len(devicemetadata) > 0:
                 data = (
                     data.reset_index()
@@ -540,7 +541,7 @@ class TrialWithdata(argosDataObjects.Trial):
             )
 
         if withMetadata:
-            devicemetadata = self.entitiesTable()
+            devicemetadata = self.entitiesTable
             if len(devicemetadata) > 0:
                 data = (
                     data.reset_index()
@@ -628,10 +629,12 @@ class EntityTypeWithData(argosDataObjects.EntityType):
         startTime = trial.properties[TRIALSTART]
         endTime = trial.properties[TRIALEND]
 
-        StoreDataPerDevice = self.properties["StoreDataPerDevice"]
+        StoreDataPerDevice = next(
+            (attr.get("defaultValue", False) for attr in self.properties if attr.get("name") == "StoreDataPerDevice"),
+            False,
+        )
         data = self._experimentData.getData(
-            deviceType=self.entityType,
-            deviceName=self.name,
+            deviceType=self.name,
             startTime=startTime,
             endTime=endTime,
             perDevice=StoreDataPerDevice,

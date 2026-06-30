@@ -2,6 +2,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import zipfile
 import json
 import pytest
@@ -145,9 +146,21 @@ def load_dummy_experiment_to_project(hera_repo_root, dummy_experiment_dir, temp_
     code, out = _run_cmd(cmd, cwd=str(hera_repo_root), env=env_with_pyargos)
     if code != 0:
         pytest.fail(f"hera-experiment load failed.\nCMD: {' '.join(cmd)}\nOUTPUT:\n{out}")
-    return {
+
+    yield {
         "project": temp_project_name,
         "experiment": "DummyExperiment",
         "output": out,
         "experiment_dir": str(dummy_experiment_dir),
     }
+
+    # Teardown: remove ALL DB documents for the project (incl. the hidden
+    # ``<name>__config__`` doc, so it no longer appears in getProjectList),
+    # then delete its files directory (~/.hera/<project_name>).
+    try:
+        from hera.datalayer.collection import AbstractCollection
+        AbstractCollection().deleteDocuments(projectName=temp_project_name)
+    except Exception:
+        pass
+    project_files_dir = os.path.join(os.path.expanduser("~"), ".hera", temp_project_name)
+    shutil.rmtree(project_files_dir, ignore_errors=True)

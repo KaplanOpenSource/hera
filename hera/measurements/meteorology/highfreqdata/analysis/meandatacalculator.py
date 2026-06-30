@@ -106,7 +106,7 @@ class MeanDataCalculator:
             self.MeanData = self.MeanData.join(AverageData)
 
         self.MeanData = self.MeanData.loc[(self.MeanData.index >= self.metaData["start"]) &
-                                          (self.MeanData.index < self.metaData["end"])]
+                                          (self.MeanData.index < self.metaData["end"])].copy()
 
     def thresholds(self, threshold_list, inplace = False):
         """

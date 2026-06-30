@@ -1,0 +1,130 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run full test suite
+    runs-on: ubuntu-latest
+
+    env:
+      HERA_DB_USER: hera
+      HERA_DB_PASS: heracles
+      HERA_DB_NAME: hera_ci
+      # ubuntu-latest runner home is /home/runner; matches $HOME/hera_unittest_data
+      # which is both bootstrap_unittest_data.sh's default and conftest's default.
+      TEST_HERA: /home/runner/hera_unittest_data
+
+    services:
+      mongodb:
+        image: mongo:latest
+        ports:
+          - 27017:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: hera
+          MONGO_INITDB_ROOT_PASSWORD: heracles
+        options: >-
+          --health-cmd "mongosh --quiet -u hera -p heracles --authenticationDatabase admin --eval 'db.runCommand({ ping: 1 }).ok' | grep -q 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout hera
+        uses: actions/checkout@v4
+
+      - name: Checkout hermes (internal dependency)
+        uses: actions/checkout@v4
+        with:
+          repository: KaplanOpenSource/hermes
+          path: _vendor/hermes
+          # token: ${{ secrets.INTERNAL_REPO_PAT }}   # uncomment if private
+
+      - name: Checkout pyargos (internal dependency — provides the `argos` package)
+        uses: actions/checkout@v4
+        with:
+          repository: KaplanOpenSource/pyargos
+          path: _vendor/pyargos
+          # token: ${{ secrets.INTERNAL_REPO_PAT }}   # uncomment if private
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: requirements.txt
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgdal-dev gdal-bin
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+          pip install -e . --no-deps
+          # hermes and pyargos are not pip-installable (no setup.py / pyproject.toml).
+          # They expose the python packages `hermes` and `argos` at the clone root,
+          # so we put their parent dirs on PYTHONPATH in the pytest step instead.
+
+      - name: Write ~/.pyhera/config.json
+        run: |
+          mkdir -p "$HOME/.pyhera"
+          python - <<'PY'
+          import json, os, getpass
+          cfg = {
+              getpass.getuser(): {
+                  "dbIP":     "127.0.0.1",
+                  "dbName":   os.environ["HERA_DB_NAME"],
+                  "username": os.environ["HERA_DB_USER"],
+                  "password": os.environ["HERA_DB_PASS"],
+              }
+          }
+          with open(os.path.expanduser("~/.pyhera/config.json"), "w") as f:
+              json.dump(cfg, f, indent=4, sort_keys=True)
+          print("wrote pyhera config for user:", getpass.getuser())
+          PY
+
+      - name: Wait for MongoDB
+        run: |
+          for i in {1..30}; do
+            if (echo > /dev/tcp/127.0.0.1/27017) 2>/dev/null; then
+              echo "MongoDB is up"; exit 0
+            fi
+            sleep 2
+          done
+          echo "MongoDB did not become available"; exit 1
+
+      # ----- Test data from S3 (per scripts/s3/bootstrap_unittest_data.sh) -----
+      - name: Resolve test data version
+        id: tdv
+        run: |
+          VERSION=$(curl -fsSL --max-time 30 \
+            "https://s3.eu-west-1.amazonaws.com/hera.kaplanopensource.co.il/latest.json" \
+            | python3 -c "import json,sys; print(json.load(sys.stdin)['version'])")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved test data version: $VERSION"
+
+      - name: Cache test data
+        id: cache-test-data
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TEST_HERA }}
+          key: hera-test-data-${{ steps.tdv.outputs.version }}
+
+      - name: Fetch test data (cache miss)
+        if: steps.cache-test-data.outputs.cache-hit != 'true'
+        run: ./scripts/s3/bootstrap_unittest_data.sh --target-dir "$TEST_HERA"
+
+      - name: Run full test suite
+        run: pytest hera/tests/ -v -m "not notebook"
+        env:
+          MPLBACKEND: Agg
+          PYTHONPATH: ${{ github.workspace }}/_vendor/hermes:${{ github.workspace }}/_vendor/pyargos

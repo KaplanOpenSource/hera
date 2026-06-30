@@ -4,9 +4,9 @@
     Taken from Boundary-Layer Theory 9th edition (schlichting) pg 537.
 
 """
-from ...utils.unum import tounit
+from hera.utils import tounit, tonumber
+from hera.utils.unitHandler import ureg, unumToPint
 from scipy.optimize import fsolve
-from unum.units import *
 import numpy
 
 class functionG:
@@ -57,7 +57,7 @@ class nearWallFlow:
 
     @property
     def height(self):
-        return self._channelHeight.asNumber(m)
+        return self._channelHeight.m_as(ureg.m)
 
     @property
     def hydraulicHeight(self):
@@ -69,7 +69,7 @@ class nearWallFlow:
         :param ustar:
         :return:
         """
-        return (ustar*self.technical_roughness/self.kinematicViscosity).asNumber()
+        return (ustar*self.technical_roughness/self.kinematicViscosity).magnitude
 
 
     def Cplus(self,ustar):
@@ -83,7 +83,7 @@ class nearWallFlow:
             The C^+.
         """
         kappa = 0.41 # von karman constant.
-        kplus = (ustar*self.technical_roughness/self.kinematicViscosity).asNumber()
+        kplus = (ustar*self.technical_roughness/self.kinematicViscosity).magnitude
 
         if kplus <= 5:
             ret = 5
@@ -114,8 +114,8 @@ class nearWallFlow:
         nu: float/ unit
             The viscosity of the fluid. default unit [m^2/s]
         """
-        self._nu = tounit(nu,m**2/s)
-        self._Ra = tounit(Ra,m)
+        self._nu = tounit(nu, ureg.m**2/ureg.s)
+        self._Ra = tounit(Ra, ureg.m)
 
 
 
@@ -148,7 +148,7 @@ class channelFlow(nearWallFlow):
 
         """
         super().__init__(Ra,nu)
-        self._channelHeight = tounit(channelHeight,m)
+        self._channelHeight = tounit(channelHeight, ureg.m)
         self._functionG = functionG()
         self.C_bar_plus_C_barbar = -1.7 # Cbar + Cbar bar (equation 17.91).
         self.C_bar = 0.94  # Cbar + Cbar bar (equation 17.91).
@@ -187,8 +187,8 @@ class channelFlow(nearWallFlow):
         :param ustar:
         :return:
         """
-        ustar = tounit(ustar, m / s)
-        return ((ustar*self._channelHeight/2)/self.kinematicViscosity).asNumber()
+        ustar = tounit(ustar, ureg.m/ureg.s)
+        return ((ustar*self._channelHeight/2)/self.kinematicViscosity).magnitude
 
 
     def get_Umean_from_Ustar(self,ustar):
@@ -207,7 +207,7 @@ class channelFlow(nearWallFlow):
         """
         kappa = 0.41  # von karman constant.
 
-        ustar = tounit(ustar,m/s)
+        ustar = tounit(ustar, ureg.m/ureg.s)
 
         Re_tau = self.Re_tau(ustar)
 
@@ -235,7 +235,7 @@ class channelFlow(nearWallFlow):
         """
         kappa = 0.41  # von karman constant.
 
-        ustar = tounit(ustar,m/s)
+        ustar = tounit(ustar, ureg.m/ureg.s)
 
         Re_tau = self.Re_tau(ustar)
 
@@ -275,7 +275,7 @@ class couetteFlow(nearWallFlow):
 
         """
         super().__init__(Ra,nu)
-        self._channelHeight = tounit(channelHeight, m)
+        self._channelHeight = tounit(channelHeight, ureg.m)
         self._functionG = functionG()
 
 
@@ -310,8 +310,8 @@ class couetteFlow(nearWallFlow):
         :param ustar:
         :return:
         """
-        ustar = tounit(ustar, m / s)
-        return ((ustar * self._channelHeight / 2) / self.kinematicViscosity).asNumber()
+        ustar = tounit(ustar, ureg.m/ureg.s)
+        return ((ustar * self._channelHeight / 2) / self.kinematicViscosity).magnitude
 
     def get_Um_from_Ustar(self, ustar):
         """
@@ -331,7 +331,7 @@ class couetteFlow(nearWallFlow):
         """
         kappa = 0.41  # von karman constant.
 
-        ustar = tounit(ustar, m / s)
+        ustar = tounit(ustar, ureg.m/ureg.s)
 
         Re_tau = self.Re_tau(ustar)
 

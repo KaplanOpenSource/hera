@@ -24,9 +24,12 @@ PREPARE_EXPECTED_OUTPUT : str (env var)
     Set to "1" to generate expected output files instead of comparing.
 """
 
+import glob
 import json
 import math
 import os
+import shutil
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -48,6 +51,108 @@ PYTEST_PROJECT_NAME = "PYTEST_HERA_PROJECT"
 
 
 # ---------------------------------------------------------------------------
+# Cleanup primitives — leave ZERO traces (DB documents + on-disk directories)
+# ---------------------------------------------------------------------------
+#
+# A Hera project "exists" (appears in ``getProjectList``) as long as ANY
+# document carries its ``projectName`` — including the hidden
+# ``<projectName>__config__`` Cache document that ``Project`` creates on
+# construction.  Deleting only measurement/simulation documents therefore
+# leaks the project.  On disk, ``Project.__init__`` unconditionally creates
+# ``~/.hera/<projectName>`` (or whatever ``filesDirectory`` resolves to) and
+# never removes it.  These helpers tear down both halves completely.
+
+# Projects that must never be purged (shared / framework-owned).
+_PROTECTED_PROJECTS = frozenset({"", "defaultProject"})
+
+# Unambiguous project-name patterns owned by the test suite.  Projects matching
+# these are safe to purge even if they predate the session (they are leftovers
+# from earlier, incompletely-cleaned runs).
+_TEST_PROJECT_PREFIXES = ("pytest_", "unittest_project_dynamic_")
+_TEST_PROJECT_EXACT = frozenset({"PYTEST_HERA_PROJECT", "REPOSITORY_PROJECT_TESTING_01"})
+
+
+def _is_test_project(projectName):
+    """True if a project name is unambiguously created by this test suite."""
+    if projectName in _PROTECTED_PROJECTS:
+        return False
+    if projectName in _TEST_PROJECT_EXACT:
+        return True
+    return any(projectName.startswith(p) for p in _TEST_PROJECT_PREFIXES)
+
+
+def purge_project_db(projectName):
+    """Delete every document of a project across all three collections.
+
+    Uses the collection layer directly (NOT ``Project(...)``) so the purge has
+    no side effects — constructing a ``Project`` would re-create the
+    ``__config__`` document and its files directory.  Removing the config
+    document is what actually makes the project disappear from
+    ``getProjectList``.
+    """
+    if projectName in _PROTECTED_PROJECTS:
+        return
+    try:
+        from hera.datalayer.collection import AbstractCollection
+        # AbstractCollection (type=None) spans Measurements + Simulations + Cache.
+        AbstractCollection().deleteDocuments(projectName=projectName)
+    except Exception:
+        pass
+
+
+def purge_project_dirs(projectName):
+    """Remove the on-disk directories a project may have created.
+
+    Covers the default ``~/.hera/<projectName>`` location and a stray
+    ``<cwd>/<projectName>`` directory (produced by historically relative
+    ``filesDirectory`` configurations).
+    """
+    if projectName in _PROTECTED_PROJECTS:
+        return
+    candidates = [
+        os.path.join(os.path.expanduser("~"), ".hera", projectName),
+        os.path.join(os.getcwd(), projectName),
+    ]
+    for d in candidates:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def purge_project(projectName):
+    """Full teardown for a project: DB documents first, then on-disk directories.
+
+    Order matters: the config document is deleted *before* the directories so
+    that no lingering ``filesDirectory`` config can resurrect a directory via a
+    later ``Project`` construction.
+    """
+    purge_project_db(projectName)
+    purge_project_dirs(projectName)
+
+
+def purge_test_disk_artifacts():
+    """Remove on-disk directories left by the test suite, matched by name.
+
+    Runs independently of DB state: a project may be cleaned from MongoDB by
+    its own fixture teardown yet still leave a directory behind (e.g. when an
+    old, relative ``filesDirectory`` config pointed it at the current working
+    directory).  Also sweeps the temporary ``filesDirectory`` trees created by
+    the session/function fixtures.
+    """
+    # Test-named project directories under ~/.hera and the working directory.
+    for root in (os.path.join(os.path.expanduser("~"), ".hera"), os.getcwd()):
+        if not os.path.isdir(root):
+            continue
+        for entry in os.listdir(root):
+            full = os.path.join(root, entry)
+            if os.path.isdir(full) and _is_test_project(entry):
+                shutil.rmtree(full, ignore_errors=True)
+
+    # Temporary files-directory trees created by the test fixtures.
+    for pattern in ("hera_pytest_main_*", "hera_pytest_func_*", "hera_exp_test_*"):
+        for d in glob.glob(os.path.join(tempfile.gettempdir(), pattern)):
+            shutil.rmtree(d, ignore_errors=True)
+
+
+# ---------------------------------------------------------------------------
 # CLI option: --result-set
 # ---------------------------------------------------------------------------
 
@@ -58,6 +163,54 @@ def pytest_addoption(parser):
         default=None,
         help="Name of the expected-output result set (overrides RESULT_SET env var).",
     )
+
+
+# ---------------------------------------------------------------------------
+# Session safety-net: guarantee zero leaked projects / directories
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(scope="session", autouse=True)
+def _no_trace_guard():
+    """Purge every project created during the test session.
+
+    This is a defense-in-depth backstop: individual fixtures clean up after
+    themselves, but tests that create projects directly (or via CLI / notebook
+    subprocesses, e.g. ``unittest_project_dynamic_<pid>``) can still slip
+    through.  We snapshot the project list at session start and, at the end,
+    purge anything that appeared during the session.
+
+    Only *newly created* projects are touched — anything that already existed
+    before the session is left completely alone, so this can never disturb a
+    developer's pre-existing data.
+    """
+    from hera.datalayer.project import getProjectList
+
+    try:
+        before = set(getProjectList())
+    except Exception:
+        before = set()
+
+    yield
+
+    try:
+        after = set(getProjectList())
+    except Exception:
+        return
+
+    # Purge (a) every project created during this session, plus (b) any project
+    # matching a known test-name pattern — the latter mops up leftovers from
+    # earlier incompletely-cleaned runs.  Pre-existing projects that are NOT
+    # test artifacts are never touched.
+    new_projects = after - before
+    leftover_test_projects = {p for p in after if _is_test_project(p)}
+    for projectName in sorted(new_projects | leftover_test_projects):
+        if projectName in _PROTECTED_PROJECTS:
+            continue
+        purge_project(projectName)
+
+    # Sweep disk artifacts whose owning project was already removed from the DB
+    # by its own fixture teardown (so the loop above never saw it).
+    purge_test_disk_artifacts()
 
 
 # ---------------------------------------------------------------------------
@@ -128,8 +281,11 @@ def hera_test_project(test_hera_root):
 
     basedir = str(test_hera_root)
 
-    # Create the project
-    proj = Project(projectName=PYTEST_PROJECT_NAME)
+    # Point the project's files directory at /tmp from the start so test runs
+    # never litter ``~/.hera`` or the repository root.  Passing ``filesDirectory``
+    # to the constructor means ``~/.hera/<projectName>`` is never created.
+    _files_tmp = tempfile.mkdtemp(prefix="hera_pytest_main_")
+    proj = Project(projectName=PYTEST_PROJECT_NAME, filesDirectory=_files_tmp)
 
     # Load all datasources + configs into the project
     dt = dataToolkit()
@@ -142,12 +298,13 @@ def hera_test_project(test_hera_root):
 
     yield proj
 
-    # Teardown: remove all documents created during the session
-    try:
-        for doc in proj.getMeasurementsDocuments():
-            doc.delete()
-    except Exception:
-        pass
+    # Teardown: delete ALL documents (incl. the __config__ doc) so the project
+    # disappears entirely, THEN remove the temporary files directory.  Deleting
+    # the config first prevents any later Project() open from resurrecting the
+    # directory via its saved filesDirectory.
+    purge_project_db(PYTEST_PROJECT_NAME)
+    purge_project_dirs(PYTEST_PROJECT_NAME)
+    shutil.rmtree(_files_tmp, ignore_errors=True)
 
 
 @pytest.fixture(scope="session")
@@ -205,14 +362,13 @@ def project_fixture():
     from hera.datalayer.project import Project
 
     project_name = "pytest_temp_project"
-    proj = Project(projectName=project_name)
+    _files_tmp = tempfile.mkdtemp(prefix="hera_pytest_func_")
+    proj = Project(projectName=project_name, filesDirectory=_files_tmp)
     yield proj
-    # Cleanup: remove all documents created during the test
-    try:
-        for doc in proj.getMeasurementsDocuments():
-            doc.delete()
-    except Exception:
-        pass
+    # Cleanup: delete ALL documents (incl. config) then the files directory.
+    purge_project_db(project_name)
+    purge_project_dirs(project_name)
+    shutil.rmtree(_files_tmp, ignore_errors=True)
 
 
 @pytest.fixture(scope="session")
