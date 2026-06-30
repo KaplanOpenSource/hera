@@ -87,6 +87,7 @@ def _run_workflow(workdir: str, workflow_json: dict, module_name: str = "Workflo
 # Tests
 # ---------------------------------------------------------------------------
 
+@pytest.mark.integration
 class TestSimpleHermesWorkflow:
     """End-to-end tests running a hermes workflow with the local scheduler."""
 
