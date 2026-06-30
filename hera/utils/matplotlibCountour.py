@@ -37,11 +37,13 @@ def toGeopandas(ContourData, inunits=None):
     polyList = []
     levelsList = []
 
-    # matplotlib < 3.10 exposed ContourSet.collections (list of PathCollections,
-    # one per level).  In 3.10+ ContourSet inherits from Collection directly and
-    # collections was removed.  Use get_paths() on the ContourSet itself instead,
-    # which returns one Path per level-interval (shell + holes encoded as sub-paths).
-    if hasattr(ContourData, 'collections'):
+    # ContourSet.collections was deprecated in matplotlib 3.8 and removed in 3.10.
+    # Accessing it on 3.8/3.9 raises MatplotlibDeprecationWarning (a DeprecationWarning
+    # subclass), so hasattr() is not safe — it returns True but triggers the warning.
+    # Use version-based dispatch instead: get_paths() is the stable API from 3.8+.
+    import matplotlib as _mpl
+    _mpl_ver = tuple(int(x) for x in _mpl.__version__.split(".")[:2])
+    if _mpl_ver < (3, 8):
         path_level_pairs = [
             (contour_path, level)
             for col, level in zip(ContourData.collections, ContourData.levels)
