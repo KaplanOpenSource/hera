@@ -299,7 +299,7 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
         if not os.path.exists(checkPath):
             logger.debug(f"Cell centers does not exist in {caseType} case. Calculating...")
             foam_cmd = ["foamJob"]
-            if parallelExec:
+            if useParallel:
                 foam_cmd.append("-parallel")
             foam_cmd.extend([str(casePointer), "-wait", "postProcess", "-func", "writeCellCentres", "-time", str(time)])
             subprocess.run(foam_cmd, check=False)

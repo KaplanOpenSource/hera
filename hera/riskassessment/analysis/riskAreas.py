@@ -8,7 +8,7 @@ from itertools import product,chain
 import multiprocessing
 from functools import partial
 
-from ...utils import toMeteorologicalAngle, toMathematicalAngle
+from hera.utils import toMeteorologicalAngle, toMathematicalAngle
 def getRiskAreaAlgorithm(algorithmName,**kwargs):
 	"""
 		Return an estimator class. 

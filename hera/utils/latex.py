@@ -220,4 +220,7 @@ class bibtexFile:
         return "\n".join([self._first_last_Lines[0]] + final + [self._first_last_Lines[1]])
 
 
+if __name__ == "__main__":
+    bb = bibtexFile("hebrewCrossTex/output.bbl")
+    print(bb.convert())
 

@@ -5,17 +5,17 @@ import shutil
 import shlex
 import subprocess
 import os
-from ..toolkit import abstractToolkit
-from ..utils import loadJSON,compareJSONS
-from ..utils.query import dictToMongoQuery
-from ..utils.dataframeutils import compareDataframeConfigurations
-from ..datalayer import datatypes
+from hera.toolkit import abstractToolkit
+from hera.utils import loadJSON, compareJSONS
+from hera.utils.query import dictToMongoQuery
+from hera.utils.dataframeutils import compareDataframeConfigurations
+from hera.datalayer import datatypes
 import numpy
 import pydoc
 import uuid
 import warnings
-from ..utils.logging import with_logger,get_classMethod_logger
-from ..hermesWorkflowToolkit import buildLuigiExecutionCommand, SCHEDULER_LOCAL, SCHEDULER_CENTRAL
+from hera.utils.logging import with_logger, get_classMethod_logger
+from hera.simulations.hermesWorkflowToolkit import buildLuigiExecutionCommand, SCHEDULER_LOCAL, SCHEDULER_CENTRAL
 
 try:
     from hermes import workflow

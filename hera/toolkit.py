@@ -1,6 +1,7 @@
 from hera.datalayer import Project
 from hera.datalayer.datahandler import datatypes  # for datatypes.CLASS
 
+import importlib.util
 import os
 import sys
 import logging
@@ -122,6 +123,9 @@ class abstractToolkit(Project):
             The name of the DB connection. If None, uses the current OS username.
         filesDirectory : str, optional
             Directory to save datasource files.
+        **kwargs
+            Absorbed silently so that subclass ``__init__(self, projectName, **kwargs)``
+            chains up without TypeError. Not forwarded to Project.__init__.
         """
         super().__init__(projectName=projectName, filesDirectory=filesDirectory, connectionName=connectionName)
         logger = get_classMethod_logger(self, "init")
@@ -323,6 +327,10 @@ class abstractToolkit(Project):
             latestVersion = max(versionsList)
             docList = [doc for doc in docList if doc['desc']['version'] == latestVersion]
             ret = docList[0]
+            # Auto-persisting the latest version as the default was intentionally
+            # removed: a getter that silently writes to the DB is a hidden side
+            # effect. Use setDataSourceDefaultVersion() explicitly when you need a
+            # stable default saved to the DB.
 
         return ret
 
@@ -798,9 +806,8 @@ class ToolkitHome(abstractToolkit):
                 toolkitPath = os.path.abspath(toolkitPath_raw)
 
             # ------------------------------------------------------------
-            # Add toolkit path to sys.path (highest priority)
-            # Validate before inserting: must be an existing directory and must
-            # not shadow well-known stdlib modules [1.6, 3.3]
+            # Validate path and check for module-name shadowing via importlib
+            # before adding to sys.path [1.6, 3.3]
             # ------------------------------------------------------------
             _toolkit_abs = os.path.abspath(toolkitPath)
             if not os.path.isdir(_toolkit_abs):
@@ -808,13 +815,15 @@ class ToolkitHome(abstractToolkit):
                     f"Dynamic toolkit path does not exist: {_toolkit_abs!r}. "
                     "Only real directories may be added to sys.path."
                 )
-            _stdlib_shadows = {"json", "logging", "os", "sys", "collections", "io", "re"}
-            for _mod in _stdlib_shadows:
-                if os.path.isfile(os.path.join(_toolkit_abs, f"{_mod}.py")):
-                    raise ValueError(
-                        f"Dynamic toolkit path {_toolkit_abs!r} contains {_mod}.py "
-                        "which would shadow the standard library — loading aborted."
-                    )
+            # Use importlib to detect shadowing of any already-importable package,
+            # not just a hardcoded list.  The check runs before the path is added
+            # so find_spec only sees the current (unmodified) sys.path.
+            _existing_spec = importlib.util.find_spec(toolkitName)
+            if _existing_spec is not None:
+                raise ValueError(
+                    f"Dynamic toolkit name '{toolkitName}' would shadow the already-importable "
+                    f"module at {_existing_spec.origin!r}. Choose a unique package name."
+                )
             if _toolkit_abs in sys.path:
                 try:
                     sys.path.remove(_toolkit_abs)

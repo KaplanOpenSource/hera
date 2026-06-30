@@ -7,9 +7,9 @@ import pandas
 import pandas as pd
 import shapely.wkt
 from shapely.geometry import box, Polygon
-from .....utils.logging import get_classMethod_logger
-from .._io_utils import readGeoJSONString, GEO_READ_ERRORS
-from ...utils import ITM
+from hera.utils.logging import get_classMethod_logger
+from hera.measurements.GIS.vector._io_utils import readGeoJSONString, GEO_READ_ERRORS
+from hera.measurements.GIS.utils import ITM
 
 BUILDINGS_LAMBDA_WIND_DIRECTION = 'wind'
 BUILDINGS_LAMBDA_RESOLUTION = 'resolution'

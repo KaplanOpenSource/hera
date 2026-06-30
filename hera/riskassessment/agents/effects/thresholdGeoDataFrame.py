@@ -3,8 +3,8 @@ import collections
 import pandas
 import geopandas
 
-from ....utils import toMeteorologicalAngle,toMathematicalAngle
-from ....measurements.GIS import ITM
+from hera.utils import toMeteorologicalAngle, toMathematicalAngle
+from hera.measurements.GIS import ITM
 
 
 import geopandas as gpd

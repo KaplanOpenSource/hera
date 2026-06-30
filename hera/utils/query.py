@@ -1,6 +1,4 @@
 def andClause(excludeFields=None, **kwargs):
-    if excludeFields is None:
-        excludeFields = []
     """
         Builds a pandas query str
     Parameters
@@ -12,6 +10,8 @@ def andClause(excludeFields=None, **kwargs):
     -------
 
     """
+    if excludeFields is None:
+        excludeFields = []
 
     L = []
     for key, value in kwargs.items():

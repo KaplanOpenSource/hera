@@ -69,8 +69,18 @@ def setup_template(arguments):
     dst_aout = os.path.join(outDir, 'a.out')
     if not os.path.exists(dst_aout):
         os.symlink(src_aout, dst_aout)
+    elif os.path.islink(dst_aout):
+        if os.path.realpath(src_aout) != os.path.realpath(dst_aout):
+            raise Exception(f"Couldn't create symlink, a symlink already exists at {dst_aout} pointing to a different file")
+    else:
+        raise Exception(f"Couldn't create symlink, {dst_aout} already exists and isn't a symlink")
     logger.info(f"linked {dst_aout} from template")
     src_met = os.path.join(codeDir, 'tozaot', 'Meteorology')
     if not os.path.exists(metDir):
         os.symlink(src_met, metDir)
+    elif os.path.islink(metDir):
+        if os.path.realpath(src_met) != os.path.realpath(metDir):
+            raise Exception(f"Couldn't create symlink, a symlink already exists at {metDir} pointing to a different file")
+    else:
+        raise Exception(f"Couldn't create symlink, {metDir} already exists and isn't a symlink")
     logger.info(f"linked {src_met} from template")

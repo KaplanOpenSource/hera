@@ -10,15 +10,15 @@ import dask
 from numpy import array, sqrt
 import pandas
 
-from . import toolkit
-from ....simulations.utils import coordinateHandler
-from ....utils.logging import get_classMethod_logger
+from hera.measurements.GIS.vector import toolkit
+from hera.simulations.utils import coordinateHandler
+from hera.utils.logging import get_classMethod_logger
 
-from ....toolkit import TOOLKIT_SAVEMODE_ONLYFILE
-from ._io_utils import readGeoJSONString
-from .toolkit import VectorToolkit
-from ..utils import ITM
-from ..utils import stlFactory
+from hera.toolkit import TOOLKIT_SAVEMODE_ONLYFILE
+from hera.measurements.GIS.vector._io_utils import readGeoJSONString
+from hera.measurements.GIS.vector.toolkit import VectorToolkit
+from hera.measurements.GIS.utils import ITM
+from hera.measurements.GIS.utils import stlFactory
 
 class TopographyToolkit(VectorToolkit):
     """Toolkit for managing and analyzing vector topography data."""
