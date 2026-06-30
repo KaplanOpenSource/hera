@@ -81,6 +81,7 @@ def _make_concentration_field(C_max=50.0, grid_size=41, nt=10):
 # TestAgentInstantiation
 # ---------------------------------------------------------------------------
 
+@pytest.mark.unit
 class TestAgentInstantiation:
     """Verify that Agent objects can be built from plain JSON descriptors."""
 
@@ -114,6 +115,7 @@ class TestAgentInstantiation:
 # TestInjuryLevelMath
 # ---------------------------------------------------------------------------
 
+@pytest.mark.unit
 class TestInjuryLevelMath:
     """Unit-test the dose-response math for individual InjuryLevel objects."""
 
@@ -147,6 +149,7 @@ class TestInjuryLevelMath:
 # TestToxicLoadCalculation
 # ---------------------------------------------------------------------------
 
+@pytest.mark.unit
 class TestToxicLoadCalculation:
     """Verify the cumulative toxic load produced by the TenBerge calculator."""
 
@@ -201,6 +204,7 @@ class TestToxicLoadCalculation:
 # TestRiskAssessmentFlow
 # ---------------------------------------------------------------------------
 
+@pytest.mark.unit
 class TestRiskAssessmentFlow:
     """Full end-to-end: concentration field → thresholdGeoDataFrame."""
 
