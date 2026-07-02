@@ -198,6 +198,9 @@ const WorkflowGraphInner = ({
     markerEnd: { type: MarkerType.ArrowClosed, color: '#1976d2' },
     style: { stroke: '#1976d2' },
     animated: true,
+    // The input handle sits inside the node, so the line's end runs under the
+    // node box; lift it above the nodes so it stays visible.
+    zIndex: 1000,
   }));
 
   const isValidConnection = (connection: Connection | Edge): boolean => {
