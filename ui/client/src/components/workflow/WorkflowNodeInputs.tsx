@@ -46,11 +46,10 @@ export const WorkflowNodeInputs = ({
         parentKey={undefined}
         def={paramsDef}
         setItemValue={onChangeParams}
-        // Turn each top-level parameter row's source dot into a target handle, so
-        // a dataflow line from another node's output can land on it (id = the
-        // parameter name). The dot stays the visible marker — the handle is
-        // transparent and just wraps it.
-        renderRowHandle={(itemKey, parentKey, source) => (
+        // Each parameter row shows its source dot before the name; on top-level
+        // rows wrap that dot in a target handle (id = the parameter name) so a
+        // dataflow line from another node's output can land on it.
+        renderBeforeName={(itemKey, parentKey, def) => (
           parentKey === keyForDetailsViewItem('input_parameters') ? (
             <Handle
               type="target"
@@ -58,9 +57,11 @@ export const WorkflowNodeInputs = ({
               position={Position.Left}
               style={{ position: 'relative', top: 'auto', left: 'auto', transform: 'none', width: 'auto', height: 'auto', minWidth: 0, minHeight: 0, background: 'transparent', border: 'none', borderRadius: 0 }}
             >
-              <FieldSourceDot source={source} />
+              <FieldSourceDot source={def?.source} />
             </Handle>
-          ) : null
+          ) : (
+            <FieldSourceDot source={def?.source} />
+          )
         )}
       />
     </SimpleTreeView>
