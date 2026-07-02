@@ -25,9 +25,16 @@ export const WorkflowNodeInputs = ({
         flexGrow: 1,
         minWidth: 0,
         '& .MuiTreeItem-label .MuiTypography-root': { fontSize: '0.875rem' },
+        // The title row (input_parameters) inherits DetailsViewItem's tall row
+        // margins, which exist to reserve space under leaf fields; the title has
+        // no field, so strip them on the top-level row to keep it compact.
+        '& > .MuiTreeItem-root > .MuiTreeItem-content .MuiTreeItem-label > .MuiStack-root': {
+          marginTop: '0 !important',
+          marginBottom: '0 !important',
+        },
         // The chevron centers on a row that reserves extra space below for the
         // "required" helper, so it sits slightly low; nudge it up to the title.
-        '& .MuiTreeItem-iconContainer': { transform: 'translateY(-4px)' },
+        '& .MuiTreeItem-iconContainer': { transform: 'translateY(-2px)' },
       }}
     >
       <DetailsViewItem

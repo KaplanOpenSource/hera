@@ -14,7 +14,9 @@ export const WorkflowNodeOutputs = ({
   return (
     <Box className="nodrag" sx={{ flexShrink: 0, minWidth: 96, mr: -1 }}>
       <Typography
-        sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', pr: 1, fontSize: '0.875rem', minHeight: '40px' }}
+        // Center in a box the height of the inputs' title row (its small icon
+        // buttons) so the two titles line up.
+        sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', pr: 1, fontSize: '0.875rem', minHeight: '34px' }}
       >
         outputs
       </Typography>
