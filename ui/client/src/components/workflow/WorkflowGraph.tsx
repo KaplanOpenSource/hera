@@ -9,7 +9,7 @@ import { WorkflowContextMenu, WorkflowContextMenuKind, WorkflowContextMenuTarget
 import { WorkflowFlowNode } from './WorkflowFlowNode';
 import { WorkflowRequiresEdge } from './WorkflowRequiresEdge';
 import { buildWorkflowEdges, isValidConnection as isValidConnectionPure } from './workflowEdges';
-import { buildDataflowEdges } from './workflowDataflow';
+import { buildDataflowEdges, clearInputReference, parseDataflowConnection, parseDataflowEdgeId, setInputReference } from './workflowDataflow';
 import { WorkflowLayout } from './WorkflowLayout';
 import { computeLayers } from './workflowGeometry';
 
@@ -214,17 +214,38 @@ const WorkflowGraphInner = ({
   }));
 
   const isValidConnection = (connection: Connection | Edge): boolean => {
+    // Output→input (dataflow) connections skip the requires cycle check.
+    if (parseDataflowConnection(connection.sourceHandle, connection.targetHandle)) {
+      return true;
+    }
     return isValidConnectionPure(connection, nodeNames, nodes);
   };
 
   const onConnect = (connection: Connection) => {
-    if (connection.source && connection.target) {
-      onAddRequire(connection.source, connection.target);
+    if (!connection.source || !connection.target) {
+      return;
     }
+    // Dragging an output handle to an input handle writes a dataflow reference
+    // ({source.output.name}) into the target's parameter; otherwise it's requires.
+    const dataflow = parseDataflowConnection(connection.sourceHandle, connection.targetHandle);
+    if (dataflow) {
+      onSetNode(connection.target, setInputReference(nodes[connection.target] ?? {}, dataflow.param, connection.source, dataflow.outputName));
+      return;
+    }
+    onAddRequire(connection.source, connection.target);
   };
 
   const onEdgesDelete = (deleted: Edge[]) => {
-    deleted.forEach(edge => onRemoveRequire(edge.source, edge.target));
+    deleted.forEach(edge => {
+      // Deleting a dataflow line clears the reference from its parameter; a
+      // requires edge removes the requires link.
+      const ref = parseDataflowEdgeId(edge.id);
+      if (ref) {
+        onSetNode(ref.target, clearInputReference(nodes[ref.target] ?? {}, ref.param, ref.refNode, ref.key));
+        return;
+      }
+      onRemoveRequire(edge.source, edge.target);
+    });
   };
 
   return (
