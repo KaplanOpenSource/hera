@@ -52,8 +52,9 @@ export const parseDataflowConnection = (
 
 // The reference token written into an input parameter value to point it at
 // another node's output — the same shape buildDataflowEdges parses back out.
+// Written as `parameters` (buildDataflowEdges also accepts `output`).
 export const dataflowReference = (sourceNode: string, outputName: string): string =>
-  `{${sourceNode}.output.${outputName}}`;
+  `{${sourceNode}.parameters.${outputName}}`;
 
 // Returns node with its `param` input set to reference sourceNode's output.
 export const setInputReference = (

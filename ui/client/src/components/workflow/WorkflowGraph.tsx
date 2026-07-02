@@ -15,14 +15,15 @@ import { computeLayers } from './workflowGeometry';
 
 // Defined once (module scope) so ReactFlow doesn't warn about changing types.
 const NODE_TYPES = { workflow: WorkflowFlowNode };
-const EDGE_TYPES = { requires: WorkflowRequiresEdge };
+// Dataflow edges reuse the same removable-edge component (X button at midpoint).
+const EDGE_TYPES = { requires: WorkflowRequiresEdge, dataflow: WorkflowRequiresEdge };
 
 interface WorkflowGraphProps {
   catalog: NodeCatalogEntry[];
   nodeNames: string[];
   nodes: { [name: string]: WorkflowNode };
   selectedNode?: string;
-  onSelectNode: (name: string) => void;
+  onSelectNode: (name: string | undefined) => void;
   onAddNode: () => void;
   onRenameNode: (oldName: string, newName: string) => void;
   onSetNode: (name: string, node: WorkflowNode) => void;
@@ -200,17 +201,32 @@ const WorkflowGraphInner = ({
     },
   }));
 
+  // Clears the reference a dataflow edge represents from its target parameter —
+  // used both by the edge's X button and by deleting the line.
+  const removeDataflowEdge = (id: string) => {
+    const ref = parseDataflowEdgeId(id);
+    if (ref) {
+      onSetNode(ref.target, clearInputReference(nodes[ref.target] ?? {}, ref.param, ref.refNode, ref.key));
+    }
+  };
+
   // Dataflow edges from parameter values that reference another node's output
   // (e.g. `{C.output.ggg}`), drawn output-handle → input-handle. Computed each
-  // render so edits to parameter values re-derive them. Read-only for now.
+  // render so edits to parameter values re-derive them. Hovering shows an X that
+  // clears the reference, mirroring the requires edges.
   const dataflowEdges: Edge[] = dataflowDeps.map(edge => ({
     ...edge,
+    type: 'dataflow',
     markerEnd: { type: MarkerType.ArrowClosed, color: '#1976d2' },
     style: { stroke: '#1976d2' },
     animated: true,
     // The input handle sits inside the node, so the line's end runs under the
     // node box; lift it above the nodes so it stays visible.
     zIndex: 1000,
+    data: {
+      hovered: edge.id === hoveredEdge,
+      onRemove: () => removeDataflowEdge(edge.id),
+    },
   }));
 
   const isValidConnection = (connection: Connection | Edge): boolean => {
@@ -239,9 +255,8 @@ const WorkflowGraphInner = ({
     deleted.forEach(edge => {
       // Deleting a dataflow line clears the reference from its parameter; a
       // requires edge removes the requires link.
-      const ref = parseDataflowEdgeId(edge.id);
-      if (ref) {
-        onSetNode(ref.target, clearInputReference(nodes[ref.target] ?? {}, ref.param, ref.refNode, ref.key));
+      if (parseDataflowEdgeId(edge.id)) {
+        removeDataflowEdge(edge.id);
         return;
       }
       onRemoveRequire(edge.source, edge.target);
@@ -261,6 +276,7 @@ const WorkflowGraphInner = ({
         isValidConnection={isValidConnection}
         fitView
         onNodeClick={(_e, node) => onSelectNode(node.id)}
+        onPaneClick={() => onSelectNode(undefined)}
         onEdgeMouseEnter={(_e, edge) => setHoveredEdge(edge.id)}
         onEdgeMouseLeave={() => setHoveredEdge(null)}
         onNodeContextMenu={(event, node) => {
