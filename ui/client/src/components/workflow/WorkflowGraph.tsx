@@ -11,6 +11,7 @@ import { WorkflowRequiresEdge } from './WorkflowRequiresEdge';
 import { buildWorkflowEdges, isValidConnection as isValidConnectionPure } from './workflowEdges';
 import { buildDataflowEdges } from './workflowDataflow';
 import { WorkflowLayout } from './WorkflowLayout';
+import { computeLayers } from './workflowGeometry';
 
 // Defined once (module scope) so ReactFlow doesn't warn about changing types.
 const NODE_TYPES = { workflow: WorkflowFlowNode };
@@ -61,12 +62,19 @@ const WorkflowGraphInner = ({
   // it (preserving dragged positions) when nodes are added/removed/reordered.
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState<Node>([]);
 
-  // A signature of the workflow structure (names, types, requires) so the graph
-  // only rebuilds when the structure changes — not when a node is dragged.
-  const structureKey = JSON.stringify(nodeNames.map(name => [name, nodes[name]?.type, nodes[name]?.requires]));
+  // Dataflow dependencies (an input referencing another node's output) — used
+  // both to draw the lines and to order the columns, alongside `requires`.
+  const dataflowDeps = buildDataflowEdges(nodeNames, nodes, catalog);
+
+  // A signature of the workflow structure (names, types, requires, and dataflow
+  // links) so the graph only rebuilds when the structure changes — not on drag.
+  const structureKey = JSON.stringify([
+    nodeNames.map(name => [name, nodes[name]?.type, nodes[name]?.requires]),
+    dataflowDeps.map(edge => [edge.source, edge.target]),
+  ]);
 
   useEffect(() => {
-    const layout = WorkflowLayout.stacked(nodeNames, nodes).positions();
+    const layout = WorkflowLayout.stacked(nodeNames, nodes, dataflowDeps).positions();
     setRfNodes(prev => {
       const prevPos = new Map(prev.map(n => [n.id, n.position]));
       return nodeNames.map(name => ({
@@ -82,9 +90,11 @@ const WorkflowGraphInner = ({
   // every drag or param edit. A single added node is focused (pan to it, keep
   // zoom) so it isn't lost off-screen when fitting all would zoom out too far;
   // initial load / bulk changes fit the whole graph; removes fit what remains.
-  const membershipKey = JSON.stringify([...nodeNames].sort());
+  // Re-stack when the column assignment changes: nodes added/removed, or a
+  // dependency (requires or a dataflow reference) moves a node to another column.
+  const layerKey = JSON.stringify(computeLayers(nodeNames, nodes, dataflowDeps));
   useEffect(() => {
-    const layout = WorkflowLayout.stacked(nodeNames, nodes).positions();
+    const layout = WorkflowLayout.stacked(nodeNames, nodes, dataflowDeps).positions();
     setRfNodes(prev => prev.map(node => ({ ...node, position: layout[node.id] ?? node.position })));
     const isInitial = prevNamesRef.current.length === 0;
     const added = nodeNames.filter(n => !prevNamesRef.current.includes(n));
@@ -94,10 +104,10 @@ const WorkflowGraphInner = ({
       pendingRef.current = 'all';
     } else if (added.length > 0 && removed.length === 0) {
       pendingRef.current = added.length === 1 ? added[0] : 'all';
-    } else if (removed.length > 0 && added.length === 0) {
+    } else {
       requestAnimationFrame(() => fitView({ duration: 300 }));
     }
-  }, [membershipKey]);
+  }, [layerKey]);
 
   // Once nodes are measured after a structure change, fit the whole graph or pan
   // to focus the newly added node (keeping the current zoom).
@@ -125,7 +135,7 @@ const WorkflowGraphInner = ({
   // them, while leaving every non-colliding position (including drags) untouched.
   const measuredKey = JSON.stringify(rfNodes.map(node => [node.id, Math.round(node.measured?.height ?? 0)]));
   useEffect(() => {
-    const fixed = WorkflowLayout.fromFlowNodes(rfNodes, nodeNames, nodes).fixOverlaps().positions();
+    const fixed = WorkflowLayout.fromFlowNodes(rfNodes, nodeNames, nodes, dataflowDeps).fixOverlaps().positions();
     setRfNodes(prev => {
       let changed = false;
       const next = prev.map(node => {
@@ -193,7 +203,7 @@ const WorkflowGraphInner = ({
   // Dataflow edges from parameter values that reference another node's output
   // (e.g. `{C.output.ggg}`), drawn output-handle → input-handle. Computed each
   // render so edits to parameter values re-derive them. Read-only for now.
-  const dataflowEdges: Edge[] = buildDataflowEdges(nodeNames, nodes, catalog).map(edge => ({
+  const dataflowEdges: Edge[] = dataflowDeps.map(edge => ({
     ...edge,
     markerEnd: { type: MarkerType.ArrowClosed, color: '#1976d2' },
     style: { stroke: '#1976d2' },
