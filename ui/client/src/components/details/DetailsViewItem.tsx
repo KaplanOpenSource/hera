@@ -1,5 +1,6 @@
 import { Add, CreateNewFolder, Delete } from '@mui/icons-material';
 import { Stack, Typography } from '@mui/material';
+import { ReactNode } from 'react';
 import { TreeItem } from '@mui/x-tree-view';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DetailsViewItemName } from './DetailsViewItemName';
@@ -19,6 +20,7 @@ export const DetailsViewItem = ({
   setItemKey = undefined,
   parentKey,
   def = undefined,
+  renderBeforeName = undefined,
 }: {
   itemKey: string,
   itemValue: any,
@@ -28,6 +30,10 @@ export const DetailsViewItem = ({
   // Definition of this field: `required` for the value editor, `children` for
   // the sub-fields below it.
   def?: FieldDef,
+  // Optional slot rendered before the field name, given the row's key info and
+  // its def (e.g. the workflow editor renders a source dot wrapped in a connection
+  // handle). Nothing is rendered when not provided. Passed down the tree.
+  renderBeforeName?: (itemKey: string, parentKey: string | undefined, def?: FieldDef) => ReactNode,
 }) => {
   const key = keyForDetailsViewItem(itemKey, parentKey);
   const isTree = typeof itemValue === 'object' && itemValue !== null;
@@ -59,6 +65,8 @@ export const DetailsViewItem = ({
           // helper text, so it shows without moving anything.
           style={{ marginTop: 7, marginBottom: 14 }}
         >
+
+          {renderBeforeName?.(itemKey, parentKey, def)}
 
           <DetailsViewItemName
             itemKey={itemKey}
@@ -147,6 +155,7 @@ export const DetailsViewItem = ({
               setItemValue={newVal => setItemValue({ ...itemValue, [k]: newVal })}
               setItemKey={isDir ? undefined : changeKey}
               def={def?.children?.[k]}
+              renderBeforeName={renderBeforeName}
             />
           )
         })}

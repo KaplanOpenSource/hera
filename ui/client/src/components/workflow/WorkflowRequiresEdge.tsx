@@ -20,6 +20,7 @@ export const WorkflowRequiresEdge = ({
   targetY,
   targetPosition,
   markerEnd,
+  style,
   data,
 }: EdgeProps) => {
   const [labelHover, setLabelHover] = useState(false);
@@ -30,7 +31,7 @@ export const WorkflowRequiresEdge = ({
 
   return (
     <>
-      <BaseEdge id={id} path={edgePath} markerEnd={markerEnd} />
+      <BaseEdge id={id} path={edgePath} markerEnd={markerEnd} style={style} />
       {(hovered || labelHover) && onRemove && (
         <EdgeLabelRenderer>
           <div
@@ -41,6 +42,10 @@ export const WorkflowRequiresEdge = ({
               position: 'absolute',
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
               pointerEvents: 'all',
+              // Nodes paint after (on top of) the edge-label layer; a dataflow
+              // edge's midpoint lands over the target node, so lift the button
+              // above the nodes or the node swallows the click.
+              zIndex: 1001,
             }}
           >
             <IconButton
