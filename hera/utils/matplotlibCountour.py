@@ -31,26 +31,33 @@ def toGeopandas(ContourData, inunits=None):
         import geopandas
     except ImportError:
         print("gis support not installed. ")
-    inunits = inunits if inunits is None else 1*ureg.m
+    inunits = inunits if inunits is not None else 1*ureg.m
 
     units_conversion = unumToPint(inunits).m_as(ureg.m)
     polyList = []
     levelsList = []
-    for col, level in zip(ContourData.collections, ContourData.levels):
-        # Loop through all polygons that have the same intensity level
-        for contour_path in col.get_paths():
-            polygons = (standardize_polygon(p,units_conversion) for p in contour_path.to_polygons())
-            try:
-                # break the list -- "shell" takes the first, "holes" takes the rest
-                (shell, *holes) = polygons
-            except ValueError:
-                # There was nothing in the list
-                pass
-            else:
-                # There was "shell" and maybe some "holes"
-                shape = geometry.Polygon(shell, holes)
-                levelsList.append(level)
-                polyList.append(shape)
+    if hasattr(ContourData, 'collections'):
+        path_level_pairs = [
+            (contour_path, level)
+            for col, level in zip(ContourData.collections, ContourData.levels)
+            for contour_path in col.get_paths()
+        ]
+    else:
+        path_level_pairs = list(zip(ContourData.get_paths(), ContourData.levels))
+
+    for contour_path, level in path_level_pairs:
+        polygons = (standardize_polygon(p, units_conversion) for p in contour_path.to_polygons())
+        try:
+            # break the list -- "shell" takes the first, "holes" takes the rest
+            (shell, *holes) = polygons
+        except ValueError:
+            # There was nothing in the list
+            pass
+        else:
+            # There was "shell" and maybe some "holes"
+            shape = geometry.Polygon(shell, holes)
+            levelsList.append(level)
+            polyList.append(shape)
 
 
     ret = geopandas.GeoDataFrame({"Level": levelsList, "contour": polyList}, geometry="contour")
