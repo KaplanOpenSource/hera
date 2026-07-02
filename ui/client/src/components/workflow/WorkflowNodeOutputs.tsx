@@ -1,9 +1,9 @@
 import { Box, Typography } from '@mui/material';
+import { WorkflowNodeOutputChip } from './WorkflowNodeOutputChip';
 
-// The node's outputs, as a right-aligned column that mirrors the inputs. Each
-// row ends in a dot on the node's edge — the anchor a connection line will
-// leave from (decorative for now; becomes a source Handle when outputs get
-// wired). Rows hide when the inputs tree is collapsed; the title stays.
+// The node's outputs, as a right-aligned column that mirrors the inputs: one
+// chip per output, each on a row the height of an input row so they line up.
+// Rows hide when the inputs tree is collapsed; the title stays.
 export const WorkflowNodeOutputs = ({
   outputs,
   expanded,
@@ -16,20 +16,12 @@ export const WorkflowNodeOutputs = ({
       <Typography
         // Center in a box the height of the inputs' title row (its small icon
         // buttons) so the two titles line up.
-        sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', pr: 1, fontSize: '0.875rem', minHeight: '34px' }}
+        sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', pr: 1, fontSize: '0.875rem', minHeight: '38px' }}
       >
         outputs
       </Typography>
       {expanded && outputs.map(name => (
-        <Box
-          key={name}
-          sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.75, mt: '7px', mb: '14px', minHeight: '40px' }}
-        >
-          <Typography sx={{ userSelect: 'text', fontSize: '0.875rem' }}>
-            {name}
-          </Typography>
-          <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'primary.main', flexShrink: 0 }} />
-        </Box>
+        <WorkflowNodeOutputChip key={name} name={name} />
       ))}
     </Box>
   );
