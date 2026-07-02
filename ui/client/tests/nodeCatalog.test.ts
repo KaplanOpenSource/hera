@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { NodeCatalogEntry, nodeTypeGroup, prefilledParameters, nodeTypeIssue, paramsFieldDef } from '../src/components/workflow/nodeCatalog';
+import { NodeCatalogEntry, nodeTypeGroup, prefilledParameters, nodeTypeIssue, paramsFieldDef, nodeOutputNames } from '../src/components/workflow/nodeCatalog';
 
 describe('nodeTypeGroup', () => {
   it('drops the last dotted segment', () => {
@@ -83,5 +83,28 @@ describe('paramsFieldDef', () => {
 
   it('has empty children for an unknown type', () => {
     expect(paramsFieldDef({ type: 'made.up' }, catalog)).toEqual({ children: {} });
+  });
+});
+
+describe('nodeOutputNames', () => {
+  const catalog: NodeCatalogEntry[] = [{
+    type: 'general.CopyFile',
+    parameters: [],
+    outputs: [
+      { name: 'case', source: 'python' },
+      { name: 'fields', source: 'python' },
+    ],
+  }];
+
+  it('returns the output names for a known type', () => {
+    expect(nodeOutputNames({ type: 'general.CopyFile' }, catalog)).toEqual(['case', 'fields']);
+  });
+
+  it('returns empty for an unknown type', () => {
+    expect(nodeOutputNames({ type: 'made.up' }, catalog)).toEqual([]);
+  });
+
+  it('returns empty when the type has no outputs field', () => {
+    expect(nodeOutputNames({ type: 't' }, [{ type: 't', parameters: [] }])).toEqual([]);
   });
 });

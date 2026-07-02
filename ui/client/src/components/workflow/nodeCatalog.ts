@@ -9,10 +9,19 @@ export interface NodeCatalogParameter {
   source: string;
 }
 
-// One Hermes node type and the parameters it accepts.
+// One output a node type produces. Names only (no values), plus where it was
+// discovered. Best-effort — only outputs detected from the node's run() return.
+export interface NodeCatalogOutput {
+  name: string;
+  source: string;
+}
+
+// One Hermes node type, the parameters it accepts and the outputs it produces.
 export interface NodeCatalogEntry {
   type: string;
   parameters: NodeCatalogParameter[];
+  // Optional: older callers/fixtures may omit it; the server always sends it.
+  outputs?: NodeCatalogOutput[];
 }
 
 // The group a type belongs to in the picker: its dotted prefix without the last
@@ -64,6 +73,16 @@ export const nodeTypeIssue = (node: WorkflowNode, catalog: NodeCatalogEntry[]): 
     return `unknown type: ${type}`;
   }
   return undefined;
+};
+
+// The output names a node type produces, per the catalog. Empty when the type is
+// unknown or has no detected outputs. Names only — the catalog carries no values.
+export const nodeOutputNames = (
+  node: WorkflowNode,
+  catalog: NodeCatalogEntry[],
+): string[] => {
+  const entry = catalog.find(e => e.type === (node.type ?? ''));
+  return (entry?.outputs ?? []).map(output => output.name);
 };
 
 // The field def for a node's input_parameters: a `children` map (keyed by

@@ -4,7 +4,7 @@ import { Handle, NodeProps, Position } from '@xyflow/react';
 import { useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
 import { DetailsViewItem, keyForDetailsViewItem } from '../details/DetailsViewItem';
-import { NodeCatalogEntry, nodeTypeGroup, nodeTypeIssue, paramsFieldDef, prefilledParameters } from './nodeCatalog';
+import { NodeCatalogEntry, nodeOutputNames, nodeTypeGroup, nodeTypeIssue, paramsFieldDef, prefilledParameters } from './nodeCatalog';
 import { WorkflowNodeDeleteButton } from './WorkflowNodeDeleteButton';
 
 export interface WorkflowFlowNodeData {
@@ -27,6 +27,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
   const typeOptions = catalog.map(entry => entry.type);
   const typeIssue = nodeTypeIssue(node, catalog);
   const paramsDef = paramsFieldDef(node, catalog);
+  const outputs = nodeOutputNames(node, catalog);
 
   // Free-form typing keeps the type as-is (custom types stay allowed); picking a
   // known type also seeds its parameters from the catalog.
@@ -108,6 +109,16 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
             })}
           />
         </SimpleTreeView>
+        {outputs.length > 0 && (
+          <Typography
+            className="nodrag"
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: 'block', mt: 0.5, userSelect: 'text' }}
+          >
+            outputs: {outputs.join(', ')}
+          </Typography>
+        )}
         {typeIssue && (
           <Typography
             className="nodrag"
