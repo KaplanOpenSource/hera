@@ -1,4 +1,4 @@
-import { WorkflowNode } from '../../shared/types';
+import { NodeParameterSource, WorkflowNode } from '../../shared/types';
 import { FieldDef } from '../details/fieldDef';
 
 // One parameter a node type accepts. Values (defaults) are not provided by the
@@ -6,14 +6,14 @@ import { FieldDef } from '../details/fieldDef';
 export interface NodeCatalogParameter {
   name: string;
   is_required: boolean;
-  source: string;
+  source: NodeParameterSource;
 }
 
 // One output a node type produces. Names only (no values), plus where it was
 // discovered. Best-effort — only outputs detected from the node's run() return.
 export interface NodeCatalogOutput {
   name: string;
-  source: string;
+  source: NodeParameterSource;
 }
 
 // One Hermes node type, the parameters it accepts and the outputs it produces.
@@ -98,7 +98,7 @@ export const paramsFieldDef = (
   const children: { [key: string]: FieldDef } = {};
   for (const param of entry?.parameters ?? []) {
     if (isParameterKey(param.name)) {
-      children[param.name] = { required: param.is_required };
+      children[param.name] = { required: param.is_required, source: param.source };
     }
   }
   return { children };

@@ -5,6 +5,7 @@ import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DetailsViewItemName } from './DetailsViewItemName';
 import { DetailsViewItemSingle } from './DetailsViewItemSingle';
 import { FieldDef } from './fieldDef';
+import { FieldSourceDot } from './FieldSourceDot';
 import { EditAsJsonButton } from './EditAsJsonButton';
 import { SelectDataFormat } from './SelectDataFormat';
 
@@ -59,6 +60,8 @@ export const DetailsViewItem = ({
           // helper text, so it shows without moving anything.
           style={{ marginTop: 7, marginBottom: 14 }}
         >
+
+          <FieldSourceDot source={def?.source} />
 
           <DetailsViewItemName
             itemKey={itemKey}
