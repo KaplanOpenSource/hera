@@ -9,6 +9,7 @@ import { WorkflowContextMenu, WorkflowContextMenuKind, WorkflowContextMenuTarget
 import { WorkflowFlowNode } from './WorkflowFlowNode';
 import { WorkflowRequiresEdge } from './WorkflowRequiresEdge';
 import { buildWorkflowEdges, isValidConnection as isValidConnectionPure } from './workflowEdges';
+import { buildDataflowEdges } from './workflowDataflow';
 import { WorkflowLayout } from './WorkflowLayout';
 
 // Defined once (module scope) so ReactFlow doesn't warn about changing types.
@@ -189,6 +190,16 @@ const WorkflowGraphInner = ({
     },
   }));
 
+  // Dataflow edges from parameter values that reference another node's output
+  // (e.g. `{C.output.ggg}`), drawn output-handle → input-handle. Computed each
+  // render so edits to parameter values re-derive them. Read-only for now.
+  const dataflowEdges: Edge[] = buildDataflowEdges(nodeNames, nodes, catalog).map(edge => ({
+    ...edge,
+    markerEnd: { type: MarkerType.ArrowClosed, color: '#1976d2' },
+    style: { stroke: '#1976d2' },
+    animated: true,
+  }));
+
   const isValidConnection = (connection: Connection | Edge): boolean => {
     return isValidConnectionPure(connection, nodeNames, nodes);
   };
@@ -207,7 +218,7 @@ const WorkflowGraphInner = ({
     <Box ref={containerRef} sx={{ flex: 1, minHeight: 200, ml: -2, mr: -2, mb: -2, borderTop: '1px solid', borderColor: 'divider' }}>
       <ReactFlow
         nodes={displayNodes}
-        edges={displayEdges}
+        edges={[...displayEdges, ...dataflowEdges]}
         nodeTypes={NODE_TYPES}
         edgeTypes={EDGE_TYPES}
         onNodesChange={onNodesChange}

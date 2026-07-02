@@ -1,5 +1,7 @@
 import { Add, CreateNewFolder, Delete } from '@mui/icons-material';
 import { Stack, Typography } from '@mui/material';
+import { ReactNode } from 'react';
+import { NodeParameterSource } from '../../shared/types';
 import { TreeItem } from '@mui/x-tree-view';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DetailsViewItemName } from './DetailsViewItemName';
@@ -20,6 +22,7 @@ export const DetailsViewItem = ({
   setItemKey = undefined,
   parentKey,
   def = undefined,
+  renderRowHandle = undefined,
 }: {
   itemKey: string,
   itemValue: any,
@@ -29,6 +32,10 @@ export const DetailsViewItem = ({
   // Definition of this field: `required` for the value editor, `children` for
   // the sub-fields below it.
   def?: FieldDef,
+  // Optional: wrap the row's source dot in a connection handle (used by the
+  // workflow editor). Gets the row's source so it can still show the dot; when it
+  // returns null the plain source dot is shown instead. Passed down the tree.
+  renderRowHandle?: (itemKey: string, parentKey: string | undefined, source?: NodeParameterSource) => ReactNode,
 }) => {
   const key = keyForDetailsViewItem(itemKey, parentKey);
   const isTree = typeof itemValue === 'object' && itemValue !== null;
@@ -61,7 +68,7 @@ export const DetailsViewItem = ({
           style={{ marginTop: 7, marginBottom: 14 }}
         >
 
-          <FieldSourceDot source={def?.source} />
+          {renderRowHandle?.(itemKey, parentKey, def?.source) ?? <FieldSourceDot source={def?.source} />}
 
           <DetailsViewItemName
             itemKey={itemKey}
@@ -150,6 +157,7 @@ export const DetailsViewItem = ({
               setItemValue={newVal => setItemValue({ ...itemValue, [k]: newVal })}
               setItemKey={isDir ? undefined : changeKey}
               def={def?.children?.[k]}
+              renderRowHandle={renderRowHandle}
             />
           )
         })}

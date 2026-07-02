@@ -1,6 +1,9 @@
 import { SimpleTreeView } from '@mui/x-tree-view';
-import { DetailsViewItem } from '../details/DetailsViewItem';
+import { Handle, Position } from '@xyflow/react';
+import { DetailsViewItem, keyForDetailsViewItem } from '../details/DetailsViewItem';
 import { FieldDef } from '../details/fieldDef';
+import { FieldSourceDot } from '../details/FieldSourceDot';
+import { inputHandleId } from './workflowDataflow';
 
 // The node's input_parameters, shown as an editable tree. Expansion is
 // controlled by the parent so the same chevron can also show/hide the outputs.
@@ -43,6 +46,22 @@ export const WorkflowNodeInputs = ({
         parentKey={undefined}
         def={paramsDef}
         setItemValue={onChangeParams}
+        // Turn each top-level parameter row's source dot into a target handle, so
+        // a dataflow line from another node's output can land on it (id = the
+        // parameter name). The dot stays the visible marker — the handle is
+        // transparent and just wraps it.
+        renderRowHandle={(itemKey, parentKey, source) => (
+          parentKey === keyForDetailsViewItem('input_parameters') ? (
+            <Handle
+              type="target"
+              id={inputHandleId(itemKey)}
+              position={Position.Left}
+              style={{ position: 'relative', top: 'auto', left: 'auto', transform: 'none', width: 'auto', height: 'auto', minWidth: 0, minHeight: 0, background: 'transparent', border: 'none', borderRadius: 0 }}
+            >
+              <FieldSourceDot source={source} />
+            </Handle>
+          ) : null
+        )}
       />
     </SimpleTreeView>
   );
