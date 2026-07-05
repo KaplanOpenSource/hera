@@ -4,12 +4,12 @@ import { Background, Connection, Controls, Edge, MarkerType, Node, Panel, ReactF
 import '@xyflow/react/dist/style.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
-import { NodeCatalogEntry } from './nodeCatalog';
+import { NodeCatalogEntry, nodeOutputNames } from './nodeCatalog';
 import { WorkflowContextMenu, WorkflowContextMenuKind, WorkflowContextMenuTarget } from './WorkflowContextMenu';
 import { WorkflowFlowNode } from './WorkflowFlowNode';
 import { WorkflowRequiresEdge } from './WorkflowRequiresEdge';
 import { buildWorkflowEdges, isValidConnection as isValidConnectionPure } from './workflowEdges';
-import { buildDataflowEdges, clearInputReference, parseDataflowConnection, parseDataflowEdgeId, setInputReference } from './workflowDataflow';
+import { buildDataflowEdges, clearInputReference, insertReferenceAt, parseDataflowConnection, parseDataflowEdgeId, setInputReference } from './workflowDataflow';
 import { WorkflowLayout } from './WorkflowLayout';
 import { computeLayers } from './workflowGeometry';
 
@@ -78,10 +78,14 @@ const WorkflowGraphInner = ({
     const layout = WorkflowLayout.stacked(nodeNames, nodes, dataflowDeps).positions();
     setRfNodes(prev => {
       const prevPos = new Map(prev.map(n => [n.id, n.position]));
+      // Carry over any drag-resized dimensions so a structure change (add/remove/
+      // retype a node) doesn't reset sizes the user set on the surviving nodes.
+      const prevSize = new Map(prev.map(n => [n.id, { width: n.width, height: n.height }]));
       return nodeNames.map(name => ({
         id: name,
         type: 'workflow',
         position: prevPos.get(name) ?? layout[name],
+        ...prevSize.get(name),
         data: {},
       }));
     });
@@ -185,6 +189,8 @@ const WorkflowGraphInner = ({
       onRename: (newName: string) => onRenameNode(node.id, newName),
       onChange: (updated: WorkflowNode) => onSetNode(node.id, updated),
       onDelete: () => onDeleteNode(node.id),
+      onFieldContextMenu: (param: string, x: number, y: number, caret?: number) =>
+        setMenu({ kind: WorkflowContextMenuKind.Field, node: node.id, param, x, y, caret }),
     },
   }));
 
@@ -251,6 +257,34 @@ const WorkflowGraphInner = ({
     onAddRequire(connection.source, connection.target);
   };
 
+  // Removes one input parameter from a node (right-click a field → delete).
+  const deleteField = (nodeName: string, param: string) => {
+    const target = nodes[nodeName] ?? {};
+    const input_parameters = { ...(target.Execution?.input_parameters ?? {}) };
+    delete input_parameters[param];
+    onSetNode(nodeName, { ...target, Execution: { ...target.Execution, input_parameters } });
+  };
+
+  // While a field's menu is open, the other nodes that produce outputs — the
+  // options for its "Reference another node's output…" autocomplete steps.
+  const referenceOptions = menu?.kind === WorkflowContextMenuKind.Field
+    ? nodeNames
+      .filter(name => name !== menu.node)
+      .map(name => ({ node: name, outputs: nodeOutputNames(nodes[name] ?? {}, catalog) }))
+      .filter(option => option.outputs.length > 0)
+    : [];
+
+  // Inserts a {sourceNode.parameters.output} reference into the field's value at
+  // the right-click caret (defaulting to the end), leaving the rest of the value
+  // intact (the menu closes itself afterward).
+  const referenceOutput = (nodeName: string, param: string, sourceNode: string, output: string, caret?: number) => {
+    const target = nodes[nodeName] ?? {};
+    const params = target.Execution?.input_parameters ?? {};
+    const current = typeof params[param] === 'string' ? params[param] : '';
+    const next = insertReferenceAt(current, caret ?? current.length, sourceNode, output);
+    onSetNode(nodeName, { ...target, Execution: { ...target.Execution, input_parameters: { ...params, [param]: next } } });
+  };
+
   const onEdgesDelete = (deleted: Edge[]) => {
     deleted.forEach(edge => {
       // Deleting a dataflow line clears the reference from its parameter; a
@@ -300,9 +334,12 @@ const WorkflowGraphInner = ({
       </ReactFlow>
       <WorkflowContextMenu
         menu={menu}
+        referenceOptions={referenceOptions}
         onClose={() => setMenu(null)}
         onDeleteNode={onDeleteNode}
+        onDeleteField={deleteField}
         onRemoveRequire={onRemoveRequire}
+        onReferenceOutput={referenceOutput}
       />
     </Box>
   );

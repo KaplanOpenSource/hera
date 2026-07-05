@@ -13,12 +13,16 @@ export const WorkflowNodeInputs = ({
   expandedItems,
   onExpandedItemsChange,
   onChangeParams,
+  onFieldContextMenu,
 }: {
   params: { [key: string]: any },
   paramsDef: FieldDef,
   expandedItems: string[],
   onExpandedItemsChange: (itemIds: string[]) => void,
   onChangeParams: (newParams: any) => void,
+  // Right-click on a top-level parameter row: open a menu for that field. The
+  // caret is the click's position within the input value, when it lands on one.
+  onFieldContextMenu: (param: string, x: number, y: number, caret?: number) => void,
 }) => {
   return (
     <SimpleTreeView
@@ -46,6 +50,20 @@ export const WorkflowNodeInputs = ({
         parentKey={undefined}
         def={paramsDef}
         setItemValue={onChangeParams}
+        // Right-click on a top-level parameter opens a menu for that field.
+        // Stop the event so ReactFlow's node menu doesn't also open; other rows
+        // (the title, nested keys) fall through to the node menu.
+        onRowContextMenu={(itemKey, parentKey, event) => {
+          if (parentKey === keyForDetailsViewItem('input_parameters')) {
+            event.preventDefault();
+            event.stopPropagation();
+            // When the right-click lands on the input itself, capture the caret
+            // so a reference can be inserted at that spot in the value.
+            const el = event.target as HTMLInputElement;
+            const caret = typeof el.selectionStart === 'number' ? el.selectionStart : undefined;
+            onFieldContextMenu(itemKey, event.clientX, event.clientY, caret);
+          }
+        }}
         // Each parameter row shows its source dot before the name; on top-level
         // rows wrap that dot in a target handle (id = the parameter name) so a
         // dataflow line from another node's output can land on it.
@@ -57,7 +75,7 @@ export const WorkflowNodeInputs = ({
               position={Position.Left}
               style={{ position: 'relative', top: 'auto', left: 'auto', transform: 'none', width: 'auto', height: 'auto', minWidth: 0, minHeight: 0, background: 'transparent', border: 'none', borderRadius: 0 }}
             >
-              <FieldSourceDot source={def?.source} />
+              <FieldSourceDot source={def?.source} showUnknown />
             </Handle>
           ) : (
             <FieldSourceDot source={def?.source} />

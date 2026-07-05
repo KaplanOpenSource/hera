@@ -3,6 +3,7 @@ import {
   buildDataflowEdges,
   clearInputReference,
   dataflowReference,
+  insertReferenceAt,
   parseDataflowConnection,
   parseDataflowEdgeId,
   setInputReference,
@@ -82,6 +83,26 @@ describe('setInputReference', () => {
 describe('dataflowReference', () => {
   it('builds the reference token', () => {
     expect(dataflowReference('C', 'ggg')).toBe('{C.parameters.ggg}');
+  });
+});
+
+describe('insertReferenceAt', () => {
+  it('inserts the token at a caret in the middle', () => {
+    expect(insertReferenceAt('ab', 1, 'C', 'ggg')).toBe('a{C.parameters.ggg}b');
+  });
+
+  it('inserts at the start and at the end', () => {
+    expect(insertReferenceAt('ab', 0, 'C', 'ggg')).toBe('{C.parameters.ggg}ab');
+    expect(insertReferenceAt('ab', 2, 'C', 'ggg')).toBe('ab{C.parameters.ggg}');
+  });
+
+  it('is just the token for an empty value', () => {
+    expect(insertReferenceAt('', 0, 'C', 'ggg')).toBe('{C.parameters.ggg}');
+  });
+
+  it('clamps a caret out of range', () => {
+    expect(insertReferenceAt('ab', -5, 'C', 'ggg')).toBe('{C.parameters.ggg}ab');
+    expect(insertReferenceAt('ab', 99, 'C', 'ggg')).toBe('ab{C.parameters.ggg}');
   });
 });
 
