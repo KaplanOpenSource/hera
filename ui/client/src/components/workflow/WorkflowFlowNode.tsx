@@ -1,5 +1,5 @@
 import { Autocomplete, Box, InputBase, Stack, TextField, Typography } from '@mui/material';
-import { Handle, NodeProps, Position } from '@xyflow/react';
+import { Handle, NodeProps, NodeResizer, Position } from '@xyflow/react';
 import { useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
 import { keyForDetailsViewItem } from '../details/DetailsViewItem';
@@ -64,12 +64,19 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
         px: 1,
         py: 0.5,
         minWidth: 260,
+        // Fill the node wrapper so a drag-resize (which sizes the wrapper) grows
+        // this box with it; before any resize the wrapper shrink-wraps content.
+        width: '100%',
+        height: '100%',
         borderRadius: 1,
         bgcolor: 'background.paper',
         border: '1px solid',
         borderColor: typeIssue ? 'warning.main' : selected ? 'primary.main' : 'divider',
       }}
     >
+      {/* Drag handles to resize the node; shown while it's selected. Size is
+          view-only (React Flow's store), not saved with the workflow. */}
+      <NodeResizer isVisible={selected} minWidth={260} minHeight={80} />
       <Handle type="target" position={Position.Left} />
       {hover && <WorkflowNodeDeleteButton onDelete={onDelete} />}
       <InputBase

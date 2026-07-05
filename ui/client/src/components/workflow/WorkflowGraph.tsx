@@ -78,10 +78,14 @@ const WorkflowGraphInner = ({
     const layout = WorkflowLayout.stacked(nodeNames, nodes, dataflowDeps).positions();
     setRfNodes(prev => {
       const prevPos = new Map(prev.map(n => [n.id, n.position]));
+      // Carry over any drag-resized dimensions so a structure change (add/remove/
+      // retype a node) doesn't reset sizes the user set on the surviving nodes.
+      const prevSize = new Map(prev.map(n => [n.id, { width: n.width, height: n.height }]));
       return nodeNames.map(name => ({
         id: name,
         type: 'workflow',
         position: prevPos.get(name) ?? layout[name],
+        ...prevSize.get(name),
         data: {},
       }));
     });
