@@ -4,7 +4,7 @@ import { Background, Connection, Controls, Edge, MarkerType, Node, Panel, ReactF
 import '@xyflow/react/dist/style.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
-import { NodeCatalogEntry } from './nodeCatalog';
+import { NodeCatalogEntry, nodeOutputNames } from './nodeCatalog';
 import { WorkflowContextMenu, WorkflowContextMenuKind, WorkflowContextMenuTarget } from './WorkflowContextMenu';
 import { WorkflowFlowNode } from './WorkflowFlowNode';
 import { WorkflowRequiresEdge } from './WorkflowRequiresEdge';
@@ -261,6 +261,21 @@ const WorkflowGraphInner = ({
     onSetNode(nodeName, { ...target, Execution: { ...target.Execution, input_parameters } });
   };
 
+  // While a field's menu is open, the other nodes that produce outputs — the
+  // options for its "Reference another node's output…" autocomplete steps.
+  const referenceOptions = menu?.kind === WorkflowContextMenuKind.Field
+    ? nodeNames
+      .filter(name => name !== menu.node)
+      .map(name => ({ node: name, outputs: nodeOutputNames(nodes[name] ?? {}, catalog) }))
+      .filter(option => option.outputs.length > 0)
+    : [];
+
+  // Replaces the field's value with a {sourceNode.parameters.output} reference to
+  // the chosen output (the menu closes itself afterward).
+  const referenceOutput = (nodeName: string, param: string, sourceNode: string, output: string) => {
+    onSetNode(nodeName, setInputReference(nodes[nodeName] ?? {}, param, sourceNode, output));
+  };
+
   const onEdgesDelete = (deleted: Edge[]) => {
     deleted.forEach(edge => {
       // Deleting a dataflow line clears the reference from its parameter; a
@@ -310,10 +325,12 @@ const WorkflowGraphInner = ({
       </ReactFlow>
       <WorkflowContextMenu
         menu={menu}
+        referenceOptions={referenceOptions}
         onClose={() => setMenu(null)}
         onDeleteNode={onDeleteNode}
         onDeleteField={deleteField}
         onRemoveRequire={onRemoveRequire}
+        onReferenceOutput={referenceOutput}
       />
     </Box>
   );
