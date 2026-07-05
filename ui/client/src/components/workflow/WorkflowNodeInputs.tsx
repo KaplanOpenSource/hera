@@ -57,7 +57,7 @@ export const WorkflowNodeInputs = ({
               position={Position.Left}
               style={{ position: 'relative', top: 'auto', left: 'auto', transform: 'none', width: 'auto', height: 'auto', minWidth: 0, minHeight: 0, background: 'transparent', border: 'none', borderRadius: 0 }}
             >
-              <FieldSourceDot source={def?.source} />
+              <FieldSourceDot source={def?.source} showUnknown />
             </Handle>
           ) : (
             <FieldSourceDot source={def?.source} />
