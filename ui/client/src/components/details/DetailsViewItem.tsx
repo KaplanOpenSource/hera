@@ -2,12 +2,11 @@ import { Stack } from '@mui/material';
 import { ReactNode } from 'react';
 import { TreeItem } from '@mui/x-tree-view';
 import { DetailsViewItemName } from './DetailsViewItemName';
-import { DetailsViewItemSingle } from './DetailsViewItemSingle';
+import { DetailsViewItemValue } from './DetailsViewItemValue';
 import { DetailsViewItemBranchActions } from './DetailsViewItemBranchActions';
 import { DeleteFieldButton } from './DeleteFieldButton';
 import { EmptyBranchLabel } from './EmptyBranchLabel';
 import { FieldDef } from './fieldDef';
-import { SelectDataFormat } from './SelectDataFormat';
 
 export const keyForDetailsViewItem = (itemKey: string, parentKey?: string) => {
   return parentKey ? `${parentKey}/${itemKey}` : itemKey;
@@ -68,24 +67,14 @@ export const DetailsViewItem = ({
             />
           )}
 
-          {isTree
-            ? null
-            : (itemKey === 'dataFormat'
-              ? (
-                <SelectDataFormat
-                  value={itemValue}
-                  setValue={v => setItemValue(v)}
-                />
-              )
-              : (
-                <DetailsViewItemSingle
-                  itemValue={itemValue}
-                  setItemValue={newVal => setItemValue(newVal)}
-                  def={def}
-                />
-              )
-            )
-          }
+          {!isTree && (
+            <DetailsViewItemValue
+              itemKey={itemKey}
+              itemValue={itemValue}
+              setItemValue={setItemValue}
+              def={def}
+            />
+          )}
 
           <DeleteFieldButton
             itemKey={itemKey}
