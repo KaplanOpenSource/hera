@@ -16,7 +16,7 @@ describe('WorkflowContextMenu', () => {
     expect(screen.queryByText(/Remove requirement/)).toBeNull();
   });
 
-  it('references another node output via two in-menu steps', async () => {
+  it('references another node output via two fly-out submenus', async () => {
     const onReferenceOutput = vi.fn();
     const onClose = vi.fn();
     render(
@@ -30,18 +30,19 @@ describe('WorkflowContextMenu', () => {
         onReferenceOutput={onReferenceOutput}
       />,
     );
-    // Clicking the action switches the menu into step 1 (pick a node) without
-    // closing or calling the handler yet.
-    fireEvent.click(screen.getByText(/Reference another node's output/));
-    expect(onReferenceOutput).not.toHaveBeenCalled();
-    expect(onClose).not.toHaveBeenCalled();
+    // Neither submenu autocomplete shows until the item is opened.
+    expect(screen.queryByRole('combobox', { name: 'Node' })).toBeNull();
 
-    // Step 1: pick the source node (only one autocomplete shows per step).
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'src' } });
+    // Open the "Reference output param" fly-out → the node autocomplete appears.
+    fireEvent.click(screen.getByText('Reference output param'));
+    expect(screen.queryByRole('combobox', { name: 'Output' })).toBeNull();
+
+    // Pick the source node → the output submenu flies out.
+    fireEvent.change(screen.getByRole('combobox', { name: 'Node' }), { target: { value: 'src' } });
     fireEvent.click(await screen.findByRole('option', { name: 'src' }));
 
-    // Step 2: pick one of that node's outputs → inserts the reference and closes.
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'out2' } });
+    // Pick one of that node's outputs → inserts the reference and closes.
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Output' }), { target: { value: 'out2' } });
     fireEvent.click(await screen.findByRole('option', { name: 'out2' }));
     expect(onReferenceOutput).toHaveBeenCalledWith('alpha', 'p', 'src', 'out2');
     expect(onClose).toHaveBeenCalled();

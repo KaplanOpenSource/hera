@@ -1,5 +1,6 @@
 import { Autocomplete, Box, Menu, MenuItem, TextField } from '@mui/material';
-import { ReactNode, useEffect, useState } from 'react';
+import { ArrowRight } from '@mui/icons-material';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 
 export enum WorkflowContextMenuKind {
   Node = 'node',
@@ -21,13 +22,11 @@ export interface NodeOutputOption {
 }
 
 // One entry in the menu: its label, what it does, and whether it's destructive
-// (shown red). `keepOpen` runs the action without closing the menu — used to
-// switch the menu into the reference-picking steps in place.
+// (shown red).
 interface MenuAction {
   label: ReactNode,
   run: () => void,
   danger?: boolean,
-  keepOpen?: boolean,
 }
 
 // The handlers each action can invoke.
@@ -35,15 +34,14 @@ interface MenuHandlers {
   onDeleteNode: (name: string) => void,
   onDeleteField: (node: string, param: string) => void,
   onRemoveRequire: (source: string, target: string) => void,
-  onStartReference: () => void,
 }
 
-// The actions to offer for a given right-click target.
+// The plain (click-to-run) actions for a target. The Field target also gets a
+// "Reference output param" item with fly-out submenus, rendered separately.
 const actionsFor = (menu: WorkflowContextMenuTarget, h: MenuHandlers): MenuAction[] => {
   switch (menu.kind) {
     case WorkflowContextMenuKind.Field:
       return [
-        { label: <>Reference another node's output…</>, run: h.onStartReference, keepOpen: true },
         { label: <>Delete input param “{menu.param}”</>, run: () => h.onDeleteField(menu.node, menu.param) },
         { label: <>Delete node “{menu.node}”</>, run: () => h.onDeleteNode(menu.node), danger: true },
       ];
@@ -58,9 +56,29 @@ const actionsFor = (menu: WorkflowContextMenuTarget, h: MenuHandlers): MenuActio
   }
 };
 
+// Props shared by the two fly-out submenus (node picker, then output picker):
+// each is a Menu holding a single autocomplete, anchored to its parent item.
+const SUBMENU_PROPS = {
+  anchorOrigin: { vertical: 'top', horizontal: 'right' },
+  transformOrigin: { vertical: 'top', horizontal: 'left' },
+  // The autocomplete keeps its own keyboard focus (typing filters rather than
+  // driving menu item navigation) and its dropdown overflows the menu paper.
+  disableAutoFocusItem: true,
+  slotProps: {
+    // Tuck each fly-out close to its parent (small negative left) and step it
+    // down a touch so the cascade reads as nested; let the dropdown overflow.
+    paper: { sx: { overflow: 'visible', ml: -0.5, mt: 0.5 } },
+    // Drop the menu list's own top/bottom padding — the box sets its own.
+    list: { sx: { py: 0 } },
+  },
+} as const;
+
+// Padding around each submenu's autocomplete — tight, so the fly-out hugs it.
+const SUBMENU_BOX_SX = { px: 1, py: 0.75, width: 220 } as const;
+
 // The right-click menu for the workflow graph: delete a node (or one of its
-// input fields), remove a requires edge, or reference another node's output into
-// the field — the last via two in-menu autocomplete steps (node, then output).
+// input fields), remove a requires edge, or — on a field — reference another
+// node's output through two fly-out submenus (pick a node, then pick its output).
 export const WorkflowContextMenu = ({
   menu,
   referenceOptions,
@@ -78,83 +96,112 @@ export const WorkflowContextMenu = ({
   onDeleteNode: (name: string) => void,
   onDeleteField: (node: string, param: string) => void,
   onRemoveRequire: (source: string, target: string) => void,
-  // Called once both steps are chosen: write a reference to sourceNode's output
-  // into (node, param).
+  // Called once both submenus are chosen: write a reference to sourceNode's
+  // output into (node, param).
   onReferenceOutput: (node: string, param: string, sourceNode: string, output: string) => void,
 }) => {
-  // The reference flow's step: idle (show actions), pick a node, then pick that
-  // node's output. Reset whenever the menu opens on a new target or closes.
+  // The item the node submenu flies out from, and the node box the output
+  // submenu flies out from.
+  const referenceItemRef = useRef<HTMLLIElement | null>(null);
+  const nodeBoxRef = useRef<HTMLDivElement | null>(null);
+  // Whether the node submenu is open, and which node was chosen in it (which in
+  // turn opens the output submenu). Reset when the menu opens or closes.
+  const [nodeSubmenuOpen, setNodeSubmenuOpen] = useState(false);
   const [refNode, setRefNode] = useState<string | null>(null);
-  const [referencing, setReferencing] = useState(false);
   useEffect(() => {
-    setReferencing(false);
+    setNodeSubmenuOpen(false);
     setRefNode(null);
   }, [menu]);
 
   const field = menu?.kind === WorkflowContextMenuKind.Field ? menu : null;
-  const actions = menu ? actionsFor(menu, {
-    onDeleteNode,
-    onDeleteField,
-    onRemoveRequire,
-    onStartReference: () => setReferencing(true),
-  }) : [];
+  const showReference = field !== null && referenceOptions.length > 0;
   const outputsForNode = referenceOptions.find(o => o.node === refNode)?.outputs ?? [];
+  const actions = menu ? actionsFor(menu, { onDeleteNode, onDeleteField, onRemoveRequire }) : [];
+
+  // Closes the whole cascade (both submenus and the root menu).
+  const closeAll = () => {
+    setNodeSubmenuOpen(false);
+    setRefNode(null);
+    onClose();
+  };
 
   return (
-    <Menu
-      open={menu !== null}
-      onClose={onClose}
-      anchorReference="anchorPosition"
-      anchorPosition={menu ? { top: menu.y, left: menu.x } : undefined}
-      // The autocomplete step must keep its own keyboard focus; without this the
-      // menu grabs it for item type-ahead. Let its dropdown overflow the paper.
-      disableAutoFocusItem
-      slotProps={{ paper: { sx: { overflow: 'visible' } } }}
-    >
-      {referencing && field && refNode === null && (
-        // Step 1: pick the source node. Stop keydown from reaching the menu so
-        // typing filters the autocomplete instead of jumping between items.
-        <Box sx={{ px: 2, py: 1, width: 260 }} onKeyDown={e => e.stopPropagation()}>
+    <>
+      <Menu
+        open={menu !== null}
+        onClose={closeAll}
+        anchorReference="anchorPosition"
+        anchorPosition={menu ? { top: menu.y, left: menu.x } : undefined}
+      >
+        {showReference && (
+          <MenuItem
+            ref={referenceItemRef}
+            onClick={() => setNodeSubmenuOpen(true)}
+            onMouseEnter={() => setNodeSubmenuOpen(true)}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              Reference output param
+              <ArrowRight fontSize="small" sx={{ ml: 1, mr: -1 }} />
+            </Box>
+          </MenuItem>
+        )}
+        {actions.map((action, i) => (
+          <MenuItem
+            key={i}
+            sx={action.danger ? { color: 'error.main' } : undefined}
+            onClick={() => { action.run(); closeAll(); }}
+          >
+            {action.label}
+          </MenuItem>
+        ))}
+        {menu !== null && (
+          <MenuItem onClick={closeAll}>Cancel</MenuItem>
+        )}
+      </Menu>
+
+      {/* Node submenu: pick the source node; choosing one reveals its outputs. */}
+      <Menu
+        open={showReference && nodeSubmenuOpen}
+        anchorEl={referenceItemRef.current}
+        onClose={closeAll}
+        {...SUBMENU_PROPS}
+      >
+        <Box ref={nodeBoxRef} sx={SUBMENU_BOX_SX} onKeyDown={e => e.stopPropagation()}>
           <Autocomplete
             size="small"
             openOnFocus
             disablePortal
+            value={refNode}
             options={referenceOptions.map(o => o.node)}
-            onChange={(_e, value) => { if (value !== null) { setRefNode(value); } }}
+            onChange={(_e, value) => setRefNode(value)}
             renderInput={(params) => <TextField {...params} label="Node" autoFocus />}
           />
         </Box>
-      )}
-      {referencing && field && refNode !== null && (
-        // Step 2: pick one of that node's outputs; choosing it inserts and closes.
-        <Box sx={{ px: 2, py: 1, width: 260 }} onKeyDown={e => e.stopPropagation()}>
+      </Menu>
+
+      {/* Output submenu (fly-out of the node submenu): pick the output to insert. */}
+      <Menu
+        open={showReference && nodeSubmenuOpen && refNode !== null}
+        anchorEl={nodeBoxRef.current}
+        onClose={closeAll}
+        {...SUBMENU_PROPS}
+      >
+        <Box sx={SUBMENU_BOX_SX} onKeyDown={e => e.stopPropagation()}>
           <Autocomplete
             size="small"
             openOnFocus
             disablePortal
             options={outputsForNode}
             onChange={(_e, value) => {
-              if (value !== null) {
+              if (value !== null && field !== null && refNode !== null) {
                 onReferenceOutput(field.node, field.param, refNode, value);
-                onClose();
+                closeAll();
               }
             }}
-            renderInput={(params) => <TextField {...params} label={`Output of ${refNode}`} autoFocus />}
+            renderInput={(params) => <TextField {...params} label="Output" autoFocus />}
           />
         </Box>
-      )}
-      {!referencing && actions.map((action, i) => (
-        <MenuItem
-          key={i}
-          sx={action.danger ? { color: 'error.main' } : undefined}
-          onClick={() => { action.run(); if (!action.keepOpen) { onClose(); } }}
-        >
-          {action.label}
-        </MenuItem>
-      ))}
-      {menu !== null && !referencing && (
-        <MenuItem onClick={onClose}>Cancel</MenuItem>
-      )}
-    </Menu>
+      </Menu>
+    </>
   );
 };
