@@ -56,6 +56,19 @@ export const parseDataflowConnection = (
 export const dataflowReference = (sourceNode: string, outputName: string): string =>
   `{${sourceNode}.parameters.${outputName}}`;
 
+// Splices a node-output reference into `value` at `caret`. The caret is clamped
+// into range, so out-of-range positions land at the start or end.
+export const insertReferenceAt = (
+  value: string,
+  caret: number,
+  sourceNode: string,
+  outputName: string,
+): string => {
+  const token = dataflowReference(sourceNode, outputName);
+  const at = Math.max(0, Math.min(caret, value.length));
+  return value.slice(0, at) + token + value.slice(at);
+};
+
 // Returns node with its `param` input set to reference sourceNode's output.
 export const setInputReference = (
   node: WorkflowNode,

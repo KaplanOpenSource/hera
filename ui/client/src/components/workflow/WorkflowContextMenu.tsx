@@ -12,7 +12,7 @@ export enum WorkflowContextMenuKind {
 // requires link), anchored at a point.
 export type WorkflowContextMenuTarget =
   | { kind: WorkflowContextMenuKind.Node, name: string, x: number, y: number }
-  | { kind: WorkflowContextMenuKind.Field, node: string, param: string, x: number, y: number }
+  | { kind: WorkflowContextMenuKind.Field, node: string, param: string, x: number, y: number, caret?: number }
   | { kind: WorkflowContextMenuKind.Edge, source: string, target: string, x: number, y: number };
 
 // One node the user can reference, and the outputs it produces.
@@ -96,9 +96,9 @@ export const WorkflowContextMenu = ({
   onDeleteNode: (name: string) => void,
   onDeleteField: (node: string, param: string) => void,
   onRemoveRequire: (source: string, target: string) => void,
-  // Called once both submenus are chosen: write a reference to sourceNode's
-  // output into (node, param).
-  onReferenceOutput: (node: string, param: string, sourceNode: string, output: string) => void,
+  // Called once both submenus are chosen: insert a reference to sourceNode's
+  // output into (node, param) at `caret` (the right-click position in the value).
+  onReferenceOutput: (node: string, param: string, sourceNode: string, output: string, caret?: number) => void,
 }) => {
   // The item the node submenu flies out from, and the node box the output
   // submenu flies out from.
@@ -194,7 +194,7 @@ export const WorkflowContextMenu = ({
             options={outputsForNode}
             onChange={(_e, value) => {
               if (value !== null && field !== null && refNode !== null) {
-                onReferenceOutput(field.node, field.param, refNode, value);
+                onReferenceOutput(field.node, field.param, refNode, value, field.caret);
                 closeAll();
               }
             }}

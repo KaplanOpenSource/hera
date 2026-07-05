@@ -15,7 +15,7 @@ export interface WorkflowFlowNodeData {
   onRename: (newName: string) => void;
   onChange: (node: WorkflowNode) => void;
   onDelete: () => void;
-  onFieldContextMenu: (param: string, x: number, y: number) => void;
+  onFieldContextMenu: (param: string, x: number, y: number, caret?: number) => void;
   [key: string]: unknown;
 }
 

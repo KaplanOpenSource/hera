@@ -20,8 +20,9 @@ export const WorkflowNodeInputs = ({
   expandedItems: string[],
   onExpandedItemsChange: (itemIds: string[]) => void,
   onChangeParams: (newParams: any) => void,
-  // Right-click on a top-level parameter row: open a menu for that field.
-  onFieldContextMenu: (param: string, x: number, y: number) => void,
+  // Right-click on a top-level parameter row: open a menu for that field. The
+  // caret is the click's position within the input value, when it lands on one.
+  onFieldContextMenu: (param: string, x: number, y: number, caret?: number) => void,
 }) => {
   return (
     <SimpleTreeView
@@ -56,7 +57,11 @@ export const WorkflowNodeInputs = ({
           if (parentKey === keyForDetailsViewItem('input_parameters')) {
             event.preventDefault();
             event.stopPropagation();
-            onFieldContextMenu(itemKey, event.clientX, event.clientY);
+            // When the right-click lands on the input itself, capture the caret
+            // so a reference can be inserted at that spot in the value.
+            const el = event.target as HTMLInputElement;
+            const caret = typeof el.selectionStart === 'number' ? el.selectionStart : undefined;
+            onFieldContextMenu(itemKey, event.clientX, event.clientY, caret);
           }
         }}
         // Each parameter row shows its source dot before the name; on top-level

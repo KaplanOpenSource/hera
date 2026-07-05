@@ -9,7 +9,7 @@ import { WorkflowContextMenu, WorkflowContextMenuKind, WorkflowContextMenuTarget
 import { WorkflowFlowNode } from './WorkflowFlowNode';
 import { WorkflowRequiresEdge } from './WorkflowRequiresEdge';
 import { buildWorkflowEdges, isValidConnection as isValidConnectionPure } from './workflowEdges';
-import { buildDataflowEdges, clearInputReference, parseDataflowConnection, parseDataflowEdgeId, setInputReference } from './workflowDataflow';
+import { buildDataflowEdges, clearInputReference, insertReferenceAt, parseDataflowConnection, parseDataflowEdgeId, setInputReference } from './workflowDataflow';
 import { WorkflowLayout } from './WorkflowLayout';
 import { computeLayers } from './workflowGeometry';
 
@@ -185,8 +185,8 @@ const WorkflowGraphInner = ({
       onRename: (newName: string) => onRenameNode(node.id, newName),
       onChange: (updated: WorkflowNode) => onSetNode(node.id, updated),
       onDelete: () => onDeleteNode(node.id),
-      onFieldContextMenu: (param: string, x: number, y: number) =>
-        setMenu({ kind: WorkflowContextMenuKind.Field, node: node.id, param, x, y }),
+      onFieldContextMenu: (param: string, x: number, y: number, caret?: number) =>
+        setMenu({ kind: WorkflowContextMenuKind.Field, node: node.id, param, x, y, caret }),
     },
   }));
 
@@ -270,10 +270,15 @@ const WorkflowGraphInner = ({
       .filter(option => option.outputs.length > 0)
     : [];
 
-  // Replaces the field's value with a {sourceNode.parameters.output} reference to
-  // the chosen output (the menu closes itself afterward).
-  const referenceOutput = (nodeName: string, param: string, sourceNode: string, output: string) => {
-    onSetNode(nodeName, setInputReference(nodes[nodeName] ?? {}, param, sourceNode, output));
+  // Inserts a {sourceNode.parameters.output} reference into the field's value at
+  // the right-click caret (defaulting to the end), leaving the rest of the value
+  // intact (the menu closes itself afterward).
+  const referenceOutput = (nodeName: string, param: string, sourceNode: string, output: string, caret?: number) => {
+    const target = nodes[nodeName] ?? {};
+    const params = target.Execution?.input_parameters ?? {};
+    const current = typeof params[param] === 'string' ? params[param] : '';
+    const next = insertReferenceAt(current, caret ?? current.length, sourceNode, output);
+    onSetNode(nodeName, { ...target, Execution: { ...target.Execution, input_parameters: { ...params, [param]: next } } });
   };
 
   const onEdgesDelete = (deleted: Edge[]) => {

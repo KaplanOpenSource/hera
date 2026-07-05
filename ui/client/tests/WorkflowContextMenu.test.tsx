@@ -21,7 +21,7 @@ describe('WorkflowContextMenu', () => {
     const onClose = vi.fn();
     render(
       <WorkflowContextMenu
-        menu={{ kind: WorkflowContextMenuKind.Field, node: 'alpha', param: 'p', x: 10, y: 20 }}
+        menu={{ kind: WorkflowContextMenuKind.Field, node: 'alpha', param: 'p', x: 10, y: 20, caret: 3 }}
         referenceOptions={referenceOptions}
         onClose={onClose}
         onDeleteNode={vi.fn()}
@@ -44,7 +44,7 @@ describe('WorkflowContextMenu', () => {
     // Pick one of that node's outputs → inserts the reference and closes.
     fireEvent.change(await screen.findByRole('combobox', { name: 'Output' }), { target: { value: 'out2' } });
     fireEvent.click(await screen.findByRole('option', { name: 'out2' }));
-    expect(onReferenceOutput).toHaveBeenCalledWith('alpha', 'p', 'src', 'out2');
+    expect(onReferenceOutput).toHaveBeenCalledWith('alpha', 'p', 'src', 'out2', 3);
     expect(onClose).toHaveBeenCalled();
   });
 
