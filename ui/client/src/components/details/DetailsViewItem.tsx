@@ -1,5 +1,5 @@
 import { Stack } from '@mui/material';
-import { ReactNode } from 'react';
+import { MouseEvent, ReactNode } from 'react';
 import { TreeItem } from '@mui/x-tree-view';
 import { DetailsViewItemName } from './DetailsViewItemName';
 import { DetailsViewItemValue } from './DetailsViewItemValue';
@@ -20,6 +20,7 @@ export const DetailsViewItem = ({
   parentKey,
   def = undefined,
   renderBeforeName = undefined,
+  onRowContextMenu = undefined,
 }: {
   itemKey: string,
   itemValue: any,
@@ -33,6 +34,9 @@ export const DetailsViewItem = ({
   // its def (e.g. the workflow editor renders a source dot wrapped in a connection
   // handle). Nothing is rendered when not provided. Passed down the tree.
   renderBeforeName?: (itemKey: string, parentKey: string | undefined, def?: FieldDef) => ReactNode,
+  // Optional right-click handler for a row, given the row's key info (e.g. the
+  // workflow editor opens a per-field menu). Passed down the tree.
+  onRowContextMenu?: (itemKey: string, parentKey: string | undefined, event: MouseEvent<HTMLElement>) => void,
 }) => {
   const key = keyForDetailsViewItem(itemKey, parentKey);
   const isTree = typeof itemValue === 'object' && itemValue !== null;
@@ -51,6 +55,7 @@ export const DetailsViewItem = ({
           // Bottom space on every row reserves room for a field's "required"
           // helper text, so it shows without moving anything.
           style={{ marginTop: 7, marginBottom: 14 }}
+          onContextMenu={event => onRowContextMenu?.(itemKey, parentKey, event)}
         >
 
           {renderBeforeName?.(itemKey, parentKey, def)}
@@ -108,6 +113,7 @@ export const DetailsViewItem = ({
               setItemKey={isDir ? undefined : changeKey}
               def={def?.children?.[k]}
               renderBeforeName={renderBeforeName}
+              onRowContextMenu={onRowContextMenu}
             />
           )
         })}

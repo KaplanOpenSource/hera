@@ -185,6 +185,8 @@ const WorkflowGraphInner = ({
       onRename: (newName: string) => onRenameNode(node.id, newName),
       onChange: (updated: WorkflowNode) => onSetNode(node.id, updated),
       onDelete: () => onDeleteNode(node.id),
+      onFieldContextMenu: (param: string, x: number, y: number) =>
+        setMenu({ kind: WorkflowContextMenuKind.Field, node: node.id, param, x, y }),
     },
   }));
 
@@ -251,6 +253,14 @@ const WorkflowGraphInner = ({
     onAddRequire(connection.source, connection.target);
   };
 
+  // Removes one input parameter from a node (right-click a field → delete).
+  const deleteField = (nodeName: string, param: string) => {
+    const target = nodes[nodeName] ?? {};
+    const input_parameters = { ...(target.Execution?.input_parameters ?? {}) };
+    delete input_parameters[param];
+    onSetNode(nodeName, { ...target, Execution: { ...target.Execution, input_parameters } });
+  };
+
   const onEdgesDelete = (deleted: Edge[]) => {
     deleted.forEach(edge => {
       // Deleting a dataflow line clears the reference from its parameter; a
@@ -302,6 +312,7 @@ const WorkflowGraphInner = ({
         menu={menu}
         onClose={() => setMenu(null)}
         onDeleteNode={onDeleteNode}
+        onDeleteField={deleteField}
         onRemoveRequire={onRemoveRequire}
       />
     </Box>

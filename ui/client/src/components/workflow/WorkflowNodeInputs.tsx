@@ -13,12 +13,15 @@ export const WorkflowNodeInputs = ({
   expandedItems,
   onExpandedItemsChange,
   onChangeParams,
+  onFieldContextMenu,
 }: {
   params: { [key: string]: any },
   paramsDef: FieldDef,
   expandedItems: string[],
   onExpandedItemsChange: (itemIds: string[]) => void,
   onChangeParams: (newParams: any) => void,
+  // Right-click on a top-level parameter row: open a menu for that field.
+  onFieldContextMenu: (param: string, x: number, y: number) => void,
 }) => {
   return (
     <SimpleTreeView
@@ -46,6 +49,16 @@ export const WorkflowNodeInputs = ({
         parentKey={undefined}
         def={paramsDef}
         setItemValue={onChangeParams}
+        // Right-click on a top-level parameter opens a menu for that field.
+        // Stop the event so ReactFlow's node menu doesn't also open; other rows
+        // (the title, nested keys) fall through to the node menu.
+        onRowContextMenu={(itemKey, parentKey, event) => {
+          if (parentKey === keyForDetailsViewItem('input_parameters')) {
+            event.preventDefault();
+            event.stopPropagation();
+            onFieldContextMenu(itemKey, event.clientX, event.clientY);
+          }
+        }}
         // Each parameter row shows its source dot before the name; on top-level
         // rows wrap that dot in a target handle (id = the parameter name) so a
         // dataflow line from another node's output can land on it.

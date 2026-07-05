@@ -15,13 +15,14 @@ export interface WorkflowFlowNodeData {
   onRename: (newName: string) => void;
   onChange: (node: WorkflowNode) => void;
   onDelete: () => void;
+  onFieldContextMenu: (param: string, x: number, y: number) => void;
   [key: string]: unknown;
 }
 
 // Custom ReactFlow node: edits the node name, type, and input parameters in
 // place. Delete on hover.
 export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
-  const { name, node, catalog, onRename, onChange, onDelete } = data as WorkflowFlowNodeData;
+  const { name, node, catalog, onRename, onChange, onDelete, onFieldContextMenu } = data as WorkflowFlowNodeData;
   const [draft, setDraft] = useState(name);
   const [hover, setHover] = useState(false);
   // Controlled so the input_parameters chevron also shows/hides the outputs.
@@ -108,6 +109,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
               ...node,
               Execution: { ...node.Execution, input_parameters: newVal },
             })}
+            onFieldContextMenu={onFieldContextMenu}
           />
           {outputs.length > 0 && (
             <WorkflowNodeOutputs outputs={outputs} expanded={inputsExpanded} />
