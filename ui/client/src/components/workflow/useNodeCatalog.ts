@@ -12,7 +12,10 @@ export const useNodeCatalog = () => {
     const run = async () => {
       const response = await fetch(`${BASEURL}/node-catalog`);
       if (!response.ok) {
-        console.error(`node catalog: ${response.status} ${response.statusText}`);
+        // The server's error middleware returns { error, traceback }; log the real
+        // traceback instead of just the bare status so failures are debuggable here.
+        const problem = await response.json() as { error?: string; traceback?: string };
+        console.error(`node catalog failed (${response.status}): ${problem.error ?? response.statusText}\n${problem.traceback ?? ''}`);
         return;
       }
       setCatalog(await response.json() as NodeCatalogEntry[]);

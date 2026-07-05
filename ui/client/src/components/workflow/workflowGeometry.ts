@@ -1,14 +1,23 @@
 import { WorkflowNode } from '../../shared/types';
 import { normalizeRequires } from '../../shared/workflow';
 
-export const X_GAP = 700;       // horizontal distance between dependency layers
+export const X_GAP = 850;       // horizontal distance between dependency layers
 export const V_GAP = 100;       // vertical gap between nodes in a column
 export const BASE_HEIGHT = 110; // node height without params (name + type)
 export const ROW_HEIGHT = 28;   // estimated height per parameter row
 
-// Assigns each node a layer = longest `requires` chain depth, so the graph lays
-// out left-to-right by dependency order. Cycles are broken at layer 0.
-export const computeLayers = (nodeNames: string[], nodes: { [name: string]: WorkflowNode }): { [name: string]: number } => {
+// Assigns each node a layer = longest dependency chain depth, so the graph lays
+// out left-to-right by dependency order. Dependencies are `requires` plus any
+// extraDeps (e.g. dataflow references). Cycles are broken at layer 0.
+export const computeLayers = (
+  nodeNames: string[],
+  nodes: { [name: string]: WorkflowNode },
+  extraDeps: { source: string, target: string }[] = [],
+): { [name: string]: number } => {
+  const extraPreds: { [target: string]: string[] } = {};
+  extraDeps.forEach(({ source, target }) => {
+    (extraPreds[target] ??= []).push(source);
+  });
   const layer: { [name: string]: number } = {};
   const visiting = new Set<string>();
   const resolve = (name: string): number => {
@@ -19,7 +28,8 @@ export const computeLayers = (nodeNames: string[], nodes: { [name: string]: Work
       return 0;
     }
     visiting.add(name);
-    const reqs = normalizeRequires(nodes[name]?.requires).filter(r => nodeNames.includes(r));
+    const reqs = [...normalizeRequires(nodes[name]?.requires), ...(extraPreds[name] ?? [])]
+      .filter(r => nodeNames.includes(r) && r !== name);
     const value = reqs.length === 0 ? 0 : Math.max(...reqs.map(resolve)) + 1;
     visiting.delete(name);
     layer[name] = value;

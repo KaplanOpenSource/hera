@@ -9,18 +9,21 @@ import { WorkflowContextMenu, WorkflowContextMenuKind, WorkflowContextMenuTarget
 import { WorkflowFlowNode } from './WorkflowFlowNode';
 import { WorkflowRequiresEdge } from './WorkflowRequiresEdge';
 import { buildWorkflowEdges, isValidConnection as isValidConnectionPure } from './workflowEdges';
+import { buildDataflowEdges, clearInputReference, parseDataflowConnection, parseDataflowEdgeId, setInputReference } from './workflowDataflow';
 import { WorkflowLayout } from './WorkflowLayout';
+import { computeLayers } from './workflowGeometry';
 
 // Defined once (module scope) so ReactFlow doesn't warn about changing types.
 const NODE_TYPES = { workflow: WorkflowFlowNode };
-const EDGE_TYPES = { requires: WorkflowRequiresEdge };
+// Dataflow edges reuse the same removable-edge component (X button at midpoint).
+const EDGE_TYPES = { requires: WorkflowRequiresEdge, dataflow: WorkflowRequiresEdge };
 
 interface WorkflowGraphProps {
   catalog: NodeCatalogEntry[];
   nodeNames: string[];
   nodes: { [name: string]: WorkflowNode };
   selectedNode?: string;
-  onSelectNode: (name: string) => void;
+  onSelectNode: (name: string | undefined) => void;
   onAddNode: () => void;
   onRenameNode: (oldName: string, newName: string) => void;
   onSetNode: (name: string, node: WorkflowNode) => void;
@@ -60,12 +63,19 @@ const WorkflowGraphInner = ({
   // it (preserving dragged positions) when nodes are added/removed/reordered.
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState<Node>([]);
 
-  // A signature of the workflow structure (names, types, requires) so the graph
-  // only rebuilds when the structure changes — not when a node is dragged.
-  const structureKey = JSON.stringify(nodeNames.map(name => [name, nodes[name]?.type, nodes[name]?.requires]));
+  // Dataflow dependencies (an input referencing another node's output) — used
+  // both to draw the lines and to order the columns, alongside `requires`.
+  const dataflowDeps = buildDataflowEdges(nodeNames, nodes, catalog);
+
+  // A signature of the workflow structure (names, types, requires, and dataflow
+  // links) so the graph only rebuilds when the structure changes — not on drag.
+  const structureKey = JSON.stringify([
+    nodeNames.map(name => [name, nodes[name]?.type, nodes[name]?.requires]),
+    dataflowDeps.map(edge => [edge.source, edge.target]),
+  ]);
 
   useEffect(() => {
-    const layout = WorkflowLayout.stacked(nodeNames, nodes).positions();
+    const layout = WorkflowLayout.stacked(nodeNames, nodes, dataflowDeps).positions();
     setRfNodes(prev => {
       const prevPos = new Map(prev.map(n => [n.id, n.position]));
       return nodeNames.map(name => ({
@@ -81,9 +91,11 @@ const WorkflowGraphInner = ({
   // every drag or param edit. A single added node is focused (pan to it, keep
   // zoom) so it isn't lost off-screen when fitting all would zoom out too far;
   // initial load / bulk changes fit the whole graph; removes fit what remains.
-  const membershipKey = JSON.stringify([...nodeNames].sort());
+  // Re-stack when the column assignment changes: nodes added/removed, or a
+  // dependency (requires or a dataflow reference) moves a node to another column.
+  const layerKey = JSON.stringify(computeLayers(nodeNames, nodes, dataflowDeps));
   useEffect(() => {
-    const layout = WorkflowLayout.stacked(nodeNames, nodes).positions();
+    const layout = WorkflowLayout.stacked(nodeNames, nodes, dataflowDeps).positions();
     setRfNodes(prev => prev.map(node => ({ ...node, position: layout[node.id] ?? node.position })));
     const isInitial = prevNamesRef.current.length === 0;
     const added = nodeNames.filter(n => !prevNamesRef.current.includes(n));
@@ -93,10 +105,10 @@ const WorkflowGraphInner = ({
       pendingRef.current = 'all';
     } else if (added.length > 0 && removed.length === 0) {
       pendingRef.current = added.length === 1 ? added[0] : 'all';
-    } else if (removed.length > 0 && added.length === 0) {
+    } else {
       requestAnimationFrame(() => fitView({ duration: 300 }));
     }
-  }, [membershipKey]);
+  }, [layerKey]);
 
   // Once nodes are measured after a structure change, fit the whole graph or pan
   // to focus the newly added node (keeping the current zoom).
@@ -124,7 +136,7 @@ const WorkflowGraphInner = ({
   // them, while leaving every non-colliding position (including drags) untouched.
   const measuredKey = JSON.stringify(rfNodes.map(node => [node.id, Math.round(node.measured?.height ?? 0)]));
   useEffect(() => {
-    const fixed = WorkflowLayout.fromFlowNodes(rfNodes, nodeNames, nodes).fixOverlaps().positions();
+    const fixed = WorkflowLayout.fromFlowNodes(rfNodes, nodeNames, nodes, dataflowDeps).fixOverlaps().positions();
     setRfNodes(prev => {
       let changed = false;
       const next = prev.map(node => {
@@ -189,25 +201,73 @@ const WorkflowGraphInner = ({
     },
   }));
 
+  // Clears the reference a dataflow edge represents from its target parameter —
+  // used both by the edge's X button and by deleting the line.
+  const removeDataflowEdge = (id: string) => {
+    const ref = parseDataflowEdgeId(id);
+    if (ref) {
+      onSetNode(ref.target, clearInputReference(nodes[ref.target] ?? {}, ref.param, ref.refNode, ref.key));
+    }
+  };
+
+  // Dataflow edges from parameter values that reference another node's output
+  // (e.g. `{C.output.ggg}`), drawn output-handle → input-handle. Computed each
+  // render so edits to parameter values re-derive them. Hovering shows an X that
+  // clears the reference, mirroring the requires edges.
+  const dataflowEdges: Edge[] = dataflowDeps.map(edge => ({
+    ...edge,
+    type: 'dataflow',
+    markerEnd: { type: MarkerType.ArrowClosed, color: '#1976d2' },
+    style: { stroke: '#1976d2' },
+    animated: true,
+    // The input handle sits inside the node, so the line's end runs under the
+    // node box; lift it above the nodes so it stays visible.
+    zIndex: 1000,
+    data: {
+      hovered: edge.id === hoveredEdge,
+      onRemove: () => removeDataflowEdge(edge.id),
+    },
+  }));
+
   const isValidConnection = (connection: Connection | Edge): boolean => {
+    // Output→input (dataflow) connections skip the requires cycle check.
+    if (parseDataflowConnection(connection.sourceHandle, connection.targetHandle)) {
+      return true;
+    }
     return isValidConnectionPure(connection, nodeNames, nodes);
   };
 
   const onConnect = (connection: Connection) => {
-    if (connection.source && connection.target) {
-      onAddRequire(connection.source, connection.target);
+    if (!connection.source || !connection.target) {
+      return;
     }
+    // Dragging an output handle to an input handle writes a dataflow reference
+    // ({source.output.name}) into the target's parameter; otherwise it's requires.
+    const dataflow = parseDataflowConnection(connection.sourceHandle, connection.targetHandle);
+    if (dataflow) {
+      onSetNode(connection.target, setInputReference(nodes[connection.target] ?? {}, dataflow.param, connection.source, dataflow.outputName));
+      return;
+    }
+    onAddRequire(connection.source, connection.target);
   };
 
   const onEdgesDelete = (deleted: Edge[]) => {
-    deleted.forEach(edge => onRemoveRequire(edge.source, edge.target));
+    deleted.forEach(edge => {
+      // Deleting a dataflow line clears the reference from its parameter; a
+      // requires edge removes the requires link.
+      if (parseDataflowEdgeId(edge.id)) {
+        removeDataflowEdge(edge.id);
+        return;
+      }
+      onRemoveRequire(edge.source, edge.target);
+    });
   };
 
   return (
     <Box ref={containerRef} sx={{ flex: 1, minHeight: 200, ml: -2, mr: -2, mb: -2, borderTop: '1px solid', borderColor: 'divider' }}>
       <ReactFlow
         nodes={displayNodes}
-        edges={displayEdges}
+        edges={[...displayEdges, ...dataflowEdges]}
         nodeTypes={NODE_TYPES}
         edgeTypes={EDGE_TYPES}
         onNodesChange={onNodesChange}
@@ -216,6 +276,7 @@ const WorkflowGraphInner = ({
         isValidConnection={isValidConnection}
         fitView
         onNodeClick={(_e, node) => onSelectNode(node.id)}
+        onPaneClick={() => onSelectNode(undefined)}
         onEdgeMouseEnter={(_e, edge) => setHoveredEdge(edge.id)}
         onEdgeMouseLeave={() => setHoveredEdge(null)}
         onNodeContextMenu={(event, node) => {
