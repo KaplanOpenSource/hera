@@ -1,12 +1,12 @@
-import { Add, CreateNewFolder, Delete } from '@mui/icons-material';
-import { Stack, Typography } from '@mui/material';
+import { Stack } from '@mui/material';
 import { ReactNode } from 'react';
 import { TreeItem } from '@mui/x-tree-view';
-import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DetailsViewItemName } from './DetailsViewItemName';
 import { DetailsViewItemSingle } from './DetailsViewItemSingle';
+import { DetailsViewItemBranchActions } from './DetailsViewItemBranchActions';
+import { DeleteFieldButton } from './DeleteFieldButton';
+import { EmptyBranchLabel } from './EmptyBranchLabel';
 import { FieldDef } from './fieldDef';
-import { EditAsJsonButton } from './EditAsJsonButton';
 import { SelectDataFormat } from './SelectDataFormat';
 
 export const keyForDetailsViewItem = (itemKey: string, parentKey?: string) => {
@@ -39,18 +39,6 @@ export const DetailsViewItem = ({
   const isTree = typeof itemValue === 'object' && itemValue !== null;
   const level = parentKey?.split('/').length || 0;
 
-  const addSubItem = (initialValue: any) => {
-    let name = '';
-    for (let i = 1; i < 1e5; i++) {
-      const key = 'newItem_' + i;
-      if (!(key in itemValue)) {
-        name = key;
-        break;
-      }
-    }
-    setItemValue({ ...itemValue, [name]: initialValue })
-  }
-
   return (
     <TreeItem
       key={key}
@@ -73,24 +61,12 @@ export const DetailsViewItem = ({
             setItemKey={setItemKey}
           />
 
-          {isTree && (<>
-            <ButtonTooltip
-              title={'Add item'}
-              onClick={() => addSubItem('')}
-            >
-              <Add />
-            </ButtonTooltip>
-            <ButtonTooltip
-              title={'Add sub structure'}
-              onClick={() => addSubItem({})}
-            >
-              <CreateNewFolder />
-            </ButtonTooltip>
-            <EditAsJsonButton
-              data={itemValue}
-              setData={setItemValue}
+          {isTree && (
+            <DetailsViewItemBranchActions
+              itemValue={itemValue}
+              setItemValue={setItemValue}
             />
-          </>)}
+          )}
 
           {isTree
             ? null
@@ -111,28 +87,15 @@ export const DetailsViewItem = ({
             )
           }
 
-          {setItemKey && (<>
-            <ButtonTooltip
-              title={'Delete ' + itemKey}
-              onClick={() => setItemKey(undefined)}
-            >
-              <Delete />
-            </ButtonTooltip>
-          </>)}
+          <DeleteFieldButton
+            itemKey={itemKey}
+            setItemKey={setItemKey}
+          />
         </Stack>
       )}
     >
       {isTree && Object.keys(itemValue).length === 0 && (
-        <Typography
-          variant="body2"
-          sx={{
-            fontStyle: 'italic',
-            color: 'text.secondary',
-            ml: `${30 + (12 * level)}px`,
-          }}
-        >
-          (empty)
-        </Typography>
+        <EmptyBranchLabel level={level} />
       )}
       {isTree && (<>
         {Object.entries(itemValue).sort().map(([k, v]) => {
