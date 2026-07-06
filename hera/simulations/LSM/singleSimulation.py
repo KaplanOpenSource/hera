@@ -1,15 +1,15 @@
 import os
-import xarray
-import numpy
-import os
-from hera.utils.unitHandler import ureg, unumToPint
 
-from ...utils import tounit,tonumber
+import numpy
+import xarray
+
+from hera.utils.unitHandler import unumToPint, ureg
 
 
 class SingleSimulation(object):
     _finalxarray = None
     _document = None
+    _data_path = None
 
     @property
     def params(self):
@@ -24,13 +24,20 @@ class SingleSimulation(object):
         if isinstance(resource,str):
             try:
                 self._finalxarray = xarray.open_mfdataset(os.path.join(resource, '*.nc'), combine='by_coords')
+                self._data_path = resource
             except OSError:
                 self._finalxarray = xarray.open_mfdataset(os.path.join(resource,"netcdf", '*.nc'), combine='by_coords')
+                self._data_path = os.path.join(resource,"netcdf")
         else:
             self._document = resource
             self._finalxarray = resource.getData()
-            if type(self._finalxarray) is str:
+            if isinstance(self._finalxarray, str):
+                self._data_path = os.path.join(self._finalxarray)
                 self._finalxarray = xarray.open_mfdataset(self._finalxarray, combine='by_coords')
+
+    @property
+    def xarray_path(self):
+        return self._data_path
 
     def getDosage(self, Q=1 * ureg.kg, time_units=ureg.min, q_units=ureg.mg):
         """

@@ -1,20 +1,24 @@
 import json
-from enum import Enum, auto, unique
-from pathlib import Path
-import resource
-from typing import Union
-import pandas
-import shutil
 import os
-from collections.abc import Iterable
-from hera.toolkit import abstractToolkit
-from hera.utils import loadJSON, compareJSONS
-from hera.utils.query import dictToMongoQuery
-from hera.datalayer import datatypes
-import numpy
 import pydoc
+import resource
+import shutil
 import uuid
 import warnings
+from collections.abc import Iterable
+from enum import Enum, auto, unique
+from pathlib import Path
+from typing import Union
+
+import numpy
+import pandas
+from mongoengine.queryset.queryset import QuerySet
+
+from hera.datalayer import datatypes
+from hera.toolkit import abstractToolkit
+from hera.utils import compareJSONS, loadJSON
+from hera.utils.query import dictToMongoQuery
+
 from ..utils.logging import get_classMethod_logger
 
 try:
@@ -218,8 +222,7 @@ class hermesWorkflowToolkit(abstractToolkit):
         """
         logger = get_classMethod_logger(self, "getHemresWorkflowFromDocument")
         
-        docList = documentList if isinstance(documentList, list) else [documentList]
-
+        docList = documentList if isinstance(documentList, (list, QuerySet)) else [documentList]
         if returnFirst:
             if len(docList) == 0:
                 logger.error("can't get first hermes workflow since documentList is empty")
@@ -800,7 +803,7 @@ class hermesWorkflowToolkit(abstractToolkit):
             # hermes.build() traverses the workflow node tree, wraps each node in a
             # Luigi task, and returns the Python source code for the task module.
             logger.info(f"Building and executing the workflow {workflowName}")
-            build = hermesWF.build(buildername=workflow.BUILDER_LUIGI, dispatch_id=dispatch_id)
+            build = hermesWF.build(buildername=workflow.BUILDER_LUIGI)
 
             # Step 3: Write the workflow JSON and generated Python module to disk.
             # The JSON is written to the resource path; the Python module contains

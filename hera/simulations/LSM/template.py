@@ -1,18 +1,20 @@
-import os
 import glob
-from hera.utils.logging.helpers import get_logger
-import xarray
-import pandas
-import numpy
+import os
 from itertools import product
 
-from ..utils.inputForModelsCreation import InputForModelsCreator
-from hera.simulations.LSM.singleSimulation import SingleSimulation
-from hera.datalayer import datatypes
-from hera.utils.unitHandler import Quantity, ureg, unumToPint
+import numpy
+import pandas
+import xarray
+
 from hera import toolkit
-from hera.utils.jsonutils import JSONToConfiguration, stripConfigurationUnits
+from hera.datalayer import datatypes
+from hera.simulations.LSM.singleSimulation import SingleSimulation
 from hera.utils import dictToMongoQuery, get_classMethod_logger
+from hera.utils.jsonutils import JSONToConfiguration, stripConfigurationUnits
+from hera.utils.logging.helpers import get_logger
+from hera.utils.unitHandler import unumToPint, ureg
+
+from ..utils.inputForModelsCreation import InputForModelsCreator
 
 
 class LSMTemplate:
@@ -153,6 +155,7 @@ class LSMTemplate:
                                                        version=self.version,params=updated_params)
 
         logger.info(f"Found {docList}")
+        doc = None
         if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB,toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
             if len(docList) > 0:
                 if saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
@@ -173,7 +176,8 @@ class LSMTemplate:
                           datetimeFormat=self.datetimeFormat,
                           templateName=self.templateName,
                           simulationName=simulationName,
-                          params=updated_params)
+                          params=updated_params),
+                save=False
             )
 
             if self.to_xarray:
@@ -182,7 +186,7 @@ class LSMTemplate:
             else:
                 doc['resource'] = os.path.join(saveDir)
                 doc['dataFormat'] = datatypes.STRING
-            doc.save()
+            # We don't save the document yet, we see first if the simulation gave a result worth saving in the DB
         else:
             if simulationName is not None:
                 saveDir = os.path.join(saveDir, simulationName)
@@ -311,9 +315,16 @@ class LSMTemplate:
             if saveMode != toolkit.TOOLKIT_SAVEMODE_NOSAVE:
                 finalxarray.to_netcdf(os.path.join(netcdf_output, "data%s.nc" % i))
 
-            logger.info("Finished processing simulation")
+            # We should save only after simulation gave a meaningful result, otherwise we leave a hanging empty simulation entry
+            if doc is not None:
+                doc.save()
+            logger.info("Finished processing simulation, DB entry added")
             return SingleSimulation(netcdf_output)
         else:
+            # We should save only after simulation gave a meaningful result, otherwise we leave a hanging empty simulation entry
+            if doc is not None:
+                doc.save()
+            logger.info("Simulation finished, DB entry added")
             return None
 
     @staticmethod
@@ -329,7 +340,7 @@ class LSMTemplate:
                         paramsToPrepare[key] = param_item*ureg.minutes
                     else:
                         paramsToPrepare[key] = ureg.parse_expression(param_item).m_as(ureg.parse_expression(desc["units"][key]))
-        except:
+        except Exception:
             raise ValueError(f"parameters must use either pint or unum to specify units, currently type({param_item})={type(param_item)}")
 
         paramsToPrepare = stripConfigurationUnits(paramsToPrepare, returnStandardize=True, ignoreStandardization=["duration"])
