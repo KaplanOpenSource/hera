@@ -1,7 +1,9 @@
-from hera.datalayer import getDBObject
-from mongoengine import ValidationError, MultipleObjectsReturned, DoesNotExist
-import warnings
 import sys
+
+from mongoengine import ValidationError
+
+from hera.datalayer import getDBObject
+
 version = sys.version_info[0]
 
 class AbstractCollection(object):
@@ -131,7 +133,7 @@ class AbstractCollection(object):
         """
         return self._metadataCol.objects.get(id=id)
 
-    def addDocument(self,projectName,resource="",dataFormat="string",type="",desc={}):
+    def addDocument(self,projectName,resource="",dataFormat="string",type="",desc={}, save=True):
         """
             Adds a document to the database.
 
@@ -158,7 +160,9 @@ class AbstractCollection(object):
         mongoengine document
         """
         try:
-            obj = self._metadataCol(projectName=projectName,resource=resource,dataFormat=dataFormat,type=type,desc=desc).save()
+            obj = self._metadataCol(projectName=projectName,resource=resource,dataFormat=dataFormat,type=type,desc=desc)
+            if save:
+                obj.save()
         except ValidationError as e:
             raise ValidationError("Not all of the required fields are delivered "
                                   "or one of the fields type is not proper. %s " % str(e))

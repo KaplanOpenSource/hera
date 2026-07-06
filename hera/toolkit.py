@@ -1,13 +1,11 @@
-from hera.datalayer import Project
-from hera.datalayer.datahandler import datatypes  # for datatypes.CLASS
 
 import os
-import sys
-import logging
-import inspect
 import pydoc
-from typing import Optional, List, Dict, Any
+import sys
+from typing import Any, Dict, List, Optional
 
+from hera.datalayer import Project
+from hera.datalayer.datahandler import datatypes  # for datatypes.CLASS
 from hera.utils.logging import get_classMethod_logger
 
 # ---------------------------------------------------------------------------
@@ -161,7 +159,7 @@ class abstractToolkit(Project):
             desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName)
         return super().addMeasurementsDocument(resource, dataFormat, type, desc)
 
-    def addSimulationsDocument(self, resource="", dataFormat="string", type="", desc={}):
+    def addSimulationsDocument(self, resource="", dataFormat="string", type="", desc={}, save=True):
         """
         Add a simulations document, automatically tagging it with the toolkit name.
 
@@ -169,7 +167,7 @@ class abstractToolkit(Project):
         """
         if self.toolkitName is not None:
             desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName)
-        return super().addSimulationsDocument(resource, dataFormat, type, desc)
+        return super().addSimulationsDocument(resource, dataFormat, type, desc, save=save)
 
     # ------------------------------------------------------------------
     # Data sources API
@@ -940,7 +938,7 @@ class ToolkitHome(abstractToolkit):
     # Listing toolkits (static + dynamic)
     # ------------------------------------------------------------------
 
-    from typing import Optional, List, Dict
+    from typing import Dict, List, Optional
 
     def getToolkitDocuments(self, name: Optional[str] = None) -> List[Dict]:
         """
@@ -1336,6 +1334,7 @@ class ToolkitHome(abstractToolkit):
             Names of the loaded experiments.
         """
         import json
+
         from hera.datalayer import Project
 
         if not projectName:

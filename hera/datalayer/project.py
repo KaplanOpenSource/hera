@@ -1,18 +1,21 @@
+import inspect
 import itertools
 import json
 import os
 import pickle
 import zipfile
-import inspect
 
 from deprecated import deprecated
 
+from hera.datalayer.collection import (
+    AbstractCollection,
+    Cache_Collection,
+    Measurements_Collection,
+    Simulations_Collection,
+)
 from hera.datalayer.datahandler import datatypes
 from hera.utils.logging import get_classMethod_logger
-from hera.datalayer.collection import AbstractCollection,\
-    Cache_Collection,\
-    Measurements_Collection,\
-    Simulations_Collection
+
 
 def getProjectList(connectionName=None):
     """
@@ -231,11 +234,11 @@ class Project:
             confFile = os.path.join(configurationPath, "caseConfiguration.json")
             logger.debug(f"projectName is None, try to load file {confFile}")
             if os.path.exists(confFile):
-                logger.debug(f"Load as JSON")
+                logger.debug("Load as JSON")
                 from hera.utils.jsonutils import loadJSON
                 configuration = loadJSON(confFile)
                 if 'projectName' not in configuration:
-                    err = f"Got projectName=None and the key 'projectName' does not exist in the JSON. "
+                    err = "Got projectName=None and the key 'projectName' does not exist in the JSON. "
                     err += """configuration should be :
 {
     'projectName' : [project name]
@@ -258,10 +261,10 @@ class Project:
         self._all           =   AbstractCollection(connectionName=connectionName)
 
         if self.projectName != self.DEFAULTPROJECT:
-            logger.info(f"Attempting to get default directory from the disk")
+            logger.info("Attempting to get default directory from the disk")
             savedFilesDirectory = self.getConfig().get("filesDirectory", None)
         else:
-            logger.info(f"Default project, setting to current directory(not saving on disk)")
+            logger.info("Default project, setting to current directory(not saving on disk)")
             savedFilesDirectory = None
 
         if filesDirectory is not None:
@@ -518,7 +521,7 @@ class Project:
     def _enforce_counter_field(self, cnfg_doc):
         """Ensure the ``counters`` field exists in the config document."""
         if cnfg_doc.filter(desc__counters__exists=True).first() is None:
-            cnfg_doc.update(**{f"set__desc__counters": {}})
+            cnfg_doc.update(**{"set__desc__counters": {}})
 
 
     def getCounterAndAdd(self, counterName, addition=1):
@@ -815,7 +818,7 @@ class Project:
         return self.simulations.getDocuments(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
                                 **desc)
 
-    def addSimulationsDocument(self, resource="", dataFormat="string", type="", desc={}):
+    def addSimulationsDocument(self, resource="", dataFormat="string", type="", desc={}, save=True):
         """
             Adds a new simulations.old document.
 
@@ -833,6 +836,9 @@ class Project:
         desc: dict
             query by the measurement document
 
+        desc: bool
+            Should the added document be saved to DB or just returned as a dummy document
+
         Returns
         -------
             The new document
@@ -844,7 +850,7 @@ class Project:
             raise RuntimeError(err)
 
         return self.simulations.addDocument(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
-                               desc=desc)
+                               desc=desc, save=save)
 
     def deleteSimulationsDocuments(self, **kwargs):
         """
