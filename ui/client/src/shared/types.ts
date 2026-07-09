@@ -1,5 +1,12 @@
 import { AgentConfig } from "./AgentConfig";
 
+// Where the node catalog discovered a Hermes node's parameter or output.
+export enum NodeParameterSource {
+  JsonForm = 'jsonForm',
+  Python = 'python',
+  Template = 'template',
+}
+
 export interface ProjectName {
   name: string;
 }

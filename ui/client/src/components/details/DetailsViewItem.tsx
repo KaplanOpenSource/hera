@@ -1,12 +1,12 @@
-import { Add, CreateNewFolder, Delete } from '@mui/icons-material';
-import { Stack, Typography } from '@mui/material';
+import { Stack } from '@mui/material';
+import { MouseEvent, ReactNode } from 'react';
 import { TreeItem } from '@mui/x-tree-view';
-import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DetailsViewItemName } from './DetailsViewItemName';
-import { DetailsViewItemSingle } from './DetailsViewItemSingle';
+import { DetailsViewItemValue } from './DetailsViewItemValue';
+import { DetailsViewItemBranchActions } from './DetailsViewItemBranchActions';
+import { DeleteFieldButton } from './DeleteFieldButton';
+import { EmptyBranchLabel } from './EmptyBranchLabel';
 import { FieldDef } from './fieldDef';
-import { EditAsJsonButton } from './EditAsJsonButton';
-import { SelectDataFormat } from './SelectDataFormat';
 
 export const keyForDetailsViewItem = (itemKey: string, parentKey?: string) => {
   return parentKey ? `${parentKey}/${itemKey}` : itemKey;
@@ -19,6 +19,8 @@ export const DetailsViewItem = ({
   setItemKey = undefined,
   parentKey,
   def = undefined,
+  renderBeforeName = undefined,
+  onRowContextMenu = undefined,
 }: {
   itemKey: string,
   itemValue: any,
@@ -28,22 +30,17 @@ export const DetailsViewItem = ({
   // Definition of this field: `required` for the value editor, `children` for
   // the sub-fields below it.
   def?: FieldDef,
+  // Optional slot rendered before the field name, given the row's key info and
+  // its def (e.g. the workflow editor renders a source dot wrapped in a connection
+  // handle). Nothing is rendered when not provided. Passed down the tree.
+  renderBeforeName?: (itemKey: string, parentKey: string | undefined, def?: FieldDef) => ReactNode,
+  // Optional right-click handler for a row, given the row's key info (e.g. the
+  // workflow editor opens a per-field menu). Passed down the tree.
+  onRowContextMenu?: (itemKey: string, parentKey: string | undefined, event: MouseEvent<HTMLElement>) => void,
 }) => {
   const key = keyForDetailsViewItem(itemKey, parentKey);
   const isTree = typeof itemValue === 'object' && itemValue !== null;
   const level = parentKey?.split('/').length || 0;
-
-  const addSubItem = (initialValue: any) => {
-    let name = '';
-    for (let i = 1; i < 1e5; i++) {
-      const key = 'newItem_' + i;
-      if (!(key in itemValue)) {
-        name = key;
-        break;
-      }
-    }
-    setItemValue({ ...itemValue, [name]: initialValue })
-  }
 
   return (
     <TreeItem
@@ -58,73 +55,41 @@ export const DetailsViewItem = ({
           // Bottom space on every row reserves room for a field's "required"
           // helper text, so it shows without moving anything.
           style={{ marginTop: 7, marginBottom: 14 }}
+          onContextMenu={event => onRowContextMenu?.(itemKey, parentKey, event)}
         >
+
+          {renderBeforeName?.(itemKey, parentKey, def)}
 
           <DetailsViewItemName
             itemKey={itemKey}
             setItemKey={setItemKey}
           />
 
-          {isTree && (<>
-            <ButtonTooltip
-              title={'Add item'}
-              onClick={() => addSubItem('')}
-            >
-              <Add />
-            </ButtonTooltip>
-            <ButtonTooltip
-              title={'Add sub structure'}
-              onClick={() => addSubItem({})}
-            >
-              <CreateNewFolder />
-            </ButtonTooltip>
-            <EditAsJsonButton
-              data={itemValue}
-              setData={setItemValue}
+          {isTree && (
+            <DetailsViewItemBranchActions
+              itemValue={itemValue}
+              setItemValue={setItemValue}
             />
-          </>)}
+          )}
 
-          {isTree
-            ? null
-            : (itemKey === 'dataFormat'
-              ? (
-                <SelectDataFormat
-                  value={itemValue}
-                  setValue={v => setItemValue(v)}
-                />
-              )
-              : (
-                <DetailsViewItemSingle
-                  itemValue={itemValue}
-                  setItemValue={newVal => setItemValue(newVal)}
-                  def={def}
-                />
-              )
-            )
-          }
+          {!isTree && (
+            <DetailsViewItemValue
+              itemKey={itemKey}
+              itemValue={itemValue}
+              setItemValue={setItemValue}
+              def={def}
+            />
+          )}
 
-          {setItemKey && (<>
-            <ButtonTooltip
-              title={'Delete ' + itemKey}
-              onClick={() => setItemKey(undefined)}
-            >
-              <Delete />
-            </ButtonTooltip>
-          </>)}
+          <DeleteFieldButton
+            itemKey={itemKey}
+            setItemKey={setItemKey}
+          />
         </Stack>
       )}
     >
       {isTree && Object.keys(itemValue).length === 0 && (
-        <Typography
-          variant="body2"
-          sx={{
-            fontStyle: 'italic',
-            color: 'text.secondary',
-            ml: `${30 + (12 * level)}px`,
-          }}
-        >
-          (empty)
-        </Typography>
+        <EmptyBranchLabel level={level} />
       )}
       {isTree && (<>
         {Object.entries(itemValue).sort().map(([k, v]) => {
@@ -147,6 +112,8 @@ export const DetailsViewItem = ({
               setItemValue={newVal => setItemValue({ ...itemValue, [k]: newVal })}
               setItemKey={isDir ? undefined : changeKey}
               def={def?.children?.[k]}
+              renderBeforeName={renderBeforeName}
+              onRowContextMenu={onRowContextMenu}
             />
           )
         })}

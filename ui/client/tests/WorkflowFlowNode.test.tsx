@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 // care about the editing UI here, so stub them out.
 vi.mock('@xyflow/react', () => ({
   Handle: () => null,
+  NodeResizer: () => null,
   Position: { Left: 'left', Right: 'right', Top: 'top', Bottom: 'bottom' },
 }));
 
