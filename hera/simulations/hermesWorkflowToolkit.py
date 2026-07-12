@@ -1,20 +1,23 @@
 import json
-from enum import Enum, auto, unique
-from pathlib import Path
-import resource
-from typing import Union
-import pandas
-import shutil
 import os
-from collections.abc import Iterable
-from hera.toolkit import abstractToolkit
-from hera.utils import loadJSON, compareJSONS
-from hera.utils.query import dictToMongoQuery
-from hera.datalayer import datatypes
-import numpy
 import pydoc
+import resource
+import shutil
 import uuid
 import warnings
+from collections.abc import Iterable
+from enum import Enum, auto, unique
+from pathlib import Path
+from typing import Union
+
+import numpy
+import pandas
+
+from hera.datalayer import datatypes
+from hera.toolkit import abstractToolkit
+from hera.utils import compareJSONS, loadJSON
+from hera.utils.query import dictToMongoQuery
+
 from ..utils.logging import get_classMethod_logger
 
 try:
@@ -30,7 +33,7 @@ SCHEDULER_LOCAL = "local"
 SCHEDULER_CENTRAL = "central"
 
 
-def buildLuigiExecutionCommand(moduleName, scheduler=SCHEDULER_LOCAL,
+def buildLuigiExecutionCommand(moduleName, dispatch_id=None, scheduler=SCHEDULER_LOCAL,
                                schedulerHost=None, schedulerPort=None,
                                targetTask="finalnode_xx_0"):
     """Build the ``python3 -m luigi`` command line used to execute a workflow.
@@ -67,6 +70,7 @@ def buildLuigiExecutionCommand(moduleName, scheduler=SCHEDULER_LOCAL,
             cmd += f" --scheduler-port {schedulerPort}"
     else:
         cmd += " --local-scheduler"
+    cmd += f" --dispatch-id {dispatch_id}" if scheduler == SCHEDULER_CENTRAL else ""
     return cmd
 
 
