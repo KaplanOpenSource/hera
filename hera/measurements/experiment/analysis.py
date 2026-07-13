@@ -1,5 +1,7 @@
-import pandas
 from hera.datalayer import datatypes
+from hera.utils.lazy import _LazyModule
+
+pandas = _LazyModule("pandas")
 
 class experimentAnalysis:
     """

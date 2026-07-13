@@ -5,8 +5,6 @@ import argparse, argcomplete
 import logging
 from hera.simulations.openFoam import CLI
 from hera.simulations import CLI as workflowCLI
-
-
 from hera.utils.logging import initialize_logging, with_logger
 
 

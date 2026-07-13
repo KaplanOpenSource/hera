@@ -1,9 +1,12 @@
-import numpy
-import pandas
 import json
 import pickle
 import importlib
 import os
+from hera.utils.lazy import _LazyModule
+
+
+numpy  = _LazyModule("numpy")
+pandas = _LazyModule("pandas")
 
 
 class datatypes:

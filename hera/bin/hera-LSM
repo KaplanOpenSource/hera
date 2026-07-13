@@ -2,11 +2,9 @@
 # PYTHON_ARGCOMPLETE_OK
 
 import argparse, argcomplete
-
+import logging
 from hera.simulations.LSM import CLI
-from hera.utils import logging
 from hera.utils.logging.helpers import initialize_logging, with_logger
-
 
 if __name__ == "__main__":
     # Console logging setup
