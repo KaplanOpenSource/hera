@@ -1,10 +1,13 @@
-import os
-from hera.utils import ureg
-import numpy 
 import json
-import xarray 
+import os
+import pydoc
+
+import numpy
 import pandas
-import pydoc 
+import xarray
+
+from hera.utils import ureg
+
 
 class ProtectionPolicy(object): 
 	"""
@@ -289,6 +292,8 @@ class abstractAction(object):
 	def getAction(cls,actionID,policy,name,params):
 		"""Instantiate a concrete action subclass by name."""
 		actionCLS = pydoc.locate("hera.riskassessment.protectionpolicy.ProtectionPolicy.Action%s" % name.title())
+		if actionCLS is None:
+			raise Exception(f'Action {name.title()}({name}) was not found, try something like "indoor" or "masks"')
 		return actionCLS(actionID,policy,**params)
 
 
