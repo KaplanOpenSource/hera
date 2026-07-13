@@ -320,6 +320,9 @@ class LSMTemplate:
     def prepareParams(desc, paramsToPrepare):
         logger = get_logger(instance=None, name="hera.simulations.LSM.prepareParams")
         try:
+            params = dict(desc['params'])
+            params.update(paramsToPrepare)
+            paramsToPrepare=params
             if desc is not None and 'units' in desc:
                 for key in desc["units"].keys():
                     param_item= paramsToPrepare[key]
@@ -445,7 +448,7 @@ class LSMTemplate:
 
     def getSimulationByName(self,simulationName):
         """
-        get a simulation by document id
+        get a simulation by document name
 
         :param id:
         :return:

@@ -5,12 +5,32 @@ import mpl_toolkits.axisartist.angle_helper as angle_helper
 from matplotlib.projections import PolarAxes
 from mpl_toolkits.axisartist.grid_finder import (FixedLocator, MaxNLocator,
                                                  DictFormatter)
-
+from matplotlib.patches import Polygon as MplPolygon
+from shapely.geometry import (Polygon, MultiPolygon, LineString, Multi LineString, Point, MultiPoint, Geometry Collection)
 import pandas
 from ...utils import toMeteorologicalAngle,toMathematicalAngle, toAzimuthAngle
 
 from descartes import PolygonPatch 
-
+def plot_geom(ax, geom, patch Prop, lineProp):
+    if geom.is_empty:
+        return
+    if isinstance(geom, Polygon):
+        patch MplPolygon(list(geom.exterior.coords),
+        closed=True,
+        **patchProp)
+        ax.add_patch(patch)
+        for interior in geom.interiors:
+            x,y = interior.xy
+            ax.plot(x,y,**lineProp)
+    elif isinstance(geom, Point):
+        plt.plot(geom.x,geom.y, "o",**lineProp)
+    elif isinstance(geom, LineString):
+        x,y =geom.xy
+        plt.plot(x,y,**lineProp)
+    else:
+        for gg in geom.geoms:
+            plot_geom(ax,gg, patch Prop, lineProp)
+            
 class casualtiesPlot(object): 
 
 	"""
@@ -60,7 +80,7 @@ class casualtiesPlot(object):
 			projectedData.append(injuryareas)
 		projectedData = pandas.concat(projectedData)
 
-		pivotedData = projectedData.pivot(index="angle",columns='severity',values=effectedPopulation).reset_index().fillna(0)
+		pivotedData = projectedData.pivot(index="angle", columns='severity', values=effected Population).reset_index().fillna(0)
 		if (ax is None):
 			fig = plt.gcf()
 			ax = fig.add_subplot(111,polar=True)

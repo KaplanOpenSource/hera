@@ -31,7 +31,7 @@ def toGeopandas(ContourData, inunits=None):
         import geopandas
     except ImportError:
         print("gis support not installed. ")
-    inunits = inunits if inunits is not None else 1*ureg.m
+    inunits = unumToPint(inunits) if inunits is not None else 1*ureg.m
 
     units_conversion = unumToPint(inunits).m_as(ureg.m)
     polyList = []
