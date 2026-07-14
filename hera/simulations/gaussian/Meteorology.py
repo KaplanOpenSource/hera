@@ -194,7 +194,7 @@ class StandardMeteorolgyConstant_powerLaw:
                 default unit m
         :return:
             air temperature at C.
-        """
+        r"""
         return self._temperature - 6.5e-3 * tonumber(height, ureg.m) * ureg.K
 
     def getAirDensity(self, height):
@@ -213,7 +213,7 @@ class StandardMeteorolgyConstant_powerLaw:
                default m
         :return:
                air density in kg/m**3
-        """
+        r"""
         P = unumToPint(self.getAirPressure(height)).m_as(ureg.mmHg)
         T = unumToPint(self.getAirTemperature(height)).m_as(ureg.degC)
 
@@ -243,7 +243,7 @@ class StandardMeteorolgyConstant_powerLaw:
 
         :return:
             The coefficient (dimensionless).
-        """
+        r"""
         if (self.z0 is None or self.stability is None):
             return
         pstab = self._pvalues[self.stability]
@@ -262,7 +262,7 @@ class StandardMeteorolgyConstant_powerLaw:
                 default units [m]
         :return:
             The wind velocity at the requested height.
-        """
+        r"""
         height = tonumber(height, ureg.m)
         refHeight = tonumber(self.refHeight, ureg.m)
         height = numpy.min([numpy.max([height, 0]), 300])

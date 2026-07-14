@@ -402,11 +402,11 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         """
         string = "/*--------------------------------*- C++ -*----------------------------------*\n " \
                  "| =========                 |                                                 |\n" \
-                 "| \      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |\n" \
-                 "|  \    /   O peration     | Version:  dev                                   |\n" \
-                 "|   \  /    A nd           | Web:      www.OpenFOAM.org                      |\n" \
-                 "|    \/     M anipulation  |                                                 |\n" \
-                 "\*---------------------------------------------------------------------------*/\n" \
+                 "| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |\n" \
+                 "|  \\    /   O peration     | Version:  dev                                   |\n" \
+                 "|   \\  /    A nd           | Web:      www.OpenFOAM.org                      |\n" \
+                 "|    \\/     M anipulation  |                                                 |\n" \
+                 "\\*---------------------------------------------------------------------------*/\n" \
                  "FoamFile\n{    version     2.0;\n    format      ascii;\n    class       vectorField;\n" \
                  "    object      kinematicCloudPositions;\n}\n" \
                  "// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //\n\n" \

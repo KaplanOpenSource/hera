@@ -8,7 +8,7 @@ import os
 
 
 class bibItem:
-    """
+    r"""
         Represents a single bib item.
 
         \bibitem{paper2}

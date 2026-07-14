@@ -672,7 +672,7 @@ class Continuous(object):
     _FullKernel = None
 
     def __init__(self,dt,kernelsize,timetofinish=10*ureg.min):
-        """
+        r"""
         Time to finish.
         the time (min) it take to reach 0.1.
 
