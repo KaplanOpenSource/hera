@@ -3,7 +3,7 @@ import logging
 import logging.config
 import os.path
 import pathlib
-from importlib.resources import read_text
+from importlib.resources import files
 
 
 HERA_DEFAULT_LOG_DIR = pathlib.Path.home() / ".pyhera" / "log"
@@ -31,7 +31,7 @@ def get_default_logging_config(*, disable_existing_loggers: bool = False) -> dic
     """Load the default Hera logging configuration, creating it on first use."""
     defaultLocalConfig = os.path.join(HERA_DEFAULT_LOG_DIR,'heraLogging.config')
     if not os.path.isfile(defaultLocalConfig):
-        defaultConfig = read_text('hera.utils.logging', 'heraLogging.config')
+        defaultConfig = files('hera.utils.logging').joinpath('heraLogging.config').read_text()
         with open(defaultLocalConfig,'w') as localConfig:
             localConfig.write(defaultConfig)
 
