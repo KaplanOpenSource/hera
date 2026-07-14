@@ -1,16 +1,35 @@
-import numpy 
 import matplotlib.pyplot as plt
 import mpl_toolkits.axisartist.floating_axes as floating_axes
-import mpl_toolkits.axisartist.angle_helper as angle_helper
-from matplotlib.projections import PolarAxes
-from mpl_toolkits.axisartist.grid_finder import (FixedLocator, MaxNLocator,
-                                                 DictFormatter)
-
+import numpy
 import pandas
-from ...utils import toMeteorologicalAngle,toMathematicalAngle, toAzimuthAngle
+from matplotlib.patches import Polygon as MplPolygon
+from matplotlib.projections import PolarAxes
+from mpl_toolkits.axisartist.grid_finder import DictFormatter, FixedLocator
+from shapely.geometry import LineString, Point, Polygon
 
-from descartes import PolygonPatch 
+from ...utils import toAzimuthAngle, toMathematicalAngle
 
+
+def plot_geom(ax, geom, patchProp, lineProp):
+    if geom.is_empty:
+        return
+    if isinstance(geom, Polygon):
+        patch=MplPolygon(list(geom.exterior.coords),
+        closed=True,
+        **patchProp)
+        ax.add_patch(patch)
+        for interior in geom.interiors:
+            x,y = interior.xy
+            ax.plot(x,y,**lineProp)
+    elif isinstance(geom, Point):
+        plt.plot(geom.x,geom.y, "o",**lineProp)
+    elif isinstance(geom, LineString):
+        x,y =geom.xy
+        plt.plot(x,y,**lineProp)
+    else:
+        for gg in geom.geoms:
+            plot_geom(ax,gg, patchProp, lineProp)
+            
 class casualtiesPlot(object): 
 
 	"""
@@ -60,7 +79,7 @@ class casualtiesPlot(object):
 			projectedData.append(injuryareas)
 		projectedData = pandas.concat(projectedData)
 
-		pivotedData = projectedData.pivot(index="angle",columns='severity',values=effectedPopulation).reset_index().fillna(0)
+		pivotedData = projectedData.pivot(index="angle", columns='severity', values=effectedPopulation).reset_index().fillna(0)
 		if (ax is None):
 			fig = plt.gcf()
 			ax = fig.add_subplot(111,polar=True)
@@ -200,7 +219,6 @@ class casualtiesPlot(object):
 		boundarycycler = plt.cycler(color=plt.rcParams['axes.prop_cycle'].by_key()['color']) if boundarycycler is None else boundarycycler		 		
 		cycler = plt.cycler(facecolor=plt.rcParams['axes.prop_cycle'].by_key()['color'])*plt.cycler(edgecolor=['None']) if cycler is None else cycler
 
-		patchList = []
 		for severity,prop,lineprop in zip(severityList,cycler,boundarycycler):
 			if severity not in projected.index:
 				continue
