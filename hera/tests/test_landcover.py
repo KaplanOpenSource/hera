@@ -60,6 +60,7 @@ def test_coords():
 # Tests
 # ---------------------------------------------------------------------------
 
+@pytest.mark.integration
 class TestGetLandCoverAtPoint:
     def test_basic(self, lc_toolkit, test_coords):
         value = lc_toolkit.getLandCoverAtPoint(test_coords["lon"], test_coords["lat"])
@@ -75,6 +76,7 @@ class TestGetLandCoverAtPoint:
         assert value_from_raster == value_from_toolkit
 
 
+@pytest.mark.integration
 class TestGetLandCover:
     def test_basic(self, lc_toolkit, test_coords):
         lc = lc_toolkit.getLandCover(
@@ -109,6 +111,7 @@ class TestGetLandCover:
                         pass  # Point outside raster extent
 
 
+@pytest.mark.integration
 class TestGetRoughness:
     def test_at_point(self, lc_toolkit, test_coords):
         value = lc_toolkit.getRoughnessAtPoint(test_coords["lon"], test_coords["lat"])
@@ -133,6 +136,7 @@ class TestGetRoughness:
         assert np.all((z0 > 0) & (z0 < 2)), "Some roughness values out of expected range"
 
 
+@pytest.mark.integration
 class TestRoughnessLength:
     def test_roughnesslength2sandgrainroughness(self, lc_toolkit):
         ks = lc_toolkit.roughnesslength2sandgrainroughness(0.1)

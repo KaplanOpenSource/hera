@@ -68,6 +68,7 @@ def _ensure_repos_added(tk, repo_test_cases):
 # Tests
 # ---------------------------------------------------------------------------
 
+@pytest.mark.integration
 class TestAddRepository:
     def test_add_repository(self, tk, repo_test_cases, _ensure_repos_added):
         """addRepository must succeed without raising."""
@@ -78,6 +79,7 @@ class TestAddRepository:
             assert table is not None
 
 
+@pytest.mark.integration
 class TestGetRepository:
     def test_get_repository(self, tk, repo_test_cases, _ensure_repos_added):
         """getRepository must return a non-empty dict."""
@@ -87,6 +89,7 @@ class TestGetRepository:
             assert isinstance(repo, dict)
 
 
+@pytest.mark.integration
 class TestLoadDatasourcesToProject:
     def test_load_datasources_to_project(self, tk, repo_test_cases, _ensure_repos_added):
         """Load repository into a project and verify document count."""
@@ -131,6 +134,7 @@ class TestLoadDatasourcesToProject:
             )
 
 
+@pytest.mark.unit
 class TestResolveDataSourcePaths:
     def test_resolve_relative_paths(self):
         """resolveDataSourcePaths must convert relative paths to absolute."""
@@ -173,6 +177,7 @@ class TestResolveDataSourcePaths:
 
 
 class TestLoadRepositoryFromPath:
+    @pytest.mark.integration
     def test_load_repository_from_path(self):
         """loadRepositoryFromPath must read JSON and resolve paths."""
         if not os.path.isfile(REPO_TEST_01_JSON):
@@ -182,6 +187,7 @@ class TestLoadRepositoryFromPath:
         assert isinstance(result, dict)
         assert len(result) > 0
 
+    @pytest.mark.unit
     def test_load_repository_nonexistent(self):
         """loadRepositoryFromPath must raise FileNotFoundError for missing files."""
         with pytest.raises(FileNotFoundError):

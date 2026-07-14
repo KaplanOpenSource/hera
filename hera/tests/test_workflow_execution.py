@@ -29,6 +29,7 @@ from hera.simulations.hermesWorkflowToolkit import (
 # buildLuigiExecutionCommand
 # ---------------------------------------------------------------------------
 
+@pytest.mark.unit
 def test_local_scheduler_command_is_backward_compatible():
     cmd = buildLuigiExecutionCommand("Flow", "abc123", scheduler=SCHEDULER_LOCAL)
     assert "--module Flow finalnode_xx_0" in cmd
@@ -38,12 +39,14 @@ def test_local_scheduler_command_is_backward_compatible():
     assert cmd.startswith("python3 -m luigi --module Flow finalnode_xx_0 --local-scheduler")
 
 
+@pytest.mark.unit
 def test_central_scheduler_drops_local_flag():
     cmd = buildLuigiExecutionCommand("Flow", "abc123", scheduler=SCHEDULER_CENTRAL)
     assert "--local-scheduler" not in cmd
     assert "--dispatch-id abc123" in cmd
 
 
+@pytest.mark.unit
 def test_central_scheduler_host_and_port():
     cmd = buildLuigiExecutionCommand("Flow", "id1", scheduler=SCHEDULER_CENTRAL,
                                      schedulerHost="myhost", schedulerPort=8082)
@@ -52,12 +55,14 @@ def test_central_scheduler_host_and_port():
     assert "--local-scheduler" not in cmd
 
 
+@pytest.mark.unit
 def test_central_scheduler_omits_address_when_not_given():
     cmd = buildLuigiExecutionCommand("Flow", "id1", scheduler=SCHEDULER_CENTRAL)
     assert "--scheduler-host" not in cmd
     assert "--scheduler-port" not in cmd
 
 
+@pytest.mark.unit
 def test_local_scheduler_ignores_host_and_port():
     cmd = buildLuigiExecutionCommand("Flow", "id1", scheduler=SCHEDULER_LOCAL,
                                      schedulerHost="myhost", schedulerPort=8082)
@@ -66,6 +71,7 @@ def test_local_scheduler_ignores_host_and_port():
     assert "--local-scheduler" in cmd
 
 
+@pytest.mark.unit
 def test_custom_target_task():
     cmd = buildLuigiExecutionCommand("Flow", "id1", targetTask="otherNode_0")
     assert "otherNode_0" in cmd
@@ -120,6 +126,7 @@ _TUTORIAL_MODULE = (
 )
 
 
+@pytest.mark.integration
 def test_run_hermes_workflow_isolates_outputs_per_dispatch(tmp_path):
     """Build and execute a real hermes workflow using hera's buildLuigiExecutionCommand
     and confirm the run completes and writes its targets under the dispatch_id subdir."""
