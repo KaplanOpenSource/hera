@@ -1,6 +1,7 @@
 import numpy
 import os
 import glob
+import subprocess
 import dask
 import pandas
 import shutil
@@ -99,7 +100,7 @@ class OFToolkit(hermesWorkflowToolkit):
         for doc in docList:
             logger.info(f"Executing {doc.desc['workflowName']}")
             os.chdir(doc.resource)
-            os.system("./Allrun")
+            subprocess.run(["./Allrun"], check=True)
 
     def prepareSlurmWorkflowExecution(self,baseConfiguration,
                               jsonVariations,
@@ -297,7 +298,11 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
         caseType = "decomposed" if useParallel else "composed"
         if not os.path.exists(checkPath):
             logger.debug(f"Cell centers does not exist in {caseType} case. Calculating...")
-            os.system(f"foamJob {parallelExec} {casePointer} -wait postProcess -func writeCellCentres  -time {time}")
+            foam_cmd = ["foamJob"]
+            if useParallel:
+                foam_cmd.append("-parallel")
+            foam_cmd.extend([str(casePointer), "-wait", "postProcess", "-func", "writeCellCentres", "-time", str(time)])
+            subprocess.run(foam_cmd, check=False)
             logger.debug(f"done: foamJob {parallelExec} -wait postProcess -func writeCellCentres {casePointer} -time {time}")
             if not os.path.exists(checkPath):
                 logger.error("Error running the writeCellCentres. Executing writeCellCentres failed. Are you sure that the openFOAM environment is set?"\

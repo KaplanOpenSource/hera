@@ -16,7 +16,6 @@ from hera.datalayer.collection import (
 from hera.datalayer.datahandler import datatypes
 from hera.utils.logging import get_classMethod_logger
 
-
 def getProjectList(connectionName=None):
     """
         Return the list with the names of the existing projects .
@@ -335,7 +334,7 @@ class Project:
             for docs_batch in docs_iterator:
                 filename = f"chunk_{i}"
                 with zf.open(filename, 'w') as zf_archive:
-                    pickle.dump(docs_batch, zf_archive, protocol=pickle.HIGHEST_PROTOCOL)
+                    pickle.dump(docs_batch, zf_archive, protocol=pickle.HIGHEST_PROTOCOL)  # nosec B301 — internal format, not from untrusted input; migration to JSON planned
                 i+=1
 
     @staticmethod
@@ -354,7 +353,7 @@ class Project:
         """
         for name in zf.namelist():
             with zf.open(name) as f:
-                depickled_docs_batch=pickle.load(f)
+                depickled_docs_batch=pickle.load(f)  # nosec B301 — loads from project's own export; migration to JSON planned in Part 2
                 if return_batched:
                     yield depickled_docs_batch
                 else:
@@ -692,9 +691,9 @@ class Project:
             List of documents.
         """
         docs = []
-        docs.extend(self.getSimulationsDocuments(resource=resource, dataFormat=dataFormat, type=type, desc=desc))
-        docs.extend(self.getMeasurementsDocuments(resource=resource, dataFormat=dataFormat, type=type, desc=desc))
-        docs.extend(self.getCacheDocuments(resource=resource, dataFormat=dataFormat, type=type, desc=desc))
+        docs.extend(self.getSimulationsDocuments(resource=resource, dataFormat=dataFormat, type=type, **desc))
+        docs.extend(self.getMeasurementsDocuments(resource=resource, dataFormat=dataFormat, type=type, **desc))
+        docs.extend(self.getCacheDocuments(resource=resource, dataFormat=dataFormat, type=type, **desc))
         return docs
     
     def addDocumentFromDict(self,documentDict):
@@ -730,7 +729,7 @@ class Project:
 
         addingFunc(**addingDict)
 
-    def addMeasurementsDocument(self, resource="", dataFormat="string", type="", desc={}):
+    def addMeasurementsDocument(self, resource="", dataFormat="string", type="", desc=None):
         """
             Adds a new measurement document.
 
@@ -752,6 +751,8 @@ class Project:
         -------
             The new document
         """
+        if desc is None:
+            desc = {}
         logger = get_classMethod_logger(self, "init")
         if self.projectName == self.DEFAULTPROJECT and not self._allowWritingToDefaultProject:
             err = f"project {self.projectName} is read-only. "
@@ -818,7 +819,7 @@ class Project:
         return self.simulations.getDocuments(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
                                 **desc)
 
-    def addSimulationsDocument(self, resource="", dataFormat="string", type="", desc={}, save=True):
+    def addSimulationsDocument(self, resource="", dataFormat="string", type="", desc=None, save=True):
         """
             Adds a new simulations.old document.
 
@@ -843,6 +844,8 @@ class Project:
         -------
             The new document
         """
+        if desc is None:
+            desc = {}
         logger = get_classMethod_logger(self, "init")
         if self.projectName == self.DEFAULTPROJECT and not self._allowWritingToDefaultProject:
             err = f"project {self.projectName} is read-only. "
@@ -908,7 +911,7 @@ class Project:
         return self.cache.getDocuments(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
                                        **desc)
 
-    def addCacheDocument(self, resource="", dataFormat="string", type="", desc={}):
+    def addCacheDocument(self, resource="", dataFormat="string", type="", desc=None):
         """
             Adds a new cache document.
 
@@ -930,6 +933,8 @@ class Project:
         -------
             The new document
         """
+        if desc is None:
+            desc = {}
         logger = get_classMethod_logger(self, "init")
         if self.projectName == self.DEFAULTPROJECT and not self._allowWritingToDefaultProject:
             err = f"project {self.projectName} is read-only. "

@@ -69,19 +69,15 @@ RUN python -m pip install --no-cache-dir -r requirements.txt
 ENV PATH="/app:/app/hera/bin:${PATH}"
 ENV PYTHONPATH="/app:/app/hera/bin"
 
+# Default DB credentials — override at runtime via --env or .env file
+ENV MONGO_HERA_USER=hera
+ENV MONGO_HERA_PWD=heracles
+
 # Create necessary folders and configuration file
 RUN mkdir -p /root/.pyhera/log && \
     mkdir -p /root/mongo-db-datadir && \
-    echo '{ \
-        "root": { \
-            "dbIP": "127.0.0.1", \
-            # "dbIP": "172.17.0.1", \
-            # "dbIP": "host.docker.internal", \
-            "dbName": "olymp", \
-            "username": "hera", \
-            "password": "heracles" \
-        } \
-    }' > /root/.pyhera/config.json
+    echo "{ \"root\": { \"dbIP\": \"127.0.0.1\", \"dbName\": \"olymp\", \"username\": \"${MONGO_HERA_USER}\", \"password\": \"${MONGO_HERA_PWD}\" } }" \
+    > /root/.pyhera/config.json
 
 # RUN echo 'mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db' >> /root/.bashrc
 

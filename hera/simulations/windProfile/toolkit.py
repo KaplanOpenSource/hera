@@ -146,7 +146,7 @@ class WindProfileToolkit(toolkit.abstractToolkit):
                     data = json.loads(response.text.encode('utf8'))
                     datetime_str = data['data'][0]['datetime']
                     break
-                except:
+                except Exception:
                     trials += 1
                     # print(f"Trial {trials} for Station {station_id}")
             if data:

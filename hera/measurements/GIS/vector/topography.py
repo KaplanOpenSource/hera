@@ -10,14 +10,15 @@ import dask
 from numpy import array, sqrt
 import pandas
 
-from . import toolkit
-from ....simulations.utils import coordinateHandler
-from ....utils.logging import get_classMethod_logger
+from hera.measurements.GIS.vector import toolkit
+from hera.simulations.utils import coordinateHandler
+from hera.utils.logging import get_classMethod_logger
 
-from ....toolkit import TOOLKIT_SAVEMODE_ONLYFILE
-from ._io_utils import readGeoJSONString
-from .toolkit import VectorToolkit
-from ..utils import stlFactory
+from hera.toolkit import TOOLKIT_SAVEMODE_ONLYFILE
+from hera.measurements.GIS.vector._io_utils import readGeoJSONString
+from hera.measurements.GIS.vector.toolkit import VectorToolkit
+from hera.measurements.GIS.utils import ITM
+from hera.measurements.GIS.utils import stlFactory
 
 class TopographyToolkit(VectorToolkit):
     """Toolkit for managing and analyzing vector topography data."""
@@ -81,7 +82,7 @@ class TopographyToolkit(VectorToolkit):
             shape = self._RegionToGeopandas(shapeDataOrName, crs=crs)
             doc = self.getDatasourceDocument(datasourceName=datasourceName)
             logger.debug(f"The datasource {datasourceName} is pointing to {doc.resource}")
-            doc.desc['desc'].update({'crs': 2039})
+            doc.desc['desc'].update({'crs': ITM})
             if 'crs' not in doc.desc['desc']:
                 logger.error(f"The datasource {datasourceName} has no CRS defined in the metadata. please add it")
                 raise ValueError(f"The datasource {datasourceName} has no CRS defined in the metadata. please add it")
@@ -295,7 +296,7 @@ class analysis():
             if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,
                             toolkit.TOOLKIT_SAVEMODE_FILEANDDB]:
 
-                regionDoc = self.datalayer.getCacheDcouments(resource=file, dataFormat="parquet",type="cellData", desc=dict(resolution=resolution,**kwargs))
+                regionDoc = self.datalayer.getCacheDocuments(resource=file, dataFormat="parquet",type="cellData", **dict(resolution=resolution,**kwargs))
 
                 if len(regionDoc) >0 and saveMode== toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
                     raise ValueError(f"{file} already exists in the DB")

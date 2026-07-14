@@ -252,7 +252,7 @@ class DataHandler_string(object):
         return dict()
 
     @staticmethod
-    def getData(resource, desc={},**kwargs):
+    def getData(resource, desc=None, **kwargs):
         """
         The data in the record is a string.
 
@@ -290,7 +290,7 @@ class DataHandler_time(object):
         return dict()
 
     @staticmethod
-    def getData(resource, desc={},**kwargs):
+    def getData(resource, desc=None, **kwargs):
         """
         The data in the record is a timestamp.
 
@@ -320,7 +320,7 @@ class DataHandler_csv_pandas(object):
         return dict()
 
     @staticmethod
-    def getData(resource, desc={},**kwargs):
+    def getData(resource, desc=None, **kwargs):
         """
         Loads a csv file into pandas dataframe.
 
@@ -391,7 +391,7 @@ class DataHandler_netcdf_xarray(object):
         return dict()
 
     @staticmethod
-    def getData(resource, desc={}, **kwargs):
+    def getData(resource, desc=None, **kwargs):
         """
         Loads netcdf file into xarray using the open_mfdataset.
 
@@ -434,7 +434,7 @@ class DataHandler_zarr_xarray(object):
         return dict()
 
     @staticmethod
-    def getData(resource, desc={}, **kwargs):
+    def getData(resource, desc=None, **kwargs):
         """
         Loads netcdf file into xarray using the open_mfdataset.
 
@@ -466,7 +466,7 @@ class DataHandler_JSON_dict(object):
         return dict()
 
     @staticmethod
-    def getData(resource, desc={},**kwargs):
+    def getData(resource, desc=None, **kwargs):
         """
         Loads JSON to dict
 
@@ -502,7 +502,7 @@ class DataHandler_JSON_pandas(object):
         return ret
 
     @staticmethod
-    def getData(resource, usePandas=True, desc={},**kwargs):
+    def getData(resource, usePandas=True, desc=None, **kwargs):
         """
         Loads JSON to pandas/dask
 
@@ -542,10 +542,11 @@ class DataHandler_JSON_geopandas(object):
         return dict(crs = resource.crs )
 
     @staticmethod
-    def getData(resource, desc={}, **kwargs):
+    def getData(resource, desc=None, **kwargs):
         """Load a GeoDataFrame from a GeoJSON file."""
         import geopandas
         from hera.utils.jsonutils import loadJSON
+        desc = desc or {}
         df = geopandas.GeoDataFrame.from_features(loadJSON(resource)["features"])
         if "crs" in desc:
             df.crs = desc['crs']
@@ -563,9 +564,10 @@ class DataHandler_geopandas(object):
         return dict(crs=resource.crs)
 
     @staticmethod
-    def getData(resource, desc={}, **kwargs):
+    def getData(resource, desc=None, **kwargs):
         """Load a GeoDataFrame from a geospatial file."""
         import geopandas
+        desc = desc or {}
         df = geopandas.read_file(resource, **kwargs)
         if "crs" in desc:
             df.crs = desc['crs']
@@ -592,7 +594,7 @@ class DataHandler_parquet(object):
         return ret
 
     @staticmethod
-    def getData(resource, desc={}, usePandas=False, **kwargs):
+    def getData(resource, desc=None, usePandas=False, **kwargs):
         """
         Loads a parquet file to dask/pandas.
 
@@ -630,7 +632,7 @@ class DataHandler_image(object):
         return dict()
 
     @staticmethod
-    def getData(resource, desc={},**kwargs):
+    def getData(resource, desc=None, **kwargs):
         """
         Loads an image using the resource.
 
@@ -660,7 +662,7 @@ class DataHandler_pickle(object):
         return dict()
 
     @staticmethod
-    def getData(resource, desc={},**kwargs):
+    def getData(resource, desc=None, **kwargs):
         """
         Loads an pickled object using the resource.
 
@@ -724,7 +726,7 @@ class DataHandler_tif(object):
         raise NotImplementedError("tif format is not implemented")
 
     @staticmethod
-    def getData(resource, desc={},**kwargs):
+    def getData(resource, desc=None, **kwargs):
         """
         Loads an pickled object using the resource.
 
@@ -756,7 +758,7 @@ class DataHandler_numpy_array:
         return dict()
 
     @staticmethod
-    def getData(resource, desc={},**kwargs):
+    def getData(resource, desc=None, **kwargs):
         """
         Loads a numpy array
 
@@ -786,7 +788,7 @@ class DataHandler_numpy_dict_array:
         return dict()
 
     @staticmethod
-    def getData(resource, desc={},**kwargs):
+    def getData(resource, desc=None, **kwargs):
         """
         Loads a numpy array
 
@@ -835,30 +837,16 @@ class DataHandler_Class(object):
 
     @staticmethod
     def getData(resource, desc=None, **kwargs):
-        """Import and optionally instantiate a class from ``desc['classpath']``."""
+        """Import and optionally instantiate a class from ``desc['classpath']``.
+
+        Uses importlib.util.spec_from_file_location for resource-based loading
+        so that sys.path is never mutated by DB-supplied paths [1.6, 3.3].
+        """
         import os
-        import sys
         import importlib
+        import importlib.util
 
-        # 1) Add search paths to sys.path:
-        #    - If resource points to the package directory itself (contains __init__.py),
-        #      also add its parent so that `import top_pkg...` resolves.
-        search_paths = []
-        if resource:
-            abs_path = os.path.abspath(resource)
-            if os.path.isdir(abs_path):
-                pkg_init = os.path.join(abs_path, "__init__.py")
-                if os.path.isfile(pkg_init):
-                    parent = os.path.dirname(abs_path)
-                    if parent not in sys.path:
-                        search_paths.append(parent)
-                if abs_path not in sys.path:
-                    search_paths.append(abs_path)
-        # Prepend for priority (keep user-provided paths before existing ones)
-        for pth in reversed(search_paths):
-            sys.path.insert(0, pth)
-
-        # 2) Resolve metadata
+        # 1) Resolve metadata
         desc = desc or {}
         classpath = desc.get("classpath") or kwargs.get("classpath")
         if not classpath:
@@ -867,15 +855,40 @@ class DataHandler_Class(object):
         params = desc.get("parameters") or desc.get("params") or {}
         instantiate = desc.get("instantiate", True)
 
-        # 3) Import module and get class by name
+        # 2) Import module and get class by name
         module_name, _, class_name = classpath.rpartition(".")
         if not module_name or not class_name:
             raise ValueError(
                 f"Invalid classpath '{classpath}'. Expected something like 'pkg.mod.Class'."
             )
 
+        # Try loading via existing sys.path first (safe path)
         try:
             module = importlib.import_module(module_name)
+        except ModuleNotFoundError:
+            # Fall back to loading from resource directory without mutating sys.path
+            if not resource:
+                raise ImportError(
+                    f"Cannot import module '{module_name}' and no resource path provided."
+                )
+            abs_resource = os.path.abspath(resource)
+            parts = module_name.split(".")
+            # resource may point to the top-level package dir or to its parent.
+            # When its basename matches the first package component, strip that
+            # component so we look inside the package dir rather than for a
+            # nested sub-directory with the same name.
+            if parts[0] == os.path.basename(abs_resource):
+                inner_parts = parts[1:]
+            else:
+                inner_parts = parts
+            module_file = os.path.join(abs_resource, os.sep.join(inner_parts) + ".py")
+            if not os.path.isfile(module_file):
+                raise ImportError(
+                    f"Cannot find module '{module_name}' in sys.path or in {abs_resource!r}"
+                )
+            spec = importlib.util.spec_from_file_location(module_name, module_file)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
         except Exception as e:
             raise ImportError(
                 f"Cannot import module '{module_name}' for classpath '{classpath}': {e}"
@@ -886,9 +899,9 @@ class DataHandler_Class(object):
         except AttributeError:
             raise ImportError(f"Module '{module_name}' has no attribute '{class_name}'")
 
-        # 4) Merge constructor kwargs so that desc.parameters override duplicates (Option B)
-        call_kwargs = dict(kwargs)   # baseline from **kwargs
-        call_kwargs.update(params)   # desc.parameters WIN on duplicates
+        # 3) Merge constructor kwargs so that desc.parameters override duplicates
+        call_kwargs = dict(kwargs)
+        call_kwargs.update(params)
 
-        # 5) Return an instance or the class object
+        # 4) Return an instance or the class object
         return cls(**call_kwargs) if instantiate else cls

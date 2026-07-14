@@ -1,6 +1,8 @@
 import glob
 import pandas
 import os
+import shutil
+import subprocess
 import xarray
 import numpy
 from dask.delayed import delayed
@@ -717,17 +719,21 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             proc = os.path.split(fl)[-1]
             destination = os.path.join(os.path.abspath(proc), "3600")
             os.makedirs(os.path.dirname(destination), exist_ok=True)
-            os.system(f"cp {fullpath} {destination} -rT")
+            if os.path.exists(destination):
+                shutil.rmtree(destination)
+            shutil.copytree(fullpath, destination)
 
             fullpath = os.path.abspath(os.path.join(fl, "constant", "polyMesh"))
             destination = os.path.join(os.path.abspath(proc), "constant", "polyMesh")
             os.makedirs(os.path.dirname(destination), exist_ok=True)
-            os.system(f"ln -s {fullpath} {destination}")
+            if not os.path.exists(destination):
+                os.symlink(fullpath, destination)
 
             # link the root dir .
             curdir = os.path.abspath(os.path.join("rootCase", os.path.basename(fl)))
             targetdir = os.path.abspath(os.path.join(fl, "rootCase"))
-            os.system(f"ln -s {curdir} {targetdir} ")
+            if not os.path.exists(targetdir):
+                os.symlink(curdir, targetdir)
 
     def to_paraview_CSV(self, data, outputdirectory, filename, timeFactor=1):
         """

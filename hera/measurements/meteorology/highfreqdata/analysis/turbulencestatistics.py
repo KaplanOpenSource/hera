@@ -5,6 +5,7 @@ import pandas
 import dask.dataframe
 from scipy.constants import g
 from .abstractcalculator import AbstractCalculator
+from hera.utils import toMeteorologicalAngle
 
 
 class singlePointTurbulenceStatistics(AbstractCalculator):
@@ -1398,7 +1399,7 @@ class SinglePointStatisticsSpark(singlePointTurbulenceStatistics):
             avg['wind_dir_bar'] = (2 * numpy.pi + avg['wind_dir_bar']) % (2 * numpy.pi)
             avg['wind_dir_bar'] = numpy.rad2deg(avg['wind_dir_bar'])
 
-            avg['wind_dir_bar'] = avg['wind_dir_bar'].apply(lambda x: 270 - x if 270 - x >= 0 else 630 - x)
+            avg['wind_dir_bar'] = avg['wind_dir_bar'].apply(toMeteorologicalAngle)
 
             self._TemporaryData = avg
             self._CalculatedParams += [['u_bar',{}], ['v_bar',{}], ['w_bar',{}], ['T_bar',{}]]
@@ -1414,7 +1415,7 @@ class SinglePointStatisticsSpark(singlePointTurbulenceStatistics):
             self._RawData['wind_dir'] = numpy.arctan2(self._RawData['v'], self._RawData['u'])
             self._RawData['wind_dir'] = (2 * numpy.pi + self._RawData['wind_dir']) % (2 * numpy.pi)
             self._RawData['wind_dir'] = numpy.rad2deg(self._RawData['wind_dir'])
-            self._RawData['wind_dir'] = self._RawData['wind_dir'].apply(lambda x: 270 - x if 270 - x >= 0 else 630 - x)
+            self._RawData['wind_dir'] = self._RawData['wind_dir'].apply(toMeteorologicalAngle)
 
             self._RawData['up'] = self._RawData['u'] - self._RawData['u_bar']
             self._RawData['vp'] = self._RawData['v'] - self._RawData['v_bar']

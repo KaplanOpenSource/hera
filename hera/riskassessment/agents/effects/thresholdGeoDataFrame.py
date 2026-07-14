@@ -3,7 +3,8 @@ import collections
 import pandas
 import geopandas
 
-from ....utils import toMeteorologicalAngle,toMathematicalAngle
+from hera.utils import toMeteorologicalAngle, toMathematicalAngle
+from hera.measurements.GIS import ITM
 
 
 import geopandas as gpd
@@ -165,7 +166,7 @@ class thresholdGeoDataFrame(geopandas.GeoDataFrame):
 			Casualty estimates per severity and time step, or None if no
 			population is affected.
 		"""
-		localcrs = {"init":"epsg:2039"} # itm
+		localcrs = ITM
 
 		demog_data = demographic
 		demog_data = demog_data.to_crs(localcrs) # convert to itm. It is in m**2.

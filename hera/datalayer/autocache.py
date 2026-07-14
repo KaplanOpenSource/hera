@@ -53,7 +53,7 @@ def clearFunctionCache(functionName,projectName=None):
 
     return True
 
-def cacheFunction(_func=None, *, returnFormat=None, projectName=None, postProcessFunction=None, getDataParams={},storeDataParams={}):
+def cacheFunction(_func=None, *, returnFormat=None, projectName=None, postProcessFunction=None, getDataParams=None, storeDataParams=None):
     """
     Decorator that caches a function's return value in the project database.
 
@@ -84,6 +84,9 @@ def cacheFunction(_func=None, *, returnFormat=None, projectName=None, postProces
     storeDataParams : dict, optional
         Extra keyword arguments passed when saving to cache.
     """
+    _getDataParams = getDataParams or {}
+    _storeDataParams = storeDataParams or {}
+
     def decorator(func):
         """Wrap the target function with caching logic."""
         @wraps(func)
@@ -94,8 +97,8 @@ def cacheFunction(_func=None, *, returnFormat=None, projectName=None, postProces
                 dataFormat=returnFormat,
                 projectName=projectName,
                 postProcessFunction=postProcessFunction,
-                getDataParams=getDataParams,
-                storeDataParams=storeDataParams
+                getDataParams=_getDataParams,
+                storeDataParams=_storeDataParams
             )(*args, **kwargs)
         return wrapper
 
@@ -151,7 +154,7 @@ class cacheDecorators:
         obj = pickle.loads(message_bytes)
         return obj
 
-    def __init__(self, func,dataFormat,projectName = None,postProcessFunction=None,getDataParams={},storeDataParams={}):
+    def __init__(self, func,dataFormat,projectName = None,postProcessFunction=None,getDataParams=None,storeDataParams=None):
         """
         Parameters
         ----------
@@ -171,8 +174,8 @@ class cacheDecorators:
         self.func = func
         self.postProcessFunction = postProcessFunction
         self.projectName = projectName
-        self.getDataParams = getDataParams
-        self.storeDataParams = storeDataParams
+        self.getDataParams = getDataParams or {}
+        self.storeDataParams = storeDataParams or {}
         self.dataFormat = dataFormat
 
     def __call__(self, *args, **kwargs):

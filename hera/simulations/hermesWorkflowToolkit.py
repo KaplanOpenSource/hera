@@ -1,4 +1,9 @@
 import json
+from pathlib import Path
+from typing import Union
+import pandas
+import shlex
+import subprocess
 import os
 import pydoc
 import resource
@@ -834,7 +839,7 @@ class hermesWorkflowToolkit(abstractToolkit):
                                                       schedulerHost=schedulerHost,
                                                       schedulerPort=schedulerPort)
             logger.debug(executionStr)
-            os.system(executionStr)
+            subprocess.run(shlex.split(executionStr), check=True)
 
             # Step 6: Clean up the generated Python module (the workflow JSON stays).
             logger.info(f"Cleaning the executer python for {workflowName}")

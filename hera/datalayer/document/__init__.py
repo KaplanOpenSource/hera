@@ -75,7 +75,8 @@ def addOrUpdateDatabase(connectionName, username, password, databaseIP, database
         raise FileNotFoundError(f"{configFile} does not exis. Create it first by importing hera and filling up connection names")
 
     mongoConfig[connectionName] =  dict(username=username, password=password, dbIP=databaseIP, dbName=databaseName)
-    logger.debug(f"Creating the connection with the data: {mongoConfig[connectionName]}")
+    safe_config = {k: v for k, v in mongoConfig[connectionName].items() if k != "password"}
+    logger.debug(f"Creating the connection with the data: {safe_config}")
 
     with open(configFile, 'w') as jsonFile:
         json.dump(mongoConfig, jsonFile, indent=4, sort_keys=True)

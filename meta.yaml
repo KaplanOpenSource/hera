@@ -1,9 +1,9 @@
 package:
   name: "hera"
-  version: "0.5.0"
+  version: "2.16.3"
 
 source:
-  git_url: http://mathsrv2:8081/edenn/pyhera.git
+  git_url: https://github.com/KaplanOpenSource/hera
 
 requirements:
   build:
@@ -13,11 +13,19 @@ requirements:
 
   run:
     - python >=3.9
-    - dask >=2.9
-    - mongoengine >=0.18
-    - xarray >=0.14
-    - pytables >=3.4
-    - scipy >=1.3
+    - pandas >=1.3
+    - numpy >=1.21
+    - mongoengine >=0.24
+    - pymongo >=3.12
+    - pint >=0.19
+    - deprecated >=1.2
+    - scipy >=1.7
+    - xarray >=0.20
+    - dask >=2021.10
+    - geopandas >=0.10
+    - shapely >=1.8
 
 about:
-  summary: "Hera"
+  summary: "Hera — Python scientific data management platform (GIS, meteorology, simulations, risk assessment)"
+  home: https://github.com/KaplanOpenSource/hera
+  license: MIT
