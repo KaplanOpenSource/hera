@@ -1,18 +1,20 @@
-import os
 import glob
-from hera.utils.logging.helpers import get_logger
-import xarray
-import pandas
-import numpy
+import os
 from itertools import product
 
-from ..utils.inputForModelsCreation import InputForModelsCreator
-from hera.simulations.LSM.singleSimulation import SingleSimulation
-from hera.datalayer import datatypes
-from hera.utils.unitHandler import Quantity, ureg, unumToPint
+import numpy
+import pandas
+import xarray
+
 from hera import toolkit
-from hera.utils.jsonutils import JSONToConfiguration, stripConfigurationUnits
+from hera.datalayer import datatypes
+from hera.simulations.LSM.singleSimulation import SingleSimulation
 from hera.utils import dictToMongoQuery, get_classMethod_logger
+from hera.utils.jsonutils import JSONToConfiguration, stripConfigurationUnits
+from hera.utils.logging.helpers import get_logger
+from hera.utils.unitHandler import Quantity, unumToPint, ureg
+
+from ..utils.inputForModelsCreation import InputForModelsCreator
 
 
 class LSMTemplate:
@@ -119,7 +121,7 @@ class LSMTemplate:
         updated_params.update(params)
         updated_params.update(descriptor)
         updated_params = JSONToConfiguration(updated_params)
-        updated_params = self.prepareParams(desc=self._document['desc'], paramsToPrepare=updated_params)
+        updated_params = self.prepareParams(template_desc=self._document['desc'], paramsToPrepare=updated_params)
         logger.info(f"Running simulation with the following parameters:\n{updated_params}")
         if topography is None:
             updated_params.update(homogeneousWind=".TRUE.")
@@ -317,22 +319,22 @@ class LSMTemplate:
             return None
 
     @staticmethod
-    def prepareParams(desc, paramsToPrepare):
+    def prepareParams(template_desc:dict, paramsToPrepare):
         logger = get_logger(instance=None, name="hera.simulations.LSM.prepareParams")
+        params = template_desc.get(['params'], {})
+        params.update(paramsToPrepare)
+        paramsToPrepare=params
         try:
-            params = dict(desc['params'])
-            params.update(paramsToPrepare)
-            paramsToPrepare=params
-            if desc is not None and 'units' in desc:
-                for key in desc["units"].keys():
+            if template_desc is not None and 'units' in template_desc:
+                for key in template_desc["units"].keys():
                     param_item= paramsToPrepare[key]
                     if hasattr(param_item, 'asNumber') or hasattr(param_item, 'magnitude'):
-                        paramsToPrepare[key] = unumToPint(param_item).m_as(ureg.parse_expression(desc["units"][key]))
+                        paramsToPrepare[key] = unumToPint(param_item).m_as(ureg.parse_expression(template_desc["units"][key]))
                     elif key=='duration':
                         paramsToPrepare[key] = param_item*ureg.minutes
                     else:
-                        paramsToPrepare[key] = ureg.parse_expression(param_item).m_as(ureg.parse_expression(desc["units"][key]))
-        except:
+                        paramsToPrepare[key] = ureg.parse_expression(param_item).m_as(ureg.parse_expression(template_desc["units"][key]))
+        except Exception:
             raise ValueError(f"parameters must use either pint or unum to specify units, currently type({param_item})={type(param_item)}")
 
         paramsToPrepare = stripConfigurationUnits(paramsToPrepare, returnStandardize=True, ignoreStandardization=["duration"])
