@@ -293,6 +293,7 @@ class LSMTemplate:
                     finalxarray = xarray.concat(L, dim="datetime")
                     new_coords = dict(x=finalxarray.x - xshift, y=finalxarray.y - yshift)
                     finalxarray = finalxarray.assign_coords(coords=new_coords)
+                    finalxarray = finalxarray.transpose("datetime", "x","y","z")
                     finalxarray.to_netcdf(os.path.join(netcdf_output, "data%s.nc" % i))
                     L = []
                     i += 1
@@ -302,6 +303,7 @@ class LSMTemplate:
 
             new_coords = dict(x=finalxarray.x-xshift,y=finalxarray.y-yshift)
             finalxarray= finalxarray.assign_coords(coords=new_coords)
+            finalxarray = finalxarray.transpose("datetime", "x", "y", "z")
 
             logger.info(f"saved xarray in {netcdf_output}")
             if not self.forceKeep:
