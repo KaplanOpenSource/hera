@@ -319,9 +319,9 @@ class LSMTemplate:
             return None
 
     @staticmethod
-    def prepareParams(template_desc:dict, paramsToPrepare):
+    def prepareParams(template_desc, paramsToPrepare):
         logger = get_logger(instance=None, name="hera.simulations.LSM.prepareParams")
-        params = template_desc.get('params', {})
+        params = template_desc.get('params', {}) if template_desc is not None else {}
         params.update(paramsToPrepare)
         paramsToPrepare=params
         try:
