@@ -572,3 +572,122 @@ class dataToolkit(abstractToolkit):
 
         basedir = os.path.dirname(json_path)
         return dataToolkit.resolveDataSourcePaths(repo_json, basedir=basedir)
+
+    # -------------------------------------------------------------------------
+    # Export: project documents -> repository JSON  (reverse of the loader)
+    # -------------------------------------------------------------------------
+
+    def exportDocumentsToRepository(self, *, toolkitName, repositoryName,
+                                    projectName=None, documents=None,
+                                    idStrategy="contentHash", mode="add",
+                                    register=True, overwrite=False):
+        """
+        Export project documents into a repository JSON file.
+
+        Parameters
+        ----------
+        toolkitName : str
+            Top-level toolkit key under which the documents are written.
+        repositoryName : str
+            A registered repository name OR a path to a ``.json`` file. If it
+            resolves to an existing file, that file is the merge base.
+        projectName : str, optional
+            Source project. Defaults to the toolkit's own project.
+        documents : None | doc | id | list
+            None  -> export ALL documents of the project.
+            A single document/id, or a list of documents/ids -> export those.
+        idStrategy : {"contentHash", "objectId"}
+            Duplicate-identity strategy.
+        mode : {"add", "override"}
+            "add" merges (skipping duplicates); "override" additionally runs a
+            full deduplication pass over the resulting file.
+        register : bool
+            If True, register the resulting file via ``addRepository``.
+        overwrite : bool
+            On identity match in "add" mode, replace the existing entry.
+
+        Returns
+        -------
+        dict
+            The merge/dedup report (keys: added, skipped_existing, overwritten,
+            and deduplicated when mode == "override").
+        """
+        from hera.datalayer.project import Project
+        from hera.utils.data import repositoryExport
+        logger = get_classMethod_logger(self, "exportDocumentsToRepository")
+
+        srcProjectName = projectName or self.projectName
+        proj = Project(projectName=srcProjectName)
+
+        # 1) Resolve documents -> list of asDict(with_id=True)
+        docObjs = self._resolveDocumentsForExport(proj, documents)
+        docDicts = [d.asDict(with_id=True) for d in docObjs]
+        logger.info(f"Exporting {len(docDicts)} documents from project {srcProjectName}")
+
+        # 2) Resolve repository file path + load existing JSON (merge base)
+        repoPath = self._resolveRepositoryPath(repositoryName)
+        if os.path.isfile(repoPath):
+            try:
+                with open(repoPath, encoding="utf-8") as fh:
+                    repoJSON = json.load(fh)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"Existing repository file is not valid JSON: {repoPath} ({exc})")
+        else:
+            repoJSON = {}
+
+        # 3) Merge (+ optional override dedup)
+        repoJSON, report = repositoryExport.mergeDocumentsIntoRepository(
+            repoJSON, docDicts, toolkitName, idStrategy=idStrategy, overwrite=overwrite
+        )
+        if mode == "override":
+            repoJSON, dedupReport = repositoryExport.deduplicateRepository(repoJSON)
+            report["deduplicated"] = dedupReport["removed"]
+
+        # 4) Write the file
+        os.makedirs(os.path.dirname(os.path.abspath(repoPath)), exist_ok=True)
+        with open(repoPath, "w", encoding="utf-8") as fh:
+            json.dump(repoJSON, fh, indent=2)
+        logger.info(f"Wrote repository to {repoPath}")
+
+        # 5) Optionally register
+        if register:
+            repoRegName = os.path.basename(repoPath).split(".")[0]
+            self.addRepository(repositoryName=repoRegName, repositoryPath=repoPath, overwrite=True)
+
+        return report
+
+    def _resolveDocumentsForExport(self, proj, documents):
+        """Normalise the ``documents`` argument to a list of document objects.
+
+        When exporting ALL documents (``documents is None``) the project's own
+        internal configuration document (type ``<projectName>__config__``, stored
+        in the Cache collection) is excluded — it is bookkeeping, not data.
+        """
+        if documents is None:
+            config_type = f"{proj.projectName}__config__"
+            return [d for d in proj.getAllDocuments() if d.type != config_type]
+        if not isinstance(documents, (list, tuple)):
+            documents = [documents]
+        resolved = []
+        for d in documents:
+            if isinstance(d, str):
+                doc = proj.getDocumentByID(d)
+                if doc is None:
+                    raise ValueError(f"Document id not found in project: {d}")
+                resolved.append(doc)
+            else:
+                resolved.append(d)
+        return resolved
+
+    def _resolveRepositoryPath(self, repositoryName):
+        """Return a filesystem path for a registered repo name or a path string."""
+        if repositoryName.endswith(".json") or os.path.sep in repositoryName:
+            return os.path.abspath(repositoryName)
+        try:
+            doc = self.getDataSourceDocument(repositoryName)
+        except Exception:
+            doc = None
+        if doc is not None and getattr(doc, "resource", None):
+            return os.path.abspath(doc.resource)
+        # Unknown registered name and not a path: create alongside cwd.
+        return os.path.abspath(f"{repositoryName}.json")

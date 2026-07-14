@@ -157,6 +157,18 @@ if __name__ == "__main__":
     repository_load.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
                                  help='Overwrite existing data sources in the project')
     repository_load.set_defaults(func=CLI.repository_load)
+
+    # repository export
+    repository_export = repository_subparsers.add_parser('export', help='Export project documents into a repository JSON file')
+    repository_export.add_argument('repositoryName', type=str, help='Registered repository name or path to the output .json file')
+    repository_export.add_argument('--toolkitName', type=str, required=True, help='Top-level toolkit key for the exported documents')
+    repository_export.add_argument('--projectName', type=str, default=None, help='Source project name (default project if omitted)')
+    repository_export.add_argument('--documentId', action='append', default=None, help='Document id to export (repeatable). Omit to export ALL documents.')
+    repository_export.add_argument('--idStrategy', choices=['contentHash', 'objectId'], default='contentHash', help='Duplicate-identity strategy')
+    repository_export.add_argument('--mode', choices=['add', 'override'], default='add', help='add = merge; override = merge then deduplicate the whole file')
+    repository_export.add_argument('--no-register', dest='no_register', action='store_true', default=False, help='Do not register the resulting repository file')
+    repository_export.add_argument('--overwrite', dest='overwrite', action='store_true', default=False, help='Overwrite existing entries on identity match')
+    repository_export.set_defaults(func=CLI.repository_export)
     # -----------------  Toolkit
     # toolkit add
     add_toolkit_parser = subparsers.add_parser('addToolkit',help='Register a toolkit into the project')

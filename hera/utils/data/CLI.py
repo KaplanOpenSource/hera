@@ -337,6 +337,40 @@ def repository_load(arguments):
                                                     overwrite=arguments.overwrite)
 
 @_lazy_setup
+def repository_export(arguments):
+    """
+    Export project documents into a repository JSON file.
+    """
+    logger = logging.getLogger("hera.bin.repository_export")
+    dtk = dataToolkit()
+
+    documents = arguments.documentId if getattr(arguments, "documentId", None) else None
+    projectName = getattr(arguments, "projectName", None)
+
+    logger.info(
+        f"Exporting documents from project {projectName} to repository "
+        f"{arguments.repositoryName} under toolkit {arguments.toolkitName}"
+    )
+    report = dtk.exportDocumentsToRepository(
+        toolkitName=arguments.toolkitName,
+        repositoryName=arguments.repositoryName,
+        projectName=projectName,
+        documents=documents,
+        idStrategy=arguments.idStrategy,
+        mode=arguments.mode,
+        register=not arguments.no_register,
+        overwrite=arguments.overwrite,
+    )
+    print(
+        f"Export complete: {len(report['added'])} added, "
+        f"{len(report['skipped_existing'])} skipped, "
+        f"{len(report['overwritten'])} overwritten."
+    )
+    if "deduplicated" in report:
+        print(f"Deduplicated: {len(report['deduplicated'])} duplicate entries removed.")
+
+
+@_lazy_setup
 def add_toolkit(arguments):
     """
     CLI entry point for:
