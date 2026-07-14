@@ -5,9 +5,19 @@ import argparse, argcomplete
 import logging
 from hera.simulations.openFoam import CLI
 from hera.simulations import CLI as workflowCLI
-
-
 from hera.utils.logging import initialize_logging, with_logger
+
+
+def _add_scheduler_arguments(subparser):
+    """Add the Luigi scheduler-selection and dispatch_id options to a subparser."""
+    subparser.add_argument('--scheduler', dest="scheduler", choices=["local", "central"], default="local",
+                           help="Luigi scheduler to use. 'local' (default) runs with --local-scheduler; 'central' connects to a running luigid.")
+    subparser.add_argument('--scheduler-host', dest="scheduler_host", type=str, default=None,
+                           help="Host of the central Luigi scheduler (only used with --scheduler central). Defaults to Luigi's default (localhost).")
+    subparser.add_argument('--scheduler-port', dest="scheduler_port", type=int, default=None,
+                           help="Port of the central Luigi scheduler (only used with --scheduler central). Defaults to Luigi's default (8082).")
+    subparser.add_argument('--dispatch-id', dest="dispatch_id", type=str, default=None,
+                           help="Unique id for this execution, propagated to all nodes. If omitted a uuid4 is generated.")
 
 
 def addSolverTemplateOptions(subparser, solverName, incompressible):
@@ -58,6 +68,7 @@ def addSolverTemplateOptions(subparser, solverName, incompressible):
                                 help='Add the current workflow to the DB even if it exists there under a different name')
     parser_prepare.add_argument('--noDB', dest="noDB", action="store_true", default=False,
                                 help='Run the workflow without adding to the DB')
+    _add_scheduler_arguments(parser_prepare)
     parser_prepare.set_defaults(execute=True)
     parser_prepare.set_defaults(func=CLI.foam_solver_template_buildExecute)
 
@@ -509,6 +520,7 @@ if __name__ == "__main__":
 
     execute_parser.add_argument('--workflowGroup', dest="workflowGroup", default=None, type=str,
                                 help='The simulation group. [Optional]. If None, try to infer from the file name  ')
+    _add_scheduler_arguments(execute_parser)
 
     execute_parser.set_defaults(execute=True)
     execute_parser.set_defaults(func=CLI.foam_solver_template_buildExecute)

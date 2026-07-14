@@ -1,11 +1,18 @@
-import numpy
-import geopandas
-import pandas
-import math
-import numpy as np
-import geopandas as gpd
-import pandas as pd
-import xarray as xr
+import math  # stdlib, cheap
+from hera.utils.lazy import _LazyModule
+
+# Heavy libraries are loaded on first attribute access so that
+# `from hera.measurements.GIS.utils import WSG84, ITM, convertCRS`
+# is instant even when geopandas / xarray are not yet imported.
+
+numpy    = _LazyModule("numpy")
+np       = numpy
+geopandas = _LazyModule("geopandas")
+gpd      = geopandas
+pandas   = _LazyModule("pandas")
+pd       = pandas
+xarray   = _LazyModule("xarray")
+xr       = xarray
 
 
 # ESPG codes

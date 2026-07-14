@@ -2,12 +2,9 @@ import os
 import sys
 import logging
 import pydoc
-import pandas as pd
 
 from hera import toolkit
-from .presentation import experimentPresentation
-from .analysis import experimentAnalysis
-from hera.measurements.GIS.utils import WSG84, ITM, convertCRS
+from hera.measurements.GIS.utils import WSG84, ITM  # integer constants; GIS utils is now fast
 
 try:
     from argos.experimentSetup import dataObjects as argosDataObjects
@@ -17,6 +14,9 @@ except ImportError:
 
 from .dataEngine import dataEngineFactory, PARQUETHERA, PANDASDB, DASKDB
 from hera.utils import loadJSON
+
+# pandas, presentation, analysis are deferred to experimentHome.__init__()
+# and the methods that need them.  WSG84/ITM are module-level constants.
 
 # The name of the properties. These must match the Argos web interface.
 # Do not change unless the Argos schema changes.
@@ -369,6 +369,8 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile, toolkit.abstra
         )
 
         self._defaultTrialSetName = defaultTrialSetName
+        from .analysis import experimentAnalysis
+        from .presentation import experimentPresentation
         self._analysis = experimentAnalysis(self)
         self._presentation = experimentPresentation(self, self.analysis)
 
@@ -450,6 +452,8 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile, toolkit.abstra
         """
         Helper for coordinate conversion of a single row (Longitude, Latitude).
         """
+        import pandas as pd
+        from hera.measurements.GIS.utils import convertCRS
         pp = convertCRS([[row.Longitude, row.Latitude]], inputCRS=WSG84, outputCRS=ITM)
         return pd.Series([pp.x[0], pp.y[0]])
 

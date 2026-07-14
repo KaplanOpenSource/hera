@@ -35,6 +35,24 @@ export const isSplitId = (id: string) => {
   return id?.startsWith(ID_PREFIX_SPLIT);
 };
 
+export enum ItemKind {
+  CentralRepo = 'centralRepo',
+  Split = 'split',
+  Document = 'document',
+  Repo = 'repo',
+  Config = 'config',
+}
+
+// Classifies a tree/show item id into the kind of thing it refers to.
+// Config is the fallback when the id isn't a central-repo / split / document / repo id.
+export const classifyItemId = (id: string): ItemKind => {
+  if (id === CENTRAL_REPO_FOLDER_ID) return ItemKind.CentralRepo;
+  if (isSplitId(id)) return ItemKind.Split;
+  if (idFromDocId(id)) return ItemKind.Document;
+  if (idFromRepoId(id)) return ItemKind.Repo;
+  return ItemKind.Config;
+};
+
 // Resolves the toolkit name for any split tree node ID.
 // For toolkit splits (split_/toolkit=X), returns X directly.
 // For child splits (split_/toolkit=X/...), extracts X from the key prefix.

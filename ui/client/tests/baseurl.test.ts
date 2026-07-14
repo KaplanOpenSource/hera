@@ -62,11 +62,11 @@ describe('BASEURL', () => {
     expect(baseurl).toBe('http://localhost:9000');
   });
 
-  it('returns full URL for non-localhost hostname', async () => {
+  it('returns empty string for a non-localhost hostname in production (same-origin)', async () => {
     mockLocation('10.0.0.5', '8000');
     import.meta.env.DEV = false;
     const baseurl = await loadBaseurl();
-    expect(baseurl).toBe('http://localhost:8000');
+    expect(baseurl).toBe('');
   });
 
   it('returns empty string for 127.0.0.1 in production', async () => {

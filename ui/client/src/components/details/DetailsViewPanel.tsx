@@ -1,6 +1,6 @@
 import { Box } from '@mui/material';
 import { ProjectObj } from '../../objects/ProjectObj';
-import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId, isSplitId, toolkitNameFromSplitId } from '../../shared/idDocId';
+import { classifyItemId, idFromDocId, idFromRepoId, ItemKind, toolkitNameFromSplitId } from '../../shared/idDocId';
 import { DetailsViewDocId } from './DetailsViewDocId';
 import { DetailsViewMergedRepo } from './DetailsViewMergedRepo';
 import { DetailsViewRepo } from './DetailsViewRepo';
@@ -15,7 +15,9 @@ export const DetailsViewPanel = ({
   project: ProjectObj,
   showItemId: string,
 }) => {
-  if (showItemId === CENTRAL_REPO_FOLDER_ID) {
+  const kind = classifyItemId(showItemId);
+
+  if (kind === ItemKind.CentralRepo) {
     return (
       <Box sx={{ p: 2, height: '100%', overflow: 'auto' }}>
         <DetailsViewMergedRepo />
@@ -23,7 +25,7 @@ export const DetailsViewPanel = ({
     )
   }
 
-  if (isSplitId(showItemId)) {
+  if (kind === ItemKind.Split) {
     const toolkitName = toolkitNameFromSplitId(showItemId, project.documents);
     if (toolkitName) {
       return (
@@ -34,25 +36,29 @@ export const DetailsViewPanel = ({
     }
   }
 
-  const docid = idFromDocId(showItemId);
-  if (docid) {
-    return (
-      <DetailsViewDocId
-        project={project}
-        docid={docid}
-      />
-    )
+  if (kind === ItemKind.Document) {
+    const docid = idFromDocId(showItemId);
+    if (docid) {
+      return (
+        <DetailsViewDocId
+          project={project}
+          docid={docid}
+        />
+      )
+    }
   }
 
-  const repoid = idFromRepoId(showItemId);
-  if (repoid) {
-    return (
-      <Box sx={{ p: 2, height: '100%', overflow: 'auto' }}>
-        <DetailsViewRepo
-          repoPath={repoid}
-        />
-      </Box>
-    )
+  if (kind === ItemKind.Repo) {
+    const repoid = idFromRepoId(showItemId);
+    if (repoid) {
+      return (
+        <Box sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+          <DetailsViewRepo
+            repoPath={repoid}
+          />
+        </Box>
+      )
+    }
   }
 
   if (project?.configDocument?.docid) {

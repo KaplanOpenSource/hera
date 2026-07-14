@@ -1,7 +1,6 @@
-# import pandas
+import pandas
 import numpy
 import os
-from hera.simulations.openFoam import HERAMETADATA
 from hera.utils import loadJSON
 # from ..utils.coordinateHandler import coordinateHandler
 # handler = coordinateHandler()
@@ -32,7 +31,7 @@ def getCellDataAndGroundData(casePath,ground="ground"):
                                  skipfooter=len(lines) - (i + 6 + nGroundValues),
                                  engine='python',
                                  header=None,
-                                 delim_whitespace=True, names=['x', 'y', 'z'])
+                                 sep=r'\s+', names=['x', 'y', 'z'])
 
     groundData['x'] = groundData['x'].str[1:]
     groundData['z'] = groundData['z'].str[:-1]
@@ -42,7 +41,7 @@ def getCellDataAndGroundData(casePath,ground="ground"):
                                skipfooter=len(lines) - (cellStart + nCells),
                                engine='python',
                                header=None,
-                               delim_whitespace=True, names=['x', 'y', 'z'])
+                               sep=r'\s+', names=['x', 'y', 'z'])
     cellData['x'] = cellData['x'].str[1:]
     cellData['z'] = cellData['z'].str[:-1]
     cellData = cellData.astype(float)

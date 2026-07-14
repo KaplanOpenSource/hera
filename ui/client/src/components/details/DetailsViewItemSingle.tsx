@@ -1,31 +1,19 @@
 import { TextField } from '@mui/material';
 import { useEffect, useState } from 'react';
-import { SelectProperty } from '../../elements/SelectProperty';
-
-enum ItemTypesEnum {
-  number = 'number',
-  string = 'string',
-  null = 'null',
-}
-
-const calcItemType = (val: any) => {
-  if (val === null) {
-    return ItemTypesEnum.null;
-  } else if ((typeof val === 'number' || typeof val === 'bigint') && Number.isFinite(val)) {
-    return ItemTypesEnum.number;
-  } else {
-    return ItemTypesEnum.string;
-  }
-}
+import { FieldDef } from './fieldDef';
+import { ItemTypeSelector, ItemTypesEnum, calcItemType } from './ItemTypeSelector';
 
 export const DetailsViewItemSingle = ({
   itemValue,
   setItemValue,
+  def = undefined,
 }: {
   itemValue: any,
   setItemValue: (newVal: any) => void,
+  def?: FieldDef,
 }) => {
   const [itemType, setItemType] = useState<ItemTypesEnum>(() => calcItemType(itemValue));
+  const missing = !!def?.required && (itemValue === undefined || itemValue === null || itemValue === '');
 
   useEffect(() => {
     setItemType(calcItemType(itemValue));
@@ -50,22 +38,23 @@ export const DetailsViewItemSingle = ({
         onKeyDown={e => e.stopPropagation()}
         fullWidth
         disabled={itemType === ItemTypesEnum.null}
-      />
-      <SelectProperty
-        label="Type"
-        value={itemType}
-        setValue={v => {
-          setItemType(v as ItemTypesEnum);
-          if (v === ItemTypesEnum.null) {
-            setItemValue(null);
-          } else if (v === ItemTypesEnum.number) {
-            const num = parseFloat(itemValue);
-            setItemValue(Number.isFinite(num) ? num : 0)
-          } else {
-            setItemValue(itemValue + '');
-          }
+        error={missing}
+        helperText={missing ? 'required' : undefined}
+        // Float the "required" text just below the field: absolute so it adds no
+        // height (required and normal rows stay the same height), zIndex so it is
+        // not painted over by the next row.
+        sx={{ position: 'relative' }}
+        slotProps={{
+          formHelperText: {
+            sx: { position: 'absolute', top: '100%', left: 0, m: 0, lineHeight: 1, zIndex: 1 },
+          },
         }}
-        menuItems={Object.keys(ItemTypesEnum).map((name) => ({ name }))}
+      />
+      <ItemTypeSelector
+        itemType={itemType}
+        setItemType={setItemType}
+        itemValue={itemValue}
+        setItemValue={setItemValue}
       />
     </>
   )

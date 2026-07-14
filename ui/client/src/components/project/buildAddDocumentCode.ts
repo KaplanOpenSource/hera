@@ -31,6 +31,22 @@ All.addDocument(
     dataFormat=datatypes.JSON_DICT,
     type='ToolkitDataSource',
 )`;
+  } else if (kind === DocKind.Workflow) {
+    // A Hermes workflow is a Simulations document holding an (initially empty)
+    // workflow block under desc.workflow; resource is the optional export path.
+    const workflowDesc = {
+      ...desc,
+      workflowName: desc.datasourceName,
+      workflow: { workflow: { solver: '', nodeList: [], nodes: {} } },
+    };
+    addCommand = `
+Simulations_Collection().addDocument(
+    '${projectName}',
+    resource='${resource}',
+    desc=${JSON.stringify(workflowDesc)},
+    dataFormat=datatypes.JSON_DICT,
+    type='hermesWorkflow',
+)`;
   } else {
     addCommand = `
 ${collection}().addDocument(

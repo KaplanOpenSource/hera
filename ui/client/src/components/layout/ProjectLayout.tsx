@@ -1,66 +1,108 @@
-import { Box, Paper } from '@mui/material';
-import { Action, Actions, DockLocation, ITabRenderValues, Layout, Model, TabNode } from 'flexlayout-react';
+import { Action, Actions, DockLocation, IJsonModel, IJsonTabNode, ITabRenderValues, Layout, Model, TabNode } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
 import { ProjectObj } from '../../objects/ProjectObj';
-import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId, isSplitId, normalizeSplitId } from '../../shared/idDocId';
+import { classifyItemId, idFromDocId, ItemKind, normalizeSplitId } from '../../shared/idDocId';
 import { classifyTab, tabKindClassName } from '../../shared/tabKind';
-import { TAB_KIND_STYLES, tabKindCss } from '../../shared/tabKindConfig';
-import { DetailsViewPanel, detailsTabName } from '../details/DetailsViewPanel';
-import { hasPreview, PreviewPanel } from '../details/PreviewPanel';
-import { ProjectTreeView } from '../project/ProjectTreeView';
+import { TAB_KIND_STYLES } from '../../shared/tabKindConfig';
+import { detailsTabName } from '../details/DetailsViewPanel';
+import { hasPreview } from '../details/PreviewPanel';
+import { LayoutComponent, LayoutPanel } from './LayoutPanel';
+
+// Tabset ids, the single tree tab id, and the id prefixes for the per-item tabs.
+const TREE_TAB_ID = 'tree';
+const TREE_TABSET_ID = 'tree-tabset';
+const DETAILS_TABSET_ID = 'details-tabset';
+const DETAILS_TAB_PREFIX = 'details:';
+const PREVIEW_TAB_PREFIX = 'preview:';
+// Fallback "item" shown when the tree selection isn't a document/repo/split.
+const CONFIG_ITEM_ID = 'config';
+
+const GLOBAL_LAYOUT_CONFIG = {
+  tabEnableClose: true,
+  tabEnableRename: true,
+  tabEnableDrag: true,
+  tabSetEnableMaximize: true,
+  tabSetEnableClose: true,
+  tabSetEnableDeleteWhenEmpty: true,
+  rootOrientationVertical: false,
+};
+
+const TREE_TAB: IJsonTabNode = { type: 'tab', id: TREE_TAB_ID, name: 'Project', component: LayoutComponent.Tree };
+
+// Builds a fresh layout model in the original arrangement: tree panel (25%) on the
+// left, details panel (75%) on the right. Any open details tabs are re-placed into
+// the details panel so a layout reset doesn't lose the user's open documents.
+export const createLayoutModel = (
+  treeVisible: boolean,
+  detailsTabs: IJsonTabNode[] = [],
+  selectedIndex = -1,
+): Model => {
+  const detailsTabset = {
+    type: 'tabset',
+    id: DETAILS_TABSET_ID,
+    weight: 75,
+    enableDeleteWhenEmpty: false,
+    children: detailsTabs,
+    ...(selectedIndex >= 0 ? { selected: selectedIndex } : {}),
+  };
+  const layout: IJsonModel = {
+    global: GLOBAL_LAYOUT_CONFIG,
+    layout: {
+      type: 'row',
+      children: [
+        ...(treeVisible
+          ? [{ type: 'tabset', id: TREE_TABSET_ID, weight: 25, children: [TREE_TAB] }]
+          : []),
+        detailsTabset,
+      ],
+    },
+  };
+  return Model.fromJson(layout);
+};
+
+// Tab node for a tree item's details view.
+const makeDetailsTab = (showItemId: string, project: ProjectObj): IJsonTabNode => ({
+  type: 'tab',
+  id: `${DETAILS_TAB_PREFIX}${showItemId}`,
+  name: detailsTabName(showItemId, project),
+  className: tabKindClassName(showItemId, project),
+  component: LayoutComponent.Details,
+  config: { showItemId },
+});
+
+// Tab node for a document's preview pane.
+const makePreviewTab = (docid: string, docName: string): IJsonTabNode => ({
+  type: 'tab',
+  id: `${PREVIEW_TAB_PREFIX}${docid}`,
+  name: `Preview: ${docName}`,
+  component: LayoutComponent.Preview,
+  config: { docid },
+});
+
+// All open tabs whose id starts with the given prefix (e.g. all details or preview tabs).
+const tabsWithPrefix = (model: Model, prefix: string): TabNode[] => {
+  const tabs: TabNode[] = [];
+  model.visitNodes((node) => {
+    if (node.getType() === 'tab' && node.getId().startsWith(prefix)) {
+      tabs.push(node as TabNode);
+    }
+  });
+  return tabs;
+};
 
 export const ProjectLayout = ({
   project,
   treeCollapsed,
+  resetSignal,
 }: {
   project: ProjectObj,
   treeCollapsed: boolean,
+  resetSignal: number,
 }) => {
-  const { docId } = useParams<{ docId: string }>();
-  const navigate = useNavigate();
-  const [selectedItemsIds, setSelectedItemIds] = useState<string[]>(
-    docId ? [`document_${docId}`] : []
-  );
-  const [activeShowItemId, setActiveShowItemId] = useState<string | undefined>(
-    docId ? `document_${docId}` : undefined
-  );
+  const [activeShowItemId, setActiveShowItemId] = useState<string | undefined>(undefined);
 
-  const [model] = useState(() => Model.fromJson({
-    global: {
-      tabEnableClose: true,
-      tabEnableRename: true,
-      tabEnableDrag: true,
-      tabSetEnableMaximize: true,
-      tabSetEnableClose: true,
-      tabSetEnableDeleteWhenEmpty: true,
-      rootOrientationVertical: false,
-    },
-    layout: {
-      type: 'row',
-      children: [
-        {
-          type: 'tabset',
-          id: 'tree-tabset',
-          weight: 25,
-          children: [{
-            type: 'tab',
-            id: 'tree',
-            name: 'Project',
-            component: 'tree',
-          }],
-        },
-        {
-          type: 'tabset',
-          id: 'details-tabset',
-          weight: 75,
-          enableDeleteWhenEmpty: false,
-          children: [],
-        },
-      ],
-    },
-  }));
+  const [model, setModel] = useState(() => createLayoutModel(!treeCollapsed));
 
   const activeDocId = activeShowItemId ? idFromDocId(activeShowItemId) : undefined;
   const activeDoc = activeDocId
@@ -68,102 +110,87 @@ export const ProjectLayout = ({
     : undefined;
   const previewAvailable = activeDoc ? hasPreview(activeDoc.data) : false;
 
+  // When the reset button in the header is pressed, rebuild the layout in its
+  // original left/right arrangement while keeping the currently open details tabs.
   useEffect(() => {
-    const treeNode = model.getNodeById('tree');
+    if (resetSignal === 0) return;
+    const detailsTabs = tabsWithPrefix(model, DETAILS_TAB_PREFIX).map(t => t.toJson());
+    const selectedIndex = detailsTabs.findIndex(t => t.id === `${DETAILS_TAB_PREFIX}${activeShowItemId}`);
+    setModel(createLayoutModel(!treeCollapsed, detailsTabs, selectedIndex));
+  }, [resetSignal]);
+
+  useEffect(() => {
+    const treeNode = model.getNodeById(TREE_TAB_ID);
     if (treeCollapsed && treeNode) {
-      model.doAction(Actions.deleteTab('tree'));
+      model.doAction(Actions.deleteTab(TREE_TAB_ID));
     } else if (!treeCollapsed && !treeNode) {
       model.doAction(Actions.addTab(
-        { type: 'tab', id: 'tree', name: 'Project', component: 'tree' },
-        'details-tabset',
+        TREE_TAB,
+        DETAILS_TABSET_ID,
         DockLocation.LEFT,
         -1,
       ));
     }
   }, [treeCollapsed, model]);
 
-  useEffect(() => {
-    const rawShowItemId = selectedItemsIds[0];
+  // The tree owns the selection; when it changes, open or focus that item's details tab.
+  const handleSelectItem = useCallback((rawShowItemId: string | undefined) => {
     if (!rawShowItemId) return;
 
-    const isSpecific = rawShowItemId === CENTRAL_REPO_FOLDER_ID
-      || !!idFromDocId(rawShowItemId)
-      || !!idFromRepoId(rawShowItemId)
-      || isSplitId(rawShowItemId);
-    const showItemId = isSpecific
-      ? (isSplitId(rawShowItemId) ? normalizeSplitId(rawShowItemId, project.documents) : rawShowItemId)
-      : 'config';
+    const kind = classifyItemId(rawShowItemId);
+    let showItemId = rawShowItemId;
+    if (kind === ItemKind.Config) showItemId = CONFIG_ITEM_ID;
+    else if (kind === ItemKind.Split) showItemId = normalizeSplitId(rawShowItemId, project.documents);
 
-    const detailsId = `details:${showItemId}`;
-    const existing = model.getNodeById(detailsId);
-    if (existing) {
+    const detailsId = `${DETAILS_TAB_PREFIX}${showItemId}`;
+    if (model.getNodeById(detailsId)) {
       model.doAction(Actions.selectTab(detailsId));
     } else {
       model.doAction(Actions.addTab(
-        {
-          type: 'tab',
-          id: detailsId,
-          name: detailsTabName(showItemId, project),
-          className: tabKindClassName(showItemId, project),
-          component: 'details',
-          config: { showItemId },
-        },
-        'details-tabset',
+        makeDetailsTab(showItemId, project),
+        DETAILS_TABSET_ID,
         DockLocation.CENTER,
         -1,
       ));
     }
     setActiveShowItemId(showItemId);
-  }, [selectedItemsIds[0], model]);
+  }, [model, project]);
 
   useEffect(() => {
-    const existingPreview: string[] = [];
-    model.visitNodes((node) => {
-      if (node.getType() === 'tab' && node.getId().startsWith('preview:')) {
-        existingPreview.push(node.getId());
-      }
-    });
-    existingPreview.forEach(id => model.doAction(Actions.deleteTab(id)));
+    for (const t of tabsWithPrefix(model, PREVIEW_TAB_PREFIX)) {
+      model.doAction(Actions.deleteTab(t.getId()));
+    }
 
     if (previewAvailable && activeDocId) {
       model.doAction(Actions.addTab(
-        {
-          type: 'tab',
-          id: `preview:${activeDocId}`,
-          name: `Preview: ${activeDoc!.name}`,
-          component: 'preview',
-          config: { docid: activeDocId },
-        },
-        'details-tabset',
+        makePreviewTab(activeDocId, activeDoc!.name),
+        DETAILS_TABSET_ID,
         DockLocation.BOTTOM,
         -1,
       ));
     }
   }, [activeShowItemId, previewAvailable, activeDocId, model]);
 
+  // Close details/preview tabs whose document no longer exists (e.g. after it was deleted).
   useEffect(() => {
-    if (docId && project?.documentIds.has(docId)) {
-      setSelectedItemIds([`document_${docId}`]);
-    } else {
-      setSelectedItemIds([]);
+    for (const t of tabsWithPrefix(model, DETAILS_TAB_PREFIX)) {
+      const oid = idFromDocId(t.getConfig()?.showItemId ?? '');
+      if (oid && !project.documentIds.has(oid)) {
+        model.doAction(Actions.deleteTab(t.getId()));
+      }
     }
-  }, [project?.name]);
-
-  const handleSetSelectedItemIds = useCallback((ids: string[]) => {
-    setSelectedItemIds(ids);
-    const selectedId = ids[0];
-    const oid = selectedId?.startsWith('document_') ? selectedId.slice('document_'.length) : undefined;
-    const basePath = '/' + encodeURIComponent(project?.name ?? '');
-    const newPath = oid ? `${basePath}/${oid}` : basePath;
-    if (location.pathname !== newPath) {
-      navigate(newPath, { replace: true });
+    for (const t of tabsWithPrefix(model, PREVIEW_TAB_PREFIX)) {
+      const oid = t.getConfig()?.docid as string | undefined;
+      if (oid && !project.documentIds.has(oid)) {
+        model.doAction(Actions.deleteTab(t.getId()));
+      }
     }
-  }, [project?.name, navigate]);
+  }, [project, model]);
 
   const handleAction = useCallback((action: Action) => {
     if (action.type === Actions.SELECT_TAB) {
       const tabId = action.data.tabNode as string;
-      if (tabId?.startsWith('details:')) {
+      if (tabId?.startsWith(DETAILS_TAB_PREFIX)) {
         const node = model.getNodeById(tabId) as TabNode | undefined;
         if (node) {
           setActiveShowItemId(node.getConfig()?.showItemId);
@@ -182,45 +209,21 @@ export const ProjectLayout = ({
     renderValues.leading = <Icon sx={{ fontSize: 16, color }} />;
   }, [project.allDocuments]);
 
-  const factory = (node: TabNode) => {
-    const component = node.getComponent();
-    const config = node.getConfig();
-    switch (component) {
-      case 'tree':
-        return (
-          <Paper sx={{ p: 2, height: '100%', overflow: 'auto' }}>
-            <ProjectTreeView
-              project={project}
-              selectedItemsIds={selectedItemsIds}
-              setSelectedItemIds={handleSetSelectedItemIds}
-            />
-          </Paper>
-        );
-      case 'details':
-        return (
-          <Paper sx={{ height: '100%', overflow: 'hidden' }}>
-            <DetailsViewPanel
-              project={project}
-              showItemId={config?.showItemId}
-            />
-          </Paper>
-        );
-      case 'preview':
-        return <PreviewPanel docid={config?.docid} />;
-      default:
-        return null;
-    }
-  };
+  const factory = (node: TabNode) => (
+    <LayoutPanel
+      component={node.getComponent()}
+      config={node.getConfig()}
+      project={project}
+      onSelectItem={handleSelectItem}
+    />
+  );
 
   return (
-    <Box sx={{ position: 'relative', flex: 1, height: '100%' }}>
-      <style>{tabKindCss}</style>
-      <Layout
-        model={model}
-        factory={factory}
-        onRenderTab={onRenderTab}
-        onAction={handleAction}
-      />
-    </Box>
+    <Layout
+      model={model}
+      factory={factory}
+      onRenderTab={onRenderTab}
+      onAction={handleAction}
+    />
   );
 };

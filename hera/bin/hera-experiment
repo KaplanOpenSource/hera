@@ -3,13 +3,12 @@
 
 import json
 import argparse, argcomplete
-from hera.measurements.experiment import CLI
-
 import os
-from hera.utils.logging import initialize_logging,with_logger
 import logging
 
-if __name__ =="__main__":
+if __name__ == "__main__":
+    from hera.measurements.experiment import CLI
+    from hera.utils.logging import initialize_logging, with_logger
     initialize_logging(
           with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
         with_logger("hera.utils", handlers=['console'], level='DEBUG', propagate=False)

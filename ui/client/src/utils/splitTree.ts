@@ -28,6 +28,17 @@ export type LeafNode = {
 
 export type SplitTreeNode = SplitNode | LeafNode;
 
+// All split-branch item keys in a tree (used to expand every branch, e.g. during search).
+export const collectBranchKeys = (nodes: SplitTreeNode[]): string[] => {
+  const keys: string[] = [];
+  for (const node of nodes) {
+    if (node.type === SplitTreeNodeType.Split) {
+      keys.push(node.itemKey, ...collectBranchKeys(node.children));
+    }
+  }
+  return keys;
+};
+
 export class SplitTree {
   public readonly nodes: SplitTreeNode[];
   private readonly docIds: Set<string>;

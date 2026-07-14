@@ -1,6 +1,7 @@
 import { Box } from '@mui/material';
 import { VersionShower } from './VersionShower';
 import { CorsIndicator } from './CorsIndicator';
+import { UserIndicator } from './UserIndicator';
 
 export const StatusIndicators = () => {
   return (
@@ -12,6 +13,7 @@ export const StatusIndicators = () => {
       lineHeight: 0,
     }}>
       <VersionShower />
+      <UserIndicator />
       <CorsIndicator />
     </Box>
   );

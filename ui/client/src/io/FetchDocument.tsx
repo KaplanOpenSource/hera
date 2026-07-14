@@ -1,9 +1,11 @@
 import { ProjectDocument } from "@shared/types";
-import { fetchPython } from "./fetchPython";
+import { fetchPython, fetchPythonClean } from "./fetchPython";
 import { FORBIDDEN_FIELDS } from "../shared/constants";
 
-export const fetchDocument = async (docid: string) => {
-  const { data } = await fetchPython({
+// silent: use the no-notification fetch (e.g. for periodic background reloads).
+export const fetchDocument = async (docid: string, silent = false) => {
+  const run = silent ? fetchPythonClean : fetchPython;
+  const { data } = await run({
     results: ['docData'],
     label: `get document ${docid}`,
     code: `
