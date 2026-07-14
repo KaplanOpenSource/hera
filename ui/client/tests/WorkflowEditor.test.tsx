@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, cleanup, render, screen } from '@testing-library/react';
 
-// The editor fetches the node catalog on mount; keep it from hitting the network.
+// The editor reads the node catalog from a zustand store and mounts a reader
+// that fetches it; stub both so nothing hits the network.
 vi.mock('../src/components/workflow/useNodeCatalog', () => ({
-  useNodeCatalog: () => ({ catalog: [] }),
+  useNodeCatalog: (selector: (state: { catalog: unknown[] }) => unknown) => selector({ catalog: [] }),
+  NodeCatalogReader: () => null,
 }));
 
 // Replace the ReactFlow-based graph with a stub that just captures the handler

@@ -35,8 +35,12 @@ export class WorkflowLayout {
 
   // Fresh layout from a workflow: every node at the top of its column with an
   // estimated height, then stacked so they do not overlap.
-  static stacked(nodeNames: string[], nodes: { [name: string]: WorkflowNode }): WorkflowLayout {
-    const layers = computeLayers(nodeNames, nodes);
+  static stacked(
+    nodeNames: string[],
+    nodes: { [name: string]: WorkflowNode },
+    extraDeps: { source: string, target: string }[] = [],
+  ): WorkflowLayout {
+    const layers = computeLayers(nodeNames, nodes, extraDeps);
     const placed = nodeNames.map(id => {
       const layer = layers[id] ?? 0;
       return { id, layer, x: layer * X_GAP, y: 0, height: estimateHeight(nodes[id] ?? {}) };
@@ -51,8 +55,9 @@ export class WorkflowLayout {
     flowNodes: { id: string, position: NodePosition, measured?: { height?: number } }[],
     nodeNames: string[],
     nodes: { [name: string]: WorkflowNode },
+    extraDeps: { source: string, target: string }[] = [],
   ): WorkflowLayout {
-    const layers = computeLayers(nodeNames, nodes);
+    const layers = computeLayers(nodeNames, nodes, extraDeps);
     const placed = flowNodes.map(node => ({
       id: node.id,
       layer: layers[node.id] ?? 0,

@@ -10,7 +10,7 @@ from typing import Any, Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -33,6 +33,30 @@ args = parser.parse_args()
 app = FastAPI(title="Hera UI API")
 
 origins = cors_handler.get_origins(args)
+
+
+# Catch-all error reporter. Any unhandled exception (e.g. a broken import or a
+# change in hera/hermes) is printed to the server console AND returned to the
+# client as {error, traceback} with status 500 — the same content /exec already
+# sends. Without this, FastAPI's default 500 is generated outside the CORS
+# middleware, so it reaches the browser with no Access-Control-Allow-Origin
+# header and shows up as a misleading "CORS error" that hides the real cause.
+#
+# Registered BEFORE the CORS middleware below on purpose: the last middleware
+# added is the outermost, so adding CORS afterwards puts this handler *inside*
+# CORS. Its JSON response then flows back out through CORS and gets the header.
+@app.middleware("http")
+async def report_unhandled_errors(request, call_next):
+    try:
+        return await call_next(request)
+    except Exception as exc:
+        tb = traceback.format_exc()
+        print("server error:", tb)
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"{type(exc).__name__}: {exc}", "traceback": tb},
+        )
+
 
 # Allow local Vite dev server
 app.add_middleware(

@@ -3,9 +3,8 @@
 
 import argparse, argcomplete
 import logging
-from hera.utils.logging import initialize_logging,with_logger
 from hera.simulations import CLI
-
+from hera.utils.logging import initialize_logging, with_logger
 
 if __name__ == "__main__":
     initialize_logging(

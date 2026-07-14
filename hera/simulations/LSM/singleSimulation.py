@@ -94,6 +94,9 @@ class SingleSimulation(object):
         dDosage: xarray
             The calculated concentration in 'C' key
         """
+        time_units=unumToPint(time_units)
+        Q = unumToPint(Q)
+        q_units=unumToPint(q_units)
         finalxarray = self.getDosage(Q=Q, time_units=time_units, q_units=q_units)
 
         dDosage = finalxarray['Dosage'].diff('datetime').to_dataset().rename({'Dosage': 'dDosage'})

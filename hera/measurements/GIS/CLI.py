@@ -1,8 +1,26 @@
-import pandas as pd
-from hera import toolkitHome
-from hera.utils import WSG84, ITM
+import functools
 import logging
 
+_initialized = False
+pd = toolkitHome = WSG84 = ITM = None
+
+def _setup():
+    global _initialized, pd, toolkitHome, WSG84, ITM
+    if _initialized:
+        return
+    _initialized = True
+    import pandas as _pd; pd = _pd
+    from hera import toolkitHome as _th; toolkitHome = _th
+    from hera.utils import WSG84 as _w, ITM as _i; WSG84, ITM = _w, _i
+
+def _lazy_setup(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        _setup()
+        return func(*args, **kwargs)
+    return wrapper
+
+@_lazy_setup
 def topography_vector_list(arguments):
     """
         Lists the topography datasources.
@@ -26,6 +44,7 @@ def topography_vector_list(arguments):
     print(tk.getDataSourceTable())
 
 
+@_lazy_setup
 def topography_raster_list(arguments):
     """
         Lists the topography datasources.
@@ -49,6 +68,7 @@ def topography_raster_list(arguments):
     print(tk.getDataSourceTable())
 
 
+@_lazy_setup
 def topography_raster_toSTL(arguments):
     """
         Gets the coordinates and saves an STL file.
@@ -101,6 +121,7 @@ def topography_raster_toSTL(arguments):
         outSTLFile.write(stlString)
 
 
+@_lazy_setup
 def buildings_parser_list(arguments):
     """
         Lists the topography datasources.
@@ -124,6 +145,7 @@ def buildings_parser_list(arguments):
     print(tk.getDataSourceTable())
 
 
+@_lazy_setup
 def buildings_raster_toSTL(arguments):
     """Export buildings within a bounding box to an STL file.
 
@@ -162,6 +184,7 @@ def buildings_raster_toSTL(arguments):
     logger.info(f"Writing STL to the file:  {fileName}")
 
 
+@_lazy_setup
 def get_landocver(arguments):
     """Retrieve landcover or roughness data and save as CSV.
 

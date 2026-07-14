@@ -13,11 +13,14 @@ from hera.datalayer import datatypes
 from hera.simulations.openFoam.toberewritten.utils import getCellDataAndGroundData
 from hera.simulations.utils import coordinateHandler
 from hera.datalayer import nonDBMetadataFrame
-from hera.toolkit import toolkitHome
+from hera import toolkit, toolkitHome
 from .sourcesFactoryTool import sourcesFactoryTool
 from itertools import product
 
-from evtk.hl import pointsToVTK, structuredToVTK
+try:
+    from evtk.hl import pointsToVTK, structuredToVTK
+except ImportError:
+    pointsToVTK = structuredToVTK = None
 
 
 class OFLSMToolkit(toolkit.abstractToolkit):
@@ -127,7 +130,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                                       skipfooter=skipend,
                                       engine='python',
                                       header=None,
-                                      delim_whitespace=True,
+                                      sep=r'\s+',
                                       converters=cnvrtDict,
                                       names=columnNames)
         except ValueError:

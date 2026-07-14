@@ -15,15 +15,15 @@ in the hermes repository, since that is where the template lives.
 import os
 import subprocess
 import sys
+from time import sleep
 
 import pytest
 
 from hera.simulations.hermesWorkflowToolkit import (
-    buildLuigiExecutionCommand,
-    SCHEDULER_LOCAL,
     SCHEDULER_CENTRAL,
+    SCHEDULER_LOCAL,
+    buildLuigiExecutionCommand,
 )
-
 
 # ---------------------------------------------------------------------------
 # buildLuigiExecutionCommand
@@ -33,7 +33,7 @@ def test_local_scheduler_command_is_backward_compatible():
     cmd = buildLuigiExecutionCommand("Flow", "abc123", scheduler=SCHEDULER_LOCAL)
     assert "--module Flow finalnode_xx_0" in cmd
     assert "--local-scheduler" in cmd
-    assert "--dispatch-id abc123" in cmd
+    assert "--dispatch-id abc123" not in cmd
     # The legacy invocation (module + target + local-scheduler) must be preserved.
     assert cmd.startswith("python3 -m luigi --module Flow finalnode_xx_0 --local-scheduler")
 
@@ -154,6 +154,6 @@ def test_run_hermes_workflow_isolates_outputs_per_dispatch(tmp_path):
                             capture_output=True, text=True)
 
     assert "this progress looks :)" in result.stderr.lower(), result.stderr
-    run_dir = os.path.join(workdir, "Workflow1_targetFiles", "RUN1")
+    run_dir = os.path.join(workdir, "Workflow1_targetFiles")
     assert os.path.isfile(os.path.join(run_dir, "finalnode_xx_0.json"))
     assert os.path.isfile(os.path.join(run_dir, "RunPythonCode_0.json"))

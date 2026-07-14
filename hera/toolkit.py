@@ -1,15 +1,12 @@
-from hera.datalayer import Project
-from hera.datalayer.datahandler import datatypes  # for datatypes.CLASS
 
 import importlib.util
 import os
-import sys
-import logging
-import inspect
 import pydoc
-import pandas as pd
-from typing import Optional, List, Dict, Any
+import sys
+from typing import Any, Dict, List, Optional
 
+from hera.datalayer import Project
+from hera.datalayer.datahandler import datatypes  # for datatypes.CLASS
 from hera.utils.logging import get_classMethod_logger
 
 # ---------------------------------------------------------------------------
@@ -170,7 +167,7 @@ class abstractToolkit(Project):
             desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName)
         return super().addMeasurementsDocument(resource, dataFormat, type, desc)
 
-    def addSimulationsDocument(self, resource="", dataFormat="string", type="", desc=None):
+    def addSimulationsDocument(self, resource="", dataFormat="string", type="", desc=None, save=True):
         """
         Add a simulations document, automatically tagging it with the toolkit name.
 
@@ -180,7 +177,7 @@ class abstractToolkit(Project):
             desc = {}
         if self.toolkitName is not None:
             desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName)
-        return super().addSimulationsDocument(resource, dataFormat, type, desc)
+        return super().addSimulationsDocument(resource, dataFormat, type, desc, save=save)
 
     # ------------------------------------------------------------------
     # Data sources API
@@ -233,7 +230,7 @@ class abstractToolkit(Project):
             ret.append(dta)
         return ret
 
-    def getDataSourceTable(self, **filters) -> pd.DataFrame:
+    def getDataSourceTable(self, **filters) -> "pd.DataFrame":
         """
         Build a pandas DataFrame from all data sources of this toolkit.
 
@@ -246,6 +243,7 @@ class abstractToolkit(Project):
         -------
         pandas.DataFrame
         """
+        import pandas as pd
         tables = []
         for sourceMap in self.getDataSourceMap(**filters):
             table = pd.json_normalize(sourceMap)
@@ -688,12 +686,9 @@ class ToolkitHome(abstractToolkit):
             ),
         )
 
-        # Optional: keep a handle to the experiment toolkit (if available)
+        # experimentTK is populated lazily on first getToolkit(EXPERIMENT) call.
+        # Loading it eagerly here pulled geopandas+xarray+pint at import time.
         self.experimentTK = None
-        try:
-            self.experimentTK = self.getToolkit(self.EXPERIMENT)
-        except Exception:
-            self.experimentTK = None
 
     # ------------------------------------------------------------------
     # Internal helper for repository config (uses generic dataToolkit)
@@ -966,7 +961,7 @@ class ToolkitHome(abstractToolkit):
     # Listing toolkits (static + dynamic)
     # ------------------------------------------------------------------
 
-    from typing import Optional, List, Dict
+    from typing import Dict, List, Optional
 
     def getToolkitDocuments(self, name: Optional[str] = None) -> List[Dict]:
         """
@@ -1153,10 +1148,12 @@ class ToolkitHome(abstractToolkit):
             )
 
         if not rows:
+            import pandas as pd
             return pd.DataFrame(
                 columns=["toolkit", "cls", "source", "type", "repositoryName", "version"]
             )
 
+        import pandas as pd
         df = pd.DataFrame(rows).drop_duplicates(subset=["toolkit", "source"], keep="first")
         return df
 
@@ -1360,6 +1357,7 @@ class ToolkitHome(abstractToolkit):
             Names of the loaded experiments.
         """
         import json
+
         from hera.datalayer import Project
 
         if not projectName:

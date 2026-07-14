@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { NodeCatalogEntry, nodeTypeGroup, prefilledParameters, nodeTypeIssue, paramsFieldDef } from '../src/components/workflow/nodeCatalog';
+import { NodeCatalogEntry, nodeTypeGroup, prefilledParameters, nodeTypeIssue, paramsFieldDef, nodeOutputNames } from '../src/components/workflow/nodeCatalog';
+import { NodeParameterSource } from '../src/shared/types';
 
 describe('nodeTypeGroup', () => {
   it('drops the last dotted segment', () => {
@@ -14,7 +15,7 @@ describe('nodeTypeGroup', () => {
 
 const entry = (type: string, names: string[]): NodeCatalogEntry => ({
   type,
-  parameters: names.map(name => ({ name, is_required: true, source: 'jsonForm' })),
+  parameters: names.map(name => ({ name, is_required: true, source: NodeParameterSource.JsonForm })),
 });
 
 describe('prefilledParameters', () => {
@@ -62,9 +63,12 @@ describe('nodeTypeIssue', () => {
 describe('paramsFieldDef', () => {
   const catalog = [entry('openFOAM.constant.g', ['x', 'y'])];
 
-  it('puts each parameter under children, marked required or not', () => {
+  it('puts each parameter under children, marked required or not, with its source', () => {
     expect(paramsFieldDef({ type: 'openFOAM.constant.g' }, catalog)).toEqual({
-      children: { x: { required: true }, y: { required: true } },
+      children: {
+        x: { required: true, source: NodeParameterSource.JsonForm },
+        y: { required: true, source: NodeParameterSource.JsonForm },
+      },
     });
   });
 
@@ -72,16 +76,42 @@ describe('paramsFieldDef', () => {
     const cat: NodeCatalogEntry[] = [{
       type: 't',
       parameters: [
-        { name: 'req', is_required: true, source: 'jsonForm' },
-        { name: 'opt', is_required: false, source: 'template' },
+        { name: 'req', is_required: true, source: NodeParameterSource.JsonForm },
+        { name: 'opt', is_required: false, source: NodeParameterSource.Template },
       ],
     }];
     expect(paramsFieldDef({ type: 't' }, cat)).toEqual({
-      children: { req: { required: true }, opt: { required: false } },
+      children: {
+        req: { required: true, source: NodeParameterSource.JsonForm },
+        opt: { required: false, source: NodeParameterSource.Template },
+      },
     });
   });
 
   it('has empty children for an unknown type', () => {
     expect(paramsFieldDef({ type: 'made.up' }, catalog)).toEqual({ children: {} });
+  });
+});
+
+describe('nodeOutputNames', () => {
+  const catalog: NodeCatalogEntry[] = [{
+    type: 'general.CopyFile',
+    parameters: [],
+    outputs: [
+      { name: 'case', source: NodeParameterSource.Python },
+      { name: 'fields', source: NodeParameterSource.Python },
+    ],
+  }];
+
+  it('returns the output names for a known type', () => {
+    expect(nodeOutputNames({ type: 'general.CopyFile' }, catalog)).toEqual(['case', 'fields']);
+  });
+
+  it('returns empty for an unknown type', () => {
+    expect(nodeOutputNames({ type: 'made.up' }, catalog)).toEqual([]);
+  });
+
+  it('returns empty when the type has no outputs field', () => {
+    expect(nodeOutputNames({ type: 't' }, [{ type: 't', parameters: [] }])).toEqual([]);
   });
 });

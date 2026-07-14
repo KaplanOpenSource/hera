@@ -283,6 +283,7 @@ def getDBObject(objectName, connectionName=None):
     -------
     mongoengine document class
     """
+    _ensure_connections()
     connectionName = getpass.getuser() if connectionName is None else connectionName
 
     try:
@@ -322,10 +323,23 @@ def parseConnectionString(conStr):
                        dbIP=dbIP)
 
 
-# ---------------------default connections--------------------------
-for user in getDBNamesFromJSON():
-    createDBConnection(connectionName=user,
-                       mongoConfig=getMongoConfigFromJson(connectionName=user)
-                       )
-# -------------------------------------------------------------------
+_connections_initialized = False
+
+
+def _ensure_connections():
+    """Initialize default MongoDB connections on first use. Safe to call multiple times."""
+    global _connections_initialized
+    if _connections_initialized:
+        return
+    _connections_initialized = True
+    try:
+        for user in getDBNamesFromJSON():
+            createDBConnection(
+                connectionName=user,
+                mongoConfig=getMongoConfigFromJson(connectionName=user),
+            )
+    except Exception:
+        # Config file missing or malformed — callers will get a clear error
+        # when they actually attempt a query that requires a live connection.
+        pass
 

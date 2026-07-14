@@ -2,8 +2,6 @@
 # PYTHON_ARGCOMPLETE_OK
 
 import argparse, argcomplete
-import pandas
-from hera.measurements.meteorology.radiosonde import DataLayer
 
 parser = argparse.ArgumentParser()
 parser.add_argument('command', nargs=1, type=str)
@@ -15,6 +13,8 @@ args = parser.parse_args()
 
 
 def load_handler(arguments):
+    import pandas
+    from hera.measurements.meteorology.radiosonde import DataLayer
     dl = DataLayer()
 
     loadDataInput = dict(projectName=arguments[0],

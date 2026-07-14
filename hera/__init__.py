@@ -20,17 +20,107 @@ python_version = sys.version_info
 if python_version < (3, 8):
     raise NotImplementedError("Hera does not support Python versions lower than 3.8")
 
-# Have some initial default logging configuration in case the user hasn't set any
+# Logging helpers are cheap and needed early — keep them eager.
 from hera.utils.logging.helpers import initialize_logging
-from hera.utils.logging import with_logger,initialize_logging, get_logger,getClassLogger,get_classMethod_logger
+from hera.utils.logging import (
+    with_logger,
+    initialize_logging,
+    get_logger,
+    getClassLogger,
+    get_classMethod_logger,
+)
 initialize_logging(disable_existing_loggers=False)
 
-from hera.toolkit import ToolkitHome
-from hera.datalayer import Project,datatypes
-from hera.datalayer.autocache import cacheFunction,clearFunctionCache,clearAllFunctionsCache
+# ---------------------------------------------------------------------------
+# Lazy public API
+#
+# Everything below is deferred to first access so that `import hera` (or any
+# `from hera.X import Y`) is cheap.  Heavy libraries (pandas, mongoengine,
+# geopandas, …) are not loaded until the user actually calls hera API.
+#
+# Supported lazy names:
+#   toolkitHome, ToolkitHome, toolkit (module), datalayer (module),
+#   Project, datatypes,
+#   cacheFunction, clearFunctionCache, clearAllFunctionsCache
+# ---------------------------------------------------------------------------
+
+_DEFERRED_NAMES = frozenset({
+    "toolkitHome", "ToolkitHome",
+    "Project", "datatypes",
+    "cacheFunction", "clearFunctionCache", "clearAllFunctionsCache",
+})
+
+_toolkit_home_singleton = None
 
 
-toolkitHome = ToolkitHome()
+def _load_deferred():
+    """Import and cache all heavy API symbols. Safe to call multiple times."""
+    global _toolkit_home_singleton
+
+    g = globals()
+
+    # Guard: if already loaded, nothing to do.
+    if "ToolkitHome" in g and "Project" in g:
+        return
+
+    # 1. Import toolkit — triggers hera.datalayer internally.
+    from hera.toolkit import ToolkitHome as _TH
+    g["ToolkitHome"] = _TH
+
+    # 2. Import datalayer symbols.  Set Project/datatypes in globals *before*
+    #    importing autocache so that autocache's `from hera import Project`
+    #    finds the name already resolved (avoiding re-entrant __getattr__).
+    from hera.datalayer import Project as _P, datatypes as _dt
+    g["Project"] = _P
+    g["datatypes"] = _dt
+
+    # 3. Now safe to import autocache (it does `from hera import Project`).
+    from hera.datalayer.autocache import (
+        cacheFunction as _cf,
+        clearFunctionCache as _cfc,
+        clearAllFunctionsCache as _cafc,
+    )
+    g["cacheFunction"] = _cf
+    g["clearFunctionCache"] = _cfc
+    g["clearAllFunctionsCache"] = _cafc
+
+    # 4. Instantiate the ToolkitHome singleton once.
+    if _toolkit_home_singleton is None:
+        _toolkit_home_singleton = _TH()
+    g["toolkitHome"] = _toolkit_home_singleton
+
+
+def __getattr__(name):
+    # Submodule access — read from sys.modules first so we return whatever
+    # partial module Python has already started importing.  This breaks the
+    # re-entrant cycle:
+    #   _load_deferred() → hera.toolkit → hera.datalayer → hera.datalayer.project
+    #   → `from hera import toolkit` → __getattr__('toolkit')
+    # Without the sys.modules check, `import hera.toolkit` here would trigger
+    # another __getattr__ call and recurse until the stack overflows.
+    if name == "toolkit":
+        _m = sys.modules.get("hera.toolkit")
+        if _m is None:
+            import importlib
+            _m = importlib.import_module("hera.toolkit")
+        globals()["toolkit"] = _m
+        return _m
+    if name == "datalayer":
+        _m = sys.modules.get("hera.datalayer")
+        if _m is None:
+            import importlib
+            _m = importlib.import_module("hera.datalayer")
+        globals()["datalayer"] = _m
+        return _m
+
+    if name in _DEFERRED_NAMES:
+        _load_deferred()
+        try:
+            return globals()[name]
+        except KeyError:
+            pass
+
+    raise AttributeError(f"module 'hera' has no attribute {name!r}")
 
 """
 2.16.3 (2026-05)
