@@ -33,8 +33,6 @@ drawing (drag output→input, X/delete to clear).
 ## Open decisions
 
 - Form fidelity: generic tree (fast) vs schema-driven typed forms.
-- Source of truth: build on `node_lookup.py`, or read `jsonForm.json` directly.
-- Versioning: latest-only, or a version selector (types carry versions).
 
 ## Out of scope (separate issues)
 
