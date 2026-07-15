@@ -10,7 +10,7 @@ from scipy.optimize import fsolve
 import numpy
 
 class functionG:
-    """
+    r"""
         The G(Lambda,D) is defined implicitly (Eqn. 17.60, page 537):
 
         \begin{equation}

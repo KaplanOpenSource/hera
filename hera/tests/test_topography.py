@@ -256,6 +256,27 @@ class TestConvertPointsCRS:
         converted = topo_toolkit.convertPointsCRS(points, inputCRS=4326, outputCRS=2039)
         assert converted.shape[0] == 2
 
+    def test_single_point_no_deprecation_warning(self, topo_toolkit):
+        """A single-point conversion must not trigger pyproj's array-to-scalar
+        DeprecationWarning (issue971) — geopandas.to_crs() on a 1-row
+        GeoDataFrame mishandles length-1 arrays on the pinned pyproj/geopandas."""
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            converted = topo_toolkit.convertPointsCRS([(35.1, 33.85)], inputCRS=4326, outputCRS=2039)
+
+        assert converted.shape[0] == 1
+
+    def test_single_point_matches_multi_point_conversion(self, topo_toolkit):
+        """The single-point fast path must produce the same result as the
+        general (multi-point) to_crs path for the same coordinate."""
+        single = topo_toolkit.convertPointsCRS([(35.1, 33.85)], inputCRS=4326, outputCRS=2039)
+        multi = topo_toolkit.convertPointsCRS([(35.1, 33.85), (36.05, 33.9)], inputCRS=4326, outputCRS=2039)
+
+        assert single.geometry.iloc[0].x == pytest.approx(multi.geometry.iloc[0].x)
+        assert single.geometry.iloc[0].y == pytest.approx(multi.geometry.iloc[0].y)
+
 
 class TestCreateElevationSTL:
     def test_basic(self, topo_toolkit):

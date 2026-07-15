@@ -490,11 +490,11 @@ def stochasticLagrangian_source_makeEscapedMassFile(args):
         data = data.interpolate()
     newstr = "/*--------------------------------*- C++ -*----------------------------------*\n" \
              "| =========                 |                                                 |\n" \
-             "| \      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |\n" \
-             "|  \    /   O peration     | Version:  dev                                   |\n" \
-             "|   \  /    A nd           | Web:      www.OpenFOAM.org                      |\n" \
-             "|    \/     M anipulation  |                                                 |\n" \
-             "\*---------------------------------------------------------------------------*/\n" \
+             "| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |\n" \
+             "|  \\    /   O peration     | Version:  dev                                   |\n" \
+             "|   \\  /    A nd           | Web:      www.OpenFOAM.org                      |\n" \
+             "|    \\/     M anipulation  |                                                 |\n" \
+             "\\*---------------------------------------------------------------------------*/\n" \
              "FoamFile\n{    version     2.0;\n    format      ascii;\n    class       scalarField;\n    object      kinematicCloudPositions;\n}\n" \
              f"// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //\n\n{len(data)}\n(\n"
     for time in timesteps:
