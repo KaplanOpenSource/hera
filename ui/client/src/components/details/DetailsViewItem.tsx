@@ -21,6 +21,7 @@ export const DetailsViewItem = ({
   def = undefined,
   renderBeforeName = undefined,
   onRowContextMenu = undefined,
+  onValueCaret = undefined,
 }: {
   itemKey: string,
   itemValue: any,
@@ -37,6 +38,10 @@ export const DetailsViewItem = ({
   // Optional right-click handler for a row, given the row's key info (e.g. the
   // workflow editor opens a per-field menu). Passed down the tree.
   onRowContextMenu?: (itemKey: string, parentKey: string | undefined, event: MouseEvent<HTMLElement>) => void,
+  // Optional caret/value reporter for a row's leaf value editor, tagged with the
+  // row's key info (e.g. the workflow editor drives inline autocomplete). Passed
+  // down the tree.
+  onValueCaret?: (itemKey: string, parentKey: string | undefined, value: string, caret: number | null, el: HTMLInputElement) => void,
 }) => {
   const key = keyForDetailsViewItem(itemKey, parentKey);
   const isTree = typeof itemValue === 'object' && itemValue !== null;
@@ -78,6 +83,7 @@ export const DetailsViewItem = ({
               itemValue={itemValue}
               setItemValue={setItemValue}
               def={def}
+              onCaret={onValueCaret ? (value, caret, el) => onValueCaret(itemKey, parentKey, value, caret, el) : undefined}
             />
           )}
 
@@ -114,6 +120,7 @@ export const DetailsViewItem = ({
               def={def?.children?.[k]}
               renderBeforeName={renderBeforeName}
               onRowContextMenu={onRowContextMenu}
+              onValueCaret={onValueCaret}
             />
           )
         })}

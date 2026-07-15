@@ -5,16 +5,23 @@ import { FieldDef } from '../details/fieldDef';
 import { FieldSourceDot } from '../details/FieldSourceDot';
 import { inputHandleId } from './workflowDataflow';
 
+// The node field holding a workflow node's input parameters — the key of the tree
+// this component renders, and the parent key of each top-level parameter row.
+export const INPUT_PARAMETERS_KEY = 'input_parameters';
+
 // The node's input_parameters, shown as an editable tree. Expansion is
 // controlled by the parent so the same chevron can also show/hide the outputs.
 export const WorkflowNodeInputs = ({
+  nodeName,
   params,
   paramsDef,
   expandedItems,
   onExpandedItemsChange,
   onChangeParams,
   onFieldContextMenu,
+  onFieldInlineEdit,
 }: {
+  nodeName: string,
   params: { [key: string]: any },
   paramsDef: FieldDef,
   expandedItems: string[],
@@ -23,6 +30,10 @@ export const WorkflowNodeInputs = ({
   // Right-click on a top-level parameter row: open a menu for that field. The
   // caret is the click's position within the input value, when it lands on one.
   onFieldContextMenu: (param: string, x: number, y: number, caret?: number) => void,
+  // Typing / caret moves in a top-level parameter's value editor, for inline
+  // reference autocomplete: the param, the current value, the caret position, and
+  // the input element (to anchor the suggestion menu to).
+  onFieldInlineEdit: (param: string, value: string, caret: number | null, el: HTMLInputElement) => void,
 }) => {
   return (
     <SimpleTreeView
@@ -45,7 +56,7 @@ export const WorkflowNodeInputs = ({
       }}
     >
       <DetailsViewItem
-        itemKey="input_parameters"
+        itemKey={INPUT_PARAMETERS_KEY}
         itemValue={params}
         parentKey={undefined}
         def={paramsDef}
@@ -54,7 +65,7 @@ export const WorkflowNodeInputs = ({
         // Stop the event so ReactFlow's node menu doesn't also open; other rows
         // (the title, nested keys) fall through to the node menu.
         onRowContextMenu={(itemKey, parentKey, event) => {
-          if (parentKey === keyForDetailsViewItem('input_parameters')) {
+          if (parentKey === keyForDetailsViewItem(INPUT_PARAMETERS_KEY)) {
             event.preventDefault();
             event.stopPropagation();
             // When the right-click lands on the input itself, capture the caret
@@ -64,14 +75,21 @@ export const WorkflowNodeInputs = ({
             onFieldContextMenu(itemKey, event.clientX, event.clientY, caret);
           }
         }}
+        // Typing in a top-level parameter's value reports the caret so the editor
+        // can offer inline reference suggestions; nested rows are ignored.
+        onValueCaret={(itemKey, parentKey, value, caret, el) => {
+          if (parentKey === keyForDetailsViewItem(INPUT_PARAMETERS_KEY)) {
+            onFieldInlineEdit(itemKey, value, caret, el);
+          }
+        }}
         // Each parameter row shows its source dot before the name; on top-level
         // rows wrap that dot in a target handle (id = the parameter name) so a
         // dataflow line from another node's output can land on it.
         renderBeforeName={(itemKey, parentKey, def) => (
-          parentKey === keyForDetailsViewItem('input_parameters') ? (
+          parentKey === keyForDetailsViewItem(INPUT_PARAMETERS_KEY) ? (
             <Handle
               type="target"
-              id={inputHandleId(itemKey)}
+              id={inputHandleId(nodeName, itemKey)}
               position={Position.Left}
               style={{ position: 'relative', top: 'auto', left: 'auto', transform: 'none', width: 'auto', height: 'auto', minWidth: 0, minHeight: 0, background: 'transparent', border: 'none', borderRadius: 0 }}
             >

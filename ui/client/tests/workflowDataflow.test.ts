@@ -3,10 +3,17 @@ import {
   buildDataflowEdges,
   clearInputReference,
   dataflowReference,
+  inputHandleId,
   insertReferenceAt,
+  nodeInputHandleId,
+  nodeOutputHandleId,
+  outputHandleId,
   parseDataflowConnection,
   parseDataflowEdgeId,
+  replaceReferenceAt,
+  ReferenceTokenStage,
   setInputReference,
+  tokenAtCaret,
 } from '../src/components/workflow/workflowDataflow';
 import { NodeCatalogEntry } from '../src/components/workflow/nodeCatalog';
 import { NodeParameterSource, WorkflowNode } from '../src/shared/types';
@@ -28,7 +35,7 @@ const nodes: { [name: string]: WorkflowNode } = {
 describe('buildDataflowEdges', () => {
   it('links an input referencing another node output to that output', () => {
     expect(buildDataflowEdges(['C', 'A'], nodes, catalog)).toEqual([
-      { id: 'df:C.ggg->A.bbb', source: 'C', sourceHandle: 'out:ggg', target: 'A', targetHandle: 'in:bbb' },
+      { id: 'df:C.ggg->A.bbb', source: 'C', sourceHandle: 'C:out:ggg', target: 'A', targetHandle: 'A:in:bbb' },
     ]);
   });
 
@@ -48,15 +55,40 @@ describe('buildDataflowEdges', () => {
   });
 });
 
+// Regression: the node-level requires handles once shared the "no id" slot with
+// the dataflow handles, so a node with input/output references could no longer be
+// wired with a requires edge. Every handle id must be distinct per node.
+describe('handle ids let requires and dataflow coexist on one node', () => {
+  it('gives a node distinct ids for its requires, output, and input handles', () => {
+    const ids = [
+      nodeOutputHandleId('C'),
+      nodeInputHandleId('C'),
+      outputHandleId('C', 'ggg'),
+      inputHandleId('C', 'bbb'),
+    ];
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('parses a dataflow drag but not a requires drag between the same two nodes', () => {
+    expect(parseDataflowConnection(nodeOutputHandleId('C'), nodeInputHandleId('A'))).toBeNull();
+    expect(parseDataflowConnection(outputHandleId('C', 'ggg'), inputHandleId('A', 'bbb')))
+      .toEqual({ outputName: 'ggg', param: 'bbb' });
+  });
+});
+
 describe('parseDataflowConnection', () => {
   it('parses an output→input connection into its output and param names', () => {
-    expect(parseDataflowConnection('out:ggg', 'in:bbb')).toEqual({ outputName: 'ggg', param: 'bbb' });
+    expect(parseDataflowConnection('C:out:ggg', 'A:in:bbb')).toEqual({ outputName: 'ggg', param: 'bbb' });
   });
 
   it('returns null when either handle is not a dataflow handle', () => {
-    expect(parseDataflowConnection('out:ggg', null)).toBeNull();
-    expect(parseDataflowConnection(null, 'in:bbb')).toBeNull();
-    expect(parseDataflowConnection('in:bbb', 'out:ggg')).toBeNull();
+    expect(parseDataflowConnection('C:out:ggg', null)).toBeNull();
+    expect(parseDataflowConnection(null, 'A:in:bbb')).toBeNull();
+    expect(parseDataflowConnection('A:in:bbb', 'C:out:ggg')).toBeNull();
+  });
+
+  it('ignores requires handles (no trailing name after the marker)', () => {
+    expect(parseDataflowConnection('C:req-out', 'A:req-in')).toBeNull();
   });
 });
 
@@ -75,7 +107,7 @@ describe('setInputReference', () => {
   it('round-trips into a dataflow edge', () => {
     const node = setInputReference({ type: 'general.CopyDirectory' }, 'bbb', 'C', 'ggg');
     expect(buildDataflowEdges(['C', 'A'], { C: nodes.C, A: node }, catalog)).toEqual([
-      { id: 'df:C.ggg->A.bbb', source: 'C', sourceHandle: 'out:ggg', target: 'A', targetHandle: 'in:bbb' },
+      { id: 'df:C.ggg->A.bbb', source: 'C', sourceHandle: 'C:out:ggg', target: 'A', targetHandle: 'A:in:bbb' },
     ]);
   });
 });
@@ -103,6 +135,58 @@ describe('insertReferenceAt', () => {
   it('clamps a caret out of range', () => {
     expect(insertReferenceAt('ab', -5, 'C', 'ggg')).toBe('{C.parameters.ggg}ab');
     expect(insertReferenceAt('ab', 99, 'C', 'ggg')).toBe('ab{C.parameters.ggg}');
+  });
+});
+
+describe('tokenAtCaret', () => {
+  it('returns null when the caret is not inside a {…} token', () => {
+    expect(tokenAtCaret('hello', 3)).toBeNull();
+    expect(tokenAtCaret('{C.parameters.ggg} tail', 20)).toBeNull();
+  });
+
+  it('reads the node stage before any dot', () => {
+    expect(tokenAtCaret('{Cca', 4)).toEqual({
+      stage: ReferenceTokenStage.Node, nodePart: '', seed: 'Cca', start: 0, end: 4,
+    });
+  });
+
+  it('reads the node stage right after the opening brace', () => {
+    expect(tokenAtCaret('x {', 3)).toEqual({
+      stage: ReferenceTokenStage.Node, nodePart: '', seed: '', start: 2, end: 3,
+    });
+  });
+
+  it('reads the output stage once a dot is typed', () => {
+    expect(tokenAtCaret('{C.', 3)).toEqual({
+      stage: ReferenceTokenStage.Output, nodePart: 'C', seed: '', start: 0, end: 3,
+    });
+  });
+
+  it('filters output keys by the text after the last dot', () => {
+    expect(tokenAtCaret('{C.parameters.gg', 16)).toEqual({
+      stage: ReferenceTokenStage.Output, nodePart: 'C', seed: 'gg', start: 0, end: 16,
+    });
+  });
+
+  it('spans past the closing brace when the token is already closed', () => {
+    const value = '{C.parameters.ggg}';
+    expect(tokenAtCaret(value, 16)).toEqual({
+      stage: ReferenceTokenStage.Output, nodePart: 'C', seed: 'gg', start: 0, end: 18,
+    });
+  });
+
+  it('stops the span at the caret when the token is unclosed before another {', () => {
+    expect(tokenAtCaret('{C.parameters.g {D', 15)).toMatchObject({ start: 0, end: 15 });
+  });
+});
+
+describe('replaceReferenceAt', () => {
+  it('overwrites the token span with a full reference', () => {
+    expect(replaceReferenceAt('{Cca', 0, 4, 'C', 'ggg')).toBe('{C.parameters.ggg}');
+  });
+
+  it('keeps text on either side of the span', () => {
+    expect(replaceReferenceAt('a {C.p} b', 2, 7, 'C', 'ggg')).toBe('a {C.parameters.ggg} b');
   });
 });
 

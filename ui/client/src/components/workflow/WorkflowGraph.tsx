@@ -1,5 +1,5 @@
 import { Add } from '@mui/icons-material';
-import { Box, IconButton, Tooltip } from '@mui/material';
+import { Box, IconButton, Tooltip, useTheme } from '@mui/material';
 import { Background, Connection, Controls, Edge, MarkerType, Node, Panel, ReactFlow, ReactFlowProvider, useNodesInitialized, useNodesState, useReactFlow } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -9,8 +9,9 @@ import { WorkflowContextMenu, WorkflowContextMenuKind, WorkflowContextMenuTarget
 import { WorkflowFlowNode } from './WorkflowFlowNode';
 import { WorkflowRequiresEdge } from './WorkflowRequiresEdge';
 import { buildWorkflowEdges, isValidConnection as isValidConnectionPure } from './workflowEdges';
-import { buildDataflowEdges, clearInputReference, insertReferenceAt, parseDataflowConnection, parseDataflowEdgeId, setInputReference } from './workflowDataflow';
+import { buildDataflowEdges, clearInputReference, dataflowReference, insertReferenceAt, nodeInputHandleId, nodeOutputHandleId, parseDataflowConnection, parseDataflowEdgeId, ReferenceTokenStage, replaceReferenceAt, setInputReference, tokenAtCaret } from './workflowDataflow';
 import { WorkflowLayout } from './WorkflowLayout';
+import { WorkflowInlineReference } from './WorkflowInlineReference';
 import { computeLayers } from './workflowGeometry';
 
 // Defined once (module scope) so ReactFlow doesn't warn about changing types.
@@ -48,8 +49,20 @@ const WorkflowGraphInner = ({
   onRemoveRequire,
   onDeleteNode,
 }: WorkflowGraphProps) => {
+  const theme = useTheme();
   const [menu, setMenu] = useState<WorkflowContextMenuTarget | null>(null);
   const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
+  // The active inline `{…}` reference autocomplete: which field it hangs under,
+  // the node/param being edited, and the current suggestions. Null when idle.
+  const [inline, setInline] = useState<{
+    anchorEl: HTMLInputElement,
+    node: string,
+    param: string,
+    options: string[],
+  } | null>(null);
+  // A caret position to restore after an inline pick rewrites the field value
+  // (the value is controlled, so we reposition the caret once React re-renders).
+  const inlineCaretRef = useRef<{ el: HTMLInputElement, pos: number } | null>(null);
   const { fitView, getViewport, setViewport, getNode, setCenter } = useReactFlow();
   const nodesInitialized = useNodesInitialized();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -191,6 +204,8 @@ const WorkflowGraphInner = ({
       onDelete: () => onDeleteNode(node.id),
       onFieldContextMenu: (param: string, x: number, y: number, caret?: number) =>
         setMenu({ kind: WorkflowContextMenuKind.Field, node: node.id, param, x, y, caret }),
+      onFieldInlineEdit: (param: string, value: string, caret: number | null, el: HTMLInputElement) =>
+        handleInlineEdit(node.id, param, value, caret, el),
     },
   }));
 
@@ -200,6 +215,9 @@ const WorkflowGraphInner = ({
   const displayEdges = rfEdges.map(edge => ({
     ...edge,
     type: 'requires',
+    // Attach to the node-level requires handles by id.
+    sourceHandle: nodeOutputHandleId(edge.source),
+    targetHandle: nodeInputHandleId(edge.target),
     markerEnd: { type: MarkerType.ArrowClosed },
     data: {
       hovered: edge.id === hoveredEdge,
@@ -223,8 +241,8 @@ const WorkflowGraphInner = ({
   const dataflowEdges: Edge[] = dataflowDeps.map(edge => ({
     ...edge,
     type: 'dataflow',
-    markerEnd: { type: MarkerType.ArrowClosed, color: '#1976d2' },
-    style: { stroke: '#1976d2' },
+    markerEnd: { type: MarkerType.ArrowClosed, color: theme.palette.primary.main },
+    style: { stroke: theme.palette.primary.main },
     animated: true,
     // The input handle sits inside the node, so the line's end runs under the
     // node box; lift it above the nodes so it stays visible.
@@ -285,6 +303,87 @@ const WorkflowGraphInner = ({
     onSetNode(nodeName, { ...target, Execution: { ...target.Execution, input_parameters: { ...params, [param]: next } } });
   };
 
+  // Other nodes that produce outputs — the nodes a field on `nodeName` can
+  // reference (used for both the inline node menu and its output menus).
+  const referenceableNodes = (nodeName: string): string[] =>
+    nodeNames.filter(name => name !== nodeName).filter(name => nodeOutputNames(nodes[name] ?? {}, catalog).length > 0);
+
+  // The suggestions for the `{…}` token the caret sits in, or null if the caret
+  // is not inside a token (so the inline menu should close). Node names before the
+  // section dot; the picked node's outputs after it — filtered by the typed text.
+  const inlineOptionsFor = (nodeName: string, value: string, caret: number | null): string[] | null => {
+    const token = tokenAtCaret(value, caret ?? value.length);
+    if (token === null) {
+      return null;
+    }
+    const others = referenceableNodes(nodeName);
+    const seed = token.seed.toLowerCase();
+    if (token.stage === ReferenceTokenStage.Node) {
+      return others.filter(name => name.toLowerCase().includes(seed));
+    }
+    if (!others.includes(token.nodePart)) {
+      return [];
+    }
+    return nodeOutputNames(nodes[token.nodePart] ?? {}, catalog).filter(output => output.toLowerCase().includes(seed));
+  };
+
+  // Typing / caret moves in a field: refresh the inline suggestions, or close them
+  // when the caret leaves the token.
+  const handleInlineEdit = (nodeName: string, param: string, value: string, caret: number | null, el: HTMLInputElement) => {
+    const options = inlineOptionsFor(nodeName, value, caret);
+    if (options === null) {
+      setInline(null);
+      return;
+    }
+    setInline({ anchorEl: el, node: nodeName, param, options });
+  };
+
+  // Writes a new value into the edited field's parameter and queues the caret to
+  // land at `caret` once the controlled input re-renders.
+  const commitInlineValue = (nodeName: string, param: string, value: string, caret: number, el: HTMLInputElement) => {
+    const target = nodes[nodeName] ?? {};
+    const params = target.Execution?.input_parameters ?? {};
+    onSetNode(nodeName, { ...target, Execution: { ...target.Execution, input_parameters: { ...params, [param]: value } } });
+    inlineCaretRef.current = { el, pos: caret };
+  };
+
+  // Picks the highlighted inline suggestion. Choosing a node writes the reference
+  // scaffold ({node.parameters.}) and switches to picking that node's output;
+  // choosing an output completes the {node.parameters.key} token and closes.
+  const pickInline = (option: string) => {
+    if (inline === null) {
+      return;
+    }
+    const el = inline.anchorEl;
+    const value = el.value;
+    const token = tokenAtCaret(value, el.selectionStart ?? value.length);
+    if (token === null) {
+      setInline(null);
+      return;
+    }
+    if (token.stage === ReferenceTokenStage.Node) {
+      const scaffold = `{${option}.parameters.`;
+      const next = value.slice(0, token.start) + scaffold + value.slice(token.end);
+      commitInlineValue(inline.node, inline.param, next, token.start + scaffold.length, el);
+      setInline({ ...inline, options: nodeOutputNames(nodes[option] ?? {}, catalog) });
+    } else {
+      const refNode = token.nodePart;
+      const next = replaceReferenceAt(value, token.start, token.end, refNode, option);
+      commitInlineValue(inline.node, inline.param, next, token.start + dataflowReference(refNode, option).length, el);
+      setInline(null);
+    }
+  };
+
+  // Restore the caret after an inline pick rewrote the (controlled) field value.
+  useEffect(() => {
+    const pending = inlineCaretRef.current;
+    if (pending !== null) {
+      inlineCaretRef.current = null;
+      pending.el.focus();
+      pending.el.setSelectionRange(pending.pos, pending.pos);
+    }
+  });
+
   const onEdgesDelete = (deleted: Edge[]) => {
     deleted.forEach(edge => {
       // Deleting a dataflow line clears the reference from its parameter; a
@@ -310,7 +409,7 @@ const WorkflowGraphInner = ({
         isValidConnection={isValidConnection}
         fitView
         onNodeClick={(_e, node) => onSelectNode(node.id)}
-        onPaneClick={() => onSelectNode(undefined)}
+        onPaneClick={() => { onSelectNode(undefined); setInline(null); }}
         onEdgeMouseEnter={(_e, edge) => setHoveredEdge(edge.id)}
         onEdgeMouseLeave={() => setHoveredEdge(null)}
         onNodeContextMenu={(event, node) => {
@@ -340,6 +439,12 @@ const WorkflowGraphInner = ({
         onDeleteField={deleteField}
         onRemoveRequire={onRemoveRequire}
         onReferenceOutput={referenceOutput}
+      />
+      <WorkflowInlineReference
+        anchorEl={inline?.anchorEl ?? null}
+        options={inline?.options ?? []}
+        onPick={pickInline}
+        onClose={() => setInline(null)}
       />
     </Box>
   );

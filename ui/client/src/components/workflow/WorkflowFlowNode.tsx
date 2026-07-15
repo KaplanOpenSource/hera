@@ -3,9 +3,11 @@ import { Handle, NodeProps, NodeResizer, Position } from '@xyflow/react';
 import { useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
 import { keyForDetailsViewItem } from '../details/DetailsViewItem';
-import { NodeCatalogEntry, nodeOutputNames, nodeTypeGroup, nodeTypeIssue, paramsFieldDef, prefilledParameters } from './nodeCatalog';
+import { NodeCatalogEntry, nodeOutputNames, nodeTypeGroup, nodeTypeIssue, paramsFieldDef } from './nodeCatalog';
+import { paramsOnTypeChange } from './nodeTypeParams';
 import { WorkflowNodeDeleteButton } from './WorkflowNodeDeleteButton';
-import { WorkflowNodeInputs } from './WorkflowNodeInputs';
+import { nodeInputHandleId, nodeOutputHandleId } from './workflowDataflow';
+import { INPUT_PARAMETERS_KEY, WorkflowNodeInputs } from './WorkflowNodeInputs';
 import { WorkflowNodeOutputs } from './WorkflowNodeOutputs';
 
 export interface WorkflowFlowNodeData {
@@ -16,23 +18,24 @@ export interface WorkflowFlowNodeData {
   onChange: (node: WorkflowNode) => void;
   onDelete: () => void;
   onFieldContextMenu: (param: string, x: number, y: number, caret?: number) => void;
+  onFieldInlineEdit: (param: string, value: string, caret: number | null, el: HTMLInputElement) => void;
   [key: string]: unknown;
 }
 
 // Custom ReactFlow node: edits the node name, type, and input parameters in
 // place. Delete on hover.
 export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
-  const { name, node, catalog, onRename, onChange, onDelete, onFieldContextMenu } = data as WorkflowFlowNodeData;
+  const { name, node, catalog, onRename, onChange, onDelete, onFieldContextMenu, onFieldInlineEdit } = data as WorkflowFlowNodeData;
   const [draft, setDraft] = useState(name);
   const [hover, setHover] = useState(false);
   // Controlled so the input_parameters chevron also shows/hides the outputs.
-  const [expandedItems, setExpandedItems] = useState<string[]>([keyForDetailsViewItem('input_parameters')]);
+  const [expandedItems, setExpandedItems] = useState<string[]>([keyForDetailsViewItem(INPUT_PARAMETERS_KEY)]);
   const params = node.Execution?.input_parameters ?? {};
   const typeOptions = catalog.map(entry => entry.type);
   const typeIssue = nodeTypeIssue(node, catalog);
   const paramsDef = paramsFieldDef(node, catalog);
   const outputs = nodeOutputNames(node, catalog);
-  const inputsExpanded = expandedItems.includes(keyForDetailsViewItem('input_parameters'));
+  const inputsExpanded = expandedItems.includes(keyForDetailsViewItem(INPUT_PARAMETERS_KEY));
 
   // Free-form typing keeps the type as-is (custom types stay allowed); picking a
   // known type also seeds its parameters from the catalog.
@@ -42,7 +45,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
     onChange({
       ...node,
       type,
-      Execution: { ...node.Execution, input_parameters: prefilledParameters(entry, params) },
+      Execution: { ...node.Execution, input_parameters: paramsOnTypeChange(params, entry) },
     });
   };
 
@@ -77,7 +80,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
       {/* Drag handles to resize the node; shown while it's selected. Size is
           view-only (React Flow's store), not saved with the workflow. */}
       <NodeResizer isVisible={selected} minWidth={260} minHeight={80} />
-      <Handle type="target" position={Position.Left} />
+      <Handle type="target" id={nodeInputHandleId(name)} position={Position.Left} />
       {hover && <WorkflowNodeDeleteButton onDelete={onDelete} />}
       <InputBase
         className="nodrag"
@@ -108,6 +111,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
         />
         <Stack direction="row" spacing={1} sx={{ mt: 1, alignItems: 'flex-start' }}>
           <WorkflowNodeInputs
+            nodeName={name}
             params={params}
             paramsDef={paramsDef}
             expandedItems={expandedItems}
@@ -117,9 +121,10 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
               Execution: { ...node.Execution, input_parameters: newVal },
             })}
             onFieldContextMenu={onFieldContextMenu}
+            onFieldInlineEdit={onFieldInlineEdit}
           />
           {outputs.length > 0 && (
-            <WorkflowNodeOutputs outputs={outputs} expanded={inputsExpanded} />
+            <WorkflowNodeOutputs nodeName={name} outputs={outputs} expanded={inputsExpanded} />
           )}
         </Stack>
         {typeIssue && (
@@ -133,7 +138,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
           </Typography>
         )}
       </Box>
-      <Handle type="source" position={Position.Right} />
+      <Handle type="source" id={nodeOutputHandleId(name)} position={Position.Right} />
     </Box>
   );
 };

@@ -101,4 +101,36 @@ describe('WorkflowFlowNode', () => {
     renderNode({ type: 'openFOAM.constant.g', Execution: { input_parameters: { x: '', y: 2, z: '' } } });
     expect(screen.getAllByText('required')).toHaveLength(2);
   });
+
+  // Regression for #990: the auto-reload re-renders the editor with fresh
+  // (equal) objects every few seconds; the focused input must not remount and
+  // lose focus while the user is typing.
+  it('keeps input focus across a data reload (re-render with fresh objects)', () => {
+    const build = () => (
+      <WorkflowFlowNode
+        data={{
+          name: 'node1',
+          node: { type: 'general.JinjaTransform', Execution: { input_parameters: { x: 'aaa' } } },
+          catalog,
+          onRename: vi.fn(),
+          onChange: vi.fn(),
+          onDelete: vi.fn(),
+          onFieldContextMenu: vi.fn(),
+          onFieldInlineEdit: vi.fn(),
+        }}
+        selected={false}
+        {...({} as any)}
+      />
+    );
+    const { rerender } = render(build());
+    const input = screen.getByDisplayValue('aaa') as HTMLInputElement;
+    input.focus();
+    expect(document.activeElement).toBe(input);
+
+    // A fresh but equal document arrives (as the periodic reload delivers).
+    rerender(build());
+
+    expect(document.activeElement).toBe(input);
+    expect(screen.getByDisplayValue('aaa')).toBe(input);
+  });
 });

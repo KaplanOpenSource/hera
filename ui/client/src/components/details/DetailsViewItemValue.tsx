@@ -9,11 +9,13 @@ export const DetailsViewItemValue = ({
   itemValue,
   setItemValue,
   def = undefined,
+  onCaret = undefined,
 }: {
   itemKey: string,
   itemValue: any,
   setItemValue: (newVal: any) => void,
   def?: FieldDef,
+  onCaret?: (value: string, caret: number | null, el: HTMLInputElement) => void,
 }) => {
   return (
     itemKey === 'dataFormat'
@@ -28,6 +30,7 @@ export const DetailsViewItemValue = ({
           itemValue={itemValue}
           setItemValue={newVal => setItemValue(newVal)}
           def={def}
+          onCaret={onCaret}
         />
       )
   );
