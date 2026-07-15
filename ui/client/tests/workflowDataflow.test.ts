@@ -31,7 +31,7 @@ const nodes: { [name: string]: WorkflowNode } = {
 describe('buildDataflowEdges', () => {
   it('links an input referencing another node output to that output', () => {
     expect(buildDataflowEdges(['C', 'A'], nodes, catalog)).toEqual([
-      { id: 'df:C.ggg->A.bbb', source: 'C', sourceHandle: 'out:ggg', target: 'A', targetHandle: 'in:bbb' },
+      { id: 'df:C.ggg->A.bbb', source: 'C', sourceHandle: 'C:out:ggg', target: 'A', targetHandle: 'A:in:bbb' },
     ]);
   });
 
@@ -53,13 +53,17 @@ describe('buildDataflowEdges', () => {
 
 describe('parseDataflowConnection', () => {
   it('parses an output→input connection into its output and param names', () => {
-    expect(parseDataflowConnection('out:ggg', 'in:bbb')).toEqual({ outputName: 'ggg', param: 'bbb' });
+    expect(parseDataflowConnection('C:out:ggg', 'A:in:bbb')).toEqual({ outputName: 'ggg', param: 'bbb' });
   });
 
   it('returns null when either handle is not a dataflow handle', () => {
-    expect(parseDataflowConnection('out:ggg', null)).toBeNull();
-    expect(parseDataflowConnection(null, 'in:bbb')).toBeNull();
-    expect(parseDataflowConnection('in:bbb', 'out:ggg')).toBeNull();
+    expect(parseDataflowConnection('C:out:ggg', null)).toBeNull();
+    expect(parseDataflowConnection(null, 'A:in:bbb')).toBeNull();
+    expect(parseDataflowConnection('A:in:bbb', 'C:out:ggg')).toBeNull();
+  });
+
+  it('ignores requires handles (no trailing name after the marker)', () => {
+    expect(parseDataflowConnection('C:req-out', 'A:req-in')).toBeNull();
   });
 });
 
@@ -78,7 +82,7 @@ describe('setInputReference', () => {
   it('round-trips into a dataflow edge', () => {
     const node = setInputReference({ type: 'general.CopyDirectory' }, 'bbb', 'C', 'ggg');
     expect(buildDataflowEdges(['C', 'A'], { C: nodes.C, A: node }, catalog)).toEqual([
-      { id: 'df:C.ggg->A.bbb', source: 'C', sourceHandle: 'out:ggg', target: 'A', targetHandle: 'in:bbb' },
+      { id: 'df:C.ggg->A.bbb', source: 'C', sourceHandle: 'C:out:ggg', target: 'A', targetHandle: 'A:in:bbb' },
     ]);
   });
 });

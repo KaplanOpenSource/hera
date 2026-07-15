@@ -7,8 +7,10 @@ import { outputHandleId } from './workflowDataflow';
 // name). The row is a fixed height so it lines up with an input parameter row
 // (whose tree rows don't margin-collapse the way a plain stack would).
 export const WorkflowNodeOutputChip = ({
+  nodeName,
   name,
 }: {
+  nodeName: string,
   name: string,
 }) => {
   return (
@@ -16,7 +18,7 @@ export const WorkflowNodeOutputChip = ({
       <Chip label={name} size="small" variant="outlined" />
       <Handle
         type="source"
-        id={outputHandleId(name)}
+        id={outputHandleId(nodeName, name)}
         position={Position.Right}
         style={{ position: 'relative', top: 'auto', right: 'auto', transform: 'none', width: 8, height: 8, background: '#1976d2', border: 'none' }}
       />

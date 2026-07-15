@@ -22,11 +22,6 @@ Input values like `{C.output.ggg}` / `{C.parameters.ggg}` are parsed and drawn
 as lines, referenced nodes order into earlier columns, and lines are editable by
 drawing (drag output→input, X/delete to clear).
 
-- **Autocomplete inside `{}`** while typing an input value: when the caret is
-  inside a `{…}` token, suggest other nodes' output names as
-  `{node.output.key}`. Use the caret index (`selectionStart`) to find the token
-  and matches; anchor the suggestion popup **to the field** (below/above it), not
-  to the caret — avoids the mirror-div caret-pixel measuring.
 - **Polish.**
   - Input target handle sits *inside* the node (tree indentation), not on the
     left edge, so the line ends a bit inside the box. (Currently the line is

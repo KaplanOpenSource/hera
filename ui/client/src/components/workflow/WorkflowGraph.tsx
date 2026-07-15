@@ -9,7 +9,7 @@ import { WorkflowContextMenu, WorkflowContextMenuKind, WorkflowContextMenuTarget
 import { WorkflowFlowNode } from './WorkflowFlowNode';
 import { WorkflowRequiresEdge } from './WorkflowRequiresEdge';
 import { buildWorkflowEdges, isValidConnection as isValidConnectionPure } from './workflowEdges';
-import { buildDataflowEdges, clearInputReference, dataflowReference, insertReferenceAt, parseDataflowConnection, parseDataflowEdgeId, ReferenceTokenStage, replaceReferenceAt, setInputReference, tokenAtCaret } from './workflowDataflow';
+import { buildDataflowEdges, clearInputReference, dataflowReference, insertReferenceAt, nodeInputHandleId, nodeOutputHandleId, parseDataflowConnection, parseDataflowEdgeId, ReferenceTokenStage, replaceReferenceAt, setInputReference, tokenAtCaret } from './workflowDataflow';
 import { WorkflowLayout } from './WorkflowLayout';
 import { WorkflowInlineReference } from './WorkflowInlineReference';
 import { computeLayers } from './workflowGeometry';
@@ -214,6 +214,9 @@ const WorkflowGraphInner = ({
   const displayEdges = rfEdges.map(edge => ({
     ...edge,
     type: 'requires',
+    // Attach to the node-level requires handles by id.
+    sourceHandle: nodeOutputHandleId(edge.source),
+    targetHandle: nodeInputHandleId(edge.target),
     markerEnd: { type: MarkerType.ArrowClosed },
     data: {
       hovered: edge.id === hoveredEdge,

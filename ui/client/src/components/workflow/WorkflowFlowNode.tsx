@@ -5,6 +5,7 @@ import { WorkflowNode } from '../../shared/types';
 import { keyForDetailsViewItem } from '../details/DetailsViewItem';
 import { NodeCatalogEntry, nodeOutputNames, nodeTypeGroup, nodeTypeIssue, paramsFieldDef, prefilledParameters } from './nodeCatalog';
 import { WorkflowNodeDeleteButton } from './WorkflowNodeDeleteButton';
+import { nodeInputHandleId, nodeOutputHandleId } from './workflowDataflow';
 import { INPUT_PARAMETERS_KEY, WorkflowNodeInputs } from './WorkflowNodeInputs';
 import { WorkflowNodeOutputs } from './WorkflowNodeOutputs';
 
@@ -78,7 +79,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
       {/* Drag handles to resize the node; shown while it's selected. Size is
           view-only (React Flow's store), not saved with the workflow. */}
       <NodeResizer isVisible={selected} minWidth={260} minHeight={80} />
-      <Handle type="target" position={Position.Left} />
+      <Handle type="target" id={nodeInputHandleId(name)} position={Position.Left} />
       {hover && <WorkflowNodeDeleteButton onDelete={onDelete} />}
       <InputBase
         className="nodrag"
@@ -109,6 +110,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
         />
         <Stack direction="row" spacing={1} sx={{ mt: 1, alignItems: 'flex-start' }}>
           <WorkflowNodeInputs
+            nodeName={name}
             params={params}
             paramsDef={paramsDef}
             expandedItems={expandedItems}
@@ -121,7 +123,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
             onFieldInlineEdit={onFieldInlineEdit}
           />
           {outputs.length > 0 && (
-            <WorkflowNodeOutputs outputs={outputs} expanded={inputsExpanded} />
+            <WorkflowNodeOutputs nodeName={name} outputs={outputs} expanded={inputsExpanded} />
           )}
         </Stack>
         {typeIssue && (
@@ -135,7 +137,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
           </Typography>
         )}
       </Box>
-      <Handle type="source" position={Position.Right} />
+      <Handle type="source" id={nodeOutputHandleId(name)} position={Position.Right} />
     </Box>
   );
 };

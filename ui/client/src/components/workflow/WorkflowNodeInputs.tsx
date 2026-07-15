@@ -12,6 +12,7 @@ export const INPUT_PARAMETERS_KEY = 'input_parameters';
 // The node's input_parameters, shown as an editable tree. Expansion is
 // controlled by the parent so the same chevron can also show/hide the outputs.
 export const WorkflowNodeInputs = ({
+  nodeName,
   params,
   paramsDef,
   expandedItems,
@@ -20,6 +21,7 @@ export const WorkflowNodeInputs = ({
   onFieldContextMenu,
   onFieldInlineEdit,
 }: {
+  nodeName: string,
   params: { [key: string]: any },
   paramsDef: FieldDef,
   expandedItems: string[],
@@ -87,7 +89,7 @@ export const WorkflowNodeInputs = ({
           parentKey === keyForDetailsViewItem(INPUT_PARAMETERS_KEY) ? (
             <Handle
               type="target"
-              id={inputHandleId(itemKey)}
+              id={inputHandleId(nodeName, itemKey)}
               position={Position.Left}
               style={{ position: 'relative', top: 'auto', left: 'auto', transform: 'none', width: 'auto', height: 'auto', minWidth: 0, minHeight: 0, background: 'transparent', border: 'none', borderRadius: 0 }}
             >

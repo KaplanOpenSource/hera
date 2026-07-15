@@ -12,17 +12,18 @@ export interface WorkflowDataflowEdge {
   targetHandle: string;
 }
 
-// Prefixes marking a dataflow handle id (as opposed to a node-level requires
-// handle, which has no id). Output handles leave a node; input handles land.
-export const OUTPUT_HANDLE_PREFIX = 'out:';
-export const INPUT_HANDLE_PREFIX = 'in:';
-
 // Prefix on dataflow edge ids: df:<refNode>.<key>-><target>.<param>.
 export const DATAFLOW_EDGE_PREFIX = 'df:';
 
-// Handle ids (must match the ids rendered on the output chips / input rows).
-export const outputHandleId = (name: string): string => `${OUTPUT_HANDLE_PREFIX}${name}`;
-export const inputHandleId = (name: string): string => `${INPUT_HANDLE_PREFIX}${name}`;
+// Handle ids, each scoped to its node so a node's requires + output/input
+// handles never collide. Only the dataflow (:out:/:in:) ids carry a trailing
+// name, so the matchers below can't mistake a requires handle for a dataflow one.
+export const nodeOutputHandleId = (node: string): string => `${node}:req-out`;
+export const nodeInputHandleId = (node: string): string => `${node}:req-in`;
+export const outputHandleId = (node: string, name: string): string => `${node}:out:${name}`;
+export const inputHandleId = (node: string, param: string): string => `${node}:in:${param}`;
+const OUTPUT_HANDLE_MATCH = /:out:([^:]+)$/;
+const INPUT_HANDLE_MATCH = /:in:([^:]+)$/;
 
 // A reference embedded in a parameter value: {<node>.<section>.<key>}, where the
 // section is parameter(s) or output(s). We only care about the node and the key.
@@ -41,10 +42,12 @@ export const parseDataflowConnection = (
   sourceHandle: string | null | undefined,
   targetHandle: string | null | undefined,
 ): DataflowConnection | null => {
-  if (sourceHandle?.startsWith(OUTPUT_HANDLE_PREFIX) && targetHandle?.startsWith(INPUT_HANDLE_PREFIX)) {
+  const source = sourceHandle?.match(OUTPUT_HANDLE_MATCH);
+  const target = targetHandle?.match(INPUT_HANDLE_MATCH);
+  if (source && target) {
     return {
-      outputName: sourceHandle.slice(OUTPUT_HANDLE_PREFIX.length),
-      param: targetHandle.slice(INPUT_HANDLE_PREFIX.length),
+      outputName: source[1],
+      param: target[1],
     };
   }
   return null;
@@ -211,9 +214,9 @@ export const buildDataflowEdges = (
           edges.push({
             id,
             source: refNode,
-            sourceHandle: outputHandleId(key),
+            sourceHandle: outputHandleId(refNode, key),
             target,
-            targetHandle: inputHandleId(param),
+            targetHandle: inputHandleId(target, param),
           });
         }
         match = REFERENCE.exec(value);
