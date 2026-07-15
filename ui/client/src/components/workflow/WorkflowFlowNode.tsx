@@ -3,7 +3,8 @@ import { Handle, NodeProps, NodeResizer, Position } from '@xyflow/react';
 import { useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
 import { keyForDetailsViewItem } from '../details/DetailsViewItem';
-import { NodeCatalogEntry, nodeOutputNames, nodeTypeGroup, nodeTypeIssue, paramsFieldDef, prefilledParameters } from './nodeCatalog';
+import { NodeCatalogEntry, nodeOutputNames, nodeTypeGroup, nodeTypeIssue, paramsFieldDef } from './nodeCatalog';
+import { paramsOnTypeChange } from './nodeTypeParams';
 import { WorkflowNodeDeleteButton } from './WorkflowNodeDeleteButton';
 import { nodeInputHandleId, nodeOutputHandleId } from './workflowDataflow';
 import { INPUT_PARAMETERS_KEY, WorkflowNodeInputs } from './WorkflowNodeInputs';
@@ -44,7 +45,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
     onChange({
       ...node,
       type,
-      Execution: { ...node.Execution, input_parameters: prefilledParameters(entry, params) },
+      Execution: { ...node.Execution, input_parameters: paramsOnTypeChange(params, entry) },
     });
   };
 
