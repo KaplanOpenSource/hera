@@ -3,7 +3,11 @@ import {
   buildDataflowEdges,
   clearInputReference,
   dataflowReference,
+  inputHandleId,
   insertReferenceAt,
+  nodeInputHandleId,
+  nodeOutputHandleId,
+  outputHandleId,
   parseDataflowConnection,
   parseDataflowEdgeId,
   replaceReferenceAt,
@@ -48,6 +52,27 @@ describe('buildDataflowEdges', () => {
   it('ignores references to a node not in the graph', () => {
     const n = { A: { type: 'general.CopyDirectory', Execution: { input_parameters: { bbb: '{Z.output.ggg}' } } } };
     expect(buildDataflowEdges(['A'], n, catalog)).toEqual([]);
+  });
+});
+
+// Regression: the node-level requires handles once shared the "no id" slot with
+// the dataflow handles, so a node with input/output references could no longer be
+// wired with a requires edge. Every handle id must be distinct per node.
+describe('handle ids let requires and dataflow coexist on one node', () => {
+  it('gives a node distinct ids for its requires, output, and input handles', () => {
+    const ids = [
+      nodeOutputHandleId('C'),
+      nodeInputHandleId('C'),
+      outputHandleId('C', 'ggg'),
+      inputHandleId('C', 'bbb'),
+    ];
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('parses a dataflow drag but not a requires drag between the same two nodes', () => {
+    expect(parseDataflowConnection(nodeOutputHandleId('C'), nodeInputHandleId('A'))).toBeNull();
+    expect(parseDataflowConnection(outputHandleId('C', 'ggg'), inputHandleId('A', 'bbb')))
+      .toEqual({ outputName: 'ggg', param: 'bbb' });
   });
 });
 
