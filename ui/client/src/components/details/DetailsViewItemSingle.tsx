@@ -7,10 +7,15 @@ export const DetailsViewItemSingle = ({
   itemValue,
   setItemValue,
   def = undefined,
+  onCaret = undefined,
 }: {
   itemValue: any,
   setItemValue: (newVal: any) => void,
   def?: FieldDef,
+  // Optional: reports this field's value and caret position after any edit or
+  // caret move (typing, arrow keys, clicks) so a caller can drive inline
+  // autocomplete. Not provided elsewhere in the details view.
+  onCaret?: (value: string, caret: number | null, el: HTMLInputElement) => void,
 }) => {
   const [itemType, setItemType] = useState<ItemTypesEnum>(() => calcItemType(itemValue));
   const missing = !!def?.required && (itemValue === undefined || itemValue === null || itemValue === '');
@@ -18,6 +23,10 @@ export const DetailsViewItemSingle = ({
   useEffect(() => {
     setItemType(calcItemType(itemValue));
   }, [itemValue])
+
+  const reportCaret = (el: HTMLInputElement) => {
+    onCaret?.(el.value, el.selectionStart, el);
+  };
 
   return (
     <>
@@ -33,8 +42,10 @@ export const DetailsViewItemSingle = ({
           } else {
             setItemValue(e.target.value)
           }
+          reportCaret(e.target as HTMLInputElement);
         }}
-        onClick={e => e.stopPropagation()}
+        onClick={e => { e.stopPropagation(); reportCaret(e.currentTarget.querySelector('input') ?? e.target as HTMLInputElement); }}
+        onKeyUp={e => reportCaret(e.target as HTMLInputElement)}
         onKeyDown={e => e.stopPropagation()}
         fullWidth
         disabled={itemType === ItemTypesEnum.null}

@@ -69,6 +69,69 @@ export const insertReferenceAt = (
   return value.slice(0, at) + token + value.slice(at);
 };
 
+// Which part of a half-typed `{…}` reference the caret sits in: the node name
+// (before the first dot) or the output key (after it).
+export enum ReferenceTokenStage {
+  Node = 'node',
+  Output = 'output',
+}
+
+// The `{…}` reference the caret is inside, as parsed for inline autocomplete.
+export interface ReferenceTokenAtCaret {
+  stage: ReferenceTokenStage;
+  // The node name already typed before the section dot — only set on the Output
+  // stage (empty on the Node stage).
+  nodePart: string;
+  // The partial text the caret is filtering by: a partial node name (Node stage)
+  // or a partial output key (Output stage).
+  seed: string;
+  // The token's span in the value, from the opening `{` to just past the closing
+  // `}` (or the caret, if the token is still unclosed) — what replaceReferenceAt
+  // overwrites when a suggestion is chosen.
+  start: number;
+  end: number;
+}
+
+// If `caret` sits inside a `{…}` reference token, describes it (so the caller can
+// show the node or output suggestion menu); otherwise null. A token runs from the
+// nearest `{` at/before the caret (with no `}` in between) to the next `}` after
+// it, or to the caret itself while still unclosed.
+export const tokenAtCaret = (value: string, caret: number): ReferenceTokenAtCaret | null => {
+  const at = Math.max(0, Math.min(caret, value.length));
+  const open = value.lastIndexOf('{', at - 1);
+  if (open === -1 || value.lastIndexOf('}', at - 1) > open) {
+    return null;
+  }
+  const close = value.indexOf('}', open + 1);
+  const nextOpen = value.indexOf('{', open + 1);
+  const closed = close !== -1 && (nextOpen === -1 || nextOpen > close);
+  const end = closed ? close + 1 : at;
+  const inner = value.slice(open + 1, at);
+  const dot = inner.indexOf('.');
+  if (dot === -1) {
+    return { stage: ReferenceTokenStage.Node, nodePart: '', seed: inner, start: open, end };
+  }
+  return {
+    stage: ReferenceTokenStage.Output,
+    nodePart: inner.slice(0, dot),
+    seed: inner.slice(inner.lastIndexOf('.') + 1),
+    start: open,
+    end,
+  };
+};
+
+// Overwrites the token spanning [start, end) with a full reference to sourceNode's
+// output — used when a suggestion is picked from the inline menu.
+export const replaceReferenceAt = (
+  value: string,
+  start: number,
+  end: number,
+  sourceNode: string,
+  outputName: string,
+): string => {
+  return value.slice(0, start) + dataflowReference(sourceNode, outputName) + value.slice(end);
+};
+
 // Returns node with its `param` input set to reference sourceNode's output.
 export const setInputReference = (
   node: WorkflowNode,

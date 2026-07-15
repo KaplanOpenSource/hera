@@ -6,7 +6,10 @@ import {
   insertReferenceAt,
   parseDataflowConnection,
   parseDataflowEdgeId,
+  replaceReferenceAt,
+  ReferenceTokenStage,
   setInputReference,
+  tokenAtCaret,
 } from '../src/components/workflow/workflowDataflow';
 import { NodeCatalogEntry } from '../src/components/workflow/nodeCatalog';
 import { NodeParameterSource, WorkflowNode } from '../src/shared/types';
@@ -103,6 +106,58 @@ describe('insertReferenceAt', () => {
   it('clamps a caret out of range', () => {
     expect(insertReferenceAt('ab', -5, 'C', 'ggg')).toBe('{C.parameters.ggg}ab');
     expect(insertReferenceAt('ab', 99, 'C', 'ggg')).toBe('ab{C.parameters.ggg}');
+  });
+});
+
+describe('tokenAtCaret', () => {
+  it('returns null when the caret is not inside a {…} token', () => {
+    expect(tokenAtCaret('hello', 3)).toBeNull();
+    expect(tokenAtCaret('{C.parameters.ggg} tail', 20)).toBeNull();
+  });
+
+  it('reads the node stage before any dot', () => {
+    expect(tokenAtCaret('{Cca', 4)).toEqual({
+      stage: ReferenceTokenStage.Node, nodePart: '', seed: 'Cca', start: 0, end: 4,
+    });
+  });
+
+  it('reads the node stage right after the opening brace', () => {
+    expect(tokenAtCaret('x {', 3)).toEqual({
+      stage: ReferenceTokenStage.Node, nodePart: '', seed: '', start: 2, end: 3,
+    });
+  });
+
+  it('reads the output stage once a dot is typed', () => {
+    expect(tokenAtCaret('{C.', 3)).toEqual({
+      stage: ReferenceTokenStage.Output, nodePart: 'C', seed: '', start: 0, end: 3,
+    });
+  });
+
+  it('filters output keys by the text after the last dot', () => {
+    expect(tokenAtCaret('{C.parameters.gg', 16)).toEqual({
+      stage: ReferenceTokenStage.Output, nodePart: 'C', seed: 'gg', start: 0, end: 16,
+    });
+  });
+
+  it('spans past the closing brace when the token is already closed', () => {
+    const value = '{C.parameters.ggg}';
+    expect(tokenAtCaret(value, 16)).toEqual({
+      stage: ReferenceTokenStage.Output, nodePart: 'C', seed: 'gg', start: 0, end: 18,
+    });
+  });
+
+  it('stops the span at the caret when the token is unclosed before another {', () => {
+    expect(tokenAtCaret('{C.parameters.g {D', 15)).toMatchObject({ start: 0, end: 15 });
+  });
+});
+
+describe('replaceReferenceAt', () => {
+  it('overwrites the token span with a full reference', () => {
+    expect(replaceReferenceAt('{Cca', 0, 4, 'C', 'ggg')).toBe('{C.parameters.ggg}');
+  });
+
+  it('keeps text on either side of the span', () => {
+    expect(replaceReferenceAt('a {C.p} b', 2, 7, 'C', 'ggg')).toBe('a {C.parameters.ggg} b');
   });
 });
 
