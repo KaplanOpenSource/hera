@@ -20,6 +20,8 @@ jobs:
       # ubuntu-latest runner home is /home/runner; matches $HOME/hera_unittest_data
       # which is both bootstrap_unittest_data.sh's default and conftest's default.
       TEST_HERA: /home/runner/hera_unittest_data
+      # Silence jupyter_client's platformdirs migration DeprecationWarning in test output
+      JUPYTER_PLATFORM_DIRS: "1"
 
     services:
       mongodb:

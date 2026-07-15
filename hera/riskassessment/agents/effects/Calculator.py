@@ -128,7 +128,7 @@ class CalculatorTenBerge(AbstractCalculator):
 		self.n 	   = tenbergeCoefficient
 
 	def calculate(self,concentrationField,field,breathingRate=10*ureg.L/ureg.min,time="datetime",inUnits=None):
-		"""
+		r"""
             Calculates the toxic load  from a concentration field.
             \begin{equation}
             		D(T) = \int_0^T C^n dt

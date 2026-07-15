@@ -98,7 +98,8 @@ class InjuryLevel(object):
 			The data returns in km because itm is in km. 
 
 		"""
-		curBackend = plt.get_backend()	
+		curBackend = plt.get_backend()
+		plt.close('all')
 		plt.switch_backend("pdf")
 
 		if time in toxicLoads.dims:
@@ -138,6 +139,7 @@ class InjuryLevel(object):
 				retList.append(ret)
 		
 		ret = None if ret.empty else pandas.concat(retList,ignore_index=True)
+		plt.close('all')
 		plt.switch_backend(curBackend)
 		
 		return ret

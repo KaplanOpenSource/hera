@@ -37,6 +37,7 @@ import pandas as pd
 import xarray as xr
 import geopandas as gpd
 from shapely.geometry import Point
+from pyproj import Transformer
 
 
 WSG84 = 4326
@@ -253,25 +254,36 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
         if isinstance(points, np.ndarray):
             if points.ndim == 1:
-                gdf = gpd.GeoDataFrame(geometry=gpd.points_from_xy([points[0]], [points[1]]))
+                x_vals, y_vals = [points[0]], [points[1]]
             else:
-                gdf = gpd.GeoDataFrame(geometry=gpd.points_from_xy(points[:, 0], points[:, 1]))
+                x_vals, y_vals = points[:, 0], points[:, 1]
 
         elif isinstance(points, pd.DataFrame):
             x_col = kwargs.get("x", "x")
             y_col = kwargs.get("y", "y")
-            gdf = gpd.GeoDataFrame(geometry=gpd.points_from_xy(points[x_col], points[y_col]))
+            x_vals, y_vals = points[x_col], points[y_col]
 
         elif isinstance(points, list):
             if len(points) == 1:
-                gdf = gpd.GeoDataFrame(geometry=gpd.points_from_xy([points[0][0]], [points[0][1]]))
+                x_vals, y_vals = [points[0][0]], [points[0][1]]
             else:
-                gdf = gpd.GeoDataFrame(geometry=gpd.points_from_xy([x[0] for x in points], [x[1] for x in points]))
+                x_vals, y_vals = [x[0] for x in points], [x[1] for x in points]
 
         else:
             raise ValueError(f"Unsupported type: {type(points)}")
 
+        gdf = gpd.GeoDataFrame(geometry=gpd.points_from_xy(x_vals, y_vals))
         gdf.set_crs(inputCRS, inplace=True)
+
+        # A single-point GeoDataFrame.to_crs() triggers a spurious pyproj
+        # "ndim > 0 to a scalar" DeprecationWarning on the pinned geopandas/pyproj
+        # versions (the array-transform path mishandles length-1 arrays), so route
+        # the single-point case through a scalar pyproj transform instead.
+        if len(gdf) == 1:
+            transformer = Transformer.from_crs(inputCRS, outputCRS, always_xy=True)
+            x_out, y_out = transformer.transform(list(x_vals)[0], list(y_vals)[0])
+            return gpd.GeoDataFrame(geometry=[Point(x_out, y_out)], crs=outputCRS)
+
         return gdf.to_crs(outputCRS)
 
     def create_xarray(self, minx, miny, maxx, maxy, dxdy=30, inputCRS=WSG84):
