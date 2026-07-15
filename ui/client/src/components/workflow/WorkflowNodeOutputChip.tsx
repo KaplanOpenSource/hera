@@ -1,4 +1,4 @@
-import { Chip, Stack } from '@mui/material';
+import { Chip, Stack, useTheme } from '@mui/material';
 import { Handle, Position } from '@xyflow/react';
 import { outputHandleId } from './workflowDataflow';
 
@@ -13,6 +13,7 @@ export const WorkflowNodeOutputChip = ({
   nodeName: string,
   name: string,
 }) => {
+  const theme = useTheme();
   return (
     <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', justifyContent: 'flex-end', height: '69px' }}>
       <Chip label={name} size="small" variant="outlined" />
@@ -20,7 +21,7 @@ export const WorkflowNodeOutputChip = ({
         type="source"
         id={outputHandleId(nodeName, name)}
         position={Position.Right}
-        style={{ position: 'relative', top: 'auto', right: 'auto', transform: 'none', width: 8, height: 8, background: '#1976d2', border: 'none' }}
+        style={{ position: 'relative', top: 'auto', right: 'auto', transform: 'none', width: 8, height: 8, background: theme.palette.primary.main, border: 'none' }}
       />
     </Stack>
   );

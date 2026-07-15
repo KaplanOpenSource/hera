@@ -1,5 +1,5 @@
 import { Add } from '@mui/icons-material';
-import { Box, IconButton, Tooltip } from '@mui/material';
+import { Box, IconButton, Tooltip, useTheme } from '@mui/material';
 import { Background, Connection, Controls, Edge, MarkerType, Node, Panel, ReactFlow, ReactFlowProvider, useNodesInitialized, useNodesState, useReactFlow } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -49,6 +49,7 @@ const WorkflowGraphInner = ({
   onRemoveRequire,
   onDeleteNode,
 }: WorkflowGraphProps) => {
+  const theme = useTheme();
   const [menu, setMenu] = useState<WorkflowContextMenuTarget | null>(null);
   const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
   // The active inline `{…}` reference autocomplete: which field it hangs under,
@@ -240,8 +241,8 @@ const WorkflowGraphInner = ({
   const dataflowEdges: Edge[] = dataflowDeps.map(edge => ({
     ...edge,
     type: 'dataflow',
-    markerEnd: { type: MarkerType.ArrowClosed, color: '#1976d2' },
-    style: { stroke: '#1976d2' },
+    markerEnd: { type: MarkerType.ArrowClosed, color: theme.palette.primary.main },
+    style: { stroke: theme.palette.primary.main },
     animated: true,
     // The input handle sits inside the node, so the line's end runs under the
     // node box; lift it above the nodes so it stays visible.
