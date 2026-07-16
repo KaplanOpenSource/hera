@@ -75,6 +75,7 @@ def sonic_df_indexed(sonic_df):
 # Toolkit property tests
 # ---------------------------------------------------------------------------
 
+@pytest.mark.integration
 class TestHighFreqToolkitInit:
     def test_docType_property(self, hf_toolkit):
         assert hf_toolkit.docType == "highFreqMeteorology_HighFreqData"
@@ -84,6 +85,7 @@ class TestHighFreqToolkitInit:
 # Data reading tests
 # ---------------------------------------------------------------------------
 
+@pytest.mark.integration
 class TestReadData:
     def test_read_sonic_data(self, sonic_df):
         assert isinstance(sonic_df, pd.DataFrame)
@@ -98,6 +100,7 @@ class TestReadData:
         assert result is None
 
 
+@pytest.mark.integration
 class TestTimeRange:
     def _get_time_series(self, df_pd):
         """Return the time series — either from the index or a column."""
@@ -119,6 +122,7 @@ class TestTimeRange:
         assert ts.min() < ts.max()
 
 
+@pytest.mark.integration
 class TestSpecificPoints:
     def test_sonic_first_row(self, sonic_df):
         first = sonic_df.iloc[0]
@@ -133,6 +137,7 @@ class TestSpecificPoints:
         assert abs(first["RH"] - 70.2) < 0.01
 
 
+@pytest.mark.integration
 class TestErrorPaths:
     def test_campbelToParquet_nonexistent(self, hf_toolkit):
         with pytest.warns(DeprecationWarning), pytest.raises(ValueError):
@@ -147,6 +152,7 @@ class TestErrorPaths:
 # AbstractCalculator tests
 # ---------------------------------------------------------------------------
 
+@pytest.mark.integration
 class TestAbstractCalculator:
     def test_init_basic(self, sonic_df):
         ac = AbstractCalculator(
@@ -178,6 +184,7 @@ class TestAbstractCalculator:
 # MeanDataCalculator tests
 # ---------------------------------------------------------------------------
 
+@pytest.mark.integration
 class TestMeanDataCalculator:
     @pytest.fixture()
     def calc(self, sonic_df_indexed):
@@ -223,6 +230,7 @@ class TestMeanDataCalculator:
         assert isinstance(result, pd.DataFrame)
 
 
+@pytest.mark.integration
 class TestMeanDataCalculatorAdvanced:
     def test_TKE(self, sonic_df_indexed):
         df = sonic_df_indexed.head(100).copy()
@@ -259,6 +267,7 @@ class TestMeanDataCalculatorAdvanced:
 # RawdataAnalysis tests
 # ---------------------------------------------------------------------------
 
+@pytest.mark.integration
 class TestRawdataAnalysis:
     def test_singlePointTurbulenceStatistics_returns_instance(self, hf_toolkit, sonic_df_indexed):
         df = sonic_df_indexed.copy()
@@ -301,6 +310,7 @@ class TestRawdataAnalysis:
 # singlePointTurbulenceStatistics unit tests (synthetic data)
 # ---------------------------------------------------------------------------
 
+@pytest.mark.unit
 class TestSinglePointTurbulenceStatistics:
     @pytest.fixture()
     def turb_calc(self):

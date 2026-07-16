@@ -369,6 +369,7 @@ def experiment(exp_home):
 # 1. experimentHome
 # ===========================================================================
 
+@pytest.mark.integration
 @requires_mongo
 @requires_experiment
 class TestExperimentHome:
@@ -404,6 +405,7 @@ class TestExperimentHome:
 # 2. experimentSetupWithData — properties
 # ===========================================================================
 
+@pytest.mark.integration
 @requires_mongo
 @requires_experiment
 class TestExperimentSetup:
@@ -437,6 +439,7 @@ class TestExperimentSetup:
 # 3. TrialSetWithData and TrialWithdata
 # ===========================================================================
 
+@pytest.mark.integration
 @requires_mongo
 @requires_experiment
 class TestTrialAccess:
@@ -480,6 +483,7 @@ class TestTrialAccess:
 # 4. EntityTypeWithData
 # ===========================================================================
 
+@pytest.mark.integration
 @requires_mongo
 @requires_experiment
 class TestEntityType:
@@ -512,6 +516,7 @@ class TestEntityType:
 # 5. EntityWithData
 # ===========================================================================
 
+@pytest.mark.integration
 @requires_mongo
 @requires_experiment
 class TestEntity:
@@ -533,6 +538,7 @@ class TestEntity:
 # 6. getDataFromDateRange
 # ===========================================================================
 
+@pytest.mark.integration
 @requires_mongo
 @requires_experiment
 class TestGetDataFromDateRange:
@@ -553,6 +559,7 @@ class TestGetDataFromDateRange:
 # 7. dataEngineFactory
 # ===========================================================================
 
+@pytest.mark.unit
 @pytest.mark.skipif(not _ENGINE_AVAILABLE, reason="dataEngine not importable")
 class TestDataEngineFactory:
     """Test engine type constants (no DB needed)."""
@@ -572,6 +579,7 @@ class TestDataEngineFactory:
 # 8. experimentAnalysis — synthetic (no DB)
 # ===========================================================================
 
+@pytest.mark.unit
 @pytest.mark.skipif(not _ANALYSIS_AVAILABLE, reason="experimentAnalysis not importable")
 class TestAnalysisSynthetic:
     """Test analysis methods with synthetic DataFrames."""
@@ -619,6 +627,7 @@ class TestAnalysisSynthetic:
 # 9. experimentPresentation — smoke test (no DB)
 # ===========================================================================
 
+@pytest.mark.unit
 @pytest.mark.skipif(not _PRESENTATION_AVAILABLE, reason="experimentPresentation not importable")
 class TestPresentationInit:
     """Test presentation can be instantiated."""
@@ -643,6 +652,7 @@ class TestPresentationInit:
 # 10. Parsers — synthetic (no DB)
 # ===========================================================================
 
+@pytest.mark.unit
 class TestParsers:
     """Test parsers with synthetic data."""
 
@@ -659,6 +669,7 @@ class TestParsers:
 # 11. Argos zip parsing (no DB)
 # ===========================================================================
 
+@pytest.mark.integration
 @requires_experiment
 class TestArgosZipParsing:
     """Test that Argos zip files are parsed correctly."""
@@ -728,6 +739,7 @@ class TestArgosZipParsing:
 # 12. Full integration: load → navigate → get data
 # ===========================================================================
 
+@pytest.mark.integration
 @requires_mongo
 @requires_experiment
 class TestFullIntegration:
