@@ -98,15 +98,9 @@ class TestSimpleHermesWorkflow:
             fp.write(_HELLO_MODULE)
 
         rc, stdout, stderr = _run_workflow(workdir, _SIMPLE_WORKFLOW_JSON)
+        # Luigi can exit 0 even when tasks fail, so the return code alone is
+        # not sufficient; also check its execution summary reported success.
         assert rc == 0, f"Workflow exited with code {rc}.\nstderr:\n{stderr}"
-
-    def test_luigi_reports_success(self, tmp_path):
-        """Luigi must report no failed tasks in its execution summary."""
-        workdir = str(tmp_path)
-        with open(os.path.join(workdir, "hello_mod.py"), "w") as fp:
-            fp.write(_HELLO_MODULE)
-
-        _, _, stderr = _run_workflow(workdir, _SIMPLE_WORKFLOW_JSON)
         assert "this progress looks :)" in stderr.lower(), (
             "Luigi did not report successful completion.\nstderr:\n" + stderr
         )
