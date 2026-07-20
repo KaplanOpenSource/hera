@@ -8,7 +8,7 @@ import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { CENTRAL_REPO_FOLDER_ID, idDocId, idFromDocId } from '../../shared/idDocId';
 import { useProjectStore } from '../../stores/useProjectStore';
-import { documentSearchText } from '../../utils/documentSearch';
+import { documentMatchesQuery, documentSearchText, parseSearchQuery, unknownSearchFields } from '../../utils/documentSearch';
 import { collectBranchKeys, SplitTree } from '../../utils/splitTree';
 import { DocumentSplitGroup } from './DocumentSplitGroup';
 import { ProjectActionsButton } from './ProjectActionsButton';
@@ -38,22 +38,30 @@ export const ProjectTreeView = ({
     [project],
   );
 
-  const query = search.trim().toLowerCase();
+  const searchTerms = useMemo(() => parseSearchQuery(search), [search]);
+  const isSearching = searchTerms.length > 0;
+  const unknownFields = useMemo(() => unknownSearchFields(searchTerms), [searchTerms]);
   const filteredDocs = useMemo(
-    () => query ? searchIndex.filter(e => e.text.includes(query)).map(e => e.doc) : searchIndex.map(e => e.doc),
-    [searchIndex, query],
+    () => isSearching
+      ? searchIndex.filter(e => documentMatchesQuery(e.doc.data, e.text, searchTerms)).map(e => e.doc)
+      : searchIndex.map(e => e.doc),
+    [searchIndex, searchTerms, isSearching],
   );
 
   // While searching, expand every matching branch so results aren't hidden in collapsed groups.
   const searchExpandedKeys = useMemo(() => {
-    if (!query) return [];
+    if (!isSearching) return [];
     const tree = new SplitTree(filteredDocs, viewSettings.maxDepth, viewSettings);
     return ['project-documents', ...collectBranchKeys(tree.nodes)];
-  }, [query, filteredDocs, viewSettings]);
+  }, [isSearching, filteredDocs, viewSettings]);
 
-  const effectiveExpandedItems = query
+  const effectiveExpandedItems = isSearching
     ? [...new Set([...expandedItems, ...searchExpandedKeys])]
     : expandedItems;
+
+  const searchWarning = unknownFields.length
+    ? `Unknown field${unknownFields.length > 1 ? 's' : ''}: ${unknownFields.join(', ')}`
+    : undefined;
 
   const getSplitTree = useCallback(() => {
     const currentProject = useProjectStore.getState().getProject();
@@ -137,7 +145,7 @@ export const ProjectTreeView = ({
 
   return (
     <>
-    <TreeSearchBar value={search} onChange={setSearch} />
+    <TreeSearchBar value={search} onChange={setSearch} warning={searchWarning} />
     <SimpleTreeView
       expandedItems={effectiveExpandedItems}
       onExpandedItemsChange={(e, itemIds) => {
