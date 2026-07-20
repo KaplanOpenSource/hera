@@ -1,16 +1,29 @@
-import { Add, Delete, EditNote } from "@mui/icons-material";
+import { Add, EditNote } from "@mui/icons-material";
 import { Stack, Typography } from "@mui/material";
 import { TreeItem } from "@mui/x-tree-view";
 import { useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
-import { useConfirm } from "../../elements/useConfirm";
 import { idRepoId, TEMP_REPO_NAME } from "../../shared/idDocId";
 import { CentralRepoFolder } from "../repo/CentralRepoFolder";
 import { RegisteredRepositories } from "../repo/RegisteredRepositories";
+import { RepoTreeItem } from "./RepoTreeItem";
+
+const SAMPLE_REPO_PATH = 'hera/path/to/repo.json';
 
 export const RepoTreeWhole = ({ }) => {
   const [repositories, setRepositories] = useState<string[]>(['hera/doc/jupyter/Developer/Documentation_Repository.json']);
-  const { confirmOpen, ConfirmDialog } = useConfirm();
+  const [newRepo, setNewRepo] = useState<string | null>(null);
+
+  const addSampleRepo = () => {
+    let sample = SAMPLE_REPO_PATH;
+    let num = 1;
+    while (repositories.includes(sample)) {
+      sample = SAMPLE_REPO_PATH.replace('.json', `-${num}.json`);
+      num++;
+    }
+    setNewRepo(sample);
+    setRepositories([...repositories, sample]);
+  };
 
   return (
     <TreeItem key={'*repos*'} itemId={'*repos*'}
@@ -21,20 +34,10 @@ export const RepoTreeWhole = ({ }) => {
           </Typography>
           <ButtonTooltip
             title={'Add repository'}
-            onClick={async (e) => {
-              const { confirmed, text } = await confirmOpen({
-                title: `Add repository`,
-                requireText: true,
-                textLabel: 'Repository location',
-              });
-              if (confirmed && text) {
-                setRepositories([...repositories, text]);
-              }
-            }}
+            onClick={addSampleRepo}
           >
             <Add />
           </ButtonTooltip>
-          {ConfirmDialog}
           <ButtonTooltip
             title={'Edit temporary repository'}
             onClick={() => {
@@ -52,24 +55,13 @@ export const RepoTreeWhole = ({ }) => {
       <CentralRepoFolder />
       <RegisteredRepositories showUpdateButton />
       {repositories.map(repoPath => (
-        <TreeItem
+        <RepoTreeItem
           key={idRepoId(repoPath)}
-          itemId={idRepoId(repoPath)}
-          label={(
-            <Stack direction={'row'} justifyItems={'center'} alignItems={'center'}>
-              {repoPath}
-              <ButtonTooltip
-                title={'Remove repository from this list'}
-                onClick={() => {
-                  setRepositories(repositories.filter(x => x !== repoPath))
-                }}
-              >
-                <Delete />
-              </ButtonTooltip>
-            </Stack>
-          )}
-        >
-        </TreeItem>
+          repoPath={repoPath}
+          defaultEditing={repoPath === newRepo}
+          onRename={newPath => setRepositories(repositories.map(x => x === repoPath ? newPath : x))}
+          onRemove={() => setRepositories(repositories.filter(x => x !== repoPath))}
+        />
       ))}
     </TreeItem>
   )
