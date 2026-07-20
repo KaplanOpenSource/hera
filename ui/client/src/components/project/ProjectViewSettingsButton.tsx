@@ -1,17 +1,17 @@
 import { Settings } from "@mui/icons-material";
-import { Button, createTheme, DialogActions, DialogContent, DialogTitle, Stack, Typography } from "@mui/material";
+import { Button, DialogActions, DialogContent, DialogTitle, Stack, Typography } from "@mui/material";
 import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonDialog } from "../../elements/ButtonDialog";
 import { NumberProperty } from "../../elements/NumberProperty";
 import { ReloadIntervalSlider } from "../../elements/ReloadIntervalSlider";
 import { ThemeModeSwitch } from "../../elements/ThemeModeSwitch";
 import { ThemeMode, useViewSettingsStore } from "../../stores/useViewSettingsStore";
-
-// Own (light) theme so the dialog isn't tinted by the dark app-header theme it opens from.
-const dialogTheme = createTheme();
+import { useAppTheme } from "../../theme";
 
 export const ProjectViewSettingsButton = ({ }) => {
   const { viewSettings, setViewSettings } = useViewSettingsStore();
+  // Follow the app theme so the dialog isn't tinted by the dark header it opens from.
+  const dialogTheme = useAppTheme();
   return (
     <ButtonDialog icon={<Settings />} title="Settings" dialogTheme={dialogTheme}>
       {(close) => (

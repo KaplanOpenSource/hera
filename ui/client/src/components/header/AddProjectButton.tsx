@@ -1,7 +1,6 @@
 import { Add } from "@mui/icons-material";
 import {
   Button,
-  createTheme,
   Dialog,
   DialogActions,
   DialogContent,
@@ -17,8 +16,11 @@ import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { fetchPython } from "../../io/fetchPython";
 import { SimpleTreeView } from "@mui/x-tree-view";
 import { RegisteredRepositories } from "../repo/RegisteredRepositories";
+import { useAppTheme } from "../../theme";
 
 export const AddProjectButton = ({ }) => {
+  // Follow the app theme so the dialog isn't tinted by the dark header it opens from.
+  const dialogTheme = useAppTheme();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [filesDirectory, setFilesDirectory] = useState('');
@@ -75,7 +77,7 @@ Project(projectName='${trimmedName}', filesDirectory=${dirStr})
     >
       <Add />
     </ButtonTooltip>
-    <ThemeProvider theme={createTheme()}>
+    <ThemeProvider theme={dialogTheme}>
     <Dialog
       open={open}
       onClose={() => setOpen(false)}

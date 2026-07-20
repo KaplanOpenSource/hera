@@ -1,13 +1,11 @@
-import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
-import { useMemo } from 'react';
+import { CssBaseline, ThemeProvider } from '@mui/material';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { SnackbarProvider } from 'notistack';
 import { Dashboard } from './Dashboard';
-import { useViewSettingsStore } from './stores/useViewSettingsStore';
+import { useAppTheme } from './theme';
 
 export default function App() {
-  const themeMode = useViewSettingsStore((s) => s.viewSettings.themeMode);
-  const theme = useMemo(() => createTheme({ palette: { mode: themeMode } }), [themeMode]);
+  const theme = useAppTheme();
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
