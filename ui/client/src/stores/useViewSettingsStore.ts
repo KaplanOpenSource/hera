@@ -1,4 +1,10 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+export enum ThemeMode {
+  Light = 'light',
+  Dark = 'dark',
+}
 
 export type ViewSettingsType = {
   minGroupSize: number;
@@ -8,6 +14,7 @@ export type ViewSettingsType = {
   showDocumentPreview: boolean;
   // How often (seconds) to auto-reload the open project. null turns auto-reload off.
   reloadIntervalSeconds: number | null;
+  themeMode: ThemeMode;
 };
 
 type ViewSettingsStore = {
@@ -23,11 +30,32 @@ const defaultSettings: ViewSettingsType = {
   firstBranchHeadFields: true,
   showDocumentPreview: true,
   reloadIntervalSeconds: 5,
+  themeMode: ThemeMode.Light,
 };
 
-export const useViewSettingsStore = create<ViewSettingsStore>((set) => ({
-  viewSettings: defaultSettings,
-  setViewSettings: (settings) =>
-    set((state) => ({ viewSettings: { ...state.viewSettings, ...settings } })),
-  resetViewSettings: () => set({ viewSettings: defaultSettings }),
-}));
+export const useViewSettingsStore = create<ViewSettingsStore>()(
+  persist(
+    (set) => ({
+      viewSettings: defaultSettings,
+      setViewSettings: (settings) =>
+        set((state) => ({ viewSettings: { ...state.viewSettings, ...settings } })),
+      resetViewSettings: () =>
+        set((state) => ({
+          // Keep the chosen theme; reset only the tree/view knobs.
+          viewSettings: { ...defaultSettings, themeMode: state.viewSettings.themeMode },
+        })),
+    }),
+    {
+      name: 'hera-view-settings',
+      // Only the theme mode survives reloads; the tree/view knobs stay ephemeral as before.
+      partialize: (state) => ({ viewSettings: { themeMode: state.viewSettings.themeMode } }),
+      merge: (persisted, current) => {
+        const saved = persisted as { viewSettings?: Partial<ViewSettingsType> } | undefined;
+        return {
+          ...current,
+          viewSettings: { ...current.viewSettings, ...saved?.viewSettings },
+        };
+      },
+    }
+  )
+);
