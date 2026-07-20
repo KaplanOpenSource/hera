@@ -202,14 +202,11 @@ export const ProjectLayout = ({
     }
   }, [activeShowItemId, previewAvailable, activeDocId, model]);
 
-  // Close details/preview tabs whose document no longer exists (e.g. after it was deleted).
+  // Keep open tabs in sync with the project: close tabs whose document was
+  // deleted, then rename the survivors (e.g. a new notebook's tab once its
+  // document loads).
   useEffect(() => {
     closeTabsForMissingDocuments(model, project);
-  }, [project, model]);
-
-  // Keep open details-tab names in sync with the project (e.g. rename a new
-  // notebook's tab once its document loads).
-  useEffect(() => {
     syncDetailsTabNames(model, project);
   }, [project, model]);
 
