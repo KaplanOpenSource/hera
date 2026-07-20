@@ -1,10 +1,10 @@
 import { Action, Actions, ITabRenderValues, Layout, TabNode } from 'flexlayout-react';
-import 'flexlayout-react/style/light.css';
 import { useCallback, useEffect, useState } from 'react';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { classifyItemId, idFromDocId, ItemKind, normalizeSplitId } from '../../shared/idDocId';
 import { classifyTab } from '../../shared/tabKind';
 import { TAB_KIND_STYLES } from '../../shared/tabKindConfig';
+import { useFlexlayoutTheme } from '../../theme';
 import { hasPreview } from '../details/PreviewPanel';
 import { DETAILS_TAB_PREFIX, LayoutModel } from './LayoutModel';
 import { LayoutPanel } from './LayoutPanel';
@@ -21,6 +21,7 @@ export const ProjectLayout = ({
   treeCollapsed: boolean,
   resetSignal: number,
 }) => {
+  useFlexlayoutTheme();
   const [activeShowItemId, setActiveShowItemId] = useState<string | undefined>(undefined);
 
   const [layout, setLayout] = useState(() => LayoutModel.create(!treeCollapsed));
