@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Box, CircularProgress, Typography } from '@mui/material';
+import { Box, CircularProgress, Typography, useTheme } from '@mui/material';
 import { GeoJSON as GeoJSONLayer, MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import type { GeoJSON } from 'geojson';
 import 'leaflet/dist/leaflet.css';
 import { fetchPython } from '../../../io/fetchPython';
 import { InvalidateOnResize } from './InvalidateOnResize';
+import { darkMapControlsSx, DARK_TILE_URL, LIGHT_TILE_URL } from './mapDarkStyles';
 
 const GEOJSON_EXTENSIONS = /\.(geojson|geo\.json)$/i;
 
@@ -58,6 +59,7 @@ export const GeoJsonPreview = ({
   path: string,
 }) => {
   const [mapState, setMapState] = useState<MapState>({ geojson: null, bounds: null, hasError: false });
+  const dark = useTheme().palette.mode === 'dark';
 
   useEffect(() => {
     (async () => {
@@ -82,16 +84,18 @@ export const GeoJsonPreview = ({
     ) : !mapState.geojson || !mapState.bounds ? (
       <Box sx={centered}><CircularProgress /></Box>
     ) : (
-      <MapContainer
-        center={[32, 35]}
-        zoom={8}
-        style={{ height: '100%', width: '100%' }}
-      >
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        <GeoJSONLayer data={mapState.geojson as any} />
-        <FitBounds bounds={mapState.bounds} />
-        <InvalidateOnResize />
-      </MapContainer>
+      <Box sx={{ height: '100%', width: '100%', ...(dark && darkMapControlsSx) }}>
+        <MapContainer
+          center={[32, 35]}
+          zoom={8}
+          style={{ height: '100%', width: '100%' }}
+        >
+          <TileLayer url={dark ? DARK_TILE_URL : LIGHT_TILE_URL} />
+          <GeoJSONLayer data={mapState.geojson as any} />
+          <FitBounds bounds={mapState.bounds} />
+          <InvalidateOnResize />
+        </MapContainer>
+      </Box>
     )
   );
 };

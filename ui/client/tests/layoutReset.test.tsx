@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import { createLayoutModel } from '../src/components/layout/ProjectLayout';
+import { Model } from 'flexlayout-react';
+import { LayoutModel } from '../src/components/layout/LayoutModel';
 import { DashboardHeader } from '../src/components/header/DashboardHeader';
 
 vi.mock('../src/components/header/PageTitle', () => ({
@@ -14,12 +15,12 @@ vi.mock('../src/components/header/StatusIndicators', () => ({
 }));
 
 // Pull the tabset definitions out of the model JSON for assertions.
-const tabsetsOf = (model: ReturnType<typeof createLayoutModel>) =>
+const tabsetsOf = (model: Model) =>
   (model.toJson().layout.children as any[]);
 
-describe('createLayoutModel (panel layout reset)', () => {
+describe('LayoutModel.create (panel layout reset)', () => {
   it('builds the original two-panel arrangement: tree (25%) left, details (75%) right', () => {
-    const tabsets = tabsetsOf(createLayoutModel(true));
+    const tabsets = tabsetsOf(LayoutModel.create(true).model);
     expect(tabsets).toHaveLength(2);
 
     const tree = tabsets.find(t => t.id === 'tree-tabset');
@@ -31,7 +32,7 @@ describe('createLayoutModel (panel layout reset)', () => {
   });
 
   it('omits the tree panel when the sidebar is collapsed', () => {
-    const tabsets = tabsetsOf(createLayoutModel(false));
+    const tabsets = tabsetsOf(LayoutModel.create(false).model);
     expect(tabsets).toHaveLength(1);
     expect(tabsets[0].id).toBe('details-tabset');
   });
@@ -41,7 +42,7 @@ describe('createLayoutModel (panel layout reset)', () => {
       { type: 'tab', id: 'details:doc-a', name: 'Doc A', component: 'details' },
       { type: 'tab', id: 'details:doc-b', name: 'Doc B', component: 'details' },
     ];
-    const tabsets = tabsetsOf(createLayoutModel(true, openTabs));
+    const tabsets = tabsetsOf(LayoutModel.create(true, openTabs).model);
     const details = tabsets.find(t => t.id === 'details-tabset');
     expect(details.children.map((c: any) => c.id)).toEqual(['details:doc-a', 'details:doc-b']);
   });
@@ -51,13 +52,13 @@ describe('createLayoutModel (panel layout reset)', () => {
       { type: 'tab', id: 'details:doc-a', name: 'Doc A', component: 'details' },
       { type: 'tab', id: 'details:doc-b', name: 'Doc B', component: 'details' },
     ];
-    const details = tabsetsOf(createLayoutModel(true, openTabs, 1))
+    const details = tabsetsOf(LayoutModel.create(true, openTabs, 1).model)
       .find(t => t.id === 'details-tabset');
     expect(details.selected).toBe(1);
   });
 
   it('leaves selection unset when no tab is active (index -1)', () => {
-    const details = tabsetsOf(createLayoutModel(true, [], -1))
+    const details = tabsetsOf(LayoutModel.create(true, [], -1).model)
       .find(t => t.id === 'details-tabset');
     expect(details.selected ?? -1).toBe(-1);
   });

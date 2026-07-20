@@ -399,6 +399,7 @@ const WorkflowGraphInner = ({
   return (
     <Box ref={containerRef} sx={{ flex: 1, minHeight: 200, ml: -2, mr: -2, mb: -2, borderTop: '1px solid', borderColor: 'divider' }}>
       <ReactFlow
+        colorMode={theme.palette.mode}
         nodes={displayNodes}
         edges={[...displayEdges, ...dataflowEdges]}
         nodeTypes={NODE_TYPES}

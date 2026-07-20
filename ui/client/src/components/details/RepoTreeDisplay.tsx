@@ -21,6 +21,7 @@ export const RepoTreeDisplay = ({
   showStrDefault = false,
   overrides,
   repoJsons,
+  labelIcons,
 }: {
   tree: any;
   setTree: (next: any) => void;
@@ -30,6 +31,7 @@ export const RepoTreeDisplay = ({
   showStrDefault?: boolean;
   overrides?: { [path: string]: string[] };
   repoJsons?: { [path: string]: { [key: string]: any } };
+  labelIcons?: ReactNode;
 }) => {
   const [repoStr, setRepoStr] = useState<string>('');
   const [showStr, setShowStr] = useState(showStrDefault);
@@ -141,6 +143,7 @@ export const RepoTreeDisplay = ({
                 setHiddenPaths={setHiddenPaths}
                 allToggleablePaths={allToggleablePaths}
               />
+              {labelIcons}
             </Stack>
           )}
         >
