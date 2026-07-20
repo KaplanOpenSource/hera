@@ -1,3 +1,4 @@
+import { useTheme } from '@mui/material';
 import { Action, Actions, ITabRenderValues, Layout, TabNode } from 'flexlayout-react';
 import { useCallback, useEffect, useState } from 'react';
 import { ProjectObj } from '../../objects/ProjectObj';
@@ -22,6 +23,7 @@ export const ProjectLayout = ({
   resetSignal: number,
 }) => {
   useFlexlayoutTheme();
+  const dark = useTheme().palette.mode === 'dark';
   const [activeShowItemId, setActiveShowItemId] = useState<string | undefined>(undefined);
 
   const [layout, setLayout] = useState(() => LayoutModel.create(!treeCollapsed));
@@ -90,9 +92,10 @@ export const ProjectLayout = ({
     if (!showItemId) return;
     const kind = classifyTab(showItemId, project);
     if (!kind) return;
-    const { icon: Icon, color } = TAB_KIND_STYLES[kind];
-    renderValues.leading = <Icon sx={{ fontSize: 16, color }} />;
-  }, [project.allDocuments]);
+    const style = TAB_KIND_STYLES[kind];
+    const Icon = style.icon;
+    renderValues.leading = <Icon sx={{ fontSize: 16, color: dark ? style.darkColor : style.color }} />;
+  }, [project.allDocuments, dark]);
 
   const factory = (node: TabNode) => (
     <LayoutPanel

@@ -1,5 +1,5 @@
 import { ContentCopy, Folder } from '@mui/icons-material';
-import { Stack, Tooltip, Typography } from '@mui/material';
+import { alpha, Stack, Tooltip, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -168,22 +168,22 @@ export const ProjectTreeView = ({
       onSelectedItemsChange={(e, itemIds) => handleSelectionChange(e, itemIds)}
       expansionTrigger={'content'}
       multiSelect
-      sx={{
-        // Highlighted (selected) rows: soft blue.
+      sx={(theme) => ({
+        // Highlighted (selected) rows: soft tint of the primary color, adapts to theme.
         '& .MuiTreeItem-content.Mui-selected': {
-          backgroundColor: 'rgba(25, 118, 210, 0.24)',
+          backgroundColor: alpha(theme.palette.primary.main, 0.24),
         },
         '& .MuiTreeItem-content.Mui-selected:hover': {
-          backgroundColor: 'rgba(25, 118, 210, 0.34)',
+          backgroundColor: alpha(theme.palette.primary.main, 0.34),
         },
-        // Active (focused) row stands out with a stronger blue.
+        // Active (focused) row stands out with a stronger tint.
         '& .MuiTreeItem-content.Mui-selected.Mui-focused': {
-          backgroundColor: 'rgba(25, 118, 210, 0.44)',
+          backgroundColor: alpha(theme.palette.primary.main, 0.44),
         },
         '& .MuiTreeItem-content.Mui-selected.Mui-focused:hover': {
-          backgroundColor: 'rgba(25, 118, 210, 0.54)',
+          backgroundColor: alpha(theme.palette.primary.main, 0.54),
         },
-      }}
+      })}
     >
       <TreeItem key={`project-documents`} itemId={`project-documents`}
         label={(

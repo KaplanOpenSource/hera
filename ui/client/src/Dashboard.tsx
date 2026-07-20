@@ -1,4 +1,4 @@
-import { Box, Paper, Typography } from '@mui/material';
+import { Box, Paper, Typography, useTheme } from '@mui/material';
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { DashboardHeader } from './components/header/DashboardHeader';
@@ -7,11 +7,12 @@ import { FetchProjects } from './io/FetchProjects';
 import { ProjectAutoReload } from './io/ProjectAutoReload';
 import { useProjectStore } from './stores/useProjectStore';
 import { ServerConstantReader } from './stores/useServerConstants';
-import { tabKindCss } from './shared/tabKindConfig';
+import { buildTabKindCss } from './shared/tabKindConfig';
 
 export const Dashboard = () => {
   const { projectName } = useParams<{ projectName: string }>();
   const { getProject } = useProjectStore();
+  const dark = useTheme().palette.mode === 'dark';
   const [treeCollapsed, setTreeCollapsed] = useState(false);
   const [layoutResetSignal, setLayoutResetSignal] = useState(0);
 
@@ -45,7 +46,7 @@ export const Dashboard = () => {
         {project
           ? (
             <Box sx={{ position: 'relative', flex: 1, height: '100%' }}>
-              <style>{tabKindCss}</style>
+              <style>{buildTabKindCss(dark)}</style>
               <ProjectLayout
                 project={project}
                 treeCollapsed={treeCollapsed}
