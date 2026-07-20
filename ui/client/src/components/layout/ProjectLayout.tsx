@@ -187,6 +187,21 @@ export const ProjectLayout = ({
     }
   }, [project, model]);
 
+  // Keep open details-tab names in sync with the project. A tab opened for a
+  // just-created document (e.g. a new notebook) is named before that document
+  // has loaded, so detailsTabName falls back to the project-config name. Once
+  // the document arrives in the project, rename the tab to its real name.
+  useEffect(() => {
+    for (const t of tabsWithPrefix(model, DETAILS_TAB_PREFIX)) {
+      const showItemId = t.getConfig()?.showItemId as string | undefined;
+      if (!showItemId) continue;
+      const name = detailsTabName(showItemId, project);
+      if (name !== t.getName()) {
+        model.doAction(Actions.renameTab(t.getId(), name));
+      }
+    }
+  }, [project, model]);
+
   const handleAction = useCallback((action: Action) => {
     if (action.type === Actions.SELECT_TAB) {
       const tabId = action.data.tabNode as string;
