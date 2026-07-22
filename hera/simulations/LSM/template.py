@@ -412,7 +412,7 @@ class LSMTemplate:
 
             yield finalxarray
 
-    def getSimulations(self, **query):
+    def getSimulations(self, simulation_name=None, **query):
         """
         get a list of SingleSimulation objects that fulfill the query
 
@@ -428,15 +428,27 @@ class LSMTemplate:
         -------
             Simulation object
         """
+        logger = get_classMethod_logger(self)
 
-        query = JSONToConfiguration(query)
-        query = self.prepareParams(self._document['desc'], query)
+        updated_params = dict(self._document['desc']['params'])
+        updated_params.update(query)
+        updated_params = JSONToConfiguration(updated_params)
+        updated_params = self.prepareParams(template_desc=self._document['desc'], paramsToPrepare=updated_params)
+        # query = JSONToConfiguration(query)
+        # query = self.prepareParams(self._document['desc'], query)
 
-        new_query = dictToMongoQuery(query,prefix="params")
+        new_query = dictToMongoQuery(updated_params,prefix="params")
 
-        docList = self.Toolkit.getSimulationsDocuments(type=self.doctype_simulation,
-                                    templateName=self.templateName,
-                                    **new_query)
+        if simulation_name is not None:
+            docList = self.Toolkit.getSimulationsDocuments(type=self.doctype_simulation,
+                                        templateName=self.templateName,
+                                        simulationName=simulation_name,
+                                        **new_query)
+        else:
+            docList = self.Toolkit.getSimulationsDocuments(type=self.doctype_simulation,
+                                        templateName=self.templateName,
+                                        **new_query)
+
         return [SingleSimulation(doc) for doc in docList]
 
     def getSimulationByID(self,id):
@@ -455,7 +467,7 @@ class LSMTemplate:
         :param id:
         :return:
         """
-        return SingleSimulation(self.getSimulationsDocuments(type=self.doctype_simulation,templateName=self.templateName,simulationName=simulationName))
+        return [SingleSimulation(doc) for doc in self.Toolkit.getSimulationsDocuments(type=self.doctype_simulation,templateName=self.templateName,simulationName=simulationName)]
 
     def _getSimulationsList(self, **query):
         """
