@@ -131,6 +131,7 @@ def population_gdf(demo_toolkit):
 # 1. Toolkit initialization and properties
 # ===========================================================================
 
+@pytest.mark.integration
 class TestDemographyToolkitInit:
     """Test toolkit construction and properties (requires DB)."""
 
@@ -155,6 +156,7 @@ class TestDemographyToolkitInit:
 # 2. setDefaultDirectory
 # ===========================================================================
 
+@pytest.mark.integration
 class TestSetDefaultDirectory:
     def test_creates_and_sets_path(self, demo_toolkit):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -172,6 +174,7 @@ class TestSetDefaultDirectory:
 # 3. analysis.calculatePopulationInPolygon
 # ===========================================================================
 
+@pytest.mark.integration
 class TestCalculatePopulationInPolygon:
     def test_basic(self, demo_toolkit, population_gdf):
         """Polygon enclosing a census area returns non-empty result."""
@@ -294,6 +297,7 @@ class TestCalculatePopulationInPolygon:
 # 4. analysis.createNewArea
 # ===========================================================================
 
+@pytest.mark.integration
 class TestCreateNewArea:
     def test_simple(self, demo_toolkit, population_gdf):
         """Create area covering all population data."""
@@ -369,6 +373,7 @@ class TestCreateNewArea:
 # 5. presentation.plotPopulationDensity
 # ===========================================================================
 
+@pytest.mark.integration
 class TestPlotPopulationDensity:
     """Test plotPopulationDensity with synthetic data (no DB needed)."""
 
@@ -459,6 +464,7 @@ class TestPlotPopulationDensity:
 # 6. presentation.plotPopulation
 # ===========================================================================
 
+@pytest.mark.integration
 class TestPlotPopulation:
     """Test plotPopulation (absolute counts)."""
 
@@ -503,6 +509,7 @@ class TestPlotPopulation:
 # 7. presentation.plotPopulationByType
 # ===========================================================================
 
+@pytest.mark.integration
 class TestPlotPopulationByType:
     """Test plotPopulationByType (subplot grid)."""
 
@@ -545,6 +552,7 @@ class TestPlotPopulationByType:
 # 8. presentation.plotPopulationInPolygon
 # ===========================================================================
 
+@pytest.mark.integration
 class TestPlotPopulationInPolygon:
     """Test plotPopulationInPolygon (intersection visualization)."""
 
@@ -593,6 +601,7 @@ class TestPlotPopulationInPolygon:
 # 9. presentation.plotArea
 # ===========================================================================
 
+@pytest.mark.integration
 class TestPlotArea:
     """Test plotArea (custom area with population annotation)."""
 
@@ -651,6 +660,7 @@ class TestPlotArea:
 # 10. presentation.plotPopulationOnMap (mocked TilesToolkit)
 # ===========================================================================
 
+@pytest.mark.integration
 class TestPlotPopulationOnMap:
     """Test plotPopulationOnMap with a mocked TilesToolkit."""
 
@@ -716,6 +726,7 @@ class TestPlotPopulationOnMap:
 # 11. Edge cases
 # ===========================================================================
 
+@pytest.mark.integration
 class TestEdgeCases:
     """Edge cases and error handling."""
 

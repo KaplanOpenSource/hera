@@ -1,6 +1,7 @@
 import { Box, CircularProgress, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { BASEURL } from '../../shared/baseurl';
+import { ThemeMode, useViewSettingsStore } from '../../stores/useViewSettingsStore';
 
 export const DetailsViewNotebook = ({
   rootDir,
@@ -11,6 +12,7 @@ export const DetailsViewNotebook = ({
 }) => {
   const [notebookUrl, setNotebookUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const themeMode = useViewSettingsStore((s) => s.viewSettings.themeMode);
 
   useEffect(() => {
     let cancelled = false;
@@ -22,7 +24,7 @@ export const DetailsViewNotebook = ({
         const r = await fetch(`${BASEURL}/jupyter/ensure`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ root_dir: rootDir }),
+          body: JSON.stringify({ root_dir: rootDir, dark: themeMode === ThemeMode.Dark }),
         });
         const data = await r.json();
         if (cancelled) return;
@@ -52,7 +54,7 @@ export const DetailsViewNotebook = ({
     })();
 
     return () => { cancelled = true; };
-  }, [rootDir, resource]);
+  }, [rootDir, resource, themeMode]);
 
   if (error) return <Typography color="error">{error}</Typography>;
   if (!notebookUrl) return (

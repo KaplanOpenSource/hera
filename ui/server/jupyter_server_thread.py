@@ -13,10 +13,11 @@ LOOPBACK_HOSTS = ('127.0.0.1', 'localhost', '::1')
 
 
 class JupyterServerThread:
-    def __init__(self, root_dir: str, port: int = DEFAULT_JUPYTER_PORT, ip: str = '127.0.0.1'):
+    def __init__(self, root_dir: str, port: int = DEFAULT_JUPYTER_PORT, ip: str = '127.0.0.1', dark: bool = False):
         self._port = port
         self._root_dir = root_dir
         self._ip = ip
+        self._dark = dark
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
         print(f"Jupyter server starting on {ip}:{port}, root_dir={root_dir}")
@@ -76,8 +77,12 @@ class JupyterServerThread:
         except OSError:
             print("WARNING: Could not write IPython config — %%ai magic requires manual %load_ext")
 
-    @staticmethod
-    def _disable_announcements():
+    def set_theme(self, dark: bool):
+        # Rewrite overrides so a notebook reload picks up the new theme (read per request).
+        self._dark = dark
+        self._disable_announcements()
+
+    def _disable_announcements(self):
         try:
             import sys
             settings_dir = Path(sys.prefix) / 'share' / 'jupyter' / 'lab' / 'settings'
@@ -96,6 +101,9 @@ class JupyterServerThread:
             overrides['@jupyterlab/docmanager-extension:plugin'] = {
                 'autosave': True,
                 'autosaveInterval': 2,
+            }
+            overrides['@jupyterlab/apputils-extension:themes'] = {
+                'theme': 'JupyterLab Dark' if self._dark else 'JupyterLab Light',
             }
             overrides_path.write_text(json.dumps(overrides, indent=2))
         except OSError:

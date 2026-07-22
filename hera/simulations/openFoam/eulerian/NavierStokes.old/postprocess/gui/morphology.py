@@ -13001,7 +13001,7 @@ if __name__ == "__main__":
     plt.plot(x1,y1,'*r')
     plt.plot(x2,y2,'or')
     plt.plot(x3,y3,'+r')
-    plt.title('$\lambda_f$')
+    plt.title(r'$\lambda_f$')
     plt.subplot(1,3,2)
     plt.imshow(zilp, origin='lower', interpolation='nearest',extent=[xmin,xmax,ymin,ymax])  # jet, Paired
     plt.colorbar()
@@ -13009,7 +13009,7 @@ if __name__ == "__main__":
     plt.plot(x1,y1,'*r')
     plt.plot(x2,y2,'or')
     plt.plot(x3,y3,'+r')
-    plt.title('$\lambda_p$')
+    plt.title(r'$\lambda_p$')
     plt.subplot(1,3,3)
     plt.imshow(zilh, origin='lower', interpolation='nearest',extent=[xmin,xmax,ymin,ymax], norm=matplotlib.colors.LogNorm())  # jet, Paired
     plt.colorbar()

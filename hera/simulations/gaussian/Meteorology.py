@@ -194,7 +194,7 @@ class StandardMeteorolgyConstant_powerLaw:
                 default unit m
         :return:
             air temperature at C.
-        """
+        r"""
         return self._temperature - 6.5e-3 * tonumber(height, ureg.m) * ureg.K
 
     def getAirDensity(self, height):
@@ -213,7 +213,7 @@ class StandardMeteorolgyConstant_powerLaw:
                default m
         :return:
                air density in kg/m**3
-        """
+        r"""
         P = unumToPint(self.getAirPressure(height)).m_as(ureg.mmHg)
         T = unumToPint(self.getAirTemperature(height)).m_as(ureg.degC)
 
@@ -243,7 +243,7 @@ class StandardMeteorolgyConstant_powerLaw:
 
         :return:
             The coefficient (dimensionless).
-        """
+        r"""
         if (self.z0 is None or self.stability is None):
             return
         pstab = self._pvalues[self.stability]
@@ -262,13 +262,20 @@ class StandardMeteorolgyConstant_powerLaw:
                 default units [m]
         :return:
             The wind velocity at the requested height.
-        """
+        r"""
         height = tonumber(height, ureg.m)
         refHeight = tonumber(self.refHeight, ureg.m)
         height = numpy.min([numpy.max([height, 0]), 300])
 
         return self.u_refHeight * (height / refHeight) ** self.wind_p
 
+
+    def getWindVelocity_hotSpot(self, height):
+        facfor_dict = dict(A=0.07, B=0.07, C=0.1, D=0.15, E=0.35, F=0.55)
+        u_H = self.u10*(height/(10*ureg.m))**facfor_dict[self.stability]  # The value 10*m in the denominator is the reference height for u10.
+        # u_H_float = round(u_H.m_as(ureg.m/ureg.s), 2)
+        # ret = u_H_float*ureg.m/ureg.s
+        return u_H
 
 class StandardMeteorolgyConstant_log(StandardMeteorolgyConstant_powerLaw):
 
@@ -333,7 +340,7 @@ class MeteorologyFactory:
                                 log=StandardMeteorolgyConstant_log,
                                 uniformWind=StandardMeteorolgyConstant_uniformWind)
 
-    def getMeteorologyFromU10(self, u10, inversion, verticalProfileType="log", temperature=20*ureg.degC, stability="D", z0=0.1*ureg.m, ustar=0.3*ureg.m/ureg.s, skinSurfaceTemperature=35*ureg.degC):
+    def getMeteorologyFromU10(self, u10, inversion, verticalProfileType="log", temperature=ureg.Quantity(20, ureg.degC), stability="D", z0=0.1*ureg.m, ustar=0.3*ureg.m/ureg.s, skinSurfaceTemperature=ureg.Quantity(35, ureg.degC)):
         """
            Creating a meteorology object.
 
@@ -348,8 +355,8 @@ class MeteorologyFactory:
         return self.meteorology[verticalProfileType](u10=u10, inversion=inversion, temperature=temperature, stability=stability,
                                                      z0=z0, ustar=ustar, skinSurfaceTemperature=skinSurfaceTemperature)
 
-    def getMeteorologyFromURefHeight(self, u, inversion, refHeight, verticalProfileType="log", temperature=20*ureg.degC, stability="D",
-                                     z0=0.1*ureg.m, ustar=0.3*ureg.m/ureg.s, skinSurfaceTemperature=35*ureg.degC):
+    def getMeteorologyFromURefHeight(self, u, inversion, refHeight, verticalProfileType="log", temperature=ureg.Quantity(20, ureg.degC), stability="D",
+                                     z0=0.1*ureg.m, ustar=0.3*ureg.m/ureg.s, skinSurfaceTemperature=ureg.Quantity(35, ureg.degC)):
         """
            Creating a meteorology object.
 

@@ -2,21 +2,25 @@
 // use admin;
 db = db.getSiblingDB("admin");
 
-db.getUser("MathAdmin") || db.createUser(
+var adminUser = process.env.MONGO_ADMIN_USER || "MathAdmin";
+var adminPwd  = process.env.MONGO_ADMIN_PWD  || "MathAdmin";
+var heraUser  = process.env.MONGO_HERA_USER  || "hera";
+var heraPwd   = process.env.MONGO_HERA_PWD   || "heracles";
+
+db.getUser(adminUser) || db.createUser(
   {
-    user: "MathAdmin",
-    pwd: "MathAdmin",
+    user: adminUser,
+    pwd: adminPwd,
     roles: [ { role: "userAdminAnyDatabase", db: "admin" } , "readWriteAnyDatabase"]
   }
 );
 
 // use admin;
-db.getUser("hera") || db.createUser(
+db.getUser(heraUser) || db.createUser(
   {
-    user: "hera",
-    pwd:  "heracles",   
+    user: heraUser,
+    pwd:  heraPwd,
     roles: [ { role: "readWrite", db: "olymp" } ]
-
   }
 );
 

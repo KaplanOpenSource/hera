@@ -1,14 +1,17 @@
 import { Delete } from "@mui/icons-material";
-import { createTheme, ThemeProvider } from "@mui/material";
+import { ThemeProvider } from "@mui/material";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { useConfirm } from "../../elements/useConfirm";
 import { fetchPython } from "../../io/fetchPython";
 import { ProjectEntire, ProjectName } from "../../shared/types";
 import { useProjectStore } from "../../stores/useProjectStore";
+import { useAppTheme } from "../../theme";
 
 export const DeleteProjectButton = ({ }) => {
   const { confirmOpen, ConfirmDialog } = useConfirm()
   const { currProjectName, selectProject, setProjectNames, setCurrentProject } = useProjectStore();
+  // Follow the app theme so the dialog isn't tinted by the dark header it opens from.
+  const dialogTheme = useAppTheme();
 
   const deleteProject = async () => {
     const { data } = await fetchPython({
@@ -52,7 +55,7 @@ project = {"name": projectNames[0]['name'], "documents": docs['documents']}
       }}
     >
       <Delete />
-      <ThemeProvider theme={createTheme()}>{ConfirmDialog}</ThemeProvider>
+      <ThemeProvider theme={dialogTheme}>{ConfirmDialog}</ThemeProvider>
     </ButtonTooltip>
   </>)
 }

@@ -1,5 +1,5 @@
 import { ContentCopy, Folder } from '@mui/icons-material';
-import { Stack, Tooltip, Typography } from '@mui/material';
+import { alpha, Stack, Tooltip, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -8,7 +8,7 @@ import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { CENTRAL_REPO_FOLDER_ID, idDocId, idFromDocId } from '../../shared/idDocId';
 import { useProjectStore } from '../../stores/useProjectStore';
-import { documentSearchText } from '../../utils/documentSearch';
+import { documentMatchesQuery, documentSearchText, parseSearchQuery, unknownSearchFields } from '../../utils/documentSearch';
 import { collectBranchKeys, SplitTree } from '../../utils/splitTree';
 import { DocumentSplitGroup } from './DocumentSplitGroup';
 import { ProjectActionsButton } from './ProjectActionsButton';
@@ -38,22 +38,30 @@ export const ProjectTreeView = ({
     [project],
   );
 
-  const query = search.trim().toLowerCase();
+  const searchTerms = useMemo(() => parseSearchQuery(search), [search]);
+  const isSearching = searchTerms.length > 0;
+  const unknownFields = useMemo(() => unknownSearchFields(searchTerms), [searchTerms]);
   const filteredDocs = useMemo(
-    () => query ? searchIndex.filter(e => e.text.includes(query)).map(e => e.doc) : searchIndex.map(e => e.doc),
-    [searchIndex, query],
+    () => isSearching
+      ? searchIndex.filter(e => documentMatchesQuery(e.doc.data, e.text, searchTerms)).map(e => e.doc)
+      : searchIndex.map(e => e.doc),
+    [searchIndex, searchTerms, isSearching],
   );
 
   // While searching, expand every matching branch so results aren't hidden in collapsed groups.
   const searchExpandedKeys = useMemo(() => {
-    if (!query) return [];
+    if (!isSearching) return [];
     const tree = new SplitTree(filteredDocs, viewSettings.maxDepth, viewSettings);
     return ['project-documents', ...collectBranchKeys(tree.nodes)];
-  }, [query, filteredDocs, viewSettings]);
+  }, [isSearching, filteredDocs, viewSettings]);
 
-  const effectiveExpandedItems = query
+  const effectiveExpandedItems = isSearching
     ? [...new Set([...expandedItems, ...searchExpandedKeys])]
     : expandedItems;
+
+  const searchWarning = unknownFields.length
+    ? `Unknown field${unknownFields.length > 1 ? 's' : ''}: ${unknownFields.join(', ')}`
+    : undefined;
 
   const getSplitTree = useCallback(() => {
     const currentProject = useProjectStore.getState().getProject();
@@ -137,7 +145,7 @@ export const ProjectTreeView = ({
 
   return (
     <>
-    <TreeSearchBar value={search} onChange={setSearch} />
+    <TreeSearchBar value={search} onChange={setSearch} warning={searchWarning} />
     <SimpleTreeView
       expandedItems={effectiveExpandedItems}
       onExpandedItemsChange={(e, itemIds) => {
@@ -160,22 +168,22 @@ export const ProjectTreeView = ({
       onSelectedItemsChange={(e, itemIds) => handleSelectionChange(e, itemIds)}
       expansionTrigger={'content'}
       multiSelect
-      sx={{
-        // Highlighted (selected) rows: soft blue.
+      sx={(theme) => ({
+        // Highlighted (selected) rows: soft tint of the primary color, adapts to theme.
         '& .MuiTreeItem-content.Mui-selected': {
-          backgroundColor: 'rgba(25, 118, 210, 0.24)',
+          backgroundColor: alpha(theme.palette.primary.main, 0.24),
         },
         '& .MuiTreeItem-content.Mui-selected:hover': {
-          backgroundColor: 'rgba(25, 118, 210, 0.34)',
+          backgroundColor: alpha(theme.palette.primary.main, 0.34),
         },
-        // Active (focused) row stands out with a stronger blue.
+        // Active (focused) row stands out with a stronger tint.
         '& .MuiTreeItem-content.Mui-selected.Mui-focused': {
-          backgroundColor: 'rgba(25, 118, 210, 0.44)',
+          backgroundColor: alpha(theme.palette.primary.main, 0.44),
         },
         '& .MuiTreeItem-content.Mui-selected.Mui-focused:hover': {
-          backgroundColor: 'rgba(25, 118, 210, 0.54)',
+          backgroundColor: alpha(theme.palette.primary.main, 0.54),
         },
-      }}
+      })}
     >
       <TreeItem key={`project-documents`} itemId={`project-documents`}
         label={(

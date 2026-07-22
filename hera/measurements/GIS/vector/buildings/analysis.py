@@ -7,8 +7,9 @@ import pandas
 import pandas as pd
 import shapely.wkt
 from shapely.geometry import box, Polygon
-from .....utils.logging import get_classMethod_logger
-from .._io_utils import readGeoJSONString, GEO_READ_ERRORS
+from hera.utils.logging import get_classMethod_logger
+from hera.measurements.GIS.vector._io_utils import readGeoJSONString, GEO_READ_ERRORS
+from hera.measurements.GIS.utils import ITM
 
 BUILDINGS_LAMBDA_WIND_DIRECTION = 'wind'
 BUILDINGS_LAMBDA_RESOLUTION = 'resolution'
@@ -618,12 +619,12 @@ if __name__ == "__main__":
     bounding = bsboundingsmall
     cityname = 'bssm'
 
-    bt.addRegion(bounding, cityname, crs=2039)
+    bt.addRegion(bounding, cityname, crs=ITM)
     if 5 == 5:
-        reg = bt.cutRegionFromSource(cityname, datasourceName='BNTL', isBounds=True, crs=2039)
+        reg = bt.cutRegionFromSource(cityname, datasourceName='BNTL', isBounds=True, crs=ITM)
         #	    bt.regionToSTL(cityname,cityname+'-buildings.stl','BNTL')
         print('dddeeebbb')
-        lm = bt.analysis.LambdaFromDatasource(270, 250, reg, 'BNTL', crs=2039, overwrite=True)
+        lm = bt.analysis.LambdaFromDatasource(270, 250, reg, 'BNTL', crs=ITM, overwrite=True)
         print(lm)
         file = open(cityname + '-lambda1.csv', 'w')
         file.writelines('[')
@@ -640,7 +641,7 @@ if __name__ == "__main__":
         file.close()
 
     if 5 == 6:
-        lm = bt._analysis.LambdaFromDatasource(270, 250, reg, 'BNTL', crs=2039)
+        lm = bt._analysis.LambdaFromDatasource(270, 250, reg, 'BNTL', crs=ITM)
         print(lm)
         file = open(cityname + '-lambda.csv', 'w')
         file.writelines('[')
@@ -658,7 +659,7 @@ if __name__ == "__main__":
 
     if 5 == 6:
         bt2 = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_TOPOGRAPHY, projectName="testbamba")
-        bt2.addRegion(bounding, cityname, crs=2039)
+        bt2.addRegion(bounding, cityname, crs=ITM)
         # reg = bt2.cutRegionFromSource('bs',datasourceName='BNTL',isBounds = True, crs = 2039)
         topo = bt2.regionToSTL(bounding, 50, 'BNTL')
         file1 = open(cityname + '-topo.stl', 'w')

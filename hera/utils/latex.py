@@ -8,7 +8,7 @@ import os
 
 
 class bibItem:
-    """
+    r"""
         Represents a single bib item.
 
         \bibitem{paper2}
@@ -223,7 +223,4 @@ class bibtexFile:
 if __name__ == "__main__":
     bb = bibtexFile("hebrewCrossTex/output.bbl")
     print(bb.convert())
-
-
-
 

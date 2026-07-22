@@ -49,6 +49,7 @@ def lowfreq_df(lf_toolkit):
 # Toolkit structure tests
 # ---------------------------------------------------------------------------
 
+@pytest.mark.integration
 class TestLowFreqToolkitInit:
     def test_has_analysis(self, lf_toolkit):
         assert lf_toolkit.analysis is not None
@@ -69,6 +70,7 @@ class TestLowFreqToolkitInit:
 # Analysis tests
 # ---------------------------------------------------------------------------
 
+@pytest.mark.integration
 class TestAnalysisAddDatesColumns:
     def test_basic(self, lf_toolkit, lowfreq_df):
         df = lowfreq_df.copy()
@@ -77,6 +79,7 @@ class TestAnalysisAddDatesColumns:
         assert len(enriched) > 0
 
 
+@pytest.mark.integration
 class TestAnalysisCalcHourlyDist:
     def test_max_normalized(self, lf_toolkit, lowfreq_df):
         df = lowfreq_df.copy()
@@ -97,6 +100,7 @@ class TestAnalysisCalcHourlyDist:
         assert (M >= 0).all(), "Density matrix should not contain negative values"
 
 
+@pytest.mark.unit
 class TestCalcDist2dYNormalized:
     def test_y_normalized_behaviour(self):
         x = np.array([0.5, 1.5, 2.5, 1.5])
@@ -119,6 +123,7 @@ class TestCalcDist2dYNormalized:
         assert np.count_nonzero(M[2]) == 1
 
 
+@pytest.mark.integration
 class TestResampleSecondMoments:
     def test_basic(self, lf_toolkit, lowfreq_df):
         df = lowfreq_df.copy().set_index("datetime")
@@ -145,6 +150,7 @@ class TestResampleSecondMoments:
 # Presentation tests
 # ---------------------------------------------------------------------------
 
+@pytest.mark.integration
 class TestPresentationDailyPlots:
     def test_plotScatter(self, lf_toolkit, lowfreq_df):
         df = lowfreq_df.copy()
@@ -170,6 +176,7 @@ class TestPresentationDailyPlots:
         assert ax is not None
 
 
+@pytest.mark.integration
 class TestPresentationDataMatchPlots:
     def test_dateLinePlot_matches_data(self, lf_toolkit, lowfreq_df):
         df = lowfreq_df.copy()
@@ -207,6 +214,7 @@ class TestPresentationDataMatchPlots:
         assert matches > 0
 
 
+@pytest.mark.integration
 class TestPresentationEdgeCases:
     def test_scatter_empty_dataframe(self, lf_toolkit):
         df = pd.DataFrame(columns=["datetime", "RH"])
@@ -243,6 +251,7 @@ class TestPresentationEdgeCases:
         assert matches > 0
 
 
+@pytest.mark.integration
 class TestPresentationSeasonalPlots:
     def test_plotProbContourf_bySeason(self, lf_toolkit, lowfreq_df):
         df = lowfreq_df.copy()
@@ -266,6 +275,7 @@ class TestPresentationSeasonalPlots:
         assert filtered.max() >= y_min
 
 
+@pytest.mark.integration
 class TestPresentationSavePlot:
     def test_scatter_creates_non_empty_image(self, lf_toolkit, lowfreq_df):
         df = lowfreq_df.copy()

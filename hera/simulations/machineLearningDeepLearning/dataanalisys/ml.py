@@ -585,12 +585,11 @@ class ml(object):
 
 if __name__ == '__main__':
     print('main ml')
-    gridztlv = np.load('/ibdata2/nirb/Projects/tlvz.npy')
-    griduxtlv = np.load('/ibdata2/nirb/Projects/tlvux.npy')
-    
-    
+    gridztlv = np.load('/path/to/z.npy')
+    griduxtlv = np.load('/path/to/ux.npy')
+
     ml2 = ml()
-    clf2, scaler, score = ml2.fit(features0, labelsu20, show='U3', featurestest = features1, labeltest = labelsu21)
-    ml2.save('ml3-'+learnfile)
+    clf2, scaler, score = ml2.fit(features0, labelsu20, show='U3', featurestest=features1, labeltest=labelsu21)
+    ml2.save('ml3-' + learnfile)
 
     u2ml = ml2.predict(features1)

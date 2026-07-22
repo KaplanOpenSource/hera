@@ -100,6 +100,7 @@ def _safe_get(func, *args, **kwargs):
 # Tests
 # ---------------------------------------------------------------------------
 
+@pytest.mark.integration
 class TestGetPointElevation:
     def test_basic(self, topo_toolkit):
         lat, lon = 33.85, 35.15
@@ -126,6 +127,7 @@ class TestGetPointElevation:
         assert abs(toolkit_elev - file_elev) <= 1
 
 
+@pytest.mark.integration
 class TestGetPointListElevation:
     def test_basic(self, topo_toolkit):
         points = pd.DataFrame({"lat": [33.85, 33.9], "lon": [35.15, 36.05]})
@@ -160,6 +162,7 @@ class TestGetPointListElevation:
             pytest.skip("No valid elevation comparisons were possible")
 
 
+@pytest.mark.integration
 class TestGetElevationOfXarray:
     def test_basic(self, topo_toolkit):
         lat_vals = np.array([[33.85, 33.85], [33.86, 33.86]])
@@ -207,6 +210,7 @@ class TestGetElevationOfXarray:
             pytest.skip("No valid comparison points found")
 
 
+@pytest.mark.integration
 class TestGetElevation:
     def test_basic(self, topo_toolkit):
         # Per documented WSG84 contract: minx=latitude, miny=longitude.
@@ -250,13 +254,36 @@ class TestGetElevation:
             pytest.skip("No valid comparison points found")
 
 
+@pytest.mark.integration
 class TestConvertPointsCRS:
     def test_basic(self, topo_toolkit):
         points = [(35.1, 33.85), (36.05, 33.9)]
         converted = topo_toolkit.convertPointsCRS(points, inputCRS=4326, outputCRS=2039)
         assert converted.shape[0] == 2
 
+    def test_single_point_no_deprecation_warning(self, topo_toolkit):
+        """A single-point conversion must not trigger pyproj's array-to-scalar
+        DeprecationWarning (issue971) — geopandas.to_crs() on a 1-row
+        GeoDataFrame mishandles length-1 arrays on the pinned pyproj/geopandas."""
+        import warnings
 
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            converted = topo_toolkit.convertPointsCRS([(35.1, 33.85)], inputCRS=4326, outputCRS=2039)
+
+        assert converted.shape[0] == 1
+
+    def test_single_point_matches_multi_point_conversion(self, topo_toolkit):
+        """The single-point fast path must produce the same result as the
+        general (multi-point) to_crs path for the same coordinate."""
+        single = topo_toolkit.convertPointsCRS([(35.1, 33.85)], inputCRS=4326, outputCRS=2039)
+        multi = topo_toolkit.convertPointsCRS([(35.1, 33.85), (36.05, 33.9)], inputCRS=4326, outputCRS=2039)
+
+        assert single.geometry.iloc[0].x == pytest.approx(multi.geometry.iloc[0].x)
+        assert single.geometry.iloc[0].y == pytest.approx(multi.geometry.iloc[0].y)
+
+
+@pytest.mark.integration
 class TestCreateElevationSTL:
     def test_basic(self, topo_toolkit):
         # Per documented WSG84 contract: minx=latitude, miny=longitude.
@@ -269,6 +296,7 @@ class TestCreateElevationSTL:
             assert stl_str.startswith("solid")
 
 
+@pytest.mark.integration
 class TestGetElevationSTL:
     def test_basic(self, topo_toolkit):
         lat_vals = np.array([[33.85, 33.85], [33.86, 33.86]])
@@ -284,6 +312,7 @@ class TestGetElevationSTL:
         assert stl.startswith("solid SurfaceTest")
 
 
+@pytest.mark.integration
 class TestCalculateStatistics:
     def test_basic(self, topo_toolkit):
         elevation = xr.Dataset({

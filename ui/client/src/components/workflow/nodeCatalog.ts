@@ -35,28 +35,8 @@ export const nodeTypeGroup = (type: string): string => {
 // A plain identifier we can use as an input_parameters key. The catalog also
 // surfaces nested/template paths (e.g. `fields.items`) and loop variables that
 // aren't real top-level parameters, so we keep only simple names.
-const isParameterKey = (name: string): boolean => {
+export const isParameterKey = (name: string): boolean => {
   return /^[A-Za-z_][A-Za-z0-9_]*$/.test(name);
-};
-
-// The input_parameters object to use after a node's type is set to `entry`.
-// Each of the type's parameters is seeded so the user sees the shape to fill in;
-// existing values are preserved (so re-picking a type never discards edited data)
-// and the catalog gives names only, so new keys start empty.
-export const prefilledParameters = (
-  entry: NodeCatalogEntry | undefined,
-  existing: { [key: string]: any },
-): { [key: string]: any } => {
-  if (!entry) {
-    return existing;
-  }
-  const next: { [key: string]: any } = { ...existing };
-  for (const param of entry.parameters) {
-    if (isParameterKey(param.name) && !(param.name in next)) {
-      next[param.name] = '';
-    }
-  }
-  return next;
 };
 
 // The type-level problem with a node, for a soft warning (never blocks editing).

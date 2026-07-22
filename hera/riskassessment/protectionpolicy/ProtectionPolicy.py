@@ -99,7 +99,7 @@ class ProtectionPolicy(object):
 		"""
 		return self._data
 
-	def __init__(self,actionList=[],x="x",y="y",datetime="datetime"): 
+	def __init__(self,actionList=None,x="x",y="y",datetime="datetime"):
 		"""
 			A basic action list. 
 
@@ -110,8 +110,10 @@ class ProtectionPolicy(object):
 				}
 			]
 		"""
+		if actionList is None:
+			actionList = []
 		self._xname 		= x
-		self._yname 		= y 
+		self._yname 		= y
 		self._datetimename 	= datetime
 		self._actionList 	= []
 		self._finalname  	= "C"

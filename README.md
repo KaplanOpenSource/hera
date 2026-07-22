@@ -4,21 +4,19 @@
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-green?logo=github)](https://kaplanopensource.github.io)
 [![Open Source](https://img.shields.io/badge/Open%20Source-Kaplan-orange)](https://kaplanopensource.co.il/)
 
-**Hera** is an advanced open-source project by [Kaplan Open Source Consulting](https://kaplanopensource.co.il/) focused on web-based GIS systems and data processing. It serves as a framework for managing complex geographical data and interactive map visualizations.
+**Hera** is a Python scientific data management platform by [Kaplan Open Source Consulting](https://kaplanopensource.co.il/). It provides a unified MongoDB-backed data layer and a set of domain-specific **Toolkits** for GIS, meteorology, atmospheric dispersion (CFD + Lagrangian particle tracking), and risk assessment.
 
----
-
-## Live Access
-You can view the live deployment of this project here:
-**[https://kaplanopensource.github.io](https://kaplanopensource.github.io)**
+**Stack:** Python 3 · MongoDB (via mongoengine) · pandas · dask · geopandas · xarray · pint · OpenFOAM (optional)
 
 ---
 
 ## Key Features
-*   **GIS Integration:** Built-in support for OpenStreetMap and custom geographic data layers.
-*   **Django Framework:** Robust backend architecture designed for scalability.
-*   **Data Analysis:** Flexible pipelines for processing and visualizing spatial information.
-*   **Interactive Maps:** Lightweight, mobile-friendly interactive map interfaces.
+*   **Unified data layer:** Three MongoDB collections (Measurements, Simulations, Cache) with a consistent document API across all toolkits.
+*   **GIS toolkits:** Topography (SRTM), land cover, vector layers, buildings, demography — powered by geopandas and GDAL.
+*   **Meteorology toolkits:** Low-frequency and high-frequency station data, turbulence statistics, WRF output ingestion.
+*   **Simulation toolkits:** OpenFOAM (Eulerian + Lagrangian), LSM particle tracking, Gaussian dispersion, wind profiles.
+*   **Risk assessment:** Configurable injury/effect models, protection policies, casualty estimation with spatial output.
+*   **Luigi workflows:** `hermesWorkflowToolkit` for DAG-based simulation pipelines on HPC (Slurm).
 
 ---
 

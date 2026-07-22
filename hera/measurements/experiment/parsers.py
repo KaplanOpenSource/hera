@@ -118,8 +118,7 @@ class Parser_OldStyleMetaDataParquet():
         devicePropertiesDict = dict()
         trialPropertiesDict = dict()
 
-        count_Sonic = 0
-        count_TRH = 0
+        inst_counters = {}
 
         for stn in metadata['stations'].keys():
             stnmd = metadata['stations'][stn]
@@ -132,11 +131,8 @@ class Parser_OldStyleMetaDataParquet():
 
                 for devHgt in stnmd['instruments'][inst]:
 
-                    if inst == 'Sonic':
-                        count_Sonic += 1
-                    if inst == 'TRH':
-                        count_TRH += 1
-                    counter=eval(f'count_{inst}')
+                    inst_counters[inst] = inst_counters.get(inst, 0) + 1
+                    counter = inst_counters[inst]
                     deviceName= f'{inst}_{counter}'
                     deviceDataPath=os.path.join(descriptionData['pathToData'],stn,inst,devHgt)
 

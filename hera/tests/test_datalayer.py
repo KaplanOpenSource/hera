@@ -34,10 +34,21 @@ from hera.datalayer.document.metadataDocument import nonDBMetadataFrame
 # ---------------------------------------------------------------------------
 
 def _mongo_is_available():
-    """Return True if the configured MongoDB server is reachable."""
+    """Return True if the configured MongoDB server is reachable.
+
+    Uses a direct pymongo ping with a 1 s server-selection timeout so that
+    collection-time probing does not hang for 30 s when Mongo is down.
+    """
     try:
-        p = Project(projectName="defaultProject")
-        list(p.getMeasurementsDocuments())
+        import pymongo
+        from hera.datalayer.document import getMongoConfigFromJson
+        cfg = getMongoConfigFromJson()
+        host = cfg.get("dbIP", "localhost")
+        port = int(cfg.get("port", 27017))
+        client = pymongo.MongoClient(
+            host=host, port=port, serverSelectionTimeoutMS=1000
+        )
+        client.server_info()
         return True
     except Exception:
         return False
@@ -103,6 +114,7 @@ def clean_proj():
 # 1. Project CRUD — all three collections
 # ===========================================================================
 
+@pytest.mark.integration
 @requires_mongo
 class TestMeasurementsCRUD:
     """Add, get, get-as-dict, delete for Measurements collection."""
@@ -154,6 +166,7 @@ class TestMeasurementsCRUD:
         assert len(remaining) == 0
 
 
+@pytest.mark.integration
 @requires_mongo
 class TestSimulationsCRUD:
     """Add, get, get-as-dict, delete for Simulations collection."""
@@ -193,6 +206,7 @@ class TestSimulationsCRUD:
         assert len(remaining) == 0
 
 
+@pytest.mark.integration
 @requires_mongo
 class TestCacheCRUD:
     """Add, get, get-as-dict, delete for Cache collection."""
@@ -236,6 +250,7 @@ class TestCacheCRUD:
 # 2. Nested queries (dictToMongoQuery)
 # ===========================================================================
 
+@pytest.mark.integration
 @requires_mongo
 class TestNestedQueries:
     """Test querying with nested desc fields."""
@@ -273,6 +288,7 @@ class TestNestedQueries:
 # 3. getAllDocuments — cross-collection query
 # ===========================================================================
 
+@pytest.mark.integration
 @requires_mongo
 class TestGetAllDocuments:
     """Test getAllDocuments aggregates across collections."""
@@ -295,6 +311,7 @@ class TestGetAllDocuments:
 # 4. getDocumentByID
 # ===========================================================================
 
+@pytest.mark.integration
 @requires_mongo
 class TestGetDocumentByID:
     """Test retrieving a document by its MongoDB ID."""
@@ -313,6 +330,7 @@ class TestGetDocumentByID:
 # 5. getMetadata
 # ===========================================================================
 
+@pytest.mark.integration
 @requires_mongo
 class TestGetMetadata:
     """Test getMetadata returns DataFrame of document descriptions."""
@@ -335,6 +353,7 @@ class TestGetMetadata:
 # 6. addDocumentFromDict
 # ===========================================================================
 
+@pytest.mark.integration
 @requires_mongo
 class TestAddDocumentFromDict:
     """Test adding documents from a dictionary representation."""
@@ -358,6 +377,7 @@ class TestAddDocumentFromDict:
 # 7. Counters
 # ===========================================================================
 
+@pytest.mark.integration
 @requires_mongo
 class TestCounters:
     """Test counter operations: define, set, get, getAndAdd."""
@@ -401,6 +421,7 @@ class TestCounters:
 # 8. Configuration
 # ===========================================================================
 
+@pytest.mark.integration
 @requires_mongo
 class TestConfiguration:
     """Test initConfig, setConfig, getConfig."""
@@ -439,6 +460,7 @@ class TestConfiguration:
 # 9. Project properties
 # ===========================================================================
 
+@pytest.mark.integration
 @requires_mongo
 class TestProjectProperties:
     """Test Project properties."""
@@ -468,6 +490,7 @@ class TestProjectProperties:
 # 10. saveData family — round-trip with real files
 # ===========================================================================
 
+@pytest.mark.integration
 @requires_mongo
 class TestSaveData:
     """Test saveMeasurementData, saveCacheData, saveSimulationData with real data."""
@@ -575,6 +598,7 @@ class TestSaveData:
 # 11. DataHandler round-trips (unit tests, no DB needed)
 # ===========================================================================
 
+@pytest.mark.unit
 class TestDataHandlers:
     """Test DataHandler saveData/getData round-trips for key formats."""
 
@@ -639,6 +663,7 @@ class TestDataHandlers:
 # 12. datatypes class methods
 # ===========================================================================
 
+@pytest.mark.unit
 class TestDatatypes:
     """Test datatypes introspection methods."""
 
@@ -684,6 +709,7 @@ class TestDatatypes:
 # 13. Collection direct access
 # ===========================================================================
 
+@pytest.mark.integration
 @requires_mongo
 class TestCollectionDirect:
     """Test AbstractCollection and subclasses directly."""
@@ -809,6 +835,7 @@ class TestCollectionDirect:
 # 14. MetadataFrame
 # ===========================================================================
 
+@pytest.mark.integration
 @requires_mongo
 class TestMetadataFrame:
     """Test MetadataFrame.asDict and MetadataFrame.getData."""
@@ -851,6 +878,7 @@ class TestMetadataFrame:
 # 15. nonDBMetadataFrame
 # ===========================================================================
 
+@pytest.mark.unit
 class TestNonDBMetadataFrame:
     """Test nonDBMetadataFrame wrapping."""
 
@@ -889,6 +917,7 @@ class TestNonDBMetadataFrame:
 # 16. autocache — @cacheFunction decorator
 # ===========================================================================
 
+@pytest.mark.integration
 @requires_mongo
 class TestAutoCache:
     """Test cacheFunction decorator with real MongoDB caching."""
@@ -952,6 +981,7 @@ class TestAutoCache:
 # 17. Export / Import round-trip
 # ===========================================================================
 
+@pytest.mark.integration
 @requires_mongo
 class TestExportImport:
     """Test Project export and load round-trip."""
@@ -1004,6 +1034,7 @@ class TestExportImport:
 # 18. Module-level functions
 # ===========================================================================
 
+@pytest.mark.integration
 @requires_mongo
 class TestModuleFunctionsDB:
     """Test module-level functions that require MongoDB."""
@@ -1018,6 +1049,7 @@ class TestModuleFunctionsDB:
         assert PROJECT_NAME in projects
 
 
+@pytest.mark.unit
 class TestModuleFunctionsLocal:
     """Test module-level functions that do NOT require MongoDB."""
 
@@ -1037,6 +1069,7 @@ class TestModuleFunctionsLocal:
 # 19. parseConnectionString (no DB, no config file)
 # ===========================================================================
 
+@pytest.mark.unit
 class TestParseConnectionString:
     """Test connection string parsing — pure function, no side effects."""
 
@@ -1068,6 +1101,7 @@ class TestParseConnectionString:
 # 20. Config file management (mocked — no real config file touched)
 # ===========================================================================
 
+@pytest.mark.unit
 class TestConfigFileManagement:
     """Test getMongoJSON, addOrUpdateDatabase, removeConnection, getDBNamesFromJSON.
 
@@ -1190,6 +1224,7 @@ class TestConfigFileManagement:
 # 21. saveData with auto-format detection (requires MongoDB)
 # ===========================================================================
 
+@pytest.mark.integration
 @requires_mongo
 class TestSaveDataAutoDetect:
     """Test that saveData auto-detects the format when dataFormat is not specified."""
@@ -1239,6 +1274,7 @@ class TestSaveDataAutoDetect:
 # 22. Simulations/Cache getDocumentsAsDict (requires MongoDB)
 # ===========================================================================
 
+@pytest.mark.integration
 @requires_mongo
 class TestSimulationsCacheAsDict:
     """Test getDocumentsAsDict for Simulations and Cache (Measurements already tested)."""
@@ -1266,6 +1302,7 @@ class TestSimulationsCacheAsDict:
 # 23. Empty project edge cases (requires MongoDB)
 # ===========================================================================
 
+@pytest.mark.integration
 @requires_mongo
 class TestEmptyProjectEdgeCases:
     """Test queries against a project with no documents."""
@@ -1296,6 +1333,7 @@ class TestEmptyProjectEdgeCases:
 # 24. guessHandler (no DB)
 # ===========================================================================
 
+@pytest.mark.unit
 class TestGuessHandler:
     """Test guessHandler with various Python objects."""
 

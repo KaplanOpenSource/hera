@@ -524,11 +524,8 @@ def compare_outputs(result, expected, output_type):
 
     compare = funcs.get(output_type)
     if compare:
-        try:
-            ok = compare()
-            return bool(ok)
-        except Exception:
-            return False
+        ok = compare()
+        return bool(ok)
     return False
 
 

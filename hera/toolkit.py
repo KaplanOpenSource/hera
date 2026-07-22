@@ -1,4 +1,5 @@
 
+import importlib.util
 import os
 import pydoc
 import sys
@@ -104,7 +105,7 @@ class abstractToolkit(Project):
         return self._projectName
 
     def __init__(self, toolkitName: str, projectName: Optional[str] = None,
-                 connectionName: Optional[str] = None, filesDirectory: Optional[str] = None):
+                 connectionName: Optional[str] = None, filesDirectory: Optional[str] = None, **kwargs):
         """
         Initialize a new toolkit.
 
@@ -119,6 +120,9 @@ class abstractToolkit(Project):
             The name of the DB connection. If None, uses the current OS username.
         filesDirectory : str, optional
             Directory to save datasource files.
+        **kwargs
+            Absorbed silently so that subclass ``__init__(self, projectName, **kwargs)``
+            chains up without TypeError. Not forwarded to Project.__init__.
         """
         super().__init__(projectName=projectName, filesDirectory=filesDirectory, connectionName=connectionName)
         logger = get_classMethod_logger(self, "init")
@@ -139,32 +143,38 @@ class abstractToolkit(Project):
     # Document overrides — automatically tag with toolkit name
     # ------------------------------------------------------------------
 
-    def addCacheDocument(self, resource="", dataFormat="string", type="", desc={}):
+    def addCacheDocument(self, resource="", dataFormat="string", type="", desc=None):
         """
         Add a cache document, automatically tagging it with the toolkit name.
 
         See ``Project.addCacheDocument`` for parameter details.
         """
+        if desc is None:
+            desc = {}
         if self.toolkitName is not None:
             desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName)
         return super().addCacheDocument(resource, dataFormat, type, desc)
 
-    def addMeasurementsDocument(self, resource="", dataFormat="string", type="", desc={}):
+    def addMeasurementsDocument(self, resource="", dataFormat="string", type="", desc=None):
         """
         Add a measurements document, automatically tagging it with the toolkit name.
 
         See ``Project.addMeasurementsDocument`` for parameter details.
         """
+        if desc is None:
+            desc = {}
         if self.toolkitName is not None:
             desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName)
         return super().addMeasurementsDocument(resource, dataFormat, type, desc)
 
-    def addSimulationsDocument(self, resource="", dataFormat="string", type="", desc={}, save=True):
+    def addSimulationsDocument(self, resource="", dataFormat="string", type="", desc=None, save=True):
         """
         Add a simulations document, automatically tagging it with the toolkit name.
 
         See ``Project.addSimulationsDocument`` for parameter details.
         """
+        if desc is None:
+            desc = {}
         if self.toolkitName is not None:
             desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName)
         return super().addSimulationsDocument(resource, dataFormat, type, desc, save=save)
@@ -315,14 +325,10 @@ class abstractToolkit(Project):
             latestVersion = max(versionsList)
             docList = [doc for doc in docList if doc['desc']['version'] == latestVersion]
             ret = docList[0]
-
-            # No default was set and multiple versions exist — persist the
-            # latest version as the default so subsequent calls are stable.
-            if version is None and datasourceName is not None:
-                try:
-                    self.setConfig(**{f"{datasourceName}_defaultVersion": latestVersion})
-                except Exception:
-                    pass
+            # Auto-persisting the latest version as the default was intentionally
+            # removed: a getter that silently writes to the DB is a hidden side
+            # effect. Use setDataSourceDefaultVersion() explicitly when you need a
+            # stable default saved to the DB.
 
         return ret
 
@@ -634,7 +640,7 @@ class ToolkitHome(abstractToolkit):
                 type="simulations",
             ),
             OF_LSM=dict(
-                cls="hera.simulations.openFoam.LSM.toolkit.OFLSMToolkit",
+                cls="hera.simulations.openFoam.lagrangian.LSM.toolkit.OFLSMToolkit",
                 desc=None,
                 type="simulations",
             ),
@@ -795,14 +801,31 @@ class ToolkitHome(abstractToolkit):
                 toolkitPath = os.path.abspath(toolkitPath_raw)
 
             # ------------------------------------------------------------
-            # Add toolkit path to sys.path (highest priority)
+            # Validate path and check for module-name shadowing via importlib
+            # before adding to sys.path [1.6, 3.3]
             # ------------------------------------------------------------
-            if toolkitPath in sys.path:
+            _toolkit_abs = os.path.abspath(toolkitPath)
+            if not os.path.isdir(_toolkit_abs):
+                raise ValueError(
+                    f"Dynamic toolkit path does not exist: {_toolkit_abs!r}. "
+                    "Only real directories may be added to sys.path."
+                )
+            # Use importlib to detect shadowing of any already-importable package,
+            # not just a hardcoded list.  The check runs before the path is added
+            # so find_spec only sees the current (unmodified) sys.path.
+            _existing_spec = importlib.util.find_spec(toolkitName)
+            if _existing_spec is not None:
+                raise ValueError(
+                    f"Dynamic toolkit name '{toolkitName}' would shadow the already-importable "
+                    f"module at {_existing_spec.origin!r}. Choose a unique package name."
+                )
+            if _toolkit_abs in sys.path:
                 try:
-                    sys.path.remove(toolkitPath)
+                    sys.path.remove(_toolkit_abs)
                 except ValueError:
                     pass
-            sys.path.insert(0, toolkitPath)
+            sys.path.insert(0, _toolkit_abs)
+            toolkitPath = _toolkit_abs
 
             # self.logger.debug(f"Toolkit path (raw): {toolkitPath_raw}")
             # self.logger.debug(f"Toolkit path (resolved): {toolkitPath}")

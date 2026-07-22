@@ -12,17 +12,18 @@ export interface WorkflowDataflowEdge {
   targetHandle: string;
 }
 
-// Prefixes marking a dataflow handle id (as opposed to a node-level requires
-// handle, which has no id). Output handles leave a node; input handles land.
-export const OUTPUT_HANDLE_PREFIX = 'out:';
-export const INPUT_HANDLE_PREFIX = 'in:';
-
 // Prefix on dataflow edge ids: df:<refNode>.<key>-><target>.<param>.
 export const DATAFLOW_EDGE_PREFIX = 'df:';
 
-// Handle ids (must match the ids rendered on the output chips / input rows).
-export const outputHandleId = (name: string): string => `${OUTPUT_HANDLE_PREFIX}${name}`;
-export const inputHandleId = (name: string): string => `${INPUT_HANDLE_PREFIX}${name}`;
+// Handle ids, each scoped to its node so a node's requires + output/input
+// handles never collide. Only the dataflow (:out:/:in:) ids carry a trailing
+// name, so the matchers below can't mistake a requires handle for a dataflow one.
+export const nodeOutputHandleId = (node: string): string => `${node}:req-out`;
+export const nodeInputHandleId = (node: string): string => `${node}:req-in`;
+export const outputHandleId = (node: string, name: string): string => `${node}:out:${name}`;
+export const inputHandleId = (node: string, param: string): string => `${node}:in:${param}`;
+const OUTPUT_HANDLE_MATCH = /:out:([^:]+)$/;
+const INPUT_HANDLE_MATCH = /:in:([^:]+)$/;
 
 // A reference embedded in a parameter value: {<node>.<section>.<key>}, where the
 // section is parameter(s) or output(s). We only care about the node and the key.
@@ -41,10 +42,12 @@ export const parseDataflowConnection = (
   sourceHandle: string | null | undefined,
   targetHandle: string | null | undefined,
 ): DataflowConnection | null => {
-  if (sourceHandle?.startsWith(OUTPUT_HANDLE_PREFIX) && targetHandle?.startsWith(INPUT_HANDLE_PREFIX)) {
+  const source = sourceHandle?.match(OUTPUT_HANDLE_MATCH);
+  const target = targetHandle?.match(INPUT_HANDLE_MATCH);
+  if (source && target) {
     return {
-      outputName: sourceHandle.slice(OUTPUT_HANDLE_PREFIX.length),
-      param: targetHandle.slice(INPUT_HANDLE_PREFIX.length),
+      outputName: source[1],
+      param: target[1],
     };
   }
   return null;
@@ -67,6 +70,69 @@ export const insertReferenceAt = (
   const token = dataflowReference(sourceNode, outputName);
   const at = Math.max(0, Math.min(caret, value.length));
   return value.slice(0, at) + token + value.slice(at);
+};
+
+// Which part of a half-typed `{…}` reference the caret sits in: the node name
+// (before the first dot) or the output key (after it).
+export enum ReferenceTokenStage {
+  Node = 'node',
+  Output = 'output',
+}
+
+// The `{…}` reference the caret is inside, as parsed for inline autocomplete.
+export interface ReferenceTokenAtCaret {
+  stage: ReferenceTokenStage;
+  // The node name already typed before the section dot — only set on the Output
+  // stage (empty on the Node stage).
+  nodePart: string;
+  // The partial text the caret is filtering by: a partial node name (Node stage)
+  // or a partial output key (Output stage).
+  seed: string;
+  // The token's span in the value, from the opening `{` to just past the closing
+  // `}` (or the caret, if the token is still unclosed) — what replaceReferenceAt
+  // overwrites when a suggestion is chosen.
+  start: number;
+  end: number;
+}
+
+// If `caret` sits inside a `{…}` reference token, describes it (so the caller can
+// show the node or output suggestion menu); otherwise null. A token runs from the
+// nearest `{` at/before the caret (with no `}` in between) to the next `}` after
+// it, or to the caret itself while still unclosed.
+export const tokenAtCaret = (value: string, caret: number): ReferenceTokenAtCaret | null => {
+  const at = Math.max(0, Math.min(caret, value.length));
+  const open = value.lastIndexOf('{', at - 1);
+  if (open === -1 || value.lastIndexOf('}', at - 1) > open) {
+    return null;
+  }
+  const close = value.indexOf('}', open + 1);
+  const nextOpen = value.indexOf('{', open + 1);
+  const closed = close !== -1 && (nextOpen === -1 || nextOpen > close);
+  const end = closed ? close + 1 : at;
+  const inner = value.slice(open + 1, at);
+  const dot = inner.indexOf('.');
+  if (dot === -1) {
+    return { stage: ReferenceTokenStage.Node, nodePart: '', seed: inner, start: open, end };
+  }
+  return {
+    stage: ReferenceTokenStage.Output,
+    nodePart: inner.slice(0, dot),
+    seed: inner.slice(inner.lastIndexOf('.') + 1),
+    start: open,
+    end,
+  };
+};
+
+// Overwrites the token spanning [start, end) with a full reference to sourceNode's
+// output — used when a suggestion is picked from the inline menu.
+export const replaceReferenceAt = (
+  value: string,
+  start: number,
+  end: number,
+  sourceNode: string,
+  outputName: string,
+): string => {
+  return value.slice(0, start) + dataflowReference(sourceNode, outputName) + value.slice(end);
 };
 
 // Returns node with its `param` input set to reference sourceNode's output.
@@ -148,9 +214,9 @@ export const buildDataflowEdges = (
           edges.push({
             id,
             source: refNode,
-            sourceHandle: outputHandleId(key),
+            sourceHandle: outputHandleId(refNode, key),
             target,
-            targetHandle: inputHandleId(param),
+            targetHandle: inputHandleId(target, param),
           });
         }
         match = REFERENCE.exec(value);

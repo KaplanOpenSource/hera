@@ -5,9 +5,11 @@ import { WorkflowNodeOutputChip } from './WorkflowNodeOutputChip';
 // chip per output, each on a row the height of an input row so they line up.
 // Rows hide when the inputs tree is collapsed; the title stays.
 export const WorkflowNodeOutputs = ({
+  nodeName,
   outputs,
   expanded,
 }: {
+  nodeName: string,
   outputs: string[],
   expanded: boolean,
 }) => {
@@ -21,7 +23,7 @@ export const WorkflowNodeOutputs = ({
         outputs
       </Typography>
       {expanded && outputs.map(name => (
-        <WorkflowNodeOutputChip key={name} name={name} />
+        <WorkflowNodeOutputChip key={name} nodeName={nodeName} name={name} />
       ))}
     </Box>
   );
