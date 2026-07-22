@@ -809,7 +809,7 @@ class hermesWorkflowToolkit(abstractToolkit):
             # hermes.build() traverses the workflow node tree, wraps each node in a
             # Luigi task, and returns the Python source code for the task module.
             logger.info(f"Building and executing the workflow {workflowName}")
-            build = hermesWF.build(buildername=workflow.BUILDER_LUIGI, dispatch_id=dispatch_id)
+            build = hermesWF.build(buildername=workflow.BUILDER_LUIGI)
 
             # Step 3: Write the workflow JSON and generated Python module to disk.
             # The JSON is written to the resource path; the Python module contains
