@@ -189,7 +189,7 @@ class ProtectionPolicy(object):
 
 		return self
 		
-	def compute(self,data,C="C"): 
+	def compute(self,data,C="C", lazy=False): 
 		"""
 			Executes the pipeline. 
 		"""
@@ -201,7 +201,8 @@ class ProtectionPolicy(object):
 		for action in self._actionList: 
 			action.compute()
 
-		self._data.compute()
+		if not lazy:
+			self._data.compute()
 		return self.data
 
 	@property
