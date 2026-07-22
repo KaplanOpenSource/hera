@@ -1,10 +1,9 @@
 import os
-import xarray
-import numpy
-import os
-from hera.utils.unitHandler import ureg, unumToPint
 
-from ...utils import tounit,tonumber
+import numpy
+import xarray
+
+from hera.utils.unitHandler import unumToPint, ureg
 
 
 class SingleSimulation(object):
@@ -19,18 +18,19 @@ class SingleSimulation(object):
     def version(self):
         return self._document['desc']['version']
 
-    def __init__(self, resource):
-
+    def __init__(self, resource, chunks={'datetime':-1, 'x':'auto', 'y':'auto', 'z':'auto'}):
         if isinstance(resource,str):
             try:
-                self._finalxarray = xarray.open_mfdataset(os.path.join(resource, '*.nc'), combine='by_coords')
+                self._finalxarray = xarray.open_mfdataset(os.path.join(resource, '*.nc'), combine='by_coords', chunks=chunks)
             except OSError:
-                self._finalxarray = xarray.open_mfdataset(os.path.join(resource,"netcdf", '*.nc'), combine='by_coords')
+                self._finalxarray = xarray.open_mfdataset(os.path.join(resource,"netcdf", '*.nc'), combine='by_coords', chunks=chunks)
+        elif isinstance(resource, (xarray.DataArray, xarray.Dataset)):
+            self._finalxarray=resource
         else:
             self._document = resource
             self._finalxarray = resource.getData()
             if type(self._finalxarray) is str:
-                self._finalxarray = xarray.open_mfdataset(self._finalxarray, combine='by_coords')
+                self._finalxarray = xarray.open_mfdataset(self._finalxarray, combine='by_coords', chunks=chunks)
 
     def getDosage(self, Q=1 * ureg.kg, time_units=ureg.min, q_units=ureg.mg):
         """
@@ -58,12 +58,16 @@ class SingleSimulation(object):
         Q = unumToPint(Q)
         time_units = unumToPint(time_units)
         q_units = unumToPint(q_units)
+        from pandas.api.types import is_numeric_dtype
 
         final_xarray = self._finalxarray.copy()
-        if type(final_xarray.datetime.diff('datetime')[0].values.item())==float:
-            dt_minutes = final_xarray.datetime.diff('datetime')[0].values.item()*ureg.sec #temporary solution!!!!!
+        if is_numeric_dtype(final_xarray.datetime.dtype):
+            dt_minutes = final_xarray.datetime.isel(datetime=[0,1]).diff('datetime')[0].values.item()*ureg.sec
+            # old solution:
+            #   type(final_xarray.datetime.diff('datetime')[0].values.item()) is float:
+            #   .diff('datetime')[0].values.item()*ureg.sec #temporary solution!!!!!
         else:
-            dt_minutes = (final_xarray.datetime.diff('datetime')[0].values / numpy.timedelta64(1, 'm')) * ureg.min
+            dt_minutes = (final_xarray.datetime.isel(datetime=[0,1]).diff('datetime')[0].values / numpy.timedelta64(1, 'm')) * ureg.min
         final_xarray.attrs['dt'] = dt_minutes.to(time_units)
         final_xarray.attrs['Q']  = Q.to(q_units)
         final_xarray.attrs['C']  = q_units/ ureg.m ** 3

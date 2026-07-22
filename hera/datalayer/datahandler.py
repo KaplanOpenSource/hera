@@ -1,9 +1,9 @@
+import importlib
 import json
 import pickle
-import importlib
-import os
-from hera.utils.lazy import _LazyModule
 
+from hera.utils.jsonutils import ConfigurationToJSON, JSONToConfiguration
+from hera.utils.lazy import _LazyModule
 
 numpy  = _LazyModule("numpy")
 pandas = _LazyModule("pandas")
@@ -383,10 +383,13 @@ class DataHandler_HDF(object):
 
 class DataHandler_netcdf_xarray(object):
     """Handler for xarray datasets stored as NetCDF files."""
+    SERIALIZED_ATTRS_KEY = "_serialized_attrs"
 
     @staticmethod
     def saveData(resource, fileName,**kwargs):
         """Save an xarray dataset to NetCDF format."""
+        flattened_attrs = ConfigurationToJSON(resource.attrs)
+        resource.attrs = {DataHandler_netcdf_xarray.SERIALIZED_ATTRS_KEY:json.dumps(flattened_attrs)}
         resource.to_netcdf(fileName,**kwargs)
         return dict()
 
@@ -408,9 +411,12 @@ class DataHandler_netcdf_xarray(object):
         xarray
         """
         import xarray
-        df = xarray.open_mfdataset(resource, combine='by_coords', **kwargs)
+        ds = xarray.open_mfdataset(resource, combine='by_coords', **kwargs)
+        if DataHandler_netcdf_xarray.SERIALIZED_ATTRS_KEY in ds.attrs:
+            ds.attrs = json.loads(ds.attrs[DataHandler_netcdf_xarray.SERIALIZED_ATTRS_KEY])
+        ds.attrs = JSONToConfiguration(ds.attrs)
 
-        return df
+        return ds
 
 
 class DataHandler_zarr_xarray(object):
@@ -430,6 +436,7 @@ class DataHandler_zarr_xarray(object):
         -------
 
         """
+        resource.attrs = ConfigurationToJSON(resource.attrs)
         resource.to_zarr(fileName, mode="w",**kwargs)
         return dict()
 
@@ -452,6 +459,7 @@ class DataHandler_zarr_xarray(object):
         """
         import xarray
         df = xarray.open_zarr(resource, **kwargs)
+        resource.attrs = JSONToConfiguration(resource.attrs)
         return df
 
 
@@ -545,6 +553,7 @@ class DataHandler_JSON_geopandas(object):
     def getData(resource, desc={}, **kwargs):
         """Load a GeoDataFrame from a GeoJSON file."""
         import geopandas
+
         from hera.utils.jsonutils import loadJSON
         df = geopandas.GeoDataFrame.from_features(loadJSON(resource)["features"])
         if "crs" in desc:
@@ -836,9 +845,9 @@ class DataHandler_Class(object):
     @staticmethod
     def getData(resource, desc=None, **kwargs):
         """Import and optionally instantiate a class from ``desc['classpath']``."""
+        import importlib
         import os
         import sys
-        import importlib
 
         # 1) Add search paths to sys.path:
         #    - If resource points to the package directory itself (contains __init__.py),
