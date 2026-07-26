@@ -5,11 +5,11 @@ import { useEffect, useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DocumentObj } from '../../objects/ProjectObj';
 import { AgentConfig } from '../../shared/AgentConfig';
-import { FORBIDDEN_FIELDS } from '../../shared/constants';
+import { DATA_FORMAT_FIELD, DESC_FIELD, FORBIDDEN_FIELDS } from '../../shared/constants';
 import { TabKind } from '../../shared/tabKind';
 import { ProjectDocument, WorkflowDesc } from '../../shared/types';
 import { getWorkflowSolver, isWorkflowDoc, setWorkflowSolver } from '../../shared/workflow';
-import { copyWithout, reorderEntries } from '../../utils/utils';
+import { copyOnly, copyWithout, reorderEntries } from '../../utils/utils';
 import { AgentConfigEditor } from '../agents/AgentConfigEditor';
 import { WorkflowEditor } from '../workflow/WorkflowEditor';
 import { DetailsViewDocumentHeader } from './DetailsViewDocumentHeader';
@@ -68,8 +68,8 @@ export const DetailsViewDocumentContent = ({
   // the workflow's resource is a separate export path, so it stays editable.
   const showKindEditor = showAgentConfig || showWorkflow;
   const headerHiddenFields = showAgentConfig
-    ? ['resource', 'type', 'dataFormat']
-    : (showWorkflow ? ['type', 'dataFormat'] : []);
+    ? ['resource', 'type', DATA_FORMAT_FIELD]
+    : (showWorkflow ? ['type', DATA_FORMAT_FIELD] : []);
 
   const isChanged = JSON.stringify(doc.data) !== JSON.stringify(shownDoc);
   return (
@@ -114,23 +114,26 @@ export const DetailsViewDocumentContent = ({
             ? []
             : [
               { name: 'type', value: shownDoc.type },
-              { name: 'dataFormat', value: shownDoc.dataFormat },
+              { name: DATA_FORMAT_FIELD, value: shownDoc.dataFormat },
             ]
           }
         />
       )}
       {showTree && (
         <SimpleTreeView
-          defaultExpandedItems={[keyForDetailsViewItem('desc'), keyForDetailsViewItem('resource')]}
+          defaultExpandedItems={[keyForDetailsViewItem(DESC_FIELD), keyForDetailsViewItem('resource')]}
+          // Rows reserve extra space below for the "required" helper text, which
+          // centers the chevron a bit low; nudge it up to line up with the name.
+          sx={{ '& .MuiTreeItem-iconContainer': { transform: 'translateY(-3px)' } }}
         >
-          {reorderEntries(Object.entries(shownDoc), ['desc', 'resource']).map(([k, v]) => {
+          {reorderEntries(Object.entries(shownDoc), [DESC_FIELD, 'resource']).map(([k, v]) => {
           if (FORBIDDEN_FIELDS.includes(k)) {
             return null;
           }
           if (headerHiddenFields.includes(k)) {
             return null;
           }
-          const hideOnDesc = showFormulated && k === 'desc';
+          const hideOnDesc = showFormulated && k === DESC_FIELD;
           const descHideFields = showWorkflow ? [...HIDE_ON_DESC, 'workflow'] : HIDE_ON_DESC;
           return (
             <DetailsViewItem
@@ -142,7 +145,8 @@ export const DetailsViewDocumentContent = ({
                 if (!hideOnDesc) {
                   setShownDoc({ ...shownDoc, [k]: newVal });
                 } else {
-                  setShownDoc({ ...shownDoc, desc: { ...shownDoc.desc, ...newVal } });
+                  // Rebuild from newVal (honors deletions) + only the hidden fields; merging over the full old desc would re-add deleted keys.
+                  setShownDoc({ ...shownDoc, desc: { ...newVal, ...copyOnly(shownDoc.desc, descHideFields) } });
                 }
               }}
             />

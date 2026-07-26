@@ -19,7 +19,7 @@ import {
 } from "@mui/material";
 import { SectionHeader } from "../../elements/SectionHeader";
 import { AgentEffect, Calculator } from "../../shared/AgentConfig";
-import { DetailsViewItemName } from "../details/DetailsViewItemName";
+import { RenameField } from "../../elements/RenameField";
 import { CalculatorEditor, getCalculatorType } from "./CalculatorEditor";
 import { InjuryLevelsEditor } from "./InjuryLevelsEditor";
 import { EFFECT_TO_LEVEL_TYPE, EFFECT_TYPES, EffectType } from "./LevelParamsEditor";
@@ -55,12 +55,18 @@ export const EffectEditor = ({
 
   return (
     <Accordion defaultExpanded={false} disableGutters>
-      <AccordionSummary expandIcon={<ExpandMore />}>
+      <AccordionSummary
+        expandIcon={<ExpandMore />}
+        sx={{
+          '& .effect-delete': { visibility: 'hidden' },
+          '&:hover .effect-delete': { visibility: 'visible' },
+        }}
+      >
         <Stack direction="row" alignItems="center" spacing={1} sx={{ flex: 1, mr: 1 }}>
           <Science fontSize="small" color="action" />
-          <DetailsViewItemName
-            itemKey={name}
-            setItemKey={(newName) => {
+          <RenameField
+            value={name}
+            setValue={(newName) => {
               if (newName && newName !== name) {
                 onUpdate(newName, effect);
               }
@@ -70,6 +76,7 @@ export const EffectEditor = ({
           <Chip label={getCalculatorType(effect.calculator)} size="small" variant="outlined" />
         </Stack>
         <IconButton
+          className="effect-delete"
           component="div"
           size="small"
           onClick={(e) => {

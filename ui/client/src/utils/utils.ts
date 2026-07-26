@@ -9,6 +9,16 @@ export const copyWithout = (obj: any, fields: string[]) => {
 };
 
 /**
+ * Copies an object keeping only the specified fields (mirror of copyWithout)
+ * @param obj Object to be cloned
+ * @param fields Fields to keep in the output
+ * @returns The cloned object with only those fields that exist on obj
+ */
+export const copyOnly = (obj: any, fields: string[]) => {
+  return Object.fromEntries(Object.entries(obj).filter(([k, _v]) => fields.includes(k)));
+};
+
+/**
  * Reorder the output of `Object.entries()`
  * @param entries output of `Object.entries()` as array of key value
  * @param firstFields fields to move to the front

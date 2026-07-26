@@ -1,11 +1,14 @@
-import { Stack } from '@mui/material';
+import { Box, Stack } from '@mui/material';
 import { MouseEvent, ReactNode } from 'react';
 import { TreeItem } from '@mui/x-tree-view';
-import { DetailsViewItemName } from './DetailsViewItemName';
+import { useTreeViewContext, UseTreeViewExpansionSignature } from '@mui/x-tree-view/internals';
+import { RenameField } from '../../elements/RenameField';
 import { DetailsViewItemValue } from './DetailsViewItemValue';
 import { DetailsViewItemBranchActions } from './DetailsViewItemBranchActions';
 import { DeleteFieldButton } from './DeleteFieldButton';
+import { ItemTypeSelector, calcItemType, ItemTypesEnum } from './ItemTypeSelector';
 import { EmptyBranchLabel } from './EmptyBranchLabel';
+import { DATA_FORMAT_FIELD, DESC_FIELD, FILES_DIRECTORY_FIELD } from '../../shared/constants';
 import { FieldDef } from './fieldDef';
 
 export const keyForDetailsViewItem = (itemKey: string, parentKey?: string) => {
@@ -44,8 +47,9 @@ export const DetailsViewItem = ({
   onValueCaret?: (itemKey: string, parentKey: string | undefined, value: string, caret: number | null, el: HTMLInputElement) => void,
 }) => {
   const key = keyForDetailsViewItem(itemKey, parentKey);
-  const isTree = typeof itemValue === 'object' && itemValue !== null;
+  const isTree = calcItemType(itemValue) === ItemTypesEnum.object;
   const level = parentKey?.split('/').length || 0;
+  const { publicAPI } = useTreeViewContext<[UseTreeViewExpansionSignature]>();
 
   return (
     <TreeItem
@@ -60,15 +64,36 @@ export const DetailsViewItem = ({
           // Bottom space on every row reserves room for a field's "required"
           // helper text, so it shows without moving anything.
           style={{ marginTop: 7, marginBottom: 14 }}
+          sx={{
+            '& .field-delete, & .field-json': { display: 'none' },
+            '&:hover .field-delete, &:hover .field-json': { display: 'flex' },
+          }}
           onContextMenu={event => onRowContextMenu?.(itemKey, parentKey, event)}
         >
 
           {renderBeforeName?.(itemKey, parentKey, def)}
 
-          <DetailsViewItemName
-            itemKey={itemKey}
-            setItemKey={setItemKey}
+          <RenameField
+            value={itemKey}
+            setValue={setItemKey}
+            labelMinWidth="100px"
           />
+
+          {/* The type chip picks string/number/null/object for every field,
+              except dataFormat (own dropdown) and desc (hidden fields make a
+              type switch unsafe). */}
+          {itemKey !== DATA_FORMAT_FIELD && itemKey !== DESC_FIELD && (
+            <ItemTypeSelector
+              itemValue={itemValue}
+              setItemValue={newVal => {
+                setItemValue(newVal);
+                // Switching to an object opens its new substructure.
+                if (calcItemType(newVal) === ItemTypesEnum.object) {
+                  publicAPI.setItemExpansion({ itemId: key, shouldBeExpanded: true });
+                }
+              }}
+            />
+          )}
 
           {isTree && (
             <DetailsViewItemBranchActions
@@ -87,10 +112,14 @@ export const DetailsViewItem = ({
             />
           )}
 
-          <DeleteFieldButton
-            itemKey={itemKey}
-            setItemKey={setItemKey}
-          />
+          {setItemKey && (
+            <Box className="field-delete">
+              <DeleteFieldButton
+                itemKey={itemKey}
+                setItemKey={setItemKey}
+              />
+            </Box>
+          )}
         </Stack>
       )}
     >
@@ -99,7 +128,7 @@ export const DetailsViewItem = ({
       )}
       {isTree && (<>
         {Object.entries(itemValue).sort().map(([k, v]) => {
-          const isDir = parentKey === undefined && itemKey === 'desc' && k === 'filesDirectory';
+          const isDir = parentKey === undefined && itemKey === DESC_FIELD && k === FILES_DIRECTORY_FIELD;
 
           const changeKey = (newKey: string | undefined) => {
             const item = { ...itemValue };

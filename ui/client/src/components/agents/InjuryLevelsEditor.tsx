@@ -20,7 +20,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
-import { DetailsViewItemName } from "../details/DetailsViewItemName";
+import { RenameField } from "../../elements/RenameField";
 import { SectionHeader } from "../../elements/SectionHeader";
 
 const SortableLevelItem = ({
@@ -51,7 +51,16 @@ const SortableLevelItem = ({
   };
 
   return (
-    <Paper ref={setNodeRef} style={style} variant="outlined" sx={{ p: 1.5 }}>
+    <Paper
+      ref={setNodeRef}
+      style={style}
+      variant="outlined"
+      sx={{
+        p: 1.5,
+        '& .level-delete': { display: 'none' },
+        '&:hover .level-delete': { display: 'inline-flex' },
+      }}
+    >
       <Stack spacing={1.5}>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Stack direction="row" alignItems="center" spacing={0} sx={{ flex: 1, minWidth: 0 }}>
@@ -63,20 +72,21 @@ const SortableLevelItem = ({
             >
               <DragIndicator fontSize="small" />
             </IconButton>
-            <DetailsViewItemName
-              itemKey={name}
-              setItemKey={(newName) => {
+            <RenameField
+              value={name}
+              setValue={(newName) => {
                 if (newName && newName !== name) {
                   renameLevel(name, newName);
                 }
               }}
+              labelMinWidth="100px"
             />
-            <Tooltip title="Remove level">
-              <IconButton size="small" onClick={() => removeLevel(name)}>
-                <Delete fontSize="small" />
-              </IconButton>
-            </Tooltip>
           </Stack>
+          <Tooltip title="Remove level">
+            <IconButton className="level-delete" size="small" onClick={() => removeLevel(name)}>
+              <Delete fontSize="small" />
+            </IconButton>
+          </Tooltip>
           {/* <Typography variant="caption" color="text.secondary">
             #{index + 1}
           </Typography> */}
