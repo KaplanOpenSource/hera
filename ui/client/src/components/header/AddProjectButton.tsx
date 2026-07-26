@@ -14,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { fetchPython } from "../../io/fetchPython";
+import { buildDetectNotebooksCode } from "../project/buildDetectNotebooksCode";
 import { SimpleTreeView } from "@mui/x-tree-view";
 import { RegisteredRepositories } from "../repo/RegisteredRepositories";
 import { useAppTheme } from "../../theme";
@@ -39,7 +40,7 @@ export const AddProjectButton = ({ }) => {
     }
 
     const { data } = await fetchPython({
-      results: [],
+      results: ['filesDirectory'],
       label: `create project ${trimmedName}`,
       code: `
 import os
@@ -55,12 +56,19 @@ project_create(SimpleNamespace(
   overwrite=False))
 
 # Creates a config document in MongoDB so the project appears in getProjectList()
-Project(projectName='${trimmedName}', filesDirectory=${dirStr})
+filesDirectory = Project(projectName='${trimmedName}', filesDirectory=${dirStr}).filesDirectory
 `,
     })
     if (!data) {
       return;
     }
+
+    // Now that the project exists, scan its files directory for existing notebooks.
+    await fetchPython({
+      results: [],
+      label: `detect notebooks ${trimmedName}`,
+      code: buildDetectNotebooksCode({ projectName: trimmedName, filesDir: data.filesDirectory as string }),
+    });
 
     navigate('/' + encodeURIComponent(trimmedName));
     setOpen(false);
