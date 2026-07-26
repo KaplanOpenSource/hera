@@ -41,6 +41,13 @@ for d in docs:
         if (resAbs == filesDir or resAbs.startswith(filesDir + os.sep)) and os.path.exists(resAbs):
             shutil.rmtree(resAbs) if os.path.isdir(resAbs) else os.remove(resAbs)
     All.deleteDocumentByID(d['_id']['$oid'])
+if deleteFiles and filesDir and os.path.isdir(filesDir):
+    # Remove the caseConfiguration.json written at project creation, then drop the folder if it is now empty.
+    caseConfig = os.path.join(filesDir, 'caseConfiguration.json')
+    if os.path.exists(caseConfig):
+        os.remove(caseConfig)
+    if not os.listdir(filesDir):
+        os.rmdir(filesDir)
 projectNames = [{"name": proj} for proj in getProjectList() if proj != '${currProjectName}']
 
 docs = All.getDocumentsAsDict(projectNames[0]['name'], with_id=True)

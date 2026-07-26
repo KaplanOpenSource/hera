@@ -118,6 +118,10 @@ describe('DeleteProjectButton', () => {
     await waitFor(() => {
       const code = mockFetchPython.mock.calls[0][0].code;
       expect(code).toContain('deleteFiles = True');
+      // Also removes the caseConfiguration.json and drops the folder if empty.
+      expect(code).toContain("'caseConfiguration.json'");
+      expect(code).toContain('os.rmdir(filesDir)');
+      expect(code).toContain('if not os.listdir(filesDir)');
     });
   });
 
