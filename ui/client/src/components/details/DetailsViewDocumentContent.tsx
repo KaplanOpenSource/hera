@@ -122,6 +122,9 @@ export const DetailsViewDocumentContent = ({
       {showTree && (
         <SimpleTreeView
           defaultExpandedItems={[keyForDetailsViewItem('desc'), keyForDetailsViewItem('resource')]}
+          // Rows reserve extra space below for the "required" helper text, which
+          // centers the chevron a bit low; nudge it up to line up with the name.
+          sx={{ '& .MuiTreeItem-iconContainer': { transform: 'translateY(-3px)' } }}
         >
           {reorderEntries(Object.entries(shownDoc), ['desc', 'resource']).map(([k, v]) => {
           if (FORBIDDEN_FIELDS.includes(k)) {
