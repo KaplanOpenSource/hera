@@ -9,7 +9,7 @@ import { FORBIDDEN_FIELDS } from '../../shared/constants';
 import { TabKind } from '../../shared/tabKind';
 import { ProjectDocument, WorkflowDesc } from '../../shared/types';
 import { getWorkflowSolver, isWorkflowDoc, setWorkflowSolver } from '../../shared/workflow';
-import { copyWithout, reorderEntries } from '../../utils/utils';
+import { copyOnly, copyWithout, reorderEntries } from '../../utils/utils';
 import { AgentConfigEditor } from '../agents/AgentConfigEditor';
 import { WorkflowEditor } from '../workflow/WorkflowEditor';
 import { DetailsViewDocumentHeader } from './DetailsViewDocumentHeader';
@@ -142,7 +142,8 @@ export const DetailsViewDocumentContent = ({
                 if (!hideOnDesc) {
                   setShownDoc({ ...shownDoc, [k]: newVal });
                 } else {
-                  setShownDoc({ ...shownDoc, desc: { ...shownDoc.desc, ...newVal } });
+                  // Rebuild from newVal (honors deletions) + only the hidden fields; merging over the full old desc would re-add deleted keys.
+                  setShownDoc({ ...shownDoc, desc: { ...newVal, ...copyOnly(shownDoc.desc, descHideFields) } });
                 }
               }}
             />
