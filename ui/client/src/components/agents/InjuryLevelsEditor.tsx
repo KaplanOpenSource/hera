@@ -20,7 +20,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
-import { DetailsViewItemName } from "../details/DetailsViewItemName";
+import { RenameField } from "../../elements/RenameField";
 import { SectionHeader } from "../../elements/SectionHeader";
 
 const SortableLevelItem = ({
@@ -63,13 +63,14 @@ const SortableLevelItem = ({
             >
               <DragIndicator fontSize="small" />
             </IconButton>
-            <DetailsViewItemName
-              itemKey={name}
-              setItemKey={(newName) => {
+            <RenameField
+              value={name}
+              setValue={(newName) => {
                 if (newName && newName !== name) {
                   renameLevel(name, newName);
                 }
               }}
+              labelMinWidth="100px"
             />
             <Tooltip title="Remove level">
               <IconButton size="small" onClick={() => removeLevel(name)}>

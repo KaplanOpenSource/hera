@@ -1,7 +1,7 @@
 import { Stack } from '@mui/material';
 import { MouseEvent, ReactNode } from 'react';
 import { TreeItem } from '@mui/x-tree-view';
-import { DetailsViewItemName } from './DetailsViewItemName';
+import { RenameField } from '../../elements/RenameField';
 import { DetailsViewItemValue } from './DetailsViewItemValue';
 import { DetailsViewItemBranchActions } from './DetailsViewItemBranchActions';
 import { DeleteFieldButton } from './DeleteFieldButton';
@@ -65,9 +65,10 @@ export const DetailsViewItem = ({
 
           {renderBeforeName?.(itemKey, parentKey, def)}
 
-          <DetailsViewItemName
-            itemKey={itemKey}
-            setItemKey={setItemKey}
+          <RenameField
+            value={itemKey}
+            setValue={setItemKey}
+            labelMinWidth="100px"
           />
 
           {isTree && (
