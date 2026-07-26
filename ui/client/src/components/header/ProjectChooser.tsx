@@ -2,7 +2,6 @@ import { Autocomplete, TextField, Stack } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { EMPTY_NAME_PROJECT, useProjectStore } from "../../stores/useProjectStore";
 import { AddProjectButton } from "./AddProjectButton";
-import { DeleteProjectButton } from "./DeleteProjectButton";
 
 const displayName = (name: string) => name || EMPTY_NAME_PROJECT;
 const storeName = (name: string) => name === EMPTY_NAME_PROJECT ? "" : name;
@@ -29,7 +28,6 @@ export const ProjectChooser = () => {
         sx={{ minWidth: 200 }}
       />
       <AddProjectButton />
-      <DeleteProjectButton />
     </Stack>
   );
 };
