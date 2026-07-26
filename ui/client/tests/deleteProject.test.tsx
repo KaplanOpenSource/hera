@@ -50,9 +50,11 @@ describe('DeleteProjectButton', () => {
     const input = await screen.findByRole('textbox');
     fireEvent.change(input, { target: { value: 'wrong' } });
 
-    // The Yes button should be disabled when text doesn't match
+    // Confirming with a non-matching name must not trigger a delete.
     const yesBtn = screen.getByRole('button', { name: /yes/i });
-    expect((yesBtn as HTMLButtonElement).disabled).toBe(true);
+    await act(async () => { fireEvent.click(yesBtn); });
+
+    expect(mockFetchPython).not.toHaveBeenCalled();
   });
 
   it('calls execPython and updates store on confirmed delete', async () => {
@@ -87,11 +89,35 @@ describe('DeleteProjectButton', () => {
     const code = mockFetchPython.mock.calls[0][0].code;
     expect(code).toContain("All.getDocumentsAsDict('Alpha'");
     expect(code).toContain('deleteDocumentByID');
+    // Files are kept by default (checkbox unchecked).
+    expect(code).toContain('deleteFiles = False');
 
     await waitFor(() => {
       const state = useProjectStore.getState();
       expect(state.projectNames).toEqual([{ name: 'Beta' }]);
       expect(state.currProject?.name).toBe('Beta');
+    });
+  });
+
+  it('deletes files from disk when the checkbox is ticked', async () => {
+    mockFetchPython.mockResolvedValueOnce({
+      data: { projectNames: [{ name: 'Beta' }], project: { name: 'Beta', documents: [] } },
+      problem: undefined,
+    });
+
+    render(<Wrapper />);
+    const wrapper = screen.getByLabelText('Delete project');
+    const btn = within(wrapper).getByRole('button');
+    await act(async () => { fireEvent.click(btn); });
+
+    fireEvent.change(await screen.findByRole('textbox'), { target: { value: 'Alpha' } });
+    fireEvent.click(screen.getByRole('checkbox'));
+
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /yes/i })); });
+
+    await waitFor(() => {
+      const code = mockFetchPython.mock.calls[0][0].code;
+      expect(code).toContain('deleteFiles = True');
     });
   });
 
