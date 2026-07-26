@@ -55,7 +55,13 @@ export const EffectEditor = ({
 
   return (
     <Accordion defaultExpanded={false} disableGutters>
-      <AccordionSummary expandIcon={<ExpandMore />}>
+      <AccordionSummary
+        expandIcon={<ExpandMore />}
+        sx={{
+          '& .effect-delete': { visibility: 'hidden' },
+          '&:hover .effect-delete': { visibility: 'visible' },
+        }}
+      >
         <Stack direction="row" alignItems="center" spacing={1} sx={{ flex: 1, mr: 1 }}>
           <Science fontSize="small" color="action" />
           <RenameField
@@ -70,6 +76,7 @@ export const EffectEditor = ({
           <Chip label={getCalculatorType(effect.calculator)} size="small" variant="outlined" />
         </Stack>
         <IconButton
+          className="effect-delete"
           component="div"
           size="small"
           onClick={(e) => {

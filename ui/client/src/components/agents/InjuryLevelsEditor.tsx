@@ -51,7 +51,16 @@ const SortableLevelItem = ({
   };
 
   return (
-    <Paper ref={setNodeRef} style={style} variant="outlined" sx={{ p: 1.5 }}>
+    <Paper
+      ref={setNodeRef}
+      style={style}
+      variant="outlined"
+      sx={{
+        p: 1.5,
+        '& .level-delete': { visibility: 'hidden' },
+        '&:hover .level-delete': { visibility: 'visible' },
+      }}
+    >
       <Stack spacing={1.5}>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Stack direction="row" alignItems="center" spacing={0} sx={{ flex: 1, minWidth: 0 }}>
@@ -72,12 +81,12 @@ const SortableLevelItem = ({
               }}
               labelMinWidth="100px"
             />
-            <Tooltip title="Remove level">
-              <IconButton size="small" onClick={() => removeLevel(name)}>
-                <Delete fontSize="small" />
-              </IconButton>
-            </Tooltip>
           </Stack>
+          <Tooltip title="Remove level">
+            <IconButton className="level-delete" size="small" onClick={() => removeLevel(name)}>
+              <Delete fontSize="small" />
+            </IconButton>
+          </Tooltip>
           {/* <Typography variant="caption" color="text.secondary">
             #{index + 1}
           </Typography> */}
