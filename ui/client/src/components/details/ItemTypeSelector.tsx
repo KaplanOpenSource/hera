@@ -8,6 +8,14 @@ export enum ItemTypesEnum {
   object = 'object',
 }
 
+// Each type gets a semantic MUI palette color so it adapts to light/dark mode.
+const typeColor: { [key in ItemTypesEnum]: 'success' | 'info' | 'secondary' | 'warning' } = {
+  [ItemTypesEnum.string]: 'success',
+  [ItemTypesEnum.number]: 'info',
+  [ItemTypesEnum.object]: 'secondary',
+  [ItemTypesEnum.null]: 'warning',
+};
+
 // The type a raw value currently holds — drives which editor is shown.
 export const calcItemType = (val: any) => {
   if (val === null) {
@@ -63,6 +71,7 @@ export const ItemTypeSelector = ({
       <Chip
         size="small"
         variant="outlined"
+        color={typeColor[itemType]}
         label={itemType}
         onClick={(e: MouseEvent<HTMLElement>) => {
           e.stopPropagation();
@@ -79,6 +88,7 @@ export const ItemTypeSelector = ({
             key={t}
             selected={t === itemType}
             onClick={() => chooseType(t)}
+            sx={{ color: theme => theme.palette[typeColor[t]].main }}
           >
             {t}
           </MenuItem>

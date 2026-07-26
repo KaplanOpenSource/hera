@@ -55,6 +55,18 @@ describe('object as a field type', () => {
     expect(screen.getAllByText('object').length).toBe(2);
   });
 
+  it('colors each type chip with a semantic palette color', () => {
+    renderTree({ s: 'x', n: 5, o: {}, z: null });
+    const chipClass = (label: string) => screen.getByText(label).closest('.MuiChip-root')!.className;
+    expect(chipClass('string')).toContain('colorSuccess');
+    expect(chipClass('number')).toContain('colorInfo');
+    expect(chipClass('null')).toContain('colorWarning');
+    // "object" shows on both the parent and child o; at least one carries secondary
+    expect(
+      screen.getAllByText('object').some(el => el.closest('.MuiChip-root')!.className.includes('colorSecondary'))
+    ).toBe(true);
+  });
+
   it('shows no value editor for a null field (just the type chip)', () => {
     render(
       <SimpleTreeView defaultExpandedItems={['x']}>
