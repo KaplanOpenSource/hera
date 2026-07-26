@@ -79,6 +79,7 @@ export const RenameField = ({
           sx={{
             whiteSpace: 'nowrap',
             minWidth: labelMinWidth,
+            flexShrink: 0,
             cursor: setValue ? 'text' : 'default'
           }}
         >
