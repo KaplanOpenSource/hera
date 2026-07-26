@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DocumentObj } from '../../objects/ProjectObj';
 import { AgentConfig } from '../../shared/AgentConfig';
-import { FORBIDDEN_FIELDS } from '../../shared/constants';
+import { DATA_FORMAT_FIELD, FORBIDDEN_FIELDS } from '../../shared/constants';
 import { TabKind } from '../../shared/tabKind';
 import { ProjectDocument, WorkflowDesc } from '../../shared/types';
 import { getWorkflowSolver, isWorkflowDoc, setWorkflowSolver } from '../../shared/workflow';
@@ -68,8 +68,8 @@ export const DetailsViewDocumentContent = ({
   // the workflow's resource is a separate export path, so it stays editable.
   const showKindEditor = showAgentConfig || showWorkflow;
   const headerHiddenFields = showAgentConfig
-    ? ['resource', 'type', 'dataFormat']
-    : (showWorkflow ? ['type', 'dataFormat'] : []);
+    ? ['resource', 'type', DATA_FORMAT_FIELD]
+    : (showWorkflow ? ['type', DATA_FORMAT_FIELD] : []);
 
   const isChanged = JSON.stringify(doc.data) !== JSON.stringify(shownDoc);
   return (
@@ -114,7 +114,7 @@ export const DetailsViewDocumentContent = ({
             ? []
             : [
               { name: 'type', value: shownDoc.type },
-              { name: 'dataFormat', value: shownDoc.dataFormat },
+              { name: DATA_FORMAT_FIELD, value: shownDoc.dataFormat },
             ]
           }
         />
