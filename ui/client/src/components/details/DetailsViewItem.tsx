@@ -1,6 +1,7 @@
 import { Box, Stack } from '@mui/material';
 import { MouseEvent, ReactNode } from 'react';
 import { TreeItem } from '@mui/x-tree-view';
+import { useTreeViewContext, UseTreeViewExpansionSignature } from '@mui/x-tree-view/internals';
 import { RenameField } from '../../elements/RenameField';
 import { DetailsViewItemValue } from './DetailsViewItemValue';
 import { DetailsViewItemBranchActions } from './DetailsViewItemBranchActions';
@@ -47,6 +48,7 @@ export const DetailsViewItem = ({
   const key = keyForDetailsViewItem(itemKey, parentKey);
   const isTree = typeof itemValue === 'object' && itemValue !== null;
   const level = parentKey?.split('/').length || 0;
+  const { publicAPI } = useTreeViewContext<[UseTreeViewExpansionSignature]>();
 
   return (
     <TreeItem
@@ -82,7 +84,13 @@ export const DetailsViewItem = ({
           {itemKey !== 'dataFormat' && itemKey !== 'desc' && (
             <ItemTypeSelector
               itemValue={itemValue}
-              setItemValue={setItemValue}
+              setItemValue={newVal => {
+                setItemValue(newVal);
+                // Switching to an object opens its new substructure.
+                if (newVal && typeof newVal === 'object') {
+                  publicAPI.setItemExpansion({ itemId: key, shouldBeExpanded: true });
+                }
+              }}
             />
           )}
 

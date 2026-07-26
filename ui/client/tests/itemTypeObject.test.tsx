@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { useState } from 'react';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { DetailsViewItem } from '../src/components/details/DetailsViewItem';
@@ -52,5 +53,23 @@ describe('object as a field type', () => {
     renderTree({ a: { nested: '1' } });
     // both the parent (config) and child (a) are objects
     expect(screen.getAllByText('object').length).toBe(2);
+  });
+
+  it('expands a field when it becomes an object', () => {
+    // Stateful harness so the value actually turns into {} and the row can open.
+    const Harness = () => {
+      const [val, setVal] = useState<any>({ a: 'x' });
+      return (
+        <SimpleTreeView defaultExpandedItems={['config']}>
+          <DetailsViewItem itemKey='config' itemValue={val} setItemValue={setVal} parentKey={undefined} />
+        </SimpleTreeView>
+      );
+    };
+    render(<Harness />);
+    // a is a leaf, so its "(empty)" substructure label is not shown yet
+    expect(screen.queryByText('(empty)')).toBeNull();
+    pickType('string', 'object');
+    // a is now an empty object AND auto-expanded, so its "(empty)" label shows
+    expect(screen.getByText('(empty)')).toBeDefined();
   });
 });
