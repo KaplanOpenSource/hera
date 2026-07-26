@@ -12,7 +12,6 @@ export const DetailsViewItemName = ({
       value={itemKey}
       setValue={setItemKey}
       labelMinWidth="100px"
-      editMinWidth="300px"
     />
   )
 }

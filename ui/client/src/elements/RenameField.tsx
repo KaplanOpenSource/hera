@@ -1,4 +1,4 @@
-import { Box, TextField, Typography } from "@mui/material";
+import { TextField, Typography } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { ButtonTooltip } from "./ButtonTooltip";
 import { Check, Close } from "@mui/icons-material";
@@ -8,13 +8,11 @@ export const RenameField = ({
   setValue = undefined,
   defaultEditing = false,
   labelMinWidth = undefined,
-  editMinWidth = undefined,
 }: {
   value: string,
   setValue?: (newVal: string) => void,
   defaultEditing?: boolean,
   labelMinWidth?: string,
-  editMinWidth?: string,
 }) => {
   const [editing, setEditing] = useState(defaultEditing);
   const [internalValue, setInternalValue] = useState(value);
@@ -47,36 +45,33 @@ export const RenameField = ({
   return (
     (editing && setValue)
       ? (
-        <Box sx={{ minWidth: editMinWidth }}>
-          <TextField
-            size='small'
-            inputRef={inputRef}
-            value={internalValue}
-            onChange={(e) => setInternalValue(e.target.value)}
-            onClick={e => e.stopPropagation()}
-            onKeyDown={e => {
-              e.stopPropagation();
-              if (e.key === 'Enter') {
-                confirm();
-              } else if (e.key === 'Escape') {
-                cancel();
-              }
-            }}
-            slotProps={{
-              input: {
-                endAdornment: (<>
-                  <ButtonTooltip title={'Rename'} onClick={confirm}>
-                    <Check fontSize="small" />
-                  </ButtonTooltip>
-                  <ButtonTooltip title={'Cancel Rename'} onClick={cancel}>
-                    <Close fontSize="small" />
-                  </ButtonTooltip>
-                </>)
-              }
-            }}
-            fullWidth
-          />
-        </Box>
+        <TextField
+          size='small'
+          inputRef={inputRef}
+          value={internalValue}
+          onChange={(e) => setInternalValue(e.target.value)}
+          onClick={e => e.stopPropagation()}
+          onKeyDown={e => {
+            e.stopPropagation();
+            if (e.key === 'Enter') {
+              confirm();
+            } else if (e.key === 'Escape') {
+              cancel();
+            }
+          }}
+          slotProps={{
+            input: {
+              endAdornment: (<>
+                <ButtonTooltip title={'Rename'} onClick={confirm}>
+                  <Check fontSize="small" />
+                </ButtonTooltip>
+                <ButtonTooltip title={'Cancel Rename'} onClick={cancel}>
+                  <Close fontSize="small" />
+                </ButtonTooltip>
+              </>)
+            }
+          }}
+        />
       )
       : (
         <Typography
