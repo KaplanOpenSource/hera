@@ -1,5 +1,5 @@
 import { ContentCopy } from "@mui/icons-material";
-import { Stack, TextField } from "@mui/material";
+import { Box, Checkbox, FormControlLabel, Stack, TextField, Typography } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { useDialog } from "../../elements/useDialog";
@@ -10,6 +10,7 @@ import { useProjectStore } from "../../stores/useProjectStore";
 interface CopyProjectValues {
   newName: string;
   newDir: string;
+  selectedFolders: string[];
 }
 
 export const CopyProjectButton = ({
@@ -21,15 +22,34 @@ export const CopyProjectButton = ({
   const { currProjectName, setProjectNames } = useProjectStore();
   const navigate = useNavigate();
 
-  // Default the copy into a sibling folder of the source, named after the copy.
+  // Default the copy into the source's "projects" folder (the nearest 'projects' ancestor,
+  // or a projects/ subfolder if the source isn't under one), named after the copy.
   const srcFilesDir = useProjectStore.getState().getProject()?.configDocument?.data.desc.filesDirectory ?? '';
   const defaultName = `${currProjectName}_copy`;
-  const parentDir = srcFilesDir.replace(/\/+$/, '').split('/').slice(0, -1).join('/');
-  const defaultDir = parentDir
-    ? `${parentDir}/${defaultName}`
-    : (srcFilesDir ? `${srcFilesDir}/${defaultName}` : '');
+  const cleanDir = srcFilesDir.replace(/\/+$/, '');
+  const parts = cleanDir.split('/');
+  const projectsIdx = parts.lastIndexOf('projects');
+  const projectsDir = projectsIdx >= 0
+    ? parts.slice(0, projectsIdx + 1).join('/')
+    : (cleanDir ? `${cleanDir}/projects` : '');
+  const defaultDir = projectsDir ? `${projectsDir}/${defaultName}` : '';
 
-  const copyProject = async (newName: string, newDir: string) => {
+  // File resources of the current project's file-backed documents.
+  const sourceFiles = (useProjectStore.getState().getProject()?.documents ?? [])
+    .map(d => d.data.resource)
+    .filter((r): r is string => typeof r === 'string' && r.includes('/'));
+
+  // Distinct folders those files live in.
+  const sourceFolders = [...new Set(
+    sourceFiles.map(r => r.slice(0, r.lastIndexOf('/')))
+  )].sort();
+
+  // Only folders inside the project's files directory can be copied; the rest are collapsed into one "outside" row.
+  const underProject = (p: string) => !!srcFilesDir && (p === srcFilesDir || p.startsWith(srcFilesDir + '/'));
+  const inProjectFolders = sourceFolders.filter(underProject);
+  const hasOutside = sourceFolders.some(f => !underProject(f));
+
+  const copyProject = async (newName: string, newDir: string, selectedFolders: string[]) => {
     const dirExpr = newDir !== ''
       ? `'${newDir}'`
       : `os.path.join(os.getcwd(), 'projects', '${newName}')`;
@@ -43,6 +63,7 @@ from hera.datalayer.project import getProjectList, createProjectDirectory, Proje
 
 srcName = '${currProjectName}'
 newName = '${newName}'
+selectedFolders = ${JSON.stringify(selectedFolders)}
 if newName in getProjectList():
     raise ValueError(f"A project named {newName} already exists")
 
@@ -59,11 +80,11 @@ for doc in All.getDocuments(projectName=srcName):
     if d.get('type') == configType:
         continue  # the destination already has its own config document
     res = d.get('resource')
-    # Copy single on-disk files that live inside the source files directory, preserving their relative path.
-    # Directory resources are left pointing at the original folder for now (not copied).
-    if isinstance(res, str) and res and srcDir:
+    # Copy single files whose folder was selected (all selected folders live inside the project);
+    # everything else keeps its original resource path.
+    if isinstance(res, str) and res:
         resAbs = os.path.abspath(res)
-        if (resAbs == srcDir or resAbs.startswith(srcDir + os.sep)) and os.path.isfile(resAbs):
+        if os.path.isfile(resAbs) and os.path.dirname(resAbs) in selectedFolders:
             newRes = os.path.join(newDir, os.path.relpath(resAbs, srcDir))
             os.makedirs(os.path.dirname(newRes), exist_ok=True)
             shutil.copy2(resAbs, newRes)
@@ -86,11 +107,12 @@ projectNames = [{"name": proj} for proj in getProjectList()]
       button
       title='Copy project'
       onClick={async () => {
+        console.log('Project files:', sourceFiles);
         const { confirmed, values } = await openDialog({
           title: `Copy ${currProjectName} to a new project`,
           maxWidth: 'md',
           yesText: 'Copy',
-          initialValues: { newName: defaultName, newDir: defaultDir },
+          initialValues: { newName: defaultName, newDir: defaultDir, selectedFolders: inProjectFolders },
           render: ({ values, setValues }) => (
             <Stack spacing={2} sx={{ width: 560, maxWidth: '100%' }}>
               <TextField
@@ -110,12 +132,49 @@ projectNames = [{"name": proj} for proj in getProjectList()]
                 onChange={(e) => setValues({ ...values, newDir: e.target.value })}
                 onClick={(e) => e.stopPropagation()}
               />
+              {inProjectFolders.length === 0 && !hasOutside
+                ? <Typography variant='caption' color='text.secondary'>No file-backed documents.</Typography>
+                : (
+                  <Box>
+                    <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mb: 0.5 }}>
+                      Copy files from folders:
+                    </Typography>
+                    <Box sx={{ maxHeight: 200, overflowY: 'auto' }}>
+                      {inProjectFolders.map(f => (
+                        <FormControlLabel
+                          key={f}
+                          sx={{ display: 'flex', m: 0 }}
+                          control={
+                            <Checkbox
+                              size='small'
+                              sx={{ py: 0.25 }}
+                              checked={values.selectedFolders.includes(f)}
+                              onChange={(e) => setValues({
+                                ...values,
+                                selectedFolders: e.target.checked
+                                  ? [...values.selectedFolders, f]
+                                  : values.selectedFolders.filter(x => x !== f),
+                              })}
+                            />
+                          }
+                          label={<Box component='span' sx={{ fontFamily: 'monospace', fontSize: 13 }}>{f}</Box>}
+                        />
+                      ))}
+                    </Box>
+                    {hasOutside && (
+                      <Typography variant='caption' color='text.secondary' sx={{ mt: 0.5, display: 'block' }}>
+                        Some files are outside the project folder and will not be copied.
+                      </Typography>
+                    )}
+                  </Box>
+                )
+              }
             </Stack>
           ),
         });
         const newName = values?.newName.trim();
         if (confirmed && newName) {
-          await copyProject(newName, values!.newDir.trim());
+          await copyProject(newName, values!.newDir.trim(), values!.selectedFolders);
         }
       }}
     >

@@ -71,6 +71,29 @@ describe('CopyProjectButton', () => {
     expect(dirInput.value).toBe('/data/projects/Alpha_copy');
   });
 
+  it('lists the distinct folders the project files come from', async () => {
+    useProjectStore.setState({
+      projectNames: [{ name: 'Alpha' }],
+      currProjectName: 'Alpha',
+      currProject: {
+        name: 'Alpha',
+        documents: [
+          { _id: { $oid: 'cfg' }, type: 'Alpha__config__', desc: { filesDirectory: '/data/Alpha' }, _cls: 'Cache', resource: '', dataFormat: 'string', projectName: 'Alpha' },
+          { _id: { $oid: 'a' }, type: 'notebook', desc: {}, _cls: 'Cache', resource: '/data/Alpha/notebooks/x.ipynb', dataFormat: 'JSON_dict', projectName: 'Alpha' },
+          { _id: { $oid: 'b' }, type: 'notebook', desc: {}, _cls: 'Cache', resource: '/data/Alpha/notebooks/y.ipynb', dataFormat: 'JSON_dict', projectName: 'Alpha' },
+          { _id: { $oid: 'c' }, type: 'T', desc: {}, _cls: 'Measurements', resource: '/data/Alpha/raw/z.parquet', dataFormat: 'parquet', projectName: 'Alpha' },
+          { _id: { $oid: 'd' }, type: 'agent', desc: {}, _cls: 'Cache', resource: { effects: {} }, dataFormat: 'JSON_dict', projectName: 'Alpha' },
+        ],
+      },
+      toolkits: [],
+    });
+
+    const dialog = await openDialog();
+    // Distinct parent folders, deduped and sorted; inline (agent) resource excluded.
+    expect(within(dialog).getByText('/data/Alpha/notebooks')).toBeTruthy();
+    expect(within(dialog).getByText('/data/Alpha/raw')).toBeTruthy();
+  });
+
   it('copies documents and files to the new project and folder', async () => {
     mockFetchPython.mockResolvedValueOnce({
       data: { projectNames: [{ name: 'Alpha' }, { name: 'Beta' }] },
