@@ -55,6 +55,16 @@ describe('object as a field type', () => {
     expect(screen.getAllByText('object').length).toBe(2);
   });
 
+  it('shows no value editor for a null field (just the type chip)', () => {
+    render(
+      <SimpleTreeView defaultExpandedItems={['x']}>
+        <DetailsViewItem itemKey='x' itemValue={null} setItemValue={vi.fn()} parentKey={undefined} />
+      </SimpleTreeView>
+    );
+    expect(screen.getByText('null')).toBeDefined();      // the type chip
+    expect(screen.queryByRole('textbox')).toBeNull();    // no disabled "null" field
+  });
+
   it('expands a field when it becomes an object', () => {
     // Stateful harness so the value actually turns into {} and the row can open.
     const Harness = () => {

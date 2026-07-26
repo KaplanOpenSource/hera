@@ -28,6 +28,11 @@ export const DetailsViewItemSingle = ({
     onCaret?.(el.value, el.selectionStart, el);
   };
 
+  // A null field has no value to edit; the type chip already shows "null".
+  if (itemType === ItemTypesEnum.null) {
+    return null;
+  }
+
   return (
     <TextField
       size='small'
@@ -47,7 +52,6 @@ export const DetailsViewItemSingle = ({
       onKeyUp={e => reportCaret(e.target as HTMLInputElement)}
       onKeyDown={e => e.stopPropagation()}
       fullWidth
-      disabled={itemType === ItemTypesEnum.null}
       error={missing}
       helperText={missing ? 'required' : undefined}
       // Float the "required" text just below the field: absolute so it adds no

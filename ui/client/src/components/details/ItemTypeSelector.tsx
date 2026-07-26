@@ -33,9 +33,11 @@ const coerceToType = (t: ItemTypesEnum, current: any) => {
       const num = parseFloat(current);
       return Number.isFinite(num) ? num : 0;
     }
-    default:
+    default: {
       // string: an object/null has no sensible text, so start empty.
-      return (current === null || typeof current === 'object') ? '' : String(current);
+      const currentType = calcItemType(current);
+      return (currentType === ItemTypesEnum.null || currentType === ItemTypesEnum.object) ? '' : String(current);
+    }
   }
 };
 

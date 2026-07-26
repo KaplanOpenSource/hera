@@ -6,7 +6,7 @@ import { RenameField } from '../../elements/RenameField';
 import { DetailsViewItemValue } from './DetailsViewItemValue';
 import { DetailsViewItemBranchActions } from './DetailsViewItemBranchActions';
 import { DeleteFieldButton } from './DeleteFieldButton';
-import { ItemTypeSelector } from './ItemTypeSelector';
+import { ItemTypeSelector, calcItemType, ItemTypesEnum } from './ItemTypeSelector';
 import { EmptyBranchLabel } from './EmptyBranchLabel';
 import { DATA_FORMAT_FIELD, DESC_FIELD, FILES_DIRECTORY_FIELD } from '../../shared/constants';
 import { FieldDef } from './fieldDef';
@@ -47,7 +47,7 @@ export const DetailsViewItem = ({
   onValueCaret?: (itemKey: string, parentKey: string | undefined, value: string, caret: number | null, el: HTMLInputElement) => void,
 }) => {
   const key = keyForDetailsViewItem(itemKey, parentKey);
-  const isTree = typeof itemValue === 'object' && itemValue !== null;
+  const isTree = calcItemType(itemValue) === ItemTypesEnum.object;
   const level = parentKey?.split('/').length || 0;
   const { publicAPI } = useTreeViewContext<[UseTreeViewExpansionSignature]>();
 
@@ -88,7 +88,7 @@ export const DetailsViewItem = ({
               setItemValue={newVal => {
                 setItemValue(newVal);
                 // Switching to an object opens its new substructure.
-                if (newVal && typeof newVal === 'object') {
+                if (calcItemType(newVal) === ItemTypesEnum.object) {
                   publicAPI.setItemExpansion({ itemId: key, shouldBeExpanded: true });
                 }
               }}
