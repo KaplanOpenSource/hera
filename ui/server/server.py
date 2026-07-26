@@ -19,6 +19,8 @@ from jupyter_server_thread import JupyterServerThread, DEFAULT_JUPYTER_PORT
 from mock_data import MOCK_PROJECTS
 from node_catalog import get_node_catalog
 
+LOG_MAX_LEN = 350
+
 cors_handler = CorsHandler()
 parser = argparse.ArgumentParser(description="Hera UI API server")
 cors_handler.add_argument(parser)
@@ -122,6 +124,14 @@ class ExecResponse(BaseModel):
     problem: Optional[Problem] = None
 
 
+def _truncate_for_log(value: Any) -> str:
+    """Stringify a value for logging, cutting off long output so it doesn't flood the log."""
+    text = repr(value)
+    if len(text) > LOG_MAX_LEN:
+        return f"{text[:LOG_MAX_LEN]}... [truncated, orig len {len(text)} chars]"
+    return text
+
+
 # Code execution endpoint (simple: eval expression and return its value)
 @app.post("/exec", response_model=ExecResponse)
 def exec_code(payload: ExecPayload) -> ExecResponse:
@@ -138,7 +148,7 @@ def exec_code(payload: ExecPayload) -> ExecResponse:
         print("exec error:", tb)
         return ExecResponse(problem=Problem(error=error, traceback=tb))
     result = _locals.get("result", None)
-    print("got:", result)
+    print("got:", _truncate_for_log(result))
     return ExecResponse(data=jsonable_encoder(result))
 
 
