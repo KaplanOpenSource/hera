@@ -5,12 +5,15 @@ export enum ItemTypesEnum {
   number = 'number',
   string = 'string',
   null = 'null',
+  object = 'object',
 }
 
 // The type a raw value currently holds — drives which editor is shown.
 export const calcItemType = (val: any) => {
   if (val === null) {
     return ItemTypesEnum.null;
+  } else if (typeof val === 'object') {
+    return ItemTypesEnum.object;
   } else if ((typeof val === 'number' || typeof val === 'bigint') && Number.isFinite(val)) {
     return ItemTypesEnum.number;
   } else {
@@ -18,32 +21,38 @@ export const calcItemType = (val: any) => {
   }
 };
 
+// The value to store when a field is switched to the given type. Objects become
+// an empty substructure; scalars coerce the current value where it makes sense.
+const coerceToType = (t: ItemTypesEnum, current: any) => {
+  switch (t) {
+    case ItemTypesEnum.object:
+      return {};
+    case ItemTypesEnum.null:
+      return null;
+    case ItemTypesEnum.number: {
+      const num = parseFloat(current);
+      return Number.isFinite(num) ? num : 0;
+    }
+    default:
+      // string: an object/null has no sensible text, so start empty.
+      return (current === null || typeof current === 'object') ? '' : String(current);
+  }
+};
+
 // A small chip showing the value's type. Clicking it opens a menu to pick a
-// type, which both records the new type and coerces the current value to match
-// (null / number / string).
+// type, which coerces the current value to match (including object = substructure).
 export const ItemTypeSelector = ({
-  itemType,
-  setItemType,
   itemValue,
   setItemValue,
 }: {
-  itemType: ItemTypesEnum,
-  setItemType: (t: ItemTypesEnum) => void,
   itemValue: any,
   setItemValue: (newVal: any) => void,
 }) => {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const itemType = calcItemType(itemValue);
 
-  const chooseType = (v: ItemTypesEnum) => {
-    setItemType(v);
-    if (v === ItemTypesEnum.null) {
-      setItemValue(null);
-    } else if (v === ItemTypesEnum.number) {
-      const num = parseFloat(itemValue);
-      setItemValue(Number.isFinite(num) ? num : 0);
-    } else {
-      setItemValue(itemValue + '');
-    }
+  const chooseType = (t: ItemTypesEnum) => {
+    setItemValue(coerceToType(t, itemValue));
     setAnchorEl(null);
   };
 

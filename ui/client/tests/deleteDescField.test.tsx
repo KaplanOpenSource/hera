@@ -49,6 +49,22 @@ describe('deleting a field under desc', () => {
     expect(newDoc.desc).toEqual({ toolkit: 'GIS' });
   });
 
+  it('does not offer a type chip on desc (its hidden fields make a switch unsafe)', () => {
+    const doc = makeDoc({ myField: 'hello', toolkit: 'GIS' });
+    render(
+      <DetailsViewDocumentContent
+        doc={doc}
+        setDoc={vi.fn()}
+        shownDoc={doc.data}
+        setShownDoc={vi.fn()}
+      />
+    );
+    // desc is the only top-level object; with no chip on it, "object" never shows.
+    expect(screen.queryByText('object')).toBeNull();
+    // but scalar fields still have a type chip
+    expect(screen.getAllByText('string').length).toBeGreaterThan(0);
+  });
+
   it('makes the row disappear in the live view', () => {
     const doc = makeDoc({ myField: 'hello', toolkit: 'GIS' });
     render(<DetailsViewDocument doc={doc} setDoc={vi.fn()} />);

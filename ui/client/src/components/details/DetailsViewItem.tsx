@@ -5,6 +5,7 @@ import { RenameField } from '../../elements/RenameField';
 import { DetailsViewItemValue } from './DetailsViewItemValue';
 import { DetailsViewItemBranchActions } from './DetailsViewItemBranchActions';
 import { DeleteFieldButton } from './DeleteFieldButton';
+import { ItemTypeSelector } from './ItemTypeSelector';
 import { EmptyBranchLabel } from './EmptyBranchLabel';
 import { FieldDef } from './fieldDef';
 
@@ -74,6 +75,16 @@ export const DetailsViewItem = ({
             setValue={setItemKey}
             labelMinWidth="100px"
           />
+
+          {/* The type chip picks string/number/null/object for every field,
+              except dataFormat (own dropdown) and desc (hidden fields make a
+              type switch unsafe). */}
+          {itemKey !== 'dataFormat' && itemKey !== 'desc' && (
+            <ItemTypeSelector
+              itemValue={itemValue}
+              setItemValue={setItemValue}
+            />
+          )}
 
           {isTree && (
             <DetailsViewItemBranchActions

@@ -1,9 +1,9 @@
-import { Add, CreateNewFolder } from '@mui/icons-material';
+import { Add } from '@mui/icons-material';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { EditAsJsonButton } from './EditAsJsonButton';
 
-// Actions shown on a branch (object-valued) row: add a child, add a sub
-// structure, or edit the whole subtree as JSON.
+// Actions shown on a branch (object-valued) row: add a child, or edit the whole
+// subtree as JSON. A child becomes a nested object via its own type chip.
 export const DetailsViewItemBranchActions = ({
   itemValue,
   setItemValue,
@@ -30,12 +30,6 @@ export const DetailsViewItemBranchActions = ({
         onClick={() => addSubItem('')}
       >
         <Add />
-      </ButtonTooltip>
-      <ButtonTooltip
-        title={'Add sub structure'}
-        onClick={() => addSubItem({})}
-      >
-        <CreateNewFolder />
       </ButtonTooltip>
       <EditAsJsonButton
         data={itemValue}
