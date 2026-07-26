@@ -1,4 +1,4 @@
-import { Stack } from '@mui/material';
+import { Box, Stack } from '@mui/material';
 import { MouseEvent, ReactNode } from 'react';
 import { TreeItem } from '@mui/x-tree-view';
 import { RenameField } from '../../elements/RenameField';
@@ -60,6 +60,10 @@ export const DetailsViewItem = ({
           // Bottom space on every row reserves room for a field's "required"
           // helper text, so it shows without moving anything.
           style={{ marginTop: 7, marginBottom: 14 }}
+          sx={{
+            '& .field-delete': { display: 'none' },
+            '&:hover .field-delete': { display: 'flex' },
+          }}
           onContextMenu={event => onRowContextMenu?.(itemKey, parentKey, event)}
         >
 
@@ -88,10 +92,14 @@ export const DetailsViewItem = ({
             />
           )}
 
-          <DeleteFieldButton
-            itemKey={itemKey}
-            setItemKey={setItemKey}
-          />
+          {setItemKey && (
+            <Box className="field-delete">
+              <DeleteFieldButton
+                itemKey={itemKey}
+                setItemKey={setItemKey}
+              />
+            </Box>
+          )}
         </Stack>
       )}
     >

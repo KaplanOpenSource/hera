@@ -57,8 +57,8 @@ const SortableLevelItem = ({
       variant="outlined"
       sx={{
         p: 1.5,
-        '& .level-delete': { visibility: 'hidden' },
-        '&:hover .level-delete': { visibility: 'visible' },
+        '& .level-delete': { display: 'none' },
+        '&:hover .level-delete': { display: 'inline-flex' },
       }}
     >
       <Stack spacing={1.5}>

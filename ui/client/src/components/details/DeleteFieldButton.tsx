@@ -16,7 +16,7 @@ export const DeleteFieldButton = ({
         title={'Delete ' + itemKey}
         onClick={() => setItemKey(undefined)}
       >
-        <Delete />
+        <Delete fontSize='small'/>
       </ButtonTooltip>
     )
   );
