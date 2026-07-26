@@ -8,7 +8,7 @@ import { DetailsViewItemBranchActions } from './DetailsViewItemBranchActions';
 import { DeleteFieldButton } from './DeleteFieldButton';
 import { ItemTypeSelector } from './ItemTypeSelector';
 import { EmptyBranchLabel } from './EmptyBranchLabel';
-import { DATA_FORMAT_FIELD } from '../../shared/constants';
+import { DATA_FORMAT_FIELD, DESC_FIELD, FILES_DIRECTORY_FIELD } from '../../shared/constants';
 import { FieldDef } from './fieldDef';
 
 export const keyForDetailsViewItem = (itemKey: string, parentKey?: string) => {
@@ -82,7 +82,7 @@ export const DetailsViewItem = ({
           {/* The type chip picks string/number/null/object for every field,
               except dataFormat (own dropdown) and desc (hidden fields make a
               type switch unsafe). */}
-          {itemKey !== DATA_FORMAT_FIELD && itemKey !== 'desc' && (
+          {itemKey !== DATA_FORMAT_FIELD && itemKey !== DESC_FIELD && (
             <ItemTypeSelector
               itemValue={itemValue}
               setItemValue={newVal => {
@@ -128,7 +128,7 @@ export const DetailsViewItem = ({
       )}
       {isTree && (<>
         {Object.entries(itemValue).sort().map(([k, v]) => {
-          const isDir = parentKey === undefined && itemKey === 'desc' && k === 'filesDirectory';
+          const isDir = parentKey === undefined && itemKey === DESC_FIELD && k === FILES_DIRECTORY_FIELD;
 
           const changeKey = (newKey: string | undefined) => {
             const item = { ...itemValue };
