@@ -1,4 +1,5 @@
 import { Add } from '@mui/icons-material';
+import { Box } from '@mui/material';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { EditAsJsonButton } from './EditAsJsonButton';
 
@@ -31,10 +32,12 @@ export const DetailsViewItemBranchActions = ({
       >
         <Add />
       </ButtonTooltip>
-      <EditAsJsonButton
-        data={itemValue}
-        setData={setItemValue}
-      />
+      <Box className="field-json">
+        <EditAsJsonButton
+          data={itemValue}
+          setData={setItemValue}
+        />
+      </Box>
     </>
   );
 };

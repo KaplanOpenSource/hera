@@ -62,8 +62,8 @@ export const DetailsViewItem = ({
           // helper text, so it shows without moving anything.
           style={{ marginTop: 7, marginBottom: 14 }}
           sx={{
-            '& .field-delete': { display: 'none' },
-            '&:hover .field-delete': { display: 'flex' },
+            '& .field-delete, & .field-json': { display: 'none' },
+            '&:hover .field-delete, &:hover .field-json': { display: 'flex' },
           }}
           onContextMenu={event => onRowContextMenu?.(itemKey, parentKey, event)}
         >
