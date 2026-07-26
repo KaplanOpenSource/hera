@@ -17,21 +17,5 @@ cd ui/client && npm run test
 ## 3. Production build
 
 ```bash
-cd ui/client && npm run build
+cd ui/client && npx vite build --outDir /tmp/hera-vite-build --emptyOutDir
 ```
-
-## 4. Clean build artifacts
-
-**CRITICAL: Always run from repo root.** The build creates new hash-named files and modifies buildNumber.ts. Both must be reverted.
-
-```bash
-rm -f ui/client/bundle/assets/index-*.js ui/client/bundle/assets/index-*.css && git checkout -- ui/client/bundle/ ui/client/src/buildNumber.ts
-```
-
-## 5. Verify clean state
-
-```bash
-git status ui/client/bundle/ ui/client/src/buildNumber.ts
-```
-
-Must show "nothing to commit, working tree clean" with no untracked files.
