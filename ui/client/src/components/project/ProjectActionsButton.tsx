@@ -2,6 +2,7 @@ import { MoreVert } from '@mui/icons-material';
 import { Divider, Popover, Stack, Typography } from '@mui/material';
 import { useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
+import { CopyProjectButton } from '../header/CopyProjectButton';
 import { DeleteProjectButton } from '../header/DeleteProjectButton';
 import { AddDocumentButton } from './AddDocumentButton';
 import { DeleteSelectedButton } from './DeleteSelectedButton';
@@ -53,6 +54,9 @@ export const ProjectActionsButton = ({
               onSelectDocument?.(undefined);
               setAnchorEl(null);
             }}
+          />
+          <CopyProjectButton
+            onCopied={() => setAnchorEl(null)}
           />
           <DeleteProjectButton
             onDeleted={() => setAnchorEl(null)}

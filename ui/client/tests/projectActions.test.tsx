@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within, cleanup, act } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
@@ -142,7 +143,7 @@ describe('DeleteSelectedButton', () => {
 
 describe('ProjectActionsButton', () => {
   it('opens a popover with the Actions title and both actions', async () => {
-    render(<ProjectActionsButton selectedIds={[idDocId('doc1')]} />);
+    render(<MemoryRouter><ProjectActionsButton selectedIds={[idDocId('doc1')]} /></MemoryRouter>);
 
     await openActions();
 
@@ -154,7 +155,7 @@ describe('ProjectActionsButton', () => {
   it('clears the selection after a successful bulk delete', async () => {
     mockFetchPython.mockResolvedValueOnce({ data: {} });
     const onSelectDocument = vi.fn();
-    render(<ProjectActionsButton selectedIds={[idDocId('doc1')]} onSelectDocument={onSelectDocument} />);
+    render(<MemoryRouter><ProjectActionsButton selectedIds={[idDocId('doc1')]} onSelectDocument={onSelectDocument} /></MemoryRouter>);
 
     await openActions();
     await act(async () => {
