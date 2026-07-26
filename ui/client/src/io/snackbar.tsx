@@ -1,13 +1,14 @@
 import { forwardRef } from 'react';
 import { Box, CircularProgress, IconButton, Paper } from '@mui/material';
-import { Close, ErrorOutline } from '@mui/icons-material';
+import { Close, ErrorOutline, InfoOutlined } from '@mui/icons-material';
 import { enqueueSnackbar, closeSnackbar, SnackbarKey } from 'notistack';
 
-type Kind = 'running' | 'error';
+type Kind = 'running' | 'error' | 'info';
 
 const ACCENT: Record<Kind, string> = {
   running: '#1976d2',
   error: '#d32f2f',
+  info: '#2e7d32',
 };
 
 const Toast = forwardRef<HTMLDivElement, {
@@ -35,6 +36,8 @@ const Toast = forwardRef<HTMLDivElement, {
   >
     {kind === 'running' ? (
       <CircularProgress size={12} thickness={6} sx={{ color: ACCENT.running }} />
+    ) : kind === 'info' ? (
+      <InfoOutlined sx={{ fontSize: 14, color: ACCENT.info }} />
     ) : (
       <ErrorOutline sx={{ fontSize: 14, color: ACCENT.error }} />
     )}
@@ -74,6 +77,12 @@ export const pushError = (message: string): SnackbarKey =>
   enqueueSnackbar(message, {
     autoHideDuration: 5000,
     content: toastContent('error'),
+  });
+
+export const pushInfo = (message: string): SnackbarKey =>
+  enqueueSnackbar(message, {
+    autoHideDuration: 4000,
+    content: toastContent('info'),
   });
 
 export const dismiss = (key: SnackbarKey) => closeSnackbar(key);

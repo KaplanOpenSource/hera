@@ -45,7 +45,8 @@ class CorsHandler:
                 '(so it can be opened by name from other machines). '
                 'Pass a comma-separated list of IPs to allow specific ones '
                 '(e.g. --cors 192.168.1.10,10.0.0.5). '
-                'Each IP is prefixed with http:// and the server port automatically.'
+                'Each IP is prefixed with http:// and the server port automatically. '
+                'Only "all" asks for confirmation; "remote" and explicit IPs just print a warning.'
             ),
         )
 
@@ -66,7 +67,9 @@ class CorsHandler:
             warning = f"WARNING: CORS is enabled for custom origins: {', '.join(self.custom_origins)}"
 
         print(warning)
-        if not args.yes:
+        # Only "all" (['*']) is a real security downgrade, so only it needs confirmation.
+        # "remote" and explicit IP lists are limited, deliberate origins — just warn and proceed.
+        if args.cors == 'all' and not args.yes:
             try:
                 answer = input("CORS weakens browser security. Continue? (use -y to skip) [y/N] ").strip().lower()
             except EOFError:
