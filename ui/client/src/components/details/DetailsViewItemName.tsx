@@ -1,7 +1,5 @@
-import { Edit } from '@mui/icons-material';
 import { Box, Stack, Typography } from '@mui/material';
 import { useState } from 'react';
-import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { RenameField } from '../../elements/RenameField';
 
 export const DetailsViewItemName = ({
@@ -31,25 +29,18 @@ export const DetailsViewItemName = ({
             />
           </Box>
         )
-        : (<>
+        : (
           <Typography
+            onClick={() => setItemKey && setEditing(true)}
             sx={{
               whiteSpace: 'nowrap',
-              minWidth: '100px'
+              minWidth: '100px',
+              cursor: setItemKey ? 'text' : 'default'
             }}
           >
             {itemKey}
           </Typography>
-          {setItemKey && (<>
-            <ButtonTooltip
-              component="div"
-              title={'Rename ' + itemKey}
-              onClick={() => setEditing(!editing)}
-            >
-              <Edit fontSize="small" />
-            </ButtonTooltip>
-          </>)}
-        </>)}
+        )}
     </Stack>
   )
 }
