@@ -124,33 +124,6 @@ class RiskToolkit(abstractToolkit):
         return Agent(descriptor)
 
 
-    def listAgentsNames(self):
-        """
-            Lists the agents that are currently loaded in the DB (both local and public).
-
-        :return: list
-            A list of agent names.
-
-        """
-        return [x.desc["datasourceName"] for x in self.getDataSourceDocumentsList()]
-
-    def loadAgent(self, name, agentDescription, version,saveMode=TOOLKIT_SAVEMODE_FILEANDDB):
-        """
-			Adds the agent to the DB. Either to the public or to the local DB.
-			Equivalent to loadData
-
-        :param name: str
-                Agent name
-        :param agentDescription: dict
-                The agent description
-
-        :return:
-                None
-        """
-        agentDescription['name'] = name
-        agentDescription['version'] = version
-        return self.loadData(agentDescription,saveMode=saveMode)
-
     def loadData(self, fileNameOrData, saveMode=TOOLKIT_SAVEMODE_FILEANDDB,**kwargs):
         """
             Abstract loading a data from file. Manages the parsing of the

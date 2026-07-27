@@ -187,13 +187,6 @@ class Injury(object):
 		"""
 		raise NotImplementedError("Abstract class")
 
-	def _postCalculatePointWise(self, retList):
-		"""
-			apply some post calculations on the results
-
-		"""
-		pass
-
 	def calculate(self, concentrationField, field, time="datetime", x="x", y="y", breathingRate=10 * ureg.L / ureg.min,
 				  sel={},isel={}):
 		"""Deprecated. Use ``calculateRegionOfInjured`` instead."""
@@ -280,81 +273,6 @@ class Injury(object):
 
 		"""
 		return self.calculator.calculate(concentrationField, field, breathingRate=breathingRate, time=time)
-
-
-	def calculatePointWiseFractionInjured(self,timeConcentration,time="datetime",breathingRate=10*ureg.L / ureg.min,field=None):
-		"""
-			Calculates the fraction of injury over time in each point.
-
-			Can be used with pandas.DataFrame or  xarray.Dataset [not implemented yet].
-
-			Parameters
-			----------
-
-				timeConcentration : pandas.DataFrame, or xarray.DataFrame.
-							Holds the concentration in time.
-
-							If xarray, also has a 'time' coordinate that will be calculated. [not implemented yet]
-
-							If DataFrame:
-								Each point is represeneted by a column, and the time is an index (with the name 'datetime').
-
-								So the structure of the input is :
-									  P1   P2   P3
-								time
-								00:00 0     0   0
-								00:01 0.1   0.1 0.01
-								00:02 0.4   0.1 0.01
-								00:05 0.5   0.1 0.01
-
-		    time  : str
-		    			The name of the time column (or the name of the index).
-
-		    breathingRate : unum, L/min
-		    			The breathing rate of the population.
-
-		    parameters: kwargs.
-		    			Additional parameter to the calculator (for example ten-berge coefficient).
-
-						selection parameters (xarray only):
-
-							sel - select according to the coordinates (see sel funcion of the xarray).
-							isel - select according to the coordinate index (see isel function of the xarray).
-
-		"""
-
-
-
-
-		# 2. For each injury level:
-		#      Create a dataframe with the fields:
-		#
-		#					P1        injury
-		#		datetime
-		#		  0  	[fraction]        level 1 name
-		#		  1  	[fraction]        level 1 name
-		#					...
-
-		if not isinstance(timeConcentration,pandas.DataFrame):
-			raise ValueError("Still not implemented....")
-
-		# 1. Calculate the toxic load for each point.
-		toxicLoads = self.calculateToxicLoads(concentrationField=timeConcentration,
-											  time=time,
-											  breathingRate=breathingRate,
-											  field=field)
-		retList = []
-		for lvl in self.levels:
-			data = pandas.DataFrame()
-
-			for device in toxicLoads:
-				prct = toxicLoads[device].apply(lambda x: self.getPercent(lvl.name,x))
-				data = prct.to_frame("injuryPercent").assign(deviceName=device,level=lvl.name)
-				if data is not None:
-					retList.append(data)
-
-		ret = pandas.concat(retList)
-		return ret
 
 
 	def calculateThresholdPolygon(self,data,time):

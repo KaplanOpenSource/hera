@@ -205,18 +205,6 @@ class ProtectionPolicy(object):
 			self._data.compute()
 		return self.data
 
-	@property
-	def hdfkey(self):
-		"""Combined HDF key for all actions in this policy.
-
-		Returns
-		-------
-		str
-		"""
-		return "/".join([action.hdfkey for action in self._actionList])
-
-
-
 class abstractAction(object):
 	"""Abstract base class for a single protection action in a policy pipeline.
 

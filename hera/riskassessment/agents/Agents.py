@@ -58,28 +58,6 @@ class Agent:
 		return self._physicalproperties
 
 	@property
-	def fullDescription(self):
-		"""
-		The full JSON descriptor used to initialize this agent.
-
-		Returns
-		-------
-		dict
-		"""
-		return self._agentconfig
-
-	@property
-	def effectproperties(self):
-		"""
-		The effect parameters dictionary (e.g. tenbergeCoefficient).
-
-		Returns
-		-------
-		dict
-		"""
-		return self._effectParameters
-
-	@property
 	def tenbergeCoefficient(self):
 		"""
 		The Ten Berge coefficient for dose-response calculations.
