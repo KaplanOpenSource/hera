@@ -847,33 +847,6 @@ class absractStochasticLagrangianSolver_toolkitExtension:
              "mass": mass})
 
 
-    def getOriginalFlowFieldMesh(self,nameOrWorkflowFileOrJSONOrResource,readParallel=True, time=0):
-        """
-            Returns the mesh of the original flow field. name from the workflow
-
-        Parameters
-        ----------
-        nameOrWorkflowFileOrJSONOrResource : string or dict
-        The name/dict that defines the item
-
-        readParallel: bool
-                If parallel case exists, read it .
-
-        time : float
-            The time to read the mesh from. (relevant for mesh moving cases).
-
-        Returns
-        -------
-
-        """
-        logger = get_classMethod_logger(self,"getMeshFromLagrangianName")
-        logger.info(f"Getting the mesh for {nameOrWorkflowFileOrJSONOrResource}")
-        logger.debug(f"Getting the original flow field")
-        originalFlowField = self.getOriginalFlowDocument(nameOrWorkflowFileOrJSONOrResource)
-        logger.debug(f"Getting the mesh from the original flow field")
-        return self.toolkit.getMesh(originalFlowField.getData())
-
-
     def getCaseResults(self, caseDescriptor, timeList=None, withVelocity=True, withReleaseTimes=False, withMass=True,
                        cloudName="kinematicCloud", forceSingleProcessor=False, cache=True, overwrite=False):
         """
@@ -1152,51 +1125,6 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         ret = data.groupby(["datetime", "x", "y", "z"]).sum().compute().to_xarray().fillna(0)
         ret.to_netcdf(fullname)
         return ret
-
-    def getDispersionDocument(self, nameOrDispersionWorkflow):
-        """Return the DB document for a dispersion simulation.
-
-        Parameters
-        ----------
-        nameOrDispersionWorkflow : str or workflow_StochasticLagrangianSolver
-            The name of the workflow or a workflow instance.
-
-        Returns
-        -------
-        document or None
-            The DB document, or None if not found.
-        """
-        # TODO: This method was incomplete in the original code (bare reference
-        # to getWorkflowDocumentFromDB without calling it). Implemented as a
-        # simple delegation to the toolkit's workflow document lookup.
-        return self.toolkit.getWorkflowDocumentFromDB(nameOrDispersionWorkflow)
-
-    def getDispersionFlowDocument(self,nameOrDispersionWorkflow):
-        """
-            Returns the DB document of the dispersion workflow.
-            We assume that it is a name or a nameOrDispersionWorkflow.
-
-        Parameters
-        ----------
-        nameOrWorkflow : str, workflow_StochasticLagrangianSolver
-                The name of the workflow or an instance of the hermes workflow of the StochasticLagrangianSolver).
-
-        Returns
-        -------
-            DB document.
-        """
-        logger = get_classMethod_logger(self,"getDispersionFlowDocument")
-        if isinstance(nameOrDispersionWorkflow,str):
-            wf = self.toolkit.getHermesWorkflowFromDB(nameOrDispersionWorkflow)
-            dffname = wf.dispersionFlowFieldName
-        elif isinstance(nameOrDispersionWorkflow,workflow_StochasticLagrangianSolver):
-            dffname = nameOrDispersionWorkflow.dispersionFlowFieldName
-        else:
-            err = f"{nameOrDispersionWorkflow} must be of type str or workflow_StochasticLagrangianSolver, got {type(nameOrDispersionWorkflow)}"
-
-        logger.info(f"Trying to retireve the document for {dffname}")
-        ret = self.toolkit.getWorkflowDocumentFromDB(dffname, doctype=self.toolkit.DOCTYPE_OF_FLOWDISPERSION)
-        return ret[0] if len(ret) > 0 else None
 
     def getOriginalFlowDocument(self,nameOrDispersionWorkflow):
         """

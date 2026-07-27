@@ -13,7 +13,6 @@ from itertools import product
 from collections.abc import Iterable
 from dask.delayed import delayed
 from hera.utils import dictToMongoQuery, slurm
-from hera.simulations.openFoam.OFWorkflow import workflow_Eulerian
 from hera.simulations.openFoam.preprocessOFObjects import OFObjectHome
 from hera.simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
 from hera.simulations.openFoam.postProcess.VTKPipeline import VTKPipeLine
@@ -204,45 +203,6 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
         """
         return [os.path.basename(proc) for proc in glob.glob(os.path.join(caseDirectory, "processor*"))]
 
-    def getHermesWorkflow_Flow(self, workflowfile):
-        """
-            Returns the workflow of the requested JSON file.
-        Parameters
-        ----------
-        workflowfile
-
-        Returns
-        -------
-
-        """
-        return workflow_Eulerian(workflowfile)
-
-    def getMeshFromName(self,nameOrWorkflowFileOrJSONOrResource,readParallel=True, time=0):
-        """
-            Returns the name from the workflow
-        Parameters
-        ----------
-        nameOrWorkflowFileOrJSONOrResource : string or dict
-        The name/dict that defines the item
-
-        readParallel: bool
-                If parallel case exists, read it .
-
-        time : float
-            The time to read the mesh from. (relevant for mesh moving cases).
-
-        Returns
-        -------
-
-        """
-        docList = self.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
-        if len(docList)==0:
-            return None
-        else:
-            doc = docList[0]
-
-        return self.getMesh(doc.getData())
-
     def getMesh(self, caseDirectory, readParallel=True, time=0):
         """
             Reads the mesh from the mesh directory.
@@ -319,32 +279,6 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
                                                          timeStep=time,
                                                          readParallel=readParallel)
         return cellCenters
-
-    def getMeshExtentFromName(self,nameOrWorkflowFileOrJSONOrResource,readParallel=True, time=0):
-        """
-            Returns the name from the workflow
-        Parameters
-        ----------
-        nameOrWorkflowFileOrJSONOrResource : string or dict
-        The name/dict that defines the item
-
-        readParallel: bool
-                If parallel case exists, read it .
-
-        time : float
-            The time to read the mesh from. (relevant for mesh moving cases).
-
-        Returns
-        -------
-
-        """
-        docList = self.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
-        if len(docList)==0:
-            return None
-        else:
-            doc = docList[0]
-
-        return self.getMeshExtent(doc.getData())
 
     def read_points_file(self,path):
         """Parse an OpenFOAM points file and return coordinates as a numpy array."""
@@ -499,31 +433,6 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
 
     #############################################################
 
-    def template_add(self, name, objFile, workflowObj=None):
-        """
-            Adds a templates to the toolkit.
-
-            Templates can be
-                - Flow : Holds Hermes flow templates.
-                - Node : Holds a hermes node objects
-                - Field : Holds a field templates.
-                        This can be
-                            * xarray
-                            * pandas/dask
-                            * constant
-
-        Parameters
-        ----------
-        name
-        objFile
-        workflowObj
-
-        Returns
-        -------
-
-        """
-        pass
-
     def xarrayToSetFieldsDictDomain(self, xarrayData, xColumnName="x", yColumnName="y", zColumnName="z", time=None,
                                     timeColumn="time", **kwargs):
         """
@@ -675,60 +584,6 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
 
 
         return self.getCacheDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
-
-    def getVTKPipelineCacheTable(self,regularMesh=None, filterName=None, workflowName=None, groupName=None):
-        """
-            Return the table.
-        Parameters
-        ----------
-        regularMesh
-        filterName
-        workflowName
-        groupName
-
-        Returns
-        -------
-
-        """
-        docList = self.getVTKPipelineCacheDocuments(regularMesh=regularMesh, filterName=filterName,
-                                                    workflowName=workflowName, groupName=groupName)
-        cacheDict = [dict(filterName=doc.desc['filterName'],workflowName=doc.desc['simulation']['workflowName'],groupName=doc.desc['simulation']['groupName']) for doc in docList]
-        return pandas.DataFrame(cacheDict)
-
-    def clearVTKPipelineCache(self, regularMesh=None, filterName=None, workflowName=None, groupName=None):
-        """
-            deletes the cache documents and the data from the disk.
-            Use with care!.
-        Parameters
-        ----------
-        regularMesh
-        filterName
-        workflowName
-        groupName
-
-        Returns
-        -------
-
-        """
-
-        # 1. Get the potential filters to process
-        logger = get_classMethod_logger(self, "clearCache")
-
-        docList = self.getVTKPipelineCacheDocuments(regularMesh = regularMesh, filterName = filterName, workflowName= workflowName, groupName= groupName)
-
-        logger.info(f"Found {len(docList)} documents to delete. ")
-        for doc in docList:
-            logger.debug(f"Deleting resource {doc['desc']['filterName']} : {doc['desc']['pipeline']['filters']} ")
-            outputFile = doc['resource']
-
-            if os.path.exists(outputFile):
-                if os.path.isfile(outputFile):
-                    os.remove(outputFile)
-                else:
-                    shutil.rmtree(outputFile)
-
-        for doc in docList:
-            doc.delete()
 
     def getTimeList(self,nameOrWorkflowFileOrJSONOrResourceorDirectory,singleProcessor=False,returnFirst=True):
         """

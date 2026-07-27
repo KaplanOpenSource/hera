@@ -112,21 +112,6 @@ class WindProfileToolkit(toolkit.abstractToolkit):
         stations_with_data = self._getWindSpeedDirection(stations,IMS_TOKEN)
         return xarray,stations_with_data
 
-    def _getStationsInRegion(self,minlon,minlat,maxlon,maxlat,inputCRS):
-        min_pp = convertCRS(points=[[minlon, minlat]], inputCRS=inputCRS, outputCRS=ITM)[0]
-        max_pp = convertCRS(points=[[maxlon, maxlat]], inputCRS=inputCRS, outputCRS=ITM)[0]
-        with open('wind_stations.json', 'r') as json_file:
-            wind_stations = json.load(json_file)
-        stations_in_region = []
-        for station in wind_stations:
-            lat = station['attributes'][2]['value']['latitude']
-            lon = station['attributes'][2]['value']['longitude']
-            point_ITM = convertCRS(points=[[lon, lat]], inputCRS=WSG84, outputCRS=ITM)[0]
-            if min_pp.x <= point_ITM.x and max_pp.x >= point_ITM.x and min_pp.y <= point_ITM.y and max_pp.y >= point_ITM.y:
-                stations_in_region.append(station)
-
-        return stations_in_region
-
     def _getWindSpeedDirection(self,stations,IMS_TOKEN):
         stations_with_data = []
         headers = {'Authorization': IMS_TOKEN['Authorization']}

@@ -19,9 +19,6 @@ class OFObject:
     fileName = None  # The name of the file ont the disk
     dimensions = None
 
-    REGION_INTERNSALFIELD = 'internalField'
-    REGION_BOUNDARYFIELD = 'boundaryField'
-
     @staticmethod
     def getDimensions(kg=0, m=0, s=0, K=0, mol=0, A=0, cd=0):
         """
@@ -55,30 +52,6 @@ class OFObject:
 
         return ret
 
-
-    def internalField(self,processorName='singleProcessor'):
-        """
-        Return the interinal field data
-        Returns
-        -------
-
-        """
-        return self.data[processorName]['internalField']
-
-    @property
-    def processors(self):
-        """Return the processor names in this field."""
-        return self.data.keys()
-
-    @property
-    def processorItems(self):
-        """Return the processor name-data pairs."""
-        return self.data.items()
-
-    @property
-    def dimensionsStr(self):
-        """Return the dimensions as an OpenFOAM-formatted string."""
-        return self.getDimensions(**self.dimensions)
 
     @property
     def dimensionsList(self):

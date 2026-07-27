@@ -321,12 +321,6 @@ class StandardMeteorolgyConstant_uniformWind(StandardMeteorolgyConstant_powerLaw
         return self.u_refHeight
 
 
-class MeteorologyProfile(StandardMeteorolgyConstant_powerLaw):
-    """
-        Gets a profile of the wind velocity and the wind direction.
-
-    """
-    pass
 
 
 #################################################################################################
