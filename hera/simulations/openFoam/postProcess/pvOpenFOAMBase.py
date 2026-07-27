@@ -601,43 +601,38 @@ class paraviewOpenFOAM:
     ####        Depracated
     ############################################################################################
 
-    @deprecated(reason="Use writeRegularCase instead")
+    @deprecated(reason="Use writeCase instead")
     def write_netcdf(self, datasourcenamelist, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False,
                      append=False):
         """Write datasources as netcdf files (deprecated)."""
-        self.writeRegularCase(datasourcenamelist, timeList, fieldnames, tsBlockNum, overwrite,append)
+        self.writeCase(datasourcenamelist, True, timeList, fieldnames, tsBlockNum, overwrite)
 
 
     @deprecated(reason="Old Name, use readTimeSteps with regularMesh=False")
     def to_pandas(self, datasourcenamelist, timelist=None, fieldnames=None):
         """Read time steps as pandas DataFrames (deprecated)."""
-        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regtularMesh=False)
+        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regularMesh=False)
 
     @deprecated(reason="Old Name, use readTimeSteps with regularMesh=True")
     def to_xarray(self, datasourcenamelist, timelist=None, fieldnames=None):
         """Read time steps as xarray Datasets (deprecated)."""
-        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regtularMesh=True)
+        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regularMesh=True)
 
     @deprecated(reason="Old Name, use readTimeSteps with regularMesh=False")
     def to_dataFrame(self, datasourcenamelist, timelist=None, fieldnames=None):
         """Read time steps as pandas DataFrames (deprecated)."""
-        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regtularMesh=False)
+        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regularMesh=False)
 
     @deprecated(reason="Old Name, use readTimeSteps with regularMesh=True")
     def to_dataArray(self, datasourcenamelist, timelist=None, fieldnames=None):
         """Read time steps as xarray DataArrays (deprecated)."""
-        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regtularMesh=True)
-    @deprecated(reason="Use writeNonRegularCase instead")
-    def write_parquet(self, datasourcenamelist, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False,
-                      append=False, filterList=None):
-        """Write datasources as parquet files (deprecated)."""
-        writeNonRegularCase(datasourcenamelist, timeList, fieldnames, tsBlockNum, overwrite, append, filterList)
+        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regularMesh=True)
 
-    @deprecated(reason="Use writeNonRegularCase instead")
+    @deprecated(reason="Use writeCase instead")
     def write_parquet(self, datasourcenamelist, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False,
                       append=False, filterList=None):
         """Write datasources as parquet files (deprecated)."""
-        writeNonRegularCase(datasourcenamelist, timeList, fieldnames, tsBlockNum, overwrite, append, filterList)
+        self.writeCase(datasourcenamelist, False, timeList, fieldnames, tsBlockNum, overwrite)
 
 
     #
