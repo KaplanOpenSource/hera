@@ -485,43 +485,6 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         )
         return landcover
 
-    def _handleType1(self, landcover):
-        """
-        Converting land type of Type-1 to roughness.
-        Based on the paper:
-            * https://wes.copernicus.org/articles/6/1379/2021/ table a2
-            * https://doi.org/10.5194/wes-6-1379-2021 Satellite-based estimation of roughness lengths and displacement heights for wind resource modelling, Rogier Floors, Merete Badger, Ib Troen, Kenneth Grogan, and Finn-Hendrik Permien
-
-        Parameters
-        ----------
-        landcover : int
-            Landcover type value.
-
-        Returns
-        -------
-        float
-        """
-        roughnessDict = {
-            0: 0.0001,  # Water
-            1: 1,  # Evergreen needleleaf forest
-            2: 1,  # Evergreen broadleaf forest
-            3: 1,  # Deciduous needleleaf forest
-            4: 1,  # Deciduous broadleaf forest
-            5: 1,  # Mixed forests
-            6: 0.05,  # Closed shrubland
-            7: 0.06,  # Open shrublands
-            8: 0.05,  # Woody savannas
-            9: 0.15,  # Savannas
-            10: 0.12,  # Grasslands
-            11: 0.3,  # Permanent wetlands
-            12: 0.15,  # Croplands
-            13: 0.8,  # Urban and built-up
-            14: 0.14,  # Cropland/natural vegetation mosaic
-            15: 0.001,  # Snow and ice
-            16: 0.01  # Barren or sparsely vegetated
-        }
-        return roughnessDict.get(landcover, 0.05)
-
     def getCodingMap(self, datasourceName):
         """
         Returns dictionary that maps landcover int value to string of landcover.
@@ -556,35 +519,6 @@ class LandCoverToolkit(toolkit.abstractToolkit):
                 16: "Barren or sparsely vegetated"
             }
         return {}
-
-    @staticmethod
-    def roughnesslength2sandgrainroughness(rl):
-        """
-        Converts roughness length to equivalent sand grain roughness.
-
-        Based on:
-        Desmond, C. J., Watson, S. J., & Hancock, P. E. (2017).
-        Modelling the wind energy resource in complex terrain and atmospheres.
-        Numerical simulation and wind tunnel investigation of non-neutral forest canopy flow.
-        Journal of wind engineering and industrial aerodynamics, 166, 48-60.
-        https://www.sciencedirect.com/science/article/pii/S0167610516300083#bib12
-
-        Equation 5: Equivalent sand grain roughness (m) is z0 * 30
-
-        We can use it for "nutkRoughWallFunction" boundary condition for Ks (sand grain roughness) parameter.
-        Cs value can be set as 0.5.
-
-        Parameters
-        ----------
-        rl : float
-            Roughness length.
-
-        Returns
-        -------
-        float
-            Equivalent sand grain roughness (Ks).
-        """
-        return rl * 30.0  # return Ks value
 
     def _getUrbanRoughnessFromLandCover(self, landcover, windMeteorologicalDirection, resolution, dataSourceName, GIS_BUILDINGS_dataSourceName):
         """

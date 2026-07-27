@@ -1,12 +1,8 @@
-import io
 from hera import toolkit
 import geopandas 
 from shapely.geometry import Polygon, box
 from ..utils import ITM,ED50_ZONE36N,WGS84
 from ....utils.logging import get_classMethod_logger
-
-
-TOOLKIT_VECTOR_REGIONNAME = "regionName"
 
 
 class VectorToolkit(toolkit.abstractToolkit):
@@ -33,28 +29,6 @@ class VectorToolkit(toolkit.abstractToolkit):
 
         """
         super().__init__(projectName=projectName,toolkitName=toolkitName,filesDirectory=filesDirectory,connectionName=connectionName)
-
-    @staticmethod
-    def geopandasToGeoJson(geoData):
-        """Convert a GeoDataFrame to a GeoJSON string.
-
-        Parameters
-        ----------
-        geoData : geopandas.GeoDataFrame
-            The GeoDataFrame to convert.
-
-        Returns
-        -------
-        str
-            GeoJSON string representation.
-        """
-        if isinstance(geoData,geopandas.GeoDataFrame):
-            dataHandler = io.BytesIO()
-            geoData.to_file(dataHandler,driver='GeoJSON')
-            return dataHandler.getvalue().decode('ascii')
-
-        else:
-            raise ValueError("Function receives only GeoDataFrame")
 
     def _RegionToGeopandas(self, regionData, crs = None):
         """

@@ -50,27 +50,6 @@ class TilesToolkit(toolkit.abstractToolkit):
 
         self._presentation = presentation(dataLayer=self)
 
-    def tileScaleAtLatLonZoom(self,latitude,longitude,zoomlevel):
-        """
-        Returns the scale of a tile im meters at the location and zoom level
-
-        Parameters
-        ----------
-        latitude : float
-            The latitude in WGS84
-
-        longitude : float
-            The longitude in WGS
-
-        zoomlevel : int
-            The zoom to retrieve. usually up to ~19. (highest).
-
-        Returns
-        -------
-            float
-        """
-        return self.Z0RES / (2 ** zoomlevel) * numpy.cos(numpy.deg2rad(latitude))
-
     def getImageFromCorners(self, minx, miny, maxx, maxy, zoomlevel, tileServer=None, inputCRS=WSG84, outputCRS=WSG84):
         """
         Gets the image from the lower left corner and upper right cornet - [left,right,bottom,top] in the coordinate system of the outputCRS.
@@ -257,20 +236,6 @@ class TilesToolkit(toolkit.abstractToolkit):
         xtile = int((lon_deg + 180.0) / 360.0 * n)
         ytile = int((1.0 - math.asinh(math.tan(lat_rad)) / math.pi) / 2.0 * n)
         return (xtile, ytile)
-
-    def listImages(self,**filters):
-        """Return stored tile image documents matching the given filters."""
-        return self.getMeasurementsDocuments(type=self.doctype, **filters)
-
-    def setDefaultTileServer(self,server):
-        """Set the default tile server URL in the project config.
-
-        Parameters
-        ----------
-        server : str
-            URL template for the tile server.
-        """
-        self.setConfig(**{"defaultTileServer": server})
 
 
 class presentation:

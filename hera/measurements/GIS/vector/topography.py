@@ -97,22 +97,6 @@ class TopographyToolkit(VectorToolkit):
 
 
 
-    def geoPandasToSTL(self,gpandas, dxdy=50, solidName="Topography"):
-        """
-            Transforsm the gpandas to STL.
-
-        Parameters
-        ----------
-        gpandas
-        dxdy
-        solidName
-
-        Returns
-        -------
-
-        """
-        return self.stlFactory.vectorToSTL(gpandas, dxdy=dxdy, solidName="Topography")
-
     def regionToSTL(self, shapeDataOrName, dxdy, datasourceName, crs=None):
         """
             Converts a region in a vector height map (contours) to STL at requested resolution
