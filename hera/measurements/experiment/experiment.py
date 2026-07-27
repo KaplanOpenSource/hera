@@ -218,13 +218,6 @@ class experimentHome(toolkit.abstractToolkit):
         """
         return self.getExperiment(item)
 
-    def experimentDataType(self):
-        """
-        Backward-compatibility hook for experiment data type.
-        """
-        return getattr(self, "_experimentDataType", None)
-
-
 class experimentSetupWithData(argosDataObjects.ExperimentZipFile, toolkit.abstractToolkit):
     """
     A class that unifies the argos.experiment setup with the data.
@@ -378,25 +371,6 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile, toolkit.abstra
     def defaultTrialSet(self):
         """Return the name of the default trial set."""
         return self._defaultTrialSetName
-
-    @property
-    def trialsOfDefaultTrialSet(self):
-        """Return the trials belonging to the default trial set."""
-        return self.trialSet[self.defaultTrialSet]
-
-    def _initAnalysisAndPresentation(self, analysisCLS, presentationCLS):
-        """
-        Initialize the analysis and presentation classes and set the data layer.
-
-        Parameters
-        ----------
-        analysisCLS : class
-            The analysis class, recommended to inherit from .analysis.experimentAnalysis.
-        presentationCLS : class
-            The presentation class, recommended to inherit from .presentation.experimentPresentation.
-        """
-        self._analysis = analysisCLS(self)
-        self._presentation = presentationCLS(self, self._analysis)
 
     def getDataFromDateRange(
         self,

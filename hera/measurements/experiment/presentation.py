@@ -3,11 +3,10 @@ from hera.measurements.GIS.utils import WSG84, ITM, convertCRS  # constants, now
 from hera import toolkitHome  # lazy singleton
 from hera.utils.lazy import _LazyModule
 
-# numpy, pandas, jinja2 are deferred to the methods that use them.
+# numpy, pandas are deferred to the methods that use them.
 numpy  = _LazyModule("numpy")
 np     = numpy
 pd     = _LazyModule("pandas")
-jinja2 = _LazyModule("jinja2")
 
 class experimentPresentation:
     """
@@ -216,37 +215,6 @@ class experimentPresentation:
 
         return ax
 
-    def plotMap(self,trialSetName, trialName):
-        """
-            Plots the tile map (sattelite) of the devices in that region.
-
-            NOT COMPLETE!!.
-        Parameters
-        ----------
-        trialSetName
-        trialName
-
-        Returns
-        -------
-
-        """
-        import matplotlib.pyplot as plt
-        devices_df = self.trialSet[trialSetName][trialName].entitiesTable
-
-        if ax is None:
-            plot_kwargs = plot_kwargs or {}
-            fig, ax = plt.subplots(1, 1, **plot_kwargs)
-        else:
-            fig = ax.figure
-
-        tiles_tk = toolkitHome.getToolkit(toolkitHome.GIS_TILES, projectName=self.datalayer.projectName)
-        devices_df[['ITM_Latitude', 'ITM_Longitude']] = devices_df.apply(self.datalayer._process_row, axis=1)
-        minx, miny, maxx, maxy = self.datalayer.get_devices_image_coordinates(trialSetName, trialName, deviceType)
-        region = dict(minx=minx, maxx=maxx, maxy=maxy, miny=miny, zoomlevel=17, inputCRS=ITM, tileServer=toolkitDataSource)
-        img = tiles_tk.getImageFromCorners(**region)
-
-        plot = tiles_tk.presentation.plot(img, ax=ax, display=True)
-
     def _plotEntityLocationScatter(self, entityTypeName, trialSet, trialName, status, floorName, ax=None,
                                    plotNameMode=None, scatter_kw=dict()):
         """
@@ -446,56 +414,6 @@ class experimentPresentation:
 
         return fig, ax
 
-    def plotDevices(self, trialSetName, trialName, deviceType,mapName, ax=None, plotkwargs=None):
-        """
-        Plot map of devices type places in a specific trial set and trial on the requested map.
-
-        When the map is the world map, the tiletoolkit is initialized and the self.tileDataSourceName is used instead.
-        The plotting of the map itself is perfomed in the plot map function.
-        Parameters
-        ----------
-        trialSetName : str
-            Trial Set Name.
-        trialName: str
-            Trial Name.
-        deviceType: str
-            Device type name.
-        mapName : str
-            The name of the map to plot on.
-        plotkwargs: dict
-            Parameters for matplotlib.pyplot subplot.
-
-        Returns
-        -------
-            fig
-            ax
-        """
-        import matplotlib.pyplot as plt
-        if ax is None:
-            plot_kwargs = plot_kwargs or {}
-            fig, ax = plt.subplots(1, 1, **plot_kwargs)
-        else:
-            fig = ax.figure
-
-        devices_df = self.trialSet[trialSetName][trialName].entitiesTable.query("deviceTypeName==@deviceType")
-
-        devices_df[['ITM_Latitude', 'ITM_Longitude']] = devices_df.apply(self.datalayer._process_row, axis=1)
-        minx,miny,maxx,maxy = self.datalayer.get_devices_image_coordinates(trialSetName,trialName,deviceType)
-        d = {}
-        for row in devices_df.itertuples():
-            x = row.ITM_Latitude
-            y = row.ITM_Longitude
-            stationCount = d.get(row.stationName,0)+1
-            d[row.stationName] = stationCount
-            num_of_devices_in_station = d[row.stationName]
-            delta = num_of_devices_in_station * 0.02
-
-            ax.scatter(x, y, color='red', marker='o', s=50)  # 's' controls size
-            ax.text(x, y + (maxy - miny) * delta, f"{row.deviceItemName}", color='red', fontsize=20, ha='center',
-                    bbox=dict(facecolor='white', edgecolor='none', alpha=0.8))
-
-        return fig, ax
-
     ########################
     ###
     ###  Technical plots
@@ -643,61 +561,6 @@ class experimentPresentation:
 
         return ax, pvt
 
-
-
-    def generateLatexTable(self, latex_template, folder_path):
-        """
-        Save folder for overleaf website upload to transform to PDF.
-
-        Parameters
-        ----------
-        latex_template: str
-            Latex Template.
-        folder_path: str
-            Path to save folder
-
-        Returns
-        -------
-        """
-        data = {}
-        data['trialSets'] = []
-        os.makedirs(folder_path, exist_ok=True)
-        for trialSet in self.datalayer.setup['trialSets']:
-            trialSet_dict = {}
-            trialSet_dict['trialSet_name'] = trialSet['name']
-            trialSet_dict['trials'] = []
-            for trial in trialSet['trials']:
-                trial_dict = {}
-                trial_dict['trial_name'] = trial['name']
-                devices_df = self.datalayer.trialSet['Measurements']['Measurements'].entitiesTable
-                trial_dict['devices'] = []
-                for device_name in devices_df['deviceTypeName'].unique():
-                    device_dict = {}
-                    fig , _ = self.plotDevices(trialSetName=trialSet['name'], trialName=trial['name'], device=device_name, display=False)
-                    image_path = os.path.join(folder_path,f"{device_name}.png")
-                    fig.savefig(image_path)
-                    device_dict['device_name'] = device_name
-                    device_dict['map_image_path'] = f"{device_name}.png"
-                    device_dict['locations_table'] = []
-                    device_df = devices_df[devices_df['deviceTypeName'] == device_name]
-                    for row in device_df.itertuples():
-                        location = {}
-                        location["latitude"] = row.Latitude
-                        location['longitude'] = row.Longitude
-                        location['device_name'] = str(row.deviceItemName).replace("_", " ")
-                        location['station'] = str(row.stationName).replace("_", " ")
-                        device_dict['locations_table'].append(location)
-                    trial_dict['devices'].append(device_dict)
-                trialSet_dict['trials'].append(trial_dict)
-            data['trialSets'].append(trialSet_dict)
-
-
-        template = jinja2.Template(latex_template)
-        latex_content = template.render(trialSets=data["trialSets"])
-        tex_path = os.path.join(folder_path,f"latex_document.tex")
-        with open(tex_path, "w", encoding="utf-8") as file:
-            file.write(latex_content)
-        print(f"LaTeX document generated at: {tex_path}")
 
 
     # def plotNDIRFrequencyDistribution(self,

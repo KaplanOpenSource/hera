@@ -349,26 +349,6 @@ class Parser_CampbellBinary(object):
 
         return ts, cbi.columnsNames, retVal
 
-class Parser_TOA5(object):
-    """Parser for Campbell Scientific TOA5 ASCII data files."""
-
-    def __init__(self):
-        """Initialize the TOA5 parser."""
-        pass
-
-    def parse(self, file):
-        """
-        Parse a TOA5 file.
-
-        Parameters
-        ----------
-        file : str
-            Path to the TOA5 file.
-        """
-        pass
-
-
-
 ############################## Private ###############################
 class CampbellBinaryInterface(object):
     """Low-level interface for reading Campbell Scientific TOB1 binary files."""

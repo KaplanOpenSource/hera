@@ -26,64 +26,6 @@ class experimentAnalysis:
         """
         self._datalayer = datalayer
 
-    def getDeviceLocations(self,entityTypeName,trialName,trialSetName=None):
-        """
-        Returns a pandas with the device locations.
-
-        Parameters
-        ----------
-        entityTypeName: str
-                The entity type.
-
-        trialName: str
-                The trial name.
-
-        trialSetName: str
-                The trial set name.
-
-
-        Returns
-        -------
-            pandas.DataFrame
-        """
-        trialSetName = self.datalayer.defaultTrialSet if trialSetName is None else trialSetName
-        if trialSetName is None:
-            raise ValueError("trialSetName is None. Either set default with the getExperiment, or set explicitly here")
-        return self.datalayer.trialSet[trialSetName][trialName].entitiesTable().query("entityType==@entityTypeName")
-
-
-    def getTurbulenceStatistics(self,sonicData,samplingWindow,height=1):
-        """
-        Returns the turbulence analysis of the sonic/kaijo data for the start->end times.
-
-        Parameters
-        ----------
-        sonicData: pandas/Dask
-            the data of the sonic to analyze.
-
-        samplingWindow: str
-            The window width for analysis
-
-        height: int
-            Height
-
-        Returns
-        -------
-            singlePointTurbulenceStatistics class
-        """
-
-        highfreqtk = self.datalayer.toolkitExtension.sonicHighFreqToolkit
-        analysis = highfreqtk.analysis.singlePointTurbulenceStatistics(sonicData=kaijoData,
-                                                                       start=None,
-                                                                       end=None,
-                                                                       height=kaijoHeight,
-                                                                       samplingWindow=samplingWindow,
-                                                                       buildingHeight= 0,
-                                                                       averagedHeight=0,
-                                                                       isMissingData=True)
-
-        return analysis
-
     def _splitName(self,x):
         """Extract the device identifier from a space-separated name string.
 
@@ -216,9 +158,11 @@ class experimentAnalysis:
             pvt = docList[0].getData()
 
         if normalize:
-            total_expected_messages = self.getDeviceTypePlannedMessageCount(deviceType=deviceType,
-                                                                            samplingWindow=samplingWindow)
-            pvt = pvt / total_expected_messages
+            raise NotImplementedError(
+                "Normalizing to the optimal sampling rate is not implemented "
+                "(depends on getDeviceTypePlannedMessageCount/getOptimalFrequencyHz, "
+                "which were removed as dead/broken code)."
+            )
 
 
         if not wideFormat:
@@ -227,33 +171,6 @@ class experimentAnalysis:
             ret = pvt
 
         return ret
-
-
-    def getDeviceTypePlannedMessageCount(self,deviceType,samplingWindow="1min"):
-        """
-        Returns the number of messages that should be obtained in a sampling window,according to the device type.
-
-        Parameters
-        ----------
-        deviceType : string
-                The type of the device to present.
-
-        samplingWindow : string
-                A time string (of pandas). i.e. '1min' and ect.
-
-        """
-
-
-
-        samplingWindow_seconds = pandas.to_timedelta(samplingWindow).total_seconds()
-        total_expected_messages = self.getOptimalFrequencyHz(deviceType)*samplingWindow_seconds
-
-        if total_expected_messages<1:
-            raise ValueError(f"Sampling window is too short. Use sampling window of at least {1/self.getOptimalFrequencyHz(deviceType)}s")
-
-        return total_expected_messages
-
-
 
 
 
