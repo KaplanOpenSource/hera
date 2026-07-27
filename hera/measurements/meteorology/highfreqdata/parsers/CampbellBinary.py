@@ -219,16 +219,6 @@ class CampbellBinaryInterface(object):
         return self._headers
 
     @property
-    def station(self):
-        """str : Station name extracted from the first header line."""
-        return self.headers[0].split(',')[1]
-
-    @property
-    def instrument(self):
-        """str : Instrument name extracted from the first header line."""
-        return self.headers[0].split(',')[-1]
-
-    @property
     def heights(self):
         """list of int : Measurement heights in metres derived from column layout."""
         if len(self.columnsNames) == 1:
@@ -264,20 +254,6 @@ class CampbellBinaryInterface(object):
         if self._format is None:
             self._format = self._getFormat()
         return self._format
-
-    @property
-    def firstTime(self):
-        """pandas.Timestamp : Timestamp of the first record in the file."""
-        if self._firstTime is None:
-            self._firstTime = self._getFirstTime()
-        return self._firstTime
-
-    @property
-    def lastTime(self):
-        """pandas.Timestamp : Timestamp of the last record in the file."""
-        if self._lastTime is None:
-            self._lastTime = self._getLastTime()
-        return self._lastTime
 
     @property
     def columnsNames(self):
@@ -447,24 +423,6 @@ class CampbellBinaryInterface(object):
         lastSec, lastmili, line = self._getDataFromStream(self._binData[index: index+self.recordSize])
         time = pandas.Timestamp(1990, 1, 1) + pandas.Timedelta(days=lastSec / 86400.0, milliseconds=lastmili)
         return time, line
-
-    def getRecordByTime(self, time):
-        """Retrieve a record by its timestamp.
-
-        Parameters
-        ----------
-        time : pandas.Timestamp
-            Exact timestamp of the desired record.
-
-        Returns
-        -------
-        time : pandas.Timestamp
-            Timestamp of the record.
-        line : list
-            Unpacked data values for the record.
-        """
-        i = self.getRecordIndexByTime(time)
-        return self.getRecordByIndex(i)
 
     def _getDataFromStream(self, partStream):
         retval = list(struct.unpack(self.format, partStream))

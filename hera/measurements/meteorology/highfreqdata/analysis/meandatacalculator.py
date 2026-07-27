@@ -194,9 +194,6 @@ class MeanDataCalculator:
 
         return self
 
-    def _UV_to_SpdDir(self,U, V):
-        return (U ** 2 + V ** 2) ** 0.5, (-numpy.degrees(numpy.arctan2(V, U)) + 90) % 360
-
     def alignedStress(self):
         """Rotate the Reynolds stress tensor to align with the mean wind direction.
 

@@ -59,11 +59,6 @@ class AbstractCalculator(object):
         self._joinmethod = "left"
 
     @property
-    def JoinMethod(self):
-        """str : Join method used when merging computed columns (default ``'left'``)."""
-        return self._joinmethod
-
-    @property
     def RawData(self):
         """pandas.DataFrame or dask.dataframe.DataFrame : The original raw data."""
         return self._RawData
