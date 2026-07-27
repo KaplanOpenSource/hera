@@ -6,19 +6,6 @@ import zipfile
 from hera.utils.jsonutils import loadJSON
 
 
-def add_directory_to_zip(zipf, folder_path, zip_path=""):
-    """
-    Recursively adds a folder to the zip file.
-    zip_path is the path inside the zip.
-    """
-    for root, dirs, files in os.walk(folder_path):
-        for file in files:
-            full_path = os.path.join(root, file)
-            # Compute the relative path to keep folder structure
-            relative_path = os.path.relpath(full_path, folder_path)
-            zipf.write(full_path, os.path.join(zip_path, relative_path))
-
-
 def zip_items(zip_filename, items):
     """
     Create a zip file and add files, directories, dictionaries.

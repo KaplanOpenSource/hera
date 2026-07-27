@@ -168,17 +168,6 @@ class AbstractCollection(object):
                                   "or one of the fields type is not proper. %s " % str(e))
         return obj
 
-    def addDocumentFromJSON(self, json_data):
-        """
-        Adds a document from a JSON string representation.
-
-        Parameters
-        ----------
-        json_data : str
-            A JSON string representing the document.
-        """
-        self._metadataCol.from_json(json_data).save()
-
     def deleteDocuments(self, projectName, **query):
         """
         Deletes documents that satisfy the given query.

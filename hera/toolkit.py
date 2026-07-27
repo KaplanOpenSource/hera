@@ -128,17 +128,6 @@ class abstractToolkit(Project):
         logger = get_classMethod_logger(self, "init")
         self._toolkitname = toolkitName
 
-    @property
-    def classLoggerName(self):
-        """
-        The logger name for the current class and method context.
-
-        Returns
-        -------
-        str
-        """
-        return str(get_classMethod_logger(self, "{the_function_name}")).split(" ")[1]
-
     # ------------------------------------------------------------------
     # Document overrides — automatically tag with toolkit name
     # ------------------------------------------------------------------

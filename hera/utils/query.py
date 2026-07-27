@@ -1,38 +1,3 @@
-def andClause(excludeFields=None, **kwargs):
-    """
-        Builds a pandas query str
-    Parameters
-    ----------
-    excludeFields
-    kwargs
-
-    Returns
-    -------
-
-    """
-    if excludeFields is None:
-        excludeFields = []
-
-    L = []
-    for key, value in kwargs.items():
-        if key in excludeFields:
-            continue
-
-        if isinstance(value, list):
-            conditionStr = "%s in %s"
-        elif isinstance(value, str):
-            conditionStr = "%s == '%s'"
-        elif isinstance(value, dict):
-            conditionStr = "%s " + value['operator'] + " %s"
-            value = value['value']
-        else:
-            conditionStr = "%s == %s"
-
-        L.append(conditionStr % (key, value))
-
-    return " and ".join(L)
-
-
 def dictToMongoQuery(dictObj,prefix="",prefixExclude="desc"):
     """
         Converts a dict object to a mongodb query.

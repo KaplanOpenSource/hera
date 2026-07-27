@@ -54,13 +54,13 @@ __all__ = [
     "processJSONToPandas", "convertJSONtoPandas",
     "setJSONPath", "JSONVariations", "JSONvariationItem",
     # query
-    "andClause", "dictToMongoQuery",
+    "dictToMongoQuery",
     # matplotlibCountour
     "standardize_polygon", "toGeopandas",
     # angle
     "toMeteorologicalAngle", "toMathematicalAngle", "toAzimuthAngle",
     # zipUtils
-    "add_directory_to_zip", "zip_items", "list_json_files_in_zip",
+    "zip_items", "list_json_files_in_zip",
 ]
 
 _NOT_FOUND = object()

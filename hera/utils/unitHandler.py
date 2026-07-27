@@ -298,16 +298,6 @@ if unumSupport:
         # Callers should migrate to ureg.Quantity(value)
         return value
 
-    def extractUnumUnitsFromPint(pint_quantity):
-        """Extract unum unit equivalent from a pint Quantity."""
-        units = pint_quantity._units
-        unum_unit = 1 * _m / _m  # unitless
-        for unit_name, power in units.items():
-            if unit_name not in PINT_TO_UNUM_MAP:
-                raise ValueError(f"Unit '{unit_name}' not mapped to Unum.")
-            unum_unit *= PINT_TO_UNUM_MAP[unit_name] ** power
-        return unum_unit
-
     def pintToUnum(pint_quantity):
         """
         Convert a pint Quantity to a Unum object.
@@ -351,8 +341,3 @@ if unumSupport:
         pint_str = convert_unum_units_to_eval_str(unit_str)
         return value * ureg.parse_expression(pint_str)
 
-    def unumToBaseUnits(unum_obj):
-        """Convert a Unum object to MKS base units."""
-        pint_obj = unumToPint(unum_obj)
-        standardize = pint_obj.to_base_units()
-        return pintToUnum(standardize)
