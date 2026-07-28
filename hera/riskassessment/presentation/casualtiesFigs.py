@@ -158,6 +158,8 @@ class casualtiesPlot(object):
 			ax1.patch.zorder = 0.9
 
 			getattr(aux_ax,plotType)(windDist["angle"], windDist["distribution"])
+		else:
+			aux_ax = None
 
 		# setting meteorology angles.
 		metlist = ["$%d^o$" % coordsTickConvertor(x) for x in numpy.linspace(0,360,9)]
@@ -166,7 +168,8 @@ class casualtiesPlot(object):
 		if legend:
 			plt.legend()
 		pivotedData["angle"] = pivotedData["angle"]*180/numpy.pi
-		return ax, pivotedData
+		
+		return dict(innerax=ax, outerax=aux_ax), pivotedData
 
 	def plotCasualtiesProjection(self,
 				     results,
