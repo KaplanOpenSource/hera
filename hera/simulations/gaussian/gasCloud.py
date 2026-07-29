@@ -6,12 +6,13 @@ from hera.utils import *
 from hera.utils.unitHandler import ureg, unumToPint
 import xarray
 from scipy import special
+import builtins
 
 
 
 class abstractGasCloud:
 
-    def __init__(self, sourceQ, sourceHeight, initialCloudSize, meteorology, wind_profile_type, spaceTime, sigmaType):
+    def __init__(self, sourceQ, sourceHeight, initialCloudSize, meteorology, wind_profile_type, spaceTime, sigmaType, deposition_velocity):
         """
 
         Parameters
@@ -36,6 +37,7 @@ class abstractGasCloud:
         self.sourceQ = sourceQ
         self.meteorology = meteorology
         self.spaceTime = spaceTime
+        self.deposition_velocity = deposition_velocity
 
         if wind_profile_type == 'HotSpot':
             self.u = self.meteorology.getWindVelocity_hotSpot(height=sourceHeight)
@@ -46,7 +48,7 @@ class abstractGasCloud:
 
 
     @staticmethod
-    def createGasCloud(sourceQ,sourceHeight,initialCloudSize,meteorology,wind_profile_type,spaceTime,sigmaType):
+    def createGasCloud(sourceQ,sourceHeight,initialCloudSize,meteorology,wind_profile_type,spaceTime,sigmaType,deposition_velocity):
         """
             Return the type of the release based on the units of Q
         Parameters
@@ -80,7 +82,8 @@ class abstractGasCloud:
         returnCls = instantaneousReleaseGasCloud if instantaneous else continuousReleaseGasCloud
 
         return returnCls(sourceQ=sourceQ,sourceHeight=sourceHeight,initialCloudSize=initialCloudSize,
-                         meteorology=meteorology,wind_profile_type=wind_profile_type, spaceTime=spaceTime, sigmaType=sigmaType)
+                         meteorology=meteorology,wind_profile_type=wind_profile_type, spaceTime=spaceTime,
+                         sigmaType=sigmaType, deposition_velocity = deposition_velocity)
 
 
     def _getTXterm(self, xcoordRange, tcoordRange):
@@ -163,34 +166,6 @@ class abstractGasCloud:
 
 
 
-
-    def fractions(self, fracVector, minx, miny, minz, maxx, maxy, maxz, timeSpan, dxdy=10*ureg.m, dz=1*ureg.m, dt=1*ureg.min):
-
-        """
-        This function generates an xarray of fractions of the mass of each isotope at every time-step.
-        After generating this xarray, we multiply it by the concentration xarray in order to get the relative
-        concentration of a given isotope.
-        :param fracVector: Tuple in numpy.arange format, unitless.
-                            A vector of the isotope's fractions at every time-step (calculated by Eshed's code).
-                            Note - This vector should have the same length as tcoordRange (described within the function)
-        :return:
-        """
-
-        xcoordRange = numpy.arange(minx.m_as(ureg.m), maxx.m_as(ureg.m), dxdy.m_as(ureg.m))
-        ycoordRange = numpy.arange(miny.m_as(ureg.m),maxy.m_as(ureg.m),dxdy.m_as(ureg.m))
-        zcoordRange = numpy.arange(minz.m_as(ureg.m), maxz.m_as(ureg.m), dz.m_as(ureg.m))
-        tcoordRange = numpy.arange(0,timeSpan.m_as(ureg.min),dt.m_as(ureg.min))
-
-        frac, X = numpy.meshgrid(fracVector, xcoordRange, indexing='ij')
-        XR_downwind = xarray.DataArray(frac, dims=("time", "x"), coords={"time": tcoordRange, "x": xcoordRange})
-        XR_crosswind = xarray.DataArray(1, dims=("x", "y"), coords={"x": xcoordRange, "y": ycoordRange})
-        XR_vertical = xarray.DataArray(1, dims=("x", "z"), coords={"x": xcoordRange, "z": zcoordRange})
-        FULL = XR_downwind * XR_crosswind * XR_vertical
-
-        return FULL
-
-
-
     def _getTXDosage(self, xcoordRange, tcoordRange):
         """
         Parameters
@@ -212,6 +187,7 @@ class abstractGasCloud:
         downwind_erf = (1/(2*u))*(special.erf(X/(numpy.sqrt(2)*sigmaX))-special.erf((X-u*T)/(numpy.sqrt(2)*sigmaX)))
         XR_downwind_erf = xarray.DataArray(downwind_erf, dims=( "time", "x"), coords={"time": tcoordRange, "x": xcoordRange})
         return XR_downwind_erf
+
 
 
     def trapezoidal_integration(self, data, dim='time'):
@@ -302,7 +278,7 @@ class abstractGasCloud:
         :return: The Depletion Factor
         """
         # Deposition velocity normalized to standard m/s units
-        v = tonumber(0.003*ureg.m/ureg.s, ureg.m/ureg.min) #Deposition velocity. By default we take this value to be 0.003 [m/s]
+        v = tonumber(self.deposition_velocity, ureg.m/ureg.min) #Deposition velocity.
         u = tonumber(self.u, ureg.m/ureg.min)
 
         X, Z = numpy.meshgrid(xcoordRange, zcoordRange, indexing='ij')
@@ -329,7 +305,7 @@ class abstractGasCloud:
 
 
 
-    def getDF_noQ_xarray(self):
+    def getDF_xarray(self):
 
         ST = self.spaceTime
         xcoordRange = numpy.arange(tonumber(ST['minx'], ureg.m), tonumber(ST['maxx'], ureg.m), tonumber(ST['dxdy'], ureg.m))
@@ -347,10 +323,11 @@ class abstractGasCloud:
 # ---------------------------------------------END OF DF------------------------------------------------
 
 
+
 class instantaneousReleaseGasCloud(abstractGasCloud):
 
-
-    def getConcentrationFromMinMaxRange_inst_noQ(self, numOfReflections=3):
+    # ---------------------------------------------data without Q------------------------------------------------
+    def getConcentration_inst_noQ(self, numOfReflections=3):
 
         ST = self.spaceTime
         xcoordRange = numpy.arange(tonumber(ST['minx'], ureg.m), tonumber(ST['maxx'], ureg.m), tonumber(ST['dxdy'], ureg.m))
@@ -368,7 +345,20 @@ class instantaneousReleaseGasCloud(abstractGasCloud):
         return ret
 
 
-    def getDosageFromMinMaxRange_inst_noQ(self, numOfReflections=3, DF=False):
+    def getConcentration_inst_noQ_bounded(self, start_time, end_time, numOfReflections=3):
+
+        C_noQ = self.getConcentration_inst_noQ(numOfReflections=numOfReflections)
+        start_time = start_time.m_as(ureg.min)
+        end_time = end_time.m_as(ureg.min)
+
+        time_mask = (C_noQ.time >= start_time) & (C_noQ.time <= end_time)
+
+        # Apply the mask and fill the rest with 0
+        C_noQ_bounded = C_noQ.where(time_mask, other=0)
+        return C_noQ_bounded
+
+
+    def getDosage_inst_noQ(self, numOfReflections=3, DF=False):
         ST = self.spaceTime
         xcoordRange = numpy.arange(tonumber(ST['minx'], ureg.m), tonumber(ST['maxx'], ureg.m), tonumber(ST['dxdy'], ureg.m))
         ycoordRange = numpy.arange(tonumber(ST['miny'], ureg.m), tonumber(ST['maxy'], ureg.m), tonumber(ST['dxdy'], ureg.m))
@@ -387,42 +377,62 @@ class instantaneousReleaseGasCloud(abstractGasCloud):
 
         return ret
 
-    def getDosageFromMinMaxRange_inst_NoERF_noQ(self, numOfReflections=3, DF=False):
-        C_without_Q = self.getConcentrationFromMinMaxRange_inst_noQ(numOfReflections=numOfReflections)
+    def getDosageFromConcentration_inst_NoERF_noQ(self, C, DF=False):
 
-        D_without_Q = self.trapezoidal_integration(data=C_without_Q)
+        D_noQ = self.trapezoidal_integration(data=C)
         D_F = 1
         if DF:
-            D_F = self.getDF_noQ_xarray()
+            D_F = self.getDF_xarray()
 
-        ret = D_without_Q*D_F
+        ret = D_noQ*D_F
         ret.attrs['Q'] = 1*ureg.min/ureg.m**3
 
         return ret
 
 
-    def getConcentrationFromMinMaxRange_inst(self, numOfReflections=3):
-        C_without_Q = self.getConcentrationFromMinMaxRange_inst_noQ(numOfReflections=numOfReflections)
 
-        ret = tonumber(self.sourceQ, ureg.mg)*C_without_Q
+    def getDosage_inst_NoERF_noQ(self, numOfReflections=3, DF=False):
+
+        C_noQ = self.getConcentration_inst_noQ(numOfReflections=numOfReflections)
+        D_noQ = self.getDosageFromConcentration_inst_NoERF_noQ(C=C_noQ, DF=DF)
+
+        return D_noQ
+
+
+    def getDosage_inst_NoERF_noQ_bounded(self, start_time, end_time, numOfReflections=3, DF=False):
+
+        C_noQ_bounded = self.getConcentration_inst_noQ_bounded(start_time=start_time, end_time=end_time,
+                                                                                    numOfReflections=numOfReflections)
+        D_noQ_bounded = self.getDosageFromConcentration_inst_NoERF_noQ(C_noQ_bounded, DF=DF)
+
+        return D_noQ_bounded
+
+
+
+    # ---------------------------------------------data with Q------------------------------------------------
+
+    def getConcentration_inst(self, numOfReflections=3):
+        C_noQ = self.getConcentration_inst_noQ(numOfReflections=numOfReflections)
+
+        ret = tonumber(self.sourceQ, ureg.mg)*C_noQ
         ret.attrs['Q'] = 1*ureg.mg/ureg.m**3
         return ret
 
 
-    def getDosageFromMinMaxRange_inst(self, numOfReflections=3, DF=False):
-        D_without_Q = self.getDosageFromMinMaxRange_inst_noQ(numOfReflections=numOfReflections, DF=DF)
+    def getDosage_inst(self, numOfReflections=3, DF=False):
+        D_noQ = self.getDosage_inst_noQ(numOfReflections=numOfReflections, DF=DF)
 
-        ret = tonumber(self.sourceQ, ureg.mg)*D_without_Q
+        ret = tonumber(self.sourceQ, ureg.mg)*D_noQ
         ret.attrs['Q'] = 1*ureg.mg*ureg.min/ureg.m**3
         return ret
 
 
 
-    def getDosageFromMinMaxRange_inst_NoERF(self, numOfReflections=3, DF=False):
+    def getDosage_inst_NoERF(self, numOfReflections=3, DF=False):
 
-        D_without_Q = self.getDosageFromMinMaxRange_inst_NoERF_noQ(**self.spaceTime, numOfReflections=numOfReflections, DF=DF)
+        D_noQ = self.getDosage_inst_NoERF_noQ(numOfReflections=numOfReflections, DF=DF)
 
-        ret = tonumber(self.sourceQ, ureg.mg)*D_without_Q
+        ret = tonumber(self.sourceQ, ureg.mg)*D_noQ
         ret.attrs['Q'] = 1*ureg.mg*ureg.min/ureg.m**3
         return ret
 
@@ -439,60 +449,57 @@ class instantaneousReleaseGasCloud(abstractGasCloud):
         return C_Bq
 
 
-    def getTIACFromMinMaxRange_inst(self,specifitActivity, numOfReflections=3, outputUnits=ureg.Bq*ureg.s/ureg.m**3, DF=False):
+    def getTIAC_inst(self,specifitActivity, numOfReflections=3, outputUnits=ureg.Bq*ureg.s/ureg.m**3, DF=False):
 
-        D_without_Q = self.getDosageFromMinMaxRange_inst_noQ(numOfReflections=numOfReflections, DF=DF)
+        D_noQ = self.getDosage_inst_noQ(numOfReflections=numOfReflections, DF=DF)
 
         out_units = unumToPint(outputUnits)
-        ret = tonumber(self.sourceQ, ureg.mg)*D_without_Q
+        ret = tonumber(self.sourceQ, ureg.mg)*D_noQ
         factor = (1*ureg.mg*ureg.min/ureg.m**3 * specifitActivity).m_as(out_units)
         ret *= factor
         ret.attrs['Q'] = out_units
         return ret
 
 
-    def getTIACFromMinMaxRange_inst_noQ(self, numOfReflections=3, outputUnits=ureg.s/ureg.m**3, DF=False):
+    def getTIAC_inst_noQ(self, numOfReflections=3, outputUnits=ureg.s/ureg.m**3, DF=False):
 
-        D_without_Q = self.getDosageFromMinMaxRange_inst_noQ(numOfReflections=numOfReflections, DF=DF)
+        D_noQ = self.getDosage_inst_noQ(numOfReflections=numOfReflections, DF=DF)
         out_units = unumToPint(outputUnits)
-        currentUnites = unumToPint(D_without_Q.attrs['Q'])
+        currentUnites = unumToPint(D_noQ.attrs['Q'])
         factor = currentUnites.m_as(out_units)
-        D_without_Q *= factor
-        D_without_Q.attrs['Q'] = out_units
-        return D_without_Q
+        D_noQ *= factor
+        D_noQ.attrs['Q'] = out_units
+        return D_noQ
 
 
 
-    def getTIACFromMinMaxRange_inst_NoERF(self, specifitActivity, minx, miny, minz, maxx, maxy, maxz, timeSpan, dxdy, dz, dt,
-                                          numOfReflections=3, outputUnits=ureg.Bq*ureg.s/ureg.m**3, DF=False):
+    def getTIAC_inst_NoERF(self, specifitActivity, numOfReflections=3, outputUnits=ureg.Bq*ureg.s/ureg.m**3, DF=False):
 
-        D_without_Q = self.getDosageFromMinMaxRange_inst_NoERF_noQ(**self.spaceTime, numOfReflections=numOfReflections, DF=DF)
+        D_noQ = self.getDosage_inst_NoERF_noQ(numOfReflections=numOfReflections, DF=DF)
 
         out_units = unumToPint(outputUnits)
-        ret = tonumber(self.sourceQ, ureg.mg) * D_without_Q
+        ret = tonumber(self.sourceQ, ureg.mg) * D_noQ
         factor = (1 * ureg.mg * ureg.min / ureg.m ** 3 * specifitActivity).m_as(out_units)
         ret *= factor
         ret.attrs['Q'] = out_units
         return ret
 
 
-    def getTIACFromMinMaxRange_inst_NoERF_noQ(self, minx, miny, minz, maxx, maxy, maxz, timeSpan, dxdy, dz, dt,
-                                              numOfReflections=3, outputUnits=ureg.s/ureg.m**3, DF=False):
+    def getTIAC_inst_NoERF_noQ(self, numOfReflections=3, outputUnits=ureg.s/ureg.m**3, DF=False):
 
-        D_without_Q = self.getDosageFromMinMaxRange_inst_NoERF_noQ(**self.spaceTime, numOfReflections=numOfReflections, DF=DF)
+        D_noQ = self.getDosage_inst_NoERF_noQ(numOfReflections=numOfReflections, DF=DF)
 
         out_units = unumToPint(outputUnits)
-        currentUnites = unumToPint(D_without_Q.attrs['Q'])
+        currentUnites = unumToPint(D_noQ.attrs['Q'])
         factor = currentUnites.m_as(out_units)
-        D_without_Q *= factor
-        D_without_Q.attrs['Q'] = out_units
-        return D_without_Q
+        D_noQ *= factor
+        D_noQ.attrs['Q'] = out_units
+        return D_noQ
 
 
 
 
-    def getTIACFromConcentration_inst_NoERF(self, C, specifitActivity, minx, miny, minz, maxx, maxy, maxz, timeSpan, dxdy, dz, dt,
-                                            outputUnits=ureg.Bq*ureg.s/ureg.m**3, DF=False):
+    def getTIACFromConcentration_inst_NoERF(self, C, specifitActivity, outputUnits=ureg.Bq*ureg.s/ureg.m**3, DF=False):
         """
 
         :param C: xarray of concentrations in units of [mass/volume].
@@ -506,76 +513,89 @@ class instantaneousReleaseGasCloud(abstractGasCloud):
         C_mg_m3 = C*factor
         C_mg_m3.attrs['Q'] = ureg.mg/ureg.m**3
 
-        C_without_Q = C_mg_m3 / tonumber(self.sourceQ, ureg.mg)
-        D_without_Q = self.trapezoidal_integration(data = C_without_Q)
+        C_noQ = C_mg_m3 / tonumber(self.sourceQ, ureg.mg)
+        D_noQ = self.trapezoidal_integration(data = C_noQ)
 
         D_F = 1
         if DF:
-            D_F = self.getDF_noQ_xarray(**self.spaceTime)
+            D_F = self.getDF_xarray()
 
-        D_without_Q = D_without_Q * D_F
+        D_noQ = D_noQ * D_F
 
-        ret = tonumber(self.sourceQ, ureg.mg) * D_without_Q
+        ret = tonumber(self.sourceQ, ureg.mg) * D_noQ
         factor = (1 * ureg.mg * ureg.min / ureg.m ** 3 * specifitActivity).m_as(out_units)
         ret *= factor
         ret.attrs['Q'] = out_units
         return ret
 
 
-    def getTIACFromConcentration_inst_NoERF_noQ(self, C_noQ, minx, miny, minz, maxx, maxy, maxz, timeSpan, dxdy, dz, dt,
-                                                outputUnits=ureg.s/ureg.m**3, DF=False):
+    def getTIACFromConcentration_inst_NoERF_noQ(self, C, outputUnits=ureg.s/ureg.m**3, DF=False):
         """
 
-        :param C_noQ: xarray of concentrations in units of [1/volume].
+        :param C: xarray of concentrations in units of [1/volume].
         :return: TIAC (Time Integrated Air Concentration) in unites of [time/volume]
         """
 
-        D_without_Q = self.trapezoidal_integration(data = C_noQ)
+        D_noQ = self.trapezoidal_integration(data = C)
 
         D_F = 1
         if DF:
-            D_F = self.getDF_noQ_xarray(**self.spaceTime)
+            D_F = self.getDF_xarray()
 
-        D_without_Q = D_without_Q*D_F
-        D_without_Q.attrs['Q'] = 1*ureg.min/ureg.m**3 #need to verify that C_noQ was generated with time steps in [min], not [s]
+        D_noQ = D_noQ*D_F
+        D_noQ.attrs['Q'] = 1*ureg.min/ureg.m**3 #need to verify that C was generated with time steps in [min], not [s]
 
         out_units = unumToPint(outputUnits)
-        currentUnites = unumToPint(D_without_Q.attrs['Q'])
+        currentUnites = unumToPint(D_noQ.attrs['Q'])
         factor = currentUnites.m_as(out_units)
-        D_without_Q *= factor
-        D_without_Q.attrs['Q'] = out_units
+        D_noQ *= factor
+        D_noQ.attrs['Q'] = out_units
 
-        return D_without_Q
+        return D_noQ
+
+    def getTIAC_inst_NoERF_noQ_bounded(self, start_time, end_time, numOfReflections=3, DF=False):
+
+        C_noQ_bounded = self.getConcentration_inst_noQ_bounded(start_time=start_time, end_time=end_time,
+                                                                                    numOfReflections=numOfReflections)
+        D_noQ_bounded = self.getTIACFromConcentration_inst_NoERF_noQ(C_noQ_bounded, DF=DF)
+
+        return D_noQ_bounded
 
 
 
-    def get_TIAC_from_dist(self, data, y, z, dist_list):
+    def get_TIAC_for_dist(self, data, y, z, dist_list):
         """
 
         :param data: TIAC xarray with coordinates x,y,z,time
-        :param y: The y value we wish to get the TIAC values for ([m])
-        :param z: The z value we wish to get the TIAC values for ([m])
-        :param dist_list: A list of x values we wish to get the TIAC values for ([m])
-        :return: A list of tuples (x, TIAC)
-
+        :param y: The y value we wish to get the TIAC values for (unitless, magnitude in meters)
+        :param z: The z value we wish to get the TIAC values for (unitless, magnitude in meters)
+        :param dist_list: A list of x values we wish to get the TIAC values for (unitless, magnitude in meters)
+        :return: A pandas data frame (x, TIAC). Notice: the x values in dist_list don't necessarily correspond to
+                    valid grid points, so instead we take the closest grid point to the desired x value.
         """
+
+        ref_list = list(data.x.values)
+        closest_list = [builtins.min(ref_list, key=lambda ref: abs(ref - val)) for val in dist_list]
+
         distances = numpy.array(data.squeeze().x)
         TIAC_lastTime = numpy.array(data.sel(y=y, z=z, time=data.time[-1], method='nearest'))
         tuples = list(tuple(zip(distances, TIAC_lastTime)))
 
-        for x in dist_list:
-            if x not in distances:
+        for x in closest_list:
+            if x not in closest_list:
                 print(f"x={x} not in Xarray. Try multiples of {distances[1] - distances[0]}")
 
-        return [(x, tiac) for x, tiac in tuples if x in dist_list]
+        temp =  [(x, tiac) for x, tiac in tuples if x in closest_list]
 
+        ret = pandas.DataFrame(temp, columns=['Distance', 'TIAC'])
+
+        return ret
 
 
 
 class continuousReleaseGasCloud(abstractGasCloud):
 
-    def getConcentrationFromMinMaxRange_cont(self, minx, miny, minz, maxx, maxy, maxz, timeSpan, dxdy, dz, dt,
-                                             numOfReflections=3, DF=False):
+    def getConcentration_cont(self, numOfReflections=3, DF=False):
         """
         Returns
         -------
@@ -583,13 +603,12 @@ class continuousReleaseGasCloud(abstractGasCloud):
         since we assume the release rate is constant.
         Here we take the concentration xarray that was claculated using the error function (erf).
         """
-        C_without_Q = self.getDosageFromMinMaxRange_inst_noQ(**self.spaceTime,numOfReflections=numOfReflections, DF=DF)
+        C_noQ = self.getDosage_inst_noQ(numOfReflections=numOfReflections, DF=DF)
 
-        return tonumber(self.sourceQ, ureg.mg/ureg.s)*C_without_Q
+        return tonumber(self.sourceQ, ureg.mg/ureg.s)*C_noQ
 
 
-    def getConcentrationFromMinMaxRange_cont_NoERF(self, minx, miny, minz, maxx, maxy, maxz, timeSpan, dxdy, dz, dt,
-                                                   numOfReflections=3, DF=False):
+    def getConcentration_cont_NoERF(self, numOfReflections=3, DF=False):
         """
         Returns
         -------
@@ -597,25 +616,23 @@ class continuousReleaseGasCloud(abstractGasCloud):
         since we assume the release rate is constant.
         Here we take the concentration xarray that was claculated without the error function (erf).
         """
-        C_without_Q = self.getDosageFromMinMaxRange_inst_NoERF_noQ(**self.spaceTime, numOfReflections=numOfReflections, DF=DF)
-        return tonumber(self.sourceQ, ureg.mg/ureg.s)*C_without_Q
+        C_noQ = self.getDosage_inst_NoERF_noQ(numOfReflections=numOfReflections, DF=DF)
+        return tonumber(self.sourceQ, ureg.mg/ureg.s)*C_noQ
 
 
-    def getDosageFromMinMaxRange_cont_NoERF(self, minx, miny, minz, maxx, maxy, maxz, timeSpan, dxdy, dz, dt,
-                                            numOfReflections=3, DF=False):
+    def getDosage_cont_NoERF(self, numOfReflections=3, DF=False):
 
-        C_without_Q = self.getConcentrationFromMinMaxRange_cont(**self.spaceTime, numOfReflections=numOfReflections, DF=DF)
-        D_without_Q = self.trapezoidal_integration(data=C_without_Q)
+        C_noQ = self.getConcentration_cont(numOfReflections=numOfReflections, DF=DF)
+        D_noQ = self.trapezoidal_integration(data=C_noQ)
 
-        return tonumber(self.sourceQ, ureg.mg/ureg.min) * D_without_Q
+        return tonumber(self.sourceQ, ureg.mg/ureg.min) * D_noQ
 
-    def getDosageFromMinMaxRange_cont_doubleNoERF(self, minx, miny, minz, maxx, maxy, maxz, timeSpan, dxdy, dz, dt,
-                                                  numOfReflections=3, DF=False):
+    def getDosage_cont_doubleNoERF(self, numOfReflections=3, DF=False):
 
-        C_without_Q = self.getConcentrationFromMinMaxRange_cont_NoERF(**self.spaceTime, numOfReflections=numOfReflections, DF=DF)
-        D_without_Q = self.trapezoidal_integration(data=C_without_Q)
+        C_noQ = self.getConcentration_cont_NoERF(numOfReflections=numOfReflections, DF=DF)
+        D_noQ = self.trapezoidal_integration(data=C_noQ)
 
-        return tonumber(self.sourceQ, ureg.mg/ureg.min) * D_without_Q
+        return tonumber(self.sourceQ, ureg.mg/ureg.min) * D_noQ
 
 
 
