@@ -59,13 +59,13 @@ class gaussianToolkit(abstractToolkit):
 
 
 
-    def getMeteorologyFromU10(self, u10, inversion, verticalProfileType="log", temperature=ureg.Quantity(20, ureg.degC), stability="D",
+    def getMeteorologyFromU10(self, u10, inversion, verticalProfileType="powerLaw", temperature=ureg.Quantity(20, ureg.degC), stability="D",
                               z0=0.1*ureg.m, ustar=0.3*ureg.m/ureg.s, skinSurfaceTemperature=ureg.Quantity(35, ureg.degC)):
         return MeteorologyFactory().getMeteorologyFromU10(u10=u10, inversion=inversion, verticalProfileType=verticalProfileType,
                     temperature=temperature, stability=stability, z0=z0, ustar=ustar, skinSurfaceTemperature=skinSurfaceTemperature)
 
 
-    def getMeteorologyFromURefHeight(self, u, refHeight, inversion, verticalProfileType="log", temperature=ureg.Quantity(20, ureg.degC), stability="D",
+    def getMeteorologyFromURefHeight(self, u, refHeight, inversion, verticalProfileType="powerLaw", temperature=ureg.Quantity(20, ureg.degC), stability="D",
                               z0=0.1*ureg.m, ustar=0.3*ureg.m/ureg.s, skinSurfaceTemperature=ureg.Quantity(35, ureg.degC)):
         return MeteorologyFactory().getMeteorologyFromURefHeight(u=u, refHeight=refHeight,  inversion=inversion,
                     verticalProfileType=verticalProfileType, temperature=temperature, stability=stability, z0=z0,
@@ -75,7 +75,7 @@ class gaussianToolkit(abstractToolkit):
 
 
 
-    def getSpaceTime(self, meteorology, sourceHeight, wind_profile_type, maxx, dt, dz, dxdy_multiplier, minimal_maxy, initialCloudSize):
+    def getSpaceTime(self, meteorology, sourceHeight, wind_profile_type, maxx, maxz, dt, dz, dxdy_multiplier, minimal_maxy, initialCloudSize):
 
         # setting the wind speed at the source height according to the Hot Spot's manual, or Hera's built-in functions.
         if wind_profile_type == 'HotSpot':
@@ -87,7 +87,7 @@ class gaussianToolkit(abstractToolkit):
 
         # it is preferable to take dxdy as a multiple of dt*windSpeed, so that the cloud center is directly above a grid-point.
         # the dxdy_multiplier makes the cloud above every dxdy_multiplier-th grid-point (on the datetime axis).
-        dxdy = dt.m_as(ureg.s) * windSpeed.m_as(ureg.m / ureg.s) * dxdy_multiplier * ureg.m
+        dxdy = (dt * windSpeed * dxdy_multiplier).to(ureg.m)
 
         # the Y-span should be the smallest multiple of dxdy that is greater/equal to the initially given maxy.
         # the purpose is to limit the grid along the y-axis, to reduce runtime.
@@ -115,7 +115,7 @@ class gaussianToolkit(abstractToolkit):
         spaceTime = {
             'minx': 0 * ureg.m, 'maxx': maxx,
             'miny': -maxy, 'maxy': maxy + 1 * ureg.m,
-            'minz': 0 * ureg.m, 'maxz': 2 * ureg.m,
+            'minz': 0 * ureg.m, 'maxz': maxz,
             'dxdy': dxdy, 'dz': dz,
             'timeSpan': timeSpan, 'dt': dt}
 
@@ -125,7 +125,7 @@ class gaussianToolkit(abstractToolkit):
 
 
     def getGasCloud(self, sourceQ, sourceHeight, initialCloudSize, meteorology, wind_profile_type,
-                    spaceTime, sigmaTypeName="briggsRural"):
+                    spaceTime, deposition_velocity, sigmaTypeName="briggsRural"):
         """
 
         Parameters
@@ -152,7 +152,7 @@ class gaussianToolkit(abstractToolkit):
         gascloud = abstractGasCloud.createGasCloud(sourceQ=sourceQ,sourceHeight=sourceHeight,
                                                    initialCloudSize=initialCloudSize,meteorology=meteorology,
                                                    wind_profile_type=wind_profile_type, spaceTime=spaceTime,
-                                                   sigmaType=sigmaType)
+                                                   sigmaType=sigmaType ,deposition_velocity=deposition_velocity)
         return gascloud
 
 
@@ -226,7 +226,7 @@ class presentationLayer:
         plt.plot(time_array, conc_inst_t)
         plt.xlabel("Time from release $[min]$")
         plt.ylabel(f"Concentration {units}")
-        plt.title(f"Receptor at x={x}[m], y={y}[m], z={z}[m].")
+        plt.title(f"Detector at x={x}[m], y={y}[m], z={z}[m].")
         plt.grid()
         if t_min is not None and t_max is not None:
             t_min = unumToPint(t_min).m_as(ureg.min)
@@ -286,7 +286,7 @@ class presentationLayer:
         plt.plot(time_array, dos_inst_t )
         plt.xlabel("Time from release $[min]$")
         plt.ylabel(f"TIAC over time {units}")
-        plt.title(f"Receptor at x={x}[m], y={y}[m], z={z}[m].")
+        plt.title(f"Detector at x={x}[m], y={y}[m], z={z}[m].")
         plt.grid()
         plt.show()
 
@@ -311,7 +311,7 @@ class presentationLayer:
         plt.plot(x_array, conc_x_inst)
         plt.xlabel("Distance from source $[m]$")
 
-        plt.ylabel(r"Concentration $\left[\frac{1}{m^3}\right]$")
+        plt.ylabel(rf"Concentration $\left[{C.attrs['Q'].units:~L}\right]$")
         plt.title(f"Maximum concentration over time. y={y}[m], z={z}[m]")
         plt.grid()
 
@@ -342,8 +342,8 @@ class presentationLayer:
 
         plt.plot(time_array, conc_inst_t)
         plt.xlabel("Time from release $[min]$")
-        plt.ylabel(r"Concentration $\left[\frac{1}{m^3}\right]$")
-        plt.title(f"Receptor at x={x}[m], y={y}[m], z={z}[m].")
+        plt.ylabel(rf"Concentration $\left[{C.attrs['Q'].units:~L}\right]$")
+        plt.title(f"Detector at x={x}[m], y={y}[m], z={z}[m].")
         plt.grid()
         t_min = (C.time[0].values)*ureg.min if t_min is None else t_min
         t_max = (C.time[-1].values)*ureg.min if t_max is None else t_max
@@ -371,7 +371,7 @@ class presentationLayer:
         plt.plot(x_array, dos_x_inst )
         plt.xlabel("Distance from source $[m]$")
 
-        plt.ylabel(r"TIAC $\left[\frac{1}{m^3} \cdot min\right]$")
+        plt.ylabel(rf"TIAC $\left[{TIAC.attrs['Q'].units:~L}\right]$")
         plt.title(f"TIAC per distance. y={y}[m], z={z}[m], time={time}[min]")
         plt.grid()
         x_min = (TIAC.x[0].values)*ureg.meter if x_min is None else x_min
@@ -401,8 +401,8 @@ class presentationLayer:
 
         plt.plot(time_array, dos_inst_t )
         plt.xlabel("Time from release $[min]$")
-        plt.ylabel(r"TIAC over time $\left[\frac{1}{m^3} \cdot min\right]$")
-        plt.title(f"Receptor at x={x}[m], y={y}[m], z={z}[m].")
+        plt.ylabel(rf"TIAC $\left[{TIAC.attrs['Q'].units:~L}\right]$")
+        plt.title(f"Detector at x={x}[m], y={y}[m], z={z}[m].")
         plt.grid()
 
         t_min = (TIAC.time[0].values)*ureg.min if t_min is None else t_min
