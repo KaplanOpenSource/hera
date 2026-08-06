@@ -1,9 +1,10 @@
-import { Add } from '@mui/icons-material';
-import { Box, IconButton, Tooltip, useTheme } from '@mui/material';
+import { Add, AutoAwesome } from '@mui/icons-material';
+import { Box, Divider, IconButton, Menu, MenuItem, Tooltip, useTheme } from '@mui/material';
 import { Background, Connection, Controls, Edge, MarkerType, Node, Panel, ReactFlow, ReactFlowProvider, useNodesInitialized, useNodesState, useReactFlow } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { WorkflowNode } from '../../shared/types';
+import { WorkflowBlock, WorkflowNode } from '../../shared/types';
+import { workflowTemplates } from './workflowTemplates';
 import { NodeCatalogEntry, nodeOutputNames } from './nodeCatalog';
 import { WorkflowContextMenu, WorkflowContextMenuKind, WorkflowContextMenuTarget } from './WorkflowContextMenu';
 import { WorkflowFlowNode } from './WorkflowFlowNode';
@@ -26,6 +27,7 @@ interface WorkflowGraphProps {
   selectedNode?: string;
   onSelectNode: (name: string | undefined) => void;
   onAddNode: () => void;
+  onApplyTemplate: (block: WorkflowBlock) => void;
   onRenameNode: (oldName: string, newName: string) => void;
   onSetNode: (name: string, node: WorkflowNode) => void;
   onAddRequire: (source: string, target: string) => void;
@@ -43,6 +45,7 @@ const WorkflowGraphInner = ({
   selectedNode,
   onSelectNode,
   onAddNode,
+  onApplyTemplate,
   onRenameNode,
   onSetNode,
   onAddRequire,
@@ -51,6 +54,8 @@ const WorkflowGraphInner = ({
 }: WorkflowGraphProps) => {
   const theme = useTheme();
   const [menu, setMenu] = useState<WorkflowContextMenuTarget | null>(null);
+  // Anchor for the templates menu (null when closed).
+  const [templatesAnchor, setTemplatesAnchor] = useState<HTMLElement | null>(null);
   const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
   // The active inline `{…}` reference autocomplete: which field it hangs under,
   // the node/param being edited, and the current suggestions. Null when idle.
@@ -423,11 +428,33 @@ const WorkflowGraphInner = ({
         }}
       >
         <Panel position="top-right">
-          <Tooltip title="Add node">
-            <IconButton size="small" onClick={onAddNode} sx={{ bgcolor: 'background.paper', boxShadow: 1, mr: 1, p: 0.5 }}>
-              <Add fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-end' }}>
+            <Tooltip title="Add node">
+              <IconButton size="small" onClick={onAddNode} sx={{ bgcolor: 'background.paper', boxShadow: 1, p: 0.5 }}>
+                <Add fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Templates">
+              <IconButton size="small" onClick={e => setTemplatesAnchor(e.currentTarget)} sx={{ bgcolor: 'background.paper', boxShadow: 1, p: 0.5 }}>
+                <AutoAwesome fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+          <Menu anchorEl={templatesAnchor} open={!!templatesAnchor} onClose={() => setTemplatesAnchor(null)}>
+            {workflowTemplates.map(t => (
+              <MenuItem
+                key={t.id}
+                onClick={() => {
+                  onApplyTemplate(t.block);
+                  setTemplatesAnchor(null);
+                }}
+              >
+                {t.label}
+              </MenuItem>
+            ))}
+            <Divider />
+            <MenuItem onClick={() => setTemplatesAnchor(null)}>Cancel</MenuItem>
+          </Menu>
         </Panel>
         <Background />
         <Controls />

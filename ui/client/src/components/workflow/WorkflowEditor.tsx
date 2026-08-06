@@ -83,6 +83,12 @@ export const WorkflowEditor = ({
     }
   };
 
+  // Replace the whole workflow with a starter template's block.
+  const applyTemplate = (templateBlock: WorkflowBlock) => {
+    setBlock(templateBlock);
+    setSelectedNode(undefined);
+  };
+
   const deleteNode = (name: string) => {
     const nodes = { ...block?.nodes };
     delete nodes[name];
@@ -129,6 +135,7 @@ export const WorkflowEditor = ({
               selectedNode={selectedNode}
               onSelectNode={setSelectedNode}
               onAddNode={addNode}
+              onApplyTemplate={applyTemplate}
               onRenameNode={renameNode}
               onSetNode={setNode}
               onAddRequire={addRequire}
