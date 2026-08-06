@@ -19,6 +19,8 @@ import { computeLayers } from './workflowGeometry';
 const NODE_TYPES = { workflow: WorkflowFlowNode };
 // Dataflow edges reuse the same removable-edge component (X button at midpoint).
 const EDGE_TYPES = { requires: WorkflowRequiresEdge, dataflow: WorkflowRequiresEdge };
+// Cap fit-to-view zoom so a single small node doesn't fill the whole screen.
+const FIT_MAX_ZOOM = 1;
 
 interface WorkflowGraphProps {
   catalog: NodeCatalogEntry[];
@@ -125,10 +127,13 @@ const WorkflowGraphInner = ({
     prevNamesRef.current = nodeNames;
     if (isInitial) {
       pendingRef.current = 'all';
-    } else if (added.length > 0 && removed.length === 0) {
-      pendingRef.current = added.length === 1 ? added[0] : 'all';
+    } else if (added.length > 0) {
+      // Wait for the new nodes to be measured before fitting. Focus a single
+      // freshly-added node (keep zoom); fit everything for bulk/replace changes
+      // like applying a template, where fitting now would use unmeasured sizes.
+      pendingRef.current = added.length === 1 && removed.length === 0 ? added[0] : 'all';
     } else {
-      requestAnimationFrame(() => fitView({ duration: 300 }));
+      requestAnimationFrame(() => fitView({ duration: 300, maxZoom: FIT_MAX_ZOOM }));
     }
   }, [layerKey]);
 
@@ -141,7 +146,7 @@ const WorkflowGraphInner = ({
     const pending = pendingRef.current;
     pendingRef.current = null;
     if (pending === 'all') {
-      fitView({ duration: 300 });
+      fitView({ duration: 300, maxZoom: FIT_MAX_ZOOM });
       return;
     }
     const node = getNode(pending);
@@ -414,6 +419,7 @@ const WorkflowGraphInner = ({
         onEdgesDelete={onEdgesDelete}
         isValidConnection={isValidConnection}
         fitView
+        fitViewOptions={{ maxZoom: FIT_MAX_ZOOM }}
         onNodeClick={(_e, node) => onSelectNode(node.id)}
         onPaneClick={() => { onSelectNode(undefined); setInline(null); }}
         onEdgeMouseEnter={(_e, edge) => setHoveredEdge(edge.id)}

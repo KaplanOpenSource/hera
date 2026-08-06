@@ -1,0 +1,20 @@
+{
+    "workflow": {
+        "nodes": {
+            "SystemInfo": {
+                "Execution": {
+                    "input_parameters": {
+                        "Method": "Commands list",
+                        "Command": [
+                            "echo 'system info:'",
+                            "uname -a",
+                            "whoami",
+                            "date"
+                        ]
+                    }
+                },
+                "type": "general.RunOsCommand"
+            }
+        }
+    }
+}

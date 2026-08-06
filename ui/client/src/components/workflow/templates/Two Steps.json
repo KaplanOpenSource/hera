@@ -1,0 +1,29 @@
+{
+    "workflow": {
+        "nodes": {
+            "First": {
+                "Execution": {
+                    "input_parameters": {
+                        "Method": "Commands list",
+                        "Command": [
+                            "echo 'step 1 running'"
+                        ]
+                    }
+                },
+                "type": "general.RunOsCommand"
+            },
+            "Second": {
+                "requires": "First",
+                "Execution": {
+                    "input_parameters": {
+                        "Method": "Commands list",
+                        "Command": [
+                            "echo 'step 2 running, after step 1'"
+                        ]
+                    }
+                },
+                "type": "general.RunOsCommand"
+            }
+        }
+    }
+}
