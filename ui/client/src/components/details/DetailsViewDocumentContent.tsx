@@ -11,6 +11,7 @@ import { ProjectDocument, WorkflowDesc } from '../../shared/types';
 import { getWorkflowSolver, isWorkflowDoc, setWorkflowSolver } from '../../shared/workflow';
 import { copyOnly, copyWithout, reorderEntries } from '../../utils/utils';
 import { AgentConfigEditor } from '../agents/AgentConfigEditor';
+import { RunWorkflowButton } from '../workflow/RunWorkflowButton';
 import { WorkflowEditor } from '../workflow/WorkflowEditor';
 import { DetailsViewDocumentHeader } from './DetailsViewDocumentHeader';
 import { DocView, DocViewSelector } from './DocViewSelector';
@@ -87,6 +88,14 @@ export const DetailsViewDocumentContent = ({
           value={detailsVisibility}
           onChange={setDetailsVisibility}
         />
+        {isWorkflow && (
+          <RunWorkflowButton
+            projectName={doc.project.name}
+            workflowName={(shownDoc.desc as WorkflowDesc).workflowName ?? doc.name}
+            disabled={isChanged}
+            disabledReason="Save changes before running"
+          />
+        )}
         {isChanged
           ? (<>
             <ButtonTooltip
