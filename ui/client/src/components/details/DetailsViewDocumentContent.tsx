@@ -187,6 +187,15 @@ export const DetailsViewDocumentContent = ({
         <WorkflowEditor
           workflow={(shownDoc.desc as WorkflowDesc).workflow}
           setWorkflow={newVal => setShownDoc({ ...shownDoc, desc: { ...shownDoc.desc, workflow: newVal } as WorkflowDesc })}
+          actionButtons={
+            <RunWorkflowButton
+              projectName={doc.project.name}
+              workflowName={(shownDoc.desc as WorkflowDesc).workflowName ?? doc.name}
+              disabled={isChanged}
+              disabledReason="Save changes before running"
+              sx={{ bgcolor: 'background.paper', boxShadow: 1, p: 0.5 }}
+            />
+          }
         />
       )}
     </>

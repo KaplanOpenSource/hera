@@ -1,4 +1,5 @@
 import { PlayArrow } from '@mui/icons-material';
+import { SxProps, Theme } from '@mui/material';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { fetchPython } from '../../io/fetchPython';
 import { pushInfo } from '../../io/snackbar';
@@ -12,11 +13,13 @@ export const RunWorkflowButton = ({
   workflowName,
   disabled,
   disabledReason,
+  sx,
 }: {
   projectName: string,
   workflowName: string,
   disabled?: boolean,
   disabledReason?: string,
+  sx?: SxProps<Theme>,
 }) => {
   const runWorkflow = async () => {
     const { data } = await fetchPython({
@@ -37,6 +40,7 @@ export const RunWorkflowButton = ({
       aria-label={title}
       disabled={disabled}
       onClick={runWorkflow}
+      sx={sx}
     >
       <PlayArrow />
     </ButtonTooltip>

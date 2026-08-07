@@ -2,7 +2,7 @@ import { Add, AutoAwesome } from '@mui/icons-material';
 import { Box, Divider, IconButton, Menu, MenuItem, Tooltip, useTheme } from '@mui/material';
 import { Background, Connection, Controls, Edge, MarkerType, Node, Panel, ReactFlow, ReactFlowProvider, useNodesInitialized, useNodesState, useReactFlow } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { WorkflowBlock, WorkflowNode } from '../../shared/types';
 import { workflowTemplates } from './workflowTemplates';
 import { NodeCatalogEntry, nodeOutputNames } from './nodeCatalog';
@@ -27,6 +27,8 @@ interface WorkflowGraphProps {
   nodeNames: string[];
   nodes: { [name: string]: WorkflowNode };
   selectedNode?: string;
+  // Extra controls rendered in the canvas's top-right corner (e.g. a run button).
+  actionButtons?: ReactNode;
   onSelectNode: (name: string | undefined) => void;
   onAddNode: () => void;
   onApplyTemplate: (block: WorkflowBlock) => void;
@@ -45,6 +47,7 @@ const WorkflowGraphInner = ({
   nodeNames,
   nodes,
   selectedNode,
+  actionButtons,
   onSelectNode,
   onAddNode,
   onApplyTemplate,
@@ -445,6 +448,7 @@ const WorkflowGraphInner = ({
                 <AutoAwesome fontSize="small" />
               </IconButton>
             </Tooltip>
+            {actionButtons}
           </Box>
           <Menu anchorEl={templatesAnchor} open={!!templatesAnchor} onClose={() => setTemplatesAnchor(null)}>
             {workflowTemplates.map(t => (

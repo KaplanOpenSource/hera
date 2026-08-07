@@ -1,5 +1,5 @@
 import { Box, Typography } from '@mui/material';
-import { useState } from 'react';
+import { ReactNode, useState } from 'react';
 import { WorkflowBlock, WorkflowData, WorkflowNode } from '../../shared/types';
 import { getWorkflowBlock, isTopLevelBlock, normalizeRequires } from '../../shared/workflow';
 import { NodeCatalogReader, useNodeCatalog } from './useNodeCatalog';
@@ -22,9 +22,11 @@ const normalizeRenamed = (requires: string | string[] | undefined, oldName: stri
 export const WorkflowEditor = ({
   workflow,
   setWorkflow,
+  actionButtons,
 }: {
   workflow?: WorkflowData,
   setWorkflow: (workflow: WorkflowData) => void,
+  actionButtons?: ReactNode,
 }) => {
   const [selectedNode, setSelectedNode] = useState<string | undefined>(undefined);
   const catalog = useNodeCatalog(s => s.catalog);
@@ -133,6 +135,7 @@ export const WorkflowEditor = ({
               nodeNames={nodeNames}
               nodes={block.nodes ?? {}}
               selectedNode={selectedNode}
+              actionButtons={actionButtons}
               onSelectNode={setSelectedNode}
               onAddNode={addNode}
               onApplyTemplate={applyTemplate}
