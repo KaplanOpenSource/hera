@@ -1,15 +1,8 @@
 import { Box } from '@mui/material';
-import { useState } from 'react';
+import { useLogFilterStore } from '../../../stores/useLogFilterStore';
 import { classifyLog, LogLineKind } from './classifyLog';
 import { LogLine } from './LogLine';
 import { LogToolbar } from './LogToolbar';
-
-// All kinds start visible.
-const allVisible = (): { [kind in LogLineKind]: boolean } => {
-  return Object.fromEntries(Object.values(LogLineKind).map((k) => { return [k, true]; })) as {
-    [kind in LogLineKind]: boolean
-  };
-};
 
 const emptyCounts = (): { [kind in LogLineKind]: number } => {
   return Object.fromEntries(Object.values(LogLineKind).map((k) => { return [k, 0]; })) as {
@@ -18,22 +11,20 @@ const emptyCounts = (): { [kind in LogLineKind]: number } => {
 };
 
 // Renders raw workflow console output as classified, indexed, color-coded lines,
-// with per-kind show/hide filters (showing counts) and a copy-all button.
+// with per-kind show/hide filters (showing counts) and a copy-all button. The
+// filter choices are persisted (useLogFilterStore) so they survive across runs.
 export const WorkflowLogView = ({
   output,
 }: {
   output: string,
 }) => {
-  const [visible, setVisible] = useState(allVisible);
+  const visible = useLogFilterStore((state) => { return state.visible; });
+  const toggle = useLogFilterStore((state) => { return state.toggle; });
 
   const lines = classifyLog(output);
 
   const counts = emptyCounts();
   lines.forEach((line) => { counts[line.kind] += 1; });
-
-  const toggle = (kind: LogLineKind) => {
-    setVisible((prev) => { return { ...prev, [kind]: !prev[kind] }; });
-  };
 
   return (
     <Box sx={{ fontFamily: 'monospace', fontSize: 12 }}>

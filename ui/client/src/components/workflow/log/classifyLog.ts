@@ -8,6 +8,7 @@ export enum LogLineKind {
   Error = 'ERROR',
   Summary = 'SUMMARY',
   Output = 'OUTPUT',
+  Technical = 'TECHNICAL',
 }
 
 export interface ClassifiedLine {
@@ -16,11 +17,13 @@ export interface ClassifiedLine {
   text: string,
 }
 
-// Leading "LEVEL:" prefixes emitted by Luigi's logger.
+// Leading "LEVEL:" prefixes emitted by Python/Luigi's logger. CRITICAL is treated
+// as Error and WARN as Warning (they're synonyms).
 const PREFIX_TO_KIND: { [prefix: string]: LogLineKind } = {
   'DEBUG:': LogLineKind.Debug,
   'INFO:': LogLineKind.Info,
   'WARNING:': LogLineKind.Warning,
+  'WARN:': LogLineKind.Warning,
   'ERROR:': LogLineKind.Error,
   'CRITICAL:': LogLineKind.Error,
 };
@@ -35,20 +38,28 @@ const kindForLine = (
 };
 
 // Lines between the two "===== Luigi Execution Summary =====" markers (and the
-// markers themselves) are the summary block. Anything without a level prefix and
-// outside that block is the task's own stdout (Output).
+// markers themselves) are the summary block. Once that block closes, everything
+// after it is Technical (Hermes loading node outputs, load problems, etc.).
+// Before the block, a line without a level prefix is the task's own stdout (Output).
 export const classifyLog = (
   raw: string,
 ): ClassifiedLine[] => {
   let insideSummary = false;
+  let afterSummary = false;
   return raw.split('\n').map((text, index) => {
     const isMarker = text.includes(SUMMARY_MARKER);
     if (isMarker) {
+      if (insideSummary) {
+        afterSummary = true;
+      }
       insideSummary = !insideSummary;
       return { index, kind: LogLineKind.Summary, text };
     }
     if (insideSummary) {
       return { index, kind: LogLineKind.Summary, text };
+    }
+    if (afterSummary) {
+      return { index, kind: LogLineKind.Technical, text };
     }
     const prefixKind = kindForLine(text);
     return { index, kind: prefixKind ?? LogLineKind.Output, text };

@@ -12,6 +12,14 @@ describe('classifyLog', () => {
     ]);
   });
 
+  it('treats CRITICAL as error and WARN as warning', () => {
+    const lines = classifyLog('CRITICAL: fatal\nWARN: heads up');
+    expect(lines.map((l) => { return l.kind; })).toEqual([
+      LogLineKind.Error,
+      LogLineKind.Warning,
+    ]);
+  });
+
   it('treats prefixless lines as task output', () => {
     const lines = classifyLog('hello from hera');
     expect(lines[0].kind).toBe(LogLineKind.Output);
@@ -36,7 +44,23 @@ describe('classifyLog', () => {
       LogLineKind.Summary,
       LogLineKind.Summary,
       LogLineKind.Summary,
-      LogLineKind.Output,
+      LogLineKind.Technical,
+    ]);
+  });
+
+  it('classifies everything after the summary block as post-summary', () => {
+    const raw = [
+      '===== Luigi Execution Summary =====',
+      '===== Luigi Execution Summary =====',
+      'Load /app/out.json',
+      'INFO: this is after the summary too',
+    ].join('\n');
+    const kinds = classifyLog(raw).map((l) => { return l.kind; });
+    expect(kinds).toEqual([
+      LogLineKind.Summary,
+      LogLineKind.Summary,
+      LogLineKind.Technical,
+      LogLineKind.Technical,
     ]);
   });
 });
