@@ -1,6 +1,6 @@
 import os
 import sys
-import tempfile
+import threading
 
 
 class WorkflowRunner:
@@ -17,9 +17,10 @@ class WorkflowRunner:
 
         stdout+stderr are captured at the fd level because the Luigi subprocess and
         the node's os.system write to the process file descriptors, not sys.stdout.
-        The toolkit's files directory is temporarily added to PYTHONPATH so the
-        generated Luigi module is importable by the subprocess. Both are restored
-        afterwards.
+        The output is duplicated: it still shows on the server console AND is
+        collected into the returned string. The toolkit's files directory is
+        temporarily added to PYTHONPATH so the generated Luigi module is importable
+        by the subprocess. Both fds and PYTHONPATH are restored afterwards.
         """
         from hera import toolkitHome
 
@@ -31,13 +32,29 @@ class WorkflowRunner:
         previous_pythonpath = os.environ.get("PYTHONPATH")
         os.environ["PYTHONPATH"] = workflow_toolkit.FilesDirectory + os.pathsep + (previous_pythonpath or "")
 
-        log_fd, log_path = tempfile.mkstemp(suffix=".log")
+        # Everything written to fds 1/2 goes into the pipe; a reader thread echoes
+        # it back to the real console (saved_stdout_fd) and also collects it.
         saved_stdout_fd = os.dup(1)
         saved_stderr_fd = os.dup(2)
+        pipe_read_fd, pipe_write_fd = os.pipe()
+
+        collected = []
+
+        def tee():
+            while True:
+                chunk = os.read(pipe_read_fd, 4096)
+                if not chunk:
+                    break
+                collected.append(chunk)
+                os.write(saved_stdout_fd, chunk)
+
+        reader = threading.Thread(target=tee)
+        reader.start()
+
         sys.stdout.flush()
         sys.stderr.flush()
-        os.dup2(log_fd, 1)
-        os.dup2(log_fd, 2)
+        os.dup2(pipe_write_fd, 1)
+        os.dup2(pipe_write_fd, 2)
 
         try:
             dispatch_id = workflow_toolkit.executeWorkflowFromDB(workflow_name, scheduler="local")
@@ -46,16 +63,16 @@ class WorkflowRunner:
             sys.stderr.flush()
             os.dup2(saved_stdout_fd, 1)
             os.dup2(saved_stderr_fd, 2)
+            os.close(pipe_write_fd)
+            reader.join()
+            os.close(pipe_read_fd)
             os.close(saved_stdout_fd)
             os.close(saved_stderr_fd)
-            os.close(log_fd)
             if previous_pythonpath is None:
                 os.environ.pop("PYTHONPATH", None)
             else:
                 os.environ["PYTHONPATH"] = previous_pythonpath
 
-        with open(log_path) as log_file:
-            output = log_file.read()
-        os.remove(log_path)
+        output = b"".join(collected).decode(errors="replace")
 
         return {"dispatch_id": dispatch_id, "output": output}
