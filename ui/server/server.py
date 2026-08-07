@@ -16,7 +16,6 @@ from pydantic import BaseModel
 
 from cors_handler import CorsHandler
 from jupyter_server_thread import JupyterServerThread, DEFAULT_JUPYTER_PORT
-from mock_data import MOCK_PROJECTS
 from node_catalog import get_node_catalog
 from workflow_runner import WorkflowRunner
 
@@ -139,7 +138,7 @@ def exec_code(payload: ExecPayload) -> ExecResponse:
     # DANGER: This is a security risk. It allows arbitrary code execution.
     # Only use this in a trusted environment.
     # The `_locals` dict will be updated with any variables created in the code.
-    _locals = {} # "MOCK_PROJECTS": MOCK_PROJECTS}
+    _locals = {}
     print("executing: " + payload.code)
     try:
         exec(payload.code, _locals)
