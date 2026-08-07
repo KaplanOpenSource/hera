@@ -23,13 +23,16 @@ type ViewSettingsStore = {
   resetViewSettings: () => void;
 };
 
+// Default auto-reload interval (seconds) used when auto-reload is turned back on.
+export const DEFAULT_RELOAD_INTERVAL_SECONDS = 5;
+
 const defaultSettings: ViewSettingsType = {
   minGroupSize: 2,
   maxDepth: 5,
   maxBranches: 50,
   firstBranchHeadFields: true,
   showDocumentPreview: true,
-  reloadIntervalSeconds: 5,
+  reloadIntervalSeconds: DEFAULT_RELOAD_INTERVAL_SECONDS,
   themeMode: ThemeMode.Light,
 };
 
