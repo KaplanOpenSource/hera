@@ -5,15 +5,22 @@ import mimetypes
 import traceback
 from pathlib import Path
 
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
 
+from api_models import (
+    ExecPayload,
+    ExecResponse,
+    JupyterStartPayload,
+    Problem,
+    RunWorkflowPayload,
+    RunWorkflowResponse,
+)
 from cors_handler import CorsHandler
 from jupyter_server_thread import JupyterServerThread, DEFAULT_JUPYTER_PORT
 from node_catalog import get_node_catalog
@@ -81,11 +88,6 @@ def healthz() -> dict:
 jupyter: JupyterServerThread | None = None
 
 
-class JupyterStartPayload(BaseModel):
-    root_dir: str
-    dark: bool = False
-
-
 @app.post("/jupyter/ensure")
 def jupyter_ensure(payload: JupyterStartPayload) -> dict:
     global jupyter
@@ -108,20 +110,6 @@ def jupyter_ensure(payload: JupyterStartPayload) -> dict:
 def cors_info() -> dict:
     print ('cors', cors_handler.custom_origins)
     return {"origins": cors_handler.custom_origins}
-
-
-class ExecPayload(BaseModel):
-    code: str
-
-
-class Problem(BaseModel):
-    error: str
-    traceback: str
-
-
-class ExecResponse(BaseModel):
-    data: Any = None
-    problem: Optional[Problem] = None
 
 
 def _truncate_for_log(value: Any) -> str:
@@ -150,16 +138,6 @@ def exec_code(payload: ExecPayload) -> ExecResponse:
     result = _locals.get("result", None)
     print("got:", _truncate_for_log(result))
     return ExecResponse(data=jsonable_encoder(result))
-
-
-class RunWorkflowPayload(BaseModel):
-    projectName: str
-    workflowName: str
-
-
-class RunWorkflowResponse(BaseModel):
-    dispatch_id: str
-    output: str
 
 
 # Instantiated once and reused across requests (will hold run state/config later).
