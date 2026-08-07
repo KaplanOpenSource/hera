@@ -1,9 +1,10 @@
 import { PlayArrow } from '@mui/icons-material';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, SxProps, Theme } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle, SxProps, Theme } from '@mui/material';
 import { useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { runWorkflow } from '../../io/runWorkflow';
 import { dismiss, pushError, pushInfo, pushRunning } from '../../io/snackbar';
+import { WorkflowLogView } from './log/WorkflowLogView';
 
 // Runs a saved workflow via the server's /run_workflow endpoint. The run is
 // synchronous — the button stays busy until the workflow finishes. The captured
@@ -51,12 +52,7 @@ export const RunWorkflowButton = ({
       <Dialog open={!!output} onClose={() => setOutput(null)} maxWidth="md" fullWidth>
         <DialogTitle>Workflow "{workflowName}" output</DialogTitle>
         <DialogContent dividers>
-          <Box
-            component="pre"
-            sx={{ m: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'monospace', fontSize: 12 }}
-          >
-            {output}
-          </Box>
+          <WorkflowLogView output={output ?? ''} />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOutput(null)}>Close</Button>
