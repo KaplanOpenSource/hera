@@ -1,9 +1,10 @@
-import { Add } from '@mui/icons-material';
-import { Box, IconButton, Tooltip, useTheme } from '@mui/material';
+import { Add, AutoAwesome } from '@mui/icons-material';
+import { Box, Divider, IconButton, Menu, MenuItem, Tooltip, useTheme } from '@mui/material';
 import { Background, Connection, Controls, Edge, MarkerType, Node, Panel, ReactFlow, ReactFlowProvider, useNodesInitialized, useNodesState, useReactFlow } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { WorkflowNode } from '../../shared/types';
+import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { WorkflowBlock, WorkflowNode } from '../../shared/types';
+import { workflowTemplates } from './workflowTemplates';
 import { NodeCatalogEntry, nodeOutputNames } from './nodeCatalog';
 import { WorkflowContextMenu, WorkflowContextMenuKind, WorkflowContextMenuTarget } from './WorkflowContextMenu';
 import { WorkflowFlowNode } from './WorkflowFlowNode';
@@ -18,14 +19,19 @@ import { computeLayers } from './workflowGeometry';
 const NODE_TYPES = { workflow: WorkflowFlowNode };
 // Dataflow edges reuse the same removable-edge component (X button at midpoint).
 const EDGE_TYPES = { requires: WorkflowRequiresEdge, dataflow: WorkflowRequiresEdge };
+// Cap fit-to-view zoom so a single small node doesn't fill the whole screen.
+const FIT_MAX_ZOOM = 1;
 
 interface WorkflowGraphProps {
   catalog: NodeCatalogEntry[];
   nodeNames: string[];
   nodes: { [name: string]: WorkflowNode };
   selectedNode?: string;
+  // Extra controls rendered in the canvas's top-right corner (e.g. a run button).
+  actionButtons?: ReactNode;
   onSelectNode: (name: string | undefined) => void;
   onAddNode: () => void;
+  onApplyTemplate: (block: WorkflowBlock) => void;
   onRenameNode: (oldName: string, newName: string) => void;
   onSetNode: (name: string, node: WorkflowNode) => void;
   onAddRequire: (source: string, target: string) => void;
@@ -41,8 +47,10 @@ const WorkflowGraphInner = ({
   nodeNames,
   nodes,
   selectedNode,
+  actionButtons,
   onSelectNode,
   onAddNode,
+  onApplyTemplate,
   onRenameNode,
   onSetNode,
   onAddRequire,
@@ -51,6 +59,8 @@ const WorkflowGraphInner = ({
 }: WorkflowGraphProps) => {
   const theme = useTheme();
   const [menu, setMenu] = useState<WorkflowContextMenuTarget | null>(null);
+  // Anchor for the templates menu (null when closed).
+  const [templatesAnchor, setTemplatesAnchor] = useState<HTMLElement | null>(null);
   const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
   // The active inline `{…}` reference autocomplete: which field it hangs under,
   // the node/param being edited, and the current suggestions. Null when idle.
@@ -120,10 +130,13 @@ const WorkflowGraphInner = ({
     prevNamesRef.current = nodeNames;
     if (isInitial) {
       pendingRef.current = 'all';
-    } else if (added.length > 0 && removed.length === 0) {
-      pendingRef.current = added.length === 1 ? added[0] : 'all';
+    } else if (added.length > 0) {
+      // Wait for the new nodes to be measured before fitting. Focus a single
+      // freshly-added node (keep zoom); fit everything for bulk/replace changes
+      // like applying a template, where fitting now would use unmeasured sizes.
+      pendingRef.current = added.length === 1 && removed.length === 0 ? added[0] : 'all';
     } else {
-      requestAnimationFrame(() => fitView({ duration: 300 }));
+      requestAnimationFrame(() => fitView({ duration: 300, maxZoom: FIT_MAX_ZOOM }));
     }
   }, [layerKey]);
 
@@ -136,7 +149,7 @@ const WorkflowGraphInner = ({
     const pending = pendingRef.current;
     pendingRef.current = null;
     if (pending === 'all') {
-      fitView({ duration: 300 });
+      fitView({ duration: 300, maxZoom: FIT_MAX_ZOOM });
       return;
     }
     const node = getNode(pending);
@@ -409,6 +422,7 @@ const WorkflowGraphInner = ({
         onEdgesDelete={onEdgesDelete}
         isValidConnection={isValidConnection}
         fitView
+        fitViewOptions={{ maxZoom: FIT_MAX_ZOOM }}
         onNodeClick={(_e, node) => onSelectNode(node.id)}
         onPaneClick={() => { onSelectNode(undefined); setInline(null); }}
         onEdgeMouseEnter={(_e, edge) => setHoveredEdge(edge.id)}
@@ -423,11 +437,34 @@ const WorkflowGraphInner = ({
         }}
       >
         <Panel position="top-right">
-          <Tooltip title="Add node">
-            <IconButton size="small" onClick={onAddNode} sx={{ bgcolor: 'background.paper', boxShadow: 1, mr: 1, p: 0.5 }}>
-              <Add fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-end' }}>
+            <Tooltip title="Add node">
+              <IconButton size="small" onClick={onAddNode} sx={{ bgcolor: 'background.paper', boxShadow: 1, p: 0.5 }}>
+                <Add fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Templates">
+              <IconButton size="small" onClick={e => setTemplatesAnchor(e.currentTarget)} sx={{ bgcolor: 'background.paper', boxShadow: 1, p: 0.5 }}>
+                <AutoAwesome fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            {actionButtons}
+          </Box>
+          <Menu anchorEl={templatesAnchor} open={!!templatesAnchor} onClose={() => setTemplatesAnchor(null)}>
+            {workflowTemplates.map(t => (
+              <MenuItem
+                key={t.id}
+                onClick={() => {
+                  onApplyTemplate(t.block);
+                  setTemplatesAnchor(null);
+                }}
+              >
+                {t.label}
+              </MenuItem>
+            ))}
+            <Divider />
+            <MenuItem onClick={() => setTemplatesAnchor(null)}>Cancel</MenuItem>
+          </Menu>
         </Panel>
         <Background />
         <Controls />

@@ -131,6 +131,22 @@ describe('WorkflowEditor requires edges', () => {
   });
 });
 
+describe('WorkflowEditor applyTemplate', () => {
+  it('replaces the whole block with the template block', () => {
+    const { setWorkflow } = setup({ nodeList: ['a'], nodes: { a: { type: 'old' } } });
+    const templateBlock = { nodeList: ['x'], nodes: { x: { type: 'new' } } };
+    act(() => graphProps.onApplyTemplate(templateBlock));
+    expect(setWorkflow).toHaveBeenCalledWith(templateBlock);
+  });
+
+  it('preserves an extra { workflow } nesting level', () => {
+    const { setWorkflow } = setup({ workflow: { nodeList: ['a'], nodes: { a: {} } } });
+    const templateBlock = { nodeList: ['x'], nodes: { x: { type: 'new' } } };
+    act(() => graphProps.onApplyTemplate(templateBlock));
+    expect(setWorkflow).toHaveBeenCalledWith({ workflow: templateBlock });
+  });
+});
+
 describe('WorkflowEditor setNode', () => {
   it('replaces a node and keeps the rest of the block', () => {
     const { setWorkflow } = setup({ nodeList: ['a'], nodes: { a: { type: 'old' } } });

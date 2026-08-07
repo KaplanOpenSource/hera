@@ -72,6 +72,9 @@ export const AddDocumentButton = ({
   const filesDir = useProjectStore.getState().getProject()?.configDocument?.data.desc.filesDirectory ?? '';
 
   const notebookResource = `${filesDir}/notebooks/${name}.ipynb`;
+  // Where the workflow JSON is written on run. Default under filesDirectory so it
+  // doesn't land in the process cwd (the repo root when run in Docker).
+  const workflowResource = filesDir ? `${filesDir}/${name}.json` : `${name}.json`;
 
   const doAddDoc = async () => {
     const desc: DocumentDesc = { datasourceName: name };
@@ -88,7 +91,7 @@ export const AddDocumentButton = ({
         toolkitNames: useProjectStore.getState().getProjectToolkitKeys(),
         notebookResource,
         collection: cls.collection,
-        resource,
+        resource: kind === DocKind.Workflow ? workflowResource : resource,
       }),
     })
     if (!data) {
@@ -167,7 +170,7 @@ export const AddDocumentButton = ({
               margin="dense"
               label="Resource"
               fullWidth
-              value={kind === DocKind.Notebook ? `${filesDir}/notebooks/${name}.ipynb` : resource}
+              value={kind === DocKind.Notebook ? notebookResource : kind === DocKind.Workflow ? workflowResource : resource}
               setValue={v => setResource(v)}
               disabled={kind !== DocKind.Document}
               helperText={kind === DocKind.Notebook ? 'If a notebook file already exists at this path, it will be used as-is. Otherwise, a new empty notebook will be created.' : undefined}

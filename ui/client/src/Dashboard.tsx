@@ -13,7 +13,6 @@ export const Dashboard = () => {
   const { projectName } = useParams<{ projectName: string }>();
   const { getProject } = useProjectStore();
   const dark = useTheme().palette.mode === 'dark';
-  const [treeCollapsed, setTreeCollapsed] = useState(false);
   const [layoutResetSignal, setLayoutResetSignal] = useState(0);
 
   const project = getProject();
@@ -30,8 +29,6 @@ export const Dashboard = () => {
       }}
     >
       <DashboardHeader
-        treeCollapsed={treeCollapsed}
-        setTreeCollapsed={setTreeCollapsed}
         onResetLayout={() => setLayoutResetSignal(s => s + 1)}
       />
 
@@ -49,7 +46,7 @@ export const Dashboard = () => {
               <style>{buildTabKindCss(dark)}</style>
               <ProjectLayout
                 project={project}
-                treeCollapsed={treeCollapsed}
+                treeCollapsed={false}
                 resetSignal={layoutResetSignal}
               />
             </Box>

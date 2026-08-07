@@ -23,13 +23,16 @@ type ViewSettingsStore = {
   resetViewSettings: () => void;
 };
 
+// Default auto-reload interval (seconds) used when auto-reload is turned back on.
+export const DEFAULT_RELOAD_INTERVAL_SECONDS = 5;
+
 const defaultSettings: ViewSettingsType = {
   minGroupSize: 2,
   maxDepth: 5,
   maxBranches: 50,
   firstBranchHeadFields: true,
   showDocumentPreview: true,
-  reloadIntervalSeconds: 5,
+  reloadIntervalSeconds: DEFAULT_RELOAD_INTERVAL_SECONDS,
   themeMode: ThemeMode.Light,
 };
 
@@ -47,8 +50,9 @@ export const useViewSettingsStore = create<ViewSettingsStore>()(
     }),
     {
       name: 'hera-view-settings',
-      // Only the theme mode survives reloads; the tree/view knobs stay ephemeral as before.
-      partialize: (state) => ({ viewSettings: { themeMode: state.viewSettings.themeMode } }),
+      // Persist all view settings (everything shown in the Settings dialog) so
+      // the user's choices survive reloads. Only the store functions are dropped.
+      partialize: (state) => ({ viewSettings: state.viewSettings }),
       merge: (persisted, current) => {
         const saved = persisted as { viewSettings?: Partial<ViewSettingsType> } | undefined;
         return {

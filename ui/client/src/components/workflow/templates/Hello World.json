@@ -1,0 +1,18 @@
+{
+    "workflow": {
+        "nodes": {
+            "SayHello": {
+                "Execution": {
+                    "input_parameters": {
+                        "Method": "Command list",
+                        "Command": [
+                            "echo 'hello from hera'",
+                            "date"
+                        ]
+                    }
+                },
+                "type": "general.RunOsCommand"
+            }
+        }
+    }
+}

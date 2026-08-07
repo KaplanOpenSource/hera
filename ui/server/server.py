@@ -5,19 +5,26 @@ import mimetypes
 import traceback
 from pathlib import Path
 
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
 
+from api_models import (
+    ExecPayload,
+    ExecResponse,
+    JupyterStartPayload,
+    Problem,
+    RunWorkflowPayload,
+    RunWorkflowResponse,
+)
 from cors_handler import CorsHandler
 from jupyter_server_thread import JupyterServerThread, DEFAULT_JUPYTER_PORT
-from mock_data import MOCK_PROJECTS
 from node_catalog import get_node_catalog
+from workflow_runner import WorkflowRunner
 
 LOG_MAX_LEN = 350
 
@@ -81,11 +88,6 @@ def healthz() -> dict:
 jupyter: JupyterServerThread | None = None
 
 
-class JupyterStartPayload(BaseModel):
-    root_dir: str
-    dark: bool = False
-
-
 @app.post("/jupyter/ensure")
 def jupyter_ensure(payload: JupyterStartPayload) -> dict:
     global jupyter
@@ -110,20 +112,6 @@ def cors_info() -> dict:
     return {"origins": cors_handler.custom_origins}
 
 
-class ExecPayload(BaseModel):
-    code: str
-
-
-class Problem(BaseModel):
-    error: str
-    traceback: str
-
-
-class ExecResponse(BaseModel):
-    data: Any = None
-    problem: Optional[Problem] = None
-
-
 def _truncate_for_log(value: Any) -> str:
     """Stringify a value for logging, cutting off long output so it doesn't flood the log."""
     text = repr(value)
@@ -138,7 +126,7 @@ def exec_code(payload: ExecPayload) -> ExecResponse:
     # DANGER: This is a security risk. It allows arbitrary code execution.
     # Only use this in a trusted environment.
     # The `_locals` dict will be updated with any variables created in the code.
-    _locals = {} # "MOCK_PROJECTS": MOCK_PROJECTS}
+    _locals = {}
     print("executing: " + payload.code)
     try:
         exec(payload.code, _locals)
@@ -150,6 +138,20 @@ def exec_code(payload: ExecPayload) -> ExecResponse:
     result = _locals.get("result", None)
     print("got:", _truncate_for_log(result))
     return ExecResponse(data=jsonable_encoder(result))
+
+
+# Instantiated once and reused across requests (will hold run state/config later).
+workflow_runner = WorkflowRunner()
+
+
+@app.post("/run_workflow", response_model=RunWorkflowResponse)
+def run_workflow(payload: RunWorkflowPayload) -> RunWorkflowResponse:
+    """Build and execute a saved Hermes workflow from the DB (local Luigi scheduler).
+
+    Returns the dispatch id and the run's captured console output. See WorkflowRunner.
+    """
+    result = workflow_runner.run(payload.projectName, payload.workflowName)
+    return RunWorkflowResponse(**result)
 
 
 @app.get("/node-catalog")

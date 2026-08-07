@@ -1,0 +1,20 @@
+{
+    "workflow": {
+        "nodes": {
+            "ListFiles": {
+                "Execution": {
+                    "input_parameters": {
+                        "Method": "Command list",
+                        "Command": [
+                            "echo 'current directory:'",
+                            "pwd",
+                            "echo 'files:'",
+                            "ls -la"
+                        ]
+                    }
+                },
+                "type": "general.RunOsCommand"
+            }
+        }
+    }
+}
