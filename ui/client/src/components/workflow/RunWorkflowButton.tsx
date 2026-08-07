@@ -2,13 +2,12 @@ import { PlayArrow } from '@mui/icons-material';
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, SxProps, Theme } from '@mui/material';
 import { useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
-import { fetchPython } from '../../io/fetchPython';
-import { pushInfo } from '../../io/snackbar';
-import { buildRunWorkflowCode } from './buildRunWorkflowCode';
+import { runWorkflow } from '../../io/runWorkflow';
+import { dismiss, pushError, pushInfo, pushRunning } from '../../io/snackbar';
 
-// Runs a saved workflow by building and executing it from the DB. The run is
-// synchronous — the button stays busy until the workflow finishes (errors are
-// surfaced by fetchPython's snackbar). The captured console output is shown in a dialog.
+// Runs a saved workflow via the server's /run_workflow endpoint. The run is
+// synchronous — the button stays busy until the workflow finishes. The captured
+// console output is shown in a dialog; errors are surfaced via a snackbar.
 export const RunWorkflowButton = ({
   projectName,
   workflowName,
@@ -24,17 +23,17 @@ export const RunWorkflowButton = ({
 }) => {
   const [output, setOutput] = useState<string | null>(null);
 
-  const runWorkflow = async () => {
-    const { data } = await fetchPython({
-      results: ['dispatch_id', 'output'],
-      label: 'run workflow',
-      code: buildRunWorkflowCode({ projectName, workflowName }),
-    });
-    if (!data) {
-      return;
+  const doRun = async () => {
+    const key = pushRunning('run workflow');
+    try {
+      const { output } = await runWorkflow({ projectName, workflowName });
+      setOutput(output ?? '');
+      pushInfo(`Workflow "${workflowName}" finished`);
+    } catch (e: any) {
+      pushError(`run workflow: ${e?.message ?? e}`);
+    } finally {
+      dismiss(key);
     }
-    setOutput(data.output ?? '');
-    pushInfo(`Workflow "${workflowName}" finished`);
   };
 
   const title = disabled && disabledReason ? disabledReason : 'Run workflow';
@@ -44,7 +43,7 @@ export const RunWorkflowButton = ({
         title={title}
         aria-label={title}
         disabled={disabled}
-        onClick={runWorkflow}
+        onClick={doRun}
         sx={sx}
       >
         <PlayArrow />

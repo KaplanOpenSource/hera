@@ -3,14 +3,18 @@ import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-libra
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockFetchPython = vi.fn();
-vi.mock('../src/io/fetchPython', () => ({
-  fetchPython: (...args: any[]) => mockFetchPython(...args),
+const mockRunWorkflow = vi.fn();
+vi.mock('../src/io/runWorkflow', () => ({
+  runWorkflow: (...args: any[]) => mockRunWorkflow(...args),
 }));
 
 const mockPushInfo = vi.fn();
+const mockPushError = vi.fn();
 vi.mock('../src/io/snackbar', () => ({
   pushInfo: (...args: any[]) => mockPushInfo(...args),
+  pushError: (...args: any[]) => mockPushError(...args),
+  pushRunning: () => 'key',
+  dismiss: vi.fn(),
 }));
 
 const { RunWorkflowButton } = await import('../src/components/workflow/RunWorkflowButton');
@@ -24,8 +28,8 @@ beforeEach(() => {
 });
 
 describe('RunWorkflowButton', () => {
-  it('builds and executes the workflow from the DB with the local scheduler', async () => {
-    mockFetchPython.mockResolvedValueOnce({ data: { dispatch_id: 'abc123' }, problem: undefined });
+  it('runs the workflow via the endpoint and shows its output', async () => {
+    mockRunWorkflow.mockResolvedValueOnce({ dispatch_id: 'abc123', output: 'hello from hera\n' });
 
     render(<RunWorkflowButton projectName="TestProject" workflowName="hello_1" />);
     await act(async () => {
@@ -33,17 +37,14 @@ describe('RunWorkflowButton', () => {
     });
 
     await waitFor(() => {
-      expect(mockFetchPython).toHaveBeenCalledTimes(1);
-      const code = mockFetchPython.mock.calls[0][0].code;
-      expect(code).toContain('SIMULATIONS_WORKFLOWS');
-      expect(code).toContain("projectName='TestProject'");
-      expect(code).toContain("executeWorkflowFromDB('hello_1', scheduler='local')");
+      expect(mockRunWorkflow).toHaveBeenCalledWith({ projectName: 'TestProject', workflowName: 'hello_1' });
       expect(mockPushInfo).toHaveBeenCalledWith('Workflow "hello_1" finished');
+      expect(screen.getByText(/hello from hera/i)).toBeTruthy();
     });
   });
 
-  it('does not report success when the run fails', async () => {
-    mockFetchPython.mockResolvedValueOnce({ data: undefined, problem: 'exec failed' });
+  it('shows an error snackbar when the run fails', async () => {
+    mockRunWorkflow.mockRejectedValueOnce(new Error('boom'));
 
     render(<RunWorkflowButton projectName="TestProject" workflowName="hello_1" />);
     await act(async () => {
@@ -51,7 +52,7 @@ describe('RunWorkflowButton', () => {
     });
 
     await waitFor(() => {
-      expect(mockFetchPython).toHaveBeenCalledTimes(1);
+      expect(mockPushError).toHaveBeenCalledWith('run workflow: boom');
     });
     expect(mockPushInfo).not.toHaveBeenCalled();
   });

@@ -18,6 +18,7 @@ from cors_handler import CorsHandler
 from jupyter_server_thread import JupyterServerThread, DEFAULT_JUPYTER_PORT
 from mock_data import MOCK_PROJECTS
 from node_catalog import get_node_catalog
+from workflow_runner import WorkflowRunner
 
 LOG_MAX_LEN = 350
 
@@ -150,6 +151,30 @@ def exec_code(payload: ExecPayload) -> ExecResponse:
     result = _locals.get("result", None)
     print("got:", _truncate_for_log(result))
     return ExecResponse(data=jsonable_encoder(result))
+
+
+class RunWorkflowPayload(BaseModel):
+    projectName: str
+    workflowName: str
+
+
+class RunWorkflowResponse(BaseModel):
+    dispatch_id: str
+    output: str
+
+
+# Instantiated once and reused across requests (will hold run state/config later).
+workflow_runner = WorkflowRunner()
+
+
+@app.post("/run_workflow", response_model=RunWorkflowResponse)
+def run_workflow(payload: RunWorkflowPayload) -> RunWorkflowResponse:
+    """Build and execute a saved Hermes workflow from the DB (local Luigi scheduler).
+
+    Returns the dispatch id and the run's captured console output. See WorkflowRunner.
+    """
+    result = workflow_runner.run(payload.projectName, payload.workflowName)
+    return RunWorkflowResponse(**result)
 
 
 @app.get("/node-catalog")
