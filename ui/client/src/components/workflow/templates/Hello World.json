@@ -4,7 +4,7 @@
             "SayHello": {
                 "Execution": {
                     "input_parameters": {
-                        "Method": "Commands list",
+                        "Method": "Command list",
                         "Command": [
                             "echo 'hello from hera'",
                             "date"
