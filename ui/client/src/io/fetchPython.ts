@@ -31,7 +31,10 @@ const fetchPythonDirect = async (code: string): Promise<ExecResponse> => {
     text = await r.text();
     const parsed = JSON.parse(text) as ExecResponse;
     if (parsed.problem) {
-      console.error('python error:', parsed.problem.error, parsed.problem.traceback);
+      console.error(
+        'python error:', parsed.problem.error,
+        '\ntrace:\n', parsed.problem.traceback,
+        '\npayload:\n', code);
     } else {
       console.log('result =', parsed.data);
     }
