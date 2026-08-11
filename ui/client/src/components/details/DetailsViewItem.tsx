@@ -73,11 +73,32 @@ export const DetailsViewItem = ({
 
           {renderBeforeName?.(itemKey, parentKey, def)}
 
-          <RenameField
-            value={itemKey}
-            setValue={setItemKey}
-            labelMinWidth="100px"
-          />
+          {/* The delete button overlays the right side of the name, so showing
+              it on hover never changes the row's size. */}
+          <Box sx={{ position: 'relative', display: 'flex', minWidth: 0 }}>
+            <RenameField
+              value={itemKey}
+              setValue={setItemKey}
+              labelMinWidth="100px"
+            />
+            {setItemKey && (
+              <Box
+                className="field-delete"
+                sx={{
+                  position: 'absolute',
+                  right: 0,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  zIndex: 2,
+                }}
+              >
+                <DeleteFieldButton
+                  itemKey={itemKey}
+                  setItemKey={setItemKey}
+                />
+              </Box>
+            )}
+          </Box>
 
           {/* The type chip picks string/number/null/object for every field,
               except dataFormat (own dropdown) and desc (hidden fields make a
@@ -112,14 +133,6 @@ export const DetailsViewItem = ({
             />
           )}
 
-          {setItemKey && (
-            <Box className="field-delete">
-              <DeleteFieldButton
-                itemKey={itemKey}
-                setItemKey={setItemKey}
-              />
-            </Box>
-          )}
         </Stack>
       )}
     >
