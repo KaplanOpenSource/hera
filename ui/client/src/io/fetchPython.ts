@@ -10,6 +10,9 @@ export type PythonCommand = {
 
 const SHORT_ERROR_MAX = 120;
 
+// /exec returns this while hera warms up — wait and retry, don't toast.
+export const WARMING_UP = 'WARMING_UP';
+
 const shortenError = (error: string) => {
   const firstLine = error.split('\n')[0];
   return firstLine.length > SHORT_ERROR_MAX
@@ -79,7 +82,10 @@ export const fetchPython = async (...commands: PythonCommand[]): Promise<{ data:
   try {
     const response = await fetchPythonClean(...commands);
     if (response.problem) {
-      pushError(`${label}: ${shortenError(response.problem.error)}`);
+      // Stay quiet while warming up; the startup gate handles the wait.
+      if (response.problem.error !== WARMING_UP) {
+        pushError(`${label}: ${shortenError(response.problem.error)}`);
+      }
       return { data: null };
     }
     return { data: response.data };
