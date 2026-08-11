@@ -1,8 +1,8 @@
 import { Delete } from "@mui/icons-material";
-import { Stack } from "@mui/material";
+import { Box, Stack } from "@mui/material";
 import { TreeItem } from "@mui/x-tree-view";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
-import { RenameField } from "../../elements/RenameField";
+import { RenamePathField } from "../../elements/RenamePathField";
 import { idRepoId } from "../../shared/idDocId";
 
 export const RepoTreeItem = ({
@@ -20,18 +20,20 @@ export const RepoTreeItem = ({
     <TreeItem
       itemId={idRepoId(repoPath)}
       label={(
-        <Stack direction={'row'} justifyItems={'center'} alignItems={'center'}>
-          <RenameField
+        <Stack direction={'row'} justifyItems={'center'} alignItems={'center'} sx={{ minWidth: 0 }}>
+          <RenamePathField
             value={repoPath}
             setValue={onRename}
             defaultEditing={defaultEditing}
           />
-          <ButtonTooltip
-            title={'Remove repository from this list'}
-            onClick={onRemove}
-          >
-            <Delete />
-          </ButtonTooltip>
+          <Box sx={{ flexShrink: 0 }}>
+            <ButtonTooltip
+              title={'Remove repository from this list'}
+              onClick={onRemove}
+            >
+              <Delete />
+            </ButtonTooltip>
+          </Box>
         </Stack>
       )}
     >

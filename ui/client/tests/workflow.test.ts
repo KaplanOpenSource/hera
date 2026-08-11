@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   WORKFLOW_DOC_TYPE,
+  fillProjectName,
   getWorkflowBlock,
   getWorkflowSolver,
   isTopLevelBlock,
@@ -128,5 +129,49 @@ describe('isWorkflowDoc', () => {
   it('is false for a non-workflow document', () => {
     expect(isWorkflowDoc({ type: 'other' })).toBe(false);
     expect(isWorkflowDoc({ desc: {} })).toBe(false);
+  });
+});
+
+describe('fillProjectName', () => {
+  const nodeWith = (parameters: { [key: string]: any }) => {
+    return { Execution: { input_parameters: { Parameters: parameters } } };
+  };
+
+  it('fills projectName when the node has none', () => {
+    const block = { nodes: { A: nodeWith({}) } };
+    const result = fillProjectName(block, 'MY_PROJECT');
+    expect(result.nodes?.A.Execution?.input_parameters?.Parameters).toEqual({ projectName: 'MY_PROJECT' });
+  });
+
+  it('keeps an existing projectName', () => {
+    const block = { nodes: { A: nodeWith({ projectName: 'KEEP_ME' }) } };
+    const result = fillProjectName(block, 'MY_PROJECT');
+    expect(result.nodes?.A.Execution?.input_parameters?.Parameters.projectName).toBe('KEEP_ME');
+  });
+
+  it('preserves other parameters while filling projectName', () => {
+    const block = { nodes: { A: nodeWith({ foo: 1 }) } };
+    const result = fillProjectName(block, 'MY_PROJECT');
+    expect(result.nodes?.A.Execution?.input_parameters?.Parameters).toEqual({ foo: 1, projectName: 'MY_PROJECT' });
+  });
+
+  it('leaves a node without a Parameters object untouched', () => {
+    const block = { nodes: { A: { type: 'general.RunOsCommand' } } };
+    const result = fillProjectName(block, 'MY_PROJECT');
+    expect(result.nodes?.A).toEqual({ type: 'general.RunOsCommand' });
+  });
+
+  it('fills every matching node', () => {
+    const block = { nodes: { A: nodeWith({}), B: nodeWith({ projectName: 'B_KEEP' }) } };
+    const result = fillProjectName(block, 'MY_PROJECT');
+    expect(result.nodes?.A.Execution?.input_parameters?.Parameters.projectName).toBe('MY_PROJECT');
+    expect(result.nodes?.B.Execution?.input_parameters?.Parameters.projectName).toBe('B_KEEP');
+  });
+
+  it('does not mutate the input block', () => {
+    const params = {};
+    const block = { nodes: { A: nodeWith(params) } };
+    fillProjectName(block, 'MY_PROJECT');
+    expect(params).toEqual({});
   });
 });

@@ -4,6 +4,7 @@ import { UpdateRepositoriesButton } from "./UpdateRepositoriesButton";
 import { useRegisteredRepositories } from "./useRegisteredRepositories";
 import { DEFAULT_PROJECT } from "../../stores/useProjectStore";
 import { idRepoId } from "../../shared/idDocId";
+import { RenamePathField } from "../../elements/RenamePathField";
 
 export const RegisteredRepositories = ({
   showUpdateButton = false,
@@ -27,7 +28,7 @@ export const RegisteredRepositories = ({
           <TreeItem
             key={r.datasourceName}
             itemId={idRepoId(r.datasourceName)}
-            label={r.resource}
+            label={<RenamePathField value={r.resource} />}
           />
         ))
       }

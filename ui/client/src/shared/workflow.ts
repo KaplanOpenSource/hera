@@ -10,6 +10,28 @@ import { WorkflowBlock, WorkflowData, WorkflowDesc } from './types';
 // Document type string set by the hermes workflow toolkit (DOCTYPE_WORKFLOW).
 export const WORKFLOW_DOC_TYPE = 'hermesWorkflow';
 
+// Fills any node that takes a `projectName` parameter (but hasn't got one) with
+// the given project, so a template runs against the project it was dropped into.
+export const fillProjectName = (block: WorkflowBlock, projectName: string): WorkflowBlock => {
+  const nodes = { ...block.nodes };
+  for (const [name, node] of Object.entries(nodes)) {
+    const params = node.Execution?.input_parameters?.Parameters;
+    if (params && !params.projectName) {
+      nodes[name] = {
+        ...node,
+        Execution: {
+          ...node.Execution,
+          input_parameters: {
+            ...node.Execution?.input_parameters,
+            Parameters: { ...params, projectName },
+          },
+        },
+      };
+    }
+  }
+  return { ...block, nodes };
+};
+
 // A node's `requires` as an array (it may be stored as a single name or a list).
 export const normalizeRequires = (requires?: string | string[]): string[] => {
   if (requires === undefined) {
