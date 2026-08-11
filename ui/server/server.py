@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse, argcomplete
 import mimetypes
 import traceback
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from typing import Any
@@ -22,15 +23,14 @@ from api_models import (
     RunWorkflowResponse,
 )
 from cors_handler import CorsHandler
+from hera_warmup import HeraWarmup
 from jupyter_server_thread import JupyterServerThread, DEFAULT_JUPYTER_PORT
 from node_catalog import get_node_catalog
 from workflow_runner import WorkflowRunner
 
-# Warm hera's deferred symbols at startup (this also loads hera.datalayer + datatypes)
-# so the lazy load finishes before serving — prevents a first-import race on concurrent /exec calls (#1011).
-from hera import toolkitHome  # noqa: F401
-
 LOG_MAX_LEN = 350
+
+warmup = HeraWarmup()
 
 cors_handler = CorsHandler()
 parser = argparse.ArgumentParser(description="Hera UI API server")
@@ -43,7 +43,14 @@ parser.add_argument('--jupyter-port', type=int, default=8888, help='Port for Jup
 argcomplete.autocomplete(parser)
 args = parser.parse_args()
 
-app = FastAPI(title="Hera UI API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Server is up and /ready answers (ready=false) before warming begins.
+    warmup.start()
+    yield
+
+
+app = FastAPI(title="Hera UI API", lifespan=lifespan)
 
 origins = cors_handler.get_origins(args)
 
@@ -89,6 +96,12 @@ def healthz() -> dict:
     return {"status": "ok"}
 
 
+@app.get("/ready")
+def ready() -> dict:
+    # True once hera finished warming; client polls this to hide the spinner.
+    return {"ready": warmup.ready}
+
+
 jupyter: JupyterServerThread | None = None
 
 
@@ -130,6 +143,9 @@ def exec_code(payload: ExecPayload) -> ExecResponse:
     # DANGER: This is a security risk. It allows arbitrary code execution.
     # Only use this in a trusted environment.
     # The `_locals` dict will be updated with any variables created in the code.
+    if not warmup.ready:
+        # Marker so the client waits/retries instead of showing an error.
+        return ExecResponse(problem=Problem(error="WARMING_UP", traceback=""))
     _locals = {}
     print("executing: " + payload.code)
     try:
