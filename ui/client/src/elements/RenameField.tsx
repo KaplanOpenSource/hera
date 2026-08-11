@@ -1,4 +1,4 @@
-import { Box, TextField, Typography } from "@mui/material";
+import { Box, TextField, Tooltip, Typography } from "@mui/material";
 import { ReactNode, useEffect, useRef, useState } from "react";
 
 export const RenameField = ({
@@ -76,23 +76,25 @@ export const RenameField = ({
   return (
     (editing && setValue)
       ? (
-        <TextField
-          size='small'
-          inputRef={inputRef}
-          value={internalValue}
-          onChange={(e) => setInternalValue(e.target.value)}
-          onClick={e => e.stopPropagation()}
-          onBlur={handleBlur}
-          onKeyDown={e => {
-            e.stopPropagation();
-            if (e.key === 'Enter') {
-              inputRef.current?.blur();
-            } else if (e.key === 'Escape') {
-              cancelOnBlur.current = true;
-              inputRef.current?.blur();
-            }
-          }}
-        />
+        <Tooltip title={'Editing - press Enter or click elsewhere to save, Esc to discard'}>
+          <TextField
+            size='small'
+            inputRef={inputRef}
+            value={internalValue}
+            onChange={(e) => setInternalValue(e.target.value)}
+            onClick={e => e.stopPropagation()}
+            onBlur={handleBlur}
+            onKeyDown={e => {
+              e.stopPropagation();
+              if (e.key === 'Enter') {
+                inputRef.current?.blur();
+              } else if (e.key === 'Escape') {
+                cancelOnBlur.current = true;
+                inputRef.current?.blur();
+              }
+            }}
+          />
+        </Tooltip>
       )
       : viewLabel
   )
