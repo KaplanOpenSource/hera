@@ -18,6 +18,5 @@ docker run -it --network host \
   -e PYTHONPATH=/app:/app/hera/bin:/app/Hermes \
   --rm --name hera-server-instance hera-server \
   bash -c "
-    pip install jsonpath_rw_ext luigi &&
     python ui/server/server.py $*
   "
