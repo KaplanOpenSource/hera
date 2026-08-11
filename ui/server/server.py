@@ -26,9 +26,9 @@ from jupyter_server_thread import JupyterServerThread, DEFAULT_JUPYTER_PORT
 from node_catalog import get_node_catalog
 from workflow_runner import WorkflowRunner
 
-# Warm hera.datalayer at startup so its __init__ (which sets `datatypes`) finishes before serving
-# prevents a first-import race on concurrent /exec calls (#1011).
-import hera.datalayer  # noqa: F401
+# Warm hera's deferred symbols at startup (this also loads hera.datalayer + datatypes)
+# so the lazy load finishes before serving — prevents a first-import race on concurrent /exec calls (#1011).
+from hera import toolkitHome  # noqa: F401
 
 LOG_MAX_LEN = 350
 
