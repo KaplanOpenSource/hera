@@ -1,7 +1,5 @@
 import { Box, TextField, Typography } from "@mui/material";
 import { ReactNode, useEffect, useRef, useState } from "react";
-import { ButtonTooltip } from "./ButtonTooltip";
-import { Check, Close } from "@mui/icons-material";
 
 export const RenameField = ({
   value,
@@ -20,6 +18,7 @@ export const RenameField = ({
   const [editing, setEditing] = useState(defaultEditing);
   const [internalValue, setInternalValue] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
+  const cancelOnBlur = useRef(false);
 
   useEffect(() => {
     setInternalValue(value);
@@ -35,13 +34,14 @@ export const RenameField = ({
     }
   }, [editing]);
 
-  const confirm = () => {
-    setValue?.(internalValue);
-    setEditing(false);
-  };
-
-  const cancel = () => {
-    setInternalValue(value);
+  // Blur is the single save path: Enter blurs to save, Escape sets cancelOnBlur then blurs.
+  const handleBlur = () => {
+    if (cancelOnBlur.current) {
+      cancelOnBlur.current = false;
+      setInternalValue(value);
+    } else {
+      setValue?.(internalValue);
+    }
     setEditing(false);
   };
 
@@ -82,24 +82,14 @@ export const RenameField = ({
           value={internalValue}
           onChange={(e) => setInternalValue(e.target.value)}
           onClick={e => e.stopPropagation()}
+          onBlur={handleBlur}
           onKeyDown={e => {
             e.stopPropagation();
             if (e.key === 'Enter') {
-              confirm();
+              inputRef.current?.blur();
             } else if (e.key === 'Escape') {
-              cancel();
-            }
-          }}
-          slotProps={{
-            input: {
-              endAdornment: (<>
-                <ButtonTooltip title={'Rename'} onClick={confirm}>
-                  <Check fontSize="small" />
-                </ButtonTooltip>
-                <ButtonTooltip title={'Cancel Rename'} onClick={cancel}>
-                  <Close fontSize="small" />
-                </ButtonTooltip>
-              </>)
+              cancelOnBlur.current = true;
+              inputRef.current?.blur();
             }
           }}
         />
