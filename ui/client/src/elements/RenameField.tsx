@@ -1,5 +1,5 @@
-import { TextField, Typography } from "@mui/material";
-import { useEffect, useRef, useState } from "react";
+import { Box, TextField, Typography } from "@mui/material";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { ButtonTooltip } from "./ButtonTooltip";
 import { Check, Close } from "@mui/icons-material";
 
@@ -8,11 +8,14 @@ export const RenameField = ({
   setValue = undefined,
   defaultEditing = false,
   labelMinWidth = undefined,
+  valueForView = undefined,
 }: {
   value: string,
   setValue?: (newVal: string) => void,
   defaultEditing?: boolean,
   labelMinWidth?: string,
+  // What to render in view mode instead of `value` (editing still uses `value`).
+  valueForView?: ReactNode,
 }) => {
   const [editing, setEditing] = useState(defaultEditing);
   const [internalValue, setInternalValue] = useState(value);
@@ -41,6 +44,34 @@ export const RenameField = ({
     setInternalValue(value);
     setEditing(false);
   };
+
+  const viewLabel = valueForView !== undefined
+    ? (
+      <Box
+        onClick={() => setValue && setEditing(true)}
+        sx={{
+          display: 'flex',
+          minWidth: 0,
+          overflow: 'hidden',
+          cursor: setValue ? 'text' : 'default',
+        }}
+      >
+        {valueForView}
+      </Box>
+    )
+    : (
+      <Typography
+        onClick={() => setValue && setEditing(true)}
+        sx={{
+          whiteSpace: 'nowrap',
+          minWidth: labelMinWidth,
+          flexShrink: 0,
+          cursor: setValue ? 'text' : 'default'
+        }}
+      >
+        {value}
+      </Typography>
+    );
 
   return (
     (editing && setValue)
@@ -73,18 +104,6 @@ export const RenameField = ({
           }}
         />
       )
-      : (
-        <Typography
-          onClick={() => setValue && setEditing(true)}
-          sx={{
-            whiteSpace: 'nowrap',
-            minWidth: labelMinWidth,
-            flexShrink: 0,
-            cursor: setValue ? 'text' : 'default'
-          }}
-        >
-          {value}
-        </Typography>
-      )
+      : viewLabel
   )
 }
