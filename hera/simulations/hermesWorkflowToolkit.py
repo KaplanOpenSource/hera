@@ -1,13 +1,10 @@
 import json
-from pathlib import Path
-from typing import Union
-import pandas
-import shlex
-import subprocess
 import os
 import pydoc
 import resource
+import shlex
 import shutil
+import subprocess
 import uuid
 import warnings
 from collections.abc import Iterable
@@ -750,7 +747,7 @@ class hermesWorkflowToolkit(abstractToolkit):
 
     def executeWorkflowFromDB(self, nameOrWorkflowFileOrJSONOrResource,
                               scheduler=SCHEDULER_LOCAL, schedulerHost=None,
-                              schedulerPort=None, dispatch_id=None):
+                              schedulerPort=None, dispatch_id=None, stdout=None, stderr=None):
         """
             Building and Executing the workflow.
 
@@ -825,7 +822,7 @@ class hermesWorkflowToolkit(abstractToolkit):
             # Step 4: Clean previous execution artifacts (Luigi target files).
             # Luigi uses target files to track task completion. Removing them
             # forces all tasks to re-execute from scratch.
-            logger.debug(f"Removing the targetfiles and execute")
+            logger.debug("Removing the targetfiles and execute")
             executionfileDir = os.path.join(self.FilesDirectory, f"{workflowName}_targetFiles")
             shutil.rmtree(executionfileDir, ignore_errors=True)
 
@@ -839,7 +836,7 @@ class hermesWorkflowToolkit(abstractToolkit):
                                                       schedulerHost=schedulerHost,
                                                       schedulerPort=schedulerPort)
             logger.debug(executionStr)
-            subprocess.run(shlex.split(executionStr), check=True)
+            subprocess.run(shlex.split(executionStr), stdout=stdout, stderr=stderr, check=True)
 
             # Step 6: Clean up the generated Python module (the workflow JSON stays).
             logger.info(f"Cleaning the executer python for {workflowName}")
