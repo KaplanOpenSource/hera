@@ -59,7 +59,7 @@ describe('Dashboard', () => {
       currProject: { name: 'TestProject', documents: [] },
     });
     renderDashboard();
-    expect(screen.getAllByText('Project').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Workspace Explorer').length).toBeGreaterThan(0);
     expect(screen.queryByText('No project loaded')).toBeNull();
   });
 

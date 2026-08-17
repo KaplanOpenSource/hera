@@ -113,9 +113,10 @@ Header bar:
   bordered, monospace pill.
 
 Sidebar / workspace explorer:
-- [ ] **D11. Panel heading.** Requirement: "WORKSPACE EXPLORER". Current: "Project".
-  NOT DONE - ambiguous: could be renaming the static tree tab or adding an internal
-  section header. Needs a decision.
+- [x] **D11. Panel heading.** Done: the tree tabset's tab strip is hidden
+  (`enableTabStrip: false`), removing the tab title and the maximize/expand button;
+  the "Workspace Explorer" title now renders inside the panel, below the search bar
+  (`ProjectTreeView.tsx`).
 - [ ] **D12. Search box.** Requirement: a "Search modules & variables..." field at the
   top of the explorer. NOT DONE - new filtering feature, not a simple text change.
 - [ ] **D13. Tree structure.** Requirement: everything nested under a "Project <name>"

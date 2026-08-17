@@ -146,6 +146,12 @@ export const ProjectTreeView = ({
   return (
     <>
     <TreeSearchBar value={search} onChange={setSearch} warning={searchWarning} />
+    <Typography
+      variant="overline"
+      sx={{ display: 'block', mt: 1, mb: 1, color: 'text.secondary', fontWeight: 600, letterSpacing: 1 }}
+    >
+      Workspace Explorer
+    </Typography>
     <SimpleTreeView
       expandedItems={effectiveExpandedItems}
       onExpandedItemsChange={(e, itemIds) => {

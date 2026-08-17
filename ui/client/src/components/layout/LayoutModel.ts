@@ -26,7 +26,7 @@ const GLOBAL_LAYOUT_CONFIG = {
 const TREE_TAB: IJsonTabNode = {
   type: 'tab',
   id: TREE_TAB_ID,
-  name: 'Project',
+  name: 'Workspace Explorer',
   component: LayoutComponent.Tree,
   enableClose: false,
   enableDrag: false,
@@ -75,7 +75,7 @@ export class LayoutModel {
         type: 'row',
         children: [
           ...(treeVisible
-            ? [{ type: 'tabset', id: TREE_TABSET_ID, weight: 25, enableClose: false, enableDrag: false, enableDrop: false, children: [TREE_TAB] }]
+            ? [{ type: 'tabset', id: TREE_TABSET_ID, weight: 25, enableClose: false, enableDrag: false, enableDrop: false, enableTabStrip: false, children: [TREE_TAB] }]
             : []),
           detailsTabset,
         ],
