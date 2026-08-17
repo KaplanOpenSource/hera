@@ -56,8 +56,11 @@ export const EffectsListEditor = ({
 
   return (
     <>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-        <Typography variant="h6">Effects</Typography>
+      <Stack direction="row" alignItems="baseline" spacing={1} sx={{ mb: 1 }}>
+        <Typography variant="h6">Effects &amp; Warning Thresholds</Typography>
+        <Typography variant="caption" color="text.secondary">
+          {Object.keys(effects).length} active models
+        </Typography>
       </Stack>
 
       <Stack spacing={1} sx={{ mb: 2 }}>
@@ -74,10 +77,16 @@ export const EffectsListEditor = ({
       <Stack direction="row" spacing={1}>
         <TextField
           label="New effect name"
+          placeholder="e.g., AEGL2hours"
           size="small"
           value={newEffectName}
           onChange={(e) => setNewEffectName(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && addEffect()}
+          slotProps={{
+            input: {
+              startAdornment: <Add fontSize="small" sx={{ mr: 1, color: "text.secondary" }} />,
+            },
+          }}
           sx={{ flex: 1 }}
         />
         <Button

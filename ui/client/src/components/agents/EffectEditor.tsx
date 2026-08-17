@@ -1,7 +1,7 @@
 import {
   Delete,
   ExpandMore,
-  Science,
+  WarningAmber,
 } from "@mui/icons-material";
 import {
   Accordion,
@@ -63,7 +63,7 @@ export const EffectEditor = ({
         }}
       >
         <Stack direction="row" alignItems="center" spacing={1} sx={{ flex: 1, mr: 1 }}>
-          <Science fontSize="small" color="action" />
+          <WarningAmber fontSize="small" sx={{ color: '#f59e0b' }} />
           <RenameField
             value={name}
             setValue={(newName) => {

@@ -1,4 +1,5 @@
 import { Autocomplete, TextField, Stack } from "@mui/material";
+import { FolderOutlined } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { EMPTY_NAME_PROJECT, useProjectStore } from "../../stores/useProjectStore";
 import { AddProjectButton } from "./AddProjectButton";
@@ -23,7 +24,18 @@ export const ProjectChooser = () => {
             navigate('/' + encodeURIComponent(storeName(value)));
           }
         }}
-        renderInput={(params) => <TextField {...params} label="Project" />}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            placeholder="Project"
+            slotProps={{
+              input: {
+                ...params.InputProps,
+                startAdornment: <FolderOutlined fontSize="small" sx={{ ml: 0.5, mr: 0.5, color: "text.secondary" }} />,
+              },
+            }}
+          />
+        )}
         disableClearable
         sx={{ minWidth: 200 }}
       />

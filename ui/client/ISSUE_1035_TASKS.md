@@ -79,6 +79,49 @@ them belong under task 4 (dark-mode contrast / dark teal background).
   Done: `theme.ts` `useFlexlayoutTheme` injects a dark-mode style override that
   retints flexlayout's CSS vars (`--color-background`/`--color-1`/...) to navy.
 
+## Remaining screenshot diffs (requirement image.png vs current)
+
+Diffs still visible when comparing the requirement mockup to a current screenshot,
+excluding task 1 (metadata card) and task 2 (view-mode toggle, deferred to #1041).
+These are text/labels/icons, not the theme colors already done.
+
+Document header / effects:
+- [x] **D1. Effects heading.** Done: `EffectsListEditor.tsx` heading is now
+  "Effects & Warning Thresholds" with a "{N} active models" count.
+- [x] **D2. Effect row icon.** Done: `EffectEditor.tsx` uses an amber `WarningAmber`
+  (`#f59e0b`) instead of the `Science` flask icon.
+- [x] **D3. Add-effect input.** Done: `EffectsListEditor.tsx` input has an
+  "e.g., AEGL2hours" placeholder and a leading `+` icon (startAdornment).
+- [x] **D4. Ten Berge label.** Done: `AgentConfigEditor.tsx` label is now
+  "Ten Berge Coefficient (exponent n)".
+- [x] **D5. Ten Berge helper text.** Done: helper is now "Global exponent n used by
+  Ten Berge toxic gas exposure calculators".
+- [ ] **D6. Description label.** Requirement: "Description (desc)". Current: "desc".
+  SKIPPED - not simple: the label is rendered by the generic `RenameField` where the
+  displayed text is also the editable field name, so special-casing risks rename.
+- [ ] **D7. Document title block.** Requirement: a type icon beside the big "H2S"
+  title plus a "Module: <cls path>" subtitle. Current: no icon, no subtitle.
+  NOT DONE - may overlap task 1; confirm before doing.
+
+Header bar:
+- [ ] **D8. Logo visibility.** Requirement: bright teal atom in a rounded box.
+  NOT DONE - atom is already `#22d3ee`; the faintness may be a pre-rebuild screenshot.
+  Verify after rebuild; adding a box is a design choice.
+- [x] **D9. Project selector.** Done: `ProjectChooser.tsx` drops the "Project" caption
+  (now a placeholder) and adds a folder icon adornment.
+- [x] **D10. Version badge.** Done: `VersionShower.tsx` renders the version/build in a
+  bordered, monospace pill.
+
+Sidebar / workspace explorer:
+- [ ] **D11. Panel heading.** Requirement: "WORKSPACE EXPLORER". Current: "Project".
+  NOT DONE - ambiguous: could be renaming the static tree tab or adding an internal
+  section header. Needs a decision.
+- [ ] **D12. Search box.** Requirement: a "Search modules & variables..." field at the
+  top of the explorer. NOT DONE - new filtering feature, not a simple text change.
+- [ ] **D13. Tree structure.** Requirement: everything nested under a "Project <name>"
+  root node, plus a "REPOSITORIES" section (Central folder / local project). Current:
+  a flat doc list. NOT DONE - partly data/state and structural.
+
 Note: warning triangles (amber) already match closely (`warning.main #ed6c02` vs
 mockup ~`#f59e0b`); CORS red already matches. Left off the list.
 
