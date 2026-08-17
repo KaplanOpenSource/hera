@@ -26,11 +26,11 @@ export const AgentConfigEditor = ({
       <Divider sx={{ my: 2 }} />
 
       <TextField
-        label="Ten Berge Coefficient"
+        label="Ten Berge Coefficient (exponent n)"
         type="number"
         size="small"
         slotProps={{ htmlInput: { step: 0.1 } }}
-        helperText="Global exponent n used by TenBerge calculators"
+        helperText="Global exponent n used by Ten Berge toxic gas exposure calculators"
         value={agentResource.effectParameters?.tenbergeCoefficient ?? ""}
         onChange={(e) => {
           const tenbergeCoefficient = e.target.value ? parseFloat(e.target.value) : undefined;

@@ -13,7 +13,7 @@
 | 7 | `doAddProject` | `src/components/header/AddProjectButton.tsx:25` | yes (integ) | no | yes | `integration/addProject.integ.test.tsx` |
 | 8 | `deleteProject` | `src/components/header/DeleteProjectButton.tsx:12` | yes | yes | yes | `deleteProject.test.tsx` |
 | 9 | `doAddDoc` | `src/components/project/AddDocumentButton.tsx:34` | yes | yes | yes | `addDocument.test.tsx` |
-| 10 | `deleteDocument` | `src/components/project/ProjectDocumentItem.tsx:25` | yes | yes | yes | `projectDocumentItem.test.tsx` |
+| 10 | `deleteDocument` | `src/components/details/DeleteDocumentButton.tsx` | yes | yes | yes | `deleteDocumentButton.test.tsx` |
 | 11 | load repo JSON (useEffect) | `src/components/details/DetailsViewRepo.tsx:23` | yes | yes | no | `detailsViewRepo.test.tsx` |
 | 12 | `addRepo` | `src/components/details/RepoTreeAddButton.tsx:23` | yes | yes | no | `repoTreeAddButton.test.tsx` |
 
