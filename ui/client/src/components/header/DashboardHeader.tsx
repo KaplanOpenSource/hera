@@ -1,11 +1,14 @@
 import { HelpOutline, ViewQuilt } from '@mui/icons-material';
-import { AppBar, createTheme, Stack, ThemeProvider, Toolbar, Typography } from '@mui/material';
+import { AppBar, Box, createTheme, Stack, ThemeProvider, Toolbar, Typography } from '@mui/material';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { ProjectViewSettingsButton } from '../project/ProjectViewSettingsButton';
+import { AddProjectButton } from './AddProjectButton';
 import { AutoReloadToggle } from './AutoReloadToggle';
+import { CorsIndicator } from './CorsIndicator';
 import { PageTitle } from './PageTitle';
 import { ProjectChooser } from './ProjectChooser';
-import { StatusIndicators } from './StatusIndicators';
+import { UserIndicator } from './UserIndicator';
+import { VersionShower } from './VersionShower';
 
 const headerTheme = createTheme({
   palette: {
@@ -37,9 +40,21 @@ export const DashboardHeader = ({
     <ThemeProvider theme={headerTheme}>
       <AppBar position="static">
         <Toolbar>
+          {/* Left: title, project, and the user + CORS indicators. */}
           <Stack direction="row" spacing={1} alignItems="center">
             <PageTitle />
             <ProjectChooser />
+            <Stack direction="column" justifyContent="center">
+              <UserIndicator />
+              <CorsIndicator />
+            </Stack>
+          </Stack>
+
+          <Box sx={{ flexGrow: 1 }} />
+
+          {/* Right: add project, action buttons, settings, then the version. */}
+          <Stack direction="row" spacing={1} alignItems="center">
+            <AddProjectButton />
             <ButtonTooltip
               title="Reset panel layout"
               onClick={onResetLayout}
@@ -54,12 +69,12 @@ export const DashboardHeader = ({
             >
               <HelpOutline />
             </ButtonTooltip>
-            <ProjectViewSettingsButton />
             <Stack direction="row" spacing={0.5} alignItems="center">
               <Typography variant="body2">Auto-reload</Typography>
               <AutoReloadToggle />
             </Stack>
-            <StatusIndicators />
+            <ProjectViewSettingsButton />
+            <VersionShower />
           </Stack>
         </Toolbar>
       </AppBar>

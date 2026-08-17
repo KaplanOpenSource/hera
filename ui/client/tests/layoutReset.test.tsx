@@ -10,8 +10,18 @@ vi.mock('../src/components/header/PageTitle', () => ({
 vi.mock('../src/components/header/ProjectChooser', () => ({
   ProjectChooser: () => <div>ProjectChooser</div>,
 }));
-vi.mock('../src/components/header/StatusIndicators', () => ({
-  StatusIndicators: () => null,
+// The header now renders these network/router-dependent pieces directly; stub them.
+vi.mock('../src/components/header/AddProjectButton', () => ({
+  AddProjectButton: () => null,
+}));
+vi.mock('../src/components/header/UserIndicator', () => ({
+  UserIndicator: () => null,
+}));
+vi.mock('../src/components/header/CorsIndicator', () => ({
+  CorsIndicator: () => null,
+}));
+vi.mock('../src/components/header/VersionShower', () => ({
+  VersionShower: () => null,
 }));
 
 // Pull the tabset definitions out of the model JSON for assertions.
