@@ -21,9 +21,8 @@ class WorkflowRunner:
         """Build and execute a saved workflow in a forked child process.
 
         Returns ``{"dispatch_id", "output"}``. Output is the child's captured
-        console output (echoed live to the server console) with timing lines
-        appended: how long the workflow itself ran and the total wall time
-        including process spawn.
+        console output with timing lines appended: how long the workflow itself
+        ran and the total wall time including process spawn.
         """
         with self._lock:
             # Fork so the child inherits the already-warmed hera import.
