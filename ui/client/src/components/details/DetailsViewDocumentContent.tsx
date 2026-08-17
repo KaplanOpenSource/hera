@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DocumentObj } from '../../objects/ProjectObj';
 import { AgentConfig } from '../../shared/AgentConfig';
+import { classifyDocument } from '../../shared/tabKind';
+import { DocumentKindIcon } from '../project/DocumentKindIcon';
 import { DATA_FORMAT_FIELD, DESC_FIELD, FORBIDDEN_FIELDS } from '../../shared/constants';
 import { ProjectDocument, WorkflowDesc } from '../../shared/types';
 import { getWorkflowSolver, isWorkflowDoc, setWorkflowSolver } from '../../shared/workflow';
@@ -16,7 +18,6 @@ import { DeleteDocumentButton } from './DeleteDocumentButton';
 import { DetailsViewDocumentHeader } from './DetailsViewDocumentHeader';
 import { RawViewToggle } from './RawViewToggle';
 import { DetailsViewItem, keyForDetailsViewItem } from './DetailsViewItem';
-import { DetailsVisibility, DetailsVisibilityToggle } from './DetailsVisibilityToggle';
 
 const HIDE_ON_DESC = ['datasourceName', 'toolkit', 'version'];
 const isAgentConfigDoc = (doc: ProjectDocument) => {
@@ -40,9 +41,6 @@ export const DetailsViewDocumentContent = ({
   // OFF: the document's specialized view (agent/workflow editor, or the formulated
   // field tree). ON: the raw stored document with nothing hidden.
   const [rawView, setRawView] = useState(false);
-  const [detailsVisibility, setDetailsVisibility] = useState<DetailsVisibility>(DetailsVisibility.Both);
-  const showHeader = detailsVisibility === DetailsVisibility.Both;
-  const showTree = detailsVisibility !== DetailsVisibility.None;
 
   // Open each document in its specialized (non-raw) view.
   useEffect(() => {
@@ -69,13 +67,10 @@ export const DetailsViewDocumentContent = ({
   return (
     <>
       <Stack direction={'row'} spacing={0.5} alignItems={'center'} justifyItems={'center'}>
+        <DocumentKindIcon kind={classifyDocument(doc)} sx={{ color: 'text.secondary', mr: 1 }} />
         <Typography variant='h6' sx={{ marginRight: 1 }}>
           {doc.isConfig ? doc.project.name + ' config' : doc.name}
         </Typography>
-        <DetailsVisibilityToggle
-          value={detailsVisibility}
-          onChange={setDetailsVisibility}
-        />
         {isWorkflow && (
           <RunWorkflowButton
             projectName={doc.project.name}
@@ -110,23 +105,20 @@ export const DetailsViewDocumentContent = ({
           isConfig={doc.isConfig}
         />
       </Stack>
-      {showHeader && (
-        <DetailsViewDocumentHeader
-          docid={doc.docid}
-          shownDoc={shownDoc}
-          setShownDoc={setShownDoc}
-          showFormulated={showFormulated}
-          extraFields={!showKindEditor
-            ? []
-            : [
-              { name: 'type', value: shownDoc.type },
-              { name: DATA_FORMAT_FIELD, value: shownDoc.dataFormat },
-            ]
-          }
-        />
-      )}
-      {showTree && (
-        <SimpleTreeView
+      <DetailsViewDocumentHeader
+        docid={doc.docid}
+        shownDoc={shownDoc}
+        setShownDoc={setShownDoc}
+        showFormulated={showFormulated}
+        extraFields={!showKindEditor
+          ? []
+          : [
+            { name: 'type', value: shownDoc.type },
+            { name: DATA_FORMAT_FIELD, value: shownDoc.dataFormat },
+          ]
+        }
+      />
+      <SimpleTreeView
           defaultExpandedItems={[keyForDetailsViewItem(DESC_FIELD), keyForDetailsViewItem('resource')]}
           // Rows are near-symmetric now, so the chevron needs only a tiny nudge up
           // to line up with the name (required rows still reserve room below).
@@ -170,7 +162,6 @@ export const DetailsViewDocumentContent = ({
           />
         )}
         </SimpleTreeView>
-      )}
       {showAgentConfig
         ? (
           <AgentConfigEditor
