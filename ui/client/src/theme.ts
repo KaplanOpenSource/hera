@@ -5,7 +5,16 @@ import darkFlexlayoutUrl from 'flexlayout-react/style/dark.css?url';
 import { ThemeMode, useViewSettingsStore } from './stores/useViewSettingsStore';
 
 export const buildAppTheme = (mode: ThemeMode) => {
-  return createTheme({ palette: { mode } });
+  const isDark = mode === ThemeMode.Dark;
+  return createTheme({
+    palette: {
+      mode,
+      // Cyan accent: bright in dark mode, a deeper teal in light mode for contrast.
+      primary: { main: isDark ? '#22d3ee' : '#0891b2' },
+      // Dark mode gets a navy background instead of MUI's flat #121212.
+      ...(isDark ? { background: { default: '#0b1220', paper: '#111a2b' } } : {}),
+    },
+  });
 };
 
 // The global app theme, following the mode chosen in Settings. Dialogs that open from

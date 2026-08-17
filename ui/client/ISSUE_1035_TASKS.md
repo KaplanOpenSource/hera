@@ -33,26 +33,24 @@ The mockup is a custom dark-navy + teal/cyan theme. Our code has no custom palet
 blue `#1976d2` on flat dark `#121212`. These are the specific color diffs. Most of
 them belong under task 4 (dark-mode contrast / dark teal background).
 
-- [ ] **C1. App background: flat gray -> dark navy.**
-  Current dark background is MUI default `#121212`. Mockup uses a dark blue/navy
-  (~`#0a0f1a` / `#0d1420`). Set `background.default` in the theme.
+- [x] **C1. App background: flat gray -> dark navy.**
+  Done: `theme.ts` dark mode sets `background.default = #0b1220`, `paper = #111a2b`.
 
 - [ ] **C2. Card/panel background + border.**
   Current surfaces use `background.paper` = `#121212` with `boxShadow: 1`
   (e.g. `DetailsViewDocumentContent.tsx:196`). Mockup uses a slightly lighter
   translucent navy card (~`#111827`) with a subtle 1px border instead of a shadow.
 
-- [ ] **C3. Primary accent: blue -> teal/cyan.**
-  `primary.main` is stock `#1976d2`. Mockup accent is cyan/teal (~`#22d3ee`).
-  This flows into buttons, graph edges, selection highlights, output dots, etc.
+- [x] **C3. Primary accent: blue -> teal/cyan.**
+  Done: `theme.ts` `primary.main` = `#22d3ee` (dark) / `#0891b2` (light).
+  Flows into buttons, graph edges, selection highlights, output dots, etc.
 
-- [ ] **C4. Header bar: solid blue -> dark navy.**
-  `DashboardHeader.tsx` gives the AppBar `background.paper = '#1976d2'` (a blue
-  bar). Mockup header blends into the navy app background (no blue bar).
+- [x] **C4. Header bar: solid blue -> dark navy.**
+  Done: `DashboardHeader.tsx` header theme `background.paper = #0b1220` (was `#1976d2`).
 
-- [ ] **C5. Logo color: white -> teal/cyan.**
-  `assets/atom.svg` is `fill="#fff"` and "Hera UI" text inherits white
-  (`PageTitle.tsx`). Mockup logo icon is teal/cyan.
+- [x] **C5. Logo color: white -> teal/cyan.**
+  Done: `assets/atom.svg` strokes/fills now `#22d3ee`. "Hera UI" text stays white
+  (matches mockup).
 
 - [ ] **C6. "ADD EFFECT" button: blue -> cyan.**
   `EffectsListEditor.tsx:83` is `variant="contained"` = blue `#1976d2`. Mockup

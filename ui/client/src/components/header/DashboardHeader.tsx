@@ -10,7 +10,9 @@ import { StatusIndicators } from './StatusIndicators';
 const headerTheme = createTheme({
   palette: {
     mode: 'dark',
-    background: { paper: '#1976d2' },
+    primary: { main: '#22d3ee' },
+    // Dark navy header bar that blends with the app background (was blue #1976d2).
+    background: { paper: '#0b1220' },
   },
   components: {
     MuiInputBase: {
