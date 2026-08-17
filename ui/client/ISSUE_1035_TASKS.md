@@ -4,10 +4,14 @@ Milestone: Web UI. Six UI refinements to the document view. Source: KaplanOpenSo
 
 ## Tasks
 
-- [ ] **1. Collapsible metadata card**
+- [x] **1. Collapsible metadata card**
   Metadata (`version`, `toolkit`, `type`, ...) takes too much space. Put it in a single collapsible card instead of separate view modes.
+  Done: `DetailsViewDocumentHeader.tsx` is now a collapsible card (MUI `Accordion`
+  styled as the bordered card) titled "Node Metadata Attributes" with a chevron;
+  collapse it to reclaim space. Still open (was D7): a large type icon beside the
+  document title + a "Module: <cls>" subtitle in the title row.
 
-- [ ] **2. Simplify view modes to one raw-data toggle** — DEFERRED to separate issue #1041, not done here.
+- [-] **2. Simplify view modes to one raw-data toggle** — DEFERRED to separate issue #1041, not done here.
   Replace the multiple view modes with one toggle that switches between the agent/hermes view and the raw document view.
 
 - [x] **3. Make the project tab static**
