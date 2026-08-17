@@ -11,8 +11,11 @@ Milestone: Web UI. Six UI refinements to the document view. Source: KaplanOpenSo
   collapse it to reclaim space. Still open (was D7): a large type icon beside the
   document title + a "Module: <cls>" subtitle in the title row.
 
-- [-] **2. Simplify view modes to one raw-data toggle** — DEFERRED to separate issue #1041, not done here.
+- [x] **2. Simplify view modes to one raw-data toggle** — tracked as #1041, now DONE.
   Replace the multiple view modes with one toggle that switches between the agent/hermes view and the raw document view.
+  Done (Option B): new `RawViewToggle.tsx` (a "Raw View" Switch, always enabled)
+  replaces the 4-button `DocViewSelector` (deleted). `DetailsViewDocumentContent`
+  now uses a `rawView` boolean instead of the `docView` enum. See `ISSUE_1041_PLAN.md`.
 
 - [x] **3. Make the project tab static**
   Convert the project tab to a fixed element so it can't be accidentally closed or moved.

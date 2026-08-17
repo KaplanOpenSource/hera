@@ -1,12 +1,11 @@
 import { Close, Done } from '@mui/icons-material';
-import { Divider, Stack, Typography } from '@mui/material';
+import { Box, Divider, Stack, Typography } from '@mui/material';
 import { SimpleTreeView } from '@mui/x-tree-view';
 import { useEffect, useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DocumentObj } from '../../objects/ProjectObj';
 import { AgentConfig } from '../../shared/AgentConfig';
 import { DATA_FORMAT_FIELD, DESC_FIELD, FORBIDDEN_FIELDS } from '../../shared/constants';
-import { TabKind } from '../../shared/tabKind';
 import { ProjectDocument, WorkflowDesc } from '../../shared/types';
 import { getWorkflowSolver, isWorkflowDoc, setWorkflowSolver } from '../../shared/workflow';
 import { copyOnly, copyWithout, reorderEntries } from '../../utils/utils';
@@ -15,7 +14,7 @@ import { RunWorkflowButton } from '../workflow/RunWorkflowButton';
 import { WorkflowEditor } from '../workflow/WorkflowEditor';
 import { DeleteDocumentButton } from './DeleteDocumentButton';
 import { DetailsViewDocumentHeader } from './DetailsViewDocumentHeader';
-import { DocView, DocViewSelector } from './DocViewSelector';
+import { RawViewToggle } from './RawViewToggle';
 import { DetailsViewItem, keyForDetailsViewItem } from './DetailsViewItem';
 import { DetailsVisibility, DetailsVisibilityToggle } from './DetailsVisibilityToggle';
 
@@ -23,10 +22,6 @@ const HIDE_ON_DESC = ['datasourceName', 'toolkit', 'version'];
 const isAgentConfigDoc = (doc: ProjectDocument) => {
   return doc && typeof doc?.resource === 'object' && doc?.resource.effects !== undefined;
 }
-
-const defaultView = (doc: ProjectDocument): DocView => {
-  return isAgentConfigDoc(doc) ? TabKind.Agent : isWorkflowDoc(doc) ? TabKind.Workflow : 'formulated';
-};
 
 export const DetailsViewDocumentContent = ({
   doc,
@@ -42,36 +37,33 @@ export const DetailsViewDocumentContent = ({
   const isAgent = isAgentConfigDoc(shownDoc);
   const isWorkflow = isWorkflowDoc(shownDoc);
 
-  const [docView, setDocView] = useState<DocView>(() => defaultView(doc.data));
+  // OFF: the document's specialized view (agent/workflow editor, or the formulated
+  // field tree). ON: the raw stored document with nothing hidden.
+  const [rawView, setRawView] = useState(false);
   const [detailsVisibility, setDetailsVisibility] = useState<DetailsVisibility>(DetailsVisibility.Both);
   const showHeader = detailsVisibility === DetailsVisibility.Both;
   const showTree = detailsVisibility !== DetailsVisibility.None;
 
-  // When switching to a different document, reset to its default view.
+  // Open each document in its specialized (non-raw) view.
   useEffect(() => {
-    setDocView(defaultView(doc.data));
+    setRawView(false);
   }, [doc.docid]);
 
-  // The agent/workflow views only apply to those document kinds; if the shown
-  // doc is no longer one of them, fall back to the formulated view.
-  useEffect(() => {
-    if ((docView === TabKind.Agent && !isAgent) || (docView === TabKind.Workflow && !isWorkflow)) {
-      setDocView('formulated');
-    }
-  }, [isAgent, isWorkflow, docView]);
+  const showFormulated = !rawView;
+  const showAgentConfig = !rawView && isAgent;
+  const showWorkflow = !rawView && isWorkflow;
 
-  const showFormulated = docView !== 'raw';
-  const showAgentConfig = docView === TabKind.Agent;
-  const showWorkflow = docView === TabKind.Workflow;
-
-  // Agent/workflow views render the document's payload in a dedicated editor, so
-  // the unchangeable meta fields move to the header (read-only) and are hidden
-  // from the editable tree. Agent also hides resource (it IS the agent config);
-  // the workflow's resource is a separate export path, so it stays editable.
+  // The agent/workflow editors render the payload directly, so the unchangeable
+  // meta fields move to the header (read-only) and are hidden from the editable
+  // tree. Agent also hides resource (it IS the agent config); the workflow's
+  // resource is a separate export path, so it stays editable.
   const showKindEditor = showAgentConfig || showWorkflow;
-  const headerHiddenFields = showAgentConfig
-    ? ['resource', 'type', DATA_FORMAT_FIELD]
-    : (showWorkflow ? ['type', DATA_FORMAT_FIELD] : []);
+  let headerHiddenFields: string[] = [];
+  if (showAgentConfig) {
+    headerHiddenFields = ['resource', 'type', DATA_FORMAT_FIELD];
+  } else if (showWorkflow) {
+    headerHiddenFields = ['type', DATA_FORMAT_FIELD];
+  }
 
   const isChanged = JSON.stringify(doc.data) !== JSON.stringify(shownDoc);
   return (
@@ -80,11 +72,6 @@ export const DetailsViewDocumentContent = ({
         <Typography variant='h6' sx={{ marginRight: 1 }}>
           {doc.isConfig ? doc.project.name + ' config' : doc.name}
         </Typography>
-        <DocViewSelector
-          docView={docView}
-          setDocView={setDocView}
-          enabled={{ [TabKind.Agent]: isAgent, [TabKind.Workflow]: isWorkflow }}
-        />
         <DetailsVisibilityToggle
           value={detailsVisibility}
           onChange={setDetailsVisibility}
@@ -113,7 +100,9 @@ export const DetailsViewDocumentContent = ({
             </ButtonTooltip>
           </>)
           : null}
-        <Divider orientation='vertical' flexItem sx={{ ml: 'auto', mx: 0.5 }} />
+        <Box sx={{ flexGrow: 1 }} />
+        <RawViewToggle rawView={rawView} setRawView={setRawView} />
+        <Divider orientation='vertical' flexItem sx={{ mx: 0.5 }} />
         <DeleteDocumentButton
           document={doc.data}
           projectName={doc.project.name}
