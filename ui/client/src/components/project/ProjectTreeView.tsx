@@ -1,5 +1,5 @@
 import { ContentCopy, Folder } from '@mui/icons-material';
-import { alpha, Stack, Tooltip, Typography } from '@mui/material';
+import { Stack, Tooltip, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -13,6 +13,7 @@ import { collectBranchKeys, SplitTree } from '../../utils/splitTree';
 import { DocumentSplitGroup } from './DocumentSplitGroup';
 import { ProjectActionsButton } from './ProjectActionsButton';
 import { RepoTreeWhole } from './RepoTreeWhole';
+import { treeSelectionSx } from './treeSelectionSx';
 import { TreeSearchBar } from './TreeSearchBar';
 import { useViewSettingsStore } from '../../stores/useViewSettingsStore';
 
@@ -28,7 +29,10 @@ export const ProjectTreeView = ({
   const { toolkits } = useProjectStore();
   const { viewSettings } = useViewSettingsStore();
   const [selectedIds, setSelectedIds] = useState<string[]>(docId ? [idDocId(docId)] : []);
-  const [expandedItems, setExpandedItems] = useState<string[]>(['project-documents', 'no-toolkit', '*repos*']);
+  const [expandedItems, setExpandedItems] = useState<string[]>(['project-documents', 'no-toolkit']);
+  // Repositories are a separate tree with their own selection/expansion state.
+  const [repoSelectedIds, setRepoSelectedIds] = useState<string[]>([]);
+  const [repoExpandedItems, setRepoExpandedItems] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const splitTreeRef = useRef<SplitTree | null>(null);
 
@@ -101,12 +105,46 @@ export const ProjectTreeView = ({
 
     const added = ids.filter(id => !selectedIds.includes(id));
     setSelectedIds(ids);
+    setRepoSelectedIds([]);   // documents and repos share a single active highlight
     const clicked = added[added.length - 1];
     if (clicked) {
       navigateToItem(clicked);
       onSelectItem(clicked);
     }
   }, [selectedIds, navigateToItem, onSelectItem]);
+
+  // Same as handleSelectionChange, but for the separate repositories tree.
+  const handleRepoSelectionChange = useCallback((event: React.SyntheticEvent | null, ids: string[]) => {
+    const target = (event?.target as HTMLElement | null);
+    if (target?.closest('[class*="iconContainer"]')) return;
+
+    const added = ids.filter(id => !repoSelectedIds.includes(id));
+    setRepoSelectedIds(ids);
+    setSelectedIds([]);   // clear the documents selection so only one item is active
+    const clicked = added[added.length - 1];
+    if (clicked) {
+      navigateToItem(clicked);
+      onSelectItem(clicked);
+    }
+  }, [repoSelectedIds, navigateToItem, onSelectItem]);
+
+  // The central repo folder only toggles from its chevron, not by clicking the row.
+  const handleRepoExpandedChange = useCallback((e: React.SyntheticEvent | null, itemIds: string[]) => {
+    const wasExpanded = repoExpandedItems.includes(CENTRAL_REPO_FOLDER_ID);
+    const willBeExpanded = itemIds.includes(CENTRAL_REPO_FOLDER_ID);
+    if (wasExpanded !== willBeExpanded) {
+      const target = (e?.target as HTMLElement | null);
+      const fromChevron = !!target?.closest('[class*="iconContainer"]');
+      if (!fromChevron) {
+        const corrected = wasExpanded
+          ? [...new Set([...itemIds, CENTRAL_REPO_FOLDER_ID])]
+          : itemIds.filter(id => id !== CENTRAL_REPO_FOLDER_ID);
+        setRepoExpandedItems(corrected);
+        return;
+      }
+    }
+    setRepoExpandedItems(itemIds);
+  }, [repoExpandedItems]);
 
   // Make the given document the selection (highlight, URL, open tab), or clear it when none.
   const selectDocument = useCallback((docOid?: string) => {
@@ -154,56 +192,12 @@ export const ProjectTreeView = ({
     </Typography>
     <SimpleTreeView
       expandedItems={effectiveExpandedItems}
-      onExpandedItemsChange={(e, itemIds) => {
-        const wasExpanded = expandedItems.includes(CENTRAL_REPO_FOLDER_ID);
-        const willBeExpanded = itemIds.includes(CENTRAL_REPO_FOLDER_ID);
-        if (wasExpanded !== willBeExpanded) {
-          const target = (e as React.SyntheticEvent | null)?.target as HTMLElement | null;
-          const fromChevron = !!target?.closest('[class*="iconContainer"]');
-          if (!fromChevron) {
-            const corrected = wasExpanded
-              ? [...new Set([...itemIds, CENTRAL_REPO_FOLDER_ID])]
-              : itemIds.filter(id => id !== CENTRAL_REPO_FOLDER_ID);
-            setExpandedItems(corrected);
-            return;
-          }
-        }
-        setExpandedItems(itemIds);
-      }}
+      onExpandedItemsChange={(_e, itemIds) => setExpandedItems(itemIds)}
       selectedItems={selectedIds}
       onSelectedItemsChange={(e, itemIds) => handleSelectionChange(e, itemIds)}
       expansionTrigger={'content'}
       multiSelect
-      sx={(theme) => {
-        const isDark = theme.palette.mode === 'dark';
-        // In dark mode use the mockup's slate-navy selection; in light mode fall
-        // back to a soft tint of the primary color.
-        const selBg = isDark ? '#122336' : alpha(theme.palette.primary.main, 0.14);
-        const selRing = isDark ? '#1e293b' : alpha(theme.palette.primary.main, 0.45);
-        const focusRing = isDark ? '#334155' : alpha(theme.palette.primary.main, 0.6);
-        return {
-          // Highlighted (selected) rows: the name text and kind icon turn cyan
-          // (the accent), over a subtle slate fill with a thin ring. The ring is
-          // an inset box-shadow so it doesn't shift the layout.
-          '& .MuiTreeItem-content.Mui-selected': {
-            backgroundColor: selBg,
-            borderRadius: theme.shape.borderRadius,
-            boxShadow: `inset 0 0 0 1px ${selRing}`,
-            color: theme.palette.primary.main,
-            '& .MuiSvgIcon-root': { color: theme.palette.primary.main },
-          },
-          '& .MuiTreeItem-content.Mui-selected:hover': {
-            backgroundColor: selBg,
-          },
-          '& .MuiTreeItem-content.Mui-selected.Mui-focused': {
-            backgroundColor: selBg,
-            boxShadow: `inset 0 0 0 1px ${focusRing}`,
-          },
-          '& .MuiTreeItem-content.Mui-selected.Mui-focused:hover': {
-            backgroundColor: selBg,
-          },
-        };
-      }}
+      sx={treeSelectionSx}
     >
       <TreeItem key={`project-documents`} itemId={`project-documents`}
         label={(
@@ -245,8 +239,13 @@ export const ProjectTreeView = ({
           }}
         />
       </TreeItem>
-      <RepoTreeWhole />
     </SimpleTreeView>
+    <RepoTreeWhole
+      selectedIds={repoSelectedIds}
+      onSelectedItemsChange={handleRepoSelectionChange}
+      expandedItems={repoExpandedItems}
+      onExpandedItemsChange={handleRepoExpandedChange}
+    />
     </>
   );
 };

@@ -119,9 +119,13 @@ Sidebar / workspace explorer:
   (`ProjectTreeView.tsx`).
 - [ ] **D12. Search box.** Requirement: a "Search modules & variables..." field at the
   top of the explorer. NOT DONE - new filtering feature, not a simple text change.
-- [ ] **D13. Tree structure.** Requirement: everything nested under a "Project <name>"
-  root node, plus a "REPOSITORIES" section (Central folder / local project). Current:
-  a flat doc list. NOT DONE - partly data/state and structural.
+- [x] **D13. Repositories as a separate section.** Done (split state): `RepoTreeWhole`
+  now renders its own overline "Repositories" title + its own `SimpleTreeView` of repo
+  branches with no wrapping root, outside the documents tree. It has its own
+  `repoSelectedIds` / `repoExpandedItems` in `ProjectTreeView`; selecting in one tree
+  clears the other so only one item is active. The `CENTRAL_REPO_FOLDER_ID` chevron
+  logic moved to the repo tree's expansion handler. Selection styling extracted to
+  `treeSelectionSx.ts` and shared by both trees.
 
 Note: warning triangles (amber) already match closely (`warning.main #ed6c02` vs
 mockup ~`#f59e0b`); CORS red already matches. Left off the list.
