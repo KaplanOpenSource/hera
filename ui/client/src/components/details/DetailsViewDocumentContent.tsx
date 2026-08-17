@@ -31,7 +31,7 @@ export const DetailsViewDocumentContent = ({
   setShownDoc,
 }: {
   doc: DocumentObj,
-  setDoc: (newDoc: DocumentObj) => void,
+  setDoc: (newDoc: DocumentObj) => Promise<void>,
   shownDoc: ProjectDocument,
   setShownDoc: (newDoc: ProjectDocument) => void,
 }) => {
@@ -75,8 +75,8 @@ export const DetailsViewDocumentContent = ({
           <RunWorkflowButton
             projectName={doc.project.name}
             workflowName={(shownDoc.desc as WorkflowDesc).workflowName ?? doc.name}
-            disabled={isChanged}
-            disabledReason="Save changes before running"
+            isChanged={isChanged}
+            save={() => setDoc(new DocumentObj(shownDoc, doc.project))}
           />
         )}
         {isChanged
@@ -179,8 +179,8 @@ export const DetailsViewDocumentContent = ({
             <RunWorkflowButton
               projectName={doc.project.name}
               workflowName={(shownDoc.desc as WorkflowDesc).workflowName ?? doc.name}
-              disabled={isChanged}
-              disabledReason="Save changes before running"
+              isChanged={isChanged}
+              save={() => setDoc(new DocumentObj(shownDoc, doc.project))}
               sx={{ bgcolor: 'background.paper', boxShadow: 1, p: 0.5 }}
             />
           }
