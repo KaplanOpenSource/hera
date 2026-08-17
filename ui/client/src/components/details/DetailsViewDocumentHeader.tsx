@@ -1,4 +1,4 @@
-import { Grid, Typography } from '@mui/material';
+import { Box, Grid, Typography } from '@mui/material';
 import { Fragment } from 'react';
 import { ProjectDocument } from '../../shared/types';
 import { VersionFields } from './VersionFields';
@@ -16,6 +16,15 @@ export const DetailsViewDocumentHeader = ({
   extraFields?: { name: string, value: string }[],
 }) => {
   return (
+    <Box
+      sx={{
+        bgcolor: 'background.paper',
+        border: 1,
+        borderColor: 'divider',
+        borderRadius: 1,
+        p: 1.5,
+      }}
+    >
     <Grid container spacing={1} alignItems={'center'}>
       <Grid key="id-label" size={2}>
         <Typography sx={{ fontSize: 12 }}>
@@ -76,5 +85,6 @@ export const DetailsViewDocumentHeader = ({
         </Fragment>
       ))}
     </Grid>
+    </Box>
   )
 }

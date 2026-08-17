@@ -72,8 +72,17 @@ export const EffectEditor = ({
               }
             }}
           />
-          <Chip label={effect.type} size="small" />
-          <Chip label={getCalculatorType(effect.calculator)} size="small" variant="outlined" />
+          <Chip
+            label={effect.type}
+            size="small"
+            sx={{ bgcolor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}
+          />
+          <Chip
+            label={getCalculatorType(effect.calculator)}
+            size="small"
+            variant="outlined"
+            sx={{ color: '#2dd4bf', borderColor: '#2dd4bf' }}
+          />
         </Stack>
         <IconButton
           className="effect-delete"

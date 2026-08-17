@@ -7,7 +7,7 @@ Milestone: Web UI. Six UI refinements to the document view. Source: KaplanOpenSo
 - [ ] **1. Collapsible metadata card**
   Metadata (`version`, `toolkit`, `type`, ...) takes too much space. Put it in a single collapsible card instead of separate view modes.
 
-- [ ] **2. Simplify view modes to one raw-data toggle**
+- [ ] **2. Simplify view modes to one raw-data toggle** — DEFERRED to separate issue #1041, not done here.
   Replace the multiple view modes with one toggle that switches between the agent/hermes view and the raw document view.
 
 - [x] **3. Make the project tab static**
@@ -15,16 +15,25 @@ Milestone: Web UI. Six UI refinements to the document view. Source: KaplanOpenSo
   Done: `LayoutModel.ts` `TREE_TAB` now has `enableClose/enableDrag/enableRename: false`,
   and its tabset has `enableClose/enableDrop: false`.
 
-- [ ] **4. Fix dark-mode contrast**
+- [x] **4. Fix dark-mode contrast**
   Buttons don't separate clearly in dark mode. Add a dark teal background for contrast.
+  Done: the dark navy theme (C1/C3/C4) gives the background/accent contrast, and the
+  document control row (`DetailsViewDocumentContent.tsx`) now has `spacing` between
+  its buttons plus a vertical `Divider` separating the delete action.
+  Note: reporter said "dark teal"; the mockup and the theme we built are dark navy blue.
 
 - [x] **5. Auto Reload toggle**
   Replace the current unclear auto-reload control with an explicit toggle switch labeled "Auto Reload".
   Done: `AutoReloadToggle.tsx` is now a MUI `Switch`; `DashboardHeader.tsx` shows an
   "Auto-reload" label next to it.
 
-- [ ] **6. Move delete button into the document interface**
+- [x] **6. Move delete button into the document interface**
   Move the document delete button inside the document view, alongside the other controls.
+  Done: new `DeleteDocumentButton.tsx` rendered in the document control row; the trash
+  button was removed from the sidebar tree item (`ProjectDocumentItem.tsx`). The open tab
+  auto-closes after delete via `LayoutModel.closeMissingDocuments`.
+  Note: `onDocumentDeleted` is still threaded to `ProjectDocumentItem` but no longer
+  fired (it cleared tree selection); left in place to avoid churn. Prune later if wanted.
 
 ## Color changes (from the mockup vs current code)
 
@@ -36,10 +45,10 @@ them belong under task 4 (dark-mode contrast / dark teal background).
 - [x] **C1. App background: flat gray -> dark navy.**
   Done: `theme.ts` dark mode sets `background.default = #0b1220`, `paper = #111a2b`.
 
-- [ ] **C2. Card/panel background + border.**
-  Current surfaces use `background.paper` = `#121212` with `boxShadow: 1`
-  (e.g. `DetailsViewDocumentContent.tsx:196`). Mockup uses a slightly lighter
-  translucent navy card (~`#111827`) with a subtle 1px border instead of a shadow.
+- [x] **C2. Card/panel background + border.**
+  Done: `DetailsViewDocumentHeader.tsx` wraps the metadata in a card
+  (`background.paper` surface + 1px `divider` border + rounded corners, no shadow).
+  The lighter navy surface comes from `paper = #111a2b` (set in C1).
 
 - [x] **C3. Primary accent: blue -> teal/cyan.**
   Done: `theme.ts` `primary.main` = `#22d3ee` (dark) / `#0891b2` (light).
@@ -52,14 +61,13 @@ them belong under task 4 (dark-mode contrast / dark teal background).
   Done: `assets/atom.svg` strokes/fills now `#22d3ee`. "Hera UI" text stays white
   (matches mockup).
 
-- [ ] **C6. "ADD EFFECT" button: blue -> cyan.**
-  `EffectsListEditor.tsx:83` is `variant="contained"` = blue `#1976d2`. Mockup
-  is a bright cyan/teal button with dark text.
+- [x] **C6. "ADD EFFECT" button: blue -> cyan.**
+  Done via C3: the `variant="contained"` button now inherits the cyan
+  `primary.main` (`#22d3ee`) with auto dark text. No separate change needed.
 
-- [ ] **C7. Chips get accent colors.**
-  "Threshold" / "MaxConcentration" chips are default grey outlined MUI chips
-  today (`WorkflowNodeOutputChip.tsx:19`, `ToolkitDetails.tsx:23,28`). Mockup:
-  Threshold = blue/cyan tint, MaxConcentration = teal/green tint, on translucent dark.
+- [x] **C7. Chips get accent colors.**
+  Done: `EffectEditor.tsx` effect-type chip is blue-tinted (`#38bdf8` on
+  translucent), calculator chip is teal outlined (`#2dd4bf`).
 
 - [x] **C8. Auto-reload "on" color.**
   Done: the new `Switch` in `AutoReloadToggle.tsx` uses cyan `#22d3ee` when on.
@@ -67,9 +75,9 @@ them belong under task 4 (dark-mode contrast / dark teal background).
 - [x] **C9. Green status text tone.**
   Done: `UserIndicator.tsx` now uses `#4ade80` (and matching `rgba` for the docker suffix).
 
-- [ ] **C10. Sidebar/explorer panel background.**
-  The tree panels come from flexlayout-react's stock `dark.css` (`theme.ts:21-34`).
-  Mockup panels match the navy theme, so this needs a css override to align.
+- [x] **C10. Sidebar/explorer panel background.**
+  Done: `theme.ts` `useFlexlayoutTheme` injects a dark-mode style override that
+  retints flexlayout's CSS vars (`--color-background`/`--color-1`/...) to navy.
 
 Note: warning triangles (amber) already match closely (`warning.main #ed6c02` vs
 mockup ~`#f59e0b`); CORS red already matches. Left off the list.

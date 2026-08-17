@@ -39,5 +39,24 @@ export const useFlexlayoutTheme = () => {
       document.head.appendChild(link);
     }
     link.href = themeMode === ThemeMode.Dark ? darkFlexlayoutUrl : lightFlexlayoutUrl;
+
+    // In dark mode, retint flexlayout's panels (which default to black) to the
+    // app's navy so the tree/explorer sidebar matches the content area.
+    const overrideId = 'flexlayout-theme-override';
+    let override = document.getElementById(overrideId) as HTMLStyleElement | null;
+    if (!override) {
+      override = document.createElement('style');
+      override.id = overrideId;
+      document.head.appendChild(override);
+    }
+    override.textContent = themeMode === ThemeMode.Dark
+      ? `.flexlayout__layout {
+          --color-background: #0b1220;
+          --color-base: #0b1220;
+          --color-1: #111a2b;
+          --color-2: #16233b;
+          --color-tab-selected-background: #1f2d47;
+        }`
+      : '';
   }, [themeMode]);
 };

@@ -1,5 +1,5 @@
 import { Close, Done } from '@mui/icons-material';
-import { Stack, Typography } from '@mui/material';
+import { Divider, Stack, Typography } from '@mui/material';
 import { SimpleTreeView } from '@mui/x-tree-view';
 import { useEffect, useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
@@ -13,6 +13,7 @@ import { copyOnly, copyWithout, reorderEntries } from '../../utils/utils';
 import { AgentConfigEditor } from '../agents/AgentConfigEditor';
 import { RunWorkflowButton } from '../workflow/RunWorkflowButton';
 import { WorkflowEditor } from '../workflow/WorkflowEditor';
+import { DeleteDocumentButton } from './DeleteDocumentButton';
 import { DetailsViewDocumentHeader } from './DetailsViewDocumentHeader';
 import { DocView, DocViewSelector } from './DocViewSelector';
 import { DetailsViewItem, keyForDetailsViewItem } from './DetailsViewItem';
@@ -75,7 +76,7 @@ export const DetailsViewDocumentContent = ({
   const isChanged = JSON.stringify(doc.data) !== JSON.stringify(shownDoc);
   return (
     <>
-      <Stack direction={'row'} alignItems={'center'} justifyItems={'center'}>
+      <Stack direction={'row'} spacing={0.5} alignItems={'center'} justifyItems={'center'}>
         <Typography variant='h6' sx={{ marginRight: 1 }}>
           {doc.isConfig ? doc.project.name + ' config' : doc.name}
         </Typography>
@@ -112,6 +113,13 @@ export const DetailsViewDocumentContent = ({
             </ButtonTooltip>
           </>)
           : null}
+        <Divider orientation='vertical' flexItem sx={{ ml: 'auto', mx: 0.5 }} />
+        <DeleteDocumentButton
+          document={doc.data}
+          projectName={doc.project.name}
+          displayName={doc.isConfig ? doc.project.name + ' config' : doc.name}
+          isConfig={doc.isConfig}
+        />
       </Stack>
       {showHeader && (
         <DetailsViewDocumentHeader
