@@ -4,14 +4,8 @@ import { MouseEvent, useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { runWorkflow } from '../../io/runWorkflow';
 import { dismiss, pushError, pushInfo, pushRunning } from '../../io/snackbar';
+import { useViewSettingsStore } from '../../stores/useViewSettingsStore';
 import { WorkflowOutputDialog } from './log/WorkflowOutputDialog';
-
-// Local storage flag: when set, a left click saves the document before running.
-const SAVE_BEFORE_RUN_KEY = 'workflow.alwaysSaveBeforeRun';
-
-const readSaveBeforeRun = (): boolean => {
-  return localStorage.getItem(SAVE_BEFORE_RUN_KEY) === 'true';
-};
 
 // Runs a saved workflow via the server's /run_workflow endpoint. The run is
 // synchronous — the output dialog opens right away and shows a spinner until the
@@ -44,15 +38,11 @@ export const RunWorkflowButton = ({
   const [running, setRunning] = useState(false);
   const [output, setOutput] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [saveBeforeRun, setSaveBeforeRun] = useState(readSaveBeforeRun());
   const [menuAnchor, setMenuAnchor] = useState<{ x: number, y: number } | null>(null);
+  const saveBeforeRun = useViewSettingsStore(state => state.viewSettings.alwaysSaveBeforeRun);
+  const setViewSettings = useViewSettingsStore(state => state.setViewSettings);
 
   const canSave = Boolean(save);
-
-  const setSaveBeforeRunFlag = (value: boolean) => {
-    localStorage.setItem(SAVE_BEFORE_RUN_KEY, String(value));
-    setSaveBeforeRun(value);
-  };
 
   const doRun = async (withSave: boolean) => {
     setOpen(true);
@@ -148,13 +138,13 @@ export const RunWorkflowButton = ({
           </MenuItem>
         )}
         {canSave && !saveBeforeRun && (
-          <MenuItem onClick={() => { setSaveBeforeRunFlag(true); closeMenu(); }}>
-            Always save before run
+          <MenuItem onClick={() => { setViewSettings({ alwaysSaveBeforeRun: true }); closeMenu(); }}>
+            Auto save before run
           </MenuItem>
         )}
         {canSave && saveBeforeRun && (
-          <MenuItem onClick={() => { setSaveBeforeRunFlag(false); closeMenu(); }}>
-            Stop saving before run
+          <MenuItem onClick={() => { setViewSettings({ alwaysSaveBeforeRun: false }); closeMenu(); }}>
+            Stop auto save before run
           </MenuItem>
         )}
       </Menu>

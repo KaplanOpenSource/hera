@@ -10,12 +10,14 @@ adding more buttons. Use the button's tooltip + a right-click menu.
 - Right click: open a small context menu with these items:
   - Run
   - Run with save (save this doc, then run - one time)
-  - Always save before run (sets the flag)
-  - Stop saving before run (clears the flag; only shown when flag is on)
+  - Auto save before run (sets the flag)
+  - Stop auto save before run (clears the flag; only shown when flag is on)
 
 ## The flag
 
-- Stored in local storage, e.g. key `workflow.alwaysSaveBeforeRun` = `"true"`.
+- Stored in the shared view settings store (`useViewSettingsStore`,
+  `viewSettings.alwaysSaveBeforeRun`), which persists to local storage on its
+  own. Every run button reads it from there, so they all stay in sync.
 - When ON:
   - Left click saves the doc first, then runs.
   - The icon changes from plain play to play-with-save (small save badge/mini icon).
@@ -40,8 +42,9 @@ adding more buttons. Use the button's tooltip + a right-click menu.
 
 ## Files
 
-- `RunWorkflowButton.tsx` - add right-click menu, flag read/write, icon swap,
-  save-then-run flow.
+- `RunWorkflowButton.tsx` - right-click menu, icon swap, save-then-run flow;
+  reads/writes the flag via `useViewSettingsStore`.
+- `useViewSettingsStore.ts` - holds the `alwaysSaveBeforeRun` flag.
 - `DetailsViewDocumentContent.tsx` - pass `save` callback + `isChanged` to the
   button (two call sites).
 

@@ -15,6 +15,8 @@ export type ViewSettingsType = {
   // How often (seconds) to auto-reload the open project. null turns auto-reload off.
   reloadIntervalSeconds: number | null;
   themeMode: ThemeMode;
+  // When true, running a workflow saves the open document first.
+  alwaysSaveBeforeRun: boolean;
 };
 
 type ViewSettingsStore = {
@@ -34,6 +36,7 @@ const defaultSettings: ViewSettingsType = {
   showDocumentPreview: true,
   reloadIntervalSeconds: DEFAULT_RELOAD_INTERVAL_SECONDS,
   themeMode: ThemeMode.Light,
+  alwaysSaveBeforeRun: false,
 };
 
 export const useViewSettingsStore = create<ViewSettingsStore>()(

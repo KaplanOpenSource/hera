@@ -18,6 +18,14 @@ vi.mock('../src/io/snackbar', () => ({
 }));
 
 const { RunWorkflowButton } = await import('../src/components/workflow/RunWorkflowButton');
+const { useViewSettingsStore } = await import('../src/stores/useViewSettingsStore');
+
+const setSaving = (value: boolean) => {
+  useViewSettingsStore.getState().setViewSettings({ alwaysSaveBeforeRun: value });
+};
+const isSaving = () => {
+  return useViewSettingsStore.getState().viewSettings.alwaysSaveBeforeRun;
+};
 
 afterEach(() => {
   cleanup();
@@ -25,7 +33,7 @@ afterEach(() => {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  localStorage.clear();
+  setSaving(false);
 });
 
 describe('RunWorkflowButton', () => {
@@ -91,7 +99,7 @@ describe('RunWorkflowButton', () => {
   });
 
   it('enables the run button with unsaved changes once saving is on', () => {
-    localStorage.setItem('workflow.alwaysSaveBeforeRun', 'true');
+    setSaving(true);
     const save = vi.fn().mockResolvedValue(undefined);
 
     render(<RunWorkflowButton projectName="P" workflowName="w" isChanged save={save} />);
@@ -99,7 +107,7 @@ describe('RunWorkflowButton', () => {
   });
 
   it('saves before running on left click when the flag is on', async () => {
-    localStorage.setItem('workflow.alwaysSaveBeforeRun', 'true');
+    setSaving(true);
     const order: string[] = [];
     const save = vi.fn().mockImplementation(async () => { order.push('save'); });
     mockRunWorkflow.mockImplementation(async () => { order.push('run'); return { dispatch_id: 'x', output: '' }; });
@@ -125,7 +133,7 @@ describe('RunWorkflowButton', () => {
 
     await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
     expect(mockRunWorkflow).toHaveBeenCalled();
-    expect(localStorage.getItem('workflow.alwaysSaveBeforeRun')).toBeNull();
+    expect(isSaving()).toBe(false);
   });
 
   it('toggles the always-save flag on and off from the menu', async () => {
@@ -135,14 +143,36 @@ describe('RunWorkflowButton', () => {
 
     // Turn it on.
     fireEvent.contextMenu(screen.getByRole('button'));
-    fireEvent.click(screen.getByText('Always save before run'));
-    expect(localStorage.getItem('workflow.alwaysSaveBeforeRun')).toBe('true');
+    fireEvent.click(screen.getByText('Auto save before run'));
+    expect(isSaving()).toBe(true);
 
     // The toggle now offers the opposite action.
     fireEvent.contextMenu(screen.getByRole('button'));
-    expect(screen.queryByText('Always save before run')).toBeNull();
-    fireEvent.click(screen.getByText('Stop saving before run'));
-    expect(localStorage.getItem('workflow.alwaysSaveBeforeRun')).toBe('false');
+    expect(screen.queryByText('Auto save before run')).toBeNull();
+    fireEvent.click(screen.getByText('Stop auto save before run'));
+    expect(isSaving()).toBe(false);
+  });
+
+  it('keeps every run button in sync when the flag toggles', () => {
+    const save = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <>
+        <RunWorkflowButton projectName="P" workflowName="w" isChanged save={save} />
+        <RunWorkflowButton projectName="P" workflowName="w" isChanged save={save} />
+      </>,
+    );
+    const buttons = () => screen.getAllByRole('button') as HTMLButtonElement[];
+    // Both start disabled: unsaved changes with saving off.
+    expect(buttons()).toHaveLength(2);
+    expect(buttons().every(b => b.disabled)).toBe(true);
+
+    // Turn saving on from the first button's menu.
+    fireEvent.contextMenu(buttons()[0]);
+    fireEvent.click(screen.getByText('Auto save before run'));
+
+    // Both buttons react, not just the one that toggled it.
+    expect(buttons().every(b => !b.disabled)).toBe(true);
   });
 
   it('disables "Run with save" when there are no unsaved changes', () => {
