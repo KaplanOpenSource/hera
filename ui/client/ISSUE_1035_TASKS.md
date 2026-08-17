@@ -96,9 +96,9 @@ Document header / effects:
   "Ten Berge Coefficient (exponent n)".
 - [x] **D5. Ten Berge helper text.** Done: helper is now "Global exponent n used by
   Ten Berge toxic gas exposure calculators".
-- [ ] **D6. Description label.** Requirement: "Description (desc)". Current: "desc".
-  SKIPPED - not simple: the label is rendered by the generic `RenameField` where the
-  displayed text is also the editable field name, so special-casing risks rename.
+- [x] **D6. Description label.** Done: the top-level `desc` field is already
+  non-renameable, so `DetailsViewItem` passes `valueForView` to `RenameField` to show
+  "Description (desc)" while the underlying key stays `desc`.
 - [~] **D7. Document type icons.** Partly done: the tree and the tabs now share one
   icon source. `DocumentKindIcon` reads `TAB_KIND_STYLES[kind].icon`, and the tab
   icons were set to the tree's choices (Notebook `MenuBook`, Document

@@ -1,4 +1,4 @@
-import { Box, Stack } from '@mui/material';
+import { Box, Stack, Typography } from '@mui/material';
 import { MouseEvent, ReactNode } from 'react';
 import { TreeItem } from '@mui/x-tree-view';
 import { useTreeViewContext, UseTreeViewExpansionSignature } from '@mui/x-tree-view/internals';
@@ -49,6 +49,12 @@ export const DetailsViewItem = ({
   const key = keyForDetailsViewItem(itemKey, parentKey);
   const isTree = calcItemType(itemValue) === ItemTypesEnum.object;
   const level = parentKey?.split('/').length || 0;
+  // Only required leaf fields need bottom room for their floating "required"
+  // helper text; every other row stays compact.
+  let marginBottom = 3;
+  if (!isTree && !!def?.required) {
+    marginBottom = 14;
+  }
   const { publicAPI } = useTreeViewContext<[UseTreeViewExpansionSignature]>();
 
   return (
@@ -63,7 +69,7 @@ export const DetailsViewItem = ({
           alignItems={'center'}
           // Bottom space on every row reserves room for a field's "required"
           // helper text, so it shows without moving anything.
-          style={{ marginTop: 7, marginBottom: 14 }}
+          style={{ marginTop: 2, marginBottom }}
           sx={{
             '& .field-delete, & .field-json': { display: 'none' },
             '&:hover .field-delete, &:hover .field-json': { display: 'flex' },
@@ -80,6 +86,16 @@ export const DetailsViewItem = ({
               value={itemKey}
               setValue={setItemKey}
               labelMinWidth="100px"
+              // The top-level `desc` field isn't renameable, so show a friendlier label.
+              valueForView={(
+                itemKey === DESC_FIELD && !parentKey
+                  ? (
+                    <Typography sx={{ whiteSpace: 'nowrap', minWidth: '100px', flexShrink: 0 }}>
+                      Description (desc)
+                    </Typography>
+                  )
+                  : undefined
+              )}
             />
             {setItemKey && (
               <Box
