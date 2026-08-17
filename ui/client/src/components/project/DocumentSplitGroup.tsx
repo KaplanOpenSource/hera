@@ -1,6 +1,7 @@
 import { TreeItem } from "@mui/x-tree-view";
 import { DocumentObj, ProjectObj } from "../../objects/ProjectObj";
 import { useViewSettingsStore } from "../../stores/useViewSettingsStore";
+import { classifyDocument } from "../../shared/tabKind";
 import { SplitTree, SplitTreeNode, SplitTreeNodeType } from "../../utils/splitTree";
 import { DocumentSplitTreeLabel } from "./DocumentSplitTreeLabel";
 import { ProjectDocumentItem } from "./ProjectDocumentItem";
@@ -23,6 +24,7 @@ const DocumentSplitTree = ({
               key={`proj${project.name}_doc${node.doc.docid}`}
               project={project.data}
               document={node.doc.data}
+              kind={classifyDocument(node.doc)}
               onDocumentDeleted={onDocumentDeleted}
             />
           );

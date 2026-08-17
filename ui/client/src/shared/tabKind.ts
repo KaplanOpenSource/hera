@@ -20,6 +20,16 @@ const isAgentDoc = (doc: DocumentObj) => {
   return typeof resource === 'object' && resource.effects !== undefined;
 };
 
+// Classifies a document straight from its DocumentObj (the tree already holds one),
+// without needing an item id / project lookup like classifyTab does.
+export const classifyDocument = (doc: DocumentObj): TabKind => {
+  if (doc.isConfig) return TabKind.ProjectConfig;
+  if (doc.isNotebook) return TabKind.Notebook;
+  if (isWorkflowDoc(doc.data)) return TabKind.Workflow;
+  if (isAgentDoc(doc)) return TabKind.Agent;
+  return TabKind.Document;
+};
+
 export const classifyTab = (showItemId: string, project: ProjectObj): TabKind | undefined => {
   if (showItemId === CENTRAL_REPO_FOLDER_ID) return TabKind.CentralRepository;
 

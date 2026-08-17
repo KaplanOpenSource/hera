@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { SimpleTreeView } from '@mui/x-tree-view';
+import { TabKind } from '../src/shared/tabKind';
 
 const { ProjectDocumentItem } = await import('../src/components/project/ProjectDocumentItem');
 
@@ -19,7 +20,7 @@ const document = {
 
 const renderItem = () => render(
   <SimpleTreeView>
-    <ProjectDocumentItem project={project} document={document} />
+    <ProjectDocumentItem project={project} document={document} kind={TabKind.Document} />
   </SimpleTreeView>
 );
 
