@@ -1,5 +1,5 @@
 import { HelpOutline, ViewQuilt } from '@mui/icons-material';
-import { AppBar, createTheme, Stack, ThemeProvider, Toolbar } from '@mui/material';
+import { AppBar, createTheme, Stack, ThemeProvider, Toolbar, Typography } from '@mui/material';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { ProjectViewSettingsButton } from '../project/ProjectViewSettingsButton';
 import { AutoReloadToggle } from './AutoReloadToggle';
@@ -53,7 +53,10 @@ export const DashboardHeader = ({
               <HelpOutline />
             </ButtonTooltip>
             <ProjectViewSettingsButton />
-            <AutoReloadToggle />
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              <Typography variant="body2">Auto-reload</Typography>
+              <AutoReloadToggle />
+            </Stack>
             <StatusIndicators />
           </Stack>
         </Toolbar>
