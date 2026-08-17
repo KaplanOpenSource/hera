@@ -99,12 +99,15 @@ Document header / effects:
 - [ ] **D6. Description label.** Requirement: "Description (desc)". Current: "desc".
   SKIPPED - not simple: the label is rendered by the generic `RenameField` where the
   displayed text is also the editable field name, so special-casing risks rename.
-- [ ] **D7. Document title block.** Requirement: a type icon beside the big "H2S"
-  title plus a "Module: <cls path>" subtitle. Current: no icon, no subtitle.
-  NOT DONE - may overlap task 1; confirm before doing.
+- [~] **D7. Document type icons.** Partly done: the tree and the tabs now share one
+  icon source. `DocumentKindIcon` reads `TAB_KIND_STYLES[kind].icon`, and the tab
+  icons were set to the tree's choices (Notebook `MenuBook`, Document
+  `DescriptionOutlined`, Agent `Storage`), so tree and tabs match.
+  Still open: a large type icon beside the "H2S" title + a "Module: <cls>" subtitle
+  in the document header (likely folded into task 1).
 
 Header bar:
-- [ ] **D8. Logo visibility.** Requirement: bright teal atom in a rounded box.
+- [x] **D8. Logo visibility.** Requirement: bright teal atom in a rounded box.
   NOT DONE - atom is already `#22d3ee`; the faintness may be a pre-rebuild screenshot.
   Verify after rebuild; adding a box is a design choice.
 - [x] **D9. Project selector.** Done: `ProjectChooser.tsx` drops the "Project" caption
@@ -117,7 +120,7 @@ Sidebar / workspace explorer:
   (`enableTabStrip: false`), removing the tab title and the maximize/expand button;
   the "Workspace Explorer" title now renders inside the panel, below the search bar
   (`ProjectTreeView.tsx`).
-- [ ] **D12. Search box.** Requirement: a "Search modules & variables..." field at the
+- [x] **D12. Search box.** Requirement: a "Search modules & variables..." field at the
   top of the explorer. NOT DONE - new filtering feature, not a simple text change.
 - [x] **D13. Repositories as a separate section.** Done (split state): `RepoTreeWhole`
   now renders its own overline "Repositories" title + its own `SimpleTreeView` of repo

@@ -1,30 +1,15 @@
-import {
-  AccountTree,
-  DescriptionOutlined,
-  InsertDriveFileOutlined,
-  MenuBook,
-  Settings,
-  Storage,
-} from '@mui/icons-material';
 import { SvgIconProps } from '@mui/material';
-import { ElementType } from 'react';
 import { TabKind } from '../../shared/tabKind';
+import { TAB_KIND_STYLES } from '../../shared/tabKindConfig';
 
-// A distinct MUI icon per document kind shown in the tree.
-const KIND_ICON: { [key in TabKind]?: ElementType } = {
-  [TabKind.Agent]: Storage,
-  [TabKind.Workflow]: AccountTree,
-  [TabKind.Notebook]: MenuBook,
-  [TabKind.ProjectConfig]: Settings,
-  [TabKind.Document]: DescriptionOutlined,
-};
-
+// Uses the same per-kind icon as the document tabs (TAB_KIND_STYLES), so the tree
+// and the tabs always show matching icons.
 export const DocumentKindIcon = ({
   kind,
   ...props
 }: {
   kind: TabKind,
 } & SvgIconProps) => {
-  const Icon = KIND_ICON[kind] ?? InsertDriveFileOutlined;
+  const Icon = TAB_KIND_STYLES[kind].icon;
   return <Icon {...props} />;
 };
