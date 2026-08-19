@@ -1,6 +1,7 @@
 import importlib
 import json
-import pickle
+
+import cloudpickle
 
 from hera.utils.jsonutils import ConfigurationToJSON, JSONToConfiguration
 from hera.utils.lazy import _LazyModule
@@ -667,7 +668,7 @@ class DataHandler_pickle(object):
     def saveData(resource, fileName,**kwargs):
         """Save an object to a pickle file."""
         with open(fileName, 'wb') as f:
-            pickle.dump(resource, f,**kwargs)
+            cloudpickle.dump(resource, f,**kwargs)
         return dict()
 
     @staticmethod
@@ -685,7 +686,7 @@ class DataHandler_pickle(object):
         img
         """
         with open(resource, 'rb') as f:
-            obj = pickle.load(f)
+            obj = cloudpickle.load(f)
 
         return obj
 

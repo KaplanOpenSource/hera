@@ -1,7 +1,10 @@
 import json
+
 import pandas
-from hera.utils import ureg
 import xarray
+from pint import Unit
+
+from hera.utils import ureg
 from hera.utils.unitHandler import unumToPint
 
 
@@ -94,6 +97,8 @@ class CalculatorHaber(AbstractCalculator):
 		breathingRatio = (breathingRate/self.injuryBreathingRate).magnitude
 		if inUnits is None:
 			inUnits = concentrationField.attrs[field] if hasattr(concentrationField, "attrs") else 1*(ureg.mg / ureg.m ** 3)
+		if isinstance(inUnits, Unit): # pint by default can't do m_as to a Units type
+			inUnits = 1*inUnits
 
 		CunitConversion = inUnits.m_as(ureg.mg / ureg.m ** 3)
 
@@ -170,6 +175,8 @@ class CalculatorTenBerge(AbstractCalculator):
 		breathingRatio = (breathingRate/self.injuryBreathingRate).magnitude
 		if inUnits is None:
 			inUnits = concentrationField.attrs[field] if hasattr(concentrationField, "attrs") else 1*(ureg.mg / ureg.m ** 3)
+		if isinstance(inUnits, Unit): # pint by default can't do m_as to a Units type
+			inUnits = 1*inUnits
 		CunitConversion = inUnits.m_as(ureg.mg / ureg.m ** 3)
 
 		if isinstance(concentrationField, xarray.Dataset):
@@ -239,6 +246,8 @@ class CalculatorMaxConcentration(AbstractCalculator):
 		breathingRatio = (breathingRate/self.injuryBreathingRate).magnitude
 		if inUnits is None:
 			inUnits = concentrationField.attrs[field] if hasattr(concentrationField, "attrs") else 1*(ureg.mg / ureg.m ** 3)
+		if isinstance(inUnits, Unit): # pint by default can't do m_as to a Units type
+			inUnits = 1*inUnits
 		CunitConversion = inUnits.m_as(ureg.mg / ureg.m ** 3)
 
 		if isinstance(concentrationField, xarray.Dataset):

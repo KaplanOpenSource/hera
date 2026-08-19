@@ -1,18 +1,20 @@
-import geopandas
-import pandas
-from hera.utils import tounit, ureg
-from hera.utils.unitHandler import unumToPint
-import numpy
 import json
 
+import geopandas
+import matplotlib.pyplot as plt
+import numpy
+import pandas
+from scipy.stats import lognorm
+
+from hera.utils import tounit, ureg
 from hera.utils.matplotlibCountour import toGeopandas
+from hera.utils.unitHandler import unumToPint
+
 # from ....utils import tounit
 
 # from unum.units import *
 # from unum import Unum
 
-import matplotlib.pyplot as plt 
-from scipy.stats import lognorm
 
 dosage = ureg.mg/ureg.m**3
 
@@ -98,11 +100,13 @@ class InjuryLevel(object):
 			The data returns in km because itm is in km. 
 
 		"""
+		# headless to avoid graph appearing in UI
 		curBackend = plt.get_backend()
 		plt.close('all')
 		plt.switch_backend("pdf")
 
-		if time in toxicLoads.dims:
+		# flag when iteration over time steps is needed
+		if time in toxicLoads.dims: 
 			if toxicLoads[time].size == 1:
 				timeList = [pandas.to_datetime(toxicLoads[time].item())]
 				timesel  = False 
@@ -138,7 +142,7 @@ class InjuryLevel(object):
 				ret[time] = pandas.to_datetime(tt.item()) if timesel else tt
 				retList.append(ret)
 		
-		ret = None if ret.empty else pandas.concat(retList,ignore_index=True)
+		ret = None if len(retList)==0 else pandas.concat(retList,ignore_index=True)
 		plt.close('all')
 		plt.switch_backend(curBackend)
 		
@@ -151,6 +155,16 @@ class InjuryLevel(object):
 		"""
 		raise NotImplementedError("abstract function")
 
+
+	def getContoursFromLevels(self, concentrationField, x, y, level):
+		conc_x = concentrationField[x]
+		conc_y = concentrationField[y]
+		squeezed = concentrationField.squeeze()
+		if squeezed.dims != (y, x):
+			if squeezed.dims != (x,y):
+				raise Exception(f"Cannot extract contours from xarray with dimensions {squeezed.dims} when x is given as {x} and y as {y}")
+			squeezed = squeezed.transpose()
+		return plt.contour(conc_x,conc_y,squeezed,levels=numpy.atleast_1d(level))
 
 
 	def toJSON(self):
@@ -265,13 +279,13 @@ class InjuryLevelLognormal10DoseResponse(InjuryLevel):
 		percentList = parameters.get("percentInjury",defaultLevels)
 		ToxicLoads = self.getToxicLoad(percentList)
 
-		## We add the levels of higher toxicit y to solve the problem
+		## We add the levels of higher toxicity to solve the problem
 		# of a wide gape between the two severities (which led to double counting the casualties). 
 		if self._parameters.get("higher_severity",None) is not None:
 			HigherToxicLoads = self._parameters["higher_severity"].getToxicLoad(defaultLevels)
 			ToxicLoads = numpy.unique(numpy.sort(numpy.concatenate([ToxicLoads,HigherToxicLoads])))
 
-		CS =  plt.contour(concentrationField[x],concentrationField[y],concentrationField.squeeze(),levels=ToxicLoads)
+		CS = self.getContoursFromLevels(concentrationField, x, y, ToxicLoads)
 
 		# Changes by ofir... not clear yet when the original fails....
 		#concentrationField = concentrationField.to_dataframe().reset_index()
@@ -342,7 +356,8 @@ class InjuryLevelThreshold(InjuryLevel):
 			Return the correct geopandas of the  Injury level
 		"""
 		level = unumToPint(self.threshold).magnitude
-		CS =  plt.contour(concentrationField[x],concentrationField[y],concentrationField.squeeze(),levels=numpy.atleast_1d(level))
+		
+		CS =  self.getContoursFromLevels(concentrationField, x, y, level)
 		if numpy.max(CS.levels) < level:
 			ret = geopandas.GeoDataFrame()
 		else:
@@ -396,7 +411,7 @@ class InjuryLevelExponential(InjuryLevel):
 			Return the correct geopandas of the  Injury level 
 		"""
 		level = self.k
-		CS =  plt.contour(concentrationField[x],concentrationField[y],concentrationField.squeeze(),levels=level)
+		CS =  self.getContoursFromLevels(concentrationField, x, y, level)
 		if numpy.max(CS.levels) < level: 
 			ret = geopandas.GeoDataFrame()
 		else:
