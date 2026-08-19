@@ -1,14 +1,14 @@
-import os
-import shutil
-import numpy
-from hera import Project
-import inspect
-from functools import wraps
-from hera.datalayer.datahandler import getHandler,datatypes
-import pickle
 import base64
+import inspect
+import os
+import pickle
+import shutil
+from functools import wraps
+
 from bson import BSON
 from bson.errors import InvalidDocument
+
+from hera import Project
 
 
 def clearAllFunctionsCache(projectName=None):
@@ -53,7 +53,7 @@ def clearFunctionCache(functionName,projectName=None):
 
     return True
 
-def cacheFunction(_func=None, *, returnFormat=None, projectName=None, postProcessFunction=None, getDataParams=None, storeDataParams=None):
+def cacheFunction(_func=None, *, returnFormat=None, projectName=None, postProcessFunction=None, getDataParams=None, storeDataParams=None, returnDoc=False):
     """
     Decorator that caches a function's return value in the project database.
 
@@ -98,7 +98,8 @@ def cacheFunction(_func=None, *, returnFormat=None, projectName=None, postProces
                 projectName=projectName,
                 postProcessFunction=postProcessFunction,
                 getDataParams=_getDataParams,
-                storeDataParams=_storeDataParams
+                storeDataParams=_storeDataParams,
+                returnDoc=returnDoc
             )(*args, **kwargs)
         return wrapper
 
@@ -154,7 +155,7 @@ class cacheDecorators:
         obj = pickle.loads(message_bytes)
         return obj
 
-    def __init__(self, func,dataFormat,projectName = None,postProcessFunction=None,getDataParams=None,storeDataParams=None):
+    def __init__(self, func,dataFormat,projectName = None,postProcessFunction=None,getDataParams=None,storeDataParams=None, returnDoc=False):
         """
         Parameters
         ----------
@@ -177,6 +178,7 @@ class cacheDecorators:
         self.getDataParams = getDataParams or {}
         self.storeDataParams = storeDataParams or {}
         self.dataFormat = dataFormat
+        self.returnDoc = returnDoc
 
     def __call__(self, *args, **kwargs):
         """Execute the function, returning a cached result when available."""
@@ -194,6 +196,7 @@ class cacheDecorators:
             call_info['context'] = call_info.pop('self')
 
         from hera.utils.jsonutils import ConfigurationToJSON
+
         # convert any pint/unum to standardized MKS and dict with the magnitude and units seperated.
         # This will allow the query of the querys even if they are given in different units
         call_info_JSON = ConfigurationToJSON(call_info, standardize=True, splitUnits=True, keepOriginalUnits=True)
@@ -210,7 +213,8 @@ class cacheDecorators:
 
         call_info_serialized['functionName'] =  self._get_full_func_name(self.func)
 
-        data = self.checkIfFunctionIsCached(call_info_serialized)
+        data, doc = self.checkIfFunctionIsCached(call_info_serialized)
+
         if data is None:
             data = self.func(*args, **kwargs)
             # query without the original units. This allows the user to query different units
@@ -219,7 +223,7 @@ class cacheDecorators:
                 doc = self.saveFunctionCache(call_info_serialized,data)
 
         ret = data if self.postProcessFunction is None else self.postProcessFunction(data)
-        return ret
+        return ret, doc if self.returnDoc else ret
 
     def _get_full_func_name(self,func):
         """Returns the full qualified path: module.[class.]function_name"""
@@ -267,13 +271,13 @@ class cacheDecorators:
         proj = Project(self.projectName)
         docList = proj.getCacheDocuments(type="functionCacheData",**call_info)
         if len(docList) == 0:
-            return None
+            return None, None
         try:
-            return docList[0].getData(**self.getDataParams)
+            return docList[0].getData(**self.getDataParams), docList[0]
         except Exception:
             # Cache file missing or corrupt — recompute
             docList[0].delete()
-            return None
+            return None, None
 
     def saveFunctionCache(self,call_info,data):
         """
