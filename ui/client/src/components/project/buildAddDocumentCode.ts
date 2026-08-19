@@ -38,6 +38,8 @@ All.addDocument(
       ...desc,
       workflowName: desc.datasourceName,
       workflow: { workflow: { solver: '', nodeList: [], nodes: {} } },
+      // The parameters index, kept in sync with the workflow; empty at creation.
+      parameters: {},
     };
     addCommand = `
 Simulations_Collection().addDocument(

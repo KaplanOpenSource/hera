@@ -2,8 +2,6 @@ import { Autocomplete, Box, InputBase, Stack, TextField, Typography } from '@mui
 import { Handle, NodeProps, NodeResizer, Position } from '@xyflow/react';
 import { useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
-import { fillNewProjectNameParams } from '../../shared/workflow';
-import { NO_PROJECT, useProjectStore } from '../../stores/useProjectStore';
 import { keyForDetailsViewItem } from '../details/DetailsViewItem';
 import { NodeCatalogEntry, nodeOutputNames, nodeTypeGroup, nodeTypeIssue, paramsFieldDef } from './nodeCatalog';
 import { paramsOnTypeChange } from './nodeTypeParams';
@@ -32,9 +30,6 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
   const [hover, setHover] = useState(false);
   // Controlled so the input_parameters chevron also shows/hides the outputs.
   const [expandedItems, setExpandedItems] = useState<string[]>([keyForDetailsViewItem(INPUT_PARAMETERS_KEY)]);
-  const currProjectName = useProjectStore(state => state.currProjectName);
-  // The project to seed project-name params with (empty when no project is open).
-  const projectName = currProjectName === NO_PROJECT ? '' : currProjectName;
   const params = node.Execution?.input_parameters ?? {};
   const typeOptions = catalog.map(entry => entry.type);
   const typeIssue = nodeTypeIssue(node, catalog);
@@ -47,13 +42,10 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
   const setType = (type: string) => onChange({ ...node, type });
   const pickType = (type: string) => {
     const entry = catalog.find(e => e.type === type);
-    const seeded = paramsOnTypeChange(params, entry);
-    // A new type may add a project-name param; fill it with the current project.
-    const nextParams = projectName ? fillNewProjectNameParams(seeded, params, projectName) : seeded;
     onChange({
       ...node,
       type,
-      Execution: { ...node.Execution, input_parameters: nextParams },
+      Execution: { ...node.Execution, input_parameters: paramsOnTypeChange(params, entry) },
     });
   };
 
@@ -126,11 +118,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
             onExpandedItemsChange={setExpandedItems}
             onChangeParams={(newVal) => onChange({
               ...node,
-              Execution: {
-                ...node.Execution,
-                // Fill a project-name param the edit just added or renamed in.
-                input_parameters: projectName ? fillNewProjectNameParams(newVal, params, projectName) : newVal,
-              },
+              Execution: { ...node.Execution, input_parameters: newVal },
             })}
             onFieldContextMenu={onFieldContextMenu}
             onFieldInlineEdit={onFieldInlineEdit}
