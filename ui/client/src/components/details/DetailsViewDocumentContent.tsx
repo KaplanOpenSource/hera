@@ -132,7 +132,7 @@ export const DetailsViewDocumentContent = ({
             return null;
           }
           const hideOnDesc = showFormulated && k === DESC_FIELD;
-          const descHideFields = showWorkflow ? [...HIDE_ON_DESC, 'workflow'] : HIDE_ON_DESC;
+          const descHideFields = showWorkflow ? [...HIDE_ON_DESC, 'workflow', 'parameters'] : HIDE_ON_DESC;
           return (
             <DetailsViewItem
               key={k}
