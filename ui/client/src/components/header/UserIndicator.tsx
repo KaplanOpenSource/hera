@@ -21,11 +21,11 @@ export const UserIndicator = () => {
     <Tooltip title="User that started the server">
       <Typography
         variant="caption"
-        sx={{ fontSize: '10px', cursor: 'default', color: '#7CFC00' }}
+        sx={{ fontSize: '10px', cursor: 'default', color: '#4ade80' }}
       >
         {username}
         {inDocker && (
-          <span style={{ color: 'rgba(124, 252, 0, 0.5)' }}> (docker)</span>
+          <span style={{ color: 'rgba(74, 222, 128, 0.5)' }}> (docker)</span>
         )}
       </Typography>
     </Tooltip>

@@ -59,6 +59,11 @@ export const ProjectViewSettingsButton = ({ }) => {
                 value={viewSettings.showDocumentPreview}
                 setValue={v => setViewSettings({ ...viewSettings, showDocumentPreview: v })}
               />
+              <BooleanProperty
+                label="Auto save workflow before running"
+                value={viewSettings.alwaysSaveBeforeRun}
+                setValue={v => setViewSettings({ ...viewSettings, alwaysSaveBeforeRun: v })}
+              />
             </Stack>
           </DialogContent>
           <DialogActions>

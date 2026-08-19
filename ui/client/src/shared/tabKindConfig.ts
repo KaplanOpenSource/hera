@@ -1,4 +1,4 @@
-import { AccountTree, Code, Description, FolderOpen, Handyman, Science, Settings, Source } from '@mui/icons-material';
+import { AccountTree, DescriptionOutlined, FolderOpen, Handyman, MenuBook, Settings, Source, Storage } from '@mui/icons-material';
 import { SvgIconComponent } from '@mui/icons-material';
 import { TabKind } from './tabKind';
 
@@ -13,9 +13,9 @@ interface TabKindStyle {
 }
 
 export const TAB_KIND_STYLES: Record<TabKind, TabKindStyle> = {
-  [TabKind.Notebook]: { icon: Code, color: '#4a6b3a', darkColor: '#9cc77f', bg: '126, 154, 110' },
-  [TabKind.Document]: { icon: Description, color: '#3a5f80', darkColor: '#82b1d8', bg: '106, 140, 175' },
-  [TabKind.Agent]: { icon: Science, color: '#7a4a76', darkColor: '#cf9fca', bg: '176, 122, 171' },
+  [TabKind.Notebook]: { icon: MenuBook, color: '#4a6b3a', darkColor: '#9cc77f', bg: '126, 154, 110' },
+  [TabKind.Document]: { icon: DescriptionOutlined, color: '#3a5f80', darkColor: '#82b1d8', bg: '106, 140, 175' },
+  [TabKind.Agent]: { icon: Storage, color: '#7a4a76', darkColor: '#cf9fca', bg: '176, 122, 171' },
   [TabKind.Workflow]: { icon: AccountTree, color: '#2f6f73', darkColor: '#7fc9cd', bg: '94, 168, 176' },
   [TabKind.ProjectConfig]: { icon: Settings, color: '#555555', darkColor: '#b8b8b8', bg: '138, 138, 138', bgOpacity: 0.15, selectedBgOpacity: 0.25 },
   [TabKind.Repository]: { icon: Source, color: '#7a5530', darkColor: '#d0a877', bg: '192, 145, 94' },

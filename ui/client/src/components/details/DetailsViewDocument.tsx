@@ -8,7 +8,7 @@ export const DetailsViewDocument = ({
   setDoc,
 }: {
   doc: DocumentObj,
-  setDoc: (newDoc: DocumentObj) => void,
+  setDoc: (newDoc: DocumentObj) => Promise<void>,
 }) => {
   const [shownDoc, setShownDoc] = useState<ProjectDocument>(JSON.parse(JSON.stringify(doc.data)));
   const lastLoadedRef = useRef(doc.data);

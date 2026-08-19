@@ -40,7 +40,16 @@ export const VersionShower = () => {
               setCopied(false);
             }, 2000);
           }}
-          sx={{ fontSize: '10px' }}
+          sx={{
+            fontSize: '10px',
+            fontFamily: 'monospace',
+            border: 1,
+            borderColor: 'divider',
+            borderRadius: 1,
+            px: 0.75,
+            py: 0.25,
+            cursor: 'pointer',
+          }}
         >
           {versionText}
         </Typography>

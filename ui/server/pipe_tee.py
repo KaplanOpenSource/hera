@@ -3,7 +3,7 @@ import threading
 
 
 class PipeTee:
-    """Captures everything written to a pipe, echoing it live to the server console.
+    """Captures everything written to a pipe so it can be sent to the UI.
 
     Hand ``write_fd`` to a child process (as its stdout/stderr). After the writer is
     done and ``close_write`` has been called, ``result`` returns the collected text.
@@ -21,7 +21,6 @@ class PipeTee:
             if not chunk:
                 break
             self._collected.append(chunk)
-            os.write(1, chunk)
 
     def close_write(self) -> None:
         """Close our copy of the write end so the reader sees EOF once the child exits."""

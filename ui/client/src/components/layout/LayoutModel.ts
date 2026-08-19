@@ -22,7 +22,16 @@ const GLOBAL_LAYOUT_CONFIG = {
   rootOrientationVertical: false,
 };
 
-const TREE_TAB: IJsonTabNode = { type: 'tab', id: TREE_TAB_ID, name: 'Project', component: LayoutComponent.Tree };
+// The Project tab is static: it cannot be closed, renamed, or dragged out of place.
+const TREE_TAB: IJsonTabNode = {
+  type: 'tab',
+  id: TREE_TAB_ID,
+  name: 'Workspace Explorer',
+  component: LayoutComponent.Tree,
+  enableClose: false,
+  enableDrag: false,
+  enableRename: false,
+};
 
 // Tab node for a tree item's details view.
 const makeDetailsTab = (showItemId: string, project: ProjectObj): IJsonTabNode => ({
@@ -66,7 +75,7 @@ export class LayoutModel {
         type: 'row',
         children: [
           ...(treeVisible
-            ? [{ type: 'tabset', id: TREE_TABSET_ID, weight: 25, children: [TREE_TAB] }]
+            ? [{ type: 'tabset', id: TREE_TABSET_ID, weight: 25, enableClose: false, enableDrag: false, enableDrop: false, enableTabStrip: false, children: [TREE_TAB] }]
             : []),
           detailsTabset,
         ],

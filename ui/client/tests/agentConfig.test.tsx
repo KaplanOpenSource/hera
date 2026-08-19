@@ -18,7 +18,7 @@ describe('EffectsListEditor', () => {
   it('renders empty state with add controls', () => {
     const onChange = vi.fn();
     render(<EffectsListEditor effects={makeEffects()} onChange={onChange} />);
-    expect(screen.getByText('Effects')).toBeTruthy();
+    expect(screen.getByText('Effects & Warning Thresholds')).toBeTruthy();
     expect(screen.getByRole('textbox', { name: /new effect name/i })).toBeTruthy();
     expect((screen.getByRole('button', { name: /add effect/i }) as HTMLButtonElement).disabled).toBe(true);
   });
@@ -199,7 +199,7 @@ describe('AgentConfigEditor', () => {
 
   it('renders effects section and physical properties', () => {
     render(<AgentConfigEditor agentResource={baseConfig} setAgentResource={vi.fn()} />);
-    expect(screen.getByText('Effects')).toBeTruthy();
+    expect(screen.getByText('Effects & Warning Thresholds')).toBeTruthy();
     expect(screen.getByText('Physical Properties')).toBeTruthy();
   });
 

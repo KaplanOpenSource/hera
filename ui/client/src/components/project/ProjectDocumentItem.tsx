@@ -1,46 +1,26 @@
-import { Delete } from "@mui/icons-material";
 import { Stack, Typography } from "@mui/material";
 import { TreeItem } from "@mui/x-tree-view";
 import { ProjectDocument, ProjectEntire } from "@shared/types";
-import { ButtonTooltip } from "../../elements/ButtonTooltip";
-import { useConfirm } from "../../elements/useConfirm";
-import { fetchProjectDetails } from "../../io/FetchProjects";
-import { fetchPython } from "../../io/fetchPython";
 import { idDocId } from "../../shared/idDocId";
+import { TabKind } from "../../shared/tabKind";
 import { useViewSettingsStore } from "../../stores/useViewSettingsStore";
+import { DocumentKindIcon } from "./DocumentKindIcon";
 
+// The per-document delete button now lives in the document interface
+// (see DeleteDocumentButton in the details view), not in this tree item.
 export const ProjectDocumentItem = ({
-  project,
   document,
-  onDocumentDeleted,
+  kind,
 }: {
   project: ProjectEntire,
   document: ProjectDocument,
+  kind: TabKind,
   onDocumentDeleted?: () => void,
 }) => {
-  const { confirmOpen, ConfirmDialog } = useConfirm()
   const { viewSettings } = useViewSettingsStore();
 
   const id = idDocId(document?._id.$oid);
   const name = document?.desc?.datasourceName || document?.type || document._cls;
-
-  const deleteDocument = async () => {
-    const { data } = await fetchPython({
-      results: [],
-      label: `delete document ${name}`,
-      code: `
-from hera.datalayer import All
-All.deleteDocumentByID('${document?._id.$oid}')
-`,
-    })
-    if (!data) {
-      return;
-    }
-    await fetchProjectDetails(project.name);
-    onDocumentDeleted?.();
-  }
-
-  const isProjectConfig = document.type === project.name + '__config__'
 
   return (
     <TreeItem
@@ -48,21 +28,10 @@ All.deleteDocumentByID('${document?._id.$oid}')
       label={
         <Stack direction='column' justifyContent="start" alignItems=''>
           <Stack direction='row' spacing={1} justifyContent="start" alignItems='center'>
+            <DocumentKindIcon kind={kind} fontSize="small" sx={{ color: 'text.secondary' }} />
             <Typography>
               {name}
             </Typography>
-            <ButtonTooltip
-              title={isProjectConfig ? 'Project Config is deleted only with project' : 'Delete Document'}
-              disabled={isProjectConfig}
-              onClick={async () => {
-                if ((await confirmOpen({ title: `Are you sure you want to delete ${name}?` })).confirmed) {
-                  deleteDocument()
-                }
-              }}
-            >
-              <Delete />
-              {ConfirmDialog}
-            </ButtonTooltip>
           </Stack>
           {viewSettings.showDocumentPreview && document?.resource && typeof (document?.resource) == 'string' && (
             <Typography sx={{ fontSize: 10 }}>
