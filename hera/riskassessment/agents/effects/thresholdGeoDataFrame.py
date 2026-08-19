@@ -1,14 +1,12 @@
-import numpy
 import collections
-import pandas
+
 import geopandas
-
-from hera.utils import toMeteorologicalAngle, toMathematicalAngle
-from hera.measurements.GIS import ITM
-
-
 import geopandas as gpd
+import numpy
+import pandas
 
+from hera.measurements.GIS import ITM
+from hera.utils import toMathematicalAngle, toMeteorologicalAngle
 
 
 class thresholdGeoDataFrame(geopandas.GeoDataFrame):
@@ -124,7 +122,7 @@ class thresholdGeoDataFrame(geopandas.GeoDataFrame):
 		geopandas.GeoDataFrame
 			The intersection with area-weighted population.
 		"""
-		res_intersect_poly = demography.loc[demography["geometry"].intersection(poly).is_empty == False]
+		res_intersect_poly = demography.loc[not demography["geometry"].intersection(poly).is_empty]
 		intersection_poly = res_intersect_poly["geometry"].intersection(poly)
 
 		res_intersection = geopandas.GeoDataFrame.from_dict(
@@ -174,7 +172,7 @@ class thresholdGeoDataFrame(geopandas.GeoDataFrame):
 		shiftedPolygons = self._shiftPolygons(loc=loc,meteorological_angle=meteorological_angle,mathematical_angle=mathematical_angle,geometry=geometry)
 
 		retList = []
-		population = [population] if type(population)==str else population
+		population = [population] if isinstance(population, str) else population
 		for ((severity,timestamp),data) in self.groupby(["severity","datetime"]):
 			for indx,row in data.iterrows():
 				curpoly = shiftedPolygons.loc[indx]

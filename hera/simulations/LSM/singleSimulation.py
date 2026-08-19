@@ -63,9 +63,6 @@ class SingleSimulation(object):
         final_xarray = self._finalxarray.copy()
         if is_numeric_dtype(final_xarray.datetime.dtype):
             dt_minutes = final_xarray.datetime.isel(datetime=[0,1]).diff('datetime')[0].values.item()*ureg.sec
-            # old solution:
-            #   type(final_xarray.datetime.diff('datetime')[0].values.item()) is float:
-            #   .diff('datetime')[0].values.item()*ureg.sec #temporary solution!!!!!
         else:
             dt_minutes = (final_xarray.datetime.isel(datetime=[0,1]).diff('datetime')[0].values / numpy.timedelta64(1, 'm')) * ureg.min
         final_xarray.attrs['dt'] = dt_minutes.to(time_units)
