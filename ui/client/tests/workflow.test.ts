@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
+import { MutatorsListHandler } from '../src/shared/workflowMutators/MutatorsListHandler';
+import { WorkflowMutatorBase } from '../src/shared/workflowMutators/WorkflowMutatorBase';
+import { FillProjectNameMutator, fillProjectName, isProjectNameKey } from '../src/shared/workflowMutators/mutators/FillProjectNameMutator';
+import { SyncParametersMutator, workflowParameters } from '../src/shared/workflowMutators/mutators/SyncParametersMutator';
 import {
   WORKFLOW_DOC_TYPE,
-  fillProjectName,
   getWorkflowBlock,
   getWorkflowSolver,
   isTopLevelBlock,
@@ -132,46 +135,164 @@ describe('isWorkflowDoc', () => {
   });
 });
 
+describe('isProjectNameKey', () => {
+  it('matches ProjectName in any casing', () => {
+    expect(isProjectNameKey('ProjectName')).toBe(true);
+    expect(isProjectNameKey('projectName')).toBe(true);
+    expect(isProjectNameKey('projectname')).toBe(true);
+    expect(isProjectNameKey('PROJECTNAME')).toBe(true);
+  });
+
+  it('does not match other keys', () => {
+    expect(isProjectNameKey('project')).toBe(false);
+    expect(isProjectNameKey('projectNames')).toBe(false);
+    expect(isProjectNameKey('SimulationName')).toBe(false);
+  });
+});
+
 describe('fillProjectName', () => {
   const nodeWith = (parameters: { [key: string]: any }) => {
-    return { Execution: { input_parameters: { Parameters: parameters } } };
+    return { Execution: { input_parameters: parameters } };
   };
 
-  it('fills projectName when the node has none', () => {
-    const block = { nodes: { A: nodeWith({}) } };
+  it('fills a ProjectName param that was empty', () => {
+    const block = { nodes: { A: nodeWith({ ProjectName: '' }) } };
     const result = fillProjectName(block, 'MY_PROJECT');
-    expect(result.nodes?.A.Execution?.input_parameters?.Parameters).toEqual({ projectName: 'MY_PROJECT' });
+    expect(result.nodes?.A.Execution?.input_parameters?.ProjectName).toBe('MY_PROJECT');
   });
 
-  it('keeps an existing projectName', () => {
-    const block = { nodes: { A: nodeWith({ projectName: 'KEEP_ME' }) } };
+  it('overwrites an existing ProjectName value', () => {
+    const block = { nodes: { A: nodeWith({ ProjectName: 'OTHER' }) } };
     const result = fillProjectName(block, 'MY_PROJECT');
-    expect(result.nodes?.A.Execution?.input_parameters?.Parameters.projectName).toBe('KEEP_ME');
+    expect(result.nodes?.A.Execution?.input_parameters?.ProjectName).toBe('MY_PROJECT');
   });
 
-  it('preserves other parameters while filling projectName', () => {
-    const block = { nodes: { A: nodeWith({ foo: 1 }) } };
+  it('matches the key in any casing', () => {
+    const block = { nodes: { A: nodeWith({ projectName: '' }) } };
     const result = fillProjectName(block, 'MY_PROJECT');
-    expect(result.nodes?.A.Execution?.input_parameters?.Parameters).toEqual({ foo: 1, projectName: 'MY_PROJECT' });
+    expect(result.nodes?.A.Execution?.input_parameters?.projectName).toBe('MY_PROJECT');
   });
 
-  it('leaves a node without a Parameters object untouched', () => {
+  it('preserves other parameters', () => {
+    const block = { nodes: { A: nodeWith({ ProjectName: '', Template: 'T' }) } };
+    const result = fillProjectName(block, 'MY_PROJECT');
+    expect(result.nodes?.A.Execution?.input_parameters).toEqual({ ProjectName: 'MY_PROJECT', Template: 'T' });
+  });
+
+  it('leaves a node with no project param untouched', () => {
+    const block = { nodes: { A: nodeWith({ Command: 'ls' }) } };
+    const result = fillProjectName(block, 'MY_PROJECT');
+    expect(result.nodes?.A.Execution?.input_parameters).toEqual({ Command: 'ls' });
+  });
+
+  it('leaves a node without input_parameters untouched', () => {
     const block = { nodes: { A: { type: 'general.RunOsCommand' } } };
     const result = fillProjectName(block, 'MY_PROJECT');
     expect(result.nodes?.A).toEqual({ type: 'general.RunOsCommand' });
   });
 
   it('fills every matching node', () => {
-    const block = { nodes: { A: nodeWith({}), B: nodeWith({ projectName: 'B_KEEP' }) } };
+    const block = { nodes: { A: nodeWith({ ProjectName: '' }), B: nodeWith({ projectName: 'OLD' }) } };
     const result = fillProjectName(block, 'MY_PROJECT');
-    expect(result.nodes?.A.Execution?.input_parameters?.Parameters.projectName).toBe('MY_PROJECT');
-    expect(result.nodes?.B.Execution?.input_parameters?.Parameters.projectName).toBe('B_KEEP');
+    expect(result.nodes?.A.Execution?.input_parameters?.ProjectName).toBe('MY_PROJECT');
+    expect(result.nodes?.B.Execution?.input_parameters?.projectName).toBe('MY_PROJECT');
   });
 
   it('does not mutate the input block', () => {
-    const params = {};
+    const params = { ProjectName: '' };
     const block = { nodes: { A: nodeWith(params) } };
     fillProjectName(block, 'MY_PROJECT');
-    expect(params).toEqual({});
+    expect(params).toEqual({ ProjectName: '' });
+  });
+});
+
+describe('workflowParameters', () => {
+  const nodeWith = (parameters: { [key: string]: any }) => {
+    return { Execution: { input_parameters: parameters } };
+  };
+
+  it('collects each node input_parameters keyed by node name', () => {
+    const block = {
+      nodeList: ['A', 'B'],
+      nodes: { A: nodeWith({ ProjectName: 'P' }), B: nodeWith({ Command: 'ls' }) },
+    };
+    expect(workflowParameters(block)).toEqual({
+      A: { ProjectName: 'P' },
+      B: { Command: 'ls' },
+    });
+  });
+
+  it('follows nodeList order and skips missing nodes', () => {
+    const block = { nodeList: ['A', 'ghost'], nodes: { A: nodeWith({ x: 1 }) } };
+    expect(workflowParameters(block)).toEqual({ A: { x: 1 } });
+  });
+
+  it('falls back to the nodes map when nodeList is absent', () => {
+    const block = { nodes: { A: nodeWith({ x: 1 }) } };
+    expect(workflowParameters(block)).toEqual({ A: { x: 1 } });
+  });
+
+  it('is empty for a workflow with no nodes', () => {
+    expect(workflowParameters({ nodeList: [], nodes: {} })).toEqual({});
+  });
+});
+
+describe('MutatorsListHandler.normalize', () => {
+  const descWith = (nodes: { [name: string]: any }, nodeList: string[]) => {
+    return { workflow: { workflow: { nodeList, nodes } } };
+  };
+
+  it('fills project name and syncs parameters (nested block)', () => {
+    const desc = descWith(
+      { A: { Execution: { input_parameters: { ProjectName: '' } } } },
+      ['A'],
+    );
+    const result = MutatorsListHandler.normalize(desc, 'MY_PROJECT');
+    const block = result.workflow?.workflow;
+    expect(block.nodes.A.Execution.input_parameters.ProjectName).toBe('MY_PROJECT');
+    expect(result.parameters).toEqual({ A: { ProjectName: 'MY_PROJECT' } });
+  });
+
+  it('preserves a top-level (unnested) block', () => {
+    const desc = { workflow: { nodeList: ['A'], nodes: { A: { Execution: { input_parameters: { x: 1 } } } } } };
+    const result = MutatorsListHandler.normalize(desc, 'MY_PROJECT');
+    expect(result.workflow?.nodeList).toEqual(['A']);
+    expect(result.parameters).toEqual({ A: { x: 1 } });
+  });
+
+  it('skips project fill when no project is given but still syncs parameters', () => {
+    const desc = descWith(
+      { A: { Execution: { input_parameters: { ProjectName: 'KEEP' } } } },
+      ['A'],
+    );
+    const result = MutatorsListHandler.normalize(desc, '');
+    expect(result.workflow?.workflow.nodes.A.Execution.input_parameters.ProjectName).toBe('KEEP');
+    expect(result.parameters).toEqual({ A: { ProjectName: 'KEEP' } });
+  });
+
+  it('returns a non-workflow desc unchanged', () => {
+    const desc = { toolkit: 'X' } as any;
+    expect(MutatorsListHandler.normalize(desc, 'MY_PROJECT')).toBe(desc);
+  });
+});
+
+describe('workflow mutator phases', () => {
+  const desc = () => ({ workflow: { workflow: { nodeList: ['A'], nodes: { A: { Execution: { input_parameters: { ProjectName: '' } } } } } } });
+
+  it('exposes each phase as a WorkflowMutator', () => {
+    expect(MutatorsListHandler.mutators.every(m => m instanceof WorkflowMutatorBase)).toBe(true);
+    expect(MutatorsListHandler.mutators.map(m => m.name)).toEqual(['fillProjectName', 'syncParameters']);
+  });
+
+  it('FillProjectNameMutator only fills project name (no parameters sync)', () => {
+    const result = new FillProjectNameMutator().mutate(desc(), { projectName: 'MY_PROJECT' });
+    expect(result.workflow?.workflow.nodes.A.Execution.input_parameters.ProjectName).toBe('MY_PROJECT');
+    expect(result.parameters).toBeUndefined();
+  });
+
+  it('SyncParametersMutator only syncs parameters (ignores project context)', () => {
+    const result = new SyncParametersMutator().mutate(desc(), { projectName: 'MY_PROJECT' });
+    expect(result.workflow?.workflow.nodes.A.Execution.input_parameters.ProjectName).toBe('');
+    expect(result.parameters).toEqual({ A: { ProjectName: '' } });
   });
 });

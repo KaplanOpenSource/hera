@@ -1,10 +1,9 @@
 import { Box, Typography } from '@mui/material';
 import { ReactNode, useState } from 'react';
 import { WorkflowBlock, WorkflowData, WorkflowNode } from '../../shared/types';
-import { fillProjectName, getWorkflowBlock, isTopLevelBlock, normalizeRequires } from '../../shared/workflow';
+import { getWorkflowBlock, isTopLevelBlock, normalizeRequires } from '../../shared/workflow';
 import { NodeCatalogReader, useNodeCatalog } from './useNodeCatalog';
 import { WorkflowGraph } from './WorkflowGraph';
-import { useProjectStore } from '../../stores/useProjectStore';
 
 // Returns the node's `requires` with oldName replaced by newName, preserving
 // its single-name / list shape (or undefined when the node had no requires).
@@ -30,8 +29,6 @@ export const WorkflowEditor = ({
   actionButtons?: ReactNode,
 }) => {
   const [selectedNode, setSelectedNode] = useState<string | undefined>(undefined);
-  const { currProject } = useProjectStore();
-  const projectName = currProject?.name;
   const catalog = useNodeCatalog(s => s.catalog);
   const block = getWorkflowBlock(workflow);
 
@@ -88,10 +85,10 @@ export const WorkflowEditor = ({
     }
   };
 
-  // Replace the whole workflow with a starter template's block, filling in the
-  // current project for any node that needs one.
+  // Replace the whole workflow with a starter template's block. Project-name
+  // fill and parameter sync happen in the shared normalize step on write.
   const applyTemplate = (templateBlock: WorkflowBlock) => {
-    setBlock(projectName ? fillProjectName(templateBlock, projectName) : templateBlock);
+    setBlock(templateBlock);
     setSelectedNode(undefined);
   };
 

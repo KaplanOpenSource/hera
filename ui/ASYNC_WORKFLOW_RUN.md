@@ -34,7 +34,9 @@ Out of scope: per-task status view (#906), concurrent runs, cancellation.
    immediately; the workflow's `dispatch_id` is stored into the job later.
 2. Incremental output. `PipeTee` currently returns text only at the end (it
    joins the reader thread). For 0.5s updates it needs a snapshot method that
-   returns captured output from a byte offset onward, without joining.
+   returns captured output from a line index onward, without joining. Output is
+   stored as a list of lines. The offset is a line number, not a byte offset.
+   This avoids splitting a multi-byte character mid-poll.
 3. A done signal. The poll response needs a `status` field
    (running / done / error) so the client knows when to stop polling, plus an
    `error` message on failure.
@@ -46,16 +48,24 @@ Out of scope: per-task status view (#906), concurrent runs, cancellation.
    it just sits in the single slot and is overwritten when the next run starts.
    At most one stale output ever lingers. No TTL, no kill, no dangling handling.
 
-### Output delivery: incremental (offset cursor)
+### Output delivery: incremental (line cursor)
 
-Outputs can be long, so we send only the new part each poll instead of the whole
-blob:
+Outputs can be long, so we send only the new lines each poll instead of the
+whole blob:
 
-- Poll: `GET /run_workflow/{token}?since=<offset>`.
-- Response: `{ status, chunk, next_offset, error }` where `chunk` is the output
-  after `offset`.
-- Client appends `chunk` and stores `next_offset` for the next poll.
+- Poll: `GET /run_workflow/{token}?since=<line_index>`.
+- Response: `{ status, lines, next_offset, error }` where `lines` is the output
+  lines after `since`.
+- Client appends `lines` and stores `next_offset` for the next poll.
 - On dialog reopen / remount, poll with `since=0` to rebuild the full output.
+
+The offset is a line number, so a multi-byte character is never split across two
+polls. The reader thread reads with `readline()`, so a line only lands in the
+list once its newline arrives. A partial write is never handed back mid-line.
+
+Caveat: progress output that uses carriage returns (`\r`) to overwrite one line,
+with no newline (tqdm, some Luigi bars), waits for a newline. It will not stream
+line by line. Acceptable for now.
 
 Single run + single dialog means no ambiguity about the read position, so this
 does not add confusion.
@@ -81,18 +91,21 @@ does not add confusion.
      the server process dies (covers hard crashes).
    - Add a shutdown handler that kills tracked process groups on clean exit
      (covers SIGTERM / normal shutdown).
-4. `PipeTee.read_from(offset)`: return captured output from `offset` onward as
-   text (plus the new offset) without joining the reader thread, so output can
-   be read while the run is still going.
+4. `PipeTee.read_from(offset)`: return captured output lines from `offset`
+   onward (plus the new line count) without joining the reader thread, so output
+   can be read while the run is still going. Take a small lock around the slice
+   so `len()` and the slice agree.
 5. Background thread: run the fork; on completion set `status = done` (store
    `dispatch_id`) or `status = error` (store `error` + partial output). The lock
    frees when the run ends, so the next start can proceed.
 6. Routes:
-   - `POST /run_workflow` -> `{ token }`, or a busy JSON if a run is in progress.
-   - `GET /run_workflow/{token}?since=<offset>` -> `{ status, chunk, next_offset,
-     error }`. Unknown token -> not found.
+   - `POST /run_workflow` -> `{ token }`, or `{ status: "busy" }` if a run is in
+     progress.
+   - `GET /run_workflow/{token}?since=<line_index>` -> `{ status, lines,
+     next_offset, error }`. Unknown token -> `{ status: "not_found" }`. A failed
+     run -> `{ status: "error", error }`.
 7. Next start overwrites the single slot, discarding any previous finished job.
-8. New API models: start -> `{ token }`; poll -> `{ status, chunk, next_offset,
+8. New API models: start -> `{ token }`; poll -> `{ status, lines, next_offset,
    error }`; plus the busy and not-found shapes.
 9. Thread safety: the reader thread writes output while the poll endpoint reads
    it, so guard the buffer/job with a small lock or read a snapshot copy.
@@ -101,8 +114,8 @@ does not add confusion.
 
 1. `runWorkflow` returns the token instead of the final output.
 2. Poll loop (modeled on `ServerReadyGate`'s `setTimeout` + `cancelled` guard):
-   hit `GET /run_workflow/{token}?since=<offset>` every 500ms, append `chunk` and
-   advance the stored offset each time, stop when `status` is done or error.
+   hit `GET /run_workflow/{token}?since=<line_index>` every 500ms, append `lines`
+   and advance the stored offset each time, stop when `status` is done or error.
    Clean up on unmount / dialog close.
 3. Unknown token from poll (server restarted, or slot overwritten): stop polling
    gracefully and show the output collected so far. This also covers a server
