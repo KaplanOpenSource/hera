@@ -39,7 +39,7 @@ describe('Agent config UI integration', () => {
     await openAgentDoc();
 
     await waitFor(() => {
-      expect(screen.getByText('Effects')).toBeTruthy();
+      expect(screen.getByText(/Effects & Warning Thresholds/)).toBeTruthy();
       expect(screen.getByText('Physical Properties')).toBeTruthy();
     }, { timeout: 5000 });
   }, 45000);
@@ -48,7 +48,7 @@ describe('Agent config UI integration', () => {
     await openAgentDoc();
 
     await waitFor(() => {
-      expect(screen.getByText('Effects')).toBeTruthy();
+      expect(screen.getByText(/Effects & Warning Thresholds/)).toBeTruthy();
     }, { timeout: 5000 });
 
     const newEffectInput = screen.getByRole('textbox', { name: /new effect name/i });

@@ -8,6 +8,5 @@ docker run --rm \
   -w /app/ui/server \
   hera-server \
   bash -c '
-    pip install pytest &&
     python -m pytest tests "$@"
   ' _ "$@"

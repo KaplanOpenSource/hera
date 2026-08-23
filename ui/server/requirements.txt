@@ -1,0 +1,11 @@
+# Extra dependencies for the UI server image, installed on top of the base
+# `hera` image (which already installed the repo-root requirements.txt).
+#
+# Keep in sync with the imports in ui/server/*.py.
+argcomplete>=3.1.0
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.7.0
+
+# ui/server/tests (run with ui/server/scripts/run_tests_docker.sh)
+pytest>=7.2.0

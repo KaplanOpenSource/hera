@@ -11,11 +11,12 @@ COPY ui/server/ .
 EXPOSE 8000
 EXPOSE 5678
 
-# initializing with default project:
 WORKDIR /app
-RUN sh hera/scripts/run_mongo.sh && sh hera/scripts/add_repo.sh
 
-# TODO: run_mongo should be on bashrc, find out why it is not running.
+# No default project is baked in: MongoDB is not part of this image (it runs as a
+# separate container, see ui/server/scripts/run_server_docker.sh), so the repository
+# can only be registered once a reachable database exists. To add it at runtime:
+#   hera-project repository add hera/doc/jupyter/Developer/Documentation_Repository.json
 
 CMD ["python", "ui/server/server.py"]
 # CMD ["bash", "-c", "sh hera/scripts/run_mongo.sh && python ui/server/server.py --debug"]

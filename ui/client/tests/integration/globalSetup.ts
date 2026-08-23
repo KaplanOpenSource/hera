@@ -1,12 +1,25 @@
 /// <reference types="node" />
 import { spawn } from 'child_process';
 import * as fs from 'fs';
+import * as net from 'net';
 import * as os from 'os';
 import * as path from 'path';
 
 const PORT_FILE = path.join(os.tmpdir(), 'hera-integ-port');
-const SERVER_PORT = 8000;
 const MONGO_PORT = 27018;
+
+// The tests read the port back from PORT_FILE (see mockFactories.ts), so any free
+// port works. Asking the OS for one keeps the run from colliding with whatever else
+// listens on this machine — server.py would otherwise silently move to the next free
+// port and nothing would ever answer where the tests look.
+const findFreePort = (): Promise<number> => new Promise((resolve, reject) => {
+  const probe = net.createServer();
+  probe.on('error', reject);
+  probe.listen(0, '127.0.0.1', () => {
+    const { port } = probe.address() as net.AddressInfo;
+    probe.close(() => resolve(port));
+  });
+});
 
 const findProjectRoot = (): string => {
   let dir = __dirname;
@@ -21,6 +34,7 @@ const findProjectRoot = (): string => {
 const PROJECT_ROOT = findProjectRoot();
 
 export default async function setup() {
+  const SERVER_PORT = await findFreePort();
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hera-integ-'));
   const pyheraDir = path.join(tmpDir, '.pyhera');
   fs.mkdirSync(pyheraDir);
@@ -33,6 +47,8 @@ export default async function setup() {
       password: 'heracles',
     },
   }, null, 2));
+
+  fs.writeFileSync(PORT_FILE, String(SERVER_PORT));
 
   const proc = spawn('python', [
     'ui/server/server.py', '--cors', 'all', '-y', '--jupyter-port', '0',
@@ -49,17 +65,25 @@ export default async function setup() {
     throw new Error('Failed to spawn server process');
   }
 
-  const deadline = Date.now() + 30_000;
-  while (Date.now() < deadline) {
+  // /healthz answers as soon as uvicorn binds, but /exec replies WARMING_UP until the
+  // background thread finished importing hera. Wait for the import, or the first tests
+  // race it. The import takes tens of seconds on a cold CI runner.
+  const deadline = Date.now() + 180_000;
+  let ready = false;
+  while (!ready && Date.now() < deadline) {
     try {
-      const r = await fetch(`http://localhost:${SERVER_PORT}/healthz`);
-      if (r.ok) break;
-    } catch { /* not ready yet */ }
-    await new Promise(r => setTimeout(r, 500));
+      const r = await fetch(`http://localhost:${SERVER_PORT}/ready`);
+      if (r.ok) ready = Boolean((await r.json()).ready);
+    } catch { /* not up yet */ }
+    if (!ready) await new Promise(r => setTimeout(r, 500));
+  }
+  if (!ready) {
+    try { process.kill(pid, 'SIGTERM'); } catch { /* already exited */ }
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    throw new Error(`Server did not become ready on port ${SERVER_PORT} within 180s`);
   }
 
   console.log(`[globalSetup] Server ready on port ${SERVER_PORT} (mongo ${MONGO_PORT})`);
-  fs.writeFileSync(PORT_FILE, String(SERVER_PORT));
 
   return function teardown() {
     try { process.kill(pid, 'SIGTERM'); } catch { /* already exited */ }
