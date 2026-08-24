@@ -149,3 +149,14 @@ def _no_home_writes():
             f"a test created {hera_dir}; pass filesDirectory (see the "
             "unit_files_directory fixture) instead of relying on the default"
         )
+
+
+@pytest.fixture(autouse=True)
+def _reset_unit_database():
+    """Drop the in-memory database after every test.
+
+    Test order must never matter.  A test that only passes because an
+    earlier test left a document behind is a bug, not a feature.
+    """
+    yield
+    _seam.reset()
