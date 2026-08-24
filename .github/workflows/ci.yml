@@ -185,13 +185,14 @@ jobs:
         if: steps.cache-test-data.outputs.cache-hit != 'true'
         run: ./scripts/s3/bootstrap_unittest_data.sh --target-dir "$TEST_HERA"
 
-      # --ignore, not just -m: the two layers cannot share a pytest process.
-      # hera/tests/unit/conftest.py installs the mongomock seam and moves HOME
-      # at collection time, which would make these tests authenticate with the
-      # placeholder credentials.  -m filters after collection, so it is not
-      # enough on its own; the directory must never be collected here.
+      # --ignore, not -m "not unit": the two layers cannot share a pytest
+      # process, because hera/tests/unit/conftest.py installs the mongomock
+      # seam and moves HOME at collection time.  --ignore is what keeps the
+      # new layer out; the marker must NOT also be excluded, because 147
+      # pre-existing tests inside the integration files carry @pytest.mark.unit
+      # and would then run in neither job.
       - name: Run full test suite
-        run: pytest hera/tests/ -v -m "not notebook and not unit" --ignore=hera/tests/unit --cov=hera --cov-report=
+        run: pytest hera/tests/ -v -m "not notebook" --ignore=hera/tests/unit --cov=hera --cov-report=
         env:
           MPLBACKEND: Agg
           PYTHONPATH: ${{ github.workspace }}/_vendor/hermes:${{ github.workspace }}/_vendor/pyargos

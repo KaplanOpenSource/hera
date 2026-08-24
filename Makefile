@@ -279,7 +279,7 @@ coverage-unit:
 coverage:
 	rm -f .coverage .coverage.*
 	PYTHONPATH=.$${PYTHONPATH:+:$$PYTHONPATH} COVERAGE_FILE=.coverage.unit pytest hera/tests/unit -m unit -q --cov=hera --cov-report=
-	-PYTHONPATH=.$${PYTHONPATH:+:$$PYTHONPATH} COVERAGE_FILE=.coverage.integration TEST_HERA=$(TEST_HERA) pytest hera/tests -m "not notebook and not unit" --ignore=hera/tests/unit -q --cov=hera --cov-report=
+	-PYTHONPATH=.$${PYTHONPATH:+:$$PYTHONPATH} COVERAGE_FILE=.coverage.integration TEST_HERA=$(TEST_HERA) pytest hera/tests -m "not notebook" --ignore=hera/tests/unit -q --cov=hera --cov-report=
 	coverage combine
 	coverage report
 	coverage html -d cache/coverage_html
