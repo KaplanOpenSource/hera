@@ -1,1 +1,18 @@
-0
+20
+# The number on the first line is the combined line+branch coverage floor,
+# enforced in CI by `coverage report --fail-under`.  Raise it in the same PR
+# that raises coverage; never lower it.
+#
+# Baseline measured 2026-08-24 on this branch (Python 3.12, pytest 9.0.3):
+#     unit layer only ......... 7%   (18446 stmts, 16920 missed)
+#     integration only ....... 22%   (18568 stmts, 13878 missed)
+#     combined ............... 22%   (18568 stmts, 13871 missed)
+#
+# Combining recovered only 7 statements: the 26 infrastructure tests exercise
+# datalayer paths the integration suite already reaches.  Their value is speed
+# and isolation, not new coverage -- the coverage comes from batches 1-9.
+#
+# The floor is set at 20, not 22, deliberately.  CI runs Python 3.11 with the
+# versions pinned in requirements.txt, so its number will not match this one
+# exactly; two points of headroom keep the gate from failing on environment
+# drift rather than on a real regression.

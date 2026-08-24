@@ -283,7 +283,7 @@ coverage:
 	coverage combine
 	coverage report
 	coverage html -d cache/coverage_html
-	@echo "floor is $$(cat coverage_floor.txt)% -- see coverage_floor.txt"
+	@echo "floor is $$(grep -oE '^[0-9]+' coverage_floor.txt | head -1)% -- see coverage_floor.txt"
 
 test-ui:
 	cd ui/client && npm install && npm run test:all
