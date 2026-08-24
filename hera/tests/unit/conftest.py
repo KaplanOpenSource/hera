@@ -97,3 +97,55 @@ def unit_toolkit_factory(unit_files_directory):
         )
 
     return _build
+
+
+# ---------------------------------------------------------------------------
+# Guards: turn the hermetic promise into something enforced
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(autouse=True)
+def _block_network(monkeypatch):
+    """Fail loudly and instantly on any socket creation.
+
+    Without this, a unit test that reaches for MongoDB waits out pymongo's
+    30-second serverSelectionTimeoutMS and reports as merely slow rather
+    than broken.  That is what cost this very suite 62.95s per run before
+    the parent conftest's session guard was overridden.
+    """
+    import socket
+
+    def _refuse(*args, **kwargs):
+        raise RuntimeError(
+            "network access is not permitted in the unit layer; "
+            "use the unit_project / unit_toolkit_factory fixtures instead"
+        )
+
+    # mongomock never opens a socket, so nothing legitimate needs the real one.
+    monkeypatch.setattr(socket, "socket", _refuse)
+
+
+@pytest.fixture(autouse=True)
+def _matplotlib_agg():
+    """Force a headless backend and close figures, to stop state leaking."""
+    import matplotlib
+
+    matplotlib.use("Agg", force=True)
+    yield
+    import matplotlib.pyplot as plt
+
+    plt.close("all")
+
+
+@pytest.fixture(autouse=True)
+def _no_home_writes():
+    """Assert that no test creates a .hera directory in the isolated home."""
+    import pathlib
+
+    hera_dir = pathlib.Path(_UNIT_HOME, ".hera")
+    existed = hera_dir.exists()
+    yield
+    if not existed and hera_dir.exists():
+        raise AssertionError(
+            f"a test created {hera_dir}; pass filesDirectory (see the "
+            "unit_files_directory fixture) instead of relying on the default"
+        )
