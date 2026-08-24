@@ -254,3 +254,59 @@ dfmt = getattr(_dt, "JSON", None) or getattr(_dt, "json", None) or getattr(_dt, 
 ```
 
 אף אחד משלושת השמות לא קיים ב-`datatypes` — הקונסטנטות הן `JSON_DICT`, `JSON_PANDAS`, `JSON_GEOPANDAS`. הבלוק כולו מת ו-`dataFormat` לעולם לא נקבע. מדווח כקוד מת ולא כפלט שגוי: המידע יושב ב-`desc`, ולכן הפורמט אינו נושא משמעות כאן. הטסט נכשל אם אחד השמות **כן** יתווסף בעתיד, כדי שהחיפוש ייבדק מחדש.
+
+---
+
+## אצווה 3 — `simulations/gaussian`
+
+### B24. `getSigma` לא מוודא את המרחק
+**קובץ:** `hera/simulations/gaussian/Sigma.py` · **מקובע ב:** `test_gaussian_sigma.py::test_an_upwind_distance_is_rejected`
+
+```
+x = -100,   stability D  ->  sigmaY = -8.04 m      (סטיית תקן שלילית)
+x = -20000, stability D  ->  sigmaZ = nan          (+ numpy RuntimeWarning)
+```
+
+הסיבה ל-NaN: `(1 + b·x)` הופך שלילי, ומועלה בחזקה שברית (`C = -0.5`). אין ולידציה, ואין שגיאה — קלט שגוי מתפשט לשדה ריכוזים.
+
+### B25. תחילית `r` על המרכאות הסוגרות
+**קבצים:** `hera/simulations/gaussian/Meteorology.py:197,216,246,265` · `gasCloud.py:648` · **מקובע ב:** `test_gaussian_meteorology.py::test_compiling_the_module_emits_no_warning`
+
+```python
+def getAirDensity(self, height):
+    """
+        ... \rho_{air} ... [g\cdot cm^{-3}]
+    r"""        # <-- ה-r על המרכאות הסוגרות
+```
+
+הכוונה הייתה `r"""` בפתיחה. בפועל ה-`r` הופך לתו האחרון בתוך דוקסטרינג שאינו raw, ולכן ה-backslashes של ה-LaTeX הם escape sequences לא חוקיים. שתי תוצאות: `SyntaxWarning` בכל ייבוא תחת Python 3.12+, ו-`r` תועה בסוף כל דוקסטרינג מושפע.
+
+### B26. `test_no_invalid_escapes.py` אינו מסוגל להיכשל על escape לא-חוקי
+**קובץ:** `hera/tests/test_no_invalid_escapes.py:27` · **מקובע ב:** `test_gaussian_meteorology.py::TestRawStringPrefixOnTheWrongQuotes`
+
+זהו הממצא המעניין באצווה. הטסט — עם ~990 מקרים מפורמטרים — מקמפל כל קובץ עם `simplefilter("error", SyntaxWarning)`. אבל **פייתון מציג SyntaxWarning שהוסלם לשגיאה כ-`SyntaxError` בזמן קימפול**, וה-handler שנועד לקבצי legacy שאינם מתקמפלים בולע אותו:
+
+```python
+except SyntaxError as err:
+    pytest.skip(f"pre-existing SyntaxError, file is not importable: ...")
+```
+
+התוצאה, כפי שנצפתה בהרצה:
+
+```
+SKIPPED [1] test_no_invalid_escapes.py:27: pre-existing SyntaxError,
+            file is not importable: invalid escape sequence '\c' (line 201)
+```
+
+**ההודעה שגויה** — `Meteorology.py` כן ניתן לייבוא (אומת). וחמור מכך: **הכשל שהטסט קיים כדי לגלות יכול רק להפוך ל-skip.** ככל שבעיית ה-escape חמורה יותר, כך גדל הסיכוי שתסווג כ"קובץ legacy מחוץ להיקף".
+
+**התיקון המוצע:** לקמפל פעמיים — פעם אחת בלי מסנן, כדי לקבוע אם הקובץ בכלל מתפרסר, ורק אם כן — פעם שנייה עם המסנן, כדי לבדוק escapes. שני המצבים בלתי-מבחינים כרגע. **לא תיקנתי** משום שזהו טסט עובד קיים, וההנחיה היא לדווח ולא לתקן.
+
+---
+
+## חשדות שנבדקו ונדחו — אצווה 3
+
+- **מקדמי Briggs שגויים** — 36 השוואות (6 מחלקות יציבות × 6 מרחקים) מול נוסחאות Briggs (1973) המפורסמות: **תואם עד `rel=1e-9`**. הטבלאות נבדקו גם רשומה-רשומה. אין פגם.
+- **בניית המקור הווירטואלי** — חשדתי שאולי לא עקבית. **אומת:** עם `sigma0=10 m`, `getSigma(x=0)` מחזיר בדיוק 10.0 מ'. זו התכונה שמצדיקה את כל טריק הזזת הראשית, והיא מדויקת.
+- **`getWindVelocity` וחספוס** — הנחתי ששטח מחוספס **מאט** את הרוח בגובה, וה-assertion נכשל. **הקוד צודק:** עם `u10` קבוע, `ln(z/z0)/ln(10/z0)` **גדל** עם z0 עבור z>10, ולכן חספוס גדול יותר משמעו גרדיינט תלול יותר ורוח חזקה יותר מעל. z0=1m נותן 10.0 m/s ב-100 מ' מול 6.67 עבור z0=1cm.
+- **`getTKE` מתעלם מהגובה** — נראה כמו באג, אבל מתועד במפורש: "Currently implemented only neutral conditions". מקובע כטסט עובר כדי שהוספת תלות בגובה תהיה שינוי מכוון.
