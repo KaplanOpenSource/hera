@@ -1,4 +1,4 @@
-26
+28
 # The number on the first line is the combined line+branch coverage floor,
 # enforced in CI by `coverage report --fail-under`.  Raise it in the same PR
 # that raises coverage; never lower it.
@@ -29,6 +29,20 @@
 #   here is that behaviour which needed a live MongoDB now runs hermetically in
 #   under two seconds, plus six defects found -- not a higher number.  Raising
 #   the floor on a 0.4-point gain would leave no headroom for CI drift.
+#
+# After batch 3 (simulations/gaussian):
+#     combined ............... 30%   (18568 stmts, 12513 missed)
+#     gaussian ............... 33%
+#     gaussian in scope ...... 66%   (470 of 1061 statements)
+#       Sigma.py ............ 100%   -- validated against Briggs (1973)
+#       Meteorology.py ....... 95%
+#       MeshUtils.py ......... 88%
+#   Floor raised to 28.  337 covered statements, enough to move the package
+#   figure this time.  Deferred with reasons: gasCloud.py (291),
+#   FallingNonEvaporatingDroplets.py (217) and DropletCloud.py (83) -- the
+#   gas-cloud solver and falling-droplet physics build multi-dimensional xarray
+#   fields and need whole meteorology and source objects, so they belong in a
+#   batch of their own rather than the tail of this one.
 #
 # Two points of headroom below the measured value, deliberately: CI runs
 # Python 3.11 with the versions pinned in requirements.txt, so its number will
