@@ -223,3 +223,34 @@ dask DF    computed='dask.dataframe.dask_expr._collection.DataFrame'
 - **`setConfig` עם `raise` חשוף** — נראה כאילו מסלול השגיאה של הפרויקט הדיפולטיבי מסתיים ב-`raise` בלי חריגה פעילה, מה שהיה מייצר `RuntimeError` אטום במקום ההודעה המפורטת. **לא נכון:** `project.py:247` הוא `raise ValueError(err)`, וההודעה כן מוצגת. אומת בהרצה.
 - **קונסטנטת פורמט בלי handler** — כל 18 הקונסטנטות ב-`datatypes` נבדקו, ולכולן יש `DataHandler_*` עם `getData` ו-`saveData`. אין פגם.
 - **סמנטיקת המונים** — הנחתי post-increment וטסטים נכשלו. **הקוד צודק:** הקריאה הראשונה מגדירה את המונה ל-0 בלי להוסיף, ורק הקריאות הבאות מוסיפות. מתועד ב-docstring, והטסטים מקבעים זאת במפורש כי זו התנהגות מפתיעה.
+
+### B21. `_get_data_toolkit` מצהיר על `projectName` ומתעלם ממנו
+**קובץ:** `hera/toolkit.py:697` · **מקובע ב:** `test_toolkit_home.py::test_the_helper_ignores_the_project_it_is_given`, `::test_defaults_are_per_project`
+
+```python
+def _get_data_toolkit(self, projectName: str = None):
+    from hera.utils.data.toolkit import dataToolkit
+    return dataToolkit()          # projectName לא בשימוש
+```
+
+`dataToolkit.__init__` מקבל `connectionName` בלבד ועובד תמיד על הפרויקט הדיפולטיבי. לכן `setDefaultRepository` / `getDefaultRepository`, שמתועדים כ-"Persist default repository name **for a project**", אינם מוגבלים לפרויקט בכלל — ההגדרה גלובלית.
+
+### B22. `setDefaultRepository` תמיד זורק — הפיצ'ר מת
+**קובץ:** `hera/toolkit.py:1164` · **מקובע ב:** `test_toolkit_home.py::test_round_trip`
+
+מכיוון ש-B21 מפנה את הכתיבה ל-`defaultProject`, ו-`Project` שומר עליו כקריא-בלבד (`project.py:757`, קוד ייצור ללא תנאי), כל קריאה נכשלת:
+
+```
+RuntimeError: project defaultProject is read-only.
+```
+
+`registerToolkit` מציב `dtk._allowWritingToDefaultProject = True` לפני הכתיבה (`toolkit.py:1271`); `setDefaultRepository` לא. **הפיצ'ר של ברירת מחדל למאגר אינו פעיל כלל.**
+
+### B23. חיפוש פורמט מת ב-`setDefaultRepository`
+**קובץ:** `hera/toolkit.py:1164` · **מקובע ב:** `test_toolkit_home.py::test_the_json_format_lookup_is_dead`
+
+```python
+dfmt = getattr(_dt, "JSON", None) or getattr(_dt, "json", None) or getattr(_dt, "TEXT", None)
+```
+
+אף אחד משלושת השמות לא קיים ב-`datatypes` — הקונסטנטות הן `JSON_DICT`, `JSON_PANDAS`, `JSON_GEOPANDAS`. הבלוק כולו מת ו-`dataFormat` לעולם לא נקבע. מדווח כקוד מת ולא כפלט שגוי: המידע יושב ב-`desc`, ולכן הפורמט אינו נושא משמעות כאן. הטסט נכשל אם אחד השמות **כן** יתווסף בעתיד, כדי שהחיפוש ייבדק מחדש.
