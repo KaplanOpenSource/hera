@@ -310,3 +310,47 @@ SKIPPED [1] test_no_invalid_escapes.py:27: pre-existing SyntaxError,
 - **בניית המקור הווירטואלי** — חשדתי שאולי לא עקבית. **אומת:** עם `sigma0=10 m`, `getSigma(x=0)` מחזיר בדיוק 10.0 מ'. זו התכונה שמצדיקה את כל טריק הזזת הראשית, והיא מדויקת.
 - **`getWindVelocity` וחספוס** — הנחתי ששטח מחוספס **מאט** את הרוח בגובה, וה-assertion נכשל. **הקוד צודק:** עם `u10` קבוע, `ln(z/z0)/ln(10/z0)` **גדל** עם z0 עבור z>10, ולכן חספוס גדול יותר משמעו גרדיינט תלול יותר ורוח חזקה יותר מעל. z0=1m נותן 10.0 m/s ב-100 מ' מול 6.67 עבור z0=1cm.
 - **`getTKE` מתעלם מהגובה** — נראה כמו באג, אבל מתועד במפורש: "Currently implemented only neutral conditions". מקובע כטסט עובר כדי שהוספת תלות בגובה תהיה שינוי מכוון.
+
+### B27. `MeshUtils` — שם עמודת sigmaY מוגדר לעמודת ה-X
+**קובץ:** `hera/simulations/gaussian/MeshUtils.py:55` · **מקובע ב:** `test_gaussian_mesh.py::TestSigmaColumnNames`
+
+```python
+self.sigmaXName = "sigmaXCorrected"
+self.sigmaYName = "sigmaXCorrected"      # <-- אותו שם
+```
+
+`_gaussianToMesh` קורא `sigy = gaussian[self.sigmaYName]`, ולכן הפרישה הרוחבית קוראת תמיד את הסיגמה האורכית. **אומת מספרית:** קלט `sigmaYCorrected = 50` מייצר σ_y משוחזר של **5.000** — נתוני ה-Y מתעלמים בשקט והענן נכפה איזוטרופי. במודל פיזור אטמוספרי σ_x ו-σ_y שונים בתכלית, ולכן זו שגיאה פיזיקלית ולא רק אי-דיוק.
+
+הגלעין עצמו תקין: טסט עובר מראה שכשמכוונים `sigmaYName` לעמודה שלו, σ_y המשוחזר עוקב אחריה בדיוק. **רק ברירת המחדל בבנאי חוסמת ענן אליפטי.**
+
+### B28. `_defineCoordinates` מבלבל תווית עם מיקום
+**קובץ:** `hera/simulations/gaussian/MeshUtils.py:76-84` · **מקובע ב:** `test_gaussian_mesh.py::TestDataFrameIndexing`
+
+```python
+maxXID = gaussians[gaussians['x']==gaussians['x'].max()].index[0]   # תווית
+maxX   = gaussians.iloc[maxXID]['x'] + ...                          # מיקום
+```
+
+`.index[0]` מחזיר תווית ו-`.iloc` מצפה למיקום. כל DataFrame שהאינדקס שלו אינו RangeIndex מאופס זורק `IndexError: single positional indexer is out-of-bounds`. זה מכסה **כל** פלט של `groupby`, `filter` או `concat` — כלומר תרחישי השימוש הרגילים.
+
+### B29. `GaussianIntegrationToMesh` מצמצם את הקלט של ההורה
+**קובץ:** `hera/simulations/gaussian/MeshUtils.py:201` מול `:157` · **מקובע ב:** `test_gaussian_mesh.py::test_the_subclass_accepts_a_plain_quantity_like_its_parent`
+
+```python
+# GaussianToMesh:            ret = fullX*fullY*gaussian[QName] * (1*ureg.kg).m_as(unumToPint(QUnits))
+# GaussianIntegrationToMesh: ret = fullX*fullY*unumToPint(gaussian[QName]).m_as(unumToPint(QUnits))
+```
+
+הבסיס מכפיל במספר וממיר גורם יחידות; תת-המחלקה מפעילה `unumToPint` על **הערך עצמו**, ולכן float רגיל הופך ל-dimensionless ו-`.m_as(kg)` זורק. אומת:
+
+| | `Q = 1.0` | `Q = 1.0 * ureg.kg` |
+|---|---|---|
+| `GaussianToMesh` | ✅ אינטגרל 1.0 | ✅ אינטגרל 1.0 |
+| `GaussianIntegrationToMesh` | ❌ `DimensionalityError` | ✅ אינטגרל 1.0 |
+
+הפרת Liskov: קוד שנכתב מול מחלקת הבסיס נשבר בהחלפה שהדוקסטרינג של תת-המחלקה עצמה מזמין ("This is more accurate than estimating the gaussian").
+
+### B30. שתי נקודות כניסה, שתי ברירות מחדל שונות לפרופיל הרוח
+**קבצים:** `hera/simulations/gaussian/toolkit.py:62` מול `Meteorology.py:343` · **מקובע ב:** `test_gaussian_toolkit.py::test_the_two_defaults_differ_between_toolkit_and_factory`
+
+`gaussianToolkit.getMeteorologyFromU10` מוגדר `verticalProfileType="powerLaw"`, ו-`MeteorologyFactory.getMeteorologyFromU10` מוגדר `"log"`. אותה קריאה, אותם ארגומנטים — שני פרופילי רוח שונים לגמרי, בהתאם לנקודת הכניסה. לא קריסה, אבל מלכודת שקטה.
