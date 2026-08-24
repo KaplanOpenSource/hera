@@ -19,6 +19,17 @@
 #                                    reasons in the batch 1 plan)
 #   Floor raised to 26.
 #
+# After batch 2 (toolkit.py + datalayer):
+#     combined ............... 28%   (18568 stmts, 12850 missed)
+#     toolkit.py + datalayer . 68%   (was 61%)
+#     hera/toolkit.py ........ 47% from the unit layer alone (was 30% combined)
+#   Floor UNCHANGED at 26.  The batch added 87 covered statements, which does
+#   not move the package figure past 28%: the datalayer was already well
+#   covered by the integration suite, unlike hera/utils in batch 1.  The value
+#   here is that behaviour which needed a live MongoDB now runs hermetically in
+#   under two seconds, plus six defects found -- not a higher number.  Raising
+#   the floor on a 0.4-point gain would leave no headroom for CI drift.
+#
 # Two points of headroom below the measured value, deliberately: CI runs
 # Python 3.11 with the versions pinned in requirements.txt, so its number will
 # not match this one exactly, and the gate should fail on regressions rather
