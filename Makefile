@@ -265,18 +265,21 @@ test-notebooks:
 test-unit:
 	PYTHONPATH=.$${PYTHONPATH:+:$$PYTHONPATH} pytest hera/tests/unit -m unit -q
 
+# pytest-cov folds its own parallel fragments into COVERAGE_FILE at the end of
+# the run, so there is nothing left for `coverage combine` to do -- and with
+# nothing to merge it exits 1.  Hence a distinct filename per layer and a
+# combine only in the target that actually has two halves.
 coverage-unit:
 	rm -f .coverage .coverage.*
-	PYTHONPATH=.$${PYTHONPATH:+:$$PYTHONPATH} pytest hera/tests/unit -m unit -q --cov=hera --cov-report=
-	coverage combine
-	coverage report
+	PYTHONPATH=.$${PYTHONPATH:+:$$PYTHONPATH} COVERAGE_FILE=.coverage.unit pytest hera/tests/unit -m unit -q --cov=hera --cov-report=
+	COVERAGE_FILE=.coverage.unit coverage report
 
 # Coverage is gated on the COMBINED measurement on purpose: gating on the
 # unit layer alone would reward mocking every boundary.
 coverage:
 	rm -f .coverage .coverage.*
-	PYTHONPATH=.$${PYTHONPATH:+:$$PYTHONPATH} pytest hera/tests/unit -m unit -q --cov=hera --cov-report=
-	PYTHONPATH=.$${PYTHONPATH:+:$$PYTHONPATH} TEST_HERA=$(TEST_HERA) pytest hera/tests -m "not notebook and not unit" --ignore=hera/tests/unit -q --cov=hera --cov-report=
+	PYTHONPATH=.$${PYTHONPATH:+:$$PYTHONPATH} COVERAGE_FILE=.coverage.unit pytest hera/tests/unit -m unit -q --cov=hera --cov-report=
+	-PYTHONPATH=.$${PYTHONPATH:+:$$PYTHONPATH} COVERAGE_FILE=.coverage.integration TEST_HERA=$(TEST_HERA) pytest hera/tests -m "not notebook and not unit" --ignore=hera/tests/unit -q --cov=hera --cov-report=
 	coverage combine
 	coverage report
 	coverage html -d cache/coverage_html
