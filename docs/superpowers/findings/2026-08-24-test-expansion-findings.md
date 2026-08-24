@@ -168,3 +168,58 @@ hera.utils.rag.search   -> ModuleNotFoundError: No module named 'httpx'
 ```
 
 `SALib`, `httpx`, `chromadb`, `sentence_transformers` ו-`llama_index` **אינם מוצהרים ב-`requirements.txt`**. זה לא פער כיסוי אלא 473 statements של קוד שבור בהתקנה תקנית.
+
+---
+
+## אצווה 2 — `toolkit.py` + `datalayer`
+
+### B18. `getDataSourceList` מחזיר כפילויות
+**קובץ:** `hera/toolkit.py:186` · **מקובע ב:** `test_toolkit_datasources.py::test_list_reports_each_name_once`
+
+מתועד כ-"Return a list of data source **names** for this toolkit", אבל מחזיר רשומה אחת לכל **מסמך**. מקור עם שלוש גרסאות מופיע שלוש פעמים:
+
+```
+['SRC', 'LSRC', 'MULTI', 'MULTI', 'MULTI', 'MULTI']
+```
+
+האסימטריה מול `getDataSourceMap`, שמתועד במפורש כ-"all data sources **and their versions**", מלמדת שהרשימה אמורה להיות שמות ייחודיים.
+
+### B19. עטיפות הוספת המסמכים משנות את המילון של הקורא — **החמור באצווה**
+**קובץ:** `hera/toolkit.py:146,158,170` · **מקובע ב:** `test_toolkit_documents.py::TestCallerDictIsNotMutated`
+
+שלוש העטיפות קוראות `desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName)` על המילון שהתקבל מהקורא. שתי השלכות, שתיהן אומתו בהרצה:
+
+```python
+metadata = {"station": "A"}
+topography.addCacheDocument(resource="/topo", ..., desc=metadata)
+# metadata == {'station': 'A', 'toolkit': 'TopographyToolkit'}   <-- שונה בלי בקשה
+
+landcover.addCacheDocument(resource="/land", ..., desc=metadata)
+# setdefault לא דורס, ולכן המסמך של landcover נשמר עם 'TopographyToolkit'
+```
+
+**זה שיבוש נתונים חוצה-toolkits:** המסמך של LandCover נעלם מהשאילתות של LandCover ומופיע בשאילתות של Topography. התיוג הזה הוא בדיוק המנגנון שמפריד בין שני toolkits שחולקים פרויקט, ולכן הפגם פוגע בהפרדה עצמה. תרחיש הטריגר תמים לחלוטין — שימוש חוזר במילון מטא-דאטה.
+
+### B20. מפת הפורמטים ממופתחת על נתיבי מודול פנימיים של צד-שלישי
+**קובץ:** `hera/datalayer/datahandler.py:typeDatatypeMap` · **מקובע ב:** `test_datalayer_datahandler.py::test_a_dataframe_is_stored_as_parquet`, `::test_a_series_is_stored_as_json`
+
+המפה ממופתחת על נתיבים כמו `'pandas.core.frame.DataFrame'`. pandas 3 מדווח `'pandas.DataFrame'`, שהמפה לא מכירה, ולכן היא נופלת למפתח `"object"` → **כל DataFrame נשמר כ-pickle במקום parquet**, בלי שגיאה. זה נוגד את המדיניות המוצהרת ב-`CLAUDE.md` ("Tabular data → parquet", "Prefer parquet over CSV"), ו-pickle גרוע יותר: לא בר-החלפה, שביר בין גרסאות, ובעייתי אבטחתית.
+
+```
+DataFrame  computed='pandas.DataFrame'                        map key='pandas.core.frame.DataFrame'
+Series     computed='pandas.Series'                           map key='pandas.core.series.Series'
+dask DF    computed='dask.dataframe.dask_expr._collection.DataFrame'
+                                                              map key='dask_expr._collection.DataFrame'
+```
+
+`requirements.txt` מצמיד `pandas==2.2.3`, שבו המפתח **כן** מתאים, ולכן **ה-CI אינו חשוף** וזו הסביבה המקומית בלבד. זהו מופע קונקרטי של סחיפת הגרסאות ב-P8. הפגם השורשי אינו "המפה שגויה" אלא ש**היא נשענת על פרטי מימוש פנימיים של תלויות, כך ששדרוג מוריד בשקט את פורמט האחסון**. שני הטסטים נושאים `xfail` עם `condition` שמחושב בזמן איסוף מ-pandas המותקן, כדי שהציפייה תהיה נכונה בשתי הסביבות במקום מתנדנדת באחת.
+
+---
+
+## חשדות שנבדקו ונדחו
+
+לתיעוד, כדי שלא ייבדקו שוב:
+
+- **`setConfig` עם `raise` חשוף** — נראה כאילו מסלול השגיאה של הפרויקט הדיפולטיבי מסתיים ב-`raise` בלי חריגה פעילה, מה שהיה מייצר `RuntimeError` אטום במקום ההודעה המפורטת. **לא נכון:** `project.py:247` הוא `raise ValueError(err)`, וההודעה כן מוצגת. אומת בהרצה.
+- **קונסטנטת פורמט בלי handler** — כל 18 הקונסטנטות ב-`datatypes` נבדקו, ולכולן יש `DataHandler_*` עם `getData` ו-`saveData`. אין פגם.
+- **סמנטיקת המונים** — הנחתי post-increment וטסטים נכשלו. **הקוד צודק:** הקריאה הראשונה מגדירה את המונה ל-0 בלי להוסיף, ורק הקריאות הבאות מוסיפות. מתועד ב-docstring, והטסטים מקבעים זאת במפורש כי זו התנהגות מפתיעה.
