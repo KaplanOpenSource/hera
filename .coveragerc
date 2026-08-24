@@ -7,6 +7,14 @@ omit =
     hera/doc/*
     hera/bin/*
     */__pycache__/*
+# Files that do not parse as Python at all, so they can never be imported and
+# coverage.py cannot even read them ("Couldn't parse ... as Python source").
+# Leaving them in both breaks `coverage report` and dilutes the denominator
+# with lines no test could ever reach.  Verified with ast.parse over hera/.
+    hera/simulations/gaussian/source.py
+    hera/simulations/utils/interpolation/interpolations.py
+    hera/simulations/openFoam/eulerian/NavierStokes.old/*
+    hera/simulations/openFoam/toberewritten/*
 
 [report]
 show_missing = True

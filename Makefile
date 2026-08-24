@@ -17,6 +17,7 @@ VENV_DIR ?= $(HOME)/.pyhera/environment
 .PHONY: install install-env setup install-docs install-rag populate populate-project \
         help mongo-up mongo-down mongo-status mongo-logs mongo-clean \
         build run stop test test-setup test-notebooks test-ui test-all \
+        test-unit coverage-unit coverage \
         install-deps install-deps-all install-paraview install-freecad install-openfoam \
         mermaid-pull render-diagrams render-diagrams-force \
         docs-deps docs-build docs-build-strict docs-serve docs-deploy docs-clean \
@@ -116,6 +117,8 @@ help:
 	@echo "  Testing:"
 	@echo "    make test-setup    Create the test data directory structure"
 	@echo "    make test          Run Python/pytest suite (requires MongoDB + test data)"
+	@echo "    make test-unit     Run the hermetic unit layer (no MongoDB, no S3)"
+	@echo "    make coverage      Measure combined coverage (unit + integration)"
 	@echo "    make test-ui       Run UI tests (npm install + npm run test:all in ui/client/)"
 	@echo "    make test-all      Run Python tests then UI tests (halts on first failure)"
 	@echo ""
@@ -251,10 +254,33 @@ test:
 	else \
 		echo "Test data already present at $(TEST_HERA) (skipping bootstrap)."; \
 	fi
-	PYTHONPATH=.$${PYTHONPATH:+:$$PYTHONPATH} TEST_HERA=$(TEST_HERA) pytest hera/tests/ -v -m "not notebook"
+	PYTHONPATH=.$${PYTHONPATH:+:$$PYTHONPATH} TEST_HERA=$(TEST_HERA) pytest hera/tests/ -v -m "not notebook" --ignore=hera/tests/unit
 
 test-notebooks:
 	TEST_HERA=$(TEST_HERA) pytest hera/tests/test_notebooks.py -v
+
+# The unit layer is hermetic by construction: no MongoDB service, no S3 test
+# data, no network.  If it ever needs one of those, the seam in
+# hera/tests/unit/_seam.py is broken -- see the Phase 0 design doc.
+test-unit:
+	PYTHONPATH=.$${PYTHONPATH:+:$$PYTHONPATH} pytest hera/tests/unit -m unit -q
+
+coverage-unit:
+	rm -f .coverage .coverage.*
+	PYTHONPATH=.$${PYTHONPATH:+:$$PYTHONPATH} pytest hera/tests/unit -m unit -q --cov=hera --cov-report=
+	coverage combine
+	coverage report
+
+# Coverage is gated on the COMBINED measurement on purpose: gating on the
+# unit layer alone would reward mocking every boundary.
+coverage:
+	rm -f .coverage .coverage.*
+	PYTHONPATH=.$${PYTHONPATH:+:$$PYTHONPATH} pytest hera/tests/unit -m unit -q --cov=hera --cov-report=
+	PYTHONPATH=.$${PYTHONPATH:+:$$PYTHONPATH} TEST_HERA=$(TEST_HERA) pytest hera/tests -m "not notebook and not unit" --ignore=hera/tests/unit -q --cov=hera --cov-report=
+	coverage combine
+	coverage report
+	coverage html -d cache/coverage_html
+	@echo "floor is $$(cat coverage_floor.txt)% -- see coverage_floor.txt"
 
 test-ui:
 	cd ui/client && npm install && npm run test:all

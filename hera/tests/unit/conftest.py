@@ -18,6 +18,7 @@ is imported.  Its order is load-bearing — see hera/tests/unit/_seam.py.
 #    Everything that matters for isolation (the pyhera connection config and
 #    every hera.datalayer import) happens after this point.
 import os
+import pathlib
 import tempfile
 
 _UNIT_HOME = tempfile.mkdtemp(prefix="hera_unit_home_")
@@ -160,3 +161,48 @@ def _reset_unit_database():
     """
     yield
     _seam.reset()
+
+
+def pytest_collection_modifyitems(session, config, items):
+    """Refuse to run the unit layer in the same process as any other test.
+
+    The bootstrap at the top of this file is process-wide: it moves HOME,
+    replaces hera.datalayer.document.connectToDatabase and rebinds the
+    datalayer's collection singletons.  Any integration test collected
+    alongside it therefore talks to mongomock, or authenticates against the
+    real MongoDB with the placeholder credentials from the temp pyhera
+    config.
+
+    That was not theoretical.  Running `pytest hera/tests -m "not notebook"`
+    with this directory collected produced three errors in
+    dynamic_loading_tests_pack (subprocesses inheriting the moved HOME ->
+    "Authentication failed") that all disappeared once the directory was
+    ignored.
+
+    -m "not unit" does NOT prevent this: marker filtering happens after
+    collection, and the damage is done at import time.  The directory has to
+    be excluded outright, so run the two layers as two processes:
+
+        pytest hera/tests/unit -m unit
+        pytest hera/tests --ignore=hera/tests/unit -m "not notebook"
+
+    or use `make test-unit` and `make test`, which already do exactly that.
+    """
+    unit_root = pathlib.Path(__file__).parent.resolve()
+    strangers = sorted(
+        {
+            str(item.path)
+            for item in items
+            if unit_root not in pathlib.Path(item.path).resolve().parents
+        }
+    )
+    if strangers:
+        raise pytest.UsageError(
+            "hera/tests/unit must run in its own pytest process; its conftest "
+            "moves HOME and reroutes the datalayer for the whole process.\n"
+            f"Also collected {len(strangers)} file(s) outside it, first few: "
+            f"{strangers[:3]}\n"
+            "Run:  pytest hera/tests/unit -m unit\n"
+            "and:  pytest hera/tests --ignore=hera/tests/unit -m 'not notebook'\n"
+            "(or use `make test-unit` and `make test`)."
+        )
