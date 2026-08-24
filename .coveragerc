@@ -1,0 +1,23 @@
+[run]
+branch = True
+source = hera
+parallel = True
+omit =
+    hera/tests/*
+    hera/doc/*
+    hera/bin/*
+    */__pycache__/*
+
+[report]
+show_missing = True
+skip_covered = False
+exclude_lines =
+    pragma: no cover
+    if TYPE_CHECKING:
+    raise NotImplementedError
+    if __name__ == .__main__.:
+
+[paths]
+source =
+    hera
+    */hera
