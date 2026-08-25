@@ -1,4 +1,4 @@
-31
+32
 # The number on the first line is the combined line+branch coverage floor,
 # enforced in CI by `coverage report --fail-under`.  Raise it in the same PR
 # that raises coverage; never lower it.
@@ -119,3 +119,21 @@
 #   remaining gap is concentrated in openFoam (237 of 252 uncovered),
 #   meteorology (98), gaussian (80), experiment (68), GIS (63) and
 #   machineLearningDeepLearning (57, needs torch).
+#
+# After batch 13 (openFoam preprocessing base classes: OFObject, OFList,
+#                 preprocessOFObjects/utils.py):
+#     combined ............... 34%   (18592 stmts, 11730 missed)
+#   Floor raised to 32.
+#
+#   28 more hermetic tests and one more defect (B61: OFList cannot write
+#   anything in either its scalar or vector branch, because it calls
+#   self.getHeader() -- a method nothing in its class hierarchy defines --
+#   before either branch runs; nothing in the codebase constructs an OFList
+#   at all). The rest of the batch was substance without a new defect:
+#   OFObject's ten public methods (dimension bookkeeping, component-name
+#   derivation, per-processor data access, disk I/O) all behave correctly,
+#   and ParsedParameterFileToDataFrame's boundary-patch branching -- value
+#   present, value absent, value empty, processor patches, explicit patch
+#   lists -- was verified against a hand-built fake shaped like PyFoam's own
+#   parsed-file objects, since the stubbed PyFoam is a MagicMock and would
+#   not have exercised the real branches.

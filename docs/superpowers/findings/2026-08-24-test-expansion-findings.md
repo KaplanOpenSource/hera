@@ -814,3 +814,21 @@ estimatorCLS = pydoc.locate("pyriskassessment.datalayer.riskAreas.riskAreaAlgori
 תכונות ה-setter/getter של `riskAreaAlgorithm_Sweep` (`dxdy`, `workerCount`, `parallel`) עובדות וממירות טיפוסים נכון; `outlayers` הוא read-only כמתועד. `RiskToolkit.getAgent` מבחין נכון בין שם (str), תיאור (dict) וקלט לא-תקין; `loadAgent` מדביק name/version לתיאור לפני העברה ל-`loadData`. `loadData` מטפל נכון בקלט dict, JSON string, ומקרה "לא קובץ/dict" (raises).
 
 `riskAreaAlgorithm_Sweep.calculate()` ו-`RiskToolkit.analysis.getRiskAreas` לא נבדקו — הראשון דורש multiprocessing + geopandas מלא עם demog/isopleths, השני דורש סימולציית LSM חיה ו-agent דוז-רספונס מלא; שניהם מועמדים לטסט אינטגרציה, לא הרמטי.
+
+---
+
+## אצווה 13 — `openFoam` preprocessing, המשך (`OFObject`, `OFList`, `preprocessOFObjects/utils.py`)
+
+### B61. `OFList` הוא קוד מת — אף קורא לא בונה אותו, ואי אפשר לכתוב איתו כלום
+**קובץ:** `hera/simulations/openFoam/preprocessOFObjects/OFList.py:55` · **מקובע ב:** `test_openfoam_objects_base.py::TestOFListIsUnusable`
+
+```python
+fileStrContent = self.getHeader()
+```
+
+זו השורה הראשונה של `_writeNew` (וגם `_updateExisting` קוראת ל-`_writeNew`). אף מחלקה בהיררכיה של `OFList` (`OFList`, `OFObject`) מגדירה `getHeader` — היא מוגדרת רק על `OFField`, מחלקת-אח לא קשורה. שורה אחת אחרי זה, `self.columnNames` (בניגוד ל-`componentNames` שכן מוגדר) גם אף פעם לא נקבע. כל קריאה, גם בענף הסקלרי, קורסת ב-`AttributeError` לפני שההסתעפות סקלר/וקטור בכלל מגיעה להרצה. חיפוש בכל עץ `hera/simulations/openFoam` לא מוצא אף מקום שבונה `OFList(...)` — נראה שהמחלקה מעולם לא שולבה בזרימת העבודה בפועל.
+
+### מה שנמצא תקין
+`OFObject` — מחלקת הבסיס הטהורה של `OFField`/`OFList` — עובדת נכון על כל 10 המתודות הציבוריות שלה: וקטור הממדים (`getDimensions`/`dimensionsStr`/`dimensionsList`, כולל השלמת ברירת מחדל לאפס), שמות הרכיבים לפי סוג שדה (סקלר/וקטור/טנזור), גישה ל-`internalField`/`boundaryField`/`processors`/`processorItems` לפי פרוססור, אימות `fieldType` לא תקין, וכתיבה לדיסק (`writeToCase`) בפיצול single/multi-processor כולל ה-escaping של `"proc.*"`.
+
+`ParsedParameterFileToDataFrame` (ב-`preprocessOFObjects/utils.py`) — הפונקציה שמתרגמת שדה OpenFOAM מפורק לטבלת pandas — נבדקה מול אובייקט מזויף שמדמה את הצורה של PyFoam (`obj['key'].val`), בגלל שה-PyFoam המסוטב הוא MagicMock ולא היה מפעיל את ההסתעפויות האמיתיות. כל ההסתעפויות עובדות נכון: אינדקס פרוססור לשדה הפנימי, שורה נפרדת לכל boundary patch עם `value`, שורת NaN ל-patch בלי `value` (כמו `zeroGradient`), דילוג מלא על patch עם `value` ריק, סינון patches של פרוססור (`proc*`) כברירת מחדל, וכיבוד `patchNameList` מפורש. `extractFieldFile` עוטף כשל בפריסה כ-`ValueError` (נבדק ע"י monkeypatch ל-`ParsedParameterFile` עצמה, כי הסטאב לא נכשל על נתיב לא קיים).
