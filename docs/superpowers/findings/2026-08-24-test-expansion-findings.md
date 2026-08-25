@@ -570,3 +570,24 @@ generate_solid_stl(function, x_range=(minx,maxx), y_range=(miny,maxy), resolutio
 אורך החספוס האווירודינמי מזין ישירות את פרופיל הרוח, ומשם את כל חישוב הפיזור. קורא שמגיע לענף `type_name="IGBP"` מקבל **סימולציה שגויה מהותית** — שגיאה של פי 1300 על שלג וקרח אינה אי-דיוק אלא מספר אחר לגמרי.
 
 שני המסלולים נגישים; מה שמתקבל תלוי בארגומנט `type_name`.
+
+---
+
+## אצווה 8 — `measurements/experiment`
+
+### B44. `Parser_TOA5.parse` הוא stub שמחזיר `None` בשקט
+**קובץ:** `hera/measurements/experiment/parsers.py:359` · **מקובע ב:** `test_experiment_parsers.py::TestTOA5Stub`
+
+```python
+def parse(self, file):
+    """..."""
+    pass
+```
+
+גוף ריק, ולכן כל קריאה מחזירה `None` — גם על נתיב שאינו קיים. לא מנתח ולא מסרב. הדוקסטרינג מתעד את הפרמטר ואינו מבטיח דבר על ההחזרה. **קיים parser אמיתי ל-TOA5** ב-`meteorology/highfreqdata/parsers/TOA5.ASCIIParser`, ולכן ה-stub אינו המימוש היחיד אלא כפילות ריקה.
+
+### המודול כולו יתום
+`hera/measurements/experiment/parsers.py` (41 פונקציות) **אינו מיובא מאף מקום** בעץ הקוד — נבדק בסריקה של כל קבצי ה-`.py`. קוד ה-dispatch שהיה בונה נתיבי `Parser_{name}` נמצא ב-`lowfreqdata/toolkit.py:116,188` **כהערה מוערת**. ה-parsers החיים יושבים ב-`meteorology/highfreqdata/parsers/`. מועמד למחיקה, אבל ראוי לוודא שאין צרכן חיצוני.
+
+### מה שנמצא תקין
+קונבנציית ה-factory ש-`CLAUDE.md` דורשת עובדת: `pydoc.locate("...Calculator%s")` פותר את `CalculatorHaber`, `CalculatorTenBerge` ו-`CalculatorMaxConcentration`, מחזיר `None` (ולא זורק) לשם לא מוכר — שזה בדיוק החוזה ש-`Injury.py:57` מסתמך עליו — והמחלקה שנפתרה ניתנת לבנייה ולשימוש.
