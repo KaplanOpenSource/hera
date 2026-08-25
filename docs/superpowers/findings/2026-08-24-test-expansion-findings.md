@@ -419,3 +419,61 @@ def height(self):
 **קובץ:** `hera/simulations/hydrodynamics/nearWallFlow.py:97` · **מקובע ב:** `test_simulations_nearwallflow.py::test_the_bulk_velocity_changes_the_answer`
 
 הדוקסטרינג: "Return the reynolds based on the **Um** and hydraulic diameter". הגוף מחשב `ustar*hydraulicHeight/nu` ואינו קורא את `Um` כלל. זהו מספר ריינולדס של חיכוך, לא של הזרימה הממוצעת, ושינוי `Um` אינו משנה דבר.
+
+---
+
+## אצווה 5 — `riskassessment` + `presentation`
+
+### B36. ברירת המחדל של יחידות ל-pandas אינה ניתנת להשגה
+**קובץ:** `hera/riskassessment/agents/effects/Calculator.py` · **מקובע ב:** `test_risk_calculator.py::TestPandasInput::test_the_documented_default_units_apply`
+
+```python
+inUnits = concentrationField.attrs[field] if hasattr(concentrationField, "attrs") else 1*(ureg.mg/ureg.m**3)
+```
+
+הבדיקה `hasattr(..., "attrs")` נכתבה כשרק ל-xarray היה `.attrs`. **pandas מגרסה 1.0 מספק `.attrs` גם הוא**, ולכן DataFrame נכנס למסלול ה-xarray ומבצע `df.attrs[None]` (כי `field=None` בברירת המחדל של Haber) → `KeyError: None`. ברירת המחדל המתועדת — "The default units of pandas are mg/m**3" — לא ניתנת להשגה.
+
+### B37. מסלול ה-pandas מחזיר NaN בלבד
+**קובץ:** `hera/riskassessment/agents/effects/Calculator.py` · **מקובע ב:** `test_risk_calculator.py::TestPandasInput::test_a_constant_exposure_accumulates_linearly`
+
+```python
+dt_min = concentrationField.reset_index()[time].diff().apply(lambda x: x.seconds)/60.
+return (concentrationField[:-1].fillna(0)*dt_min[1:]).cumsum()*...
+```
+
+`concentrationField[:-1]` שומר `DatetimeIndex`; `dt_min[1:]` נושא את ה-`RangeIndex` שנוצר מ-`reset_index()`. pandas מיישר לפי אינדקס, אין חפיפה, והתוצאה **כולה NaN** (וגם באורך N−1 במקום N). גם עם `inUnits` מפורש. כלומר **`CalculatorHaber.calculate` אינו מסוגל להחזיר מספר עבור pandas** — למרות שהדוקסטרינג מפרט את המסלול ואף מבטיח "For pandas, we do not assume that the time is equispaced".
+
+מסלול ה-xarray, לעומת זאת, **נכון לחלוטין**: C=10 mg/m³ בצעדי דקה נותן 10,20,30,40,50, ו-ten Berge עם n=1 זהה ל-Haber.
+
+### B38. `InjuryLevelThreshold` נכשל באופן אטום על סף מספרי
+**קובץ:** `hera/riskassessment/agents/effects/InjuryLevel.py:341` · **מקובע ב:** `test_risk_injurylevel.py::test_a_plain_number_is_accepted_like_its_sibling_takes_tl50`
+
+`ureg(parameters["threshold"])` — `parse_expression` של pint מקבל מחרוזות בלבד:
+
+| קלט | תוצאה |
+|---|---|
+| `'50 mg/m**3'` | ✅ |
+| `'50'` | `DimensionalityError` (הודעה סבירה) |
+| `50.0` | `AttributeError: 'float' object has no attribute 'replace'` |
+
+המחלקה האחות `InjuryLevelLognormal10DoseResponse` **כן** מקבלת `TL_50=100.0` דרך `tounit`, והדוקסטרינג כאן אומר רק "Must include ``threshold``". יש גם שורה מתה: `thr = ureg(parameters["threshold"])` — מחושבת, לא בשימוש, ומחושבת שוב בשורה הבאה.
+
+### B39. B12 עם קורבן קונקרטי — `getPercent` זורק על עומס רעילות מספרי
+**קובץ:** `hera/riskassessment/agents/effects/InjuryLevel.py:351` · **מקובע ב:** `test_risk_injurylevel.py::test_a_plain_numeric_toxic_load_is_evaluated`
+
+```python
+ret = numpy.array([1 if tounit(x,self.units) > threshold else 0 for x in ToxicLoad])
+```
+
+ה-`threshold` נבנה ב-`ureg(...)` של hera; `tounit(x, ...)` על מספר רגיל מייצר Quantity ב-registry הדיפולטיבי של pint (**זהו B12**). ההשוואה חוצה registries:
+
+```
+getPercent(10.0)                    -> ValueError: Cannot operate with Quantity
+                                        and Quantity of different registries
+getPercent(10*ureg.mg/ureg.m**3)    -> 0   (עובד)
+```
+
+**זו ההוכחה ש-B12 אינו אי-עקביות רדומה אלא באג פעיל:** צורת הקריאה הרגילה — עומס רעילות כמספר — אינה ניתנת להערכה כלל. תיקון B12 מתקן גם את זה.
+
+### מה שנמצא תקין
+מודל התגובה הלוגנורמלי מדויק: `getPercent(TL_50) = 0.5` בדיוק, `getToxicLoad` הופכית מדויקת בשבע נקודות, מונוטוני וחסום ב-[0,1], ו-`TL/10` ו-`10·TL` נותנים 0.02275 ו-0.97725 — בדיוק ±2σ עבור σ=0.5 בבסיס 10. גם חוקי Haber ו-ten Berge מדויקים במסלול ה-xarray.
