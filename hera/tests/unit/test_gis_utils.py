@@ -99,17 +99,24 @@ class TestConvertCRS:
 
 @pytest.mark.unit
 class TestImportSideEffects:
-    """B42: one module runs a demo at import time and writes 8 MB to the CWD."""
+    """B42, fixed: the demo is behind a __main__ guard.
+
+    It used to run on import, printing to stdout and writing an 8.1 MB
+    test1.stl into the current directory.
+    """
 
     SOURCE = pathlib.Path("hera/measurements/GIS/raster/hill2stl.py")
 
-    def test_the_driver_code_sits_at_module_level(self):
+    def test_the_driver_code_is_guarded(self):
         source = self.SOURCE.read_text(encoding="utf-8")
-        assert "# Run the function" in source
-        assert "generate_solid_stl(function" in source
+        assert 'if __name__ == "__main__":' in source
+        assert "generate_solid_stl(" in source
 
-    def test_the_output_filename_is_hard_coded(self):
-        assert "filename='test1.stl'" in self.SOURCE.read_text(encoding="utf-8")
+    def test_the_generator_is_still_callable_as_a_function(self):
+        """Guarding the demo must not remove the API it demonstrates."""
+        from hera.measurements.GIS.raster.hill2stl import generate_solid_stl
+
+        assert callable(generate_solid_stl)
 
     def test_the_package_import_does_not_reach_it(self):
         """Mitigating detail: only a direct import of hill2stl triggers it."""
@@ -117,14 +124,6 @@ class TestImportSideEffects:
 
         assert gis is not None
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B42: importing hera.measurements.GIS.raster.hill2stl executes a "
-               "demo at module level -- it prints to stdout and writes an 8.1 MB "
-               "test1.stl into the current working directory. Anything that walks "
-               "the package tree (docs builds, IDE indexing, collection) leaves "
-               "the file behind. See the consolidated findings issue.",
-    )
     def test_importing_it_writes_nothing(self, tmp_path, monkeypatch):
         import importlib
         import sys

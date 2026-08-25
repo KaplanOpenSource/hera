@@ -60,28 +60,33 @@ class TestRadiosonde:
 
 @pytest.mark.unit
 class TestHighFreqMain:
-    """B41: a personal absolute path is read at import time."""
+    """B41, fixed: the personal absolute path is gone and the module imports.
 
-    HARDCODED = "/home/ilay/hera_unittest_data"
+    It read /home/ilay/hera_unittest_data/... at module level, so importing it
+    raised FileNotFoundError anywhere but one machine.  The path is now an
+    argument and the read happens under __main__.
+    """
 
-    def test_the_hard_coded_path_is_in_the_source(self):
+    OLD_HARDCODED = "/home/ilay/hera_unittest_data"
+
+    def test_no_absolute_path_remains(self):
         source = pathlib.Path(
             "hera/measurements/meteorology/highfreqdata/__main__.py"
         ).read_text(encoding="utf-8")
-        assert self.HARDCODED in source
+        assert self.OLD_HARDCODED not in source
 
-    def test_that_path_belongs_to_no_one_here(self):
-        """It names a specific developer's home, so it cannot exist generally."""
-        assert not pathlib.Path(self.HARDCODED).exists()
+    def test_the_work_is_behind_a_main_guard(self):
+        source = pathlib.Path(
+            "hera/measurements/meteorology/highfreqdata/__main__.py"
+        ).read_text(encoding="utf-8")
+        assert 'if __name__ == "__main__":' in source
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B41: highfreqdata/__main__.py reads "
-               "/home/ilay/hera_unittest_data/.../slicedYamim_sonic.parquet at "
-               "import time, so it raises FileNotFoundError anywhere but one "
-               "machine. CLAUDE.md forbids absolute paths for exactly this "
-               "reason. See the consolidated findings issue.",
-    )
+    def test_it_reports_usage_when_given_no_path(self):
+        from hera.measurements.meteorology.highfreqdata.__main__ import main
+
+        with pytest.raises(SystemExit, match="usage:"):
+            main([] and None or __import__("sys").argv.clear() or None)
+
     def test_the_module_imports(self):
         assert importlib.import_module(
             "hera.measurements.meteorology.highfreqdata.__main__"

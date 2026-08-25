@@ -615,7 +615,7 @@ class continuousReleaseGasCloud(abstractGasCloud):
         An xarray of concentrations at every grid-poit, which is the dosage of the instantaneous release,
         since we assume the release rate is constant.
         Here we take the concentration xarray that was claculated without the error function (erf).
-        """
+        r"""
         C_noQ = self.getDosage_inst_NoERF_noQ(numOfReflections=numOfReflections, DF=DF)
         return tonumber(self.sourceQ, ureg.mg/ureg.s)*C_noQ
 

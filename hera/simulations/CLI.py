@@ -182,7 +182,7 @@ def workflow_compareToDisk(arguments):
         if not os.path.isfile(outfileName):
             print(f"Workflow {sim.name} (file {outfileName} does not exist on the disk. use export to create it. ")
         else:
-            from ..utils import loadJSON,compareJSONS
+            from hera.utils import loadJSON, compareJSONS
             localWorkflow = wftk.getHermesWorkflowFromJSON(loadJSON(outfileName),name="Local", resource=outfileName)
             smName = sim.name
             sim.name = "DB"
@@ -233,7 +233,7 @@ def workflow_sync_to_db(arguments):
         if not os.path.isfile(outfileName):
             print(f"Workflow {sim.name} (file {outfileName}) does not exist on the disk. use export to create it.")
         else:
-            from ..utils import loadJSON,compareJSONS
+            from hera.utils import loadJSON, compareJSONS
             import pandas
             localWorkflow = wftk.getHermesWorkflowFromJSON(loadJSON(outfileName),name="Local", resource=outfileName)
             simName = sim.name
@@ -363,7 +363,7 @@ def batch_delete_workflows(arguments):
 
 
 def _confirm_project_name(arguments, logger):
-    from ..utils import loadJSON
+    from hera.utils import loadJSON
     if arguments.projectName is None:
         logger.debug(
             f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
@@ -499,7 +499,7 @@ def workflowNodes_list(arguments):
 
     if os.path.exists(arguments.workflowName) and not os.path.isdir(arguments.workflowName):
             from hermes import workflow
-            from ..utils import loadJSON
+            from hera.utils import loadJSON
             json = loadJSON(arguments.workflowName)
             hermesObject = workflow(json, Resource_path=arguments.workflowName)
     else:
@@ -547,7 +547,7 @@ def workflowNodes_listParameters(arguments):
 
     if os.path.isfile(arguments.workflowName):
             from hermes import workflow
-            from ..utils import loadJSON
+            from hera.utils import loadJSON
             json = loadJSON(arguments.workflowName)
             hermesObject = workflow(json, Resource_path=arguments.workflowName)
     else:
@@ -614,7 +614,7 @@ def workflow_compare(arguments):
         output = res.to_csv()
         ext = "csv"
     else:
-        from ..utils import loadJSON
+        from hera.utils import loadJSON
         output = json.dumps(loadJSON(res.to_json()),indent=4)
         ext = "json"
 

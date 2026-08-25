@@ -19,16 +19,20 @@ IMPORTABLE = [
     "hera.simulations.analysis.errorCalculation",
 ]
 
-# Blocked by B31: `from ..utils import tonumber, tounit` resolves to
-# hera.simulations.utils, whose __init__ is empty.  The names live in
-# hera.utils, three levels up.
-BROKEN_BY_RELATIVE_IMPORT = [
+# B31, fixed: these did `from ..utils import tonumber, tounit`, which resolved
+# to hera.simulations.utils -- an empty package.  The names live in hera.utils,
+# and the imports now say so.
+FIXED_BY_THE_IMPORT_CORRECTION = [
     "hera.simulations.evaporation",
     "hera.simulations.evaporation.models",
-    "hera.simulations.evaporation.monaghan",
     "hera.simulations.deposition",
     "hera.simulations.deposition.models",
 ]
+
+# monaghan.py needs pyriskassessment, a private package declared in
+# requirements.txt:372 and installed from an internal index.  Absent here, so
+# skipped rather than failed -- the same treatment GFS.py gets for sklearn.
+NEEDS_A_PRIVATE_PACKAGE = ["hera.simulations.evaporation.monaghan"]
 
 
 @pytest.mark.unit
@@ -38,8 +42,8 @@ def test_the_module_imports(moduleName):
 
 
 @pytest.mark.unit
-class TestTheBrokenRelativeImport:
-    """B31, isolated to its mechanism so the fix is unambiguous."""
+class TestTheRelativeImportFix:
+    """B31: the mechanism, kept so a regression is recognisable."""
 
     def test_the_names_live_in_the_top_level_utils(self):
         """Where the three broken modules should have imported from."""
@@ -55,23 +59,22 @@ class TestTheBrokenRelativeImport:
         assert not hasattr(simulationsUtils, "tonumber")
         assert not hasattr(simulationsUtils, "tounit")
 
-    def test_a_sibling_module_shows_the_correct_form(self):
-        """DropletCloud.py uses three dots and works; these three use two."""
-        source = __import__("pathlib").Path(
-            "hera/simulations/gaussian/DropletCloud.py"
-        ).read_text(encoding="utf-8")
-        assert "from ...utils import tounit,tonumber" in source
+    def test_no_module_still_uses_the_wrong_level(self):
+        """Two dots would resolve to the empty hera.simulations.utils again."""
+        import pathlib
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B31: evaporation/models.py:3, evaporation/monaghan.py:5 and "
-               "deposition/models.py:2 do `from ..utils import tonumber, tounit`, "
-               "which resolves to hera.simulations.utils -- an empty package. The "
-               "names are in hera.utils, so the import needs three dots, as "
-               "DropletCloud.py already uses. Both packages are therefore "
-               "unimportable in any installation. "
-               "See the consolidated findings issue.",
-    )
-    @pytest.mark.parametrize("moduleName", BROKEN_BY_RELATIVE_IMPORT)
+        offenders = [
+            str(path)
+            for path in pathlib.Path("hera/simulations").rglob("*.py")
+            if "from ..utils import" in path.read_text(errors="replace")
+        ]
+        assert offenders == []
+
+    @pytest.mark.parametrize("moduleName", FIXED_BY_THE_IMPORT_CORRECTION)
     def test_the_physics_packages_import(self, moduleName):
+        assert importlib.import_module(moduleName) is not None
+
+    @pytest.mark.parametrize("moduleName", NEEDS_A_PRIVATE_PACKAGE)
+    def test_the_rest_imports_once_its_private_dependency_is_present(self, moduleName):
+        pytest.importorskip("pyriskassessment")
         assert importlib.import_module(moduleName) is not None

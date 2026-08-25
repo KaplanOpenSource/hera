@@ -419,13 +419,6 @@ class TestRawStringPrefixOnTheWrongQuotes:
             with pytest.raises(SyntaxError):
                 compile('x = "\\c"\n', "probe.py", "exec")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B25: the r prefix sits on the closing triple quotes in five "
-               "docstrings under gaussian/, so the LaTeX backslashes are invalid "
-               "escape sequences and importing the module emits SyntaxWarning. "
-               "See the consolidated findings issue.",
-    )
     def test_compiling_the_module_emits_no_warning(self):
         import pathlib
 

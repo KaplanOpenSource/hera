@@ -92,10 +92,18 @@ def compute_normal(v1, v2, v3):
     normal = normal / np.linalg.norm(normal)  # Normalize
     return normal
 
-# Run the function
-minx=-2
-maxx=2
-miny=-3
-maxy=3
-filename='test1.stl'
-generate_solid_stl(function, x_range=(minx, maxx), y_range=(miny, maxy), resolution=100, filename=filename)
+# Demo driver.  Guarded so that importing this module does not run it: it
+# used to execute on import, printing to stdout and writing an 8.1 MB
+# test1.stl into whatever directory the process happened to be in -- which
+# anything that walks the package tree (docs builds, IDE indexing, test
+# collection) would trigger.
+if __name__ == "__main__":
+    minx = -2
+    maxx = 2
+    miny = -3
+    maxy = 3
+    filename = "test1.stl"
+    generate_solid_stl(
+        function, x_range=(minx, maxx), y_range=(miny, maxy),
+        resolution=100, filename=filename,
+    )
