@@ -202,3 +202,20 @@
 #   stability chain on both singlePointTurbulenceStatistics and
 #   MeanDataCalculator, the sonic/TRH normalisation helpers, and
 #   InMemoryRawData's HDF round trip -- checked out correct.
+#
+# After batch 17 (measurements/GIS, partial: hill2stl, stlFactory,
+#                 TilesToolkit's tile math, one LandCoverToolkit method):
+#     combined ............... 37%   (18592 stmts, 11104 missed)
+#     function coverage ....... 629 of 1429 public functions/methods (44.0%),
+#                               up from 616 (43.1%) after batch 16.
+#   Floor UNCHANGED at 36. One new defect (B74: vectorToSTL's dask branch
+#   references a name this module never imports, so anything that isn't a
+#   GeoDataFrame or plain DataFrame raises NameError instead of a clean
+#   rejection) plus a noted-but-not-filed duplicate @staticmethod definition
+#   in LandCoverToolkit (same formula both times, so no behavioural defect).
+#   Deliberately partial: buildings/demography/topography's 34 functions
+#   need real shapefiles or DEM rasters, tiles.py's getImageFromCorners/
+#   listImages need a live tile server or stored imagery, and GIS/CLI.py's
+#   6 commands are thin argparse wrappers over those toolkits -- all left
+#   for a future pass rather than pursued at the expense of the batches
+#   still ahead.

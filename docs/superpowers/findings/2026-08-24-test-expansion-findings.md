@@ -975,3 +975,25 @@ while 'zoL_Sonic%s' % i in self._TemporaryData.columns:
 
 ### מה שנמצא תקין
 כל שרשרת החישוב הטהורה ב-`singlePointTurbulenceStatistics` — `sigmaH`, `sigmaHOverUstar/sigmaWOverUstar`, `wind_dir_std`, `sigmaHOverWindSpeed/sigmaWOverWindSpeed`, `w3/w4/w3OverSigmaW3`, `wTKE`, `uStarOverWindSpeed`, `Rvw/Ruw` (חסומים ב-±1), `zOverL_Sonic`, `Lminus1_masked_Sonic` (מסנן נכון לפי סף wT/Ustar), ו-`StabilityMOLength_Sonic` — כולם נכונים על נתוני רוח מלאכותיים. כך גם השרשרת המקבילה ב-`MeanDataCalculator` (horizontalSpeed, sigma, Ustar, sigmaH/UOverUstar, alignedStress עם שימור trace, absWOverSigmaW, effectivez, zOverL, StabilityMOLength, Rvw/Ruw). `AveragingCalculator.getData` מחזיר resample נכון. פונקציות הנרמול (`normalise_sonic_df`, `normalise_trh_df`, `detect_device_type`) עובדות נכון על שינוי שם עמודות, חילוץ metadata, הטלה ל-float, ו-DatetimeIndex — כולל fallback עדין כשאין אינדקס תקין. `InMemoryRawData.to_hdf`/`read_hdf` עובדים נכון (round-trip data+attrs) כשמותקן `pytables`.
+
+---
+
+## אצווה 17 — `measurements/GIS` (חלקי: hill2stl, stlFactory, TilesToolkit, LandCoverToolkit)
+
+### B74. `vectorToSTL` — סניף dask שקורא לשם שלא מיובא בקובץ
+**קובץ:** `hera/measurements/GIS/utils.py:389` · **מקובע ב:** `test_gis_utils_stlfactory.py::TestVectorToSTLDispatch`
+
+```python
+elif isinstance(gpandas, pandas.DataFrame) or isinstance(gpandas, dask.dataframe.DataFrame):
+```
+
+`dask` אף פעם לא מיובא במודול הזה. כל עוד הקלט הוא `geopandas.GeoDataFrame` או `pandas.DataFrame` רגיל, ה-`or` הקצר-מעגל מונע מהביטוי השני להיבדק — אבל כל קלט שהוא לא אחד מהשניים (כולל `dask.dataframe.DataFrame` אמיתי, המתועד כנתמך במקביל ל-`rasterizePandas`) קורס ב-`NameError: name 'dask' is not defined` במקום דחייה נקייה.
+
+### הערת קוד: `roughnesslength2sandgrainroughness` מוגדרת פעמיים באותה מחלקה
+**קובץ:** `hera/measurements/GIS/raster/landcover.py:561,717` — שתי ההגדרות `@staticmethod` בתוך `LandCoverToolkit` מחשבות את אותה נוסחה (`z0*30`, לפי Desmond et al. 2017 eq. 5). ההגדרה השנייה (717) מחליפה את הראשונה בסמנטיקת גוף המחלקה הרגילה — ההגדרה הראשונה היא קוד מת, אבל ההתנהגות בפועל לא נפגעת (שתיהן מחשבות את אותו הדבר). לא נפתח כממצא B נפרד כי אין כשל התנהגותי.
+
+### מה שנמצא תקין
+`hill2stl.py` (4 פונקציות): `compute_normal` מחזיר וקטור יחידה מאונך לשני הצלעות; `write_triangle`/`generate_solid_stl` מייצרים STL ASCII תקין (facet/endfacet מאוזנים, בסיס שטוח מתחת למשטח). `stlFactory.heightColumnsNames` (getter/setter) ו-`rasterizeGeopandas` — אינטרפולציה לינארית נכונה מקווי-מפלס (LineString) לרשת רגולרית, מכבדת שם עמודת גובה מותאם. `TilesToolkit` — מתמטיקת Slippy Map סטנדרטית: `tileScaleAtLatLonZoom` נחצה בכל רמת zoom ומצטמצם לקוטבים, `deg2tile`/`tile2deg` הם היפוכים מקורבים, `doctype` ו-`setDefaultTileServer` (נשמר ב-config הפרויקט) עובדים נכון.
+
+### נדחה לעבר עתידי — לא נבדק
+`vector/buildings/{analysis,presentation,toolkit}.py` (18), `vector/{demography,topography,toolkit}.py` (16), ו-`raster/tiles.py`'s `getImageFromCorners`/`listImages`/`presentation.plot` — דורשים shapefiles/DEM אמיתיים, שרת tile חי, או נתוני תמונה אמיתיים לבדיקה משמעותית. `GIS/CLI.py` (6 פקודות argparse) — עטיפות דקות מעל הטולקיטים שלמעלה, לא נבדק בנפרד.
