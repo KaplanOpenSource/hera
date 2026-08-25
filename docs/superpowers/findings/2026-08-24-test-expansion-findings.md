@@ -21,7 +21,28 @@ station__in=["A","C"]  ->  {'desc__station__in__0': 'A', 'desc__station__in__1':
 
 השאילתה מחפשת מסמך שבו `desc.station.in.0 == "A"` — חסר משמעות. **אפס תוצאות, בלי שגיאה.** אומת ש-mongomock ו-MongoDB תומכים ב-`$in` על שדה מקונן (שאילתת pymongo ישירה החזירה 2 מתוך 3), כלומר הבאג ב-hera ולא במנוע האחסון.
 
-**השפעה אמיתית:** `hera/measurements/meteorology/highfreqdata/analysis/abstractcalculator.py:172,190` מעבירים `params__all=self._AllCalculatedParams`, שהוא רשימה (שורה 58 מאתחלת ל-`[]`, שורה 160 עושה `extend`). חיפוש ה-cache מעולם לא מוצא התאמה, ולכן סטטיסטיקות הטורבולנציה בתדר גבוה מחושבות מחדש בכל קריאה במקום להיקרא מאוסף ה-Cache.
+**השפעה אמיתית — תוקן באצווה 6 אחרי בדיקה בהרצה.** הניסוח המקורי כאן טען ש"חיפוש ה-cache מעולם לא מוצא התאמה". **זה היה חזק מדי.** הבדיקה בפועל מראה ש-mongoengine מזהה את `all` כאופרטור גם כשאינו בסוף המפתח, ומוציא אותו:
+
+```
+params__all=["u","v"]  ->  desc__params__all__0:"u", desc__params__all__1:"v"
+                       ->  {"desc.params.0": {"$all": ["u"]},
+                            "desc.params.1": {"$all": ["v"]}}
+```
+
+כלומר `$all` — שמוגדר כהכלה **בלתי-תלוית-סדר** — מתדרדר ל**התאמת קידומת לפי מיקום**. מסמך שמאוחסן עם `params=["u","v","w"]`:
+
+| שאילתה | תוצאה |
+|---|---|
+| `params__all=["u"]` | ✅ מתאים |
+| `params__all=["u","v"]` | ✅ מתאים |
+| `params__all=["u","v","w"]` | ✅ מתאים |
+| `params__all=["v"]` | ❌ **מחטיא** — למרות ש-`v` קיים |
+| `params__all=["w"]` | ❌ **מחטיא** |
+| `params__all=["v","u"]` | ❌ **מחטיא** — רק הסדר שונה |
+
+ההשלכה על `abstractcalculator.py:172,190`: `_AllCalculatedParams` נבנה ב-`extend()` לפי סדר הבקשות, ולכן ה-cache **פוגע רק כשרשימת הפרמטרים המבוקשת היא קידומת של המאוחסנת באותו סדר**. התנהגות חלקית ותלוית-סדר, לא כישלון מוחלט — וההחטאה שקטה לגמרי.
+
+**מקובע ב:** `test_meteorology_cache_query.py` (שני הכיוונים: מה שכן מתאים ומה שמחטיא).
 
 ### P2. `toAzimuthAngle` לא מנרמל קלט
 **קובץ:** `hera/utils/angle.py:4` · **מקובע ב:** `test_utils_angle.py::test_normalises_input_outside_one_cycle`
