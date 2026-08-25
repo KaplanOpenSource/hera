@@ -634,3 +634,81 @@ ModuleNotFoundError: No module named 'torch.utils'; 'torch' is not a package
 MagicMock ב-`sys.modules` חסר `__path__`, ולכן ייבוא תת-מודול נכשל. הפתרון הוא טיפול namespace-package כמו ש-PyFoam מקבל — בר-ביצוע, אבל היה מחוץ להיקף. `torch` מוצהר ב-`requirements.txt`, ולכן ב-CI קיים הדבר האמיתי.
 
 הנימוק תוקן ב-`_stubs.py` והמנגנון האמיתי מקובע בטסט.
+
+---
+
+## אצווה 10 — `evaporation` · `deposition` (הקוד שהתיקון של B31 שחרר)
+
+**הערה מקדימה:** שני המודולים האלה **לא היו ניתנים לייבוא** עד תיקון B31. כלומר אף אחד מהם לא רץ מעולם, וששת הממצאים הבאים הם התוצאה הישירה של פתיחתם לבדיקה.
+
+### B46. `diameter.setter` קרוי `ustar` — ודורס את ה-property `ustar`
+**קובץ:** `hera/simulations/deposition/models.py:44-46` · **מקובע ב:** `test_deposition_models.py::TestTangledProperties`
+
+```python
+@property
+def diameter(self): return self._diameter
+
+@diameter.setter
+def ustar(self,newdiameter):        # <-- השם ustar
+    self._diameter=newdiameter
+```
+
+`@diameter.setter` מייצר property חדש, וההשמה שלו לשם `ustar` **דורסת את ה-property `ustar`** שהוגדר למעלה. אומת:
+
+| פעולה | בפועל |
+|---|---|
+| `obj.ustar` | מחזיר `_diameter` |
+| `obj.ustar = 5` | כותב ל-`_diameter` |
+| `obj.diameter = 7` | `AttributeError` — אין setter |
+
+`depositionRate_Petroff` עושה `ustar = self.ustar`, כלומר **מחשב שיקוע יבש עם קוטר החלקיק במקום מהירות החיכוך** — אורך במקום מהירות. העברת `ustar` לבנאי אינה משפיעה על התוצאה בכלל.
+
+### B47. `heatFlux.setter` כותב ל-`_ustar`
+**קובץ:** `hera/simulations/deposition/models.py:37-38`
+
+```python
+@heatFlux.setter
+def heatFlux(self,newheatFlux):
+    self._ustar=newheatFlux        # <-- השדה הלא נכון
+```
+
+`obj.heatFlux = 42` משאיר את `_heatFlux` על 0.1 ו**דורס את `_ustar`**.
+
+### B48. קצב השיקוע אינו תלוי בחספוס פני השטח
+**מקובע ב:** `test_deposition_models.py::test_the_rate_responds_to_the_surface_roughness`
+
+`zrough=0.001` ו-`zrough=0.5` נותנים **תוצאה זהה ביט-אחר-ביט** (`0.0000079953`), גם ב-`ustar` ריאלי. הפרמטר `surface` — הסיבה שהמחלקה מקבלת אותו בכלל — אינו משפיע על התשובה.
+
+### B49. קצב השיקוע אינו תלוי בצפיפות החלקיק
+**מקובע ב:** `test_deposition_models.py::test_the_rate_responds_to_particle_density`
+
+`500` ו-`5000 kg/m³` נותנים תוצאה זהה ביט-אחר-ביט, למרות ששיקוע גרביטציוני תלוי בצפיפות ישירות. אומת ב-`ustar` ריאלי כדי לשלול תלות ב-B46.
+
+### B50. `evaporationModels` אינו ניתן לבנייה
+**קובץ:** `hera/simulations/evaporation/models.py:71` · **מקובע ב:** `test_evaporation_models.py::test_the_class_can_be_constructed`
+
+```python
+self._agent = RiskToolkit.getAgent(agent)
+```
+
+`getAgent` היא **מתודת מופע** בחתימה `(self, nameOrDesc, version=None)`. הקריאה על המחלקה קושרת את ה-agent ל-`self` ומשאירה את `nameOrDesc` חסר:
+
+```
+TypeError: RiskToolkit.getAgent() missing 1 required positional argument: 'nameOrDesc'
+```
+
+**כל בנייה נכשלת.** הטסטים בונים את האובייקט ישירות כדי לבדוק את הקורלציות, שהן טהורות ונכונות.
+
+### B51. `flux` אינו יכול לרוץ — יחידות מופשטות ואז נדרשות
+**קובץ:** `hera/simulations/evaporation/models.py:122` · **מקובע ב:** `test_evaporation_models.py::TestEvaporativeFlux`
+
+`flux_US` עושה `temperature = tonumber(temperature, ureg.K)` — מספר חשוף — ואז מעביר אותו ל-`agent.physicalproperties.vaporPressure`, שמתחיל ב-`unumToPint(temperature).m_as(ureg.kelvin)`. מספר חשוף הוא dimensionless:
+
+```
+DimensionalityError: Cannot convert from 'dimensionless' to 'kelvin'
+```
+
+לכל קלט. חישוב שטף האידוי — הפונקציה המרכזית של המודול — אינו עובד.
+
+### מה שנמצא תקין
+הקורלציות עצמן מדויקות. FSG ו-EPA תואמים את צורתן המפורסמת, ומדד החזקה משוחזר מ-log-log ל-`1.75` בדיוק. צמיגות האוויר `1.8205e-2·√(T/293)` נותנת את ערך הייחוס ב-293K במדויק, וכפל T ב-2 מכפיל אותה ב-`√2`. Reynolds ליניארי במהירות ובאורך, ו-Schmidt שווה ל-`ν/D` המחושב עצמאית.
