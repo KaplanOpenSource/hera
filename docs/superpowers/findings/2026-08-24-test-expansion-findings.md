@@ -591,3 +591,46 @@ def parse(self, file):
 
 ### מה שנמצא תקין
 קונבנציית ה-factory ש-`CLAUDE.md` דורשת עובדת: `pydoc.locate("...Calculator%s")` פותר את `CalculatorHaber`, `CalculatorTenBerge` ו-`CalculatorMaxConcentration`, מחזיר `None` (ולא זורק) לשם לא מוכר — שזה בדיוק החוזה ש-`Injury.py:57` מסתמך עליו — והמחלקה שנפתרה ניתנת לבנייה ולשימוש.
+
+---
+
+## אצווה 9 — `openFoam` · `LSM` · `mlDL` · `WRF`
+
+### B45. `prepareParams` משנה את התבנית שהיא מקבלת
+**קובץ:** `hera/simulations/LSM/template.py:335` · **מקובע ב:** `test_lsm_template_params.py::TestTheTemplateIsNotMutated`
+
+```python
+params = template_desc.get('params', {})   # מחזיר את המילון עצמו
+params.update(paramsToPrepare)             # וכותב לתוכו
+```
+
+הפרמטרים של הקורא **נכתבים לתוך המילון של התבנית**. אומת:
+
+```
+template = {"params": {"a": 1}, "units": {}}
+prepareParams(template, {"b": 2})   ->  template["params"] == {"a": 1, "b": 2}
+prepareParams(template, {"c": 3})   ->  הריצה השנייה רואה גם את b
+```
+
+תבנית LSM נועדה לשימוש חוזר בין סימולציות. אחרי הריצה הראשונה היא נושאת את הפרמטרים שלה, וכל ריצה נוספת מקבלת אותם בשקט. אותו דפוס כמו B19 ב-`abstractToolkit`.
+
+### הודעות ל-stdout בזמן ייבוא
+`hera/simulations/WRF/wrfDatalayer.py:5,12` — שני `print` חשופים בזמן ייבוא במקום `warnings.warn`. גרסה מתונה של B42: לא כותב קבצים, אבל מזהם את הפלט ואינו ניתן לסינון או לניתוב דרך מנגנון ה-logging.
+
+---
+
+## תיקון עצמי: הנימוק שרשמתי ב-Phase 0 לגבי `torch` היה שגוי
+
+**מה שרשמתי** (ב-`_stubs.py`, בתוכנית Phase 0 ובסיכומים): "modelContainer.py subclasses `torch.nn.Module`, and subclassing a MagicMock raises TypeError".
+
+**מה שנכון:** `modelContainer.py` **אינו** יורש מ-`torch.nn.Module`. הוא מייבא `LightningModuleHera` — מחלקה רגילה — ומשתמש ב-`isinstance` בלבד; האזכור של `nn.Module` נמצא בדוקסטרינג.
+
+**הסיבה האמיתית ש-stub ל-torch נכשל,** שנבדקה בהרצה:
+
+```
+ModuleNotFoundError: No module named 'torch.utils'; 'torch' is not a package
+```
+
+MagicMock ב-`sys.modules` חסר `__path__`, ולכן ייבוא תת-מודול נכשל. הפתרון הוא טיפול namespace-package כמו ש-PyFoam מקבל — בר-ביצוע, אבל היה מחוץ להיקף. `torch` מוצהר ב-`requirements.txt`, ולכן ב-CI קיים הדבר האמיתי.
+
+הנימוק תוקן ב-`_stubs.py` והמנגנון האמיתי מקובע בטסט.

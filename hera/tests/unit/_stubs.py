@@ -5,9 +5,18 @@ evtk at module level.  Registering placeholder modules before those imports
 run lets the surrounding pure-Python logic be tested without the external
 binaries.
 
-Deliberately NOT stubbed: ``torch``.  modelContainer.py subclasses
-``torch.nn.Module``, and subclassing a MagicMock raises TypeError.  Batch 9
-addresses that separately.
+Deliberately NOT stubbed: ``torch``.  Verified in batch 9: a leaf MagicMock
+is not enough, because modelContainer.py reaches submodules and the import
+fails with "No module named 'torch.utils'; 'torch' is not a package".  It
+would need the namespace-package treatment PyFoam gets, for torch, torch.nn,
+torch.utils and whatever else the module walks into.  That is tractable but
+was out of scope; scikit-learn-style optional deps are declared in
+requirements.txt, and torch is too, so CI has the real thing.
+
+(An earlier version of this note claimed modelContainer.py subclasses
+torch.nn.Module and that inheriting from a MagicMock raises TypeError.  It
+does not subclass it -- the reference is in a docstring -- so the reason
+recorded above replaces that one.)
 """
 import sys
 import types
