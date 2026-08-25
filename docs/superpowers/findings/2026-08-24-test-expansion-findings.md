@@ -997,3 +997,54 @@ elif isinstance(gpandas, pandas.DataFrame) or isinstance(gpandas, dask.dataframe
 
 ### נדחה לעבר עתידי — לא נבדק
 `vector/buildings/{analysis,presentation,toolkit}.py` (18), `vector/{demography,topography,toolkit}.py` (16), ו-`raster/tiles.py`'s `getImageFromCorners`/`listImages`/`presentation.plot` — דורשים shapefiles/DEM אמיתיים, שרת tile חי, או נתוני תמונה אמיתיים לבדיקה משמעותית. `GIS/CLI.py` (6 פקודות argparse) — עטיפות דקות מעל הטולקיטים שלמעלה, לא נבדק בנפרד.
+
+---
+
+## אצווה 18 — `measurements/experiment` (experimentHome, experimentAnalysis, dataEngine)
+
+### B75. `getTurbulenceStatistics` — משתנים שלא קיימים בשום מקום
+**קובץ:** `hera/measurements/experiment/analysis.py:74` · **מקובע ב:** `test_experiment_analysis_dataengine.py::TestGetTurbulenceStatisticsIsBroken`
+
+```python
+def getTurbulenceStatistics(self,sonicData,samplingWindow,height=1):
+    ...
+    analysis = highfreqtk.analysis.singlePointTurbulenceStatistics(sonicData=kaijoData,
+                                                                   ...
+                                                                   height=kaijoHeight,
+                                                                   ...)
+```
+
+הפרמטרים הם `sonicData`/`height`, אבל הגוף קורא ל-`kaijoData`/`kaijoHeight` — שמות שלא מוגדרים בשום מקום בפונקציה. כל קריאה קורסת ב-`NameError` לפני שהיא בכלל מגיעה לטולקיט שהיא מנסה לקרוא.
+
+### B76. `DBconfiguration` — property בלי `return`, בשתי המחלקות
+**קובץ:** `hera/measurements/experiment/dataEngine.py:52,236` · **מקובע ב:** `test_experiment_analysis_dataengine.py::TestDaskDataEngineDB`, `TestPandasDataEngineDBConstructionValidation`
+
+```python
+@property
+def DBconfiguration(self):
+    self._dbConfiguration
+```
+
+אין `return`. גם ב-`pandasDataEngineDB` וגם ב-`daskDataEngineDB` (אותו קוד בדיוק, פעמיים). ה-property מחזירה `None` תמיד, בלי קשר לתצורה בפועל.
+
+### B77. `dbConnect` — `OperationFailure` שלא מיובא מסווה כשל חיבור אמיתי
+**קובץ:** `hera/measurements/experiment/dataEngine.py:66` · **מקובע ב:** `test_experiment_analysis_dataengine.py::TestPandasDataEngineDBConnect`
+
+```python
+try:
+    self._mongo_client.server_info()
+except OperationFailure as e:
+    return e
+except Exception as e:
+    return e
+```
+
+`OperationFailure` אף פעם לא מיובא בקובץ. כשל חיבור אמיתי (כל חריגה שאינה `OperationFailure` בעצמה) גורם ל-Python לנסות להתאים אותה ל-`OperationFailure` — הערכת השם הזה עצמה זורקת `NameError`, שנתפס במקום ע"י ה-`except Exception` **החיצוני** ומוחזר בשקט **במקום** החריגה האמיתית. כל כשל חיבור אמיתי מוסתר מאחורי `NameError` על שם לא קיים.
+
+**אזהרת בדיקה:** בניית `pandasDataEngineDB` עם config תקין קוראת בפועל ל-`dbConnect()`, שפותח socket אמיתי דרך `pymongo.MongoClient` ומחכה ל-timeout מובנה של pymongo (~30 שניות) לפני שהחריגה נתפסת — לא נחסם ע"י ה-guard ההרמטי הרגיל. כל הטסטים כאן עוקפים את זה ע"י monkeypatch ל-`pymongo.MongoClient` או ע"י `__new__` (לא קוראים ל-constructor האמיתי).
+
+### מה שנמצא תקין
+`experimentHome` — `experimentMap`/`experimentsTable` (שכבת alias מעל `getExperimentsMap`/`getDataSourceTable`), `experimentDataType()` (מחזירה `None` כברירת מחדל — לא באג, רק hook לתאימות לאחור), `keys()`, `__getitem__`, ו-`getExperiment` (שגיאה ברורה כשהניסוי לא נטען). `daskDataEngineDB.__init__` (בדיקת מפתח `'DB'`, **בלי** לפתוח חיבור רשת בבנייה — בניגוד ל-`pandasDataEngineDB`) ו-`connectionString` (בניית URI נכונה). `dataEngineFactory.getDataEngine` — dispatch נכון ל-DASKDB ודחיית dataType לא ידוע.
+
+### נדחה לעבר עתידי — לא נבדק
+`experimentSetupWithData` וכל מה שתלוי בו (`defaultTrialSet`, `trialsOfDefaultTrialSet`, `get_devices_image_coordinates`) — דורשים קובץ zip אמיתי של הקמת ניסוי מ-argos. `getDeviceTypeTransmissionFrequencyOfTrial`/`getDeviceTypePlannedMessageCount`/`addMetadata` ב-`experimentAnalysis`, ו-`getDataFromTrial`/`getData`/`getDeviceList`/`getDeviceTable` בשלוש מחלקות ה-data engine — דורשים trialSet/cache אמיתיים. `parsers.py` (27 פונקציות, `Parser_CampbellBinary`/`CampbellBinaryInterface`) — עותק כפול של אותו parser בינארי שנדחה באצווה 16 (B44: `parsers.py` המקורי מתועד כ-orphaned). `presentation.py` (14 פונקציות) — matplotlib בעיקרו, ערך מוגבל לבדיקה. `CLI.py`'s `create_experiment` — אורכסטרציה מלאה של יצירת project+repository, מתאים יותר לטסט אינטגרציה.

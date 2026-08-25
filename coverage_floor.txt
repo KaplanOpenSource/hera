@@ -219,3 +219,19 @@
 #   6 commands are thin argparse wrappers over those toolkits -- all left
 #   for a future pass rather than pursued at the expense of the batches
 #   still ahead.
+#
+# After batch 18 (measurements/experiment: experimentHome,
+#                 experimentAnalysis, dataEngine):
+#   Floor UNCHANGED at 36; measured together with batch 19, whose note
+#   below has the combined coverage figure for both.
+#   Three defects (B75-B77): getTurbulenceStatistics references
+#   kaijoData/kaijoHeight, names that exist nowhere in the method (B75);
+#   both pandasDataEngineDB and daskDataEngineDB's DBconfiguration property
+#   is missing its return statement, so it always yields None (B76); and
+#   pandasDataEngineDB.dbConnect's `except OperationFailure` references a
+#   name never imported, so any real connection failure is masked behind a
+#   NameError that the outer except silently swallows (B77). parsers.py's
+#   27 functions are a second copy of the same binary parser already
+#   deferred in batch 16 (and already dead per B44's original finding on a
+#   different parsers.py); presentation.py and experimentSetupWithData's
+#   argos-zip-dependent methods were deferred too.
