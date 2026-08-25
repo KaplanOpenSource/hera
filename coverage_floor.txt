@@ -1,4 +1,4 @@
-29
+30
 # The number on the first line is the combined line+branch coverage floor,
 # enforced in CI by `coverage report --fail-under`.  Raise it in the same PR
 # that raises coverage; never lower it.
@@ -85,6 +85,15 @@
 #   Floor UNCHANGED at 29.  The batch is small by design: parsers.py (41 defs)
 #   is orphaned -- nothing in the tree imports it -- so covering it would only
 #   raise a number.  B44 records that its TOA5 parser is an empty stub.
+#
+# After batch 9 (openFoam, LSM, mlDL, WRF) -- the last batch:
+#     combined ............... 32%   (18591 stmts, 12150 missed)
+#   Floor raised to 30.
+#
+#   Final position across Phase 0 and nine batches: 1000 hermetic tests in
+#   about four seconds, floor 20 -> 30, package coverage 22% -> 32%, and 48
+#   defects recorded in docs/superpowers/findings/ with every one pinned by an
+#   xfail(strict=True) so that fixing it demands the marker's removal.
 #
 # Two points of headroom below the measured value, deliberately: CI runs
 # Python 3.11 with the versions pinned in requirements.txt, so its number will
