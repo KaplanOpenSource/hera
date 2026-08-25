@@ -1048,3 +1048,26 @@ except Exception as e:
 
 ### נדחה לעבר עתידי — לא נבדק
 `experimentSetupWithData` וכל מה שתלוי בו (`defaultTrialSet`, `trialsOfDefaultTrialSet`, `get_devices_image_coordinates`) — דורשים קובץ zip אמיתי של הקמת ניסוי מ-argos. `getDeviceTypeTransmissionFrequencyOfTrial`/`getDeviceTypePlannedMessageCount`/`addMetadata` ב-`experimentAnalysis`, ו-`getDataFromTrial`/`getData`/`getDeviceList`/`getDeviceTable` בשלוש מחלקות ה-data engine — דורשים trialSet/cache אמיתיים. `parsers.py` (27 פונקציות, `Parser_CampbellBinary`/`CampbellBinaryInterface`) — עותק כפול של אותו parser בינארי שנדחה באצווה 16 (B44: `parsers.py` המקורי מתועד כ-orphaned). `presentation.py` (14 פונקציות) — matplotlib בעיקרו, ערך מוגבל לבדיקה. `CLI.py`'s `create_experiment` — אורכסטרציה מלאה של יצירת project+repository, מתאים יותר לטסט אינטגרציה.
+
+---
+
+## אצווה 19 — `simulations/gaussian` (gasCloud.py)
+
+25 הפונקציות שנדחו מאצווה 3 (`abstractGasCloud`, `instantaneousReleaseGasCloud`, `continuousReleaseGasCloud`, `Continuous`), נבנו על גבי `Sigma`/`Meteorology` שאומתו כבר מול Briggs 1973.
+
+### B78. `continuousReleaseGasCloud` — כל ארבע השיטות הציבוריות שלו קורסות
+**קובץ:** `hera/simulations/gaussian/gasCloud.py:606,619,625,632` · **מקובע ב:** `test_gaussian_gascloud.py::TestContinuousReleaseGasCloudIsUnusable`
+
+```python
+class continuousReleaseGasCloud(abstractGasCloud):
+    def getConcentration_cont(self, ...):
+        C_noQ = self.getDosage_inst_noQ(...)   # מוגדר רק על instantaneousReleaseGasCloud!
+```
+
+`continuousReleaseGasCloud` יורש **ישירות** מ-`abstractGasCloud` — **לא** מ-`instantaneousReleaseGasCloud`. אבל כל ארבע השיטות הציבוריות שלו (`getConcentration_cont`, `getConcentration_cont_NoERF`, `getDosage_cont_NoERF`, `getDosage_cont_doubleNoERF`) קוראות ל-`self.getDosage_inst_noQ`/`self.getDosage_inst_NoERF_noQ` — מתודות שמוגדרות **רק** על `instantaneousReleaseGasCloud`, מחלקת-אח לא קשורה. כל קריאה קורסת ב-`AttributeError`. **המחלקה כולה — הענף היחיד שמטפל בשחרור רציף (Continuous release) — לא שמישה בכלל.** `createGasCloud` בכל זאת מפנה קלט עם יחידות mass/time אליה (בהתאם לתיעוד), כך שהבאג פוגע בכל שימוש שנעשה בדרך המתועדת.
+
+### מה שנמצא תקין
+`abstractGasCloud.createGasCloud` — dispatch נכון בין instantaneous/continuous לפי יחידות `sourceQ`, ודחיית קלט לא מוכר. אימות `wind_profile_type`. `getDF_xarray` — Depletion Factor תמיד בין 0 ל-1 ומונוטוני-יורד במרחק הרוח (דעיכה, לא צמיחה). `trapezoidal_integration` — אינטגרציה מצטברת נכונה. כל השרשרת של `instantaneousReleaseGasCloud`: יחס Q ישיר בדיוק בין הגרסאות עם/בלי Q (`getConcentration_inst`/`_noQ`, `getDosage_inst`/`_noQ`/`_NoERF`), מיסוך חלון זמן מדויק (`_bounded`), DF שרק מקטין (לא מגדיל) מנה, המרות רדיולוגיה (Bq, TIAC) עם יחידות פלט נכונות, ו-`get_TIAC_for_dist` שמחזיר את נקודת הרשת הקרובה ביותר עם TIAC מונוטוני-יורד במרחק. `Continuous.__init__` (הקרנל של יהודה) בונה קרנל דעיכה מעריכי בגודל הנכון שמתכנס לכ-90% שחרור עד `timetofinish` כמתועד.
+
+### נדחה לעבר עתידי — לא נבדק
+`FallingNonEvaporatingDroplets.py` (217 statements) ו-`DropletCloud.py` (83 statements) — נדחו כבר באצווה 3 ונותרו נדחים; היקף הזמן שנותר בסבב הזה הופנה ל-gasCloud.py, שהניב את הממצא המשמעותי ביותר (B78).

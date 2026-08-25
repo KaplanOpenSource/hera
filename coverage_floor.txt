@@ -1,4 +1,4 @@
-36
+37
 # The number on the first line is the combined line+branch coverage floor,
 # enforced in CI by `coverage report --fail-under`.  Raise it in the same PR
 # that raises coverage; never lower it.
@@ -235,3 +235,34 @@
 #   deferred in batch 16 (and already dead per B44's original finding on a
 #   different parsers.py); presentation.py and experimentSetupWithData's
 #   argos-zip-dependent methods were deferred too.
+#
+# After batch 19 (simulations/gaussian: gasCloud.py, the 25 functions
+#                 deferred from batch 3):
+#     combined ............... 38%   (18592 stmts, 10873 missed)
+#     function coverage ....... 665 of 1429 public functions/methods (46.5%),
+#                               up from 629 (44.0%) after batch 17.
+#   Floor raised to 37.
+#
+#   One severe defect (B78): continuousReleaseGasCloud inherits directly
+#   from abstractGasCloud, not from instantaneousReleaseGasCloud, but all
+#   four of its own public methods call self.getDosage_inst_noQ /
+#   self.getDosage_inst_NoERF_noQ -- methods that exist only on
+#   instantaneousReleaseGasCloud. Every one of them raises AttributeError;
+#   the entire continuous-release branch of the Gaussian dispersion model
+#   is unusable, even though createGasCloud's own factory dispatches
+#   mass-per-time sources into it exactly as documented. Everything in
+#   instantaneousReleaseGasCloud -- the full noQ/withQ/NoERF/bounded/TIAC
+#   chain, the depletion factor, and get_TIAC_for_dist -- checked out
+#   correct. FallingNonEvaporatingDroplets.py and DropletCloud.py, deferred
+#   since batch 3, are still deferred; this batch's time went to gasCloud.py.
+#
+# This is the last batch in the phase 2 sweep (batches 10-19). Final tally:
+# 1370 hermetic tests (up from 1000 after phase 0 + batch 9), 20 branches
+# pushed with no PRs opened, 78 defects recorded, floor 20 -> 37, combined
+# coverage 22% -> 38%, function coverage 27% -> 46.5%. The remaining 764
+# uncovered functions concentrate in openFoam's solver/VTK/workflow layers
+# (222, largely needs real OpenFOAM/paraview execution), machineLearning
+# DeepLearning (57, needs a properly namespaced torch stub), LSM (51, needs
+# real hermes), utils/rag (18, needs RAG-specific deps) and
+# hermesWorkflowToolkit.py (28, needs real hermes) -- all judged genuinely
+# blocked or disproportionate effort rather than merely unattempted.
