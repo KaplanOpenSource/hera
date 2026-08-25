@@ -60,6 +60,13 @@
 #   targeted: they need xarray/dask structures or an external IMS token, so
 #   they are integration-shaped rather than unit-shaped.
 #
+# After batch 5 (riskassessment + presentation):
+#     combined ............... 31%   (18591 stmts, 12313 missed)
+#     riskassessment ......... 39%
+#   Floor UNCHANGED at 29.  38 covered statements is real but well inside the
+#   rounding; the value was four defects, including proof that B12's registry
+#   split actively breaks InjuryLevelThreshold.getPercent for numeric input.
+#
 # Two points of headroom below the measured value, deliberately: CI runs
 # Python 3.11 with the versions pinned in requirements.txt, so its number will
 # not match this one exactly, and the gate should fail on regressions rather
