@@ -910,3 +910,68 @@ for boundaryName, boundaryData in self.data[processorName]['boundaryField'].item
 
 ### מה שנמצא תקין
 `getDataFrame` (single ו-multi processor, כולל parsing מספר הפרוססור מהמפתח) עובד נכון על מבנה מדומה שמדמה את הפלט של `ParsedParameterFileToDataFrame`. ה-dispatch של `setFieldFromDataFrame` (single לפי היעדר עמודת `processor`, מקבילי לפי נוכחותה) עובד נכון כשה-boundary וה-processors הקיימים תואמים. `readFromCase`/`readBoundariesFromCase` עוטפים `FileNotFoundError` כ-`ValueError("Field not found")` (אומת ב-monkeypatch על PyFoam האמיתי, כי הסטאב לא נכשל על נתיב לא קיים). `addProcBoundary`, `readBoundariesFromCase`, ו-`readFromCase` על תיקייה ריקה רצים בלי לקרוס, אבל לא ניתן לאמת את הערכים שהם כותבים בפועל: PyFoam מסוטב כ-`MagicMock` גורף בלי אחסון אמיתי, כך ש-`mock["key"]=value` לא נשמר וכל קריאה ל-`WriteParameterFile(...)` מחזירה את אותו אובייקט mock משותף — התקרה הטכנית הזו תועדה כבר באצווה 11 לגבי `addBoundaryField`.
+
+---
+
+## אצווה 16 — `measurements/meteorology` (highfreqdata: abstractcalculator, meandatacalculator, turbulencestatistics, parsers)
+
+### B69. שמירה כ-HDF5 שבורה — `to_HDF` במקום `to_hdf`
+**קובץ:** `hera/measurements/meteorology/highfreqdata/analysis/abstractcalculator.py:263` · **מקובע ב:** `test_meteorology_savedata.py::TestSaveDataHandlerHDFIsBroken`
+
+```python
+data.to_HDF(path, key)
+```
+
+ל-pandas יש רק `to_hdf` (אותיות קטנות). כל שמירה ל-HDF5 קורסת ב-`AttributeError`.
+
+### B70. בניית `MeanDataCalculator` ישירות מ-DataFrame — קוד מתועד שלא רץ
+**קובץ:** `hera/measurements/meteorology/highfreqdata/analysis/meandatacalculator.py:79` · **מקובע ב:** `test_meteorology_meandatacalculator.py::TestConstructionRejectsPlainDataFrames`
+
+```python
+if type(TurbCalcOrData) == pandas:
+    ...
+elif type(TurbCalcOrData) == dask:
+```
+
+הבדיקה משווה את ה-**טיפוס** של הארגומנט למודול `pandas`/`dask` עצמם — השוואה שלעולם לא מתקיימת (אין אובייקט שה-`type()` שלו שווה למודול). התיעוד והטיפוסים המוצהרים אומרים במפורש ש-`TurbCalcOrData`/`AverageCalcOrData` יכולים להיות `pandas.DataFrame` או `dask.DataFrame` ישירות — אבל זה קורס תמיד ב-`ValueError`. רק מופע `singlePointTurbulenceStatistics`/`AveragingCalculator` (או `None` ל-`AverageCalcOrData`) עובד בפועל.
+
+### B71. `anisotropyEigs` — `_eig` חסרה `self`
+**קובץ:** `hera/measurements/meteorology/highfreqdata/analysis/meandatacalculator.py:548` · **מקובע ב:** `test_meteorology_meandatacalculator.py::TestStabilityAndAnisotropy`
+
+```python
+def _eig(series):
+    ...
+# בקריאה:
+eig_data = self.MeanData.apply(self._eig, axis=1)
+```
+
+`_eig` מוגדרת בלי `self` כפרמטר ראשון, אבל נגישה כ-`self._eig` — bound method שמעביר את `self` אוטומטית. כשה-DataFrame.apply קורא לה עם השורה, מתקבלות שתי ארגומנטים לפונקציה שמקבלת רק אחד: `TypeError`. `anisotropyCats` קורסת באותה צורה כי היא קוראת ל-`anisotropyEigs` קודם.
+
+### B72. `InMemoryRawData.append` — מתודת pandas שהוסרה
+**קובץ:** `hera/measurements/meteorology/highfreqdata/analysis/turbulencestatistics.py:1478` · **מקובע ב:** `test_meteorology_turbulencestatistics.py::TestInMemoryRawData`
+
+```python
+ret = super(InMemoryRawData, self).append(other, ...)
+```
+
+`pandas.DataFrame.append` הוסרה ב-pandas 2.0 (הסביבה כאן על 3.0.2). כל קריאה קורסת ב-`AttributeError`.
+
+### B73. `zoL_Sonic` — מנגנון מניעת כפילויות בודק רשימה שאף פעם לא מתמלאת
+**קובץ:** `hera/measurements/meteorology/highfreqdata/analysis/turbulencestatistics.py:968` · **מקובע ב:** `test_meteorology_turbulencestatistics.py::TestMoninObukhovStability`
+
+```python
+while 'zoL_Sonic%s' % i in self._TemporaryData.columns:
+    if ['zoL_Sonic%s' % i, {'zmd': zmd}] in self._AllCalculatedParams:
+        return self
+    i += 1
+```
+
+הבדיקה קוראת מ-`self._AllCalculatedParams` — אבל בכל המחלקה נכתב רק ל-`self._CalculatedParams` (רשימה **אחרת**, בשם דומה). `_AllCalculatedParams` נשאר `[]` לתמיד, כך שהבדיקה לעולם לא מתקיימת: קריאה חזרה ל-`zoL_Sonic` עם אותו `zmd` יוצרת עמודה כפולה (`zoL_Sonic2`, `zoL_Sonic3`,...) במקום no-op.
+
+### מודולים חסומים בתלות חבילה — תועד ולא נבדק
+- **`GFS.py`**: מייבא `sklearn.metrics` וגם `osgeo.gdal` — שתיהן חסרות בסביבה. תועד כבר ב-batch 6 (`TestGFS`), לא הצדיק בדיקה נוספת.
+- **`radiosonde.py`**: כבר מתועד כ-B40 (`ProjectMultiDBPublic` לא קיים) — מודול מת, שום פונקציה בו לא ניתנת לבדיקה.
+- **`CampbellBinary.py`** (20 פונקציות) ו-**`TOA5.py`**/**`HighFreqToolKit.parseData`/`.loadData`** (5 פונקציות): דורשים קובצי TOB1/TOA5 בינאריים/ASCII אמיתיים עם מבנה מדויק (metadata rows, multi-device columns) — מאמץ בנייה משמעותי, נדחה למעבר עתידי ולא חסם את שאר האצווה.
+
+### מה שנמצא תקין
+כל שרשרת החישוב הטהורה ב-`singlePointTurbulenceStatistics` — `sigmaH`, `sigmaHOverUstar/sigmaWOverUstar`, `wind_dir_std`, `sigmaHOverWindSpeed/sigmaWOverWindSpeed`, `w3/w4/w3OverSigmaW3`, `wTKE`, `uStarOverWindSpeed`, `Rvw/Ruw` (חסומים ב-±1), `zOverL_Sonic`, `Lminus1_masked_Sonic` (מסנן נכון לפי סף wT/Ustar), ו-`StabilityMOLength_Sonic` — כולם נכונים על נתוני רוח מלאכותיים. כך גם השרשרת המקבילה ב-`MeanDataCalculator` (horizontalSpeed, sigma, Ustar, sigmaH/UOverUstar, alignedStress עם שימור trace, absWOverSigmaW, effectivez, zOverL, StabilityMOLength, Rvw/Ruw). `AveragingCalculator.getData` מחזיר resample נכון. פונקציות הנרמול (`normalise_sonic_df`, `normalise_trh_df`, `detect_device_type`) עובדות נכון על שינוי שם עמודות, חילוץ metadata, הטלה ל-float, ו-DatetimeIndex — כולל fallback עדין כשאין אינדקס תקין. `InMemoryRawData.to_hdf`/`read_hdf` עובדים נכון (round-trip data+attrs) כשמותקן `pytables`.

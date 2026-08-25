@@ -1,4 +1,4 @@
-34
+36
 # The number on the first line is the combined line+branch coverage floor,
 # enforced in CI by `coverage report --fail-under`.  Raise it in the same PR
 # that raises coverage; never lower it.
@@ -177,3 +177,28 @@
 #   smoke test: PyFoam's DictProxy/Field/WriteParameterFile are a bare
 #   MagicMock with no real storage, so nothing they write can be verified --
 #   the same ceiling batch 11 documented for addBoundaryField.
+#
+# After batch 16 (measurements/meteorology highfreqdata: abstractcalculator,
+#                 meandatacalculator, turbulencestatistics, parsers/__init__):
+#     combined ............... 37%   (18592 stmts, 11206 missed)
+#     function coverage ....... 616 of 1429 public functions/methods (43.1%),
+#                               up from 573 (40.1%) after batch 15.
+#   Floor raised to 36.
+#
+#   Five more defects (B69-B73). The two most consequential: B70, where
+#   MeanDataCalculator's constructor dispatches on `type(x) == pandas` /
+#   `== dask` -- comparing an argument's type to the MODULE objects
+#   themselves, which nothing is ever equal to -- so passing a plain
+#   DataFrame directly (explicitly documented and type-hinted as supported)
+#   always raises, even though the class exists specifically to accept one;
+#   and B71, anisotropyEigs's _eig helper defined without `self` but called
+#   as the bound method self._eig via DataFrame.apply, always raising
+#   TypeError. GFS.py (sklearn + gdal, both absent) and radiosonde.py
+#   (already dead per B40) were confirmed still blocked and left alone;
+#   CampbellBinary.py's binary parser and TOA5.py/HighFreqToolKit's
+#   file-based parsing (25 functions combined) need realistic multi-row
+#   fixture files and were deferred rather than pursued at the expense of
+#   the batches still ahead. Everything else -- the full sigma/Ustar/
+#   stability chain on both singlePointTurbulenceStatistics and
+#   MeanDataCalculator, the sonic/TRH normalisation helpers, and
+#   InMemoryRawData's HDF round trip -- checked out correct.
