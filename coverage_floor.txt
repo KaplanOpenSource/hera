@@ -67,6 +67,13 @@
 #   rounding; the value was four defects, including proof that B12's registry
 #   split actively breaks InjuryLevelThreshold.getPercent for numeric input.
 #
+# After batch 6 (measurements/meteorology):
+#     combined ............... 31%   (18591 stmts, 12291 missed)
+#     meteorology ............ 35%
+#   Floor UNCHANGED at 29.  22 covered statements; the batch's substance was
+#   two unimportable modules (B40 radiosonde, B41 a hard-coded personal path)
+#   and a corrected diagnosis of P1's effect on the turbulence cache.
+#
 # Two points of headroom below the measured value, deliberately: CI runs
 # Python 3.11 with the versions pinned in requirements.txt, so its number will
 # not match this one exactly, and the gate should fail on regressions rather
