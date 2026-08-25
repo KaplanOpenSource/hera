@@ -738,3 +738,79 @@ OFObjectHome.pandasToFoamFormat(home,df) -> AttributeError: 'OFObjectHome' objec
 
 ### מה שנמצא תקין
 וקטור הממדים של OpenFOAM — `[kg m s K mol A cd]` — נכון לכל שבעת המקומות, ונבדק מול חמש כמויות פיזיקליות מוכרות (מהירות `[0 1 -1 ...]`, לחץ `[1 -1 -2 ...]`, צפיפות `[1 -3 0 ...]`, TKE, טמפרטורה). רגיסטר הגדרות השדות נטען נכון, `U` הוא וקטור ו-`p` סקלר, `overwrite` עובד, וההגדרות לא משותפות בין מופעים.
+
+---
+
+## אצווה 12 — `riskassessment` (protectionpolicy, analysis/riskAreas, riskToolkit)
+
+### B53. `ProtectionPolicy.addActions` שבור עם נתיב קובץ
+**קובץ:** `hera/riskassessment/protectionpolicy/ProtectionPolicy.py:130` · **מקובע ב:** `test_riskassessment_protectionpolicy.py::TestActionDispatch::test_addactions_from_a_json_string_is_broken`
+
+```python
+if os.JSONpath.exists(jsonStrOrFile):
+```
+
+ל-`os` אין תכונה `JSONpath` (הכוונה הייתה `os.path`). כל קריאה ל-`addActions` עם מחרוזת נתיב קובץ נכשלת עם `AttributeError` — הענף הזה מעולם לא רץ.
+
+### B54. בניית `ActionIndoor` עם `alpha=` — הדוגמה בדוקסטרינג של המחלקה עצמה — שבורה
+**קובץ:** `hera/riskassessment/protectionpolicy/ProtectionPolicy.py:355` · **מקובע ב:** `test_riskassessment_protectionpolicy.py::TestActionIndoor::test_constructing_with_alpha_directly`
+
+```python
+elif "alpha" in kwargs:
+    self._alpha = (kwargs["alpha"]).ureg(1/ureg.h)
+```
+
+ל-`pint.Quantity` אין מתודה `.ureg`. הביטוי הראשון בדוקסטרינג של `ProtectionPolicy` עצמה — `ProtectionPolicy.indoor(alpha=0.2,...)` — נכשל בפועל; רק `turnover=` עובד.
+
+### B55–B57. `RiskToolkit.loadData` — שלושה כשלים ב-`saveMode`
+**קובץ:** `hera/riskassessment/riskToolkit.py:182-207` · **מקובע ב:** `test_risk_toolkit.py::TestLoadData`
+
+```python
+if agentDoc is None:
+    self.addDataSource(...)                    # B55: רץ תמיד, בלי בדיקת saveMode
+elif saveMode == TOOLKIT_SAVEMODE_FILEANDDB:
+    raise ValueError(...)
+else:
+    agentDoc.resource = json.dumps(agentDescription)
+    agentDoc.desc['version'] = version           # B57: רק version מתעדכן
+    agentDoc.save()
+```
+
+- **B55:** `TOOLKIT_SAVEMODE_NOSAVE` — "*Just load the data from file and return the datafile*" — נבדק רק בענף `elif`. בטעינה ראשונה של agent חדש (`agentDoc is None`) הקוד קורא ל-`addDataSource` **בלי תלות ב-saveMode בכלל**, כך ש-NOSAVE שומר בפועל.
+- **B56:** ה-lookup לפני ה-replace הוא `getDataSourceDocument(datasourceName=name, version=version)` עם ה-**version החדש**, לא הישן. Replace עם version שונה לא מוצא את הרשומה הקיימת, נופל לענף ה-`if agentDoc is None`, ומשאיר **כפילות** בשם אותו agent במקום להחליף.
+- **B57:** גם כשה-version תואם וההחלפה בפועל קורית, רק `desc['version']` מתעדכן; שאר `desc` (כמו `effectParameters`) נשאר ישן בזמן ש-`resource` (ה-JSON הגולמי) מוחלף במלואו — metadata ו-payload מתפצלים.
+
+### מה שנמצא תקין ב-ProtectionPolicy
+`abstractAction.getAction` מתעל שם פעולה (`"indoor"`/`"masks"`) ל-`ActionIndoor`/`ActionMasks` נכון, שרשור `.indoor().masks()` מחזיר `self` כראוי, ואימות `ValueError` בהיעדר `alpha`/`turnover`/`protectionFactor` עובד. חילוק ריכוז ע"י מסכה (`ActionMasks.compute`) נכון ומדויק.
+
+### B58. `ProtectionPolicy` קורס בשימוש הפשוט ביותר — בלי חלון זמן
+**קובץ:** `hera/riskassessment/protectionpolicy/ProtectionPolicy.py:390,481` · **מקובע ב:** `test_riskassessment_protectionpolicy.py::TestActionIndoor::test_compute_with_no_time_window_at_all`
+
+```python
+abegin = data[self.policy.datetimename].to_series()[0] if abegin is None else abegin
+```
+
+אינדקס positional (`[0]`) על `Series` עם `DatetimeIndex` — לא נתמך יותר ב-pandas המותקן (זורק `KeyError` במקום fallback ל-position). קריאה ל-`.indoor(turnover=...)` **בלי** `begin`/`end`/`enter`/`stay` כלל — השימוש הבסיסי ביותר — קורסת תמיד.
+
+### B59. חישוב ה-indoor הוא no-op מוחלט — התוצאה תמיד אפס
+**קובץ:** `hera/riskassessment/protectionpolicy/ProtectionPolicy.py:374` · **מקובע ב:** `test_riskassessment_protectionpolicy.py::TestActionIndoor::test_compute_builds_a_low_pass_filtered_field_towards_the_outdoor_value`
+
+```python
+Cin[curstep].values = ((Cin[prevstep] + alphanum*dt*Cout[curstep])/(1+alphanum*dt)).values
+```
+
+`Cin[curstep]` (אינדוקס לפי dict) מחזיר **עותק**, לא view, בגרסת ה-xarray המותקנת. ההשמה ל-`.values` על העותק נזרקת — `Cin` נשאר אפסים מוחלטים בלי קשר ל-alpha, dt או לריכוז החיצוני. זהו החישוב המרכזי של כל מודל ה-indoor, ומעולם לא באמת רץ.
+
+### B60. `getRiskAreaAlgorithm` — dispatcher מת לחלוטין
+**קובץ:** `hera/riskassessment/analysis/riskAreas.py:19` · **מקובע ב:** `test_risk_riskareas.py::TestGetRiskAreaAlgorithm`
+
+```python
+estimatorCLS = pydoc.locate("pyriskassessment.datalayer.riskAreas.riskAreaAlgorithm_%s" % algorithmName.title())
+```
+
+החבילה `pyriskassessment` אינה קיימת בפרויקט או בתלויותיו — המודול הזה יושב ב-`hera.riskassessment.analysis.riskAreas`. `pydoc.locate` מחזיר `None` תמיד, ולכן ה-dispatcher **לעולם לא מצליח**, אפילו לא עבור `"Sweep"` — האלגוריתם היחיד שממומש בקובץ. הדרך היחידה להשתמש ב-`riskAreaAlgorithm_Sweep` היא import + בנייה ישירה.
+
+### מה שנמצא תקין ב-riskAreas/riskToolkit
+תכונות ה-setter/getter של `riskAreaAlgorithm_Sweep` (`dxdy`, `workerCount`, `parallel`) עובדות וממירות טיפוסים נכון; `outlayers` הוא read-only כמתועד. `RiskToolkit.getAgent` מבחין נכון בין שם (str), תיאור (dict) וקלט לא-תקין; `loadAgent` מדביק name/version לתיאור לפני העברה ל-`loadData`. `loadData` מטפל נכון בקלט dict, JSON string, ומקרה "לא קובץ/dict" (raises).
+
+`riskAreaAlgorithm_Sweep.calculate()` ו-`RiskToolkit.analysis.getRiskAreas` לא נבדקו — הראשון דורש multiprocessing + geopandas מלא עם demog/isopleths, השני דורש סימולציית LSM חיה ו-agent דוז-רספונס מלא; שניהם מועמדים לטסט אינטגרציה, לא הרמטי.

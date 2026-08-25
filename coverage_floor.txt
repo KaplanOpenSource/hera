@@ -1,4 +1,4 @@
-30
+31
 # The number on the first line is the combined line+branch coverage floor,
 # enforced in CI by `coverage report --fail-under`.  Raise it in the same PR
 # that raises coverage; never lower it.
@@ -99,3 +99,23 @@
 # Python 3.11 with the versions pinned in requirements.txt, so its number will
 # not match this one exactly, and the gate should fail on regressions rather
 # than on environment drift.
+#
+# After batches 10-12 (deposition/evaporation pure physics, a first openFoam
+# slice, and riskassessment protectionpolicy/analysis/riskToolkit):
+#     combined ............... 33%   (18592 stmts, 11785 missed)
+#   Floor raised to 31.
+#
+#   These three batches added 82 hermetic tests and eight more defects
+#   (B53-B60), the most consequential being B59: ProtectionPolicy's indoor
+#   dilution model writes into a copy returned by dict-based xarray indexing,
+#   so it computes all zeros regardless of alpha, dt or the outdoor
+#   concentration -- and B60, where getRiskAreaAlgorithm's dispatcher
+#   resolves a class name in a package ("pyriskassessment") that does not
+#   exist anywhere in this codebase, so it can never succeed even for the one
+#   algorithm it implements. Function-level coverage across the whole
+#   codebase (a stricter measure than statement coverage -- a function only
+#   counts once one of its own body lines runs, not merely its `def` line at
+#   import time) sits at 489 of 1429 public functions/methods (34%); the
+#   remaining gap is concentrated in openFoam (237 of 252 uncovered),
+#   meteorology (98), gaussian (80), experiment (68), GIS (63) and
+#   machineLearningDeepLearning (57, needs torch).
