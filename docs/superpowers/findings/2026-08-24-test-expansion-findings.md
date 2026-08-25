@@ -498,3 +498,32 @@ getPercent(10*ureg.mg/ureg.m**3)    -> 0   (עובד)
 
 ### מה שנמצא תקין
 מודל התגובה הלוגנורמלי מדויק: `getPercent(TL_50) = 0.5` בדיוק, `getToxicLoad` הופכית מדויקת בשבע נקודות, מונוטוני וחסום ב-[0,1], ו-`TL/10` ו-`10·TL` נותנים 0.02275 ו-0.97725 — בדיוק ±2σ עבור σ=0.5 בבסיס 10. גם חוקי Haber ו-ten Berge מדויקים במסלול ה-xarray.
+
+---
+
+## אצווה 6 — `measurements/meteorology`
+
+### B40. `radiosonde.py` יורש ממחלקה שהוסרה
+**קובץ:** `hera/measurements/meteorology/radiosonde.py` · **מקובע ב:** `test_meteorology_module_imports.py::TestRadiosonde`
+
+```python
+class DataLayer(datalayer.ProjectMultiDBPublic):
+```
+
+`ProjectMultiDBPublic` **אינו קיים** ב-`hera.datalayer` — שריד לריפקטור שלא הושלם. המודול זורק `AttributeError` בייבוא ומת בכל התקנה.
+
+### B41. נתיב מוחלט של מפתח מסוים, נקרא בזמן ייבוא
+**קובץ:** `hera/measurements/meteorology/highfreqdata/__main__.py` · **מקובע ב:** `test_meteorology_module_imports.py::TestHighFreqMain`
+
+```
+FileNotFoundError: /home/ilay/hera_unittest_data/measurements/meteorology/
+                   highfreqdata/slicedYamim_sonic.parquet
+```
+
+הקובץ קורא נתיב מוחלט **בזמן ייבוא**, והנתיב מצביע לספריית הבית של מפתח מסוים. `CLAUDE.md` אוסר נתיבים מוחלטים במפורש. המודול אינו ניתן לייבוא בשום מכונה אחרת.
+
+### לא פגם: `GFS.py`
+נכשל מקומית על `ModuleNotFoundError: sklearn`, אבל `scikit-learn==1.6.1` **כן** מוצהר ב-`requirements.txt:266`. זו הסביבה המקומית, לא הקוד. הטסט משתמש ב-`importorskip` כדי לא לדווח על כך כבאג.
+
+### מה שנמצא תקין
+סיווג העונות ב-`addDatesColumns` נכון לכל 12 החודשים ותואם את `seasonsdict` שהמודול עצמו מגדיר (DJF/MAM/JJA/SON), כולל מקרה הגלישה שבו דצמבר וינואר חולקים עונה. גם קידוד ה-HHMM (`06:30 → 630`) נכון לאורך היממה, והפונקציה אינה משנה את ה-DataFrame של הקורא.
