@@ -81,6 +81,11 @@
 #   B43: two contradictory IGBP roughness tables in one file, differing by a
 #   factor of 1300 for snow and ice.
 #
+# After batch 8 (measurements/experiment):
+#   Floor UNCHANGED at 29.  The batch is small by design: parsers.py (41 defs)
+#   is orphaned -- nothing in the tree imports it -- so covering it would only
+#   raise a number.  B44 records that its TOA5 parser is an empty stub.
+#
 # Two points of headroom below the measured value, deliberately: CI runs
 # Python 3.11 with the versions pinned in requirements.txt, so its number will
 # not match this one exactly, and the gate should fail on regressions rather
