@@ -1,4 +1,4 @@
-28
+29
 # The number on the first line is the combined line+branch coverage floor,
 # enforced in CI by `coverage report --fail-under`.  Raise it in the same PR
 # that raises coverage; never lower it.
@@ -43,6 +43,22 @@
 #   gas-cloud solver and falling-droplet physics build multi-dimensional xarray
 #   fields and need whole meteorology and source objects, so they belong in a
 #   batch of their own rather than the tail of this one.
+#
+# After batch 4 (evaporation, deposition, hydrodynamics, windProfile,
+#                simulations/utils):
+#     combined ............... 31%   (18591 stmts, 12351 missed)
+#     targeted files ......... 70%   (199 statements)
+#       errorCalculation.py . 100%
+#       nearWallFlow.py ...... 77%
+#       interpolations.py .... 53%
+#   Floor raised to 29.
+#
+#   312 of the batch's nominal statements CANNOT be covered: evaporation and
+#   deposition are unimportable (B31 -- `from ..utils import tonumber, tounit`
+#   resolves to an empty package).  A further 425 statements in
+#   canopyWindProfile, coordinateHandler and windProfile/toolkit were not
+#   targeted: they need xarray/dask structures or an external IMS token, so
+#   they are integration-shaped rather than unit-shaped.
 #
 # Two points of headroom below the measured value, deliberately: CI runs
 # Python 3.11 with the versions pinned in requirements.txt, so its number will
