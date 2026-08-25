@@ -712,3 +712,29 @@ DimensionalityError: Cannot convert from 'dimensionless' to 'kelvin'
 
 ### מה שנמצא תקין
 הקורלציות עצמן מדויקות. FSG ו-EPA תואמים את צורתן המפורסמת, ומדד החזקה משוחזר מ-log-log ל-`1.75` בדיוק. צמיגות האוויר `1.8205e-2·√(T/293)` נותנת את ערך הייחוס ב-293K במדויק, וכפל T ב-2 מכפיל אותה ב-`√2`. Reynolds ליניארי במהירות ובאורך, ו-Schmidt שווה ל-`ν/D` המחושב עצמאית.
+
+---
+
+## אצווה 11 — `openFoam` (חלקי)
+
+### B52. `pandasToFoamFormat` אינו ניתן לקריאה בשום צורה
+**קובץ:** `hera/simulations/openFoam/preprocessOFObjects/OFObjectHome.py:238` · **מקובע ב:** `test_openfoam_objects.py::TestPandasToFoamFormat`
+
+```python
+@staticmethod
+def pandasToFoamFormat(self,data):
+    ...
+    D = data if self.componentNames is None else data[self.componentNames]
+```
+
+**שבור פעמיים.** הדקורטור `@staticmethod` על חתימה שמתחילה ב-`self`, ולכן:
+
+```
+home.pandasToFoamFormat(df)              -> TypeError: missing 1 required positional argument: 'data'
+OFObjectHome.pandasToFoamFormat(home,df) -> AttributeError: 'OFObjectHome' object has no attribute 'componentNames'
+```
+
+והשגיאה השנייה מגלה שהמתודה יושבת **על המחלקה הלא נכונה**: `componentNames` הוא שדה של `OFField`, לא של `OFObjectHome`. המתודה מעולם לא רצה.
+
+### מה שנמצא תקין
+וקטור הממדים של OpenFOAM — `[kg m s K mol A cd]` — נכון לכל שבעת המקומות, ונבדק מול חמש כמויות פיזיקליות מוכרות (מהירות `[0 1 -1 ...]`, לחץ `[1 -1 -2 ...]`, צפיפות `[1 -3 0 ...]`, TKE, טמפרטורה). רגיסטר הגדרות השדות נטען נכון, `U` הוא וקטור ו-`p` סקלר, `overwrite` עובד, וההגדרות לא משותפות בין מופעים.
