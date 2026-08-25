@@ -882,3 +882,31 @@ return 1.585287951807229e-5*MW*V1/(temperature+273.16)*ureg.g/ureg.cm**3
 
 ### מה שנמצא תקין
 `Agent`/`PhysicalPropeties` — 10 השיטות הציבוריות שנותרו — עובדות נכון: `fullDescription`, `effectproperties`, `toJSON` (כולל nesting של effects), וכל ה-getters/setters של `PhysicalPropeties` (המרות יחידות למול g/mol ו-cm/s, ברירות מחדל). קורלציית הצפיפות (`getDensity`) ולחץ האדים (`vaporPressure`, נוסחת Antoine) מדויקות מול הנוסחה המתועדת. `CalculatorTenBerge.toJSON`, `InjuryLevelThreshold.toJSON`, ו-`InjuryLevelExponential` המלאה (constructor, `getPercent = 1-exp(-k·D)`, מונוטוניות, `toJSON`) — כולם תקינים. `Injury.toJSON`, האזהרה המתועדת ב-`calculate` (deprecated), ו-`calculatePointWiseFractionInjured`'s דחיית קלט לא-pandas — כולם עובדים כצפוי. `thresholdGeoDataFrame.shiftLocationAndAngle` מסובב ומזיז פוליגונים נכון תחת שתי מוסכמות הזווית, ודוחה קריאה בלי זווית כלל.
+
+---
+
+## אצווה 15 — `OFField.py` (חמש הפונקציות שנותרו מאצווה 11)
+
+### B67. `setFieldFromDataFrame` דורש עמודת `boundary` גם כשאין boundaries בכלל
+**קובץ:** `hera/simulations/openFoam/preprocessOFObjects/OFField.py:436` · **מקובע ב:** `test_openfoam_field.py::TestSetFieldFromDataFrame::test_a_dataframe_with_no_boundary_column_currently_raises`
+
+```python
+for boundaryName, boundaryData in processordataFrame.query("region=='boundaryField'").groupby("boundary"):
+```
+
+`.groupby("boundary")` נכשל ב-`KeyError` אם העמודה `boundary` לא קיימת בכלל ב-DataFrame — וזה מדויק המצב עבור שדה בלי boundary patches, בדיוק כמו ש-`getDataFrame()` (מאותה מחלקה) מחזיר עבור שדה כזה (ראו B61-adjacent ב-`ParsedParameterFileToDataFrame` מאצווה 13). כלומר round-trip `field.setFieldFromDataFrame(field.getDataFrame())` נכשל בוודאות עבור כל שדה בלי boundaries.
+
+### B68. הענף המקבילי לא יכול לאתחל שדה חדש מאפס
+**קובץ:** `hera/simulations/openFoam/preprocessOFObjects/OFField.py:432` · **מקובע ב:** `test_openfoam_field.py::TestSetFieldFromDataFrame::test_a_fresh_single_processor_field_currently_raises_on_parallel_data`
+
+```python
+for boundaryName, boundaryData in self.data[processorName]['boundaryField'].items():
+```
+
+לפני שהוא כותב boundary חדש, `_processorToPyFoam` קורא boundary **קיים** מ-`self.data[processorName]`. שדה שנבנה טרי (למשל דרך `OFObjectHome.getEmptyField`) מאותחל כ-single-processor כברירת מחדל, כך של-`self.data` אין מפתחות `processorN` בכלל. האכלה שלו ב-DataFrame מקבילי — הדרך הטבעית להפוך שדה למקבילי — קורסת ב-`KeyError`; זה עובד רק אם השדה כבר אותחל כמקבילי מראש עם `initialize(noOfProc=...)` תואם.
+
+### הערה טכנית: `preprocessOFObjects/__init__.py` מסתיר את מודול `OFField`
+`from .OFField import OFField` ב-`__init__.py` מחליף את התכונה `OFField` על ה-package (שבד"כ מפנה למודול) במחלקה עצמה. `import hera...preprocessOFObjects.OFField as m` מחזיר את **המחלקה**, לא את המודול — כדי לעשות monkeypatch ל-`ParsedParameterFile`/`BoundaryDict` האמיתיים חובה לגשת ישירות ל-`sys.modules["hera.simulations.openFoam.preprocessOFObjects.OFField"]`.
+
+### מה שנמצא תקין
+`getDataFrame` (single ו-multi processor, כולל parsing מספר הפרוססור מהמפתח) עובד נכון על מבנה מדומה שמדמה את הפלט של `ParsedParameterFileToDataFrame`. ה-dispatch של `setFieldFromDataFrame` (single לפי היעדר עמודת `processor`, מקבילי לפי נוכחותה) עובד נכון כשה-boundary וה-processors הקיימים תואמים. `readFromCase`/`readBoundariesFromCase` עוטפים `FileNotFoundError` כ-`ValueError("Field not found")` (אומת ב-monkeypatch על PyFoam האמיתי, כי הסטאב לא נכשל על נתיב לא קיים). `addProcBoundary`, `readBoundariesFromCase`, ו-`readFromCase` על תיקייה ריקה רצים בלי לקרוס, אבל לא ניתן לאמת את הערכים שהם כותבים בפועל: PyFoam מסוטב כ-`MagicMock` גורף בלי אחסון אמיתי, כך ש-`mock["key"]=value` לא נשמר וכל קריאה ל-`WriteParameterFile(...)` מחזירה את אותו אובייקט mock משותף — התקרה הטכנית הזו תועדה כבר באצווה 11 לגבי `addBoundaryField`.

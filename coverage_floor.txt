@@ -1,4 +1,4 @@
-33
+34
 # The number on the first line is the combined line+branch coverage floor,
 # enforced in CI by `coverage report --fail-under`.  Raise it in the same PR
 # that raises coverage; never lower it.
@@ -156,3 +156,24 @@
 #   remaining ten methods, InjuryLevelThreshold/Exponential's full
 #   construction and dose-response math, and shiftLocationAndAngle's
 #   rotate+translate under both angle conventions -- checked out correct.
+#
+# After batch 15 (OFField.py, the five public methods batch 11 left):
+#     combined ............... 35%   (18592 stmts, 11537 missed)
+#     function coverage ....... 573 of 1429 public functions/methods (40.1%),
+#                               up from 489 (34.2%) after batch 13.
+#   Floor raised to 34.
+#
+#   Two more defects (B67, B68), both in setFieldFromDataFrame: it always
+#   groups boundary rows by a 'boundary' column even when there are none, so
+#   a field with no boundary patches -- exactly what getDataFrame() returns
+#   for one -- cannot be round-tripped back through it (B67); and the
+#   parallel branch reads the EXISTING per-processor boundary before writing,
+#   so a freshly-built single-processor field (the common case) cannot be
+#   turned parallel by feeding it a parallel DataFrame -- only an
+#   already-parallel field can be updated this way (B68). getDataFrame and
+#   the single/parallel dispatch in setFieldFromDataFrame both check out
+#   correct once those preconditions are met. Three more methods
+#   (addProcBoundary, readBoundariesFromCase, readFromCase) only got a
+#   smoke test: PyFoam's DictProxy/Field/WriteParameterFile are a bare
+#   MagicMock with no real storage, so nothing they write can be verified --
+#   the same ceiling batch 11 documented for addBoundaryField.
