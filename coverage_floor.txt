@@ -74,6 +74,13 @@
 #   two unimportable modules (B40 radiosonde, B41 a hard-coded personal path)
 #   and a corrected diagnosis of P1's effect on the turbulence cache.
 #
+# After batch 7 (measurements/GIS):
+#     combined ............... 31%   (18591 stmts, 12221 missed)
+#     GIS .................... 43%
+#   Floor UNCHANGED at 29.  70 covered statements.  The batch's substance was
+#   B43: two contradictory IGBP roughness tables in one file, differing by a
+#   factor of 1300 for snow and ice.
+#
 # Two points of headroom below the measured value, deliberately: CI runs
 # Python 3.11 with the versions pinned in requirements.txt, so its number will
 # not match this one exactly, and the gate should fail on regressions rather
