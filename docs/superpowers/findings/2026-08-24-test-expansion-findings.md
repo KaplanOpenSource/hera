@@ -527,3 +527,28 @@ FileNotFoundError: /home/ilay/hera_unittest_data/measurements/meteorology/
 
 ### מה שנמצא תקין
 סיווג העונות ב-`addDatesColumns` נכון לכל 12 החודשים ותואם את `seasonsdict` שהמודול עצמו מגדיר (DJF/MAM/JJA/SON), כולל מקרה הגלישה שבו דצמבר וינואר חולקים עונה. גם קידוד ה-HHMM (`06:30 → 630`) נכון לאורך היממה, והפונקציה אינה משנה את ה-DataFrame של הקורא.
+
+---
+
+## אצווה 7 — `measurements/GIS`
+
+### B42. ייבוא מודול מריץ דמו וכותב 8 מגה-בייט לתיקייה הנוכחית
+**קובץ:** `hera/measurements/GIS/raster/hill2stl.py` · **מקובע ב:** `test_gis_utils.py::TestImportSideEffects`
+
+בתחתית הקובץ, תחת ההערה `# Run the function`, יושב קוד דמו ברמת המודול:
+
+```python
+minx=-2; maxx=2; miny=-3; maxy=3
+filename='test1.stl'
+generate_solid_stl(function, x_range=(minx,maxx), y_range=(miny,maxy), resolution=100, filename=filename)
+```
+
+כל `import hera.measurements.GIS.raster.hill2stl` מדפיס ל-stdout וכותב **8.1MB** בשם `test1.stl` לתיקיית העבודה. כל כלי שסורק את עץ החבילה — בניית תיעוד, אינדוקס ב-IDE, איסוף טסטים — משאיר את הקובץ אחריו.
+
+**נסיבה מקלה שאומתה:** `import hera.measurements.GIS` לבדו **אינו** מפעיל את זה; רק ייבוא ישיר של המודול.
+
+### הבדל בין שתי נקודות כניסה להמרת CRS
+`GIS/utils.py:convertCRS` מתועד ומחזיר **`list of shapely.geometry.Point`**, בעוד `TopographyToolkit.convertPointsCRS` מחזיר **GeoDataFrame**. שתי דרכים להמיר קואורדינטות עם טיפוסי החזרה שונים. מקובע כטסט עובר ולא כבאג — שתיהן מתועדות — אבל ראוי לאחד.
+
+### מה שנמצא תקין
+ההמרה עצמה מדויקת: תל אביב (34.78°E, 32.08°N) נופלת בתחומי רשת ITM הצפויים, ההמרה הלוך-חזור משחזרת עד `1e-6` מעלות, מעלת קו רוחב אחת נותנת 111 ק"מ בתחום הצפוי, והכיווניות נשמרת בשני הצירים. הקונסטנטות `WSG84=4326` ו-`ITM=2039` נכונות.
