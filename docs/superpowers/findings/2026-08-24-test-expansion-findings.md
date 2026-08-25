@@ -354,3 +354,68 @@ maxX   = gaussians.iloc[maxXID]['x'] + ...                          # מיקום
 **קבצים:** `hera/simulations/gaussian/toolkit.py:62` מול `Meteorology.py:343` · **מקובע ב:** `test_gaussian_toolkit.py::test_the_two_defaults_differ_between_toolkit_and_factory`
 
 `gaussianToolkit.getMeteorologyFromU10` מוגדר `verticalProfileType="powerLaw"`, ו-`MeteorologyFactory.getMeteorologyFromU10` מוגדר `"log"`. אותה קריאה, אותם ארגומנטים — שני פרופילי רוח שונים לגמרי, בהתאם לנקודת הכניסה. לא קריסה, אבל מלכודת שקטה.
+
+---
+
+## אצווה 4 — `evaporation` · `deposition` · `hydrodynamics` · `windProfile` · `simulations/utils`
+
+### B31. `evaporation` ו-`deposition` אינם ניתנים לייבוא — ייבוא יחסי ברמה שגויה
+**קבצים:** `evaporation/models.py:3` · `evaporation/monaghan.py:5` · `deposition/models.py:2` · **מקובע ב:** `test_simulations_module_imports.py::TestTheBrokenRelativeImport`
+
+```python
+from ..utils import tonumber, tounit     # שתי נקודות = hera.simulations.utils
+```
+
+`hera/simulations/utils/__init__.py` **ריק**; `tonumber` ו-`tounit` יושבים ב-`hera.utils`, שלוש רמות למעלה. התוצאה:
+
+```
+ImportError: cannot import name 'tonumber' from 'hera.simulations.utils'
+```
+
+**שתי חבילות פיזיקה שלמות מתות בכל התקנה.** באותו עץ, `gaussian/DropletCloud.py:5` עושה `from ...utils import tounit,tonumber` — שלוש נקודות — ועובד. גם שורה 4 ב-`evaporation/models.py` עצמו עושה `from hera.utils.unitHandler import ...` נכון. כלומר התיקון הוא נקודה אחת בשלושה קבצים.
+
+זהו הפגם הבודד עם ההשפעה הרחבה ביותר שנמצא עד כה: הוא הפיל כמחצית מהיקף האצווה המתוכנן.
+
+### B32. `calculateR` מערבב נורמליזציות — מחזיר `(N-1)/N` מהמתאם
+**קובץ:** `hera/simulations/analysis/errorCalculation.py` · **מקובע ב:** `test_simulations_errorcalculation.py::test_correlation_is_one`, `::test_the_shortfall_is_exactly_the_sample_size_factor`
+
+```python
+R = ((model-model.mean())*(measure-measure.mean())).mean() / (model.std()*measure.std())
+```
+
+המונה מחלק ב-**N** (`.mean()`); המכנה משתמש ב-`.std()`, שברירת המחדל ב-pandas היא סטיית תקן **מדגמית** (ddof=1, חלוקה ב-N−1). כל תוצאה קטנה בפקטור `(N-1)/N` בדיוק, ואומת על חמישה גדלי מדגם:
+
+| N | `calculateR` למודל מושלם | שגיאה |
+|---|---|---|
+| 3 | 0.6667 | **33%** |
+| 5 | 0.8000 | 20% |
+| 10 | 0.9000 | 10% |
+| 50 | 0.9800 | 2% |
+| 200 | 0.9950 | 0.5% |
+
+מודל מושלם **לעולם לא יקבל 1.0**, וההטיה נעלמת רק אסימפטוטית. במדדי הערכת מודלים (Chang & Hanna) שמדווחים על מדגמים קטנים זו הטיה מהותית. התיקון: `std(ddof=0)`.
+
+### B33. `skin_friction` תמיד זורק — `numpy.log()` בלי ארגומנט
+**קובץ:** `hera/simulations/hydrodynamics/nearWallFlow.py:174` ו-`:298` · **מקובע ב:** `test_simulations_nearwallflow.py::TestSkinFriction`
+
+```python
+Lambda = 2*numpy.log()
+```
+
+`TypeError: log() takes from 1 to 2 positional arguments but 0 were given`. הבאג קיים **בשתי המחלקות** — `channelFlow` ו-`couetteFlow`. שתי המתודות לא יכלו לרוץ מעולם.
+
+### B34. `ReynoldsUm` מחזיר מספר ריינולדס עם יחידות
+**קובץ:** `hera/simulations/hydrodynamics/nearWallFlow.py:59,63,97` · **מקובע ב:** `test_simulations_nearwallflow.py::test_a_reynolds_number_is_dimensionless`
+
+```python
+@property
+def height(self):
+    return self._channelHeight.m_as(ureg.m)      # מפשיט יחידות
+```
+
+`hydraulicHeight = 2*height` יוצא חסר-ממד, ולכן `ustar*hydraulicHeight/nu` = `(m/s × 1)/(m²/s)` = **1/מטר**. מספר ריינולדס חייב להיות חסר-ממד. `Re_tau` באותה מחלקה נמנע מזה כי הוא משתמש ב-`_channelHeight` (ה-Quantity) ישירות — כלומר שתי גישות סותרות באותו קובץ.
+
+### B35. `ReynoldsUm` מתעלם מהפרמטר שעל שמו הוא קרוי
+**קובץ:** `hera/simulations/hydrodynamics/nearWallFlow.py:97` · **מקובע ב:** `test_simulations_nearwallflow.py::test_the_bulk_velocity_changes_the_answer`
+
+הדוקסטרינג: "Return the reynolds based on the **Um** and hydraulic diameter". הגוף מחשב `ustar*hydraulicHeight/nu` ואינו קורא את `Um` כלל. זהו מספר ריינולדס של חיכוך, לא של הזרימה הממוצעת, ושינוי `Um` אינו משנה דבר.
