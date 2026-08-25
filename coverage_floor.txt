@@ -1,4 +1,4 @@
-32
+33
 # The number on the first line is the combined line+branch coverage floor,
 # enforced in CI by `coverage report --fail-under`.  Raise it in the same PR
 # that raises coverage; never lower it.
@@ -137,3 +137,22 @@
 #   lists -- was verified against a hand-built fake shaped like PyFoam's own
 #   parsed-file objects, since the stubbed PyFoam is a MagicMock and would
 #   not have exercised the real branches.
+#
+# After batch 14 (riskassessment/agents: Agents.py, Calculator,
+#                 Injury, InjuryLevel, thresholdGeoDataFrame):
+#     combined ............... 34%   (18592 stmts, 11655 missed)
+#   Floor raised to 33.
+#
+#   Five more defects (B62-B66), the two costliest being: B63, where
+#   Injury.calculateToxicLoads/calculatePointWiseFractionInjured have no
+#   inUnits parameter to forward to the calculator, so every call on plain
+#   pandas.DataFrame input raises KeyError regardless of which calculator is
+#   configured (pandas.DataFrame has carried .attrs since 1.0, so the
+#   hasattr() check meant to detect xarray no longer distinguishes the two);
+#   and B65, thresholdGeoDataFrame.project checking
+#   isinstance(x, collections.Iterable), an attribute removed from
+#   collections in Python 3.10 -- the method cannot run on this Python at
+#   all. Everything else in the five files -- Agent/PhysicalPropeties'
+#   remaining ten methods, InjuryLevelThreshold/Exponential's full
+#   construction and dose-response math, and shiftLocationAndAngle's
+#   rotate+translate under both angle conventions -- checked out correct.

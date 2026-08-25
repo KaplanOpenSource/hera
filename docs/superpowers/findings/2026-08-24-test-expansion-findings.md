@@ -832,3 +832,53 @@ fileStrContent = self.getHeader()
 `OFObject` — מחלקת הבסיס הטהורה של `OFField`/`OFList` — עובדת נכון על כל 10 המתודות הציבוריות שלה: וקטור הממדים (`getDimensions`/`dimensionsStr`/`dimensionsList`, כולל השלמת ברירת מחדל לאפס), שמות הרכיבים לפי סוג שדה (סקלר/וקטור/טנזור), גישה ל-`internalField`/`boundaryField`/`processors`/`processorItems` לפי פרוססור, אימות `fieldType` לא תקין, וכתיבה לדיסק (`writeToCase`) בפיצול single/multi-processor כולל ה-escaping של `"proc.*"`.
 
 `ParsedParameterFileToDataFrame` (ב-`preprocessOFObjects/utils.py`) — הפונקציה שמתרגמת שדה OpenFOAM מפורק לטבלת pandas — נבדקה מול אובייקט מזויף שמדמה את הצורה של PyFoam (`obj['key'].val`), בגלל שה-PyFoam המסוטב הוא MagicMock ולא היה מפעיל את ההסתעפויות האמיתיות. כל ההסתעפויות עובדות נכון: אינדקס פרוססור לשדה הפנימי, שורה נפרדת לכל boundary patch עם `value`, שורת NaN ל-patch בלי `value` (כמו `zeroGradient`), דילוג מלא על patch עם `value` ריק, סינון patches של פרוססור (`proc*`) כברירת מחדל, וכיבוד `patchNameList` מפורש. `extractFieldFile` עוטף כשל בפריסה כ-`ValueError` (נבדק ע"י monkeypatch ל-`ParsedParameterFile` עצמה, כי הסטאב לא נכשל על נתיב לא קיים).
+
+---
+
+## אצווה 14 — `riskassessment/agents` (Agents.py, Calculator, Injury, InjuryLevel, thresholdGeoDataFrame)
+
+### B62. `Injury.calculateToxicLoads` שולח `field` למקום הלא נכון עבור Haber
+**קובץ:** `hera/riskassessment/agents/effects/Injury.py:282` · **מקובע ב:** `test_risk_injury_pandas_path.py::TestInjuryCalculateToxicLoadsOnPandas::test_toxic_loads_via_haber_raises_on_the_positional_mismatch`
+
+```python
+return self.calculator.calculate(concentrationField, field, breathingRate=breathingRate, time=time)
+```
+
+`field` מועבר כפרמטר positional שני. זה תואם את `CalculatorTenBerge`/`CalculatorMaxConcentration` (ששם הפרמטר השני שלהן הוא `field`), אבל **לא** את `CalculatorHaber`, שהחתימה שלה היא `(self, concentrationField, breathingRate=..., time=..., field=None, ...)`. כל `Injury` שמוגדר עם מחשבון Haber קורס ב-`TypeError: got multiple values for argument 'breathingRate'` בפעם הראשונה שהוא בשימוש.
+
+### B63. אין דרך להעביר `inUnits` דרך ה-API של `Injury` — קלט pandas קורס תמיד
+**קובץ:** `hera/riskassessment/agents/effects/Injury.py:259` · **מקובע ב:** `test_risk_injury_pandas_path.py::TestInjuryCalculateToxicLoadsOnPandas`
+
+שלושת המחשבונים בודקים `hasattr(concentrationField,"attrs")` כדי להבחין בין xarray ל-pandas — אבל ל-`pandas.DataFrame` יש `.attrs` (ריק) כבר מגרסה 1.0, כך שהבדיקה לא מבחינה יותר בין השניים, ו-`df.attrs[field]` מתפוצץ ב-`KeyError`. קריאה ישירה למחשבון עוקפת את זה עם `inUnits=` מפורש, אבל ל-`calculateToxicLoads`/`calculatePointWiseFractionInjured` (החתימות של שתיהן) **אין פרמטר `inUnits` בכלל** — כך שדרך ה-API של `Injury` אין שום דרך לעקוף את זה, בלי קשר לאיזה מחשבון מוגדר.
+
+### B64. הענף הפנדס של Haber מכפיל DataFrame ב-Series בלי `axis=0` — התוצאה NaN מוחלטת
+**קובץ:** `hera/riskassessment/agents/effects/Calculator.py:112` · **מקובע ב:** `test_risk_injury_pandas_path.py::TestCalculatorHaberOnPandas`
+
+```python
+return (concentrationField[:-1].fillna(0)*dt_min[1:]).cumsum()*breathingRatio * CunitConversion
+```
+
+`dt_min[1:]` הוא `Series` עם אינדקס שלם (0,1,2...) בעוד ה-DataFrame מאונדקס בזמן. הכפלת DataFrame ב-Series **בלי `axis=0`** מיישרת לפי **עמודות**, לא לפי שורות — ומכיוון שאין התאמה בין תוויות העמודות ("P1") לתוויות ה-Series (מספרים שלמים), התוצאה היא DataFrame עם עמודות מדומות נוספות ו-NaN מוחלט. `CalculatorTenBerge` נמנעת בדיוק מהמלכודת הזו באותה שורה, ע"י המרה ל-`.values.reshape(...)` לפני הכפל.
+
+### B65. `thresholdGeoDataFrame.project` — קוד שלא ניתן להרצה בפייתון הנוכחי
+**קובץ:** `hera/riskassessment/agents/effects/thresholdGeoDataFrame.py:77` · **מקובע ב:** `test_risk_thresholdgeodataframe.py::TestProjectIsUnusableOnThisPython`
+
+```python
+if isinstance(meteorological_angle,collections.Iterable):
+```
+
+`collections.Iterable` הוסר מ-Python 3.10 (הועבר ל-`collections.abc.Iterable` עוד ב-3.3, וה-alias הוסר לגמרי ב-3.10). כל קריאה ל-`project` — כולל עם `demographic=None` — קורסת ב-`AttributeError` **לפני** שהיא בכלל מגיעה לטפל בפרמטרים.
+
+### B66. `getVolatility` מחזיר יחידות שגויות — g²/(mol·cm³) במקום g/cm³
+**קובץ:** `hera/riskassessment/agents/Agents.py:264` · **מקובע ב:** `test_risk_agents.py::TestPhysicalPropetiesCorrelations`
+
+```python
+MW = self.getMolecularWeight().to(ureg.g/ureg.mol)
+...
+return 1.585287951807229e-5*MW*V1/(temperature+273.16)*ureg.g/ureg.cm**3
+```
+
+`MW` הוא `Quantity` ביחידות g/mol, ומוכפל ישירות בביטוי הסופי בלי שה-`mol⁻¹` מבוטל אף פעם — ואז מוכפל שוב ב-`ureg.g/ureg.cm**3`. הממד שמתקבל בפועל הוא `g²/(mol·cm³)`, לא ריכוז מסה `g/cm³` כמתועד. כל שימוש ב-`getVolatility` נותן ערך במימד שגוי.
+
+### מה שנמצא תקין
+`Agent`/`PhysicalPropeties` — 10 השיטות הציבוריות שנותרו — עובדות נכון: `fullDescription`, `effectproperties`, `toJSON` (כולל nesting של effects), וכל ה-getters/setters של `PhysicalPropeties` (המרות יחידות למול g/mol ו-cm/s, ברירות מחדל). קורלציית הצפיפות (`getDensity`) ולחץ האדים (`vaporPressure`, נוסחת Antoine) מדויקות מול הנוסחה המתועדת. `CalculatorTenBerge.toJSON`, `InjuryLevelThreshold.toJSON`, ו-`InjuryLevelExponential` המלאה (constructor, `getPercent = 1-exp(-k·D)`, מונוטוניות, `toJSON`) — כולם תקינים. `Injury.toJSON`, האזהרה המתועדת ב-`calculate` (deprecated), ו-`calculatePointWiseFractionInjured`'s דחיית קלט לא-pandas — כולם עובדים כצפוי. `thresholdGeoDataFrame.shiftLocationAndAngle` מסובב ומזיז פוליגונים נכון תחת שתי מוסכמות הזווית, ודוחה קריאה בלי זווית כלל.
