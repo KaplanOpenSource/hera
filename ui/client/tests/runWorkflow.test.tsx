@@ -3,9 +3,11 @@ import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-libra
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockRunWorkflow = vi.fn();
+const mockStartWorkflow = vi.fn();
+const mockPollWorkflow = vi.fn();
 vi.mock('../src/io/runWorkflow', () => ({
-  runWorkflow: (...args: any[]) => mockRunWorkflow(...args),
+  startWorkflow: (...args: any[]) => mockStartWorkflow(...args),
+  pollWorkflow: (...args: any[]) => mockPollWorkflow(...args),
 }));
 
 const mockPushInfo = vi.fn();
@@ -18,7 +20,9 @@ vi.mock('../src/io/snackbar', () => ({
 }));
 
 const { RunWorkflowButton } = await import('../src/components/workflow/RunWorkflowButton');
+const { WorkflowRunPoller } = await import('../src/components/workflow/WorkflowRunPoller');
 const { useViewSettingsStore } = await import('../src/stores/useViewSettingsStore');
+const { useWorkflowRunStore } = await import('../src/stores/useWorkflowRunStore');
 
 const setSaving = (value: boolean) => {
   useViewSettingsStore.getState().setViewSettings({ alwaysSaveBeforeRun: value });
@@ -34,28 +38,98 @@ afterEach(() => {
 beforeEach(() => {
   vi.clearAllMocks();
   setSaving(false);
+  // Clear any run left in the shared store between tests.
+  useWorkflowRunStore.setState({ runs: {} });
+  // Default: starting returns a token; the run then stays running until polled.
+  mockStartWorkflow.mockResolvedValue({ token: 't1' });
+  mockPollWorkflow.mockResolvedValue({ status: 'running', output: '', error: '' });
 });
 
 describe('RunWorkflowButton', () => {
-  it('runs the workflow via the endpoint and shows its output', async () => {
-    mockRunWorkflow.mockResolvedValueOnce({ dispatch_id: 'abc123', output: 'hello from hera\n' });
+  it('starts the run and marks the button running (disabled + spinner)', async () => {
+    mockStartWorkflow.mockResolvedValueOnce({ token: 'abc123' });
 
-    render(<RunWorkflowButton projectName="TestProject" workflowName="hello_1" />);
+    // The run buttons live in `container`; the output dialog renders in a portal.
+    const { container } = render(<RunWorkflowButton projectName="TestProject" workflowName="hello_1" />);
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /run workflow/i }));
     });
 
     await waitFor(() => {
-      expect(mockRunWorkflow).toHaveBeenCalledWith({ projectName: 'TestProject', workflowName: 'hello_1' });
+      expect(mockStartWorkflow).toHaveBeenCalledWith({ projectName: 'TestProject', workflowName: 'hello_1' });
+      // The run button shows a spinner and is disabled while running.
+      const runButtons = Array.from(container.querySelectorAll('button'))
+        .filter(b => b.querySelector('[role="progressbar"]'));
+      expect(runButtons).toHaveLength(1);
+      expect(runButtons[0].disabled).toBe(true);
+    });
+  });
+
+  it('disables every button for the same workflow while it runs', async () => {
+    const { container } = render(
+      <>
+        <RunWorkflowButton projectName="P" workflowName="shared" />
+        <RunWorkflowButton projectName="P" workflowName="shared" />
+      </>,
+    );
+    const buttons = () => Array.from(container.querySelectorAll('button'));
+    expect(buttons()).toHaveLength(2);
+    expect(buttons().every(b => !b.disabled)).toBe(true);
+
+    await act(async () => {
+      fireEvent.click(buttons()[0]);
+    });
+
+    // Both buttons react to the shared run, not just the one that was clicked:
+    // each shows a spinner and is disabled.
+    await waitFor(() => {
+      const runButtons = buttons().filter(b => b.querySelector('[role="progressbar"]'));
+      expect(runButtons).toHaveLength(2);
+      expect(runButtons.every(b => b.disabled)).toBe(true);
+    });
+  });
+
+  it('runs end to end with the poller: shows output and info on done', async () => {
+    mockStartWorkflow.mockResolvedValueOnce({ token: 'tok' });
+    mockPollWorkflow.mockResolvedValueOnce({ status: 'done', output: 'hello from hera\n', error: '' });
+
+    render(
+      <>
+        <WorkflowRunPoller />
+        <RunWorkflowButton projectName="P" workflowName="hello_1" />
+      </>,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /run workflow/i }));
+    });
+
+    await waitFor(() => {
+      expect(mockPollWorkflow).toHaveBeenCalledWith('tok');
       expect(mockPushInfo).toHaveBeenCalledWith('Workflow "hello_1" finished');
       expect(screen.getByText(/hello from hera/i)).toBeTruthy();
     });
   });
 
-  it('shows an error snackbar when the run fails', async () => {
-    mockRunWorkflow.mockRejectedValueOnce(new Error('boom'));
+  it('shows a busy message and does not enter the running state', async () => {
+    mockStartWorkflow.mockResolvedValueOnce({ status: 'busy' });
 
-    render(<RunWorkflowButton projectName="TestProject" workflowName="hello_1" />);
+    render(<RunWorkflowButton projectName="P" workflowName="w" />);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /run workflow/i }));
+    });
+
+    await waitFor(() => {
+      expect(mockPushError).toHaveBeenCalledWith(expect.stringContaining('busy'));
+      expect(screen.getByText(/busy/i)).toBeTruthy();
+    });
+    expect(useWorkflowRunStore.getState().runs.w).toBeUndefined();
+  });
+
+  it('shows an error snackbar when starting the run fails', async () => {
+    mockStartWorkflow.mockReset();
+    mockStartWorkflow.mockRejectedValueOnce(new Error('boom'));
+
+    render(<RunWorkflowButton projectName="P" workflowName="w" />);
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /run workflow/i }));
     });
@@ -79,7 +153,6 @@ describe('RunWorkflowButton', () => {
   });
 
   it('does not save on a plain left click when there are no unsaved changes', async () => {
-    mockRunWorkflow.mockResolvedValueOnce({ dispatch_id: 'x', output: '' });
     const save = vi.fn().mockResolvedValue(undefined);
 
     render(<RunWorkflowButton projectName="P" workflowName="w" save={save} />);
@@ -87,7 +160,7 @@ describe('RunWorkflowButton', () => {
       fireEvent.click(screen.getByRole('button', { name: /run workflow/i }));
     });
 
-    await waitFor(() => expect(mockRunWorkflow).toHaveBeenCalled());
+    await waitFor(() => expect(mockStartWorkflow).toHaveBeenCalled());
     expect(save).not.toHaveBeenCalled();
   });
 
@@ -110,19 +183,19 @@ describe('RunWorkflowButton', () => {
     setSaving(true);
     const order: string[] = [];
     const save = vi.fn().mockImplementation(async () => { order.push('save'); });
-    mockRunWorkflow.mockImplementation(async () => { order.push('run'); return { dispatch_id: 'x', output: '' }; });
+    mockStartWorkflow.mockReset();
+    mockStartWorkflow.mockImplementation(async () => { order.push('run'); return { token: 't' }; });
 
     render(<RunWorkflowButton projectName="P" workflowName="w" isChanged save={save} />);
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /run workflow/i }));
     });
 
-    await waitFor(() => expect(mockRunWorkflow).toHaveBeenCalled());
+    await waitFor(() => expect(mockStartWorkflow).toHaveBeenCalled());
     expect(order).toEqual(['save', 'run']);
   });
 
   it('runs with save from the right-click menu (one time, flag stays off)', async () => {
-    mockRunWorkflow.mockResolvedValue({ dispatch_id: 'x', output: '' });
     const save = vi.fn().mockResolvedValue(undefined);
 
     render(<RunWorkflowButton projectName="P" workflowName="w" isChanged save={save} />);
@@ -132,7 +205,7 @@ describe('RunWorkflowButton', () => {
     });
 
     await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
-    expect(mockRunWorkflow).toHaveBeenCalled();
+    expect(mockStartWorkflow).toHaveBeenCalled();
     expect(isSaving()).toBe(false);
   });
 
