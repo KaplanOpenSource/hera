@@ -15,6 +15,7 @@ const POLL_MS = 500;
 export const WorkflowRunPoller = () => {
   const runs = useWorkflowRunStore((state) => { return state.runs; });
   const setRunResult = useWorkflowRunStore((state) => { return state.setRunResult; });
+  const setRunOutput = useWorkflowRunStore((state) => { return state.setRunOutput; });
 
   const runningEntry = Object.entries(runs).find(([, run]) => {
     return run.status === WorkflowRunStatus.Running;
@@ -56,6 +57,8 @@ export const WorkflowRunPoller = () => {
         return;
       }
       if (result.status === 'running') {
+        // Show the output as it grows, without ending the run.
+        setRunOutput(workflowName, result.output ?? '');
         timer = setTimeout(poll, POLL_MS);
       } else if (result.status === 'done') {
         setRunResult(workflowName, { status: WorkflowRunStatus.Done, output: result.output ?? '', error: '' });
@@ -81,7 +84,7 @@ export const WorkflowRunPoller = () => {
       clearTimeout(timer);
       clearRunningSnackbar();
     };
-  }, [token, workflowName, setRunResult]);
+  }, [token, workflowName, setRunResult, setRunOutput]);
 
   return null;
 };

@@ -50,7 +50,8 @@ export const RunWorkflowButton = ({
 
   const canSave = Boolean(save);
   const isRunning = starting || run?.status === WorkflowRunStatus.Running;
-  const output = run?.status === WorkflowRunStatus.Done ? run.output : null;
+  // Output while running (partial) and when done (final); the dialog shows it live.
+  const output = run ? run.output : null;
   const runError = run?.status === WorkflowRunStatus.Error ? run.error : null;
 
   const doRun = async (withSave: boolean) => {

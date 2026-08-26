@@ -18,6 +18,9 @@ type WorkflowRunStore = {
   runs: { [workflowName: string]: WorkflowRun },
   // Called when a run is started; marks the workflow as running.
   startRun: (workflowName: string, token: string) => void,
+  // Called by the poller while the run is still going, to show the growing output.
+  // Keeps status = running; only updates the output text.
+  setRunOutput: (workflowName: string, output: string) => void,
   // Called by the poller when the run finishes (done or error).
   setRunResult: (
     workflowName: string,
@@ -37,6 +40,18 @@ export const useWorkflowRunStore = create<WorkflowRunStore>((set) => {
             ...state.runs,
             [workflowName]: { token, status: WorkflowRunStatus.Running, output: '', error: '' },
           },
+        };
+      });
+    },
+    setRunOutput: (workflowName, output) => {
+      return set((state) => {
+        const existing = state.runs[workflowName];
+        if (!existing) {
+          console.error(`setRunOutput: no run in progress for workflow "${workflowName}"`);
+          return {};
+        }
+        return {
+          runs: { ...state.runs, [workflowName]: { ...existing, output } },
         };
       });
     },

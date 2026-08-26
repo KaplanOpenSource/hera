@@ -3,21 +3,14 @@ import time
 
 import pytest
 
-from workflow_runner import (
-    WorkflowRunner,
-    STATUS_RUNNING,
-    STATUS_DONE,
-    STATUS_ERROR,
-    STATUS_BUSY,
-    STATUS_NOT_FOUND,
-)
+from workflow_runner import WorkflowRunner, RunStatus
 
 
 def _wait_done(runner, token, timeout=10.0):
     """Poll a token until the run leaves the running state; return the poll result."""
     deadline = time.time() + timeout
     result = runner.poll(token)
-    while result["status"] == STATUS_RUNNING and time.time() < deadline:
+    while result["status"] == RunStatus.RUNNING and time.time() < deadline:
         time.sleep(0.01)
         result = runner.poll(token)
     return result
@@ -120,7 +113,7 @@ def test_start_then_poll_reports_done_with_output(install_fake_hera, tmp_path):
     assert start["token"]
 
     result = _wait_done(runner, start["token"])
-    assert result["status"] == STATUS_DONE
+    assert result["status"] == RunStatus.DONE
     assert "ran WORKFLOW" in result["output"]
 
 
@@ -132,21 +125,53 @@ def test_start_then_poll_reports_error(install_fake_hera, tmp_path):
     runner = WorkflowRunner()
 
     result = _wait_done(runner, runner.start("PROJECT", "WORKFLOW")["token"])
-    assert result["status"] == STATUS_ERROR
+    assert result["status"] == RunStatus.ERROR
     assert "workflow blew up" in result["error"]
+
+
+def test_poll_returns_partial_output_while_running(install_fake_hera, tmp_path):
+    gate = tmp_path / "gate"
+
+    def on_execute(workflow_name, scheduler):
+        os.write(1, b"partial line\n")
+        # Block until the test lets us finish, so it can observe running output.
+        while not gate.exists():
+            time.sleep(0.01)
+        return "dispatch-123"
+
+    install_fake_hera(str(tmp_path), on_execute)
+    runner = WorkflowRunner()
+    token = runner.start("PROJECT", "WORKFLOW")["token"]
+
+    # Wait until the partial output shows up while the run is still going.
+    deadline = time.time() + 10
+    result = runner.poll(token)
+    while "partial line" not in result["output"] and time.time() < deadline:
+        assert result["status"] == RunStatus.RUNNING
+        time.sleep(0.01)
+        result = runner.poll(token)
+    assert result["status"] == RunStatus.RUNNING
+    assert "partial line" in result["output"]
+
+    # Let the run finish; the final output still has the partial line.
+    gate.write_text("go")
+    final = _wait_done(runner, token)
+    assert final["status"] == RunStatus.DONE
+    assert "partial line" in final["output"]
 
 
 def test_poll_unknown_token_is_not_found():
     assert WorkflowRunner().poll("nope") == {
-        "status": STATUS_NOT_FOUND, "output": "", "error": "",
+        "status": RunStatus.NOT_FOUND, "output": "", "error": "",
     }
 
 
 def test_start_reports_busy_while_a_run_is_in_progress():
     runner = WorkflowRunner()
-    # Simulate a run in progress by leaving a running job in the slot.
-    runner._job = {"token": "t", "status": STATUS_RUNNING, "output": "", "error": ""}
-    assert runner.start("PROJECT", "WORKFLOW") == {"status": STATUS_BUSY}
+    # Simulate a run in progress by leaving the runner in the running state.
+    runner._token = "t"
+    runner._status = RunStatus.RUNNING
+    assert runner.start("PROJECT", "WORKFLOW") == {"status": RunStatus.BUSY}
 
 
 def test_next_run_overwrites_the_finished_slot(install_fake_hera, tmp_path):
@@ -154,9 +179,9 @@ def test_next_run_overwrites_the_finished_slot(install_fake_hera, tmp_path):
     runner = WorkflowRunner()
 
     first = runner.start("PROJECT", "WORKFLOW")["token"]
-    assert _wait_done(runner, first)["status"] == STATUS_DONE
+    assert _wait_done(runner, first)["status"] == RunStatus.DONE
 
     second = runner.start("PROJECT", "WORKFLOW")["token"]
-    assert _wait_done(runner, second)["status"] == STATUS_DONE
+    assert _wait_done(runner, second)["status"] == RunStatus.DONE
     assert second != first
-    assert runner.poll(first)["status"] == STATUS_NOT_FOUND
+    assert runner.poll(first)["status"] == RunStatus.NOT_FOUND

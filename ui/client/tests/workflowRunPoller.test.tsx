@@ -66,6 +66,22 @@ describe('WorkflowRunPoller', () => {
     expect(mockPollWorkflow).toHaveBeenCalledTimes(2);
   });
 
+  it('writes partial output to the store while still running', async () => {
+    mockPollWorkflow.mockResolvedValueOnce({ status: 'running', output: 'partial so far', error: '' });
+    mockPollWorkflow.mockResolvedValueOnce({ status: 'done', output: 'all done', error: '' });
+
+    render(<WorkflowRunPoller />);
+    await act(async () => {
+      startRun('w', 'tok');
+    });
+
+    // The running poll updates output but keeps the run in the running state.
+    await waitFor(() => expect(runOf('w').output).toBe('partial so far'));
+    // Then it finishes with the final output.
+    await waitFor(() => expect(runOf('w').status).toBe(WorkflowRunStatus.Done));
+    expect(runOf('w').output).toBe('all done');
+  });
+
   it('writes error to the store when a poll reports failure', async () => {
     mockPollWorkflow.mockResolvedValueOnce({ status: 'error', output: '', error: 'it broke' });
 

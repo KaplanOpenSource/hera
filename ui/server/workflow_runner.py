@@ -2,16 +2,26 @@ import time
 import uuid
 import threading
 import multiprocessing
+from enum import Enum
+from typing import Optional
 
 from pipe_tee import PipeTee
 from workflow_child import run_workflow_in_child
 
-# Job status values reported by poll(); "busy" is returned by start().
-STATUS_RUNNING = "running"
-STATUS_DONE = "done"
-STATUS_ERROR = "error"
-STATUS_BUSY = "busy"
-STATUS_NOT_FOUND = "not_found"
+
+class RunStatus(str, Enum):
+    """Run status reported by poll(); BUSY is returned by start().
+
+    Subclasses ``str`` so members serialize to their plain string value over the
+    wire (e.g. ``"running"``) and compare equal to it.
+    """
+
+    IDLE = "idle"  # no run started yet on this runner
+    RUNNING = "running"
+    DONE = "done"
+    ERROR = "error"
+    BUSY = "busy"
+    NOT_FOUND = "not_found"
 
 
 def _now_readable() -> str:
@@ -31,59 +41,84 @@ class WorkflowRunner:
     def __init__(self):
         # Serialize runs: the local Luigi scheduler / DB access is not meant to run concurrently.
         self._lock = threading.Lock()
-        # The single job slot; overwritten by the next start. None until the first run.
-        self._job = None
+        # This runner holds one run. Its fields are overwritten by the next start;
+        # more concurrent runs would mean more runners, not more fields here.
+        # _token is None until the first run; _tee is the live output buffer, set
+        # once the background thread starts the run so poll() can snapshot() it.
+        self._token: Optional[str] = None
+        self._status: RunStatus = RunStatus.IDLE
+        self._output: str = ""
+        self._error: str = ""
+        self._tee: Optional[PipeTee] = None
 
     def start(self, project_name: str, workflow_name: str) -> dict:
         """Start a run in the background. Returns ``{"token"}`` or ``{"status": "busy"}``."""
-        if self._job is not None and self._job["status"] == STATUS_RUNNING:
-            return {"status": STATUS_BUSY}
-        token = uuid.uuid4().hex
-        self._job = {"token": token, "status": STATUS_RUNNING, "output": "", "error": ""}
+        if self._status == RunStatus.RUNNING:
+            return {"status": RunStatus.BUSY}
+        self._token = uuid.uuid4().hex
+        self._status = RunStatus.RUNNING
+        self._output = ""
+        self._error = ""
+        self._tee = None
         thread = threading.Thread(
             target=self._background,
-            args=(token, project_name, workflow_name),
+            args=(self._token, project_name, workflow_name),
             daemon=True,
         )
         thread.start()
-        return {"token": token}
+        return {"token": self._token}
 
     def poll(self, token: str) -> dict:
         """Return ``{"status", "output", "error"}`` for a token, or not_found if unknown."""
-        job = self._job
-        if job is None or job["token"] != token:
+        # Read the token first: a mismatch means this isn't the run we hold.
+        if self._token != token:
             print(f"[{_now_readable()}] poll {token}: not_found")
-            return {"status": STATUS_NOT_FOUND, "output": "", "error": ""}
-        print(f"[{_now_readable()}] poll {token}: {job['status']}")
-        return {"status": job["status"], "output": job["output"], "error": job["error"]}
+            return {"status": RunStatus.NOT_FOUND, "output": "", "error": ""}
+        print(f"[{_now_readable()}] poll {token}: {self._status}")
+        # While running, read the live buffer so the client sees output as it grows.
+        # Once done, _output holds the final text (with the timing line).
+        if self._status == RunStatus.RUNNING and self._tee is not None:
+            output = self._tee.snapshot()
+        else:
+            output = self._output
+        return {"status": self._status, "output": output, "error": self._error}
 
     def _background(self, token: str, project_name: str, workflow_name: str) -> None:
-        # Runs in a background thread; record the outcome into the job slot for poll().
+        # Runs in a background thread; record the outcome for poll(). The token guard
+        # keeps a finished run from clobbering a newer one that took the runner over.
+        # Create the tee here and store it so poll() can read partial output mid-run.
+        tee = PipeTee()
+        if self._token == token:
+            self._tee = tee
         try:
-            result = self.run(project_name, workflow_name)
-            status, output, error = STATUS_DONE, result["output"], ""
+            result = self.run(project_name, workflow_name, tee)
+            status, output, error = RunStatus.DONE, result["output"], ""
         except Exception as exc:
             # Surface the failure to the client via poll (this reports it, not hides it).
-            status, output, error = STATUS_ERROR, "", str(exc)
+            status, output, error = RunStatus.ERROR, "", str(exc)
             print("workflow run failed:", error)
-        job = self._job
-        if job is not None and job["token"] == token:
-            job["output"] = output
-            job["error"] = error
-            job["status"] = status
+        if self._token == token:
+            self._output = output
+            self._error = error
+            self._status = status
 
-    def run(self, project_name: str, workflow_name: str) -> dict:
+    def run(self, project_name: str, workflow_name: str, tee: Optional[PipeTee] = None) -> dict:
         """Build and execute a saved workflow in a forked child process.
 
         Returns ``{"dispatch_id", "output"}``. Output is the child's captured
         console output with timing lines appended: how long the workflow itself
         ran and the total wall time including process spawn.
+
+        ``tee`` captures the child's output; when omitted a fresh one is made.
+        ``start`` passes one it also stored on the job so ``poll`` can read the
+        output while the run is still going.
         """
+        if tee is None:
+            tee = PipeTee()
         with self._lock:
             # Fork so the child inherits the already-warmed hera import.
             ctx = multiprocessing.get_context("fork")
             result_queue = ctx.Queue()
-            tee = PipeTee()
 
             total_started = time.perf_counter()
             process = ctx.Process(
