@@ -1,8 +1,26 @@
 import os
+import time
 
 import pytest
 
-from workflow_runner import WorkflowRunner
+from workflow_runner import (
+    WorkflowRunner,
+    STATUS_RUNNING,
+    STATUS_DONE,
+    STATUS_ERROR,
+    STATUS_BUSY,
+    STATUS_NOT_FOUND,
+)
+
+
+def _wait_done(runner, token, timeout=10.0):
+    """Poll a token until the run leaves the running state; return the poll result."""
+    deadline = time.time() + timeout
+    result = runner.poll(token)
+    while result["status"] == STATUS_RUNNING and time.time() < deadline:
+        time.sleep(0.01)
+        result = runner.poll(token)
+    return result
 
 
 def test_run_returns_dispatch_id_and_captured_stdout(install_fake_hera, tmp_path):
@@ -88,3 +106,57 @@ def test_run_restores_pythonpath_even_on_error(install_fake_hera, tmp_path, monk
         WorkflowRunner().run("PROJECT", "WORKFLOW")
 
     assert "PYTHONPATH" not in os.environ
+
+
+def test_start_then_poll_reports_done_with_output(install_fake_hera, tmp_path):
+    def on_execute(workflow_name, scheduler):
+        os.write(1, ("ran %s\n" % workflow_name).encode())
+        return "dispatch-123"
+
+    install_fake_hera(str(tmp_path), on_execute)
+    runner = WorkflowRunner()
+
+    start = runner.start("PROJECT", "WORKFLOW")
+    assert start["token"]
+
+    result = _wait_done(runner, start["token"])
+    assert result["status"] == STATUS_DONE
+    assert "ran WORKFLOW" in result["output"]
+
+
+def test_start_then_poll_reports_error(install_fake_hera, tmp_path):
+    def on_execute(workflow_name, scheduler):
+        raise RuntimeError("workflow blew up")
+
+    install_fake_hera(str(tmp_path), on_execute)
+    runner = WorkflowRunner()
+
+    result = _wait_done(runner, runner.start("PROJECT", "WORKFLOW")["token"])
+    assert result["status"] == STATUS_ERROR
+    assert "workflow blew up" in result["error"]
+
+
+def test_poll_unknown_token_is_not_found():
+    assert WorkflowRunner().poll("nope") == {
+        "status": STATUS_NOT_FOUND, "output": "", "error": "",
+    }
+
+
+def test_start_reports_busy_while_a_run_is_in_progress():
+    runner = WorkflowRunner()
+    # Simulate a run in progress by leaving a running job in the slot.
+    runner._job = {"token": "t", "status": STATUS_RUNNING, "output": "", "error": ""}
+    assert runner.start("PROJECT", "WORKFLOW") == {"status": STATUS_BUSY}
+
+
+def test_next_run_overwrites_the_finished_slot(install_fake_hera, tmp_path):
+    install_fake_hera(str(tmp_path))
+    runner = WorkflowRunner()
+
+    first = runner.start("PROJECT", "WORKFLOW")["token"]
+    assert _wait_done(runner, first)["status"] == STATUS_DONE
+
+    second = runner.start("PROJECT", "WORKFLOW")["token"]
+    assert _wait_done(runner, second)["status"] == STATUS_DONE
+    assert second != first
+    assert runner.poll(first)["status"] == STATUS_NOT_FOUND

@@ -1,14 +1,19 @@
 import { PlayArrow, Save } from '@mui/icons-material';
 import { Box, Menu, MenuItem, SxProps, Theme } from '@mui/material';
-import { MouseEvent, useState } from 'react';
+import { MouseEvent, useEffect, useRef, useState } from 'react';
+import { SnackbarKey } from 'notistack';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
-import { runWorkflow } from '../../io/runWorkflow';
+import { startWorkflow, pollWorkflow } from '../../io/runWorkflow';
 import { dismiss, pushError, pushInfo, pushRunning } from '../../io/snackbar';
 import { useViewSettingsStore } from '../../stores/useViewSettingsStore';
 import { WorkflowOutputDialog } from './log/WorkflowOutputDialog';
 
-// Runs a saved workflow via the server's /run_workflow endpoint. The run is
-// synchronous — the output dialog opens right away and shows a spinner until the
+// How often to poll a running workflow for its status.
+const POLL_MS = 500;
+
+// Runs a saved workflow via the server. The run happens in the background: starting
+// it returns a token, and the button polls that token every POLL_MS until the run
+// is done. The output dialog opens right away and shows a spinner until the
 // captured console output (or an error) arrives.
 //
 // Left click runs the workflow. Right click opens a menu with more options:
@@ -38,31 +43,107 @@ export const RunWorkflowButton = ({
   const [running, setRunning] = useState(false);
   const [output, setOutput] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The token of the run currently being polled; null when nothing is polling.
+  const [token, setToken] = useState<string | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<{ x: number, y: number } | null>(null);
   const saveBeforeRun = useViewSettingsStore(state => state.viewSettings.alwaysSaveBeforeRun);
   const setViewSettings = useViewSettingsStore(state => state.setViewSettings);
+  // Key of the "run workflow" running-snackbar, so we can dismiss it when the run ends.
+  const runningKeyRef = useRef<SnackbarKey | null>(null);
 
   const canSave = Boolean(save);
+
+  // Clears the running state and dismisses the running snackbar. Setting token to
+  // null also stops the poll effect.
+  const finishRun = () => {
+    setRunning(false);
+    setToken(null);
+    if (runningKeyRef.current) {
+      dismiss(runningKeyRef.current);
+      runningKeyRef.current = null;
+    }
+  };
+
+  // Poll the server for the run's status until it is done or failed. Modeled on
+  // ServerReadyGate: a setTimeout loop with a cancelled guard, cleaned up on
+  // unmount (or when the token changes).
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+
+    const poll = async () => {
+      let result;
+      try {
+        result = await pollWorkflow(token);
+      } catch (e: any) {
+        if (cancelled) {
+          return;
+        }
+        setError(e?.message ?? String(e));
+        pushError(`run workflow: ${e?.message ?? e}`);
+        finishRun();
+        return;
+      }
+      if (cancelled) {
+        return;
+      }
+      if (result.status === 'running') {
+        timer = setTimeout(poll, POLL_MS);
+      } else if (result.status === 'done') {
+        setOutput(result.output ?? '');
+        pushInfo(`Workflow "${workflowName}" finished`);
+        finishRun();
+      } else if (result.status === 'error') {
+        const message = result.error || 'Workflow failed';
+        setError(message);
+        pushError(`run workflow: ${message}`);
+        finishRun();
+      } else {
+        // not_found: the server restarted or a newer run overwrote the slot.
+        const message = 'The run was lost (the server may have restarted).';
+        setError(message);
+        pushError(`run workflow: ${message}`);
+        finishRun();
+      }
+    };
+    poll();
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [token]);
 
   const doRun = async (withSave: boolean) => {
     setOpen(true);
     setRunning(true);
     setOutput(null);
     setError(null);
-    const key = pushRunning('run workflow');
+    setToken(null);
+    runningKeyRef.current = pushRunning('run workflow');
     try {
       if (withSave && save) {
         await save();
       }
-      const { output } = await runWorkflow({ projectName, workflowName });
-      setOutput(output ?? '');
-      pushInfo(`Workflow "${workflowName}" finished`);
+      const result = await startWorkflow({ projectName, workflowName });
+      if (result.status === 'busy') {
+        const message = 'The server is busy running another workflow. Try again shortly.';
+        setError(message);
+        pushError(`run workflow: ${message}`);
+        finishRun();
+      } else if (result.token) {
+        // The poll effect takes over from here.
+        setToken(result.token);
+      } else {
+        finishRun();
+      }
     } catch (e: any) {
       setError(e?.message ?? String(e));
       pushError(`run workflow: ${e?.message ?? e}`);
-    } finally {
-      setRunning(false);
-      dismiss(key);
+      finishRun();
     }
   };
 
