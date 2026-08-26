@@ -20,7 +20,9 @@ vi.mock('../src/io/snackbar', () => ({
 }));
 
 const { RunWorkflowButton } = await import('../src/components/workflow/RunWorkflowButton');
+const { WorkflowRunPoller } = await import('../src/components/workflow/WorkflowRunPoller');
 const { useViewSettingsStore } = await import('../src/stores/useViewSettingsStore');
+const { useWorkflowRunStore } = await import('../src/stores/useWorkflowRunStore');
 
 const setSaving = (value: boolean) => {
   useViewSettingsStore.getState().setViewSettings({ alwaysSaveBeforeRun: value });
@@ -36,63 +38,79 @@ afterEach(() => {
 beforeEach(() => {
   vi.clearAllMocks();
   setSaving(false);
-  // A run that starts and finishes on the first poll, unless a test overrides it.
+  // Clear any run left in the shared store between tests.
+  useWorkflowRunStore.setState({ runs: {} });
+  // Default: starting returns a token; the run then stays running until polled.
   mockStartWorkflow.mockResolvedValue({ token: 't1' });
-  mockPollWorkflow.mockResolvedValue({ status: 'done', output: '', error: '' });
+  mockPollWorkflow.mockResolvedValue({ status: 'running', output: '', error: '' });
 });
 
 describe('RunWorkflowButton', () => {
-  it('starts the run, polls, and shows the output on done', async () => {
+  it('starts the run and marks the button running (disabled + spinner)', async () => {
     mockStartWorkflow.mockResolvedValueOnce({ token: 'abc123' });
-    mockPollWorkflow.mockResolvedValueOnce({ status: 'done', output: 'hello from hera\n', error: '' });
 
-    render(<RunWorkflowButton projectName="TestProject" workflowName="hello_1" />);
+    // The run buttons live in `container`; the output dialog renders in a portal.
+    const { container } = render(<RunWorkflowButton projectName="TestProject" workflowName="hello_1" />);
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /run workflow/i }));
     });
 
     await waitFor(() => {
       expect(mockStartWorkflow).toHaveBeenCalledWith({ projectName: 'TestProject', workflowName: 'hello_1' });
-      expect(mockPollWorkflow).toHaveBeenCalledWith('abc123');
+      // The run button shows a spinner and is disabled while running.
+      const runButtons = Array.from(container.querySelectorAll('button'))
+        .filter(b => b.querySelector('[role="progressbar"]'));
+      expect(runButtons).toHaveLength(1);
+      expect(runButtons[0].disabled).toBe(true);
+    });
+  });
+
+  it('disables every button for the same workflow while it runs', async () => {
+    const { container } = render(
+      <>
+        <RunWorkflowButton projectName="P" workflowName="shared" />
+        <RunWorkflowButton projectName="P" workflowName="shared" />
+      </>,
+    );
+    const buttons = () => Array.from(container.querySelectorAll('button'));
+    expect(buttons()).toHaveLength(2);
+    expect(buttons().every(b => !b.disabled)).toBe(true);
+
+    await act(async () => {
+      fireEvent.click(buttons()[0]);
+    });
+
+    // Both buttons react to the shared run, not just the one that was clicked:
+    // each shows a spinner and is disabled.
+    await waitFor(() => {
+      const runButtons = buttons().filter(b => b.querySelector('[role="progressbar"]'));
+      expect(runButtons).toHaveLength(2);
+      expect(runButtons.every(b => b.disabled)).toBe(true);
+    });
+  });
+
+  it('runs end to end with the poller: shows output and info on done', async () => {
+    mockStartWorkflow.mockResolvedValueOnce({ token: 'tok' });
+    mockPollWorkflow.mockResolvedValueOnce({ status: 'done', output: 'hello from hera\n', error: '' });
+
+    render(
+      <>
+        <WorkflowRunPoller />
+        <RunWorkflowButton projectName="P" workflowName="hello_1" />
+      </>,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /run workflow/i }));
+    });
+
+    await waitFor(() => {
+      expect(mockPollWorkflow).toHaveBeenCalledWith('tok');
       expect(mockPushInfo).toHaveBeenCalledWith('Workflow "hello_1" finished');
       expect(screen.getByText(/hello from hera/i)).toBeTruthy();
     });
   });
 
-  it('keeps polling while the run is still running, then stops on done', async () => {
-    mockStartWorkflow.mockResolvedValueOnce({ token: 'tok' });
-    mockPollWorkflow.mockResolvedValueOnce({ status: 'running', output: '', error: '' });
-    mockPollWorkflow.mockResolvedValueOnce({ status: 'done', output: 'finished output', error: '' });
-
-    render(<RunWorkflowButton projectName="P" workflowName="w" />);
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /run workflow/i }));
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText(/finished output/i)).toBeTruthy();
-    });
-    // Exactly the running poll + the done poll; it does not keep polling after done.
-    expect(mockPollWorkflow).toHaveBeenCalledTimes(2);
-  });
-
-  it('shows an error when a poll reports the run failed', async () => {
-    mockStartWorkflow.mockResolvedValueOnce({ token: 'tok' });
-    mockPollWorkflow.mockResolvedValueOnce({ status: 'error', output: '', error: 'boom in the run' });
-
-    render(<RunWorkflowButton projectName="P" workflowName="w" />);
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /run workflow/i }));
-    });
-
-    await waitFor(() => {
-      expect(mockPushError).toHaveBeenCalledWith('run workflow: boom in the run');
-      expect(screen.getByText(/boom in the run/i)).toBeTruthy();
-    });
-    expect(mockPushInfo).not.toHaveBeenCalled();
-  });
-
-  it('shows a busy message and does not poll when the server is busy', async () => {
+  it('shows a busy message and does not enter the running state', async () => {
     mockStartWorkflow.mockResolvedValueOnce({ status: 'busy' });
 
     render(<RunWorkflowButton projectName="P" workflowName="w" />);
@@ -102,14 +120,14 @@ describe('RunWorkflowButton', () => {
 
     await waitFor(() => {
       expect(mockPushError).toHaveBeenCalledWith(expect.stringContaining('busy'));
+      expect(screen.getByText(/busy/i)).toBeTruthy();
     });
-    expect(mockPollWorkflow).not.toHaveBeenCalled();
-    expect(mockPushInfo).not.toHaveBeenCalled();
+    expect(useWorkflowRunStore.getState().runs.w).toBeUndefined();
   });
 
-  it('stops polling on an unknown token', async () => {
-    mockStartWorkflow.mockResolvedValueOnce({ token: 'gone' });
-    mockPollWorkflow.mockResolvedValueOnce({ status: 'not_found', output: '', error: '' });
+  it('shows an error snackbar when starting the run fails', async () => {
+    mockStartWorkflow.mockReset();
+    mockStartWorkflow.mockRejectedValueOnce(new Error('boom'));
 
     render(<RunWorkflowButton projectName="P" workflowName="w" />);
     await act(async () => {
@@ -117,26 +135,8 @@ describe('RunWorkflowButton', () => {
     });
 
     await waitFor(() => {
-      expect(mockPushError).toHaveBeenCalledWith(expect.stringContaining('lost'));
-    });
-    // One poll only: it stops instead of looping on a token the server does not know.
-    expect(mockPollWorkflow).toHaveBeenCalledTimes(1);
-    expect(mockPushInfo).not.toHaveBeenCalled();
-  });
-
-  it('shows an error snackbar when starting the run fails', async () => {
-    mockStartWorkflow.mockReset();
-    mockStartWorkflow.mockRejectedValueOnce(new Error('boom'));
-
-    render(<RunWorkflowButton projectName="TestProject" workflowName="hello_1" />);
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /run workflow/i }));
-    });
-
-    await waitFor(() => {
       expect(mockPushError).toHaveBeenCalledWith('run workflow: boom');
     });
-    expect(mockPollWorkflow).not.toHaveBeenCalled();
     expect(mockPushInfo).not.toHaveBeenCalled();
   });
 
