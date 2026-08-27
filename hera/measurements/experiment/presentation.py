@@ -699,3 +699,85 @@ class experimentPresentation:
             file.write(latex_content)
         print(f"LaTeX document generated at: {tex_path}")
 
+
+    # def plotNDIRFrequencyDistribution(self,
+    #                                   trialName,
+    #                                   trialSetName,
+    #                                   ax=None):
+    #     """
+    #         Calculates the cumulative histogram data of the normalized frequency
+    #
+    #     Parameters
+    #     ----------
+    #     deviceType
+    #     trialNameOrList
+    #     trialSetName
+    #     samplingWindow
+    #     ax
+    #
+    #
+    #     Returns
+    #     -------
+    #
+    #     """
+    #     if ax is None:
+    #         fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+    #     else:
+    #         plt.sca(ax)
+    #
+    #     analysisLayer = self.datalayer.analysisLayer
+    #     long = analysisLayer.getDeviceTypeTransmissionFrequency(NDIR, trialName, trialSetName, normalize=True,
+    #                                                             wideFormat=False)
+    #
+    #     long.groupby("deviceName").mean().hist(density=True, cumulative=True, ax=ax)
+    #     plt.title("")
+    #     plt.xlim(0, 1)
+    #     plt.xlabel("Normalized frequency")
+    #     plt.ylabel("Fraction of devices")
+    #
+    #     if self.presentation.saveFigures:
+    #         figname = os.path.join(self.presentation.savePath, "technical",
+    #                                f"{trialName}_NDIR_DeviceFrequencyDistribution_{trialSetName}.png")
+    #         plt.savefig(figname)
+    #
+
+    # def plotMessageFrequencyDistribution(self,
+    #                                      deviceType,
+    #                                      trialName,
+    #                                      trialSetName,
+    #                                      ax=None):
+    #     """
+    #         Calculates the cumulative histogram data of the normalized frequency
+    #
+    #     Parameters
+    #     ----------
+    #     deviceType
+    #     trialNameOrList
+    #     trialSetName
+    #     samplingWindow
+    #     ax
+    #
+    #
+    #     Returns
+    #     -------
+    #
+    #     """
+    #     if ax is None:
+    #         fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+    #     else:
+    #         plt.sca(ax)
+    #
+    #     analysisLayer = self.datalayer.analysisLayer
+    #     long = analysisLayer.getDeviceTypeTransmissionFrequency(deviceType, trialName, trialSetName, normalize=True,
+    #                                                             wideFormat=False)
+    #
+    #     long['frequency'].hist(density=True, cumulative=True, ax=ax)
+    #     plt.title("")
+    #     plt.xlim(0, 1)
+    #     plt.xlabel("Normalized frequency")
+    #     plt.ylabel("Fraction of messages")
+    #
+    #     if self.presentation.saveFigures:
+    #         figname = os.path.join(self.presentation.savePath, "technical",
+    #                                f"{trialName}_NDIR_MessagesFrequencyDistribution_{trialSetName}.png")
+    #         plt.savefig(figname)
