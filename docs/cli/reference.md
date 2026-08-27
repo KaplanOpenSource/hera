@@ -40,16 +40,16 @@ flowchart LR
         HeraExp["hera-experiment\n\nExperiment\nmanagement"]
         HeraRadio["hera-radiosonde\n\nRadiosonde\ndata tools"]
         HeraBib["hera-bib\n\nBibliography\ntools"]
-        JupyterLab["hera-jupyter-lab-server\n\nJupyter Lab\nserver launcher"]
+        JupyterLab["jupyter-lab-server\n\nJupyter Lab\nserver launcher"]
     end
 ```
 -->era-bib\n\nBibliography\ntools"]
-        JupyterLab["hera-jupyter-lab-server\n\nJupyter Lab\nserver launcher"]
+        JupyterLab["jupyter-lab-server\n\nJupyter Lab\nserver launcher"]
     end
 ```
 -->
 -->era-bib\n\nBibliography\ntools"]
-        JupyterLab["hera-jupyter-lab-server\n\nJupyter Lab\nserver launcher"]
+        JupyterLab["jupyter-lab-server\n\nJupyter Lab\nserver launcher"]
     end
 ```
 -->
@@ -68,7 +68,7 @@ flowchart LR
 | `hera-experiment` | Utilities | Experiment management |
 | `hera-radiosonde` | Utilities | Radiosonde data tools |
 | `hera-bib` | Utilities | Bibliography tools |
-| `hera-jupyter-lab-server` | Utilities | Jupyter Lab server launcher |
+| `jupyter-lab-server` | Utilities | Jupyter Lab server launcher |
 
 ---
 
@@ -371,7 +371,7 @@ Tools for working with radiosonde atmospheric data.
 
 Bibliography management tools.
 
-### hera-jupyter-lab-server
+### jupyter-lab-server
 
 Starts a Jupyter Lab server configured for Hera development.
 

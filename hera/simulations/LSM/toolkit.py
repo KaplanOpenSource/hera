@@ -30,6 +30,8 @@ class LSMToolkit(toolkit.abstractToolkit):
 
 
     """
+    TRUE = ".TRUE."
+    FALSE = ".FALSE."
     _to_xarray = None
     _to_database = None
     _forceKeep = None
