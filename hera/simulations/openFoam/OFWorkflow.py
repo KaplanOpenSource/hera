@@ -71,7 +71,7 @@ class abstractWorkflow(hermes.workflow):
             ret =  self.workflowHeraDocument['desc']['groupID']
         return ret
 
-    @workflowGroup.setter
+    @workflowGroupID.setter
     def workflowGroupID(self, value):
         """Set the workflow group ID and save to the hera document."""
         ret = None
