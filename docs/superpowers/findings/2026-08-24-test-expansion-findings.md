@@ -1181,3 +1181,25 @@ resource.to_json(fileName,**kwargs)
 
 ### נדחה
 `DataHandler_geotiff` (דורש raster GDAL אמיתי), `DataHandler_HDF` (`pytables` לא מותקן), `DataHandler_zarr_xarray` (`zarr` לא מותקן).
+
+---
+
+## אצווה 25 — `datalayer/project.py` (השלמת שכבת השאילתות/שמירה)
+
+### B88. `Project.getProjectList` — decorator שגוי, קריאה תקינה קורסת
+**קובץ:** `hera/datalayer/project.py:1051-1052` · **מקובע ב:** `test_datalayer_project_remaining.py::TestClassmethodGetProjectListIsBroken`
+
+```python
+@staticmethod
+def getProjectList(cls,user=None):
+    ...
+    return list(set(AbstractCollection(connectionName=user).getProjectList()))
+```
+
+מתודה שמוגדרת `@staticmethod` אך מקבלת פרמטר ראשון בשם `cls` שאף פעם לא נעשה בו שימוש בגוף הפונקציה. קריאה טבעית `Project.getProjectList()` קורסת ב-`TypeError: missing 1 required positional argument: 'cls'`. הקריאה "עובדת" רק אם המשתמש "מבריח" ערך שרירותי לתוך `cls` (למשל `Project.getProjectList(None)`), מה שמצביע על כך שזה היה אמור להיות `@classmethod` (או סתם השמטת הפרמטר), ואף אחד לא קרא לזה נכון עד כה. פונקציית המודול המקבילה `getProjectList(connectionName=None)` תקינה ולא מושפעת.
+
+### מה שנמצא תקין
+`Project.FilesDirectory`/`filesDirectory` (מתאימים זה לזה), `updateProjectNameOnDoc` (תמיד מחתים/דורס את שם הפרויקט הנוכחי), משפחת `save*Data` (Measurement/Cache/Simulation — רושמים לקולקציה הנכונה, כולל override של `type`), `getDocumentByID`, `getMetadata`, `getAllDocuments`, שלישיית get/delete `*DocumentsAsDict`/`delete*Documents` לשלוש הקולקציות, ופונקציית המודול `getProjectList`. הערה חשובה: `getCounterAndAdd` מחזירה את הערך **אחרי** ההוספה (לא לפני, כפי שה-docstring עלול לרמז) — לא באג, אבל התנהגות שקל לפרש לא נכון.
+
+### הערת בדיקה
+השוואת `QuerySet` ריק (מ-mongoengine) ל-`[]` ישירות (`queryset == []`) מחזירה `False` למרות ש-`repr` שלו מציג `[]` — יש לעטוף ב-`list(...)` לפני ההשוואה. לא באג בקוד הפרויקט, מלכודת נפוצה בבדיקות בלבד.
