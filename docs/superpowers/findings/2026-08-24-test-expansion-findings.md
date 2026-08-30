@@ -1346,3 +1346,9 @@ self._meteorology = MeteorologyFactory().getMeteorology(meteorologyName,**met_kw
 
 ### נדחה
 `getTerminalVelocity`, `_VTFunc`, `correctionCloud_Plume`/`_Puff`, `solveToTime`, `_fallingParticle` — כולן תלויות ב-`self.meteorology`, שאי אפשר להשיג כלל כל עוד B96 לא תוקן (אי אפשר גם "לזייף" אותו בקלות בלי לדעת את הממשק המדויק שה-methods הללו מצפים לו).
+
+---
+
+## אצווה 28 (המשך 2) — `utils/data/CLI.py` (הפונקציות הטהורות)
+
+בלי ממצא חדש. כוסו `_parse_query_value` (פרסור מחרוזת query ל-int/float/bool/None/מחרוזת מצוטטת) ו-`load_project_name` (קריאת `projectName` מ-`caseConfiguration.json`, כולל שגיאות קובץ חסר/שדה חסר/שדה ריק). שאר ~26 פקודות ה-CLI (`project_list`, `toolkit_register` וכו') נותרו לא מכוסות — כולן נוגעות ב-Project/toolkit אמיתיים דרך `_setup()` העצל, ודורשות harness גדול יותר מבוסס DB.
