@@ -1229,3 +1229,24 @@ stationsData = pandas.DataFrame.from_dict(descriptionData['stationLocations'])\
 
 ### הערה
 מודול שלם זה (`experiment/parsers.py`) מתועד כ"יתום" — שום קוד לא מייבא אותו בפרודקשן (ראה `TestParserModuleIsOrphaned` הקיים). שני הבאגים החדשים כאן משפיעים רק אם/כאשר מישהו יחבר את המודול הזה בעתיד.
+
+---
+
+## אצווה 26 (המשך) — `utils/data/toolkit_repository.py` ו-`utils/data/repositoryExport.py`
+
+### B91. `mergeDocumentsIntoRepository` — הדוח מדווח שם פריט לפני הפתרון של התנגשות שמות
+**קובץ:** `hera/utils/data/repositoryExport.py:141,146` · **מקובע ב:** `test_utils_data_repository_export.py::TestMergeReportNameIsBrokenOnCollision`
+
+```python
+else:
+    report["added"].append(item_name)   # <-- לפני הרזולוציה
+
+sectionDict = toolkitDict.setdefault(section, {})
+item_name = _uniqueItemName(sectionDict, item_name, entry["contentHash"])   # <-- item_name משתנה כאן
+sectionDict[item_name] = entry
+```
+
+כאשר שני מסמכים שונים בתוכן חולקים אותו `item_name` (למשל אותו `sourceId`), `_uniqueItemName` פותר את ההתנגשות ומשנה את המפתח שבפועל נשמר במילון — אבל `report["added"]`/`report["overwritten"]` כבר נרשם עם השם *לפני* השינוי. התוצאה: הדוח המוחזר למשתמש עלול להצביע על שם פריט ששייך בפועל למסמך אחר לגמרי (זה שכבר היה קיים תחת אותו שם), בעוד המסמך שבאמת נוסף שוכן תחת שם מופרד (`<name>_<hash>`) שהדוח אף פעם לא מזכיר.
+
+### מה שנמצא תקין
+`ToolkitRepository` (register/getToolkitDocument/getToolkitTable, כולל overwrite ואי-overwrite) — כל ההתנהגות תואמת את התיעוד. שאר `repositoryExport.py`: `documentContentHash` (שתי אסטרטגיות, כולל שגיאות), `documentToRepositoryItem` (מיפוי `_cls`, בחירת שם פריט), `deduplicateRepository` (איחוד לפי contentHash, אי-שינוי הקלט).
