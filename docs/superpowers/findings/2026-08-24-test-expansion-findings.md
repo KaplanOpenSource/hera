@@ -1071,3 +1071,53 @@ class continuousReleaseGasCloud(abstractGasCloud):
 
 ### נדחה לעבר עתידי — לא נבדק
 `FallingNonEvaporatingDroplets.py` (217 statements) ו-`DropletCloud.py` (83 statements) — נדחו כבר באצווה 3 ונותרו נדחים; היקף הזמן שנותר בסבב הזה הופנה ל-gasCloud.py, שהניב את הממצא המשמעותי ביותר (B78).
+
+---
+
+## אצווה 20 — `measurements/GIS` המשך (buildings/analysis, buildings/toolkit, vector/toolkit, vector/demography)
+
+המשך על מה שנדחה באצווה 17 — עכשיו עם fixtures סינתטיים קטנים (geopandas אמיתי, בלי shapefiles/DEM חיצוניים).
+
+### B79. `Blocks.getHc` — הבדיקה בודקת מתודה, לא ערך
+**קובץ:** `hera/measurements/GIS/vector/buildings/analysis.py` (המחלקה `Blocks`) · **מקובע ב:** `test_gis_buildings_analysis.py::TestLambdaPipeline::test_getHc_currently_returns_the_area_weighted_height_never_none`
+
+```python
+def getHc(self):
+    if self._LambdaP is not None:
+        return self._hc
+    else:
+        return None
+```
+
+`self._LambdaP` (בלי סוגריים) הוא **המתודה עצמה** — bound method — שלעולם לא `None`. הבדיקה לא יכולה אף פעם להגיע ל-`else`, כך ש-`getHc()` תמיד מחזירה `self._hc` (0 כברירת מחדל) בלי קשר אם `_LambdaP()` בכלל רץ. **לטנטי, לא פוגע כרגע בפועל** — הקורא היחיד הקיים (`Lambda()`) תמיד קורא ל-`_LambdaP()` לפני `getHc()` — אבל החוזה המתועד ("מחזיר None אם lambda_P לא הוגדר") לא יכול להתקיים לעולם.
+
+### B80. `cutRegionFromSource` — המרת CRS מבוטלת בשקט
+**קובץ:** `hera/measurements/GIS/vector/toolkit.py:134-141` · **מקובע ב:** `test_gis_vector_toolkit.py::TestCutRegionFromSource`
+
+```python
+dct = dict(bbox=regionWithCRS) if isBounds else dict(mask=regionWithCRS)
+
+if regionWithCRS.crs is None:
+    regionWithCRS.crs = datasourceDocument.desc['desc']['crs']      # מוטציה במקום — dct "רואה" את זה
+elif regionWithCRS.crs.to_epsg() != datasourceDocument.desc['desc']['crs']:
+    regionWithCRS = regionWithCRS.to_crs(datasourceDocument.desc['desc']['crs'])  # אובייקט חדש — dct לא רואה את זה!
+```
+
+`dct` נבנה **לפני** בדיקת ה-CRS, ומחזיק רפרנס לאובייקט `regionWithCRS` המקורי. הענף "אין CRS" עובד במקרה כי הוא ממוטט את האובייקט הקיים (`data.crs = ...` היא הקצאה במקום, לא reprojection). אבל הענף החשוב באמת — **אי-התאמת CRS** — קורא ל-`.to_crs(...)` שמחזיר **אובייקט חדש**, וההקצאה מחדש ל-`regionWithCRS` לא נוגעת ב-`dct` שכבר נבנה. `getData()` מקבל את הצורה **בקואורדינטות המקוריות, לא הממוירות**.
+
+### B81. `DemographyToolkit.shapes` — property שקורא לתכונה שלא קיימת
+**קובץ:** `hera/measurements/GIS/vector/demography.py:36` · **מקובע ב:** `test_gis_demography_toolkit.py::TestShapesIsBroken`
+
+```python
+@property
+def shapes(self):
+    return self._shapes
+```
+
+`_shapes` לא מוצהר בשום מקום במחלקה — לא כתכונת מחלקה, לא ב-`__init__`. כל גישה ל-`.shapes` זורקת `AttributeError`.
+
+### מה שנמצא תקין
+`Blocks` — כל שרשרת חישוב ה-lambda (`_LambdaP`, `_LambdaF`, `_A_f`, `initBuildingsBlock`, `_BuildIndexList`, `iterBlocks`) עובדת נכון על נתונים סינתטיים: אימות פרמטרי חלוקה (`size`/`npxy`/`width`/`height`, כולל דחיית שילובים סותרים), חלוקת דומיין לרשת נכונה, lambdaP/lambdaF מדויקים מול חישוב ידני, hc כממוצע משוקלל-שטח, החרגת בניינים לפי FTYPE. `analysis.ConvexPolygons` מקבצת נכון בניינים קרובים ומפרידה רחוקים, ומחזירה ממוין לפי שטח יורד. `BuildingsToolkit.get_buildings_height`/`filter_buildings_in_area` (סטטיות) — נכונות על השלמת גובה מ-levels, ברירת מחדל "Unnamed", וסינון bounding-box על פני GeoJSON features. `VectorToolkit.geopandasToGeoJson` (ייצוא נכון + דחיית קלט לא-GeoDataFrame) ו-`cutRegionFromSource`'s dispatch ל-`bbox`/`mask` לפי `isBounds` (מלבד B80). `DemographyToolkit` — בנייה (כולל BuildingsToolkit מקונן), `populationTypes`, `setDefaultDirectory`/`FilesDirectory`, `loadData` (רישום datasource נכון), ו-`projectPolygonOnPopulation` (אזהרת deprecation + האצלה מלאה לפרמטרים).
+
+### נדחה עדיין — לא נבדק
+`vector/topography.py` (9 פונקציות) — דורש DEM אמיתי או mongomock מורכב יותר; `BuildingsToolkit.getBuildingsFromRectangle`/`getBuildingHeightFromRasterTopographyToolkit`/`buildingsGeopandasToSTLRasterTopography` — דורשים datasource רשום אמיתי או FreeCAD מלא; `analysis.LambdaFromBuildingData`/`calculatePopulationInPolygon` — pipeline מלא עם cache, דורש datasource אמיתי; שתי מחלקות ה-`presentation` (buildings + demography, ~20 פונקציות) — matplotlib בעיקרו.

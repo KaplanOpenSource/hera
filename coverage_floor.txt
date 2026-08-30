@@ -266,3 +266,29 @@
 # real hermes), utils/rag (18, needs RAG-specific deps) and
 # hermesWorkflowToolkit.py (28, needs real hermes) -- all judged genuinely
 # blocked or disproportionate effort rather than merely unattempted.
+
+# After batch 20 (measurements/GIS continued: buildings/analysis,
+#                 buildings/toolkit static helpers, vector/toolkit,
+#                 vector/demography; meteorology's CampbellBinary parser):
+#   Floor left UNCHANGED at 37 -- this batch is local-only (not pushed),
+#   and this dev environment cannot run the integration layer reliably
+#   right now (the `hermes` package needed by
+#   hera/simulations/openFoam/OFWorkflow.py isn't importable locally --
+#   it's vendored only inside CI via a separate checkout of
+#   KaplanOpenSource/hermes; the `Hermes` git submodule in this repo is a
+#   different, unrelated vendored library). Combined coverage was 46.5%
+#   function coverage (665/1429) after batch 19; this batch adds roughly
+#   30 more newly-covered functions across the areas above, precise
+#   re-measurement deferred until this is pushed and CI can compute it
+#   properly, or until a local hermes checkout is available.
+#
+#   105 new hermetic tests, four more defects (B79-B82). The most
+#   consequential: B82, where the Campbell binary (TOB1) parser's
+#   Parser.getData drops the first data column of every record because
+#   columnsIndexes is computed against the raw record layout while `line`
+#   has already had its two leading timestamp fields stripped -- breaking
+#   getPandasFromFile/getPandasFromDir/parse entirely, for both the sonic
+#   and TRH column layouts. And B80, where cutRegionFromSource silently
+#   discards a CRS reprojection because the dict handed to getData() is
+#   built from the pre-reprojection object, and .to_crs() returns a new
+#   object rather than mutating in place.
