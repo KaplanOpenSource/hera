@@ -1156,3 +1156,9 @@ timeList = sorted([float(x) for x in os.listdir(case) if (
 
 ### נדחה
 שאר `openFoam/CLI.py` (~25 פקודות) — כולן דורשות טולקיט OpenFOAM אמיתי מחובר (mongomock + hermes workflow), לא רק לוגיקה טהורה.
+
+---
+
+## אצווה 23 — `openFoam/lagrangian/abstractLagrangianSolver.py` (מקורות חלקיקים + ריכוז)
+
+בלי ממצא חדש — כל 17 הפונקציות שכוסו עבדו נכון: `sourcesTypeList`, שש שיטות `makeSource_*` (Point/Circle/Sphere/Cylinder/Rectangle/Cube — כולן בתוך התחום הגיאומטרי המתועד), `writeParticlePositionFile` (דחיית סוג לא ידוע, כתיבת קובץ קואורדינטות OpenFOAM תקין), ו-`analysis.calcConcentrationPointWise` (חלוקה לתאים, סכימת מסה, C=mass/dV נכון).
