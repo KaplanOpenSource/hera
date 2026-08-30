@@ -9,7 +9,7 @@ import shutil
 import os
 import xarray
 import tqdm
-from hera.simulations.openFoam import CASETYPE_DECOMPOSED,CASETYPE_RECONSTRUCTED
+from hera.simulations.openFoam import CASETYPE_DECOMPOSED
 from hera import get_classMethod_logger
 from deprecated import deprecated
 from dask.diagnostics import ProgressBar
@@ -27,8 +27,6 @@ try:
     pvsimple._DisableFirstRenderCameraReset()
 except ImportError:
     print("paraview module is not Found!. VTK pipeline wont work")
-
-from hera.utils.logging import helpers as hera_logging
 
 class paraviewOpenFOAM:
     """
