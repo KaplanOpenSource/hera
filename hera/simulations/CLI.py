@@ -431,21 +431,6 @@ def workflow_list(arguments):
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=arguments.projectName)
 
-    # if arguments.object is None:
-    #     # Listing all the groups in the toolkit.
-    #     docList =  wftk.getSimulationsDocuments(type=wftk.WORKFLOW)
-    #     if docList is None:
-    #         logger.info(f"There are no hermes workflows in project {projectName}")
-    #
-    #     groupNameList = set([x['desc']['groupName'] for x in docList])
-    #
-    #     title = f"The simulation groups in project *{projectName}* "
-    #     print(title)
-    #     print("-" * len(title))
-    #     print("\n".join([x for x in groupNameList]))
-    #
-    # else:
-
     simDocument = wftk.getWorkflowListDocumentFromDB(arguments.group)
     if len(simDocument) == 0:
         print(f"{arguments.object} is not a simulation, directory, workflow file or a simulation group in project {arguments.projectName} ")
