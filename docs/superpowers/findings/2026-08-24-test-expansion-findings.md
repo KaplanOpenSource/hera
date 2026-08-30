@@ -1121,3 +1121,21 @@ def shapes(self):
 
 ### נדחה עדיין — לא נבדק
 `vector/topography.py` (9 פונקציות) — דורש DEM אמיתי או mongomock מורכב יותר; `BuildingsToolkit.getBuildingsFromRectangle`/`getBuildingHeightFromRasterTopographyToolkit`/`buildingsGeopandasToSTLRasterTopography` — דורשים datasource רשום אמיתי או FreeCAD מלא; `analysis.LambdaFromBuildingData`/`calculatePopulationInPolygon` — pipeline מלא עם cache, דורש datasource אמיתי; שתי מחלקות ה-`presentation` (buildings + demography, ~20 פונקציות) — matplotlib בעיקרו.
+
+---
+
+## אצווה 21 — `simulations/openFoam/toolkit.py` (החלקים הטהורים, בלי solver אמיתי)
+
+### B83. `getTimeList` — הענף single-processor מחזיר תמיד רשימה ריקה
+**קובץ:** `hera/simulations/openFoam/toolkit.py` (בתוך `getTimeList`) · **מקובע ב:** `test_openfoam_toolkit_pure.py::TestGetTimeListSingleProcessorIsBroken`
+
+```python
+timeList = sorted([float(x) for x in os.listdir(case) if (
+        os.path.isdir(x) and   # <- x הוא שם יחסי, לא os.path.join(case, x)
+        ...
+```
+
+הבדיקה `os.path.isdir(x)` נבדקת יחסית ל-**תיקיית העבודה הנוכחית**, לא ל-`case`. הענף המקביל (multi-processor) כמה שורות מטה עושה את זה נכון (`os.path.isdir(os.path.join(case, processorList[0], x))`). התוצאה: לכל case שלא רץ מבפנים תיקיית ה-case עצמה — כלומר כמעט תמיד — הרשימה חוזרת ריקה, גם כשיש תתי-תיקיות זמן אמיתיות.
+
+### מה שנמצא תקין
+`processorList` (glob על `processor*`), `read_points_file` (פרסור נכון של קובץ נקודות OpenFOAM, כולל עצירה בסוגר הסוגר), ו-`getMeshExtent` (bounding box נכון מנקודות, `FileNotFoundError` כשהקובץ חסר).
