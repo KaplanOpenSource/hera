@@ -1203,3 +1203,29 @@ def getProjectList(cls,user=None):
 
 ### הערת בדיקה
 השוואת `QuerySet` ריק (מ-mongoengine) ל-`[]` ישירות (`queryset == []`) מחזירה `False` למרות ש-`repr` שלו מציג `[]` — יש לעטוף ב-`list(...)` לפני ההשוואה. לא באג בקוד הפרויקט, מלכודת נפוצה בבדיקות בלבד.
+
+---
+
+## אצווה 26 — `measurements/experiment/parsers.py` (המשך: לוגיקת הפרסור בפועל)
+
+### B89. `Parser_CampbellBinary.getData` — שכפול מדויק של B82 בקובץ נפרד
+**קובץ:** `hera/measurements/experiment/parsers.py:347` · **מקובע ב:** `test_experiment_parsers_logic.py::TestParserCampbellBinaryGetDataIsBroken`
+
+קובץ זה מכיל עותק עצמאי ומלא (לא import) של `CampbellBinaryInterface` ו-`Parser_CampbellBinary`/`getData` מתוך `measurements/meteorology/highfreqdata/parsers/CampbellBinary.py`, כולל אותו באג בדיוק שתועד שם כ-B82: `columnsIndexes` מחושב כאילו הוא מאנדקס לתוך הרשומה הגולמית (כולל שני שדות timestamp מובילים), בעוד `line` (מ-`_getDataFromStream`, `retval[2:]`) כבר חתך אותם. התוצאה: עמודת נתונים ראשונה חסרה בכל שורה, ו-pandas מסרב לבנות את ה-DataFrame. מכיוון שזה עותק עצמאי, תיקון אחד לא יתקן את השני.
+
+### B90. `Parser_OldStyleMetaDataParquet._getLists` — כיוון שגוי ב-`DataFrame.from_dict`
+**קובץ:** `hera/measurements/experiment/parsers.py:111` · **מקובע ב:** `test_experiment_parsers_logic.py::TestParserOldStyleMetaDataParquetGetListsIsBroken`
+
+```python
+stationsData = pandas.DataFrame.from_dict(descriptionData['stationLocations'])\
+    .reset_index()\
+    .rename(columns={"index": "station_name"})
+```
+
+`from_dict` בברירת המחדל (`orient="columns"`) הופך כל שם תחנה למפתח **עמודה**, ואת שמות התכונות שלה (`lat`/`lon`/`station_code`) ל-**אינדקס שורות** — ההפך הגמור ממה שהקוד בהמשך מצפה לו (`stndata['lat'].item()` אחרי `.query("station_name==@stn")`). יש להשתמש ב-`orient="index"`. כתוצאה מכך, כל קמפיין עם יותר משדה בודד לכל תחנה קורס ב-`KeyError: 'lat'` בתוך `_getLists`/`getExperimentDict`/`parse`.
+
+### מה שנמצא תקין
+`CampbellBinaryInterface` (הקורא הבינארי הנמוך-רמה, זהה למקור התקין) בקובץ זה — עדיין תקין. `Parser_TOA5` כבר תועד קודם כ-stub ריק (B44, ב-`test_experiment_parsers.py`).
+
+### הערה
+מודול שלם זה (`experiment/parsers.py`) מתועד כ"יתום" — שום קוד לא מייבא אותו בפרודקשן (ראה `TestParserModuleIsOrphaned` הקיים). שני הבאגים החדשים כאן משפיעים רק אם/כאשר מישהו יחבר את המודול הזה בעתיד.
