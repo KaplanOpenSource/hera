@@ -1250,3 +1250,12 @@ sectionDict[item_name] = entry
 
 ### מה שנמצא תקין
 `ToolkitRepository` (register/getToolkitDocument/getToolkitTable, כולל overwrite ואי-overwrite) — כל ההתנהגות תואמת את התיעוד. שאר `repositoryExport.py`: `documentContentHash` (שתי אסטרטגיות, כולל שגיאות), `documentToRepositoryItem` (מיפוי `_cls`, בחירת שם פריט), `deduplicateRepository` (איחוד לפי contentHash, אי-שינוי הקלט).
+
+---
+
+## אצווה 26 (המשך 2) — `measurements/meteorology/lowfreqdata/presentationLayer.py`
+
+בלי ממצא חדש. כוסו: `presenation` (חיווט datalayer/analysis/seasonalPlots/dailyPlots), `Plots.__init__` (מילוני ברירת מחדל לעיצוב), `_getCountourDict`/`_getContourfDict` (מפרטי contour/contourf, כולל שימור מפת הצבעים), ו-`_getcmap` (under/over color, ואי-שינוי `matplotlib.colormaps["jet"]` הגלובלי — `copy.copy` אכן מגן על המפה המשותפת). המתודות הכבדות יותר (`SeasonalPlots`/`DailyPlots` — ציורי contour בפועל) נותרו לא מכוסות, דורשות נתוני רוח אמיתיים בצורה ספציפית.
+
+### הערה (לא באג)
+`presenation.__init__` ו-`Plots.__init__` מדפיסים debug prints עם אימוג'ים (`print("📥 ... called")`) ישירות ל-stdout בקוד פרודקשן — לא משפיע על נכונות, אבל שווה ניקוי מתישהו.
