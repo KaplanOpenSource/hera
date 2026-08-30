@@ -1284,3 +1284,44 @@ self.addDataSource(dataSourceName=templateName,
 
 ### נדחה
 `getSimulations`/`getSimulationsList` (דורשים מסמכי `SingleSimulation` אמיתיים) ו-`prepareSlurmLSMExecution` (דורש סביבת Slurm/כתיבת קבצי הרצה מורכבת) — נותרו לא מכוסים.
+
+---
+
+## אצווה 28 — `simulations/utils/interpolations.py` (spatialInterpolate)
+
+### B93. `windprofile` — הוגדר בתוך מחלקה בלי `self`
+**קובץ:** `hera/simulations/utils/interpolations.py:101` · **מקובע ב:** `test_simulations_utils_interpolations.py::TestWindprofileIsBroken`
+
+```python
+class spatialInterpolate():
+    ...
+    def windprofile(z, uref=3, href=24, he=24, lambdap=0.3, lambdaf=0.3, beta=0.3):
+```
+
+מוגדרת בתוך גוף המחלקה בלי פרמטר `self`. קריאה טבעית על מופע (`spatialInterpolate().windprofile(24)`) קושרת את המופע עצמו ל-`z`, וכל שאר הפרמטרים זזים מקום אחד ימינה (`24` הופך ל-`uref`) — התוצאה קריסה עמוקה בתוך גוף הפונקציה עם `TypeError` שלא מרמז על הסיבה האמיתית. פועלת רק אם קוראים לה ישירות דרך המחלקה (`spatialInterpolate.windprofile(24)`), עוקפים למעשה את כל הסיבה להיותה בתוך מחלקה.
+
+### B94. `interpPandas` — chained assignment שקט תחת copy-on-write, לא כותב כלום
+**קובץ:** `hera/simulations/utils/interpolations.py:87` · **מקובע ב:** `test_simulations_utils_interpolations.py::TestInterpPandasIsBroken`
+
+```python
+points["interpulation"][i] = self.interp(point=point, stations=stations, topography=topography, ...)
+```
+
+תחת copy-on-write של pandas (ברירת מחדל מ-2.0, חובה מ-3.0 — הגרסה המותקנת כאן: 3.0.2), assignment משורשר כזה **לעולם לא** מעדכן את ה-DataFrame המקורי — רק אזהרת `ChainedAssignmentError` נפלטת, בלי exception. התוצאה: העמודה `interpulation` נשארת `None` בכל שורה, בכל קריאה, בלי שום סימן שגיאה גלוי.
+
+### B95. `interpArray` — מעביר `topography=` שלא קיים ב-`interpPandas`, קורס תמיד
+**קובץ:** `hera/simulations/utils/interpolations.py:98` · **מקובע ב:** `test_simulations_utils_interpolations.py::TestInterpArrayIsBroken`
+
+```python
+def interpArray(self, points, stations, columnNames={...}, dx=20, dy=20, C=1000, D=5, Hsl=100, b=150):
+    newPoints = pandas.DataFrame({...})
+    return self.interpPandas(points=newPoints, stations=stations, topography=newPoints["topography"], ...)
+```
+
+`interpPandas` לא מקבל פרמטר `topography` בכלל (יש רק `columnNames` עם מיפוי `"topography"`) — כל קריאה ל-`interpArray` קורסת ב-`TypeError` עוד לפני שהיא מגיעה ל-B94 שהייתה אמורה לרשת ממנו.
+
+### מה שנמצא תקין
+`interp` (התאמה מדויקת, שקלול לפי מרחק הפוך, ערכים סקלריים ווקטוריים, התאמת טופוגרפיה), `checkInterpulation` (הפרשי אחוזים בין נתונים מדודים למשוקללים — עובד נכון עבור תחנות בפורמט ה-vector המתועד).
+
+### נדחה
+`canopyWindProfile.urbanLogExponentProfile` (פונקציה מונוליתית יחידה, דורשת geopandas גיאומטרי מלא + רשת תלת-ממדית מורכבת) — נותרה לא מכוסה.
