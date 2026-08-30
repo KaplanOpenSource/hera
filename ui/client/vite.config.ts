@@ -21,6 +21,9 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./tests/setup.ts'],
+    // jsdom + MUI renders are slow on shared/CI machines; the default 5s trips
+    // on otherwise-passing tests when workers compete for cores.
+    testTimeout: 20000,
   }
 });
 

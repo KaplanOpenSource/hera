@@ -130,3 +130,145 @@ jobs:
         env:
           MPLBACKEND: Agg
           PYTHONPATH: ${{ github.workspace }}/_vendor/hermes:${{ github.workspace }}/_vendor/pyargos
+
+  ui-client:
+    name: UI client tests
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ui/client
+
+    steps:
+      - name: Checkout hera
+        uses: actions/checkout@v4
+
+      # Node 22 to match the image built by the repo-root `dockerfile`; the client
+      # tests use APIs (e.g. Set.prototype.difference) that Node 20 does not have.
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: ui/client/package-lock.json
+
+      - name: Install client dependencies
+        run: npm ci
+
+      # The three steps below are ui/client/TEST_UI.md, in order.
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Run client unit tests
+        run: npm run test
+
+      - name: Production build
+        run: npx vite build --outDir /tmp/hera-vite-build --emptyOutDir
+
+  ui-server:
+    name: UI server tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout hera
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # These tests install a fake `hera` module (see ui/server/tests/conftest.py),
+      # so they need neither the full requirements.txt nor a database.
+      - name: Install server test dependencies
+        run: pip install -r ui/server/requirements.txt
+
+      - name: Run server tests
+        run: pytest ui/server/tests
+
+  ui-integration:
+    name: UI integration tests
+    runs-on: ubuntu-latest
+
+    env:
+      HERA_DB_USER: hera
+      HERA_DB_PASS: heracles
+
+    services:
+      # ui/client/tests/integration/globalSetup.ts expects MongoDB on 27018 and
+      # writes its own ~/.pyhera/config.json pointing at it.
+      mongodb:
+        image: mongo:latest
+        ports:
+          - 27018:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: hera
+          MONGO_INITDB_ROOT_PASSWORD: heracles
+        options: >-
+          --health-cmd "mongosh --quiet -u hera -p heracles --authenticationDatabase admin --eval 'db.runCommand({ ping: 1 }).ok' | grep -q 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout hera
+        uses: actions/checkout@v4
+
+      - name: Checkout hermes (internal dependency)
+        uses: actions/checkout@v4
+        with:
+          repository: KaplanOpenSource/hermes
+          path: _vendor/hermes
+
+      - name: Checkout pyargos (internal dependency — provides the `argos` package)
+        uses: actions/checkout@v4
+        with:
+          repository: KaplanOpenSource/pyargos
+          path: _vendor/pyargos
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: requirements.txt
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: ui/client/package-lock.json
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgdal-dev gdal-bin
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+          pip install -e . --no-deps
+
+      - name: Install client dependencies
+        working-directory: ui/client
+        run: npm ci
+
+      - name: Wait for MongoDB
+        run: |
+          for i in {1..30}; do
+            if (echo > /dev/tcp/127.0.0.1/27018) 2>/dev/null; then
+              echo "MongoDB is up"; exit 0
+            fi
+            sleep 2
+          done
+          echo "MongoDB did not become available"; exit 1
+
+      # globalSetup.ts starts ui/server/server.py itself and waits for /ready.
+      - name: Run integration tests
+        working-directory: ui/client
+        run: npx vitest run tests/integration -c vitest.integ.config.ts --no-file-parallelism --retry 1
+        env:
+          MPLBACKEND: Agg
+          PYTHONPATH: ${{ github.workspace }}/_vendor/hermes:${{ github.workspace }}/_vendor/pyargos

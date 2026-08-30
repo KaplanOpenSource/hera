@@ -18,3 +18,8 @@ Dockerfile
 node_modules/
 ui/client/node_modules/
 ui/client/dist/
+
+# Local dev artifacts that would otherwise be sent as build context (GBs)
+heraenv/
+.claude/
+cache/

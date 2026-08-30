@@ -71,7 +71,7 @@ flexcache==0.3
 flexparser==0.4
 foamlib==1.7.5
 folium==0.19.5
-fonttools==4.61.0
+fonttools==4.60.2  # last release supporting Python 3.9 (setup.py: python_requires>=3.9)
 fqdn==1.5.1
 frozenlist==1.5.0
 fsspec==2025.3.0
@@ -352,6 +352,7 @@ pymdown-extensions==10.21
 mkdocs-jupyter==0.25.1
 
 # UI Server
+argcomplete>=3.1.0
 fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
 pydantic>=2.7.0

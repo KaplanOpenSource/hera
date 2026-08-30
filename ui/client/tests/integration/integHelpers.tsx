@@ -1,6 +1,5 @@
 import { expect } from 'vitest';
 import { render, screen, fireEvent, waitFor, within, cleanup, act } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
 import type { ProjectDocument } from '../../src/shared/types';
 import App from '../../src/App';
 import { NO_PROJECT, useProjectStore } from '../../src/stores/useProjectStore';
@@ -14,13 +13,19 @@ export const resetStore = () => {
   });
 };
 
-/** Render the full app at a given path. */
+/** Render the full app at a given path.
+
+App brings its own BrowserRouter, so the path is set on the jsdom location
+instead of wrapping the app in a second router (which react-router rejects). */
 export const renderApp = (path = '/') => {
-  render(
-    <MemoryRouter initialEntries={[path]}>
-      <App />
-    </MemoryRouter>,
-  );
+  window.history.pushState({}, '', path);
+  render(<App />);
+};
+
+/** Open the project node's "Actions" popover, which holds Add document / Delete project. */
+export const openProjectActions = async () => {
+  const actions = await screen.findByLabelText('Actions', {}, { timeout: 15000 });
+  await act(async () => { fireEvent.click(within(actions).getByRole('button')); });
 };
 
 /** Render the app, click "Add project", fill the dialog, submit, cleanup. */
@@ -63,17 +68,18 @@ export const addDocumentViaUI = async (
     expect(useProjectStore.getState().currProject?.name).toBe(projectName);
   }, { timeout: 15000 });
 
-  const addWrapper = await screen.findByLabelText('Add Document');
+  await openProjectActions();
+  const addWrapper = await screen.findByLabelText(/^add document$/i);
   await act(async () => { fireEvent.click(within(addWrapper).getByRole('button')); });
 
   const dialog = await screen.findByRole('dialog');
+  // Pick the kind first: switching kind resets the name to that kind's default.
+  if (opts.agent) {
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Agent' }));
+  }
   fireEvent.change(within(dialog).getByRole('textbox', { name: /^name$/i }), {
     target: { value: docName },
   });
-  if (opts.agent) {
-    fireEvent.mouseDown(within(dialog).getByText('Regular'));
-    fireEvent.click(await screen.findByRole('option', { name: 'Agent' }));
-  }
 
   await act(async () => {
     fireEvent.click(within(dialog).getByRole('button', { name: /add document/i }));

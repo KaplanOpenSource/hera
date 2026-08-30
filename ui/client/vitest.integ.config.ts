@@ -11,7 +11,7 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
-    setupFiles: ['./tests/setup.ts'],
+    setupFiles: ['./tests/setup.ts', './tests/integration/setupIntegDom.ts'],
     globalSetup: ['./tests/integration/globalSetup.ts'],
   },
 });

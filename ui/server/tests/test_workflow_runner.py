@@ -56,17 +56,11 @@ def test_run_uses_the_workflows_toolkit_and_local_scheduler(install_fake_hera, t
 
 
 def test_pythonpath_contains_files_dir_during_the_run(install_fake_hera, tmp_path):
-    seen = {}
-
-    def on_execute(workflow_name, scheduler):
-        seen["pythonpath"] = os.environ.get("PYTHONPATH")
-        return "d"
-
-    install_fake_hera(str(tmp_path), on_execute)
+    record = install_fake_hera(str(tmp_path))
 
     WorkflowRunner().run("PROJECT", "WORKFLOW")
 
-    assert seen["pythonpath"].split(os.pathsep)[0] == str(tmp_path)
+    assert record.pythonpath_during_run.split(os.pathsep)[0] == str(tmp_path)
 
 
 def test_run_restores_pythonpath_when_absent(install_fake_hera, tmp_path, monkeypatch):
