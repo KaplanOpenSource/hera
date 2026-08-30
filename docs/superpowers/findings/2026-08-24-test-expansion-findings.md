@@ -1259,3 +1259,28 @@ sectionDict[item_name] = entry
 
 ### הערה (לא באג)
 `presenation.__init__` ו-`Plots.__init__` מדפיסים debug prints עם אימוג'ים (`print("📥 ... called")`) ישירות ל-stdout בקוד פרודקשן — לא משפיע על נכונות, אבל שווה ניקוי מתישהו.
+
+---
+
+## אצווה 27 — `simulations/LSM/toolkit.py` (LSMToolkit)
+
+### B92. `getTemplatesTable` — קורס תמיד, כי `loadData` אף פעם לא שומר את ה-`desc` של הקובץ עצמו
+**קובץ:** `hera/simulations/LSM/toolkit.py:153` (התוצאה) · השורש ב-`hera/simulations/LSM/toolkit.py:210-214` (`loadData`) · **מקובע ב:** `test_simulations_lsm_toolkit.py::TestGetTemplatesTableIsBroken`
+
+```python
+templateName = desc['name']   # desc נטען מקובץ ה-JSON
+...
+self.addDataSource(dataSourceName=templateName,
+                   resource=fileNameOrData,
+                   dataFormat=datalayer.datatypes.STRING,
+                   version=version,
+                   **kwargs)   # <-- ה-desc שנטען מהקובץ אף פעם לא מועבר!
+```
+
+`loadData` קורא את קובץ ה-JSON של התבנית לתוך משתנה מקומי `desc`, אבל משתמש בו רק כדי לשלוף `desc['name']`. שאר תוכן ה-JSON (למשל `params`) **לעולם לא** מגיע למסמך שנשמר ב-DB — רק ה-`**kwargs` שהקורא עצמו מעביר ל-`loadData` נשמרים. בהמשך, `getTemplatesTable()` מניחה בעיוורון ש-`desc.pop('params')` יעבוד על כל מסמך שמוחזר מה-DB — וכך קורסת ב-`KeyError: 'params'` על כל תבנית שנרשמה אי-פעם דרך הנתיב הרגיל (ברירת המחדל `saveMode=TOOLKIT_SAVEMODE_FILEANDDB`).
+
+### מה שנמצא תקין
+בנאי `LSMToolkit` וה-properties שלו (`to_xarray`/`to_database`/`forceKeep` עם ולידציית boolean, `analysis`, `singleSimulation`), מחלקת `analysis` הפנימית (`coordinateHandler`/`datalayer`), `loadData` עם `TOOLKIT_SAVEMODE_NOSAVE` (לא נוגע ב-DB כלל), `getTemplates`/`getTemplateByName` (מוצאים תבנית שנרשמה, מחזירים `None`/רשימה ריקה כשלא קיימת), ודחיית רישום כפול לאותו שם תבנית.
+
+### נדחה
+`getSimulations`/`getSimulationsList` (דורשים מסמכי `SingleSimulation` אמיתיים) ו-`prepareSlurmLSMExecution` (דורש סביבת Slurm/כתיבת קבצי הרצה מורכבת) — נותרו לא מכוסים.
