@@ -1139,3 +1139,20 @@ timeList = sorted([float(x) for x in os.listdir(case) if (
 
 ### מה שנמצא תקין
 `processorList` (glob על `processor*`), `read_points_file` (פרסור נכון של קובץ נקודות OpenFOAM, כולל עצירה בסוגר הסוגר), ו-`getMeshExtent` (bounding box נכון מנקודות, `FileNotFoundError` כשהקובץ חסר).
+
+---
+
+## אצווה 22 — `openFoam/CLI.py` (חלק טהור) + `eulerian/abstractEulerianSolver.py`
+
+### B84-B86. `absractEulerianSolver_toolkitExtension` — שלושה NameError ברצף
+**קובץ:** `hera/simulations/openFoam/eulerian/abstractEulerianSolver.py` · **מקובע ב:** `test_openfoam_eulerian_solver.py`
+
+- **B84**: `flowType` — ענף ה-`else` מפנה ל-`SIMULATIONTYPE_COMPRESSIBLE`, שם שלא קיים בשום מקום בקובץ (הייבוא בראש הקובץ הוא `FLOWTYPE_COMPRESSIBLE`). כל קריאה עם `incompressible=False` קורסת.
+- **B85**: `blockMesh_setBoundFromFile` — הפרמטר נקרא `eulerianWorkFlow`, אבל הגוף בודק `isinstance(eulerianWF, workflow_Eulerian)` — `eulerianWF` לא קיים בכלל כפרמטר. קורס תמיד לפני שנוגע בקלט.
+- **B86**: `blockMesh_setDomainHeight` — העתק-הדבק של `blockMesh_setBoundFromFile` בלי התאמה: אותו `eulerianWF` לא מוגדר, וגם מפנה ל-`fileName`/`dx`/`dy` — אף אחד מהם לא פרמטר של המתודה הזו (`eulerianWorkFlow, Z, dz`). `Z`, הקלט האמיתי היחיד שלה, אף פעם לא בשימוש.
+
+### מה שנמצא תקין
+`Foam_parser_FieldDescription` (CLI) — כותב JSON תקין לתיאור שדות, עם ברירת מחדל ל-`exampleField` כשלא סופקו שדות.
+
+### נדחה
+שאר `openFoam/CLI.py` (~25 פקודות) — כולן דורשות טולקיט OpenFOAM אמיתי מחובר (mongomock + hermes workflow), לא רק לוגיקה טהורה.
