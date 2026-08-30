@@ -1325,3 +1325,24 @@ def interpArray(self, points, stations, columnNames={...}, dx=20, dy=20, C=1000,
 
 ### נדחה
 `canopyWindProfile.urbanLogExponentProfile` (פונקציה מונוליתית יחידה, דורשת geopandas גיאומטרי מלא + רשת תלת-ממדית מורכבת) — נותרה לא מכוסה.
+
+---
+
+## אצווה 28 (המשך) — `simulations/gaussian/FallingNonEvaporatingDroplets.py`
+
+### B96. הבנאי שבור לחלוטין — כל יצירת מופע קורסת
+**קובץ:** `hera/simulations/gaussian/FallingNonEvaporatingDroplets.py:219` · **מקובע ב:** `test_gaussian_falling_droplets.py::TestConstructorIsBroken`
+
+```python
+self._meteorology = MeteorologyFactory().getMeteorology(meteorologyName,**met_kwargs)
+```
+
+`MeteorologyFactory` (ב-`Meteorology.py`) **לא מגדירה מתודה בשם `getMeteorology` בכלל** — יש לה רק `getMeteorologyFromU10` ו-`getMeteorologyFromURefHeight`, ששתיהן דורשות פרמטרים שונים לגמרי (לא שם מחרוזת יחיד). כתוצאה מכך, **כל** קריאה ל-`FallingNonEvaporatingDroplets(...)` קורסת ב-`AttributeError` עוד לפני שהבנאי מסיים — המחלקה כולה לא שמישה דרך ה-API הציבורי שלה. נבדק גם ישירות: `hasattr(MeteorologyFactory(), "getMeteorology")` הוא `False`.
+
+בגלל זה, הטסטים בדקו את החלקים הטהורים (property setters/getters, ארבע נוסחאות מקדם הגרר, `hit_ground`) דרך `__new__` תוך עקיפת הבנאי השבור — כדי לוודא שהם *יעבדו נכון* ברגע שמישהו יתקן את B96.
+
+### מה שנמצא תקין (נבדק תוך עקיפת הבנאי השבור)
+`position`/`cloudSigma` (ולידציית 3-tuple, גישה ל-x/y/z), `particleMass` (נגזר מ-`rho_p`+`particleDiameter`, `None` עד ששניהם מוגדרים), `beta`/`SpreadFactor`/`g` (קבועים), `N` (מסה כוללת חלקי מסת חלקיק), ארבע פונקציות `_DragCoefficient_*` (Ik/Kelbaliyev15/Fan/Haugen — כל הענפים לפי Re, מונוטוניות, רוויה בערכי Re גבוהים), `correctionCloud_None`, ו-`hit_ground` (אירוע עצירה טרמינלי).
+
+### נדחה
+`getTerminalVelocity`, `_VTFunc`, `correctionCloud_Plume`/`_Puff`, `solveToTime`, `_fallingParticle` — כולן תלויות ב-`self.meteorology`, שאי אפשר להשיג כלל כל עוד B96 לא תוקן (אי אפשר גם "לזייף" אותו בקלות בלי לדעת את הממשק המדויק שה-methods הללו מצפים לו).
