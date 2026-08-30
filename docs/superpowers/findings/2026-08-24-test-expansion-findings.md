@@ -1162,3 +1162,22 @@ timeList = sorted([float(x) for x in os.listdir(case) if (
 ## אצווה 23 — `openFoam/lagrangian/abstractLagrangianSolver.py` (מקורות חלקיקים + ריכוז)
 
 בלי ממצא חדש — כל 17 הפונקציות שכוסו עבדו נכון: `sourcesTypeList`, שש שיטות `makeSource_*` (Point/Circle/Sphere/Cylinder/Rectangle/Cube — כולן בתוך התחום הגיאומטרי המתועד), `writeParticlePositionFile` (דחיית סוג לא ידוע, כתיבת קובץ קואורדינטות OpenFOAM תקין), ו-`analysis.calcConcentrationPointWise` (חלוקה לתאים, סכימת מסה, C=mass/dV נכון).
+
+---
+
+## אצווה 24 — `datalayer/datahandler.py` (המשך פורמטים)
+
+### B87. `DataHandler_JSON_geopandas.saveData` — קורא ל-API הלא נכון, קורס תמיד
+**קובץ:** `hera/datalayer/datahandler.py:550` · **מקובע ב:** `test_datalayer_datahandler_formats.py::TestJsonGeopandasHandlerIsBroken`
+
+```python
+resource.to_json(fileName,**kwargs)
+```
+
+`geopandas.GeoDataFrame.to_json` הפרמטר הפוזיציוני הראשון שלה הוא `na` (ערכים אפשריים: `'null'/'drop'/'keep'`) — **לא נתיב קובץ**, והמתודה **מחזירה מחרוזת JSON**, לא כותבת לדיסק בכלל. `fileName` (נתיב) נופל ל-`na=`, ותמיד נכשל בבדיקת תקינות. `saveData` קורס בכל קריאה. `getData` (טעינה) עצמאית ותקינה — נבדקה מול קובץ שנכתב ידנית.
+
+### מה שנמצא תקין
+`DataHandler_time`, `DataHandler_dict` (no-op לשמירה, מעביר ישר בטעינה), `DataHandler_csv_pandas`, `DataHandler_JSON_pandas` (DataFrame ו-Series כולל דגל `pandasSeries`), `DataHandler_netcdf_xarray` (round-trip נתונים ו-attrs — עם הערה ש-`JSONToConfiguration` הופך כל מחרוזת שניתנת לפרסור כיחידת pint ל-`Quantity`, ללא קשר לשם המפתח — לא באג בקובץ הזה), `DataHandler_geopandas` (round-trip GPKG כולל CRS), ו-`DataHandler_image` (round-trip מערך RGB דרך matplotlib).
+
+### נדחה
+`DataHandler_geotiff` (דורש raster GDAL אמיתי), `DataHandler_HDF` (`pytables` לא מותקן), `DataHandler_zarr_xarray` (`zarr` לא מותקן).
