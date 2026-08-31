@@ -23,10 +23,6 @@ class LSMTemplate:
 
     _config =None
 
-    STABILITY_NEUTRAL = "neutral"
-    STABILITY_STABLE = "stable"
-    STABILITY_UNSTABLE = "unstable"
-
     @property
     def Toolkit(self):
         return self._toolkit
@@ -112,7 +108,8 @@ class LSMTemplate:
             other wise None.
 
         """
-        fileDict = {".true.":"OUTD3d03_3_",".TRUE.":"OUTD3d03_3_",".false.":"OUTD2d03_3_",".FALSE.":"OUTD2d03_3_"}
+        fileDict = {".true.": "OUTD3d03_3_", self.Toolkit.TRUE: "OUTD3d03_3_",
+                    ".false.": "OUTD2d03_3_", self.Toolkit.FALSE: "OUTD2d03_3_"}
         saveDir = os.path.abspath(self.Toolkit.filesDirectory)
         logger = get_classMethod_logger(self)
 
@@ -124,11 +121,11 @@ class LSMTemplate:
         updated_params = self.prepareParams(template_desc=self._document['desc'], paramsToPrepare=updated_params)
         logger.info(f"Running simulation with the following parameters:\n{updated_params}")
         if topography is None:
-            updated_params.update(homogeneousWind=".TRUE.")
+            updated_params.update(homogeneousWind=self.Toolkit.TRUE)
             if stations is None:
                 logger.info("setting homogeneous wind")
         else:
-            updated_params.update(TopoFile="'TOPO'",flat=".FALSE.")
+            updated_params.update(TopoFile="'TOPO'",flat=self.Toolkit.FALSE)
 
         if depositionRates is not None:
             if not isinstance(depositionRates,list):
@@ -136,11 +133,11 @@ class LSMTemplate:
             updated_params.update(n_vdep=len(depositionRates))
 
         if stations is not None:
-            updated_params.update(homogeneousWind=".FALSE.",StationsFile="'STATIONS'")
+            updated_params.update(homogeneousWind=self.Toolkit.FALSE,StationsFile="'STATIONS'")
         if canopy is None:
-            updated_params.update(canopy=".FALSE.")
+            updated_params.update(canopy=self.Toolkit.FALSE)
         else:
-            updated_params.update(canopy=".TRUE.")
+            updated_params.update(canopy=self.Toolkit.TRUE)
 
         xshift = (updated_params["TopoXmax"] - updated_params["TopoXmin"]) * updated_params["sourceRatioX"]
         yshift = (updated_params["TopoYmax"] - updated_params["TopoYmin"]) * updated_params["sourceRatioY"]
