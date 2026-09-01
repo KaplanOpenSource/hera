@@ -1,15 +1,26 @@
 """thresholdGeoDataFrame: shifting/rotating threshold polygons, and projecting
 them onto a demographic layer.
 
-``project`` cannot run at all on this Python:
+B65, resolved independently: an earlier pass found ``project()`` opening
+with ``isinstance(meteorological_angle, collections.Iterable)``, an
+attribute removed from the ``collections`` module in Python 3.10 (moved to
+``collections.abc.Iterable`` in 3.3). That was a real, accurate finding at
+the time; commit db405cec ("fix: repair Python 3.10+ and typo crashes in
+risk assessment modules") fixed it to ``collections.abc.Iterable``,
+unrelated to this test-expansion effort. ``project()``'s single/list angle
+dispatch is exercised below against a monkeypatched ``_project`` (the real
+one needs a full geopandas demographic layer with population columns and
+a live CRS conversion -- out of scope for a hermetic unit test).
 
-* B65: it starts with ``isinstance(meteorological_angle,
-  collections.Iterable)``, but ``collections.Iterable`` was removed in
-  Python 3.10 (moved to ``collections.abc.Iterable`` in 3.3, alias dropped
-  in 3.10). Every call raises ``AttributeError`` before touching any of its
-  arguments -- including the demographic data, so a single-angle call
-  fails exactly like a list-of-angles call.
+B97: ``shiftLocationAndAngle`` silently loses the ``thresholdGeoDataFrame``
+subclass. It calls ``self.copy()``, and under the pinned geopandas
+(1.0.1), ``thresholdGeoDataFrame`` -- a ``geopandas.GeoDataFrame``
+subclass with no ``_constructor`` override -- has its type erased by
+``.copy()`` down to a plain ``GeoDataFrame``. Chaining another
+``thresholdGeoDataFrame``-only method (``shiftLocationAndAngle`` again,
+or ``project``) onto the result fails with ``AttributeError``.
 """
+import pandas
 import pytest
 from shapely.geometry import Polygon
 
@@ -25,11 +36,36 @@ def _single_polygon_frame(poly=None):
 
 
 @pytest.mark.unit
-class TestShiftLocationAndAngle:
-    def test_the_result_is_still_a_threshold_geo_data_frame(self):
+class TestShiftLocationAndAngleLosesTheSubclass:
+    """B97: see the module docstring."""
+
+    @pytest.mark.xfail(
+        strict=True,
+        reason="B97: shiftLocationAndAngle calls self.copy(), which under "
+               "the pinned geopandas (1.0.1) erases the thresholdGeoDataFrame "
+               "subclass (no _constructor override) down to a plain "
+               "GeoDataFrame. See the consolidated findings issue.",
+    )
+    def test_the_result_should_still_be_a_threshold_geo_data_frame(self):
         shifted = _single_polygon_frame().shiftLocationAndAngle(loc=(0, 0), meteorological_angle=0)
         assert isinstance(shifted, thresholdGeoDataFrame)
 
+    def test_the_result_is_currently_a_plain_geodataframe(self):
+        """Characterisation of B97."""
+        import geopandas
+
+        shifted = _single_polygon_frame().shiftLocationAndAngle(loc=(0, 0), meteorological_angle=0)
+        assert type(shifted) is geopandas.GeoDataFrame
+
+    def test_chaining_shift_again_on_the_result_currently_fails(self):
+        """Characterisation of B97: losing the subclass breaks chaining."""
+        shifted = _single_polygon_frame().shiftLocationAndAngle(loc=(0, 0), meteorological_angle=0)
+        with pytest.raises(AttributeError, match="shiftLocationAndAngle"):
+            shifted.shiftLocationAndAngle(loc=(1, 1), meteorological_angle=0)
+
+
+@pytest.mark.unit
+class TestShiftLocationAndAngle:
     def test_a_pure_translation_moves_every_vertex_by_the_offset(self):
         """meteorological_angle=270 is mathematical_angle=0 -- no rotation."""
         original = _single_polygon_frame()
@@ -54,25 +90,53 @@ class TestShiftLocationAndAngle:
 
 
 @pytest.mark.unit
-class TestProjectIsUnusableOnThisPython:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B65: project() opens with `isinstance(meteorological_angle, "
-               "collections.Iterable)`, an attribute removed from the "
-               "collections module in Python 3.10 (it lives at "
-               "collections.abc.Iterable). Every call raises AttributeError "
-               "immediately, regardless of arguments. "
-               "See the consolidated findings issue.",
-    )
-    def test_project_with_a_single_angle_should_return_casualty_estimates(self):
-        _single_polygon_frame().project(demographic=None, loc=(0, 0), meteorological_angle=90)
+class TestProjectAngleDispatch:
+    """B65 is resolved (see the module docstring) -- these exercise the
+    single-vs-list angle dispatch against a monkeypatched _project, since
+    the real one needs a live geopandas demographic layer."""
 
-    def test_project_currently_raises_for_any_input_at_all(self):
-        """Characterisation of B65: even a deliberately-broken demographic
-        argument (None) never gets used -- the crash happens first."""
-        with pytest.raises(AttributeError, match="Iterable"):
-            _single_polygon_frame().project(demographic=None, loc=(0, 0), meteorological_angle=90)
+    def test_a_single_meteorological_angle_calls_project_once(self, monkeypatch):
+        calls = []
 
-    def test_project_raises_the_same_way_with_a_list_of_angles(self):
-        with pytest.raises(AttributeError, match="Iterable"):
-            _single_polygon_frame().project(demographic=None, loc=(0, 0), meteorological_angle=[0, 90])
+        def fake_project(self, **kwargs):
+            calls.append(kwargs)
+            return pandas.DataFrame({"casualties": [1]})
+
+        monkeypatch.setattr(thresholdGeoDataFrame, "_project", fake_project)
+        result = _single_polygon_frame().project(demographic="demog", loc=(0, 0), meteorological_angle=90)
+        assert len(calls) == 1
+        assert calls[0]["meteorological_angle"] == 90
+        assert len(result) == 1
+
+    def test_a_list_of_meteorological_angles_calls_project_once_per_angle(self, monkeypatch):
+        calls = []
+
+        def fake_project(self, **kwargs):
+            calls.append(kwargs["meteorological_angle"])
+            return pandas.DataFrame({"casualties": [1]})
+
+        monkeypatch.setattr(thresholdGeoDataFrame, "_project", fake_project)
+        result = _single_polygon_frame().project(demographic="demog", loc=(0, 0), meteorological_angle=[0, 90, 180])
+        assert calls == [0, 90, 180]
+        assert len(result) == 3
+
+    def test_the_list_dispatch_records_both_angle_conventions_per_row(self, monkeypatch):
+        monkeypatch.setattr(
+            thresholdGeoDataFrame, "_project",
+            lambda self, **kwargs: pandas.DataFrame({"casualties": [1]}),
+        )
+        result = _single_polygon_frame().project(demographic="demog", loc=(0, 0), meteorological_angle=[90])
+        assert result["meteorological_angle"].iloc[0] == 90
+        assert "mathematical_angle" in result.columns
+
+    def test_a_list_of_mathematical_angles_calls_project_once_per_angle(self, monkeypatch):
+        calls = []
+
+        def fake_project(self, **kwargs):
+            calls.append(kwargs["mathematical_angle"])
+            return pandas.DataFrame({"casualties": [1]})
+
+        monkeypatch.setattr(thresholdGeoDataFrame, "_project", fake_project)
+        result = _single_polygon_frame().project(demographic="demog", loc=(0, 0), mathematical_angle=[0, 45])
+        assert calls == [0, 45]
+        assert len(result) == 2

@@ -6,9 +6,6 @@ from ..utils import ITM,ED50_ZONE36N,WGS84
 from ....utils.logging import get_classMethod_logger
 
 
-TOOLKIT_VECTOR_REGIONNAME = "regionName"
-
-
 class VectorToolkit(toolkit.abstractToolkit):
     """Base toolkit for vector GIS data operations."""
 

@@ -533,7 +533,7 @@ FileNotFoundError: /home/ilay/hera_unittest_data/measurements/meteorology/
 ## אצווה 7 — `measurements/GIS`
 
 ### B42. ייבוא מודול מריץ דמו וכותב 8 מגה-בייט לתיקייה הנוכחית
-**קובץ:** `hera/measurements/GIS/raster/hill2stl.py` · **מקובע ב:** `test_gis_utils.py::TestImportSideEffects`
+**קובץ:** `hera/measurements/GIS/raster/hill2stl.py` · **מקובע במקור ב:** `test_gis_utils.py::TestImportSideEffects`
 
 בתחתית הקובץ, תחת ההערה `# Run the function`, יושב קוד דמו ברמת המודול:
 
@@ -546,6 +546,8 @@ generate_solid_stl(function, x_range=(minx,maxx), y_range=(miny,maxy), resolutio
 כל `import hera.measurements.GIS.raster.hill2stl` מדפיס ל-stdout וכותב **8.1MB** בשם `test1.stl` לתיקיית העבודה. כל כלי שסורק את עץ החבילה — בניית תיעוד, אינדוקס ב-IDE, איסוף טסטים — משאיר את הקובץ אחריו.
 
 **נסיבה מקלה שאומתה:** `import hera.measurements.GIS` לבדו **אינו** מפעיל את זה; רק ייבוא ישיר של המודול.
+
+**עדכון:** במקביל, מאמץ ניקוי-קוד-מת נפרד ב-master מחק את `hill2stl.py` כולו (אופיין כ"אפס הפניות" לפני שהטסטים האלה נכתבו). לכן `TestImportSideEffects` הוסר מ-`test_gis_utils.py` בזמן פתיחת ה-PR — המחיקה מ-master מתקבלת, אין יותר קובץ לכסות.
 
 ### הבדל בין שתי נקודות כניסה להמרת CRS
 `GIS/utils.py:convertCRS` מתועד ומחזיר **`list of shapely.geometry.Point`**, בעוד `TopographyToolkit.convertPointsCRS` מחזיר **GeoDataFrame**. שתי דרכים להמיר קואורדינטות עם טיפוסי החזרה שונים. מקובע כטסט עובר ולא כבאג — שתיהן מתועדות — אבל ראוי לאחד.
@@ -743,14 +745,16 @@ OFObjectHome.pandasToFoamFormat(home,df) -> AttributeError: 'OFObjectHome' objec
 
 ## אצווה 12 — `riskassessment` (protectionpolicy, analysis/riskAreas, riskToolkit)
 
-### B53. `ProtectionPolicy.addActions` שבור עם נתיב קובץ
-**קובץ:** `hera/riskassessment/protectionpolicy/ProtectionPolicy.py:130` · **מקובע ב:** `test_riskassessment_protectionpolicy.py::TestActionDispatch::test_addactions_from_a_json_string_is_broken`
+### B53. `ProtectionPolicy.addActions` שבור עם נתיב קובץ — **נפתר במקביל**
+**קובץ:** `hera/riskassessment/protectionpolicy/ProtectionPolicy.py:130` · **מקובע במקור ב:** `test_riskassessment_protectionpolicy.py::TestActionDispatch::test_addactions_from_a_json_string_loads_the_file`
 
 ```python
 if os.JSONpath.exists(jsonStrOrFile):
 ```
 
-ל-`os` אין תכונה `JSONpath` (הכוונה הייתה `os.path`). כל קריאה ל-`addActions` עם מחרוזת נתיב קובץ נכשלת עם `AttributeError` — הענף הזה מעולם לא רץ.
+ל-`os` אין תכונה `JSONpath` (הכוונה הייתה `os.path`). כל קריאה ל-`addActions` עם מחרוזת נתיב קובץ נכשלה עם `AttributeError` — הענף הזה מעולם לא רץ.
+
+**עדכון:** זה היה ממצא אמיתי ומדויק בזמן שתועד. commit `14508043` (PR #1010) תיקן את זה בחזרה ל-`os.path.exists`, במקביל ובאופן בלתי תלוי במאמץ הרחבת הטסטים הזה. הטסט כבר לא xfail — עובד נכון.
 
 ### B54. בניית `ActionIndoor` עם `alpha=` — הדוגמה בדוקסטרינג של המחלקה עצמה — שבורה
 **קובץ:** `hera/riskassessment/protectionpolicy/ProtectionPolicy.py:355` · **מקובע ב:** `test_riskassessment_protectionpolicy.py::TestActionIndoor::test_constructing_with_alpha_directly`
@@ -783,14 +787,14 @@ else:
 ### מה שנמצא תקין ב-ProtectionPolicy
 `abstractAction.getAction` מתעל שם פעולה (`"indoor"`/`"masks"`) ל-`ActionIndoor`/`ActionMasks` נכון, שרשור `.indoor().masks()` מחזיר `self` כראוי, ואימות `ValueError` בהיעדר `alpha`/`turnover`/`protectionFactor` עובד. חילוק ריכוז ע"י מסכה (`ActionMasks.compute`) נכון ומדויק.
 
-### B58. `ProtectionPolicy` קורס בשימוש הפשוט ביותר — בלי חלון זמן
-**קובץ:** `hera/riskassessment/protectionpolicy/ProtectionPolicy.py:390,481` · **מקובע ב:** `test_riskassessment_protectionpolicy.py::TestActionIndoor::test_compute_with_no_time_window_at_all`
+### B58. **הוסר** — נבדק מול pandas שגוי, לא קיים תחת הגרסה הנעולה
+**קובץ:** `hera/riskassessment/protectionpolicy/ProtectionPolicy.py:390,481` · **מקובע במקור ב:** `test_riskassessment_protectionpolicy.py::TestActionIndoor::test_compute_with_no_time_window_at_all`
 
 ```python
 abegin = data[self.policy.datetimename].to_series()[0] if abegin is None else abegin
 ```
 
-אינדקס positional (`[0]`) על `Series` עם `DatetimeIndex` — לא נתמך יותר ב-pandas המותקן (זורק `KeyError` במקום fallback ל-position). קריאה ל-`.indoor(turnover=...)` **בלי** `begin`/`end`/`enter`/`stay` כלל — השימוש הבסיסי ביותר — קורסת תמיד.
+אינדקס positional (`[0]`) על `Series` עם `DatetimeIndex` תועד כלא-נתמך (זורק `KeyError`) — אבל זה אומת מול pandas 3.0.2 שהתקין מקומית, לא מול הגרסה שנעולה בפועל ב-`requirements.txt` (pandas==2.2.3). תחת 2.2.3, ה-fallback ל-position עדיין עובד (רק אזהרת `FutureWarning`). קריאה ל-`.indoor(turnover=...)` בלי `begin`/`end`/`enter`/`stay` כלל עובדת נכון בפועל. הטסט כבר לא xfail — בודק את ההתנהגות התקינה.
 
 ### B59. חישוב ה-indoor הוא no-op מוחלט — התוצאה תמיד אפס
 **קובץ:** `hera/riskassessment/protectionpolicy/ProtectionPolicy.py:374` · **מקובע ב:** `test_riskassessment_protectionpolicy.py::TestActionIndoor::test_compute_builds_a_low_pass_filtered_field_towards_the_outdoor_value`
@@ -801,14 +805,16 @@ Cin[curstep].values = ((Cin[prevstep] + alphanum*dt*Cout[curstep])/(1+alphanum*d
 
 `Cin[curstep]` (אינדוקס לפי dict) מחזיר **עותק**, לא view, בגרסת ה-xarray המותקנת. ההשמה ל-`.values` על העותק נזרקת — `Cin` נשאר אפסים מוחלטים בלי קשר ל-alpha, dt או לריכוז החיצוני. זהו החישוב המרכזי של כל מודל ה-indoor, ומעולם לא באמת רץ.
 
-### B60. `getRiskAreaAlgorithm` — dispatcher מת לחלוטין
-**קובץ:** `hera/riskassessment/analysis/riskAreas.py:19` · **מקובע ב:** `test_risk_riskareas.py::TestGetRiskAreaAlgorithm`
+### B60. `getRiskAreaAlgorithm` — dispatcher מת לחלוטין — **נפתר במקביל**
+**קובץ:** `hera/riskassessment/analysis/riskAreas.py:19` · **מקובע במקור ב:** `test_risk_riskareas.py::TestGetRiskAreaAlgorithm`
 
 ```python
 estimatorCLS = pydoc.locate("pyriskassessment.datalayer.riskAreas.riskAreaAlgorithm_%s" % algorithmName.title())
 ```
 
-החבילה `pyriskassessment` אינה קיימת בפרויקט או בתלויותיו — המודול הזה יושב ב-`hera.riskassessment.analysis.riskAreas`. `pydoc.locate` מחזיר `None` תמיד, ולכן ה-dispatcher **לעולם לא מצליח**, אפילו לא עבור `"Sweep"` — האלגוריתם היחיד שממומש בקובץ. הדרך היחידה להשתמש ב-`riskAreaAlgorithm_Sweep` היא import + בנייה ישירה.
+החבילה `pyriskassessment` אינה קיימת בפרויקט או בתלויותיו — המודול הזה יושב ב-`hera.riskassessment.analysis.riskAreas`. `pydoc.locate` החזיר `None` תמיד, ולכן ה-dispatcher מעולם לא הצליח, אפילו לא עבור `"Sweep"` — האלגוריתם היחיד שממומש בקובץ.
+
+**עדכון:** זה היה ממצא אמיתי ומדויק בזמן שתועד. commit `193249e6` ("fix: repair stale module path and nonexistent method call in risk analysis") תיקן את הנתיב ל-`hera.riskassessment.analysis.riskAreas` האמיתי, במקביל ובאופן בלתי תלוי במאמץ הרחבת הטסטים הזה. `getRiskAreaAlgorithm("Sweep")` עובד נכון, וההודעה לשם לא-קיים מציגה נכון "Sweep" כזמין. הטסטים כבר לא xfail.
 
 ### מה שנמצא תקין ב-riskAreas/riskToolkit
 תכונות ה-setter/getter של `riskAreaAlgorithm_Sweep` (`dxdy`, `workerCount`, `parallel`) עובדות וממירות טיפוסים נכון; `outlayers` הוא read-only כמתועד. `RiskToolkit.getAgent` מבחין נכון בין שם (str), תיאור (dict) וקלט לא-תקין; `loadAgent` מדביק name/version לתיאור לפני העברה ל-`loadData`. `loadData` מטפל נכון בקלט dict, JSON string, ומקרה "לא קובץ/dict" (raises).
@@ -819,14 +825,16 @@ estimatorCLS = pydoc.locate("pyriskassessment.datalayer.riskAreas.riskAreaAlgori
 
 ## אצווה 13 — `openFoam` preprocessing, המשך (`OFObject`, `OFList`, `preprocessOFObjects/utils.py`)
 
-### B61. `OFList` הוא קוד מת — אף קורא לא בונה אותו, ואי אפשר לכתוב איתו כלום
-**קובץ:** `hera/simulations/openFoam/preprocessOFObjects/OFList.py:55` · **מקובע ב:** `test_openfoam_objects_base.py::TestOFListIsUnusable`
+### B61. `OFList` הוא קוד מת — אף קורא לא בונה אותו, ואי אפשר לכתוב איתו כלום — **נפתר במחיקה**
+**קובץ:** `hera/simulations/openFoam/preprocessOFObjects/OFList.py:55` (נמחק) · **מקובע במקור ב:** `test_openfoam_objects_base.py::TestOFListIsUnusable`
 
 ```python
 fileStrContent = self.getHeader()
 ```
 
-זו השורה הראשונה של `_writeNew` (וגם `_updateExisting` קוראת ל-`_writeNew`). אף מחלקה בהיררכיה של `OFList` (`OFList`, `OFObject`) מגדירה `getHeader` — היא מוגדרת רק על `OFField`, מחלקת-אח לא קשורה. שורה אחת אחרי זה, `self.columnNames` (בניגוד ל-`componentNames` שכן מוגדר) גם אף פעם לא נקבע. כל קריאה, גם בענף הסקלרי, קורסת ב-`AttributeError` לפני שההסתעפות סקלר/וקטור בכלל מגיעה להרצה. חיפוש בכל עץ `hera/simulations/openFoam` לא מוצא אף מקום שבונה `OFList(...)` — נראה שהמחלקה מעולם לא שולבה בזרימת העבודה בפועל.
+זו הייתה השורה הראשונה של `_writeNew` (וגם `_updateExisting` קוראת ל-`_writeNew`). אף מחלקה בהיררכיה של `OFList` (`OFList`, `OFObject`) הגדירה `getHeader` — היא מוגדרת רק על `OFField`, מחלקת-אח לא קשורה. שורה אחת אחרי זה, `self.columnNames` (בניגוד ל-`componentNames` שכן מוגדר) גם אף פעם לא נקבע. כל קריאה, גם בענף הסקלרי, קרסה ב-`AttributeError` לפני שההסתעפות סקלר/וקטור בכלל הגיעה להרצה. חיפוש בכל עץ `hera/simulations/openFoam` לא מצא אף מקום שבונה `OFList(...)`.
+
+**עדכון:** מאמץ ניקוי-קוד-מת נפרד ב-master מחק את `OFList.py` כולו, מאותה סיבה בדיוק (לא מופנה, שבור פנימית) — במקביל ובאופן בלתי תלוי במאמץ הרחבת הטסטים הזה. `TestOFListIsUnusable` הוסר מ-`test_openfoam_objects_base.py` בזמן מיזוג master.
 
 ### מה שנמצא תקין
 `OFObject` — מחלקת הבסיס הטהורה של `OFField`/`OFList` — עובדת נכון על כל 10 המתודות הציבוריות שלה: וקטור הממדים (`getDimensions`/`dimensionsStr`/`dimensionsList`, כולל השלמת ברירת מחדל לאפס), שמות הרכיבים לפי סוג שדה (סקלר/וקטור/טנזור), גישה ל-`internalField`/`boundaryField`/`processors`/`processorItems` לפי פרוססור, אימות `fieldType` לא תקין, וכתיבה לדיסק (`writeToCase`) בפיצול single/multi-processor כולל ה-escaping של `"proc.*"`.
@@ -860,14 +868,29 @@ return (concentrationField[:-1].fillna(0)*dt_min[1:]).cumsum()*breathingRatio * 
 
 `dt_min[1:]` הוא `Series` עם אינדקס שלם (0,1,2...) בעוד ה-DataFrame מאונדקס בזמן. הכפלת DataFrame ב-Series **בלי `axis=0`** מיישרת לפי **עמודות**, לא לפי שורות — ומכיוון שאין התאמה בין תוויות העמודות ("P1") לתוויות ה-Series (מספרים שלמים), התוצאה היא DataFrame עם עמודות מדומות נוספות ו-NaN מוחלט. `CalculatorTenBerge` נמנעת בדיוק מהמלכודת הזו באותה שורה, ע"י המרה ל-`.values.reshape(...)` לפני הכפל.
 
-### B65. `thresholdGeoDataFrame.project` — קוד שלא ניתן להרצה בפייתון הנוכחי
-**קובץ:** `hera/riskassessment/agents/effects/thresholdGeoDataFrame.py:77` · **מקובע ב:** `test_risk_thresholdgeodataframe.py::TestProjectIsUnusableOnThisPython`
+### B65. `thresholdGeoDataFrame.project` — קוד שלא ניתן להרצה בפייתון הנוכחי — **נפתר במקביל**
+**קובץ:** `hera/riskassessment/agents/effects/thresholdGeoDataFrame.py:77` · **מקובע במקור ב:** `test_risk_thresholdgeodataframe.py::TestProjectAngleDispatch`
 
 ```python
 if isinstance(meteorological_angle,collections.Iterable):
 ```
 
-`collections.Iterable` הוסר מ-Python 3.10 (הועבר ל-`collections.abc.Iterable` עוד ב-3.3, וה-alias הוסר לגמרי ב-3.10). כל קריאה ל-`project` — כולל עם `demographic=None` — קורסת ב-`AttributeError` **לפני** שהיא בכלל מגיעה לטפל בפרמטרים.
+`collections.Iterable` הוסר מ-Python 3.10 (הועבר ל-`collections.abc.Iterable` עוד ב-3.3, וה-alias הוסר לגמרי ב-3.10). כל קריאה ל-`project` קרסה ב-`AttributeError` לפני שהיא בכלל הגיעה לטפל בפרמטרים.
+
+**עדכון:** זה היה ממצא אמיתי ומדויק בזמן שתועד. commit `db405cec` ("fix: repair Python 3.10+ and typo crashes in risk assessment modules") תיקן ל-`collections.abc.Iterable`, במקביל ובאופן בלתי תלוי במאמץ הרחבת הטסטים הזה. ה-dispatch (זווית בודדת מול רשימת זוויות, שתי מוסכמות הזווית) נבדק כעת מול `_project` מדומה (monkeypatch) — ה-pipeline המלא דורש שכבה דמוגרפית geopandas אמיתית ולכן נותר מחוץ לתחום.
+
+### B97. `shiftLocationAndAngle` מאבד את תת-המחלקה בשקט
+**קובץ:** `hera/riskassessment/agents/effects/thresholdGeoDataFrame.py:34` · **מקובע ב:** `test_risk_thresholdgeodataframe.py::TestShiftLocationAndAngleLosesTheSubclass`
+
+```python
+def shiftLocationAndAngle(self,loc,meteorological_angle=None,mathematical_angle=None,geometry="ThresholdPolygon"):
+    ret = self.copy()
+    ret[geometry] = self._shiftPolygons(...)
+    ret = ret.set_geometry(geometry)
+    return ret
+```
+
+`thresholdGeoDataFrame` (תת-מחלקה של `geopandas.GeoDataFrame`) לא מגדירה `_constructor` — האידיום הסטנדרטי לשימור זהות תת-המחלקה דרך פעולות pandas/geopandas. תחת הגרסה הנעולה (`geopandas==1.0.1`), `self.copy()` **כבר** מאבד את הטיפוס ומחזיר `GeoDataFrame` רגיל (אומת ישירות: `type(frame.copy())` הוא `GeoDataFrame`, לא `thresholdGeoDataFrame`). התוצאה: כל שרשור של מתודה שמוגדרת רק על `thresholdGeoDataFrame` (כמו `shiftLocationAndAngle` נוסף, או `project`) על התוצאה נכשל ב-`AttributeError`.
 
 ### B66. `getVolatility` מחזיר יחידות שגויות — g²/(mol·cm³) במקום g/cm³
 **קובץ:** `hera/riskassessment/agents/Agents.py:264` · **מקובע ב:** `test_risk_agents.py::TestPhysicalPropetiesCorrelations`
@@ -978,7 +1001,9 @@ while 'zoL_Sonic%s' % i in self._TemporaryData.columns:
 
 ---
 
-## אצווה 17 — `measurements/GIS` (חלקי: hill2stl, stlFactory, TilesToolkit, LandCoverToolkit)
+## אצווה 17 — `measurements/GIS` (חלקי: stlFactory, TilesToolkit, LandCoverToolkit)
+
+**עדכון:** `test_gis_hill2stl.py` (הכיסוי הייעודי ל-4 הפונקציות של `hill2stl.py`) הוסר בזמן מיזוג master — מאמץ ניקוי-קוד-מת נפרד מחק את `hill2stl.py` כולו (ראה גם ההערה באצווה 7/B42). המחיקה מתקבלת, כמו שם.
 
 ### B74. `vectorToSTL` — סניף dask שקורא לשם שלא מיובא בקובץ
 **קובץ:** `hera/measurements/GIS/utils.py:389` · **מקובע ב:** `test_gis_utils_stlfactory.py::TestVectorToSTLDispatch`
@@ -993,7 +1018,7 @@ elif isinstance(gpandas, pandas.DataFrame) or isinstance(gpandas, dask.dataframe
 **קובץ:** `hera/measurements/GIS/raster/landcover.py:561,717` — שתי ההגדרות `@staticmethod` בתוך `LandCoverToolkit` מחשבות את אותה נוסחה (`z0*30`, לפי Desmond et al. 2017 eq. 5). ההגדרה השנייה (717) מחליפה את הראשונה בסמנטיקת גוף המחלקה הרגילה — ההגדרה הראשונה היא קוד מת, אבל ההתנהגות בפועל לא נפגעת (שתיהן מחשבות את אותו הדבר). לא נפתח כממצא B נפרד כי אין כשל התנהגותי.
 
 ### מה שנמצא תקין
-`hill2stl.py` (4 פונקציות): `compute_normal` מחזיר וקטור יחידה מאונך לשני הצלעות; `write_triangle`/`generate_solid_stl` מייצרים STL ASCII תקין (facet/endfacet מאוזנים, בסיס שטוח מתחת למשטח). `stlFactory.heightColumnsNames` (getter/setter) ו-`rasterizeGeopandas` — אינטרפולציה לינארית נכונה מקווי-מפלס (LineString) לרשת רגולרית, מכבדת שם עמודת גובה מותאם. `TilesToolkit` — מתמטיקת Slippy Map סטנדרטית: `tileScaleAtLatLonZoom` נחצה בכל רמת zoom ומצטמצם לקוטבים, `deg2tile`/`tile2deg` הם היפוכים מקורבים, `doctype` ו-`setDefaultTileServer` (נשמר ב-config הפרויקט) עובדים נכון.
+`stlFactory.heightColumnsNames` (getter/setter) ו-`rasterizeGeopandas` — אינטרפולציה לינארית נכונה מקווי-מפלס (LineString) לרשת רגולרית, מכבדת שם עמודת גובה מותאם. `TilesToolkit` — מתמטיקת Slippy Map סטנדרטית: `tileScaleAtLatLonZoom` נחצה בכל רמת zoom ומצטמצם לקוטבים, `deg2tile`/`tile2deg` הם היפוכים מקורבים, `doctype` ו-`setDefaultTileServer` (נשמר ב-config הפרויקט) עובדים נכון.
 
 ### נדחה לעבר עתידי — לא נבדק
 `vector/buildings/{analysis,presentation,toolkit}.py` (18), `vector/{demography,topography,toolkit}.py` (16), ו-`raster/tiles.py`'s `getImageFromCorners`/`listImages`/`presentation.plot` — דורשים shapefiles/DEM אמיתיים, שרת tile חי, או נתוני תמונה אמיתיים לבדיקה משמעותית. `GIS/CLI.py` (6 פקודות argparse) — עטיפות דקות מעל הטולקיטים שלמעלה, לא נבדק בנפרד.
@@ -1144,12 +1169,14 @@ timeList = sorted([float(x) for x in os.listdir(case) if (
 
 ## אצווה 22 — `openFoam/CLI.py` (חלק טהור) + `eulerian/abstractEulerianSolver.py`
 
-### B84-B86. `absractEulerianSolver_toolkitExtension` — שלושה NameError ברצף
-**קובץ:** `hera/simulations/openFoam/eulerian/abstractEulerianSolver.py` · **מקובע ב:** `test_openfoam_eulerian_solver.py`
+### B84-B86. `absractEulerianSolver_toolkitExtension` — שלושה NameError ברצף — **נפתרו במקביל**
+**קובץ:** `hera/simulations/openFoam/eulerian/abstractEulerianSolver.py` · **מקובע במקור ב:** `test_openfoam_eulerian_solver.py`
 
-- **B84**: `flowType` — ענף ה-`else` מפנה ל-`SIMULATIONTYPE_COMPRESSIBLE`, שם שלא קיים בשום מקום בקובץ (הייבוא בראש הקובץ הוא `FLOWTYPE_COMPRESSIBLE`). כל קריאה עם `incompressible=False` קורסת.
-- **B85**: `blockMesh_setBoundFromFile` — הפרמטר נקרא `eulerianWorkFlow`, אבל הגוף בודק `isinstance(eulerianWF, workflow_Eulerian)` — `eulerianWF` לא קיים בכלל כפרמטר. קורס תמיד לפני שנוגע בקלט.
-- **B86**: `blockMesh_setDomainHeight` — העתק-הדבק של `blockMesh_setBoundFromFile` בלי התאמה: אותו `eulerianWF` לא מוגדר, וגם מפנה ל-`fileName`/`dx`/`dy` — אף אחד מהם לא פרמטר של המתודה הזו (`eulerianWorkFlow, Z, dz`). `Z`, הקלט האמיתי היחיד שלה, אף פעם לא בשימוש.
+- **B84**: `flowType` — ענף ה-`else` הפנה ל-`SIMULATIONTYPE_COMPRESSIBLE`, שם שלא קיים בשום מקום בקובץ (הייבוא בראש הקובץ הוא `FLOWTYPE_COMPRESSIBLE`). כל קריאה עם `incompressible=False` קרסה.
+- **B85**: `blockMesh_setBoundFromFile` — הפרמטר נקרא `eulerianWorkFlow`, אבל הגוף בדק `isinstance(eulerianWF, workflow_Eulerian)` — `eulerianWF` לא היה קיים בכלל כפרמטר. קרס תמיד לפני שנוגע בקלט.
+- **B86**: `blockMesh_setDomainHeight` — העתק-הדבק של `blockMesh_setBoundFromFile` בלי התאמה: אותו `eulerianWF` לא מוגדר, וגם הפנה ל-`fileName`/`dx`/`dy` — אף אחד מהם לא פרמטר של המתודה הזו (`eulerianWorkFlow, Z, dz`). `Z`, הקלט האמיתי היחיד שלה, אף פעם לא היה בשימוש.
+
+**עדכון:** שלושתם היו ממצאים אמיתיים ומדויקים בזמן שתועדו. commit `276d9a93` ("fix: repair OpenFOAM Eulerian solver name errors and method mismatches") תיקן את כולם — `flowType` משתמש ב-`FLOWTYPE_COMPRESSIBLE`, ושתי מתודות ה-`blockMesh_*` בודקות נכון את `eulerianWorkFlow` — במקביל ובאופן בלתי תלוי במאמץ הרחבת הטסטים הזה. תוך כדי אימות מול venv נעול התגלה גם פער נפרד בשכבת ה-stub (`hermes.workflow` כ-`MagicMock` גולמי גרם ל-`isinstance` לזרוק `TypeError` במקום לעבוד) — תוקן ב-`_stubs.py`. הטסטים כעת בודקים גם את הנתיב התקין (workflow אמיתי) וגם את הדחייה הנקייה (workflow לא תקין).
 
 ### מה שנמצא תקין
 `Foam_parser_FieldDescription` (CLI) — כותב JSON תקין לתיאור שדות, עם ברירת מחדל ל-`exampleField` כשלא סופקו שדות.
