@@ -1,24 +1,32 @@
 """ProtectionPolicy: chained protection actions applied to a concentration field.
 
 Pure computation over xarray/pandas/numpy/pint -- no DB, no toolkit, no
-stubbed dependency.  Three defects surfaced while probing this module:
+stubbed dependency.  One live defect surfaced while probing this module:
 
-* B53: ``addActions`` given a string checks ``os.JSONpath.exists`` -- an
-  attribute that does not exist on ``os`` -- so the file-loading branch can
-  never run.
 * B54: ``ActionIndoor`` constructed with ``alpha=`` (rather than
   ``turnover=``) calls ``.ureg(...)`` on a pint ``Quantity``, which has no
   such method. Only the ``turnover=`` keyword -- not ``alpha=``, despite
   being the class's own documented and first-listed example -- can actually
   build an indoor action.
-* B58: calling ``.indoor(...)`` or ``.masks(...)`` with none of
-  begin/end/enter/stay -- the simplest possible usage -- crashes on any
-  pandas that dropped integer positional fallback on ``Series.__getitem__``
-  (true of the pandas pinned here). Both ``compute()`` methods fall back to
-  ``data[datetimename].to_series()[0]``, a positional lookup on a
-  DatetimeIndex-backed Series, which now raises ``KeyError``. Every compute
-  test below therefore passes explicit ``begin``/``end`` to exercise the
-  actual transformation logic around this defect.
+
+B53, resolved independently: ``addActions`` given a string used to check
+``os.JSONpath.exists`` -- an attribute ``os`` does not have -- so the
+file-loading branch could never run. This was a real, accurate finding at
+the time; PR #1010 (commit 14508043) fixed the typo back to
+``os.path.exists`` on master, unrelated to this test-expansion effort.
+See test_addactions_from_a_json_string_loads_the_file.
+
+B58, retracted: an earlier pass claimed calling ``.indoor(...)``/
+``.masks(...)`` with no begin/end/enter/stay crashed, because
+``data[datetimename].to_series()[0]`` (a positional lookup on a
+DatetimeIndex-backed Series) raises ``KeyError`` on newer pandas. That was
+verified against a locally-drifted pandas (3.0.2), not the pandas actually
+pinned in requirements.txt (2.2.3) -- under 2.2.3 the positional fallback
+still works, with only a FutureWarning. See
+test_compute_with_no_time_window_at_all, which now asserts the real
+(working) result instead of xfailing. Most tests below still pass an
+explicit window via ``_window()``, simply because it makes the assertions
+easier to reason about, not to route around a defect.
 """
 import numpy
 import pandas
@@ -43,7 +51,7 @@ def _dataset(n=5, value=10.0):
 
 
 def _window(ds):
-    """An explicit begin/end spanning the whole dataset, routing around B58."""
+    """An explicit begin/end spanning the whole dataset, for easier assertions."""
     return dict(begin=ds.datetime[0].values, end=ds.datetime[-1].values)
 
 
@@ -121,14 +129,10 @@ class TestActionDispatch:
         assert len(policy._actionList) == 1
         assert policy._actionList[0].actiontype == "masks"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B53: addActions(str) checks `os.JSONpath.exists(...)`, an "
-               "attribute os does not have, so passing a file path raises "
-               "AttributeError instead of loading the file. "
-               "See the consolidated findings issue.",
-    )
-    def test_addactions_from_a_json_string_is_broken(self, tmp_path):
+    def test_addactions_from_a_json_string_loads_the_file(self, tmp_path):
+        """B53, fixed upstream: this typo'd `os.JSONpath.exists(...)` to
+        `os.path.exists(...)` in PR #1010 (commit 14508043), independently
+        of this test-expansion effort."""
         jsonfile = tmp_path / "actions.json"
         jsonfile.write_text('{"actions": [{"name": "Masks", "params": {"protectionFactor": 10}}]}')
         policy = ProtectionPolicy()
@@ -216,18 +220,16 @@ class TestActionIndoor:
         assert data.attrs["1"]["type"] == "indoor"
         assert data.attrs["1"]["outputs"] == ["indoor_1"]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B58: with no begin/end/enter/stay, compute() falls back to "
-               "`data[datetimename].to_series()[0]`, a positional lookup on "
-               "a DatetimeIndex-backed Series. Current pandas raises "
-               "KeyError for that instead of falling back to position, so "
-               "the simplest possible call -- .indoor(turnover=...) with no "
-               "time window -- crashes. See the consolidated findings issue.",
-    )
     def test_compute_with_no_time_window_at_all(self):
+        """Not B58 under the pinned pandas (see the module docstring):
+        `.to_series()[0]`/`[-1]` still fall back to positional lookup here,
+        with only a FutureWarning -- so this simplest possible call succeeds
+        and picks up the dataset's actual first/last timestamps."""
+        ds = _dataset()
         policy = ProtectionPolicy().indoor(turnover=2 * ureg.h)
-        policy.compute(_dataset())
+        data = policy.compute(ds)
+        assert data.attrs["1"]["params"]["begin"] == pandas.Timestamp(ds.datetime[0].values)
+        assert data.attrs["1"]["params"]["end"] == pandas.Timestamp(ds.datetime[-1].values)
 
 
 @pytest.mark.unit
