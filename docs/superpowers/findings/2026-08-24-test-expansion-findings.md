@@ -1468,3 +1468,12 @@ return "".join(split_name[:-1]), split_name[-1]
 ```
 
 לא ההיפוך של `getworkFlowName` (שבונה `f"{baseName}_{formatted_number}"`) — כל שם בסיס שמכיל underscore משלו (כמו `"my_flow"`) מאבד אותו: `splitWorkflowName("my_flow_0007")` מחזיר `("myflow", "0007")` במקום `("my_flow", "0007")`.
+
+### B103. `OFLSMToolkit.__init__` — קורא לקבוע `toolkitHome` שלא קיים, לא ניתן לבנייה
+**קובץ:** `hera/simulations/openFoam/lagrangian/LSM/toolkit.py:97` · **מקובע ב:** `test_openfoam_lagrangian_lsm_toolkit.py`
+
+```python
+self._topography = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_TOPOGRAPHY,projectName=projectName)
+```
+
+`toolkitHome.GIS_TOPOGRAPHY` לא קיים (הקבועים האמיתיים הם `GIS_RASTER_TOPOGRAPHY`/`GIS_VECTOR_TOPOGRAPHY`). כל בנייה של `OFLSMToolkit` דרך `toolkitHome.getToolkit` קורסת ב-`AttributeError` — כל המחלקה לא שמישה. ה-properties (`doctype`, `casePath`, `cloudName`, `parallelCase`) נבדקו בעקיפת הבנאי (`__new__`) ועובדים נכון.
