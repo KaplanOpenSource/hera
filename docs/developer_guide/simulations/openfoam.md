@@ -258,7 +258,6 @@ The VTK pipeline provides a ParaView-integrated post-processing system with DB c
 | `VTKPipeLine` | Pipeline container — creates/manages filters, exports to JSON |
 | `registeredVTKPipeLine` | Pipeline bound to a specific case — executes filters, caches results |
 | `VTKFilter` | Base filter node — tree structure with `downstream` children |
-| `VTKPipelineExecutionContext` | Reader and pipeline configuration for paraview execution |
 | `paraviewOpenFOAM` (`pvOpenFOAMBase.py`) | ParaView backend — reads OpenFOAM cases, writes results |
 
 **Available filters:**

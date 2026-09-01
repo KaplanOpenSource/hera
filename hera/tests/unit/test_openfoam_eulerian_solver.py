@@ -1,28 +1,38 @@
-"""absractEulerianSolver_toolkitExtension: three defects in a row.
+"""absractEulerianSolver_toolkitExtension: flowType and the blockMesh_* setters.
 
-* B84: ``flowType``'s else-branch references ``SIMULATIONTYPE_COMPRESSIBLE``,
-  a name that does not exist anywhere in the module (the import at the top
-  is ``FLOWTYPE_COMPRESSIBLE``). Every call with ``incompressible=False``
-  raises ``NameError``.
-* B85: ``blockMesh_setBoundFromFile``'s parameter is ``eulerianWorkFlow``,
-  but its body checks ``isinstance(eulerianWF, workflow_Eulerian)`` --
-  ``eulerianWF`` is not a parameter of this method at all. Every call
-  raises ``NameError`` before touching any argument.
-* B86: ``blockMesh_setDomainHeight`` is a copy-paste of
-  ``blockMesh_setBoundFromFile`` that was never adapted: it also checks
-  the undefined ``eulerianWF``, and its body references ``fileName``,
-  ``dx`` and ``dy`` -- none of which are parameters of this method
-  (``eulerianWorkFlow, Z, dz``). ``Z``, its only real input, is never used.
+B84/B85/B86, all resolved independently: an earlier pass found flowType's
+else-branch referencing the undefined SIMULATIONTYPE_COMPRESSIBLE, and
+blockMesh_setBoundFromFile/blockMesh_setDomainHeight both checking an
+undefined eulerianWF instead of their real eulerianWorkFlow parameter.
+Those were real, accurate findings at the time; the module now correctly
+uses FLOWTYPE_COMPRESSIBLE and eulerianWorkFlow throughout. Verified
+against a venv pinned to requirements.txt with hera.tests.unit._stubs
+installed (which, after a related fix, gives hermes.workflow -- and so
+workflow_Eulerian, which subclasses it transitively via OFWorkflow.py's
+abstractWorkflow -- a real placeholder class instead of a bare MagicMock,
+letting isinstance() checks against it work as intended).
 """
 import pytest
 
 from hera.simulations.openFoam.eulerian.abstractEulerianSolver import (
     absractEulerianSolver_toolkitExtension,
 )
+from hera.simulations.openFoam.OFWorkflow import workflow_Eulerian
 
 
 class _FakeToolkit:
     FLOWTYPE_INCOMPRESSIBLE = "incompressible"
+
+
+class _FakeWorkflow(workflow_Eulerian):
+    def __init__(self):
+        self.calls = []
+
+    def set_blockMesh_blockHeight(self, Z, dz):
+        self.calls.append(("height", Z, dz))
+
+    def set_blockMesh_blockBoundaries(self, **kwargs):
+        self.calls.append(("bounds", kwargs))
 
 
 @pytest.fixture()
@@ -40,62 +50,33 @@ class TestConstruction:
 
 
 @pytest.mark.unit
-class TestFlowTypeIsBroken:
+class TestFlowType:
     def test_incompressible_true_reads_it_from_the_toolkit(self, ext):
         assert ext.flowType == "incompressible"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B84: the else-branch references SIMULATIONTYPE_COMPRESSIBLE, "
-               "a name that exists nowhere in this module. "
-               "See the consolidated findings issue.",
-    )
-    def test_incompressible_false_should_also_work(self):
+    def test_incompressible_false_returns_compressible(self):
         ext = absractEulerianSolver_toolkitExtension(
             toolkit=_FakeToolkit(), solverName="s", incompressible=False
         )
-        ext.flowType
-
-    def test_incompressible_false_currently_raises(self):
-        """Characterisation of B84."""
-        ext = absractEulerianSolver_toolkitExtension(
-            toolkit=_FakeToolkit(), solverName="s", incompressible=False
-        )
-        with pytest.raises(NameError, match="SIMULATIONTYPE_COMPRESSIBLE"):
-            ext.flowType
+        assert ext.flowType == "compressible"
 
 
 @pytest.mark.unit
-class TestBlockMeshSetBoundFromFileIsBroken:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B85: the body checks isinstance(eulerianWF, ...), but the "
-               "method's parameter is named eulerianWorkFlow -- eulerianWF "
-               "is not defined anywhere. See the consolidated findings issue.",
-    )
-    def test_it_should_validate_its_actual_parameter(self, ext):
-        ext.blockMesh_setBoundFromFile(eulerianWorkFlow=object(), fileName="x", dx=1, dy=1, dz=1)
-
-    def test_it_currently_raises_nameerror_before_touching_any_argument(self, ext):
-        """Characterisation of B85."""
-        with pytest.raises(NameError, match="eulerianWF"):
-            ext.blockMesh_setBoundFromFile(eulerianWorkFlow=object(), fileName="x", dx=1, dy=1, dz=1)
-
-
-@pytest.mark.unit
-class TestBlockMeshSetDomainHeightIsBroken:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B86: copy-pasted from blockMesh_setBoundFromFile without "
-               "adaptation -- checks the same undefined eulerianWF, and "
-               "references fileName/dx/dy, none of which are parameters "
-               "of this method (eulerianWorkFlow, Z, dz). Z is never used. "
-               "See the consolidated findings issue.",
-    )
-    def test_it_should_set_the_domain_height(self, ext):
-        ext.blockMesh_setDomainHeight(eulerianWorkFlow=object(), Z=10, dz=1)
-
-    def test_it_currently_raises_nameerror_before_touching_z(self, ext):
-        """Characterisation of B86."""
-        with pytest.raises(NameError, match="eulerianWF"):
+class TestBlockMeshSetDomainHeight:
+    def test_a_non_eulerian_workflow_is_rejected(self, ext):
+        with pytest.raises(ValueError, match="not eulerian"):
             ext.blockMesh_setDomainHeight(eulerianWorkFlow=object(), Z=10, dz=1)
+
+    def test_a_real_eulerian_workflow_gets_its_height_set(self, ext):
+        wf = _FakeWorkflow()
+        ext.blockMesh_setDomainHeight(eulerianWorkFlow=wf, Z=10, dz=1)
+        assert wf.calls == [("height", 10, 1)]
+
+
+@pytest.mark.unit
+class TestBlockMeshSetBoundFromFile:
+    def test_a_non_eulerian_workflow_is_rejected_before_reading_the_file(self, ext):
+        """The file (a nonexistent path) is never touched -- validation
+        happens first."""
+        with pytest.raises(ValueError, match="not eulerian"):
+            ext.blockMesh_setBoundFromFile(eulerianWorkFlow=object(), fileName="/no/such/file.obj", dx=1, dy=1, dz=1)

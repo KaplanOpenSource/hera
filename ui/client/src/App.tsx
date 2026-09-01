@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { SnackbarProvider } from 'notistack';
 import { Dashboard } from './Dashboard';
 import { ServerReadyGate } from './components/ServerReadyGate';
+import { WorkflowRunPoller } from './components/workflow/WorkflowRunPoller';
 import { useAppTheme } from './theme';
 
 export default function App() {
@@ -13,6 +14,7 @@ export default function App() {
       <SnackbarProvider maxSnack={6} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
         <BrowserRouter>
           <ServerReadyGate>
+            <WorkflowRunPoller />
             <Routes>
               <Route path="/:projectName/:docId" element={<Dashboard />} />
               <Route path="/:projectName" element={<Dashboard />} />

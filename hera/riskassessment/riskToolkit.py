@@ -271,7 +271,7 @@ class analysis():
         boundsList = []
         polygonList = []
         for level in levels:
-            ToxicLoad = dumbAgent.RegularPopulation.calculateRaw(Concentration,"C",isel={"datetime":-1})
+            ToxicLoad = dumbAgent.RegularPopulation.calculateToxicLoads(concentrationField=Concentration, field="C").isel(datetime=-1)
             ToxicLoad = ToxicLoad.to_dataframe().reset_index()
             ToxicLoad = ToxicLoad.loc[ToxicLoad.C>=level]
             data = geopandas.geodataframe.GeoDataFrame(ToxicLoad, geometry=geopandas.points_from_xy(ToxicLoad.x, ToxicLoad.y))

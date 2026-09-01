@@ -13,7 +13,6 @@ hera/measurements/
             topography.py      # TopographyToolkit — SRTM elevation data
             landcover.py       # LandCoverToolkit — MODIS land cover
             tiles.py           # TilesToolkit — tile server map images
-            hill2stl.py        # STL mesh generation from elevation
         vector/
             toolkit.py         # VectorToolkit — base class for vector GIS
             topography.py      # TopographyToolkit (vector contours)

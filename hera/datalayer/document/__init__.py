@@ -19,7 +19,6 @@ def getMongoJSON():
         dict
     """
     configFile = Path.home() / '.pyhera' / 'config.json' #X-platform support
-    # configFile = os.path.join(os.environ.get('HOME'), '.pyhera', 'config.json')
     if os.path.isfile(configFile):
         with open(configFile, 'r') as jsonFile:
             mongoConfig = json.load(jsonFile)
