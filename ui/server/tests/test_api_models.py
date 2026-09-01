@@ -27,10 +27,17 @@ def test_run_workflow_payload_requires_fields():
         RunWorkflowPayload(projectName="P")  # missing workflowName
 
 
-def test_run_workflow_response_fields():
-    resp = RunWorkflowResponse(dispatch_id="d1", output="log")
-    assert resp.dispatch_id == "d1"
+def test_run_workflow_response_start_token():
+    resp = RunWorkflowResponse(token="t1")
+    assert resp.token == "t1"
+    assert resp.status is None
+
+
+def test_run_workflow_response_poll_done():
+    resp = RunWorkflowResponse(status="done", output="log")
+    assert resp.status == "done"
     assert resp.output == "log"
+    assert resp.error == ""
 
 
 def test_exec_payload_requires_code():

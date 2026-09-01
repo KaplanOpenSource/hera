@@ -244,9 +244,6 @@ class Measurements_Collection(AbstractCollection):
             super(Measurements_Collection, self).__init__(ctype='Measurements', connectionName=connectionName)
         elif version == 3:
             super().__init__(ctype='Measurements', connectionName=connectionName)
-    #
-    # def meta(self):
-    #     return self._metadataCol
 
 
 class Simulations_Collection(AbstractCollection):
