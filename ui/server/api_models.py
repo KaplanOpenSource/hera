@@ -30,5 +30,8 @@ class RunWorkflowPayload(BaseModel):
 
 
 class RunWorkflowResponse(BaseModel):
-    dispatch_id: str
-    output: str
+    # start returns token (or status "busy"); poll returns status + output/error.
+    token: Optional[str] = None
+    status: Optional[str] = None
+    output: str = ""
+    error: str = ""

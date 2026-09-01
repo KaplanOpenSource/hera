@@ -1,8 +1,9 @@
 import { Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
 import { WorkflowLogView } from './WorkflowLogView';
 
-// Shows a workflow run's output. Opens immediately with a spinner while the run is
-// in progress, then swaps in the classified log (or an error message).
+// Shows a workflow run's output. While the run is in progress it shows the log as
+// it grows with a small "running" hint; on finish it shows the final classified log
+// (or an error message).
 export const WorkflowOutputDialog = ({
   open,
   running,
@@ -22,18 +23,22 @@ export const WorkflowOutputDialog = ({
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>Workflow "{workflowName}" output</DialogTitle>
       <DialogContent dividers>
-        {running && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 3, justifyContent: 'center' }}>
-            <CircularProgress size={24} />
-            <Typography>Running…</Typography>
-          </Box>
-        )}
         {!running && error && (
           <Typography color="error" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
             {error}
           </Typography>
         )}
-        {!running && !error && <WorkflowLogView output={output ?? ''} />}
+        {(running || !error) && (
+          <>
+            {running && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1 }}>
+                <CircularProgress size={16} />
+                <Typography variant="body2" color="text.secondary">Running…</Typography>
+              </Box>
+            )}
+            <WorkflowLogView output={output ?? ''} />
+          </>
+        )}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Close</Button>
