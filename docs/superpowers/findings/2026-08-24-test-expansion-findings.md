@@ -868,14 +868,29 @@ return (concentrationField[:-1].fillna(0)*dt_min[1:]).cumsum()*breathingRatio * 
 
 `dt_min[1:]` הוא `Series` עם אינדקס שלם (0,1,2...) בעוד ה-DataFrame מאונדקס בזמן. הכפלת DataFrame ב-Series **בלי `axis=0`** מיישרת לפי **עמודות**, לא לפי שורות — ומכיוון שאין התאמה בין תוויות העמודות ("P1") לתוויות ה-Series (מספרים שלמים), התוצאה היא DataFrame עם עמודות מדומות נוספות ו-NaN מוחלט. `CalculatorTenBerge` נמנעת בדיוק מהמלכודת הזו באותה שורה, ע"י המרה ל-`.values.reshape(...)` לפני הכפל.
 
-### B65. `thresholdGeoDataFrame.project` — קוד שלא ניתן להרצה בפייתון הנוכחי
-**קובץ:** `hera/riskassessment/agents/effects/thresholdGeoDataFrame.py:77` · **מקובע ב:** `test_risk_thresholdgeodataframe.py::TestProjectIsUnusableOnThisPython`
+### B65. `thresholdGeoDataFrame.project` — קוד שלא ניתן להרצה בפייתון הנוכחי — **נפתר במקביל**
+**קובץ:** `hera/riskassessment/agents/effects/thresholdGeoDataFrame.py:77` · **מקובע במקור ב:** `test_risk_thresholdgeodataframe.py::TestProjectAngleDispatch`
 
 ```python
 if isinstance(meteorological_angle,collections.Iterable):
 ```
 
-`collections.Iterable` הוסר מ-Python 3.10 (הועבר ל-`collections.abc.Iterable` עוד ב-3.3, וה-alias הוסר לגמרי ב-3.10). כל קריאה ל-`project` — כולל עם `demographic=None` — קורסת ב-`AttributeError` **לפני** שהיא בכלל מגיעה לטפל בפרמטרים.
+`collections.Iterable` הוסר מ-Python 3.10 (הועבר ל-`collections.abc.Iterable` עוד ב-3.3, וה-alias הוסר לגמרי ב-3.10). כל קריאה ל-`project` קרסה ב-`AttributeError` לפני שהיא בכלל הגיעה לטפל בפרמטרים.
+
+**עדכון:** זה היה ממצא אמיתי ומדויק בזמן שתועד. commit `db405cec` ("fix: repair Python 3.10+ and typo crashes in risk assessment modules") תיקן ל-`collections.abc.Iterable`, במקביל ובאופן בלתי תלוי במאמץ הרחבת הטסטים הזה. ה-dispatch (זווית בודדת מול רשימת זוויות, שתי מוסכמות הזווית) נבדק כעת מול `_project` מדומה (monkeypatch) — ה-pipeline המלא דורש שכבה דמוגרפית geopandas אמיתית ולכן נותר מחוץ לתחום.
+
+### B97. `shiftLocationAndAngle` מאבד את תת-המחלקה בשקט
+**קובץ:** `hera/riskassessment/agents/effects/thresholdGeoDataFrame.py:34` · **מקובע ב:** `test_risk_thresholdgeodataframe.py::TestShiftLocationAndAngleLosesTheSubclass`
+
+```python
+def shiftLocationAndAngle(self,loc,meteorological_angle=None,mathematical_angle=None,geometry="ThresholdPolygon"):
+    ret = self.copy()
+    ret[geometry] = self._shiftPolygons(...)
+    ret = ret.set_geometry(geometry)
+    return ret
+```
+
+`thresholdGeoDataFrame` (תת-מחלקה של `geopandas.GeoDataFrame`) לא מגדירה `_constructor` — האידיום הסטנדרטי לשימור זהות תת-המחלקה דרך פעולות pandas/geopandas. תחת הגרסה הנעולה (`geopandas==1.0.1`), `self.copy()` **כבר** מאבד את הטיפוס ומחזיר `GeoDataFrame` רגיל (אומת ישירות: `type(frame.copy())` הוא `GeoDataFrame`, לא `thresholdGeoDataFrame`). התוצאה: כל שרשור של מתודה שמוגדרת רק על `thresholdGeoDataFrame` (כמו `shiftLocationAndAngle` נוסף, או `project`) על התוצאה נכשל ב-`AttributeError`.
 
 ### B66. `getVolatility` מחזיר יחידות שגויות — g²/(mol·cm³) במקום g/cm³
 **קובץ:** `hera/riskassessment/agents/Agents.py:264` · **מקובע ב:** `test_risk_agents.py::TestPhysicalPropetiesCorrelations`
