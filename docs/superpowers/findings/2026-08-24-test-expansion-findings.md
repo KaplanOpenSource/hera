@@ -745,14 +745,16 @@ OFObjectHome.pandasToFoamFormat(home,df) -> AttributeError: 'OFObjectHome' objec
 
 ## אצווה 12 — `riskassessment` (protectionpolicy, analysis/riskAreas, riskToolkit)
 
-### B53. `ProtectionPolicy.addActions` שבור עם נתיב קובץ
-**קובץ:** `hera/riskassessment/protectionpolicy/ProtectionPolicy.py:130` · **מקובע ב:** `test_riskassessment_protectionpolicy.py::TestActionDispatch::test_addactions_from_a_json_string_is_broken`
+### B53. `ProtectionPolicy.addActions` שבור עם נתיב קובץ — **נפתר במקביל**
+**קובץ:** `hera/riskassessment/protectionpolicy/ProtectionPolicy.py:130` · **מקובע במקור ב:** `test_riskassessment_protectionpolicy.py::TestActionDispatch::test_addactions_from_a_json_string_loads_the_file`
 
 ```python
 if os.JSONpath.exists(jsonStrOrFile):
 ```
 
-ל-`os` אין תכונה `JSONpath` (הכוונה הייתה `os.path`). כל קריאה ל-`addActions` עם מחרוזת נתיב קובץ נכשלת עם `AttributeError` — הענף הזה מעולם לא רץ.
+ל-`os` אין תכונה `JSONpath` (הכוונה הייתה `os.path`). כל קריאה ל-`addActions` עם מחרוזת נתיב קובץ נכשלה עם `AttributeError` — הענף הזה מעולם לא רץ.
+
+**עדכון:** זה היה ממצא אמיתי ומדויק בזמן שתועד. commit `14508043` (PR #1010) תיקן את זה בחזרה ל-`os.path.exists`, במקביל ובאופן בלתי תלוי במאמץ הרחבת הטסטים הזה. הטסט כבר לא xfail — עובד נכון.
 
 ### B54. בניית `ActionIndoor` עם `alpha=` — הדוגמה בדוקסטרינג של המחלקה עצמה — שבורה
 **קובץ:** `hera/riskassessment/protectionpolicy/ProtectionPolicy.py:355` · **מקובע ב:** `test_riskassessment_protectionpolicy.py::TestActionIndoor::test_constructing_with_alpha_directly`
@@ -785,14 +787,14 @@ else:
 ### מה שנמצא תקין ב-ProtectionPolicy
 `abstractAction.getAction` מתעל שם פעולה (`"indoor"`/`"masks"`) ל-`ActionIndoor`/`ActionMasks` נכון, שרשור `.indoor().masks()` מחזיר `self` כראוי, ואימות `ValueError` בהיעדר `alpha`/`turnover`/`protectionFactor` עובד. חילוק ריכוז ע"י מסכה (`ActionMasks.compute`) נכון ומדויק.
 
-### B58. `ProtectionPolicy` קורס בשימוש הפשוט ביותר — בלי חלון זמן
-**קובץ:** `hera/riskassessment/protectionpolicy/ProtectionPolicy.py:390,481` · **מקובע ב:** `test_riskassessment_protectionpolicy.py::TestActionIndoor::test_compute_with_no_time_window_at_all`
+### B58. **הוסר** — נבדק מול pandas שגוי, לא קיים תחת הגרסה הנעולה
+**קובץ:** `hera/riskassessment/protectionpolicy/ProtectionPolicy.py:390,481` · **מקובע במקור ב:** `test_riskassessment_protectionpolicy.py::TestActionIndoor::test_compute_with_no_time_window_at_all`
 
 ```python
 abegin = data[self.policy.datetimename].to_series()[0] if abegin is None else abegin
 ```
 
-אינדקס positional (`[0]`) על `Series` עם `DatetimeIndex` — לא נתמך יותר ב-pandas המותקן (זורק `KeyError` במקום fallback ל-position). קריאה ל-`.indoor(turnover=...)` **בלי** `begin`/`end`/`enter`/`stay` כלל — השימוש הבסיסי ביותר — קורסת תמיד.
+אינדקס positional (`[0]`) על `Series` עם `DatetimeIndex` תועד כלא-נתמך (זורק `KeyError`) — אבל זה אומת מול pandas 3.0.2 שהתקין מקומית, לא מול הגרסה שנעולה בפועל ב-`requirements.txt` (pandas==2.2.3). תחת 2.2.3, ה-fallback ל-position עדיין עובד (רק אזהרת `FutureWarning`). קריאה ל-`.indoor(turnover=...)` בלי `begin`/`end`/`enter`/`stay` כלל עובדת נכון בפועל. הטסט כבר לא xfail — בודק את ההתנהגות התקינה.
 
 ### B59. חישוב ה-indoor הוא no-op מוחלט — התוצאה תמיד אפס
 **קובץ:** `hera/riskassessment/protectionpolicy/ProtectionPolicy.py:374` · **מקובע ב:** `test_riskassessment_protectionpolicy.py::TestActionIndoor::test_compute_builds_a_low_pass_filtered_field_towards_the_outdoor_value`
@@ -803,14 +805,16 @@ Cin[curstep].values = ((Cin[prevstep] + alphanum*dt*Cout[curstep])/(1+alphanum*d
 
 `Cin[curstep]` (אינדוקס לפי dict) מחזיר **עותק**, לא view, בגרסת ה-xarray המותקנת. ההשמה ל-`.values` על העותק נזרקת — `Cin` נשאר אפסים מוחלטים בלי קשר ל-alpha, dt או לריכוז החיצוני. זהו החישוב המרכזי של כל מודל ה-indoor, ומעולם לא באמת רץ.
 
-### B60. `getRiskAreaAlgorithm` — dispatcher מת לחלוטין
-**קובץ:** `hera/riskassessment/analysis/riskAreas.py:19` · **מקובע ב:** `test_risk_riskareas.py::TestGetRiskAreaAlgorithm`
+### B60. `getRiskAreaAlgorithm` — dispatcher מת לחלוטין — **נפתר במקביל**
+**קובץ:** `hera/riskassessment/analysis/riskAreas.py:19` · **מקובע במקור ב:** `test_risk_riskareas.py::TestGetRiskAreaAlgorithm`
 
 ```python
 estimatorCLS = pydoc.locate("pyriskassessment.datalayer.riskAreas.riskAreaAlgorithm_%s" % algorithmName.title())
 ```
 
-החבילה `pyriskassessment` אינה קיימת בפרויקט או בתלויותיו — המודול הזה יושב ב-`hera.riskassessment.analysis.riskAreas`. `pydoc.locate` מחזיר `None` תמיד, ולכן ה-dispatcher **לעולם לא מצליח**, אפילו לא עבור `"Sweep"` — האלגוריתם היחיד שממומש בקובץ. הדרך היחידה להשתמש ב-`riskAreaAlgorithm_Sweep` היא import + בנייה ישירה.
+החבילה `pyriskassessment` אינה קיימת בפרויקט או בתלויותיו — המודול הזה יושב ב-`hera.riskassessment.analysis.riskAreas`. `pydoc.locate` החזיר `None` תמיד, ולכן ה-dispatcher מעולם לא הצליח, אפילו לא עבור `"Sweep"` — האלגוריתם היחיד שממומש בקובץ.
+
+**עדכון:** זה היה ממצא אמיתי ומדויק בזמן שתועד. commit `193249e6` ("fix: repair stale module path and nonexistent method call in risk analysis") תיקן את הנתיב ל-`hera.riskassessment.analysis.riskAreas` האמיתי, במקביל ובאופן בלתי תלוי במאמץ הרחבת הטסטים הזה. `getRiskAreaAlgorithm("Sweep")` עובד נכון, וההודעה לשם לא-קיים מציגה נכון "Sweep" כזמין. הטסטים כבר לא xfail.
 
 ### מה שנמצא תקין ב-riskAreas/riskToolkit
 תכונות ה-setter/getter של `riskAreaAlgorithm_Sweep` (`dxdy`, `workerCount`, `parallel`) עובדות וממירות טיפוסים נכון; `outlayers` הוא read-only כמתועד. `RiskToolkit.getAgent` מבחין נכון בין שם (str), תיאור (dict) וקלט לא-תקין; `loadAgent` מדביק name/version לתיאור לפני העברה ל-`loadData`. `loadData` מטפל נכון בקלט dict, JSON string, ומקרה "לא קובץ/dict" (raises).
