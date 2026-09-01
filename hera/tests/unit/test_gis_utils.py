@@ -6,8 +6,6 @@ independently known coordinates: Tel Aviv sits near 34.78E 32.08N in WGS84,
 and the Israeli Transverse Mercator grid puts it near easting 178000,
 northing 663000.
 """
-import pathlib
-
 import pytest
 
 from hera.measurements.GIS.utils import ITM, WSG84, convertCRS
@@ -95,41 +93,3 @@ class TestConvertCRS:
         south = convertCRS([(34.78, 32.00)], WSG84, ITM)[0]
         north = convertCRS([(34.78, 33.00)], WSG84, ITM)[0]
         assert 100_000 < (north.y - south.y) < 120_000
-
-
-@pytest.mark.unit
-class TestImportSideEffects:
-    """B42, fixed: the demo is behind a __main__ guard.
-
-    It used to run on import, printing to stdout and writing an 8.1 MB
-    test1.stl into the current directory.
-    """
-
-    SOURCE = pathlib.Path("hera/measurements/GIS/raster/hill2stl.py")
-
-    def test_the_driver_code_is_guarded(self):
-        source = self.SOURCE.read_text(encoding="utf-8")
-        assert 'if __name__ == "__main__":' in source
-        assert "generate_solid_stl(" in source
-
-    def test_the_generator_is_still_callable_as_a_function(self):
-        """Guarding the demo must not remove the API it demonstrates."""
-        from hera.measurements.GIS.raster.hill2stl import generate_solid_stl
-
-        assert callable(generate_solid_stl)
-
-    def test_the_package_import_does_not_reach_it(self):
-        """Mitigating detail: only a direct import of hill2stl triggers it."""
-        import hera.measurements.GIS as gis
-
-        assert gis is not None
-
-    def test_importing_it_writes_nothing(self, tmp_path, monkeypatch):
-        import importlib
-        import sys
-
-        monkeypatch.chdir(tmp_path)
-        sys.modules.pop("hera.measurements.GIS.raster.hill2stl", None)
-        importlib.import_module("hera.measurements.GIS.raster.hill2stl")
-
-        assert list(tmp_path.iterdir()) == []

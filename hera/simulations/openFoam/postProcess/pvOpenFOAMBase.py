@@ -9,7 +9,7 @@ import shutil
 import os
 import xarray
 import tqdm
-from hera.simulations.openFoam import CASETYPE_DECOMPOSED,CASETYPE_RECONSTRUCTED
+from hera.simulations.openFoam import CASETYPE_DECOMPOSED
 from hera import get_classMethod_logger
 from deprecated import deprecated
 from dask.diagnostics import ProgressBar
@@ -27,8 +27,6 @@ try:
     pvsimple._DisableFirstRenderCameraReset()
 except ImportError:
     print("paraview module is not Found!. VTK pipeline wont work")
-
-from hera.utils.logging import helpers as hera_logging
 
 class paraviewOpenFOAM:
     """
@@ -601,118 +599,37 @@ class paraviewOpenFOAM:
     ####        Depracated
     ############################################################################################
 
-    @deprecated(reason="Use writeRegularCase instead")
+    @deprecated(reason="Use writeCase instead")
     def write_netcdf(self, datasourcenamelist, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False,
                      append=False):
         """Write datasources as netcdf files (deprecated)."""
-        self.writeRegularCase(datasourcenamelist, timeList, fieldnames, tsBlockNum, overwrite,append)
+        self.writeCase(datasourcenamelist, True, timeList, fieldnames, tsBlockNum, overwrite)
 
 
     @deprecated(reason="Old Name, use readTimeSteps with regularMesh=False")
     def to_pandas(self, datasourcenamelist, timelist=None, fieldnames=None):
         """Read time steps as pandas DataFrames (deprecated)."""
-        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regtularMesh=False)
+        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regularMesh=False)
 
     @deprecated(reason="Old Name, use readTimeSteps with regularMesh=True")
     def to_xarray(self, datasourcenamelist, timelist=None, fieldnames=None):
         """Read time steps as xarray Datasets (deprecated)."""
-        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regtularMesh=True)
+        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regularMesh=True)
 
     @deprecated(reason="Old Name, use readTimeSteps with regularMesh=False")
     def to_dataFrame(self, datasourcenamelist, timelist=None, fieldnames=None):
         """Read time steps as pandas DataFrames (deprecated)."""
-        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regtularMesh=False)
+        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regularMesh=False)
 
     @deprecated(reason="Old Name, use readTimeSteps with regularMesh=True")
     def to_dataArray(self, datasourcenamelist, timelist=None, fieldnames=None):
         """Read time steps as xarray DataArrays (deprecated)."""
-        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regtularMesh=True)
-    @deprecated(reason="Use writeNonRegularCase instead")
+        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regularMesh=True)
+
+    @deprecated(reason="Use writeCase instead")
     def write_parquet(self, datasourcenamelist, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False,
                       append=False, filterList=None):
         """Write datasources as parquet files (deprecated)."""
-        writeNonRegularCase(datasourcenamelist, timeList, fieldnames, tsBlockNum, overwrite, append, filterList)
-
-    @deprecated(reason="Use writeNonRegularCase instead")
-    def write_parquet(self, datasourcenamelist, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False,
-                      append=False, filterList=None):
-        """Write datasources as parquet files (deprecated)."""
-        writeNonRegularCase(datasourcenamelist, timeList, fieldnames, tsBlockNum, overwrite, append, filterList)
+        self.writeCase(datasourcenamelist, False, timeList, fieldnames, tsBlockNum, overwrite)
 
 
-    #
-    # def writeRegularCase(self, filtersDict, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False,append=False):
-    #     """
-    #         Writes a list of datasources (vtk filters) to netcdf (with xarray).
-    #         The grid data **must** be regular!!!.
-    #         Todo: add a an option for regularization function.
-    #
-    #     Parameters
-    #     ----------
-    #
-    #     readername: str
-    #             The name of the reader to use.
-    #     filtersDict:
-    #             The name of the datasources to write.,
-    #     outfile: str
-    #             the directory to write the files.
-    #     timeList: list
-    #             the times to write
-    #     fieldnames: list
-    #             the fields to write
-    #     tsBlockNum: int
-    #             the number of
-    #
-    #     Returns
-    #     -------
-    #
-    #     None
-    #
-    #     """
-    #
-    #     def checkIfExist(self,dataChunk,blockID,fileDirectory):
-    #         filterList = [k for k in dataChunk.keys()]
-    #         blockfrmt = ('{:0%dd}' % blockDig).format(blockID)
-    #         for filtername in filterList:
-    #             curfilename = os.path.join(fileDirectory, "%s_%s.nc" % (filtername, blockfrmt))
-    #             if os.path.exists(curfilename):
-    #                 if not overwrite:
-    #                     raise Exception('NOTE: "%s" is alredy exists and will be not overwitten' % curfilename)
-    #
-    #     timeList = self.reader.TimestepValues if timeList is None else numpy.atleast_1d(timeList)
-    #     os.makedirs(self.netcdfdir,exist_ok=True)
-    #
-    #     blockDig = max(5, numpy.ceil(numpy.log10(len(timeList))) + 1)
-    #     blockID = 0
-    #
-    #     L = []
-    #     checkExist=True
-    #
-    #     for xray in self.readTimeSteps(datasourcenamelist=filtersDict, timelist=timeList, fieldnames=fieldnames,regularMesh=True):
-    #
-    #         if checkExist:
-    #             checkExist =False
-    #             checkIfExist(xray, blockID, self.netcdfdir)
-    #
-    #         L.append(xray)
-    #         if len(L) == tsBlockNum:
-    #             if isinstance(L[0],dict):
-    #                 filterList = [k for k in L[0].keys()]
-    #                 for filtername in filterList:
-    #                     writeList([item[filtername] for item in L], blockID, blockDig, overwrite, self.netcdfdir)
-    #
-    #             else:
-    #                 writeList(L, blockID, blockDig, overwrite, self.netcdfdir)
-    #             L = []
-    #             blockID += 1
-    #             checkExist = False
-    #
-    #     if len(L)>0:
-    #         checkIfExist(xray, blockID, self.netcdfdir)
-    #         if isinstance(L[0],dict):
-    #             filterList = [k for k in L[0].keys()]
-    #             for filtername in filterList:
-    #                 writeList([item[filtername] for item in L], blockID, blockDig, overwrite, self.netcdfdir)
-    #         else:
-    #             writeList(L,blockID,blockDig,self.netcdfdir)
-    #
