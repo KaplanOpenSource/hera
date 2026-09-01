@@ -1427,3 +1427,17 @@ def getSimulationByID(self,id):
 
 ### נדחה
 `run()`/`_toNetcdf()` — דורשים בינארי LSM אמיתי, קבצי תבנית קלט אמיתיים, והרצת subprocess. `_getSimulationsList`/`getSimulationsTable` — נותרו לא מכוסים.
+
+---
+
+## אצווה 29 (המשך 3) — `datalayer/autocache.py`, `utils/logging/helpers.py`, `gaussian/DropletCloud.py`
+
+בלי ממצא חדש ב-autocache/logging (decorator `cacheFunction` מקצה-לקצה, `clearFunctionCache`, `add_FileHandler`/`add_formatter`).
+
+### B100. `FixedPointClippedDropletCloud` — סדר אתחול הפוך, קורס לפני שמגיע ל-B96
+**קובץ:** `hera/simulations/gaussian/DropletCloud.py:148` · **מקובע ב:** `test_gaussian_dropletcloud.py`
+
+`__init__` קורא ל-`super().__init__()` (שמפעיל דרך פולימורפיזם את ה-`_initDropletPosition` **של המחלקה הזו עצמה**, שמשתמש ב-`self.clippedDiameter`) **לפני** שההגדרה `self.clippedDiameter = clippedDiameter` בכלל רצה. כתוצאה, `clippedDiameter` הוא `None` בזמן השימוש, וקורס ב-`TypeError` (numpy `log` על `None`) — עוד לפני שמגיעים לקריסה של B96 (שאר מחלקות הקובץ, שבונות ישירות `FallingNonEvaporatingDroplets`, כן מגיעות ל-B96 בצורה נקייה).
+
+### הערה
+כל מחלקות `DropletCloud.py` בונות `FallingNonEvaporatingDroplets` — B96 (מאצווה 28: הבנאי תמיד קורס) מתפשט אליהן כולן.
