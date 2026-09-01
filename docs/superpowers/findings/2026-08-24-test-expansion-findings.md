@@ -1441,3 +1441,21 @@ def getSimulationByID(self,id):
 
 ### הערה
 כל מחלקות `DropletCloud.py` בונות `FallingNonEvaporatingDroplets` — B96 (מאצווה 28: הבנאי תמיד קורס) מתפשט אליהן כולן.
+
+---
+
+## אצווה 29 (המשך 4) — hermes/pyargos אמיתיים מקושרים ל-venv הנעול + `openFoam/toolkit.py`
+
+מ-נקודה זו, ה-venv הנעול (`hera-pinned-venv`) מקושר קבוע (`.pth`) ל-hermes/pyargos האמיתיים שכבר קיימים ב-`$HOME` (לא stub, לא clone) — פותח גישה לכל openFoam/LSM lagrangian/hermesWorkflowToolkit לבדיקה אמיתית. torch **לא** ב-`requirements.txt` בכלל (ההערה הישנה ב-`_stubs.py` הייתה שגויה) — נשאר לא מותקן, machineLearningDeepLearning עדיין חסום.
+
+### B101. `clearVTKPipelineCache` — קורס בגלל שורת לוג debug שמוערכת תמיד
+**קובץ:** `hera/simulations/openFoam/toolkit.py:935` · **מקובע ב:** `test_openfoam_toolkit_vtk_cache.py`
+
+```python
+logger.debug(f"Deleting resource {doc['desc']['filterName']} : {doc['desc']['pipeline']['filters']} ")
+```
+
+ה-f-string נבנה תמיד (גם אם רמת הלוג לא debug), וקורא ל-`doc['desc']['pipeline']['filters']`. `pipeline` אינו מפתח מתועד/נדרש בסכמה של `vtk_filter` (התיעוד של `getVTKPipelineCacheDocuments` מזכיר רק `regularMesh`/`filterName`/`simulation`) — כל מסמך cache בלי `pipeline` (למשל אחד שנוצר ידנית תואם לסכמה המתועדת) גורם ל-`clearVTKPipelineCache` לקרוס ב-`KeyError`.
+
+### מה שנמצא תקין
+`OFToolkit.__init__` (analysis/presentation/OFObjectHome), `getVTKPipelineCacheDocuments` (סינון לפי regularMesh/workflowName/groupName), `getVTKPipelineCacheTable`.
