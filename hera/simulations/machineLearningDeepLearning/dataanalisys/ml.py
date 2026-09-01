@@ -36,25 +36,7 @@ class ml(object):
         Currently we     have only one scaler
         """
         self.models = []
-#        self.models.append(['SGD', SGDRegressor(max_iter=1000)])
-  #        self.models.append(['Lasso', Lasso(alpha=0.1)])
-  #        self.models.append(['SGDRegressor', SGDRegressor()])
-#        self.models.append(['ElasticNet', ElasticNet(random_state=0)])
-#        self.models.append(['GradientBoostingRegressor', GradientBoostingRegressor(n_estimators=100, learning_rate=0.1, max_depth=1, random_state=0, loss='ls')])
-#        self.models.append(['LR', LogisticRegression(random_state=0, solver='lbfgs', multi_class='multinomial')])
-#        self.models.append(['KNN2', KNeighborsRegressor(n_neighbors=2, weights = 'distance')])
-#        self.models.append(['KNN4', KNeighborsRegressor(n_neighbors=4)])
         self.models.append(['KNN6', KNeighborsRegressor(n_neighbors=6, weights = 'distance')])
-#        self.models.append(['KNN8', KNeighborsRegressor(n_neighbors=8)])
-#        self.models.append(['KNN10', KNeighborsRegressor(n_neighbors=10)])
-#        self.models.append(['KNN12', KNeighborsRegressor(n_neighbors=12)])
-#        self.models.append(['SVM', svm.SVR(C=0.001, tol=1e-01)])
-#        self.models.append(['LinratSVR', LinearSVR(C=1.0, dual=True, epsilon=0.0, fit_intercept=True, intercept_scaling=1.0, loss='epsilon_insensitive', max_iter=1000, random_state=0, tol=1e-05, verbose=0)])
-         #self.models.append(['Ridge', Ridge(alpha=1.0)])
-#        self.models.append(['LR', LinearRegression()])
-#        self.models.append(['ANN', MLPRegressor(random_state=1, max_iter=500)])
-        # self.models.append(['RF', RandomForestRegressor(n_estimators = 100, random_state = 0)])
-        # self.models.append(['XGB', MLPRegressor(random_state=1, max_iter=500)])
         print('normalized data')
 
     def save(self, filename):
@@ -163,17 +145,7 @@ class ml(object):
             talllabels=talllabels[::jpjp]
             tallfeatures=tallfeatures[::jpjp]
             tgrid_y=tgrid_y[::jpjp]
-            
-            # allfeatures=np.asarray(allfeatures)
 
-            # tmsklabel = talllabels == 0.0
-            # tfeatures0 = tallfeatures[~tmsklabel]
-            # tlabels0 = talllabels[~tmsklabel]
-
-            # msklabel = alllabels == 0.0
-            # features0 = allfeatures[~msklabel]
-            # labels0 = alllabels[~msklabel]
-            
             scaler = preprocessing.MinMaxScaler()
             print('before scaler fit', datetime.datetime.now())
             scaler.fit(allfeatures)
@@ -455,35 +427,6 @@ class ml(object):
                         bestmodel = model
                         bestscaler = scaler
 
-#        for name,model in self.models:
-#            print('model:', name, datetime.datetime.now())
-#            p = None
-##            p = multiprocessing.Process(target=model.fit,args=(strainx,trainy))
-#            p = multiprocessing.Process(target=model.fit,args=(trainx,trainy))
-#            print('submit:', name, datetime.datetime.now())           
-#            p.start()
-#            print('started:', name, datetime.datetime.now())
-#            p.join(20)
-#            print('waited:', name, datetime.datetime.now())
-#            if p.is_alive():
-#                print ("running too long... let's kill it...", datetime.datetime.now())
-#                p.terminate()
-#                p.join()
-#            else:
-#                print('after reasonable time', datetime.datetime.now())
-#                stestx = scaler.transform(testx)
-##                print('mid',stestx[0:3])
-#                print('after scale transform time', datetime.datetime.now(), type(stestx), stestx)
-##                predictvaluesx = model.predict(stestx.T)
-#                predictvaluesx = model.predict(testx)
-#                print('before corr', datetime.datetime.now())  
-#                corr = np.corrcoef(testy, predictvaluesx)[0, 1]
-#                print('<<<ML>>>',name, corr, datetime.datetime.now())
-#                if corr>bestscore:
-#                    bestscore = corr
-#                    bestmodel = model
-#                    bestscaler = scaler
-
         self.model = bestmodel
         self.scaler = bestscaler
         self.score = bestscore
@@ -501,24 +444,6 @@ class ml(object):
             plt.ylabel('predictvalues')
             plt.title(show)
             plt.show()
-#            plt.figure()
-#            testxnp = np.asarray(testx)
-#            sc = plt.scatter(testxnp[:, 0], testxnp[:, 1], c=(testy - predictvaluesx), s=3)  # , cmap=cm)
-#            plt.colorbar(sc)
-#            plt.xlabel('testxnp - X')
-#            plt.ylabel('testxnp - Y')
-#            plt.title(show)
-#            plt.show()
-
-#        predictfeatures = features[12345]            
-#        test2 = self.predict(predictfeatures)
-#        print ('1<<',features[12345])
-#        print ('1>>',test2)
-#
-#        fea =  np.asarray([3.92786880e+00,    3.92786880e+00,   2.00e+00,   2.00000000e+00, 
-#           4.00,   800.0e+00,   600.e+00,           8.52369517e-02])
-#        modfea = self.predict(fea)
-#        print ('>>111',modfea)        
 
         print ('fin fit', show, bestmodel, bestscore, datetime.datetime.now())
         

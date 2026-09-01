@@ -449,28 +449,6 @@ class MeanDataCalculator:
 
         return self
 
-    # def zoL(self, zmd):
-    #     """
-    #     Parameters
-    #     ----------
-    #     zmd: float
-    #         Height.
-    #     """
-    #
-    #     i = 1
-    #
-    #     while 'zoL%s' % i in self.MeanData.columns:
-    #         if ['zoL%s' % i, {'zmd': zmd}] in self._AllCalculatedParams:
-    #             return self
-    #         i += 1
-    #
-    #     self.MOLength()
-    #     zoL = zmd / self.MeanData['L']
-    #     self.MeanData['zoL%s' % i] = zoL
-    #     self._CalculatedParams.append(['zoL%s' % i, {'zmd': zmd}])
-    #
-    #     return self
-
     def effectivez(self):
         """Compute effective measurement height accounting for buildings.
 
