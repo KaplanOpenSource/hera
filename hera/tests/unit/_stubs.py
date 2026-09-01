@@ -9,9 +9,15 @@ binaries.
 treatment as PyFoam, plus real (if empty) classes rather than a leaf
 MagicMock: experiment.py subclasses ``ExperimentZipFile``, ``TrialSet``,
 ``Trial``, ``EntityType`` and ``Entity`` at module level, and a class
-statement's bases must be actual types -- ``class Foo(mock_instance):``
-raises TypeError, it does not silently accept a MagicMock the way calling
-an attribute would.
+statement's bases must be actual types. Unlike ``argos.experimentSetup.
+dataObjects.ExperimentZipFile``, subclassing a bare ``MagicMock()``
+attribute (``hermes.workflow`` before this fix) does not raise -- it
+silently produces another MagicMock as the "class" instead, which then
+fails ``isinstance()`` checks against it elsewhere with a confusing
+``TypeError: isinstance() arg 2 must be a type, a tuple of types, or a
+union``. ``hermes.workflow`` gets the same real-placeholder-class
+treatment for exactly this reason: ``OFWorkflow.py``'s
+``abstractWorkflow(hermes.workflow)`` needs a real base class.
 
 Deliberately NOT stubbed: ``torch``.  Verified in batch 9: a leaf MagicMock
 is not enough, because modelContainer.py reaches submodules and the import
@@ -71,8 +77,16 @@ _CLASS_STUB_MODULES = {
     ),
 }
 
+# Top-level modules stubbed only when genuinely absent (real local install
+# wins), where a flat MagicMock module is enough for everything except one
+# or more attributes that must be real classes -- see _CLASS_STUB_MODULES's
+# docstring above for why.
+_TOP_LEVEL_CLASS_ATTRS_IF_MISSING = {
+    "hermes": ("workflow",),
+}
+
 # Stubbed only when genuinely absent, so a real local install wins.
-_STUB_IF_MISSING = ("hermes", "FreeCAD")
+_STUB_IF_MISSING = ("FreeCAD",)
 
 
 def _namespace_module(name):
@@ -109,6 +123,14 @@ def install():
                 _namespace_module(name)
             for name, class_names in _CLASS_STUB_MODULES.items():
                 _class_stub_module(name, class_names)
+
+    for name, class_names in _TOP_LEVEL_CLASS_ATTRS_IF_MISSING.items():
+        if name in sys.modules:
+            continue
+        try:
+            __import__(name)
+        except Exception:
+            _class_stub_module(name, class_names)
 
     for name in _STUB_IF_MISSING:
         if name in sys.modules:
