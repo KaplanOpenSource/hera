@@ -1,134 +1,121 @@
 # Async Workflow Run - Plan
 
-Goal: change workflow runs from one blocking HTTP request into an async run
-identified by a token, with the UI polling for live output. This is the
-foundation for issue #906 (per-task progress view), but this plan covers only
-the async run itself - not the per-task view and not concurrency.
+Two concerns got mixed in the first draft and are now split into two steps:
 
-## End results
+- **Step 1 - monitor an async process.** Turn the blocking run into an async run
+  identified by a token. The client polls for *status* only; the full output comes
+  back in one piece when the run finishes. No streaming.
+- **Step 2 - stream the output** (later). Add live, incremental output while the
+  run is still going (0.5s updates).
 
-1. Subprocesses stop when the server crashes (no orphaned Luigi runs).
-2. The output shown in the UI updates every 0.5s while the run is in progress.
+This doc plans **step 1** in full and sketches step 2 as a follow-up. Step 1 is the
+foundation for issue #906 (per-task progress view).
+
+## Why step 1 first
+
+Doing status-only polling first keeps the design small:
+
+- Output is read once, after the run is done and the reader thread has finished.
+  Nothing reads the buffer while it is being written, so **no lock on the output**.
+- No byte/line offset, no cursor, no snapshotting. `poll` just reports status and,
+  when done, the whole output blob.
+
+Streaming (step 2) is what forces the offset cursor and the concurrent buffer. We
+defer that until step 1 works.
 
 ## Current state (why this is needed)
 
-- `POST /run_workflow` blocks: server forks a child, waits on it, returns
+- `POST /run_workflow` blocks: the server forks a child, waits on it, and returns
   `{dispatch_id, output}` only after the run finishes.
 - Output is captured in memory by `PipeTee` (an OS pipe + reader thread) and
   returned as one string at the end.
 - Runs are serialized by a `threading.Lock` in `WorkflowRunner`.
-- The Luigi run is a separate subprocess (`python3 -m luigi ... --local-scheduler`),
-  so all output comes back as one shared stdout/stderr stream.
-- On a hard server crash, the forked child (and its Luigi subprocess) are
-  orphaned and keep running.
+- The Luigi run is a separate subprocess (`python3 -m luigi ... --local-scheduler`).
+- On a hard server crash, the forked child (and its Luigi subprocess) are orphaned
+  and keep running.
 
-## Scope
+## Step 1 - async run + status polling
 
-In scope: async run, token, polling, live output, crash cleanup.
-Out of scope: per-task status view (#906), concurrent runs, cancellation.
+### End results
 
-## Things we also need (not just the two end results)
+1. `POST /run_workflow` returns immediately with a token; the run happens in the
+   background.
+2. The client polls status until the run is done, then shows the full output.
+3. Subprocesses stop when the server crashes (no orphaned Luigi runs).
 
-1. Mint the token up front. Today `dispatch_id` is only known after the run
-   finishes. For async we generate our own token at start and return it
-   immediately; the workflow's `dispatch_id` is stored into the job later.
-2. Incremental output. `PipeTee` currently returns text only at the end (it
-   joins the reader thread). For 0.5s updates it needs a snapshot method that
-   returns captured output from a line index onward, without joining. Output is
-   stored as a list of lines. The offset is a line number, not a byte offset.
-   This avoids splitting a multi-byte character mid-poll.
-3. A done signal. The poll response needs a `status` field
-   (running / done / error) so the client knows when to stop polling, plus an
-   `error` message on failure.
-4. Busy behavior. Decided: reject. There can be only one run at a time; a start
-   request while a run is in progress returns busy.
-5. Finished-job cleanup. The lock frees when the run process ends, so a new run
-   can start right away - no busy-forever, no kill needed. The only leftover is
-   one finished job's output + done status the client may not have fetched yet;
-   it just sits in the single slot and is overwritten when the next run starts.
-   At most one stale output ever lingers. No TTL, no kill, no dangling handling.
+### Scope
 
-### Output delivery: incremental (line cursor)
+In scope: async run, token, status polling, output-on-done, busy handling, crash
+cleanup. Out of scope: live/streaming output (step 2), concurrent runs, cancellation.
 
-Outputs can be long, so we send only the new lines each poll instead of the
-whole blob:
+### Design decisions
 
-- Poll: `GET /run_workflow/{token}?since=<line_index>`.
-- Response: `{ status, lines, next_offset, error }` where `lines` is the output
-  lines after `since`.
-- Client appends `lines` and stores `next_offset` for the next poll.
-- On dialog reopen / remount, poll with `since=0` to rebuild the full output.
-
-The offset is a line number, so a multi-byte character is never split across two
-polls. The reader thread reads with `readline()`, so a line only lands in the
-list once its newline arrives. A partial write is never handed back mid-line.
-
-Caveat: progress output that uses carriage returns (`\r`) to overwrite one line,
-with no newline (tqdm, some Luigi bars), waits for a newline. It will not stream
-line by line. Acceptable for now.
-
-Single run + single dialog means no ambiguity about the read position, so this
-does not add confusion.
-
-## Plan
+1. **Mint the token up front.** Today `dispatch_id` is only known after the run
+   finishes. We generate our own token at start and return it immediately; the
+   workflow's `dispatch_id` is stored into the job later.
+2. **Output returned whole, on done.** No incremental delivery. `poll` returns the
+   full output only once status is `done`. `PipeTee` stays as it is today
+   (`result()` after the reader drains).
+3. **Status field.** `poll` reports `running` / `done` / `error`, plus an `error`
+   message on failure. Written once by the background thread, read by `poll`; a
+   single field assignment, safe under the GIL without a lock.
+4. **Busy = reject.** One run at a time. A start request while a run is in progress
+   returns busy.
+5. **Single job slot.** The next start overwrites the previous finished job. At
+   most one stale result ever lingers. No TTL, no kill, no dangling handling.
 
 ### Server
 
-1. Job registry in `WorkflowRunner`: `token -> { status, output_so_far, error,
-   process, process_group, dispatch_id }`. `status` is one of running / done /
-   error.
+1. Job slot in `WorkflowRunner`: `{ token, status, output, error, dispatch_id }`.
+   `status` is one of running / done / error.
 2. `start(projectName, workflowName) -> token`:
-   - Busy is a non-blocking try-lock. If the lock is held, a run is in progress:
-     return a busy JSON response. The client shows a "busy" message.
-   - Mint a new token.
-   - Spawn the forked run in a background thread and return the token
-     immediately.
-   - The lock is held for the whole run lifetime (the background thread), not
-     the request. It frees when the run ends.
+   - Non-blocking try-lock. If held, a run is in progress: return busy.
+   - Mint a token, spawn the forked run in a background thread, return the token.
+   - The lock is held for the whole run (the background thread), freed when it ends.
 3. Crash cleanup:
-   - Run the fork in its own process group.
-   - In the child, set `PR_SET_PDEATHSIG = SIGKILL` so the kernel kills it when
-     the server process dies (covers hard crashes).
-   - Add a shutdown handler that kills tracked process groups on clean exit
-     (covers SIGTERM / normal shutdown).
-4. `PipeTee.read_from(offset)`: return captured output lines from `offset`
-   onward (plus the new line count) without joining the reader thread, so output
-   can be read while the run is still going. Take a small lock around the slice
-   so `len()` and the slice agree.
-5. Background thread: run the fork; on completion set `status = done` (store
-   `dispatch_id`) or `status = error` (store `error` + partial output). The lock
-   frees when the run ends, so the next start can proceed.
-6. Routes:
-   - `POST /run_workflow` -> `{ token }`, or `{ status: "busy" }` if a run is in
-     progress.
-   - `GET /run_workflow/{token}?since=<line_index>` -> `{ status, lines,
-     next_offset, error }`. Unknown token -> `{ status: "not_found" }`. A failed
-     run -> `{ status: "error", error }`.
-7. Next start overwrites the single slot, discarding any previous finished job.
-8. New API models: start -> `{ token }`; poll -> `{ status, lines, next_offset,
-   error }`; plus the busy and not-found shapes.
-9. Thread safety: the reader thread writes output while the poll endpoint reads
-   it, so guard the buffer/job with a small lock or read a snapshot copy.
+   - Run the fork in its own process group (`setsid`).
+   - In the child, set `PR_SET_PDEATHSIG = SIGKILL` so the kernel kills it when the
+     server process dies (hard crashes).
+   - Shutdown handler kills tracked process groups on clean exit (SIGTERM / normal).
+4. Background thread: run the fork; on completion set `status = done` (store output
+   + `dispatch_id`) or `status = error` (store `error` + partial output). The lock
+   frees when the run ends.
+5. Routes:
+   - `POST /run_workflow` -> `{ token }`, or `{ status: "busy" }` if a run is running.
+   - `GET /run_workflow/{token}` -> `{ status, output, error }`. Unknown token ->
+     `{ status: "not_found" }`.
+6. API models: start -> `{ token }` or busy; poll -> `{ status, output, error }`.
 
 ### Client
 
 1. `runWorkflow` returns the token instead of the final output.
-2. Poll loop (modeled on `ServerReadyGate`'s `setTimeout` + `cancelled` guard):
-   hit `GET /run_workflow/{token}?since=<line_index>` every 500ms, append `lines`
-   and advance the stored offset each time, stop when `status` is done or error.
+2. Poll loop (modeled on `ServerReadyGate`'s `setTimeout` + `cancelled` guard): hit
+   `GET /run_workflow/{token}` every 500ms, stop when status is done or error.
    Clean up on unmount / dialog close.
-3. Unknown token from poll (server restarted, or slot overwritten): stop polling
-   gracefully and show the output collected so far. This also covers a server
-   restart mid-run.
-4. Busy response from start: show a "busy" message, do not start polling.
-5. `RunWorkflowButton` `doRun`: start -> get token -> poll -> show live output;
+3. `done` -> show the full output. `error` -> show the error. `not_found` (server
+   restarted or slot overwritten) -> stop polling gracefully. `busy` from start ->
+   show a busy message, do not poll.
+4. `RunWorkflowButton` `doRun`: start -> get token -> poll status -> show output;
    drive the spinner off poll status instead of a single `await`.
 
 ### Tests
 
-Follow `ui/client/TEST_UI.md`. Add vitest tests for the poll loop (append,
-offset advance, stop on done/error, unknown-token stop) and the server job
-registry. Update `ui/client/tests/execPython-coverage.md`.
+Follow `ui/client/TEST_UI.md`. Vitest tests for the poll loop (stop on done/error,
+busy, unknown-token stop) and the server job slot (start/poll, busy, not_found,
+slot overwrite). Update `ui/client/tests/execPython-coverage.md` if needed.
+
+## Step 2 - stream the output (later)
+
+Add live output while the run is still going, on top of step 1:
+
+- Store output as a list of lines; `poll` gains a `since` line index and returns
+  only new lines plus a `next_offset`.
+- The reader thread writes lines while `poll` reads them, so the buffer needs a
+  small lock (or a snapshot copy). This is the lock step 1 avoids.
+- Client appends new lines each poll and advances the offset; on dialog reopen it
+  polls from `since=0` to rebuild the full output.
+- Progress output that uses carriage returns (tqdm, some Luigi bars) will not
+  stream line by line, since a line only lands once its newline arrives. Acceptable.
 
 ## Follow-ups (later, not this plan)
 

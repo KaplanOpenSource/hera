@@ -236,7 +236,4 @@ def urbanLogExponentProfile(cellCenters, lambdaGrid, stations):
             if i%1==0:
                 print(i,w)
         print('fin')
-    #lambdaGrid.to_csv('lambdaGrid.csv')
-    #cellCenters.to_csv('cellCenters.csv')
-    #stations.to_csv('stations.csv')
     return data
