@@ -1001,7 +1001,9 @@ while 'zoL_Sonic%s' % i in self._TemporaryData.columns:
 
 ---
 
-## אצווה 17 — `measurements/GIS` (חלקי: hill2stl, stlFactory, TilesToolkit, LandCoverToolkit)
+## אצווה 17 — `measurements/GIS` (חלקי: stlFactory, TilesToolkit, LandCoverToolkit)
+
+**עדכון:** `test_gis_hill2stl.py` (הכיסוי הייעודי ל-4 הפונקציות של `hill2stl.py`) הוסר בזמן מיזוג master — מאמץ ניקוי-קוד-מת נפרד מחק את `hill2stl.py` כולו (ראה גם ההערה באצווה 7/B42). המחיקה מתקבלת, כמו שם.
 
 ### B74. `vectorToSTL` — סניף dask שקורא לשם שלא מיובא בקובץ
 **קובץ:** `hera/measurements/GIS/utils.py:389` · **מקובע ב:** `test_gis_utils_stlfactory.py::TestVectorToSTLDispatch`
@@ -1016,7 +1018,7 @@ elif isinstance(gpandas, pandas.DataFrame) or isinstance(gpandas, dask.dataframe
 **קובץ:** `hera/measurements/GIS/raster/landcover.py:561,717` — שתי ההגדרות `@staticmethod` בתוך `LandCoverToolkit` מחשבות את אותה נוסחה (`z0*30`, לפי Desmond et al. 2017 eq. 5). ההגדרה השנייה (717) מחליפה את הראשונה בסמנטיקת גוף המחלקה הרגילה — ההגדרה הראשונה היא קוד מת, אבל ההתנהגות בפועל לא נפגעת (שתיהן מחשבות את אותו הדבר). לא נפתח כממצא B נפרד כי אין כשל התנהגותי.
 
 ### מה שנמצא תקין
-`hill2stl.py` (4 פונקציות): `compute_normal` מחזיר וקטור יחידה מאונך לשני הצלעות; `write_triangle`/`generate_solid_stl` מייצרים STL ASCII תקין (facet/endfacet מאוזנים, בסיס שטוח מתחת למשטח). `stlFactory.heightColumnsNames` (getter/setter) ו-`rasterizeGeopandas` — אינטרפולציה לינארית נכונה מקווי-מפלס (LineString) לרשת רגולרית, מכבדת שם עמודת גובה מותאם. `TilesToolkit` — מתמטיקת Slippy Map סטנדרטית: `tileScaleAtLatLonZoom` נחצה בכל רמת zoom ומצטמצם לקוטבים, `deg2tile`/`tile2deg` הם היפוכים מקורבים, `doctype` ו-`setDefaultTileServer` (נשמר ב-config הפרויקט) עובדים נכון.
+`stlFactory.heightColumnsNames` (getter/setter) ו-`rasterizeGeopandas` — אינטרפולציה לינארית נכונה מקווי-מפלס (LineString) לרשת רגולרית, מכבדת שם עמודת גובה מותאם. `TilesToolkit` — מתמטיקת Slippy Map סטנדרטית: `tileScaleAtLatLonZoom` נחצה בכל רמת zoom ומצטמצם לקוטבים, `deg2tile`/`tile2deg` הם היפוכים מקורבים, `doctype` ו-`setDefaultTileServer` (נשמר ב-config הפרויקט) עובדים נכון.
 
 ### נדחה לעבר עתידי — לא נבדק
 `vector/buildings/{analysis,presentation,toolkit}.py` (18), `vector/{demography,topography,toolkit}.py` (16), ו-`raster/tiles.py`'s `getImageFromCorners`/`listImages`/`presentation.plot` — דורשים shapefiles/DEM אמיתיים, שרת tile חי, או נתוני תמונה אמיתיים לבדיקה משמעותית. `GIS/CLI.py` (6 פקודות argparse) — עטיפות דקות מעל הטולקיטים שלמעלה, לא נבדק בנפרד.
