@@ -1388,3 +1388,19 @@ self._meteorology = MeteorologyFactory().getMeteorology(meteorologyName,**met_kw
 
 ### הערת בדיקה
 כל הטסטים באצווה זו הורצו ואומתו ישירות מול ה-venv הנעול-לפי-`requirements.txt` (`/home/ilay-falach/hera-pinned-venv`), לא מול `heraenv` (שהתגלה סוטה משמעותית — ראה התיקונים בסבב הקודם). ממשיכים כך מכאן ואילך למניעת עוד ממצאים שגויים בגלל גרסאות.
+
+---
+
+## אצווה 29 (המשך) — `simulations/LSM/singleSimulation.py`
+
+### B98. `getConcentrationAtPoint` — קורס תמיד עם נקודה בודדת, בדיוק כפי שמתועד
+**קובץ:** `hera/simulations/LSM/singleSimulation.py:129` · **מקובע ב:** `test_lsm_single_simulation.py::TestGetConcentrationAtPointIsBroken`
+
+```python
+return self.getConcentration(...)['C'].interp(x=x, y=y, datetime=datetime).values[0]
+```
+
+כאשר `x`, `y`, ו-`datetime` הם כולם סקלרים בודדים (בדיוק כפי שהדוקסטרינג מתאר — "x: int... y: int... הערך המבוקש") — `.interp()` מצמצם את כל הממדים המתאימים ומחזיר `DataArray` **אפס-ממדי**. `.values` על מערך כזה הוא מערך numpy 0-ממדי (צורה `()`), ואינדוקס שלו עם `[0]` זורק `IndexError: too many indices for array: array is 0-dimensional`. במילים אחרות: השימוש הכי בסיסי והכי מתועד של הפונקציה — לקבל את הריכוז בנקודה אחת — קורס תמיד.
+
+### מה שנמצא תקין
+בנאי `SingleSimulation` — כל שלושת הנתיבים (Dataset ישיר, מסמך עם `getData()`, מחרוזת נתיב — הראשון והשני נבדקו). `params`/`version` (קריאה מ-`_document['desc']`). `getDosage` — גם עם ציר זמן `datetime64` וגם עם ציר זמן מספרי (שניות), חישוב `dt` נכון בשני המקרים, קנה-מידה נכון לפי `Q`, ויחידות `Q`/`C` לפי הבקשה. `getConcentration` — נגזרת ה-Dosage לאורך זמן (ממד `datetime` קטן באחד, כמצופה מ-`diff`), חישוב `C = dDosage/dt` נכון.
