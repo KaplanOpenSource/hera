@@ -1327,14 +1327,14 @@ class spatialInterpolate():
 
 מוגדרת בתוך גוף המחלקה בלי פרמטר `self`. קריאה טבעית על מופע (`spatialInterpolate().windprofile(24)`) קושרת את המופע עצמו ל-`z`, וכל שאר הפרמטרים זזים מקום אחד ימינה (`24` הופך ל-`uref`) — התוצאה קריסה עמוקה בתוך גוף הפונקציה עם `TypeError` שלא מרמז על הסיבה האמיתית. פועלת רק אם קוראים לה ישירות דרך המחלקה (`spatialInterpolate.windprofile(24)`), עוקפים למעשה את כל הסיבה להיותה בתוך מחלקה.
 
-### B94. `interpPandas` — chained assignment שקט תחת copy-on-write, לא כותב כלום
-**קובץ:** `hera/simulations/utils/interpolations.py:87` · **מקובע ב:** `test_simulations_utils_interpolations.py::TestInterpPandasIsBroken`
+### B94. **נשלל** — `interpPandas` נבדק מול pandas שגוי, לא קיים תחת הגרסה הנעולה
+**קובץ:** `hera/simulations/utils/interpolations.py:87` · **מקובע במקור ב:** `test_simulations_utils_interpolations.py::TestInterpPandas`
 
 ```python
 points["interpulation"][i] = self.interp(point=point, stations=stations, topography=topography, ...)
 ```
 
-תחת copy-on-write של pandas (ברירת מחדל מ-2.0, חובה מ-3.0 — הגרסה המותקנת כאן: 3.0.2), assignment משורשר כזה **לעולם לא** מעדכן את ה-DataFrame המקורי — רק אזהרת `ChainedAssignmentError` נפלטת, בלי exception. התוצאה: העמודה `interpulation` נשארת `None` בכל שורה, בכל קריאה, בלי שום סימן שגיאה גלוי.
+תועד כ-assignment משורשר שתחת copy-on-write של pandas **לעולם לא** מעדכן את ה-DataFrame המקורי — אבל זה אומת מול pandas 3.0.2 שהתקין מקומית (שם copy-on-write חובה), לא מול הגרסה הנעולה בפועל ב-`requirements.txt` (pandas==2.2.3). תחת 2.2.3, copy-on-write הוא opt-in ולא ברירת המחדל — ה-assignment המשורשר עדיין עובד (רק `FutureWarning`/`SettingWithCopyWarning`). `interpPandas` **כן** ממלאת נכון את עמודת `interpulation` היום. הבאג הזה עשוי לחזור אם/כש-pandas ישודרג מעבר ל-2.x עם copy-on-write כברירת מחדל — שווה לדעת, לא שווה לקבע כממצא חי.
 
 ### B95. `interpArray` — מעביר `topography=` שלא קיים ב-`interpPandas`, קורס תמיד
 **קובץ:** `hera/simulations/utils/interpolations.py:98` · **מקובע ב:** `test_simulations_utils_interpolations.py::TestInterpArrayIsBroken`

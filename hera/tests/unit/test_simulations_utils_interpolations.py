@@ -11,14 +11,17 @@ crashes deep inside the function body with a confusing TypeError. It only
 (``spatialInterpolate.windprofile(24)``), which defeats the purpose of it
 living inside the class.
 
-B94: ``interpPandas`` writes each interpolated value with
-``points["interpulation"][i] = self.interp(...)`` -- a chained assignment
-that, under pandas' copy-on-write (the default since pandas 2.0, mandatory
-since 3.0), silently never updates the DataFrame. No exception is raised
-(only a ChainedAssignmentError *warning*), so ``interpPandas`` always
-returns an "interpulation" column of ``None`` regardless of input. This is
-a currently-live bug, not merely theoretical: this repo's installed
-pandas is 3.0.2.
+B94, retracted: an earlier pass found ``interpPandas`` writing each
+interpolated value with ``points["interpulation"][i] = self.interp(...)``
+-- a chained assignment -- and, verified against a locally-drifted pandas
+(3.0.2) where copy-on-write is mandatory, that assignment silently never
+updated the DataFrame. Under the pandas actually pinned in
+requirements.txt (2.2.3), copy-on-write is opt-in, not yet the default:
+the chained assignment still works, with only a FutureWarning/
+SettingWithCopyWarning. ``interpPandas`` does fill in the "interpulation"
+column correctly today. This bug would resurface if/when pandas is
+upgraded past 2.x with copy-on-write made the default -- worth knowing,
+not worth pinning as a currently-live defect.
 
 B95: ``interpArray`` calls ``self.interpPandas(points=..., stations=...,
 topography=newPoints["topography"], ...)``, but ``interpPandas`` has no
@@ -82,27 +85,16 @@ class TestCheckInterpulation:
 
 
 @pytest.mark.unit
-class TestInterpPandasIsBroken:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B94: interpPandas writes results with a chained assignment "
-               "(points['interpulation'][i] = ...) which pandas' "
-               "copy-on-write silently drops -- the interpulation column "
-               "stays None instead of holding the interpolated values. "
-               "See the consolidated findings issue.",
-    )
-    def test_it_should_fill_in_the_interpolated_value(self, si):
+class TestInterpPandas:
+    """B94 is retracted (see the module docstring) -- under the pinned
+    pandas (2.2.3), the chained assignment inside interpPandas still
+    works."""
+
+    def test_it_fills_in_the_interpolated_value(self, si):
         stations = [[0, 0, 0, 10.0], [10, 0, 0, 20.0]]
         points = pandas.DataFrame({"x": [5], "y": [0], "z": [0]})
         result = si.interpPandas(points, stations)
         assert result["interpulation"].iloc[0] == pytest.approx(15.0)
-
-    def test_it_currently_leaves_the_column_as_none(self, si):
-        """Characterisation of B94."""
-        stations = [[0, 0, 0, 10.0], [10, 0, 0, 20.0]]
-        points = pandas.DataFrame({"x": [5], "y": [0], "z": [0]})
-        result = si.interpPandas(points, stations)
-        assert result["interpulation"].iloc[0] is None
 
 @pytest.mark.unit
 class TestInterpArrayIsBroken:
