@@ -216,8 +216,8 @@ class torchLightingModelContainer(Project):
                 ckpt_path = self.checkpoint_path
                 if not os.path.exists(ckpt_path):
                     ckpt_path = None
-            elif os.path.exists(ckpt_path):
-                    os.remove(ckpt_path)
+            elif os.path.exists(self.checkpoint_path):
+                    os.remove(self.checkpoint_path)
 
             ckpt_path_param['ckpt_path'] = ckpt_path
 
@@ -273,8 +273,8 @@ class torchLightingModelContainer(Project):
                 ckpt_path = self.checkpoint_path
                 if not os.path.exists(ckpt_path):
                     ckpt_path = None
-            elif os.path.exists(ckpt_path):
-                    os.remove(ckpt_path)
+            elif os.path.exists(self.checkpoint_path):
+                    os.remove(self.checkpoint_path)
 
             ckpt_path_param['ckpt_path'] = ckpt_path
 

@@ -22,6 +22,14 @@ class PipeTee:
                 break
             self._collected.append(chunk)
 
+    def snapshot(self) -> str:
+        """Return the text collected so far, without waiting for the run to end.
+
+        Copies the buffer first (``list(...)``) so reading stays safe while the
+        reader thread appends more chunks. No lock needed.
+        """
+        return b"".join(list(self._collected)).decode(errors="replace")
+
     def close_write(self) -> None:
         """Close our copy of the write end so the reader sees EOF once the child exits."""
         os.close(self.write_fd)

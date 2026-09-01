@@ -15,7 +15,6 @@ STUBBED_DEPENDENTS = [
     "hera.simulations.openFoam.OFWorkflow",
     "hera.simulations.LSM.toolkit",
     "hera.simulations.LSM.template",
-    "hera.simulations.LSM.hermesWorkflowToolkit",
     "hera.simulations.hermesWorkflowToolkit",
     "hera.simulations.WRF",
 ]
