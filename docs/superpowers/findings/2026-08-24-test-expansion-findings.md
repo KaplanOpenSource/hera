@@ -1459,3 +1459,12 @@ logger.debug(f"Deleting resource {doc['desc']['filterName']} : {doc['desc']['pip
 
 ### מה שנמצא תקין
 `OFToolkit.__init__` (analysis/presentation/OFObjectHome), `getVTKPipelineCacheDocuments` (סינון לפי regularMesh/workflowName/groupName), `getVTKPipelineCacheTable`.
+
+### B102. `splitWorkflowName` — `"".join` במקום `"_".join`, מאבד underscore בשם הבסיס
+**קובץ:** `hera/simulations/hermesWorkflowToolkit.py:628` · **מקובע ב:** `test_hermes_workflow_toolkit_names.py`
+
+```python
+return "".join(split_name[:-1]), split_name[-1]
+```
+
+לא ההיפוך של `getworkFlowName` (שבונה `f"{baseName}_{formatted_number}"`) — כל שם בסיס שמכיל underscore משלו (כמו `"my_flow"`) מאבד אותו: `splitWorkflowName("my_flow_0007")` מחזיר `("myflow", "0007")` במקום `("my_flow", "0007")`.
