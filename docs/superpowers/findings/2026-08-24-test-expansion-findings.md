@@ -1169,12 +1169,14 @@ timeList = sorted([float(x) for x in os.listdir(case) if (
 
 ## אצווה 22 — `openFoam/CLI.py` (חלק טהור) + `eulerian/abstractEulerianSolver.py`
 
-### B84-B86. `absractEulerianSolver_toolkitExtension` — שלושה NameError ברצף
-**קובץ:** `hera/simulations/openFoam/eulerian/abstractEulerianSolver.py` · **מקובע ב:** `test_openfoam_eulerian_solver.py`
+### B84-B86. `absractEulerianSolver_toolkitExtension` — שלושה NameError ברצף — **נפתרו במקביל**
+**קובץ:** `hera/simulations/openFoam/eulerian/abstractEulerianSolver.py` · **מקובע במקור ב:** `test_openfoam_eulerian_solver.py`
 
-- **B84**: `flowType` — ענף ה-`else` מפנה ל-`SIMULATIONTYPE_COMPRESSIBLE`, שם שלא קיים בשום מקום בקובץ (הייבוא בראש הקובץ הוא `FLOWTYPE_COMPRESSIBLE`). כל קריאה עם `incompressible=False` קורסת.
-- **B85**: `blockMesh_setBoundFromFile` — הפרמטר נקרא `eulerianWorkFlow`, אבל הגוף בודק `isinstance(eulerianWF, workflow_Eulerian)` — `eulerianWF` לא קיים בכלל כפרמטר. קורס תמיד לפני שנוגע בקלט.
-- **B86**: `blockMesh_setDomainHeight` — העתק-הדבק של `blockMesh_setBoundFromFile` בלי התאמה: אותו `eulerianWF` לא מוגדר, וגם מפנה ל-`fileName`/`dx`/`dy` — אף אחד מהם לא פרמטר של המתודה הזו (`eulerianWorkFlow, Z, dz`). `Z`, הקלט האמיתי היחיד שלה, אף פעם לא בשימוש.
+- **B84**: `flowType` — ענף ה-`else` הפנה ל-`SIMULATIONTYPE_COMPRESSIBLE`, שם שלא קיים בשום מקום בקובץ (הייבוא בראש הקובץ הוא `FLOWTYPE_COMPRESSIBLE`). כל קריאה עם `incompressible=False` קרסה.
+- **B85**: `blockMesh_setBoundFromFile` — הפרמטר נקרא `eulerianWorkFlow`, אבל הגוף בדק `isinstance(eulerianWF, workflow_Eulerian)` — `eulerianWF` לא היה קיים בכלל כפרמטר. קרס תמיד לפני שנוגע בקלט.
+- **B86**: `blockMesh_setDomainHeight` — העתק-הדבק של `blockMesh_setBoundFromFile` בלי התאמה: אותו `eulerianWF` לא מוגדר, וגם הפנה ל-`fileName`/`dx`/`dy` — אף אחד מהם לא פרמטר של המתודה הזו (`eulerianWorkFlow, Z, dz`). `Z`, הקלט האמיתי היחיד שלה, אף פעם לא היה בשימוש.
+
+**עדכון:** שלושתם היו ממצאים אמיתיים ומדויקים בזמן שתועדו. commit `276d9a93` ("fix: repair OpenFOAM Eulerian solver name errors and method mismatches") תיקן את כולם — `flowType` משתמש ב-`FLOWTYPE_COMPRESSIBLE`, ושתי מתודות ה-`blockMesh_*` בודקות נכון את `eulerianWorkFlow` — במקביל ובאופן בלתי תלוי במאמץ הרחבת הטסטים הזה. תוך כדי אימות מול venv נעול התגלה גם פער נפרד בשכבת ה-stub (`hermes.workflow` כ-`MagicMock` גולמי גרם ל-`isinstance` לזרוק `TypeError` במקום לעבוד) — תוקן ב-`_stubs.py`. הטסטים כעת בודקים גם את הנתיב התקין (workflow אמיתי) וגם את הדחייה הנקייה (workflow לא תקין).
 
 ### מה שנמצא תקין
 `Foam_parser_FieldDescription` (CLI) — כותב JSON תקין לתיאור שדות, עם ברירת מחדל ל-`exampleField` כשלא סופקו שדות.
