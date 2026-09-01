@@ -410,12 +410,18 @@ class TestRawStringPrefixOnTheWrongQuotes:
     def test_an_escalated_escape_warning_surfaces_as_a_syntax_error(self):
         """The mechanism behind B26, shown on a one-line probe.
 
-        With SyntaxWarning escalated to an error, compile() raises SyntaxError.
-        test_no_invalid_escapes.py catches SyntaxError and calls pytest.skip,
-        so the failure it exists to detect can only ever become a skip.
+        With the escape warning escalated to an error, compile() raises
+        SyntaxError. test_no_invalid_escapes.py catches SyntaxError and
+        calls pytest.skip, so the failure it exists to detect can only ever
+        become a skip.
+
+        Python <=3.11 emits DeprecationWarning for an invalid escape
+        sequence; >=3.12 emits SyntaxWarning -- both must be escalated for
+        this probe to behave the same way on every supported interpreter.
         """
         with warnings.catch_warnings():
             warnings.simplefilter("error", SyntaxWarning)
+            warnings.simplefilter("error", DeprecationWarning)
             with pytest.raises(SyntaxError):
                 compile('x = "\\c"\n', "probe.py", "exec")
 
