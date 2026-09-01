@@ -2,7 +2,6 @@ import pandas
 import numpy
 from hera.utils import tounit,tonumber
 from hera.utils.unitHandler import ureg, unumToPint
-# from sympy import solve, symbols
 from scipy import optimize
 
 
@@ -125,12 +124,6 @@ class BriggsRural(AbstractSigma):
         Ix = tonumber(Ix,ureg.m)
         Iy = tonumber(Iy,ureg.m)
         Iz = tonumber(Iz,ureg.m)
-
-        # pandas_res = pandas.DataFrame({
-        #         'sigmaX' : [Ax*(x+Ix)*(1+Bx*(x+Ix))**Cx *m],
-        #         'sigmaY' : [Ax*(x+Iy)*(1+Bx*(x+Iy))**Cx *m],
-        #         'sigmaZ' : [Az*(x+Iz)*(1+Bz*(x+Iz))**Cz *m],'distance' : [x *m]})
-
 
         if units:
             dict_res = {

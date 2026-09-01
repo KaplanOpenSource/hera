@@ -146,11 +146,13 @@ class TestThresholdLevel:
         level = InjuryLevelThreshold("T", units=ureg.g / ureg.m**3, threshold="50 mg/m**3")
         assert level.threshold.to(ureg.g / ureg.m**3).magnitude == pytest.approx(0.05)
 
-    def test_a_bare_numeric_string_is_rejected_for_being_dimensionless(self):
-        """At least this failure names the real problem."""
-        from pint.errors import DimensionalityError
-
-        with pytest.raises(DimensionalityError):
+    def test_a_bare_numeric_string_is_rejected(self):
+        """Under the pinned Pint==0.24.4 (requirements.txt), ureg("50")
+        returns a bare int rather than a dimensionless Quantity, so the
+        AttributeError is raised at .to(), not a DimensionalityError from
+        parsing. Verified directly against 0.24.4, not just the locally
+        installed Pint version, which can drift (see B38's neighbor case)."""
+        with pytest.raises(AttributeError, match="'int' object has no attribute 'to'"):
             InjuryLevelThreshold("T", threshold="50")
 
     @pytest.mark.xfail(
