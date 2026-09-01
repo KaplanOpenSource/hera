@@ -1,4 +1,4 @@
-"""The OpenFOAM preprocessing object base class, list writer and field-file parser.
+"""The OpenFOAM preprocessing object base class and field-file parser.
 
 ``OFObject`` is the pure-Python base of ``OFField``/``OFList`` -- dimension
 bookkeeping, component-name derivation and disk I/O, no PyFoam objects
@@ -8,22 +8,21 @@ mimics the shape PyFoam's ``ParsedParameterFile`` actually returns
 (``obj['key'].val``), since the stubbed PyFoam itself is a MagicMock and
 would not exercise the real branching.
 
-One defect found while probing ``OFList``:
-
-* B61: ``OFList._writeNew`` (and ``_updateExisting``, which just calls it)
-  unconditionally calls ``self.getHeader()`` as its first statement, but no
-  class in ``OFList``'s hierarchy defines ``getHeader`` -- nor does anything
-  set the ``self.columnNames`` it reads a few lines later. Every call raises
-  ``AttributeError`` before any of the scalar/vector logic runs, and nothing
-  elsewhere in the codebase constructs an ``OFList`` at all.
+B61, resolved via deletion: ``OFList._writeNew`` (and ``_updateExisting``,
+which just calls it) unconditionally called ``self.getHeader()`` as its
+first statement, but no class in ``OFList``'s hierarchy defined
+``getHeader`` -- nor did anything set the ``self.columnNames`` it read a
+few lines later. Every call raised ``AttributeError`` before any of the
+scalar/vector logic ran, and nothing elsewhere in the codebase constructed
+an ``OFList`` at all -- a separate dead-code-cleanup effort deleted
+OFList.py entirely for exactly this reason (unreferenced, internally
+broken), independently of this test-expansion effort. TestOFListIsUnusable
+is dropped along with the import.
 """
-import os
-
 import pandas
 import pytest
 
 from hera.simulations.openFoam import FIELDTYPE_SCALAR, FIELDTYPE_TENSOR, FIELDTYPE_VECTOR
-from hera.simulations.openFoam.preprocessOFObjects.OFList import OFList
 from hera.simulations.openFoam.preprocessOFObjects.OFObject import OFObject
 from hera.simulations.openFoam.preprocessOFObjects.utils import (
     ParsedParameterFileToDataFrame,
@@ -129,45 +128,6 @@ class TestOFObjectWriteToCase:
         assert 'boundaryField { "proc.*" { type processor; } }'.replace(
             "proc.*", '"proc.*"'
         ) in written
-
-
-@pytest.mark.unit
-class TestOFListIsUnusable:
-    """B61: OFList cannot successfully write anything, in either branch."""
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B61: _writeNew's first statement is self.getHeader(), which "
-               "no class in OFList's hierarchy defines. Every call raises "
-               "AttributeError before the scalar/vector branch is even "
-               "reached. See the consolidated findings issue.",
-    )
-    def test_writing_a_scalar_series(self, tmp_path):
-        lst = OFList("demo", "demoFile", FIELDTYPE_SCALAR)
-        lst._writeNew(str(tmp_path / "out.txt"), pandas.Series(["1", "2"]))
-
-    def test_writing_currently_always_raises_missing_getheader(self, tmp_path):
-        """Characterisation of B61."""
-        lst = OFList("demo", "demoFile", FIELDTYPE_SCALAR)
-        with pytest.raises(AttributeError, match="getHeader"):
-            lst._writeNew(str(tmp_path / "out.txt"), pandas.Series(["1", "2"]))
-
-    def test_update_existing_delegates_to_write_new_and_so_also_raises(self, tmp_path):
-        lst = OFList("demo", "demoFile", FIELDTYPE_SCALAR)
-        with pytest.raises(AttributeError, match="getHeader"):
-            lst._updateExisting(str(tmp_path / "out.txt"), pandas.Series(["1", "2"]))
-
-    def test_nothing_in_the_codebase_constructs_an_oflist(self):
-        source_files = []
-        for root, _dirs, files in os.walk("hera/simulations/openFoam"):
-            for name in files:
-                if name.endswith(".py"):
-                    source_files.append(os.path.join(root, name))
-        callers = [
-            f for f in source_files
-            if f.endswith("OFList.py") is False and "OFList(" in open(f, encoding="utf-8").read()
-        ]
-        assert callers == []
 
 
 @pytest.mark.unit

@@ -825,14 +825,16 @@ estimatorCLS = pydoc.locate("pyriskassessment.datalayer.riskAreas.riskAreaAlgori
 
 ## אצווה 13 — `openFoam` preprocessing, המשך (`OFObject`, `OFList`, `preprocessOFObjects/utils.py`)
 
-### B61. `OFList` הוא קוד מת — אף קורא לא בונה אותו, ואי אפשר לכתוב איתו כלום
-**קובץ:** `hera/simulations/openFoam/preprocessOFObjects/OFList.py:55` · **מקובע ב:** `test_openfoam_objects_base.py::TestOFListIsUnusable`
+### B61. `OFList` הוא קוד מת — אף קורא לא בונה אותו, ואי אפשר לכתוב איתו כלום — **נפתר במחיקה**
+**קובץ:** `hera/simulations/openFoam/preprocessOFObjects/OFList.py:55` (נמחק) · **מקובע במקור ב:** `test_openfoam_objects_base.py::TestOFListIsUnusable`
 
 ```python
 fileStrContent = self.getHeader()
 ```
 
-זו השורה הראשונה של `_writeNew` (וגם `_updateExisting` קוראת ל-`_writeNew`). אף מחלקה בהיררכיה של `OFList` (`OFList`, `OFObject`) מגדירה `getHeader` — היא מוגדרת רק על `OFField`, מחלקת-אח לא קשורה. שורה אחת אחרי זה, `self.columnNames` (בניגוד ל-`componentNames` שכן מוגדר) גם אף פעם לא נקבע. כל קריאה, גם בענף הסקלרי, קורסת ב-`AttributeError` לפני שההסתעפות סקלר/וקטור בכלל מגיעה להרצה. חיפוש בכל עץ `hera/simulations/openFoam` לא מוצא אף מקום שבונה `OFList(...)` — נראה שהמחלקה מעולם לא שולבה בזרימת העבודה בפועל.
+זו הייתה השורה הראשונה של `_writeNew` (וגם `_updateExisting` קוראת ל-`_writeNew`). אף מחלקה בהיררכיה של `OFList` (`OFList`, `OFObject`) הגדירה `getHeader` — היא מוגדרת רק על `OFField`, מחלקת-אח לא קשורה. שורה אחת אחרי זה, `self.columnNames` (בניגוד ל-`componentNames` שכן מוגדר) גם אף פעם לא נקבע. כל קריאה, גם בענף הסקלרי, קרסה ב-`AttributeError` לפני שההסתעפות סקלר/וקטור בכלל הגיעה להרצה. חיפוש בכל עץ `hera/simulations/openFoam` לא מצא אף מקום שבונה `OFList(...)`.
+
+**עדכון:** מאמץ ניקוי-קוד-מת נפרד ב-master מחק את `OFList.py` כולו, מאותה סיבה בדיוק (לא מופנה, שבור פנימית) — במקביל ובאופן בלתי תלוי במאמץ הרחבת הטסטים הזה. `TestOFListIsUnusable` הוסר מ-`test_openfoam_objects_base.py` בזמן מיזוג master.
 
 ### מה שנמצא תקין
 `OFObject` — מחלקת הבסיס הטהורה של `OFField`/`OFList` — עובדת נכון על כל 10 המתודות הציבוריות שלה: וקטור הממדים (`getDimensions`/`dimensionsStr`/`dimensionsList`, כולל השלמת ברירת מחדל לאפס), שמות הרכיבים לפי סוג שדה (סקלר/וקטור/טנזור), גישה ל-`internalField`/`boundaryField`/`processors`/`processorItems` לפי פרוססור, אימות `fieldType` לא תקין, וכתיבה לדיסק (`writeToCase`) בפיצול single/multi-processor כולל ה-escaping של `"proc.*"`.
