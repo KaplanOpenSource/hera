@@ -8,6 +8,16 @@ from functools import wraps
 from bson import BSON
 from bson.errors import InvalidDocument
 
+# Project is imported lazily inside the functions that need it.
+#
+# A module-level `from hera import Project` creates a cycle: importing this
+# module directly triggers hera.__getattr__("Project") -> _load_deferred(),
+# whose step 3 imports this very module while it is still half-executed, so
+# `cacheFunction` does not exist yet and the import fails with
+#   ImportError: cannot import name 'cacheFunction' from partially
+#   initialized module 'hera.datalayer.autocache'
+# Deferring the import removes the cycle at its source.
+
 
 def clearAllFunctionsCache(projectName=None):
     """
@@ -37,6 +47,7 @@ def clearFunctionCache(functionName,projectName=None):
 
     """
     from hera import Project
+
     proj = Project(projectName=projectName)
     paramDict = dict()
     if functionName is not None:
@@ -222,7 +233,10 @@ class cacheDecorators:
                 doc = self.saveFunctionCache(call_info_serialized,data)
 
         ret = data if self.postProcessFunction is None else self.postProcessFunction(data)
-        return ret, doc if self.returnDoc else ret
+        # Parenthesised deliberately: `return ret, doc if cond else ret` parses
+        # as `return (ret, (doc if cond else ret))` -- a 2-tuple either way --
+        # because the conditional binds tighter than the comma.
+        return (ret, doc) if self.returnDoc else ret
 
     def _get_full_func_name(self,func):
         """Returns the full qualified path: module.[class.]function_name"""
@@ -268,6 +282,7 @@ class cacheDecorators:
         """
 
         from hera import Project
+
         proj = Project(self.projectName)
         docList = proj.getCacheDocuments(type="functionCacheData",**call_info)
         if len(docList) == 0:
@@ -291,6 +306,7 @@ class cacheDecorators:
 
         """
         from hera import Project
+
         proj = Project(self.projectName)
         return proj.saveCacheData(name=call_info['functionName'], data=data, desc=call_info, type="functionCacheData",dataFormat=self.dataFormat)
 

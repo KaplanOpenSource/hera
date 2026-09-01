@@ -1,0 +1,101 @@
+30
+# The number on the first line is the combined line+branch coverage floor,
+# enforced in CI by `coverage report --fail-under`.  Raise it in the same PR
+# that raises coverage; never lower it.
+#
+# Phase 0 baseline (2026-08-24, Python 3.12, pytest 9.0.3):
+#     unit layer only ......... 7%   (18446 stmts, 16920 missed)
+#     integration only ....... 22%   (18568 stmts, 13878 missed)
+#     combined ............... 22%   (18568 stmts, 13871 missed)
+#   Floor was set to 20.
+#
+# After batch 1 (hera/utils):
+#     unit layer only ........ 12%
+#     combined ............... 28%   (18568 stmts, 12937 missed)
+#     hera/utils combined .... 43%   (was 23%)
+#     hera/utils in scope .... 74%   (912 of the 2397 statements; the rest is
+#                                    rag/*, data/CLI.py, data/toolkit*,
+#                                    SALibUtils and freeCAD, all deferred with
+#                                    reasons in the batch 1 plan)
+#   Floor raised to 26.
+#
+# After batch 2 (toolkit.py + datalayer):
+#     combined ............... 28%   (18568 stmts, 12850 missed)
+#     toolkit.py + datalayer . 68%   (was 61%)
+#     hera/toolkit.py ........ 47% from the unit layer alone (was 30% combined)
+#   Floor UNCHANGED at 26.  The batch added 87 covered statements, which does
+#   not move the package figure past 28%: the datalayer was already well
+#   covered by the integration suite, unlike hera/utils in batch 1.  The value
+#   here is that behaviour which needed a live MongoDB now runs hermetically in
+#   under two seconds, plus six defects found -- not a higher number.  Raising
+#   the floor on a 0.4-point gain would leave no headroom for CI drift.
+#
+# After batch 3 (simulations/gaussian):
+#     combined ............... 30%   (18568 stmts, 12513 missed)
+#     gaussian ............... 33%
+#     gaussian in scope ...... 66%   (470 of 1061 statements)
+#       Sigma.py ............ 100%   -- validated against Briggs (1973)
+#       Meteorology.py ....... 95%
+#       MeshUtils.py ......... 88%
+#   Floor raised to 28.  337 covered statements, enough to move the package
+#   figure this time.  Deferred with reasons: gasCloud.py (291),
+#   FallingNonEvaporatingDroplets.py (217) and DropletCloud.py (83) -- the
+#   gas-cloud solver and falling-droplet physics build multi-dimensional xarray
+#   fields and need whole meteorology and source objects, so they belong in a
+#   batch of their own rather than the tail of this one.
+#
+# After batch 4 (evaporation, deposition, hydrodynamics, windProfile,
+#                simulations/utils):
+#     combined ............... 31%   (18591 stmts, 12351 missed)
+#     targeted files ......... 70%   (199 statements)
+#       errorCalculation.py . 100%
+#       nearWallFlow.py ...... 77%
+#       interpolations.py .... 53%
+#   Floor raised to 29.
+#
+#   312 of the batch's nominal statements CANNOT be covered: evaporation and
+#   deposition are unimportable (B31 -- `from ..utils import tonumber, tounit`
+#   resolves to an empty package).  A further 425 statements in
+#   canopyWindProfile, coordinateHandler and windProfile/toolkit were not
+#   targeted: they need xarray/dask structures or an external IMS token, so
+#   they are integration-shaped rather than unit-shaped.
+#
+# After batch 5 (riskassessment + presentation):
+#     combined ............... 31%   (18591 stmts, 12313 missed)
+#     riskassessment ......... 39%
+#   Floor UNCHANGED at 29.  38 covered statements is real but well inside the
+#   rounding; the value was four defects, including proof that B12's registry
+#   split actively breaks InjuryLevelThreshold.getPercent for numeric input.
+#
+# After batch 6 (measurements/meteorology):
+#     combined ............... 31%   (18591 stmts, 12291 missed)
+#     meteorology ............ 35%
+#   Floor UNCHANGED at 29.  22 covered statements; the batch's substance was
+#   two unimportable modules (B40 radiosonde, B41 a hard-coded personal path)
+#   and a corrected diagnosis of P1's effect on the turbulence cache.
+#
+# After batch 7 (measurements/GIS):
+#     combined ............... 31%   (18591 stmts, 12221 missed)
+#     GIS .................... 43%
+#   Floor UNCHANGED at 29.  70 covered statements.  The batch's substance was
+#   B43: two contradictory IGBP roughness tables in one file, differing by a
+#   factor of 1300 for snow and ice.
+#
+# After batch 8 (measurements/experiment):
+#   Floor UNCHANGED at 29.  The batch is small by design: parsers.py (41 defs)
+#   is orphaned -- nothing in the tree imports it -- so covering it would only
+#   raise a number.  B44 records that its TOA5 parser is an empty stub.
+#
+# After batch 9 (openFoam, LSM, mlDL, WRF) -- the last batch:
+#     combined ............... 32%   (18591 stmts, 12150 missed)
+#   Floor raised to 30.
+#
+#   Final position across Phase 0 and nine batches: 1000 hermetic tests in
+#   about four seconds, floor 20 -> 30, package coverage 22% -> 32%, and 48
+#   defects recorded in docs/superpowers/findings/ with every one pinned by an
+#   xfail(strict=True) so that fixing it demands the marker's removal.
+#
+# Two points of headroom below the measured value, deliberately: CI runs
+# Python 3.11 with the versions pinned in requirements.txt, so its number will
+# not match this one exactly, and the gate should fail on regressions rather
+# than on environment drift.

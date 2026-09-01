@@ -50,3 +50,10 @@ config.json
 # Conda package tarballs — large binary blobs, not needed in source repo
 additional installations/*.tar.bz2
 additional installations/*.conda
+
+# Coverage measurement data (see .coveragerc, `make coverage`).  parallel=True
+# means each run writes .coverage.<host>.<pid>.<rand> fragments, and the make
+# targets name one file per test layer.  The HTML report lands under cache/,
+# which is already ignored above.
+.coverage
+.coverage.*
