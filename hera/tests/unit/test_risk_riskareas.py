@@ -6,14 +6,15 @@ pipeline over a demographic layer and effect isopleths, forked across
 covered here is the pure part: constructing the estimator, its property
 round-trips, and the ``pydoc.locate`` dispatch in ``getRiskAreaAlgorithm``.
 
-B60: that dispatch is dead code. It calls
-``pydoc.locate("pyriskassessment.datalayer.riskAreas.riskAreaAlgorithm_%s")``,
-but the ``pyriskassessment`` package does not exist in this codebase or its
-dependencies (this module lives at
-``hera.riskassessment.analysis.riskAreas``). ``pydoc.locate`` therefore
-always returns ``None``, and ``getRiskAreaAlgorithm`` always raises -- even
-for ``"Sweep"``, the one algorithm actually implemented here. The class
-itself is only reachable by importing and constructing it directly.
+B60, resolved independently: this pass found ``getRiskAreaAlgorithm``
+calling ``pydoc.locate("pyriskassessment.datalayer.riskAreas....")``, a
+package that does not exist in this codebase or its dependencies (this
+module actually lives at ``hera.riskassessment.analysis.riskAreas``), so
+dispatch always raised -- even for ``"Sweep"``, the one algorithm actually
+implemented here. That was a real, accurate finding at the time; commit
+193249e6 ("fix: repair stale module path and nonexistent method call in
+risk analysis") fixed the lookup to the real module path, unrelated to
+this test-expansion effort. Dispatch by name now works correctly.
 """
 import multiprocessing
 
@@ -71,34 +72,16 @@ class TestGetRiskAreaAlgorithm:
         with pytest.raises(ValueError, match="not found"):
             getRiskAreaAlgorithm("NoSuchAlgorithm")
 
-    def test_the_error_message_cannot_list_any_available_estimator(self):
-        """B60: `mymod` is None too, so the "available estimators" list is empty."""
-        with pytest.raises(ValueError, match=r"Available estimators are:\s*$"):
+    def test_the_error_message_lists_the_available_estimator(self):
+        """B60, resolved: the real module now resolves, so the error
+        message correctly lists 'Sweep' as available."""
+        with pytest.raises(ValueError, match=r"Available estimators are: Sweep"):
             getRiskAreaAlgorithm("NoSuchAlgorithm")
 
-    def test_even_sweep_itself_cannot_be_dispatched_by_name(self):
-        with pytest.raises(ValueError, match="not found"):
-            getRiskAreaAlgorithm("Sweep")
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B60: getRiskAreaAlgorithm looks up "
-               "'pyriskassessment.datalayer.riskAreas.riskAreaAlgorithm_Sweep' "
-               "via pydoc.locate, but the pyriskassessment package does not "
-               "exist -- this module lives at "
-               "hera.riskassessment.analysis.riskAreas. pydoc.locate always "
-               "returns None, so the dispatcher can never resolve any "
-               "algorithm, including the one it implements itself. "
-               "See the consolidated findings issue.",
-    )
     def test_sweep_is_the_only_implemented_algorithm(self):
         sweep = getRiskAreaAlgorithm("Sweep")
         assert isinstance(sweep, riskAreaAlgorithm_Sweep)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B60: same dead pydoc.locate path as above.",
-    )
     def test_kwargs_are_forwarded_to_the_constructor(self):
         sweep = getRiskAreaAlgorithm("Sweep", dxdy=42, parallel=False)
         assert sweep.dxdy == pytest.approx(42.0)
