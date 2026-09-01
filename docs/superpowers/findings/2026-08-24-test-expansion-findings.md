@@ -1379,3 +1379,12 @@ self._meteorology = MeteorologyFactory().getMeteorology(meteorologyName,**met_kw
 ## אצווה 28 (המשך 2) — `utils/data/CLI.py` (הפונקציות הטהורות)
 
 בלי ממצא חדש. כוסו `_parse_query_value` (פרסור מחרוזת query ל-int/float/bool/None/מחרוזת מצוטטת) ו-`load_project_name` (קריאת `projectName` מ-`caseConfiguration.json`, כולל שגיאות קובץ חסר/שדה חסר/שדה ריק). שאר ~26 פקודות ה-CLI (`project_list`, `toolkit_register` וכו') נותרו לא מכוסות — כולן נוגעות ב-Project/toolkit אמיתיים דרך `_setup()` העצל, ודורשות harness גדול יותר מבוסס DB.
+
+---
+
+## אצווה 29 — `datalayer/datahandler.py` (המשך: tif, numpy_dict_array, Class)
+
+בלי ממצא חדש. כוסו: `guessHandler` (פונקציית המודול, מאצילה נכון ל-`datatypes.guessHandler`), `DataHandler_tif.getData` (נבדק מול GeoTIFF אמיתי שנוצר עם `rasterio` — הספרייה כן מותקנת תחת ה-venv הנעול, בניגוד ל-`osgeo`/`tables`/`zarr` שדרושות ל-geotiff/HDF/zarr ונותרות חסומות), `DataHandler_tif.saveData` (NotImplementedError מתועד), `DataHandler_numpy_dict_array` (round-trip `.npz` תקין), ו-`DataHandler_Class` — טעינת מחלקה דינמית: גם נתיב `sys.path` רגיל וגם ה-fallback לטעינה ישירה מ-`resource` (כש-`sys.path` לא מוצא את המודול), כלל המיזוג הנכון בין `desc.parameters` ל-`kwargs` (הראשון גובר), `instantiate=False` (מחזיר את המחלקה עצמה), חסר `classpath` (`ValueError`), ו-`saveData` (`NotImplementedError`).
+
+### הערת בדיקה
+כל הטסטים באצווה זו הורצו ואומתו ישירות מול ה-venv הנעול-לפי-`requirements.txt` (`/home/ilay-falach/hera-pinned-venv`), לא מול `heraenv` (שהתגלה סוטה משמעותית — ראה התיקונים בסבב הקודם). ממשיכים כך מכאן ואילך למניעת עוד ממצאים שגויים בגלל גרסאות.
