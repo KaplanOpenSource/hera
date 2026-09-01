@@ -533,7 +533,7 @@ FileNotFoundError: /home/ilay/hera_unittest_data/measurements/meteorology/
 ## אצווה 7 — `measurements/GIS`
 
 ### B42. ייבוא מודול מריץ דמו וכותב 8 מגה-בייט לתיקייה הנוכחית
-**קובץ:** `hera/measurements/GIS/raster/hill2stl.py` · **מקובע ב:** `test_gis_utils.py::TestImportSideEffects`
+**קובץ:** `hera/measurements/GIS/raster/hill2stl.py` · **מקובע במקור ב:** `test_gis_utils.py::TestImportSideEffects`
 
 בתחתית הקובץ, תחת ההערה `# Run the function`, יושב קוד דמו ברמת המודול:
 
@@ -546,6 +546,8 @@ generate_solid_stl(function, x_range=(minx,maxx), y_range=(miny,maxy), resolutio
 כל `import hera.measurements.GIS.raster.hill2stl` מדפיס ל-stdout וכותב **8.1MB** בשם `test1.stl` לתיקיית העבודה. כל כלי שסורק את עץ החבילה — בניית תיעוד, אינדוקס ב-IDE, איסוף טסטים — משאיר את הקובץ אחריו.
 
 **נסיבה מקלה שאומתה:** `import hera.measurements.GIS` לבדו **אינו** מפעיל את זה; רק ייבוא ישיר של המודול.
+
+**עדכון:** במקביל, מאמץ ניקוי-קוד-מת נפרד ב-master מחק את `hill2stl.py` כולו (אופיין כ"אפס הפניות" לפני שהטסטים האלה נכתבו). לכן `TestImportSideEffects` הוסר מ-`test_gis_utils.py` בזמן פתיחת ה-PR — המחיקה מ-master מתקבלת, אין יותר קובץ לכסות.
 
 ### הבדל בין שתי נקודות כניסה להמרת CRS
 `GIS/utils.py:convertCRS` מתועד ומחזיר **`list of shapely.geometry.Point`**, בעוד `TopographyToolkit.convertPointsCRS` מחזיר **GeoDataFrame**. שתי דרכים להמיר קואורדינטות עם טיפוסי החזרה שונים. מקובע כטסט עובר ולא כבאג — שתיהן מתועדות — אבל ראוי לאחד.

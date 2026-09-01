@@ -1,15 +1,18 @@
 import { PlayArrow, Save } from '@mui/icons-material';
-import { Box, Menu, MenuItem, SxProps, Theme } from '@mui/material';
+import { Box, CircularProgress, Menu, MenuItem, SxProps, Theme } from '@mui/material';
 import { MouseEvent, useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
-import { runWorkflow } from '../../io/runWorkflow';
-import { dismiss, pushError, pushInfo, pushRunning } from '../../io/snackbar';
+import { startWorkflow } from '../../io/runWorkflow';
+import { pushError } from '../../io/snackbar';
 import { useViewSettingsStore } from '../../stores/useViewSettingsStore';
+import { useWorkflowRunStore, WorkflowRunStatus } from '../../stores/useWorkflowRunStore';
 import { WorkflowOutputDialog } from './log/WorkflowOutputDialog';
 
-// Runs a saved workflow via the server's /run_workflow endpoint. The run is
-// synchronous — the output dialog opens right away and shows a spinner until the
-// captured console output (or an error) arrives.
+// Runs a saved workflow via the server. The run happens in the background: starting
+// it returns a token, and the shared WorkflowRunPoller polls that token until the
+// run finishes. The run lives in useWorkflowRunStore keyed by workflow name, so
+// every button for the same workflow shares it: they all disable and show a spinner
+// while it runs, and completion/errors reach every one of them.
 //
 // Left click runs the workflow. Right click opens a menu with more options:
 // run, run with save (one time), and a toggle to always save before running.
@@ -35,34 +38,44 @@ export const RunWorkflowButton = ({
   sx?: SxProps<Theme>,
 }) => {
   const [open, setOpen] = useState(false);
-  const [running, setRunning] = useState(false);
-  const [output, setOutput] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<{ x: number, y: number } | null>(null);
+  // True only during the brief start request (before the run enters the store).
+  const [starting, setStarting] = useState(false);
+  // Set when starting fails (busy / network); run failures come from the store.
+  const [startError, setStartError] = useState<string | null>(null);
   const saveBeforeRun = useViewSettingsStore(state => state.viewSettings.alwaysSaveBeforeRun);
   const setViewSettings = useViewSettingsStore(state => state.setViewSettings);
+  const run = useWorkflowRunStore(state => state.runs[workflowName]);
+  const startRun = useWorkflowRunStore(state => state.startRun);
 
   const canSave = Boolean(save);
+  const isRunning = starting || run?.status === WorkflowRunStatus.Running;
+  // Output while running (partial) and when done (final); the dialog shows it live.
+  const output = run ? run.output : null;
+  const runError = run?.status === WorkflowRunStatus.Error ? run.error : null;
 
   const doRun = async (withSave: boolean) => {
     setOpen(true);
-    setRunning(true);
-    setOutput(null);
-    setError(null);
-    const key = pushRunning('run workflow');
+    setStarting(true);
+    setStartError(null);
     try {
       if (withSave && save) {
         await save();
       }
-      const { output } = await runWorkflow({ projectName, workflowName });
-      setOutput(output ?? '');
-      pushInfo(`Workflow "${workflowName}" finished`);
+      const result = await startWorkflow({ projectName, workflowName });
+      if (result.status === 'busy') {
+        const message = 'The server is busy running another workflow. Try again shortly.';
+        setStartError(message);
+        pushError(`run workflow: ${message}`);
+      } else if (result.token) {
+        // Hand the run to the store; the poller drives it from here.
+        startRun(workflowName, result.token);
+      }
     } catch (e: any) {
-      setError(e?.message ?? String(e));
+      setStartError(e?.message ?? String(e));
       pushError(`run workflow: ${e?.message ?? e}`);
     } finally {
-      setRunning(false);
-      dismiss(key);
+      setStarting(false);
     }
   };
 
@@ -92,21 +105,27 @@ export const RunWorkflowButton = ({
     doRun(withSave);
   };
 
-  const effectiveDisabled = disabled || runBlocked;
+  // Disabled while this workflow is running so both buttons block during a run.
+  const effectiveDisabled = disabled || runBlocked || isRunning;
   let title = 'Run workflow (right click for more options)';
-  if (disabled && disabledReason) {
+  if (isRunning) {
+    title = 'Workflow is running…';
+  } else if (disabled && disabledReason) {
     title = disabledReason;
   } else if (runBlocked) {
     title = 'Save changes before running (right click for options)';
   }
-  const icon = saveBeforeRun && canSave
-    ? (
+  let icon = <PlayArrow />;
+  if (isRunning) {
+    icon = <CircularProgress size={18} />;
+  } else if (saveBeforeRun && canSave) {
+    icon = (
       <Box sx={{ position: 'relative', display: 'inline-flex' }}>
         <PlayArrow />
         <Save sx={{ position: 'absolute', right: -5, bottom: -5, fontSize: 12 }} />
       </Box>
-    )
-    : <PlayArrow />;
+    );
+  }
 
   return (
     <>
@@ -129,11 +148,11 @@ export const RunWorkflowButton = ({
         anchorReference="anchorPosition"
         anchorPosition={menuAnchor ? { top: menuAnchor.y, left: menuAnchor.x } : undefined}
       >
-        <MenuItem onClick={() => runFromMenu(false)} disabled={canSave && Boolean(isChanged)}>
+        <MenuItem onClick={() => runFromMenu(false)} disabled={isRunning || (canSave && Boolean(isChanged))}>
           Run
         </MenuItem>
         {canSave && (
-          <MenuItem onClick={() => runFromMenu(true)} disabled={!isChanged}>
+          <MenuItem onClick={() => runFromMenu(true)} disabled={isRunning || !isChanged}>
             Run with save
           </MenuItem>
         )}
@@ -150,9 +169,9 @@ export const RunWorkflowButton = ({
       </Menu>
       <WorkflowOutputDialog
         open={open}
-        running={running}
+        running={isRunning}
         output={output}
-        error={error}
+        error={startError ?? runError}
         workflowName={workflowName}
         onClose={() => { return setOpen(false); }}
       />

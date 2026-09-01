@@ -95,7 +95,12 @@ class TestHighFreqMain:
 
 @pytest.mark.unit
 class TestGFS:
-    """Not a defect: scikit-learn is declared, just absent from this env."""
+    """Not a defect: scikit-learn is declared, just absent from this env.
+
+    GFS.py also imports `from osgeo import gdal` at module level -- a
+    second, independent heavy dependency the module needs regardless of
+    scikit-learn's presence.
+    """
 
     def test_scikit_learn_is_declared_in_requirements(self):
         requirements = pathlib.Path("requirements.txt").read_text(encoding="utf-8")
@@ -103,6 +108,7 @@ class TestGFS:
 
     def test_the_module_imports_when_the_dependency_is_present(self):
         pytest.importorskip("sklearn")
+        pytest.importorskip("osgeo")
         assert importlib.import_module(
             "hera.measurements.meteorology.GFS"
         ) is not None
