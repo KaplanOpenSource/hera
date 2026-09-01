@@ -1404,3 +1404,26 @@ return self.getConcentration(...)['C'].interp(x=x, y=y, datetime=datetime).value
 
 ### מה שנמצא תקין
 בנאי `SingleSimulation` — כל שלושת הנתיבים (Dataset ישיר, מסמך עם `getData()`, מחרוזת נתיב — הראשון והשני נבדקו). `params`/`version` (קריאה מ-`_document['desc']`). `getDosage` — גם עם ציר זמן `datetime64` וגם עם ציר זמן מספרי (שניות), חישוב `dt` נכון בשני המקרים, קנה-מידה נכון לפי `Q`, ויחידות `Q`/`C` לפי הבקשה. `getConcentration` — נגזרת ה-Dosage לאורך זמן (ממד `datetime` קטן באחד, כמצופה מ-`diff`), חישוב `C = dDosage/dt` נכון.
+
+---
+
+## אצווה 29 (המשך 2) — `simulations/LSM/template.py`
+
+### B99. `getSimulationByID` — קורא למתודה שלא קיימת על עצמו
+**קובץ:** `hera/simulations/LSM/template.py:469` · **מקובע ב:** `test_lsm_template.py::TestGetSimulationByIDIsBroken`
+
+```python
+def getSimulationByID(self,id):
+    return SingleSimulation(self.getDocumentByID(id))
+```
+
+`getDocumentByID` היא מתודה של `Project`/הטולקיט (`self.Toolkit.getDocumentByID`), לא של `LSMTemplate` עצמו — `self.getDocumentByID` לא קיימת. כל קריאה ל-`getSimulationByID` קורסת ב-`AttributeError`.
+
+### הערה: `LSMToolkit.loadData` (B92, כבר מתועד באצווה 27) חוסם בדיקה ישירה של תבניות שנטענות דרך ה-API הרגיל
+כדי לבודד את הלוגיקה של `LSMTemplate` עצמה מה-B92 הקיים, הטסטים כאן בונים את המסמך (`_document`) ידנית במקום דרך `toolkit.loadData(...)` — כי B92 גורם ל-`params`/`modelFolder` לזרוק `KeyError` על כל תבנית שנטענת דרך הנתיב הרגיל.
+
+### מה שנמצא תקין
+כל ה-properties (`Toolkit`, `doctype_simulation`, `dirPath`, `params`, `version`, `templateName`, `modelFolder` — גם יחסי וגם מוחלט). `prepareParams` (סטטית) — ללא `template_desc`, עם המרת יחידות (`pint`, כולל `duration` שמטופל כדקות גם בלי הגדרה מפורשת), וקאסט ל-`int` עבור `TopoXn`/`TopoYn`. `getSimulationByName`/`getSimulations` — לוגיקת השאילתה נכונה (נבדקה מול `SingleSimulation` מדומה, כי בניית אחת אמיתית דורשת קובצי netcdf אמיתיים): `getSimulations()` בלי ארגומנטים מסנן לפי ה-`params` **של התבנית עצמה** (לא "הכל"), וניתן לדרוס עם קלט מפורש.
+
+### נדחה
+`run()`/`_toNetcdf()` — דורשים בינארי LSM אמיתי, קבצי תבנית קלט אמיתיים, והרצת subprocess. `_getSimulationsList`/`getSimulationsTable` — נותרו לא מכוסים.
