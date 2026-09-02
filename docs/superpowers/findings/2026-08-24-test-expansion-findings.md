@@ -1484,3 +1484,28 @@ self._topography = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_TOPOGRAPHY
 **קובץ:** `hera/measurements/meteorology/analysis.py:31,75` · **מקובע ב:** `test_meteorology_analysis_missing_self.py`
 
 אותו דפוס באג כמו B93/B100: שתי המתודות מוגדרות בתוך מחלקת `analysis` בלי פרמטר `self` (`def addDatesColumns(data, ...)`, `def calcHourlyDist(data, Field, ...)`). קריאה טבעית על מופע (`analysis(dl).addDatesColumns(df)`) קושרת את המופע עצמו ל-`data`, וקורסת ב-`AttributeError` (`'analysis' object has no attribute 'assign'`/`'dropna'`). פועלות רק כשקוראים להן ישירות דרך המחלקה. ה-`lowfreqdata/analysis.py` המקביל מגדיר את אותן מתודות נכון (עם `self`).
+
+### B105. `AbstractCalculator` — כל נתיב שנוגע ב-DB הוא קוד מת (`datalayer.Cache` לא קיים)
+**קובץ:** `hera/measurements/meteorology/highfreqdata/analysis/abstractcalculator.py:172,190,221` · **מקובע ב:** `test_meteorology_abstractcalculator.py::TestSaveToDbIsUnreachable`
+
+```python
+from hera.datalayer import collection as datalayer
+...
+datalayer.Cache.getDocuments(...)   # ב-_compute_from_db_and_save / _compute_from_db_and_not_save
+...
+datalayer.Cache.addDocument(**doc)  # ב-_save_to_db
+```
+
+המודול `hera.datalayer.collection` מגדיר רק את המחלקה `Cache_Collection` — אין בו singleton בשם `Cache`. ה-singleton האמיתי חי ב-`hera.datalayer.Cache` (רמת ה-package, ייבוא אחד למעלה). לכן `_compute_from_db_and_save`, `_compute_from_db_and_not_save`, ו-`_save_to_db` (וכפועל יוצא גם `_compute_not_from_db_and_save`, שקוראת ל-`_save_to_db`) קורסים תמיד ב-`AttributeError: module 'hera.datalayer.collection' has no attribute 'Cache'`. מכל ארבעת מצבי ה-`compute()` (`not_from_db_and_not_save` / `from_db_and_save` / `from_db_and_not_save` / `not_from_db_and_save`), רק ברירת המחדל — זו שלא נוגעת ב-DB בכלל — עובדת בפועל.
+
+### B106. `AbstractCalculator._saveProperties` — dict mutable משותף בין כל המופעים
+**קובץ:** `hera/measurements/meteorology/highfreqdata/analysis/abstractcalculator.py:28` · **מקובע ב:** `test_meteorology_abstractcalculator.py::TestSaveSharedAcrossInstancesIsBroken`
+
+```python
+class AbstractCalculator(object):
+    _saveProperties = {'dataFormat': None}   # class attribute
+    def __init__(self, rawData, metadata):
+        ...  # לא מעתיק _saveProperties למופע
+```
+
+`_saveProperties` מוגדר כ-attribute של המחלקה (dict אחד משותף), ו-`__init__` אף פעם לא יוצר עותק ברמת המופע. `set_saveProperties()` מבצע `self._saveProperties['dataFormat'] = dataFormat` — מאחר ואין attribute מקביל ברמת ה-instance, זו מוטציה על אותו ה-dict המשותף. כתוצאה מכך, קריאה ל-`set_saveProperties` על מופע אחד "דולפת" לכל שאר המופעים — קיימים וגם עתידיים — עד שמישהו יאתחל dict חדש במפורש. גילוי אגבי: הבדיקות ל-B105 נתקלו בזה כי בדיקה קודמת בקובץ קבעה `dataFormat`, וזה "דלף" למופע חדש בבדיקה הבאה.
