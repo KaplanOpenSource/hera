@@ -1477,3 +1477,8 @@ self._topography = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_TOPOGRAPHY
 ```
 
 `toolkitHome.GIS_TOPOGRAPHY` לא קיים (הקבועים האמיתיים הם `GIS_RASTER_TOPOGRAPHY`/`GIS_VECTOR_TOPOGRAPHY`). כל בנייה של `OFLSMToolkit` דרך `toolkitHome.getToolkit` קורסת ב-`AttributeError` — כל המחלקה לא שמישה. ה-properties (`doctype`, `casePath`, `cloudName`, `parallelCase`) נבדקו בעקיפת הבנאי (`__new__`) ועובדים נכון.
+
+### B104. `meteorology/analysis.py` — `addDatesColumns`/`calcHourlyDist` מוגדרות בלי `self`
+**קובץ:** `hera/measurements/meteorology/analysis.py:31,75` · **מקובע ב:** `test_meteorology_analysis_missing_self.py`
+
+אותו דפוס באג כמו B93/B100: שתי המתודות מוגדרות בתוך מחלקת `analysis` בלי פרמטר `self` (`def addDatesColumns(data, ...)`, `def calcHourlyDist(data, Field, ...)`). קריאה טבעית על מופע (`analysis(dl).addDatesColumns(df)`) קושרת את המופע עצמו ל-`data`, וקורסת ב-`AttributeError` (`'analysis' object has no attribute 'assign'`/`'dropna'`). פועלות רק כשקוראים להן ישירות דרך המחלקה. ה-`lowfreqdata/analysis.py` המקביל מגדיר את אותן מתודות נכון (עם `self`).
