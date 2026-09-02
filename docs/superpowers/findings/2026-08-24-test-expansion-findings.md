@@ -1536,3 +1536,13 @@ res_intersect_poly = demography.loc[not demography["geometry"].intersection(poly
 ```
 
 `demography["geometry"].intersection(poly).is_empty` הוא Series בוליאני (per-row). הפעלת `not` על Series כזה — גם אם יש בו רק שורה אחת — מעלה תמיד `ValueError: The truth value of a Series is ambiguous` (בניגוד לסקלר numpy, ל-pandas Series אין קיצור דרך ל-Series באורך 1). המתודה קורסת ב-100% מהמקרים, לא משנה כמה שורות יש ב-demography. השלילה האלמנטרית שהקוד כנראה התכוון אליה היא `~` (או `.apply(...)`), לא `not`. מכיוון ש-`project`→`_project`→`_calculatePopulationInPolygon` היא שרשרת הקריאות המלאה, זה שובר כל נתיב אמיתי של חישוב אוכלוסייה בפוליגון סף.
+
+### B109. `riskassessment/CLI.py createRepository` — נתיב לא מחובר, ה-repository תמיד ריק
+**קובץ:** `hera/riskassessment/CLI.py:28-29` · **מקובע ב:** `test_riskassessment_cli.py::TestCreateRepositoryIsBroken`
+
+```python
+for file_path in os.listdir(arguments.path):
+    agent_json_description = _check_if_agent(file_path)   # <-- לא os.path.join(arguments.path, file_path)
+```
+
+`os.listdir(arguments.path)` מחזיר שמות קבצים חשופים (בלי הנתיב המלא), אבל `_check_if_agent` מקבל אותם ישירות בלי `os.path.join` עם `arguments.path`. בפועל `_check_if_agent` פותח אותם יחסית ל-cwd הנוכחי של התהליך, לא יחסית לתיקייה שנסרקת. אלא אם התהליך רץ במקרה כשה-cwd שלו זהה בדיוק ל-`arguments.path`, כל חיפוש קובץ נכשל בשקט (נתפס ב-`except`, מחזיר `False`), ו-`repo['RiskAssessment']['DataSource']` יוצא ריק תמיד — גם כשהתיקייה מלאה בקבצי agent תקינים. התיקון הברור הוא `os.path.join(arguments.path, file_path)`.
