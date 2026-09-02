@@ -51,3 +51,12 @@ class TestUnumToBaseUnits:
     def test_it_converts_to_mks_base_units(self):
         result = uh.unumToBaseUnits(5 * u.km)
         assert str(result) == "5000.0 [m]"
+
+
+@pytest.mark.unit
+class TestConvertUnumUnitsToEvalStr:
+    def test_it_turns_unit_exponent_pairs_into_power_syntax(self):
+        assert uh.convert_unum_units_to_eval_str("m2*s-1") == "m**2*s**-1"
+
+    def test_a_unit_with_no_exponent_passes_through_unchanged(self):
+        assert uh.convert_unum_units_to_eval_str("m") == "m"
