@@ -970,6 +970,8 @@ eig_data = self.MeanData.apply(self._eig, axis=1)
 
 `_eig` מוגדרת בלי `self` כפרמטר ראשון, אבל נגישה כ-`self._eig` — bound method שמעביר את `self` אוטומטית. כשה-DataFrame.apply קורא לה עם השורה, מתקבלות שתי ארגומנטים לפונקציה שמקבלת רק אחד: `TypeError`. `anisotropyCats` קורסת באותה צורה כי היא קוראת ל-`anisotropyEigs` קודם.
 
+**עדכון (batch29):** B70 חוזרת גם ב-`thresholds()` ו-`filterDates()` (לא רק בבנאי): שני אלה, ב-mode `inplace=False` (ברירת המחדל), בונים `MeanDataCalculator` חדש מ-`filter_obj.data` שהוא `pandas.DataFrame` רגיל — אותה תבנית השוואה שבורה, אז זה תמיד קורס ב-`ValueError`. רק `inplace=True` עובד בפועל. מקובע ב-`TestThresholdsAndFilterDatesInplace`.
+
 ### B72. `InMemoryRawData.append` — מתודת pandas שהוסרה
 **קובץ:** `hera/measurements/meteorology/highfreqdata/analysis/turbulencestatistics.py:1478` · **מקובע ב:** `test_meteorology_turbulencestatistics.py::TestInMemoryRawData`
 
