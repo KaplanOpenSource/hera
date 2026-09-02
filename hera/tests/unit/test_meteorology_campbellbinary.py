@@ -199,3 +199,107 @@ class TestParserGetDataIsBroken:
         result = Parser().parse(str(tmp_path))
         assert calls == [str(tmp_path)]
         assert result == "RESULT"
+
+
+@pytest.mark.unit
+class TestGetPandasFromDir:
+    def test_it_concatenates_one_dataframe_per_dat_file_in_the_directory(self, tmp_path, monkeypatch):
+        """getPandasFromDir itself just globs *.dat and concatenates results
+        from getPandasFromFile -- isolate that from B82 (which breaks
+        getPandasFromFile's own column slicing) by stubbing it out, the
+        same technique the parse() dispatch tests above use."""
+        (tmp_path / "a.dat").write_bytes(b"")
+        (tmp_path / "b.dat").write_bytes(b"")
+        (tmp_path / "ignored.txt").write_bytes(b"")
+
+        calls = []
+
+        def fake_get_pandas_from_file(self, path, fromTime, toTime):
+            calls.append(path)
+            return pandas.DataFrame({"v": [len(calls)]})
+
+        monkeypatch.setattr(Parser, "getPandasFromFile", fake_get_pandas_from_file)
+        result = Parser().getPandasFromDir(str(tmp_path), fromTime=None, toTime=None)
+
+        assert len(calls) == 2
+        assert sorted(calls) == sorted(str(tmp_path / n) for n in ("a.dat", "b.dat"))
+        assert len(result) == 2
+
+
+@pytest.mark.unit
+class TestCampbellBinaryInterfaceLowLevelHelpers:
+    def test_bindata_returns_the_full_raw_file_contents(self, sonic_file):
+        cbi = CampbellBinaryInterface(file=str(sonic_file))
+        raw = sonic_file.read_bytes()
+        assert cbi.binData == raw
+        assert len(cbi.binData) == cbi.headersSize + cbi.recordsNum * cbi.recordSize
+
+    def test_get_record_by_time_finds_the_same_record_as_by_index(self, sonic_file):
+        cbi = CampbellBinaryInterface(file=str(sonic_file))
+        expected_time, expected_line = cbi.getRecordByIndex(1)
+        time, line = cbi.getRecordByTime(expected_time)
+        assert time == expected_time
+        assert line == expected_line
+
+    def test_bytetostr_decodes_and_strips_trailing_nulls(self, sonic_file):
+        cbi = CampbellBinaryInterface(file=str(sonic_file))
+        assert cbi._byteToStr(b"AB\x00\x00") == "AB"
+
+    def test_floatconvert_applies_the_sign_bit(self, sonic_file):
+        cbi = CampbellBinaryInterface(file=str(sonic_file))
+        assert cbi._floatConvert(0x00, 100) == pytest.approx(100.0)
+        assert cbi._floatConvert(0x80, 100) == pytest.approx(-100.0)
+
+    def test_floatconvert_applies_the_scale_factor_bits(self, sonic_file):
+        cbi = CampbellBinaryInterface(file=str(sonic_file))
+        assert cbi._floatConvert(0x60, 100) == pytest.approx(0.1)   # /1000
+        assert cbi._floatConvert(0x40, 100) == pytest.approx(1.0)   # /100
+        assert cbi._floatConvert(0x20, 100) == pytest.approx(10.0)  # /10
+        assert cbi._floatConvert(0x00, 100) == pytest.approx(100.0)  # /1
+
+    def test_newfloatconvert_caches_by_key(self, sonic_file):
+        cbi = CampbellBinaryInterface(file=str(sonic_file))
+        first = cbi._newfloatConvert(100)
+        assert cbi._lut[100] == first
+        second = cbi._newfloatConvert(100)
+        assert second == first
+
+
+@pytest.mark.unit
+class TestNewFloatConvertNanSentinelIsInconsistent:
+    """B107: the NaN sentinel branch (key == 65183) sets self._lut[key] =
+    float('nan') but falls off the end of the if-block without returning
+    it -- the implicit `return None` fires instead. A second call for the
+    same key returns nan correctly, because by then the lookup at the top
+    of the function (`return self._lut[key]`) short-circuits the branch
+    entirely. The two calls disagree about what this key means."""
+
+    @pytest.mark.xfail(
+        strict=True,
+        reason="B107: the nan-sentinel branch of _newfloatConvert does not "
+               "return its own cached value -- the first call for key "
+               "65183 returns None while every subsequent (cached) call "
+               "returns nan. See the consolidated findings issue.",
+    )
+    def test_the_first_call_should_also_return_nan(self, sonic_file):
+        import math
+
+        cbi = CampbellBinaryInterface(file=str(sonic_file))
+        first = cbi._newfloatConvert(65183)
+        assert first is not None and math.isnan(first)
+
+    def test_the_first_call_currently_returns_none(self, sonic_file):
+        """Characterisation of B107."""
+        cbi = CampbellBinaryInterface(file=str(sonic_file))
+        assert cbi._newfloatConvert(65183) is None
+
+    def test_a_second_call_for_the_same_key_returns_nan_from_the_cache(self, sonic_file):
+        """Characterisation of B107: same key, different call, different
+        answer -- because the second call hits the cache lookup instead of
+        re-running the broken branch."""
+        import math
+
+        cbi = CampbellBinaryInterface(file=str(sonic_file))
+        cbi._newfloatConvert(65183)
+        second = cbi._newfloatConvert(65183)
+        assert second is not None and math.isnan(second)

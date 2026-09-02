@@ -1509,3 +1509,21 @@ class AbstractCalculator(object):
 ```
 
 `_saveProperties` מוגדר כ-attribute של המחלקה (dict אחד משותף), ו-`__init__` אף פעם לא יוצר עותק ברמת המופע. `set_saveProperties()` מבצע `self._saveProperties['dataFormat'] = dataFormat` — מאחר ואין attribute מקביל ברמת ה-instance, זו מוטציה על אותו ה-dict המשותף. כתוצאה מכך, קריאה ל-`set_saveProperties` על מופע אחד "דולפת" לכל שאר המופעים — קיימים וגם עתידיים — עד שמישהו יאתחל dict חדש במפורש. גילוי אגבי: הבדיקות ל-B105 נתקלו בזה כי בדיקה קודמת בקובץ קבעה `dataFormat`, וזה "דלף" למופע חדש בבדיקה הבאה.
+
+### B107. `CampbellBinaryInterface._newfloatConvert` — ה-sentinel של NaN לא מחזיר את מה שהוא שומר ב-cache
+**קובץ:** `hera/measurements/meteorology/highfreqdata/parsers/CampbellBinary.py:503-512` · **מקובע ב:** `test_meteorology_campbellbinary.py::TestNewFloatConvertNanSentinelIsInconsistent`
+
+```python
+def _newfloatConvert(self, key):
+    try:
+        return self._lut[key]
+    except:
+        if key == 65183:
+            self._lut[key] = float('nan')
+            return                      # <-- מחזיר None, לא את ה-nan שנשמר
+        val = self._floatConvert(int(key % 256), key / 256)
+        self._lut[key] = val
+        return val
+```
+
+`key == 65183` הוא ה-sentinel של Campbell ל"אין נתונים" בפורמט FP2. הענף שומר `float('nan')` ב-`_lut[key]`, אבל ה-`return` בלי ערך מחזיר בפועל `None` — לא את ה-NaN שנשמר. קריאה שנייה עם אותו `key` כן מחזירה `nan`, כי היא פוגעת ב-`return self._lut[key]` שבתחילת הפונקציה (ה-cache) ומדלגת על הענף השבור לגמרי. התוצאה: אותו קלט מחזיר תשובה שונה בהתאם לכך אם זו הפעם הראשונה שהוא נקרא או לא — `None` בפעם הראשונה, `nan` בכל פעם אחרי זה.
