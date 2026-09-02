@@ -281,3 +281,10 @@ class TestErrorHandling:
         """
         with pytest.raises((ValueError, KeyError)):
             sigma.getSigma(distance, "D", units=False)
+
+
+@pytest.mark.unit
+class TestAbstractSigmaGetSigmaIsUnimplemented:
+    def test_calling_it_on_the_base_class_raises_notimplementederror(self):
+        with pytest.raises(NotImplementedError, match="not implemented for abstractSigma"):
+            AbstractSigma().getSigma(100.0, "A")

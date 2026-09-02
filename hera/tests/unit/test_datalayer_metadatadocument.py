@@ -1,5 +1,8 @@
 """datalayer/document/metadataDocument.py: nonDBMetadataFrame and
-parseConnectionString (pure helpers, no DB/filesystem access)."""
+parseConnectionString (pure helpers, no DB/filesystem access), plus
+MetadataFrame.__str__ against a real mongomock-backed document."""
+import json
+
 import pytest
 
 from hera.datalayer.document import parseConnectionString
@@ -28,3 +31,13 @@ class TestParseConnectionString:
             "dbName": "mydb",
             "dbIP": "host.com",
         }
+
+
+@pytest.mark.unit
+class TestMetadataFrameStr:
+    def test_it_pretty_prints_asdict_without_the_id(self, unit_project):
+        doc = unit_project.addMeasurementsDocument(
+            resource="somepath", dataFormat="string", type="t", desc={"a": 1},
+        )
+        assert str(doc) == json.dumps(doc.asDict(with_id=False), indent=4)
+        assert "_id" not in json.loads(str(doc))

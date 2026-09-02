@@ -152,3 +152,20 @@ class TestClassmethodGetProjectListIsBroken:
         """Characterisation of B88: the unused `cls` slot can be filled
         with anything (even None) and the call proceeds normally."""
         assert unit_project.projectName in Project.getProjectList(None)
+
+
+@pytest.mark.unit
+class TestGetFullFuncName:
+    def test_a_bound_method_includes_module_and_class(self, unit_project):
+        name = unit_project._get_full_func_name(unit_project.updateProjectNameOnDoc)
+        assert name.endswith("Project.updateProjectNameOnDoc")
+
+    def test_a_plain_function_uses_its_qualname(self, unit_project):
+        def my_func():
+            pass
+
+        assert unit_project._get_full_func_name(my_func) == my_func.__qualname__
+
+    def test_a_non_callable_raises_typeerror(self, unit_project):
+        with pytest.raises(TypeError, match="not callable"):
+            unit_project._get_full_func_name(5)
