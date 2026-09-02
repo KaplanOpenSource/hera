@@ -1527,3 +1527,12 @@ def _newfloatConvert(self, key):
 ```
 
 `key == 65183` הוא ה-sentinel של Campbell ל"אין נתונים" בפורמט FP2. הענף שומר `float('nan')` ב-`_lut[key]`, אבל ה-`return` בלי ערך מחזיר בפועל `None` — לא את ה-NaN שנשמר. קריאה שנייה עם אותו `key` כן מחזירה `nan`, כי היא פוגעת ב-`return self._lut[key]` שבתחילת הפונקציה (ה-cache) ומדלגת על הענף השבור לגמרי. התוצאה: אותו קלט מחזיר תשובה שונה בהתאם לכך אם זו הפעם הראשונה שהוא נקרא או לא — `None` בפעם הראשונה, `nan` בכל פעם אחרי זה.
+
+### B108. `thresholdGeoDataFrame._calculatePopulationInPolygon` — `not` על Series רב-איברי, קורס תמיד
+**קובץ:** `hera/riskassessment/agents/effects/thresholdGeoDataFrame.py:125` · **מקובע ב:** `test_risk_thresholdgeodataframe.py::TestCalculatePopulationInPolygonIsBroken`
+
+```python
+res_intersect_poly = demography.loc[not demography["geometry"].intersection(poly).is_empty]
+```
+
+`demography["geometry"].intersection(poly).is_empty` הוא Series בוליאני (per-row). הפעלת `not` על Series כזה — גם אם יש בו רק שורה אחת — מעלה תמיד `ValueError: The truth value of a Series is ambiguous` (בניגוד לסקלר numpy, ל-pandas Series אין קיצור דרך ל-Series באורך 1). המתודה קורסת ב-100% מהמקרים, לא משנה כמה שורות יש ב-demography. השלילה האלמנטרית שהקוד כנראה התכוון אליה היא `~` (או `.apply(...)`), לא `not`. מכיוון ש-`project`→`_project`→`_calculatePopulationInPolygon` היא שרשרת הקריאות המלאה, זה שובר כל נתיב אמיתי של חישוב אוכלוסייה בפוליגון סף.
