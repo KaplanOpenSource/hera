@@ -3,6 +3,12 @@ import sys
 import time
 import traceback
 
+# Run Luigi in this process via luigi.build instead of shelling out to
+# `python -m luigi`. Lets us set workers and hook Luigi events. Flip to try it.
+INPROCESS_LUIGI = True
+# Number of Luigi workers when running in-process. 1 = sequential (today's behaviour).
+LUIGI_WORKERS = 1
+
 
 def run_workflow_in_child(project_name: str, workflow_name: str, write_fd: int, result_queue) -> None:
     """Run a saved workflow inside a forked child process.
@@ -28,7 +34,13 @@ def run_workflow_in_child(project_name: str, workflow_name: str, write_fd: int, 
         os.environ["PYTHONPATH"] = workflow_toolkit.FilesDirectory + os.pathsep + os.environ.get("PYTHONPATH", "")
 
         started = time.perf_counter()
-        dispatch_id = workflow_toolkit.executeWorkflowFromDB(workflow_name, scheduler="local")
+        if INPROCESS_LUIGI:
+            from execute_workflow_inprocess import executeWorkflowFromDB_inprocess
+            dispatch_id = executeWorkflowFromDB_inprocess(
+                workflow_toolkit, workflow_name, workers=LUIGI_WORKERS
+            )
+        else:
+            dispatch_id = workflow_toolkit.executeWorkflowFromDB(workflow_name, scheduler="local")
         exec_seconds = time.perf_counter() - started
 
         sys.stdout.flush()
