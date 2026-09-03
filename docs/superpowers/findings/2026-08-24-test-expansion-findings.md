@@ -2163,3 +2163,405 @@ filename = 'N'+str(int(lat))+'E'+str(int(long)).zfill(3)+'.hgt'
 
 ### B211. `_extractVelocityField` — לא יכול לקרוא קובץ שדה מציאותי
 קורא את כל קובץ ה-U עם `pandas.read_csv(names=['u','v','w'])` וחותך ל-`nCells` רק **אחרי כן**, כך שכל שורת boundary עם יותר משלושה טוקנים (למשל `value uniform (0 0 0);`) מעלה `pandas.errors.ParserError: Expected 3 fields`. התיקון הוא `nrows=nCells`.
+
+## אצווה 32 — `experiment/analysis.py` ו-`experiment/presentation.py` (B212-B226)
+
+מקובע ב-`test_experiment_analysis.py` / `test_experiment_presentation_plots.py`, כל אחד עם `xfail(strict=True)` ובדיקת אפיון עוברת. שני הקבצים בונים **ניסוי argos v3.0.0 אמיתי** ב-`tmp_path` (בלי שום stub). התוצאה המרכזית: מתוך 13 המתודות שנבדקו, **רק אחת** (`plotDevicesOnImage`, ובפריסת מכשירים אחת ספציפית) רצה בכלל — כל השאר מתות בהוראה הראשונה או השנייה.
+
+### B212. `entitiesTable` נקראת כפונקציה למרות שהיא property (2 מקומות)
+**קובץ:** `hera/measurements/experiment/analysis.py:52,280` · `argos/experimentSetup/dataObjects.py:208`
+
+`getDeviceLocations` ו-`addMetadata` כותבות `...[trialName].entitiesTable()`, אבל ב-argos זה `@property` שמחזיר DataFrame → `TypeError: 'DataFrame' object is not callable`. אומת בקוד, זה מול זה.
+
+### B213. `getDeviceLocations` — מסננת על עמודה שלא קיימת בטבלה של trial
+**קובץ:** `hera/measurements/experiment/analysis.py:52`
+
+השאילתה היא `entityType==@entityTypeName`, אבל טבלת ה-trial קוראת לעמודה `deviceTypeName`; `entityType` קיימת רק בטבלאות של `Experiment`/`EntityType` → `pandas.errors.UndefinedVariableError`.
+
+### B214. `addMetadata` — ממזגת על `entityName` במקום `deviceItemName`
+אותו חוסר-התאמה בדיוק כמו B162, מועתק לתוך `analysis.py`.
+
+### B215. `getDeviceTypePlannedMessageCount` — קוראת ל-`getOptimalFrequencyHz` שלא קיימת בשום מקום
+**קובץ:** `hera/measurements/experiment/analysis.py:249,252`
+
+חיפוש בכל `hera/` מחזיר **רק את שני אתרי הקריאה** ואף הגדרה → `AttributeError`. זה הורג גם את `normalize=True`, שהוא **ברירת המחדל** של `getDeviceTypeTransmissionFrequencyOfTrial`. אומת בקוד.
+
+### B216. `TrialSet.trials` הוא dict, לא DataFrame
+ענף החישוב-מחדש עושה `.trials.query("trialName == @trialName")` → `AttributeError: 'dict' object has no attribute 'query'`. גם ל-`trialsTable` (ה-DataFrame האמיתי) אין עמודת `trialName`. מכיוון ש-`recalculate` ברירת המחדל היא `True`, שום דבר לא יכול למלא את ה-cache. מאחורי זה: `freq.set_index('timestamp')` שהתוצאה שלו נזרקת, ו-`resample("1min")` שמקבע את הבין במקום להשתמש ב-`samplingWindow`.
+
+### B217. `addTrialProperties` — חיסור זמן שחרור בלי תנאי
+שולף `ReleaseStart` עם `.get(...,None)` ואז מחשב `tmp.timestamp - releaseTime` → `TypeError` לכל trial בלי שחרור, ואיתו נאבדות גם עמודות ה-`fromStart`.
+
+### B218. `plotImage` — מפתחות extent שגויים
+קורא `metadata['xleft'/'xright'/'ybottom'/'ytop']`, בעוד ש-`getImageMetadata` של argos מחזיר `left`/`right`/`lower`/`upper` → `KeyError: 'xleft'`, אחרי שהתמונה כבר פוענחה.
+
+### B219. `plotMap` — `self.trialSet` שיושב על ה-datalayer
+`AttributeError`. בנוסף: `ax`/`plot_kwargs` נקראים למרות שאף אחד מהם אינו פרמטר, `deviceType`/`toolkitDataSource` לא מוגדרים, ואין `return`.
+
+### B220. `_plotEntityLocationScatter`/`_plotEntityLocationNames` — `datalayer.experimentSetup` לא קיים
+שתיהן קוראות `self.datalayer.experimentSetup`, ול-`experimentSetupWithData` אין attribute כזה — **הוא עצמו** ה-setup (אותה טעות בדיוק כמו B165) → `AttributeError`. מאחורי זה: `entitiesTable(status)`, `self._entityMarkers` חסר, ו-`FLOOR_PLATFORM`/`FLOOR_CONCOURSE` לא מוגדרים.
+
+### B221. `plotDevices` — `UnboundLocalError` על שם פרמטר שגוי
+`plot_kwargs = plot_kwargs or {}` קורא משתנה מקומי לפני השמה — הפרמטר נקרא `plotkwargs`. אם מעבירים `ax`, הוא נופל במקום זה על `self.trialSet`, ואחר כך על `_process_row` (B160) ועל `row.stationName`.
+
+### B222. `plotDevicesOnImage` — mutable default שנכתב אליו
+**קובץ:** `hera/measurements/experiment/presentation.py:395`
+
+`scatterkwargs.setdefault("s",50)`/`("c","r")` על ברירת מחדל `scatterkwargs={}` כותב **לתוך ה-dict המשותף** לתמיד, כך שאף קורא מאוחר יותר לא יכול לקבל scatter בלי עיצוב על ידי השמטת הארגומנט. אומת בקוד.
+
+### B223. `plotDevicesOnImage` — קורא עמודה אופציונלית בלי תנאי
+`row.containedIn` נקרא תמיד, אבל argos יוצר את העמודה הזו רק כשמכשיר מצהיר על הכלה → `AttributeError` לניסוי הרגיל שממוקם על מפה, למרות שלמתודה **כבר יש** ענף חלופי בשבילה.
+
+### B224. `plotDevicesOnImage` — אגרגציה על כל ה-DataFrame
+`devices_df.max().longitude` / `.min().latitude` מבצעים אגרגציה על **כל** העמודות; NaN בעמודת המחרוזות `containedIn` (trial מעורב) → `TypeError: '>=' not supported between instances of 'str' and 'float'`. יחד עם B223 זה משאיר בדיוק פריסה אחת שעובדת.
+
+### B225. `plotDevicesOnImage` — הצירים מוחלפים
+מפזר `x=row.latitude, y=row.longitude`, בעוד ש-`plotImage` שם קווי אורך על x (`left`/`right`) ורוחב על y (`lower`/`upper`). היסט התווית מחמיר את זה בכך שהוא מזיז קו אורך לפי מרווח הרוחב. אומת: ההיסטים יוצאים `(32.0, 34.0)` במקום `(34.0, 32.0)`.
+
+### B226. `plotDeviceTypeFunctionality` — מת כתוצאה מ-B215/B216
+קורא למתודת התדירות עם `normalize=True` ובלי `recalculate=False`, כך שהוא תמיד נכנס לענף המת של B216 ואז פוגע ב-B215. מקובע כאן כתוצאה, לא כפגם עצמאי.
+
+## אצווה 32 — GIS vector/raster (B227-B242)
+
+מקובע ב-`test_gis_vector_topography.py`, `test_gis_demography_more.py`, `test_gis_buildings_toolkit_more.py`, `test_gis_utils_more.py`, `test_gis_raster_topography_statistics.py`, `test_gis_buildings_analysis_more.py`.
+
+### B227. `vector/topography.py::cutRegionFromSource` — קורא ל-super עם חתימה אחרת לגמרי
+**קובץ:** `hera/measurements/GIS/vector/topography.py:77` מול `vector/toolkit.py:98`
+
+```python
+# הילד:
+super().cutRegionFromSource(shapeDataOrName=..., datasourceName=..., isBounds=..., crs=...)
+# ההורה:
+def cutRegionFromSource(self, datasourceDocument, shape, isBounds=False, inputCRS=WGS84)
+```
+
+אף אחד מארבעת שמות הפרמטרים לא תואם → כל קריאה נופלת ב-`TypeError: ... unexpected keyword argument 'shapeDataOrName'`. זה מפיל איתו גם את `regionToSTL`. אומת בקוד, זה מול זה.
+
+### B228. `geoPandasToSTL` — מעביר את הליטרל במקום את הפרמטר
+**קובץ:** `hera/measurements/GIS/vector/topography.py:100,114`
+
+הפרמטר `solidName="Topography"` מוגדר בחתימה, אבל השורה המחזירה כותבת `solidName="Topography"` כליטרל. `geoPandasToSTL(c, solidName="MyHill")` מייצר `solid Topography`. אומת בקוד.
+
+### B229. `toDEM` — `getDatasourceData` בשגיאת כתיב
+**קובץ:** `hera/measurements/GIS/vector/topography.py:180`
+
+המתודה האמיתית היא `getDataSourceData` (S גדולה). `toDEM("CONTOURS")` → `AttributeError`, וזה גם הופך את נתיב ה-fallback של geoJSON-string לקוד מת. אומת בקוד.
+
+### B230. `toDEM` — אינדקסים מוחלפים בין הרשת לגובה
+**קובץ:** `hera/measurements/GIS/vector/topography.py:213-215`
+
+`Nx=grid_x.shape[0]`, `Ny=shape[1]`, ואז `height[j, i]` כאשר `i∈Nx` ו-`j∈Ny` — המנויים הפוכים. קווי גובה של 800 מ' × 400 מ' ב-`dxdy=200` נותנים `IndexError`; רשתות מרובעות פשוט משתטחות בטרנספוזיציה בשקט.
+
+### B231. `analysis.addHeight` — מייבא את המודול ומצפה למחלקה
+**קובץ:** `hera/measurements/GIS/vector/topography.py:14,262`
+
+`from hera.simulations.utils import coordinateHandler` קושר את **המודול** (כי `hera/simulations/utils/__init__.py` ריק), בעוד שהמחלקה נמצאת בתוכו. כל קריאה → `AttributeError: module ... has no attribute 'regularizeTimeSteps'`. אומת בקוד.
+
+### B232. `analysis.addHeight` — `toolkit` נדרס, ולכן **כל** מצב שמירה נכשל
+**קובץ:** `hera/measurements/GIS/vector/topography.py:13,282`
+
+שורה 13 עושה `from hera.measurements.GIS.vector import toolkit`, כלומר השם `toolkit` מצביע על מודול ה-toolkit הווקטורי — ואז שורה 282 קוראת `toolkit.TOOLKIT_SAVEMODE_FILEANDDB`. רשימת המצבים נבנית **לפני** בדיקת החברות, כך שגם `NOSAVE` נכשל; `addHeight` לא יכול להחזיר בשום מצב. אומת בקוד. (מקובע בבדיקה מפורמטרת על חמשת מצבי השמירה.)
+
+### B233. `demography.createNewArea` — אותה דריסת `toolkit`, אחרי שהקובץ כבר נכתב
+**קובץ:** `hera/measurements/GIS/vector/demography.py:9-10,305`
+
+`saveMode=FILEANDDB` → `AttributeError: ... no attribute 'TOOLKIT_DATASOURCE_NAME'`, **אחרי** שהקובץ נכתב לדיסק — כלומר נשאר קובץ יתום בלי מסמך.
+
+### B234. `createNewArea` — `FILEANDDB_REPLACE` לא נוגע ב-DB בכלל
+**קובץ:** `hera/measurements/GIS/vector/demography.py:303`
+
+ענף ה-DB מוגן ב-`== TOOLKIT_SAVEMODE_FILEANDDB` בלבד, כך ש-`FILEANDDB_REPLACE` כותב את הקובץ ולא מעדכן מסמך — בניגוד לדוקסטרינג שלו.
+
+### B235. `createNewArea` — `ONLYFILE` מתעד שגיאה על קובץ קיים ולא בודק כלום
+**קובץ:** `hera/measurements/GIS/vector/demography.py:298-301`
+
+הדוקסטרינג אומר "raise exception if file exists", אבל אין שום `os.path.exists`, כך שהוא דורס בשקט ואי אפשר להבדיל אותו מ-`ONLYFILE_REPLACE`.
+
+### B236. `getBuildingHeightFromRasterTopographyToolkit` — מקבל `topographyDataSource` ולא מעביר אותו
+**קובץ:** `hera/measurements/GIS/vector/buildings/toolkit.py:47-65`
+
+הפרמטר מתועד ומקובל, אבל לא מועבר ל-`getPointListElevation`. עם שני ראסטרים רשומים, בקשה למי-שאינו-ברירת-המחדל מחזירה את ערכי ברירת המחדל, ושם שלא קיים מתקבל בשקט.
+
+### B237. `buildingsGeopandasToSTLRasterTopography` — בניינים בשטח שטוח יוצאים גבוהים מדי
+**קובץ:** `hera/measurements/GIS/vector/buildings/toolkit.py:129,150`
+
+`LengthFwd = wallsheight + nonFlatTopographyShift` מחושב ללא תנאי, אבל ענף `flatTerrain` ממקם את המסגרת ב-`referenceTopography` **בלי** להנמיך אותה בהיסט — כך שבניין של 10 מ' עם `nonFlatTopographyShift=10` יוצא עם גג ב-20 מ'.
+
+### B238. ייבוא FreeCAD בבלוק אחד — השומר של המודול נעקף
+**קובץ:** `hera/measurements/GIS/vector/buildings/toolkit.py:8-13`
+
+`try: import FreeCAD; import Part; import Mesh` בבלוק אחד: התקנה חלקית משאירה את `FreeCAD` קשור אבל לא את `Part`/`Mesh`, כך שההודעה שהקוד עצמו כתב ("FreeCAD not found. Install before using…") נעקפת והמתודה מתה מאוחר יותר על `NameError: name 'Part' is not defined`.
+
+### B239. `stlFactory.rasterizePandas` — צירי הקואורדינטות וגריד הגבהים בגדלים שונים
+**קובץ:** `hera/measurements/GIS/utils.py:414-417`
+
+הצירים באים מ-`numpy.mgrid[xmin:xmax:dxdy]` (מספר נקודות מעוגל **למעלה**) בעוד שגריד הגבהים נבנה לפי `Nx=int((xmax-xmin)/dxdy)` (**נקטע**). מרווח של 100 מ' ב-`dxdy=30` נותן `x.shape==(4,4)` מול `height.shape==(3,3)`, ואז `rasterToSTL` פולט בשקט גוף קטן מדי (אין אף קודקוד מעבר ל-x=60 למרות שהציר מגיע ל-90).
+
+### B240. `rasterizePandas` — גם כשהגדלים מסתדרים, הקואורדינטות שגויות
+**קובץ:** `hera/measurements/GIS/utils.py:414-417`
+
+`mgrid` עם **צעד** מחריג את נקודת הקצה, בעוד ש-`regularizeTimeSteps` מבצע אינטרפולציה על `mgrid[...:complex(n)]` שכן **כולל** אותה. גובה שנדגם ב-x=100 מתויג כ-x=50 — שגיאה של `dxdy` שלם בכל תא מלבד הראשון.
+
+### B241. `topographyAnalysis.calculateStastics` — שמות משתנים לא תואמים למפיק היחיד שלהם
+**קובץ:** `hera/measurements/GIS/raster/topography.py:561-573`
+
+קורא `['X']`/`['Y']`/`['Elevation']`, אבל `getElevation` — המפיק היחיד של גבהים ב-toolkit — מחזיר `lat`/`lon` ו-coord בשם `elevation`. הזנה של האחד לשני נותנת `KeyError: 'X'`. שינוי שם שלושת המשתנים גורם לאותו dataset לעבוד, כלומר הפגם הוא בדיוק בגבול השמות. גם הדוגמה בדוקסטרינג בלתי שמישה: היא קוראת ל-`tk.getDomainElevation()` שלא קיים בשום מקום.
+
+### B242. `LambdaFromBuildingData` — ה-cache הוא write-only בגלל `numpy.ndarray` במתאר
+**קובץ:** `hera/measurements/GIS/vector/buildings/analysis.py:139-147`
+
+מתאר ה-cache נושא `"bounds": data.total_bounds`, שהוא `numpy.ndarray`. הכתיבה מצליחה, אבל ה**חיפוש** משווה את המערך בהקשר בוליאני → `ValueError: The truth value of an array with more than one element is ambiguous`. הקריאה הראשונה (אוסף ריק) עובדת, ומאז **כל** קריאה עם `saveCache=True` נכשלת — כולל `overwrite=True`, כי החיפוש קודם לבדיקת הדריסה. גם ענף "החזר נתונים שנמצאו" וגם ענף "עדכן רשומה ישנה", וגם עצת ה-`FileNotFoundError` שבדוקסטרינג — כולם קוד מת. אותו מפתח עם `bounds` כרשימה רגילה נשאל בלי בעיה.
+
+## אצווה 32 — זנב הפיזיקה/utils (B243-B258)
+
+מקובע ב-`test_simulations_nearwallflow_more.py`, `test_evaporation_models_more.py`, `test_simulations_canopywindprofile.py`, `test_wrf_datalayer.py`, `test_deposition_models_more.py`, `test_windprofile_toolkit_more.py`, `test_utils_freecad.py`.
+
+### B243. `nearWallFlow.Cplus` — הענף הגס-לחלוטין מחזיר קבוע של חוק אחר
+**קובץ:** `hera/simulations/hydrodynamics/nearWallFlow.py`
+
+הענף מחזיר `8` חשוף — קבוע Nikuradse של חוק `ln(y/k)` — במקום `8 − ln(k⁺)/κ`, כשהחוק כאן נמצא ביחידות צמיגות. C⁺ מקפץ מ-‎−2.47 ל-‎+8 סביב k⁺=70, כך ש-`channelFlow(Ra=2e-3).get_Ucenter_from_Ustar(0.3)` נותן 9.93 מ'/ש' לעומת 9.03 מ'/ש' בקיר חלק — כלומר **חספוס הקיר מוסיף תנע**.
+
+**חשוב — יש כאן חוסר הסכמה בתוך מערך הבדיקות עצמו:** בדיקה קיימת, `test_simulations_nearwallflow.py::test_the_fully_rough_limit_is_eight`, מתעדת את הרמה הזו כהתנהגות **מכוונת**. שתי הבדיקות עוברות יחד (הישנה כאפיון, החדשה כ-xfail), אבל צריך הכרעה אנושית מי מהן צודקת. אני מציג את שתי הטענות ולא מכריע.
+
+### B244. `canopyWindProfile.calcU` — גובה החופה עצמו נופל לענף השגוי
+**קובץ:** `hera/simulations/utils/canopyWindProfile.py`
+
+`if z < hc` ו-`elif z > hc` שניהם ממשיים, כך ש-`z == hc` נופל ל-`else` — שדורס את z ב-2000 מ'. בגובה החופה מתקבל 11.10 מ'/ש' במקום 2.44 מ'/ש' ששני הענפים בנויים לתת (פי 4.55), ערך זהה לזה של z=3000 מ'.
+
+### B245. `urbanLogExponentProfile` — כתיבת האינטרפולציה היא chained assignment
+**קובץ:** `hera/simulations/utils/canopyWindProfile.py`
+
+`data['Ux'].iloc[i] = …` — כבר עכשיו מפיק `FutureWarning: ChainedAssignmentError`, ותחת `mode.copy_on_write` (ברירת המחדל בפנדס 3) 60 מתוך 80 תאים נשארים NaN: השלב כולו הופך ל-no-op שקט.
+
+### B246. `wrfDatalayer.find_i` — `UnboundLocalError` על רוב תחום WRF
+**קובץ:** `hera/simulations/WRF/wrfDatalayer.py`
+
+`delta`/`request_delta` נקשרים רק בענף המתאים אבל מוחזרים ללא תנאי, כך שבקשה שנופלת ברווח שבין שתי עמודות מוטות (כלומר רוב תחום WRF אמיתי) מעלה `UnboundLocalError`.
+
+### B247. `wrfDatalayer.find_i` — `isel(dim=i+1)` בלי בדיקת גבול
+השורה/עמודה האחרונה של **כל** תחום אינה ניתנת לכתובת: בקשה בעמודה האחרונה מעלה `IndexError: index 4 is out of bounds`.
+
+### B248. `wrfDatalayer` — `import geopandas` מסומן כהערה אבל geopandas בשימוש
+**קובץ:** `hera/simulations/WRF/wrfDatalayer.py:8` מול `:84,94,150`
+
+שורה 8 היא `#import geopandas`, ו-`getPandas` משתמש בו בשלושה מקומות → `NameError: name 'geopandas' is not defined`. גם ה-GeoDataFrame המסיים מת, כך שהפונקציה לא יכולה להחזיר כלום. אומת בקוד.
+
+### B249. `wrfDatalayer` — כשל `import wrf` מודפס בלבד
+ה-`ImportError` רק עושה `print`, ואז `getPandas` מת באמצע על `NameError: name 'wrf' is not defined` — בלי לרמז על התלות החסרה. (`python-wrf` גם אינו ב-`requirements.txt`.)
+
+### B250. `getSpatialWind` — מעביר רזולוציה למקום של כיוון רוח
+**קובץ:** `hera/simulations/windProfile/toolkit.py`
+
+קורא `getRoughnessFromLandcover(xarray, dxdy)`, אבל הפרמטר השני שם הוא `windMeteorologicalDirection`. מרווח הרשת נצרך ככיוון רוח (30°) ו-`resolution` נשאר `None`.
+
+### B251. `_getWindSpeedDirection` — `max()` על רשימה ריקה
+`max(datetime_objects)` על רשימה שמתמלאת רק עבור תחנות שימושיות → `ValueError: max() iterable argument is empty` כשכל התחנות מנותקות או מחוץ לטווח.
+
+### B252. `_getWindSpeedDirection` — `ws`/`wd` נקשרים רק בתוך לולאת הערוצים
+תחנה עם גשם בלבד מעלה `UnboundLocalError`; וכשחסר ערוץ אחד בלבד, הערך של **התחנה הקודמת** נעשה בו שימוש בשקט.
+
+### B253. `freeCAD.getObjFileBoundaries` — כשל ייבוא שמתדרדר ל-`NameError`
+**קובץ:** `hera/utils/freeCAD.py`
+
+כשל הייבוא מומתן ל-`warnings.warn` והשמות נשארים לא מוגנים → `NameError: name 'Mesh' is not defined`, שלא מזכיר לא את FreeCAD ולא את הפתרון. (ה-conftest מסטב את FreeCAD אבל לא את `Mesh`, וזה בדיוק המצב של התקנה חלקית.)
+
+### B254. `depositionModels.__init__` — `[0]` על תוצאת חיפוש לא מסוננת
+`p.getCacheDocuments(type="surface", surface=surface)[0]` בלי בדיקה → שם משטח שלא נרשם מעלה `IndexError: list index out of range` במקום הודעה מובנת.
+
+### B255. `depositionRate_Petroff` — המרת יחידות כפולה של קוטר החלקיק
+`dpm = 0.000001*dp` ממיר שוב קוטר שהבנאי כבר שם במטרים (כל הקבועים השכנים הם SI), כך שחלקיק של 1 מיקרון מדומה כ-1 **פיקומטר**: `vds/u*` יוצא `8.5e4` עבור גודל שהוא **יעילות** שיקוע (≤ 1, בסדר גודל 1e-5 מצופה).
+
+### B256. `evaporationModels.agent` setter — קורא מתודת מופע על המחלקה
+`RiskToolkit.getAgent(newAgent)` על המחלקה → `TypeError: missing 1 required positional argument: 'nameOrDesc'`; אי אפשר להחליף agent אחרי הבנייה. בנוסף: ה-getter של `agent` מוגדר **פעמיים** והראשון מת.
+
+### B257. `depositionRate_Petroff` — קבוע בולצמן עם ספרות מוחלפות
+**קובץ:** `hera/simulations/deposition/models.py:100`
+
+```python
+kb = 1.83E-23     # הנכון: 1.380649e-23
+```
+
+הספרות הוחלפו (1.83 מול 1.38), כך שהדיפוזיביות הבראונית גדולה ב-**32.6%** בכל מקום שבו מודל Petroff רץ. אומת בקוד.
+
+### B258. `_getWindSpeedDirection` — לולאת הניסיונות מאמתת אחרי ההשמה
+`data` מוקצה לפני המנוי שמאמת אותו, כך שמטען שגיאה שורד 20 ניסיונות, עובר את `if data:`, ומפוענח מחוץ ל-`try` → `KeyError: 'data'` על טוקן IMS שנדחה.
+
+## אצווה 32 — `ToolkitHome`, datahandler, וזנב ה-risk (B259-B266)
+
+### B259. `ToolkitHome.auto_register_and_get` — קורא ל-`registerToolkit` בחתימה שגויה
+**קובץ:** `hera/toolkit.py`
+
+קורא `registerToolkit(toolkitclass=…, datasource_name=…, repositoryName=…)`, בעוד שהחתימה היא `(toolkit_name, toolkit_path, params, version, overwrite, **kwargs)` → `TypeError: registerToolkit() missing 2 required positional arguments`. המתודה לא יכולה להחזיר בשום מצב. (זהו אחד מהיעדים שכמה אצוות דחו כ"לוגיקת רג'יסטרי מורכבת" — מסתבר שהוא פשוט מת.)
+
+### B260. `ToolkitHome.import_toolkits_from_json` — אותו חוסר-התאמה בחתימה
+אי אפשר לרשום שום toolkit מ-JSON; אותו `TypeError` בדיוק.
+
+### B261. `AbstractCollection.addDocumentFromJSON` — no-op שקט לכל JSON שנושא `_id`
+**קובץ:** `hera/datalayer/collection.py`
+
+`mongoengine.Document.from_json` מוגדר `(json_data, created=False, **kwargs)`, ולפי הדוקסטרינג של mongoengine עצמו `created=False` אומר "אם יש id, הנח שכבר נשמר". ה-`.save()` שאחריו מנפיק update עם change set ריק — שום דבר לא נכתב, שום דבר לא נכשל, אין שגיאה. מכיוון ש-`asDict(with_id=True)`, `to_json()` ו-`Project.exportProject` **כולם** פולטים `_id`, ייבוא חוזר של מסמכים שיוצאו מפיל את כולם בשקט. התיקון: `from_json(json_data, created=True)`. אומת: `inspect.signature(mongoengine.Document.from_json)` → `(json_data, created=False, **kwargs)`.
+
+**זה גם סוגר שאלה פתוחה:** הדוקסטרינג של `test_datalayer_project_export.py` תלה את זה ב"התנהגות לא עקבית של mongomock". זו לא mongomock — זו התנהגות מתועדת של mongoengine. ההערה שם עודכנה בהתאם.
+
+### B262. `DataHandler_zarr_xarray.getData` — קורא `.attrs` מהנתיב במקום מה-dataset
+**קובץ:** `hera/datalayer/datahandler.py`
+
+`resource.attrs = JSONToConfiguration(resource.attrs)` כאשר `resource` הוא מחרוזת הנתיב ולא ה-dataset שנטען → `AttributeError: 'str' object has no attribute 'attrs'`. צריך להיות `df.attrs`, כמו ב-`DataHandler_netcdf_xarray.getData`. הקורא של zarr לא יכול להחזיר כלום.
+
+### B263. `riskAreaAlgorithm_Sweep` — לא יכול לרוץ בכלל
+**קובץ:** `hera/riskassessment/analysis/riskAreas.py`
+
+`_doCalculation` קורא `effectIsopleths.datalayer(demog, releaseLoc, mathematical_angle=…)`, אבל ל-`thresholdGeoDataFrame` אין `datalayer` — המתודה עם בדיוק החתימה הזו נקראת `project`. כל נקודת שחרור מעלה `AttributeError`, ולכן `calculate()` לעולם לא מסתיים ו**האלגוריתם היחיד שמומש לאזורי סיכון בלתי שמיש**.
+
+### B264. `InjuryLevel.__str__` — בלי `return`
+**קובץ:** `hera/riskassessment/agents/effects/InjuryLevel.py:172`
+
+`json.dumps(self.toJSON(),indent=4)` והתוצאה נזרקת → `TypeError: __str__ returned non-string`. מתודה נפרדת מ-B122 (`Injury.__str__`), ואף תת-מחלקה לא דורסת אותה, כך שכל ארבע מחלקות הרמות בלתי-ניתנות להדפסה. אומת בקוד.
+
+### B265. `plotCasualtiesProjection` — שתי דרגות חומרה ומעלה לא מציירות כלום
+**קובץ:** `hera/riskassessment/presentation/casualtiesFigs.py`
+
+`query("severity in %s" % numpy.atleast_1d(plumSeverity))` מייצר `"severity in ['Severe' 'Light']"` — ה-`str()` של numpy משמיט פסיקים, ואיחוי מחרוזות צמודות של פייתון מקפל את זה ל-`['SevereLight']`, שלא תואם כלום. דרגה אחת עובדת במקרה. התיקון: להשתמש ב-`list(...)` או במשתני `@`.
+
+### B266. `_findBoundingBox` — נשבר בדיוק במקרה של פגיעה בדרגה אחת
+**קובץ:** `hera/riskassessment/analysis/riskAreas.py`
+
+`set_index("datetime").loc[maxdatetime]` מחזיר **Series** כשרק שורה אחת נושאת את חותמת הזמן האחרונה, והשורה הבאה קוראת `.set_geometry` עליו → `AttributeError: 'Series' object has no attribute 'set_geometry'`. שורה אחת לצעד הזמן האחרון היא המצב **הרגיל** לפגיעה חד-רמתית. התיקון: `.loc[[maxdatetime]]`.
+
+## אצווה 32 — LSM ו-gaussian (B267-B286)
+
+### B267. `_LoggingShim.get_logger` — שובר בדיוק את מה שהוא נועד לשמר
+**קובץ:** `hera/simulations/LSM/CLI.py` · ה-shim מעביר ל-`get_logger(instance, name=None)` של hera, שמתייחס לארגומנט הראשון כ-**מופע**. אומת: `CLI.logging.get_logger("hera.bin.hera_lsm.load_template").name` → `"builtins.str"`. ה-shim קיים כדי שקריאות לפי שם ימשיכו לעבוד — והוא שובר בדיוק אותן.
+
+### B268. `setup_template` — השומר "symlink קיים ומצביע למקום אחר" הוא קוד מת
+`os.unlink(dst)` רץ קודם באותה פונקציה. אומת: symlink קיים לתיקיית קוד אחרת מופנה מחדש בשקט, בלי חריגה.
+
+### B269. `setup_template` — גם השומר "קיים ואינו symlink" מת מאותה סיבה
+המקרה היחיד ש-`os.unlink` לא מסתדר איתו הוא תיקייה, ואז מתקבל `IsADirectoryError` חשוף במקום ההודעה המאובחנת.
+
+### B270. `setup_template` — התקנה ראשונה נקייה מדווחת שתי שגיאות
+הרצה ראשונה מדפיסה שני `logger.error("file … not found")` על היעדר צפוי לחלוטין של הקישורים שהיא עצמה עומדת ליצור.
+
+### B271. `_toNetcdf` — ממיר דוסאז' בכיוון ההפוך מהמתועד
+**קובץ:** `hera/simulations/LSM/template.py` · הדוקסטרינג אומר "dosage are converted to s/m³ instead of min/m³", אבל הקוד מכפיל ב-`(1*ureg.s/ureg.m**3).m_as(ureg.minute/ureg.m**3)` = 1/60 — כלומר פקטור s→min. אומת: שורת OUTD עם Dosage 6.0 חוזרת כ-0.1.
+
+### B272. `_getSimulationsList` — מכפלה קרטזית במקום זיווג
+**קובץ:** `hera/simulations/LSM/template.py`
+
+`product(desc_df_list, params_df_list)` במקום לזווג. אומת: שתי סימולציות → 4 פריימים, כלומר ה-id/שם של הרצה אחת מוצמד לפרמטרים של אחרת. `getSimulationsTable` יורש את זה (4 שורות, כל id פעמיים), ו-`LSMToolkit.getSimulationsList` ו-`getTemplatesTable` משחזרים את אותה בנייה.
+
+### B273. `run(topography=..., stations=None)` — `AttributeError` על `stations.columns`
+התנאי הוא `if (topography is not None or stations is not None)` ואז נקרא `stations.columns` → קורס כשרק טופוגרפיה הועברה.
+
+### B274. `run` — `os.chdir(saveDir)` בלי `try/finally`
+כל כשל אחרי השורה הזו משאיר את **כל המפרש** בתוך תיקיית הסימולציה.
+
+### B275. `run(stations=...)` — `KeyError: 'station'` בנתיב המתועד
+מחשב `stations["station"] = x+y`, ואז בונה מחדש את הפריים מ-xarray ממודגם שמפיל את העמודה, ומצרף בחזרה `onlyStations` שנבנה **לפני** שהעמודה נוצרה → `KeyError` בשורה הבאה. עובד רק אם הקורא במקרה סיפק עמודת `station`, מה שלא מתועד בשום מקום.
+
+### B276. אותו נתיב — צירוף many-to-many שמשכפל כל רשומה
+`onlyStations` לא עובר דה-דופליקציה והצירוף על `(x,y)` הוא many-to-many, כך שכל רשומה ממודגמת נכתבת פעם אחת לכל תצפית מקורית. אומת: 3 דגימות של עשר דקות → 5 צעדים מאונטרפולטים שנכתבים ×3 = 15 רשומות; הפותר קורא סדרה מגומגמת.
+
+### B277. `getSimulations` — `_document` בלי בדיקת None
+**קובץ:** `hera/simulations/LSM/toolkit.py` · `getTemplateByName(unitsTemplateVersion)._document` → `AttributeError: 'NoneType' object has no attribute '_document'` בכל פרויקט שאין בו תבנית בשם `"v4-general"` (ברירת המחדל).
+
+### B278. `getSimulations` — `except:` עירום שמפיל מסמכים בשקט
+עוטף `SingleSimulation(doc)` ב-`except:` שמדפיס אזהרה ומשמיט את המסמך: הקוראים מקבלים רשימה קצרה בשקט, האבחון עובר ליד ה-logger, וגם `KeyboardInterrupt`/`SystemExit` נתפסים.
+
+### B279. `getSimulationsList(wideFormat=True)` — מדווח "לא נמצא" על פרויקט עם שתיים
+הכפילויות מ-B272 גורמות ל-`pivot` לזרוק `ValueError("Index contains duplicate entries")`, וה-`except ValueError` (שנועד לדווח על ריקנות) הופך את זה ל-`FileNotFoundError("No simulations.old found")`.
+
+### B280. `prepareSlurmLSMExecution` — נקודת הכניסה ל-Slurm בלתי שמישה לחלוטין
+**קובץ:** `hera/simulations/LSM/toolkit.py:366` מול `template.py:330`
+
+```python
+LSMTemplate.prepareParams(desc=None, paramsToPrepare=jsonConfig)   # החתימה: (template_desc, paramsToPrepare)
+```
+
+כל קריאה → `TypeError: prepareParams() got an unexpected keyword argument 'desc'`, **אחרי** שתיקיית הסקריפטים ו-`stations.parquet` כבר נכתבו. אומת בקוד.
+
+### B281. `prepareSlurmLSMExecution` — `logger.error` בלי `return`, ×2
+גם ל-`baseParameters` שאינו dict וגם ל-`jsonVariations` בלתי שמיש. אומת: `baseParameters="notADictionary"` → `ValueError: dictionary update sequence element #0 has length 1; 2 is required` מתוך `JSONVariations`. מקרה ה-dict גרוע יותר: ההודעה אומרת "path or dict" בעוד שבדיקת ה-`isinstance` דוחה dict.
+
+### B282. `Continuous.calc` — הקרנל בצורה שגויה, לא יכול להחזיר
+**קובץ:** `hera/simulations/gaussian/gasCloud.py`
+
+בונה קרנל `(kernelsize, nx, ny, nz)`, אבל `rolling(...).reduce()` של xarray מעביר ל-reducer צורה `(nt, nx, ny, nz, kernelsize)` עם `axis=-1`; `_convolve` מאנדקס את הקרנל על ציר 0 לפי `data.shape[0]` (מספר צעדי הזמן) ומחתך 3 מתוך 4 מימדים. אומת: `Continuous(dt=1*ureg.min, kernelsize=3).calc(ones((5,2,2,2)))` → `ValueError: operands could not be broadcast together with shapes (5,2,2,2,3) (2,2,2,2)`.
+
+### B283. `CirclePositionClippedDropletsCloud` — הרוחב הצידי נלקח מ-`position[0]`
+**קובץ:** `hera/simulations/gaussian/DropletCloud.py`
+
+המיקומים נבנים כ-`(position[0]+r·cos, position[0]+r·sin, position[2])`. אומת: `position=(100 m, 250 m, 10 m)` שם את הטבעת סביב (100, 100) — כ-150 מ' מהמרכז המבוקש. `LinePositionDropletsCloud` עושה את זה נכון.
+
+### B284. אותה מחלקה — ענף `radius is None` מת
+`tounit(radius, ureg.m)` בשורה שמעליו זורק `TypeError: Invalid magnitude for Quantity: None`.
+
+### B285. אותה מחלקה — `linspace` עם שני הקצוות, ולכן 0° מקבל מנה כפולה
+הזוויות הן `numpy.linspace(0, 2*pi, circlepositions)` כולל קצוות, כך ש-0 ו-2π מתלכדים: n מיקומים תופסים n−1 מקומות, זה של 0° מקבל מנה כפולה, והמרווח הוא 2π/(n−1). צריך `endpoint=False`.
+
+### B286. `hera-LSM` — ה-CLI לא יכול לשגר שום תת-פקודה
+**קובץ:** `hera/bin/hera-LSM:41`
+
+```python
+parsed = parser.parse_args()()
+```
+
+הסוגריים הכפולים **קוראים** ל-`Namespace` שהוחזר → `TypeError: 'Namespace' object is not callable`. אומת בקוד. לא מקובע בבדיקה כי הקובץ הוא סקריפט בלי סיומת שאינו ניתן לייבוא (אותה מגבלה כמו B182).
+
+## אצווה 32 — meteorology (B296-B308) ו-side effect גלובלי (B309)
+
+מקובע ב-`test_meteorology_turbulencestatistics_more.py`, `test_meteorology_highfreq_analysislayer.py`, `test_meteorology_lowfreq_analysis_more.py`, `test_meteorology_lowfreq_presentation_more.py`.
+
+### B296. `Plots._scatterdict` — `size=` במקום `s=` ל-seaborn
+**קובץ:** `hera/measurements/meteorology/lowfreqdata/presentationLayer.py:111` · `size` הוא שם של **משתנה סמנטי** ב-seaborn, לא שטח הסמן (`s`). הסמנים מצוירים בברירת המחדל 18, והמפתח `size` התקוע גם מסתיר `s` מפורש של הקורא. אומת: `get_sizes()` → `[18.0, …]`.
+
+### B297. `dateLinePlot` — דורס את תווית ה-y שהוגדרה
+מחיל את `set_ylabel` מ-`_plotfieldaxfuncdict` ואז דורס ללא תנאי בשם העמודה החשוף: `WS` הוא `'Wind Speed [m/s]'` בגרף פיזור/קונטור אבל `'WS'` בגרף קו. גם `set_ylabel` של הקורא נזרק כך.
+
+### B298. `_labelsdict['levels']` — מוקפא מברירת המחדל ולא נבנה מחדש
+כל `contour_values` שהקורא מספק גורם ל-`ax.clabel` לזרוק `ValueError: Specified levels … don't match available levels`. `withLabels` ברירת המחדל `True`, כך ש-`plotProbContourf(df,"WS",contour_values=…)` נכשל מיד.
+
+### B299. `plotProbContourf` — ה-clamp של "רמות עולות" לא מוחל על תוויות
+בענף `y_normalized` ה-clamp מוחל על רמות הקונטור אבל לא על רמות ה-clabel (שנבנות מחדש מ-`M_hist.max()` הלא-מוגבל). היסטוגרמה שהמקסימום שלה נופל מתחת ל-`under_value` נותנת רמות תוויות **יורדות** → `clabel` זורק.
+
+### B300. `plotProbContourf_bySeason` — ה-`ax` המתועד בלתי שמיש
+מאנדקס `ax.shape`/`ax[i,j]` (צריך מערך 2×2) ומזין את אותו אובייקט ל-`plt.sca` (צריך Axes בודד). מערך → `AttributeError: 'numpy.ndarray' object has no attribute 'figure'`; Axes בודד → `AttributeError` על `.shape`.
+
+### B301. `singlePointTurbulenceStatistics`/`AveragingCalculator` — `inmemory` מתועד ולא נקרא
+לא מגיע לא למזהה ולא למחשבן, כך ש-`inmemory=True` ו-`False` מייצרים מטא-דאטה זהה.
+
+### B302. `AveragingCalculator` — `isMissingData` חסר מהמזהה
+בניגוד ל"אח" שלו, הוא לא נכנס למזהה — כך שהרצה עם חורים בנתונים בלתי-נבדלת מהרצה שלמה, והן **מתנגשות** בשאילתת ה-Cache ש-`AbstractCalculator` בונה מאותו מטא-דאטה.
+
+### B303. `StrucFun` — `raise` על מחרוזת
+**קובץ:** `hera/measurements/meteorology/highfreqdata/analysis/turbulencestatistics.py:1260`
+
+```python
+raise("mode must be either MeanDir or 3dMeanDir")
+```
+
+הקורא מקבל `TypeError: exceptions must derive from BaseException`; ההודעה האבחנתית לא מגיעה אליו לעולם. אומת בקוד.
+
+### B304. `StrucFun`/`ThirdStrucFun` — השומר בודק שם שלא נוצר
+השומר הוא `if "u_mag" not in self.TemporaryData.columns` אבל הכתיבה/הרישום הם ל-`"u_mag" + title_additions`. עם `title_additions="X"` השומר בודק שם שלא קיים, וכל קריאה חוזרת מוסיפה עוד `["u_magX", {}]` ל-`_CalculatedParams` (2 רשומות, עמודה אחת), ו-`_compute` מקרין לפי הרשימה הזו.
+
+### B305. משפחת פונקציות המבנה — dask בלבד, למרות שמתועד pandas או dask
+`StrucFunDir` → `AttributeError: repartition`; שדה המיצוע של `StrucFun` → `AttributeError: compute`.
+
+### B306. `SinglePointStatisticsSpark.fluctuations` — לא קובע `self.data`
+הבסיס כן קובע. לכן `getData()` מחזיר `None` גם אחרי שהכול חושב — מה שהדוקסטרינג של המתודה עצמה מגדיר כ"לא בוצעו חישובים".
+
+### B307. אותו override — `wind_dir_bar` נכתב ולא נרשם
+נכנס ל-`_TemporaryData` אבל לא ל-`_CalculatedParams`, כך ש-`compute()` מפיל בשקט את כיוון הרוח הממוצע (`_param_names == ['u_bar','v_bar','w_bar','T_bar']`). המימוש בבסיס כן רושם אותו.
+
+### B308. `InMemoryRawData.to_hdf` — נתיב בלי סיומת נכתב ל-CWD
+שני הנתיבים נגזרים מ-`path_or_buf.rpartition('.')[0]`, שהוא ריק לנתיב בלי סיומת: כתיבה ל-`<dir>/rawdata` שמה את ה-`.hdf` ואת ה-`.json` ב**תיקיית העבודה** ולא ב-`<dir>`.
+
+### B309. `presentation/basicplots.py` — `seaborn.set()` בזמן ייבוא משנה צבעים גלובלית
+**קובץ:** `hera/presentation/basicplots.py:4`
+
+```python
+import seaborn as sns; sns.set()
+```
+
+הקריאה מתבצעת ב**זמן ייבוא המודול**, ו-`seaborn.set()` מחדש את קיצורי הצבע החד-אותיים של matplotlib ברמת התהליך. אומת ניסויית: אותה קריאה בדיוק ל-`ax.scatter(..., c="r")` ב-`experiment/presentation.py` מחזירה `(1.0, 0.0, 0.0, 1.0)` כשהמודול לא יובא, ו-`(0.769, 0.306, 0.322, 1.0)` אחרי שיובא. כלומר **ייבוא של מודול hera אחד משנה את מה ש"אדום" אומר בכל שאר האפליקציה** — כולל בקוד שלא יודע ש-seaborn קיים. זה גם מה שגרם לבדיקה שעברה בבידוד להיכשל בהרצה מלאה; הבדיקה תוקנה להשוות מול הצבע ש-matplotlib מפענח בפועל (`to_rgba("r")`) במקום מול RGBA ספרותי. הכשל הזה אינו רק אסתטי: הוא הופך פלט גרפי לתלוי בסדר הייבוא.
