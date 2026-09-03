@@ -20,6 +20,7 @@ hera/tests/env.template
 node_modules/
 projects/
 mongo-db-datadir/
+ollama-data/
 ui/client/data/
 notebooks/
 .vscode/

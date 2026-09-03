@@ -1,6 +1,7 @@
 # Hera full stack.
-#   docker compose up               -> mongo + server
-#   docker compose --profile work up -> mongo + server + client (Vite dev)
+#   docker compose up                        -> mongo + server
+#   docker compose --profile work up         -> + client (Vite dev)
+#   docker compose --profile work --profile ai up -> + ollama (internal)
 #
 # The server finds Mongo via ~/.pyhera/config.json. We inject our own config
 # (see the "configs" block below) so dbIP points at the "mongo" service name
@@ -55,6 +56,9 @@ services:
     environment:
       # Hermes is a submodule with no setup.py, so add it to the path.
       PYTHONPATH: /app:/app/hera/bin:/app/Hermes
+      # jupyter-ai/langchain use this to reach the ollama service (started with
+      # --profile ai). When ollama is not up, the name fails fast (100ms).
+      OLLAMA_HOST: http://ollama:11434
     # Bound to 127.0.0.1 so only this computer can reach them, not the LAN.
     ports:
       - "127.0.0.1:8000:8000"   # API
@@ -76,3 +80,16 @@ services:
     command: npm run dev -- --host
     ports:
       - "127.0.0.1:5173:5173"
+
+  ollama:
+    # Only starts with: docker compose --profile ai up
+    # No ports: reachable only by the server over the internal network.
+    profiles: ["ai"]
+    image: ollama/ollama
+    volumes:
+      - ./ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
