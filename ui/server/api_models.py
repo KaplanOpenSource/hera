@@ -1,6 +1,6 @@
 """Request/response models for the Hera UI API endpoints."""
 
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 from pydantic import BaseModel
 
@@ -29,9 +29,19 @@ class RunWorkflowPayload(BaseModel):
     workflowName: str
 
 
+class WorkflowChunk(BaseModel):
+    # One output segment: a task's name (or "__preamble__" / "__between__") and the
+    # console output captured while that segment was current.
+    name: str
+    text: str
+
+
 class RunWorkflowResponse(BaseModel):
     # start returns token (or status "busy"); poll returns status + output/error.
     token: Optional[str] = None
     status: Optional[str] = None
     output: str = ""
     error: str = ""
+    # Per-task output segments, in run order. Filled in only once the run is done
+    # (in-process path only); None while running or on the subprocess path.
+    chunks: Optional[List[WorkflowChunk]] = None

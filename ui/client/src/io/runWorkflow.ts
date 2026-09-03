@@ -7,12 +7,21 @@ export type StartWorkflowResult = {
   status?: string,
 };
 
+// One output segment: the task name (or "__preamble__" / "__between__") and the
+// console output captured while that segment was the running one.
+export type WorkflowChunk = {
+  name: string,
+  text: string,
+};
+
 // Reply from polling a run. status is one of running / done / error / not_found.
-// output and error are filled in once the run is done / failed.
+// output and error are filled in once the run is done / failed. chunks holds the
+// per-task segments, present only once the run is done (in-process runs).
 export type PollWorkflowResult = {
   status: string,
   output: string,
   error: string,
+  chunks?: WorkflowChunk[] | null,
 };
 
 // Starts a saved workflow run on the server. Returns a token to poll with, or a

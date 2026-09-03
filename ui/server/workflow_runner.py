@@ -49,6 +49,7 @@ class WorkflowRunner:
         self._status: RunStatus = RunStatus.IDLE
         self._output: str = ""
         self._error: str = ""
+        self._chunks = None  # per-task output segments, filled in once the run is done
         self._tee: Optional[PipeTee] = None
 
     def start(self, project_name: str, workflow_name: str) -> dict:
@@ -59,6 +60,7 @@ class WorkflowRunner:
         self._status = RunStatus.RUNNING
         self._output = ""
         self._error = ""
+        self._chunks = None
         self._tee = None
         thread = threading.Thread(
             target=self._background,
@@ -81,7 +83,9 @@ class WorkflowRunner:
             output = self._tee.snapshot()
         else:
             output = self._output
-        return {"status": self._status, "output": output, "error": self._error}
+        # chunks are only available once the run finished (the child returns them at
+        # the end); while running they stay None and the client shows the flat log.
+        return {"status": self._status, "output": output, "error": self._error, "chunks": self._chunks}
 
     def _background(self, token: str, project_name: str, workflow_name: str) -> None:
         # Runs in a background thread; record the outcome for poll(). The token guard
@@ -90,9 +94,11 @@ class WorkflowRunner:
         tee = PipeTee()
         if self._token == token:
             self._tee = tee
+        chunks = None
         try:
             result = self.run(project_name, workflow_name, tee)
             status, output, error = RunStatus.DONE, result["output"], ""
+            chunks = result.get("chunks")
         except Exception as exc:
             # Surface the failure to the client via poll (this reports it, not hides it).
             status, output, error = RunStatus.ERROR, "", str(exc)
@@ -100,6 +106,7 @@ class WorkflowRunner:
         if self._token == token:
             self._output = output
             self._error = error
+            self._chunks = chunks
             self._status = status
 
     def run(self, project_name: str, workflow_name: str, tee: Optional[PipeTee] = None) -> dict:
@@ -142,4 +149,10 @@ class WorkflowRunner:
                 f"\n[workflow ran in {result['exec_seconds']:.2f}s; "
                 f"total {total_seconds:.2f}s including process spawn]\n"
             )
-            return {"dispatch_id": result["dispatch_id"], "output": output + timing}
+            # chunks: per-task output buckets from the in-process router (None on the
+            # subprocess path). Passed through so callers can show output per task.
+            return {
+                "dispatch_id": result["dispatch_id"],
+                "output": output + timing,
+                "chunks": result.get("chunks"),
+            }
