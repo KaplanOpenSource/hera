@@ -1,0 +1,74 @@
+# Hera full stack.
+#   docker compose up               -> mongo + server
+#   docker compose --profile work up -> mongo + server + client (Vite dev)
+#
+# The server finds Mongo via ~/.pyhera/config.json. We inject our own config
+# (see the "configs" block below) so dbIP points at the "mongo" service name
+# instead of the 127.0.0.1 baked into the image.
+name: hera-stack
+
+configs:
+  pyhera_config:
+    content: |
+      {
+        "root": {
+          "dbIP": "mongo",
+          "dbName": "olymp",
+          "username": "hera",
+          "password": "heracles"
+        }
+      }
+
+services:
+  mongo:
+    image: mongo:5.0
+    volumes:
+      - ./mongo-db-datadir:/data/db
+      - ./mongo-init.d:/docker-entrypoint-initdb.d
+    environment:
+      MONGO_HERA_USER: hera
+      MONGO_HERA_PWD: heracles
+    # No ports: Mongo is only reachable by the server over the internal network.
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  server:
+    build:
+      context: .
+      dockerfile: dockerfile
+    image: hera-server
+    depends_on:
+      mongo:
+        condition: service_healthy
+    volumes:
+      # Live code mount, matches run_server_docker.sh (-v .:/app).
+      - .:/app
+    configs:
+      # Point hera at the mongo service instead of 127.0.0.1.
+      - source: pyhera_config
+        target: /root/.pyhera/config.json
+    environment:
+      # Hermes is a submodule with no setup.py, so add it to the path.
+      PYTHONPATH: /app:/app/hera/bin:/app/Hermes
+    ports:
+      - "8000:8000"   # API
+      - "8888:8888"   # Jupyter
+      - "5678:5678"   # debugpy
+    command: python ui/server/server.py
+
+  client:
+    # Only starts with: docker compose --profile work up  (or: docker compose up client)
+    profiles: ["work"]
+    image: hera-server
+    depends_on:
+      - server
+    working_dir: /client
+    volumes:
+      - ./ui/client:/client        # live source for hot reload
+      - /client/node_modules       # keep the image's node_modules (see below)
+    command: npm run dev -- --host
+    ports:
+      - "5173:5173"

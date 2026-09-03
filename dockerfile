@@ -4,20 +4,14 @@ FROM ubuntu:22.04
 # Set environment variables to avoid interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install required packages for pyenv and building Python
+# Install base tools and the libs some Python packages need at build time
 RUN apt-get update
 RUN apt-get install -y \
-    nano curl git build-essential iputils-ping
+    nano curl git build-essential iputils-ping software-properties-common
 RUN apt-get install -y \
-    libreadline-dev libssl-dev libbz2-dev libsqlite3-dev \
     libcairo2-dev \
     pkg-config \
-    libgirepository1.0-dev \
-    libffi-dev \
-    zlib1g-dev \
-    xz-utils \
-    liblzma-dev
-# RUN apt-get install -y \
+    libgirepository1.0-dev
 
 # Install MongoDB 6.0 + mongosh (new shell)
 # RUN curl -fsSL https://pgp.mongodb.com/server-6.0.asc | gpg --dearmor -o /usr/share/keyrings/mongodb-server-6.0.gpg && \
@@ -27,17 +21,15 @@ RUN apt-get install -y \
 # RUN apt-get install -y \
 #     mongodb-org \
 #     mongodb-mongosh \
-    
-# Install pyenv
-RUN curl https://pyenv.run | bash
-    
-# Install Python 3.9.13 using pyenv
-ENV PATH="/root/.pyenv/bin:/root/.pyenv/shims:${PATH}"
-RUN pyenv install 3.9.13 && \
-    pyenv global 3.9.13
-    
-# Install pip for the installed Python version
-RUN python -m ensurepip && \
+
+# Install Python 3.11 from deadsnakes (prebuilt, matches CI).
+RUN add-apt-repository -y ppa:deadsnakes/ppa && apt-get update && \
+    apt-get install -y python3.11 python3.11-venv python3.11-dev python3.11-distutils
+
+# Install into an isolated venv so pip stays clear of apt-owned packages.
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH="/opt/venv/bin:${PATH}"
+RUN python3.11 -m venv "$VIRTUAL_ENV" && \
     python -m pip install --no-cache-dir --upgrade pip
     
 # Install GDAL and other system dependencies    
@@ -63,7 +55,7 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY requirements.txt .
 
-# Install Python dependencies with pyenv's Python
+# Install Python dependencies
 RUN python -m pip install --no-cache-dir -r requirements.txt
 
 ENV PATH="/app:/app/hera/bin:${PATH}"
