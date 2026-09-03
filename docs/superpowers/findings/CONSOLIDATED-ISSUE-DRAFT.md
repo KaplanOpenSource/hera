@@ -131,3 +131,11 @@
 - **`utils/rag`** (18) — תלויות RAG חסרות (ראו B16).
 - קבצים ספציפיים שנדחו במפורש עם נימוק בכל אצווה: `CampbellBinary.py` (פרסר בינארי, שני עותקים), `experimentSetupWithData` (דורש zip אמיתי מ-argos), `buildings/demography/topography` ב-GIS (דורשים shapefiles/DEM אמיתיים), `FallingNonEvaporatingDroplets.py`/`DropletCloud.py` (נדחו מאצווה 3).
 
+**עדכון (אצוות 30-31): רוב הרשימה הזו כבר לא תקפה.** מה שנפתח מאז, ומה שנמצא בו:
+- `CampbellBinary.py` — **כוסה בשני העותקים** מול קבצי TOB1 סינתטיים; חשף את B115/B116/B117 (וכן B107/B118 בשני העותקים).
+- `experimentSetupWithData` — **כוסה עם zip אמיתי בפורמט argos v3.0.0** שנבנה ב-`tmp_path`; כל 24 החברים, וחשף את B160-B165.
+- `FallingNonEvaporatingDroplets.py` — **כוסה** כולל הפיזיקה שהייתה חסומה; חשף את B119/B120/B121.
+- `hermesWorkflowToolkit.py` — **כוסה** במחזור add→list→compare→delete אמיתי מול mongomock (hermes האמיתי מותקן, לא מסוטב); חשף את B136-B141.
+- `buildings` ב-GIS — שכבת ההצגה **כוסתה** מול GeoDataFrame סינתטי; `demography` נבדק ונמצא שהוא דווקא **תקין** במקום שבו `thresholdGeoDataFrame` שבור (ראו ההערה ב-B108).
+המסקנה המעשית: "דורש נתונים אמיתיים" התברר לרוב כ"דורש נתונים סינתטיים קטנים שנבנים ב-`tmp_path`". מה שנשאר חסום באמת הוא רק תלויות שלא מותקנות (`torch`, `SALib`, RAG, paraview/PyFoam אמיתיים) ומודולים מתים (`monaghan.py` שמייבא `pyriskassessment` שלא קיים, `radiosonde.py` — B40).
+
