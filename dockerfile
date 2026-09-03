@@ -50,6 +50,10 @@ RUN python -m pip install --no-cache-dir -r requirements.txt
 ENV PATH="/app:/app/hera/bin:${PATH}"
 ENV PYTHONPATH="/app:/app/hera/bin"
 
+# The bind-mounted repo is owned by the host user, but the container runs as
+# root. Mark it safe so git (used by jupyterlab-git) does not refuse to run.
+RUN git config --global --add safe.directory '*'
+
 # Default DB credentials — override at runtime via --env or .env file
 ENV MONGO_HERA_USER=hera
 ENV MONGO_HERA_PWD=heracles
