@@ -1546,3 +1546,228 @@ for file_path in os.listdir(arguments.path):
 ```
 
 `os.listdir(arguments.path)` מחזיר שמות קבצים חשופים (בלי הנתיב המלא), אבל `_check_if_agent` מקבל אותם ישירות בלי `os.path.join` עם `arguments.path`. בפועל `_check_if_agent` פותח אותם יחסית ל-cwd הנוכחי של התהליך, לא יחסית לתיקייה שנסרקת. אלא אם התהליך רץ במקרה כשה-cwd שלו זהה בדיוק ל-`arguments.path`, כל חיפוש קובץ נכשל בשקט (נתפס ב-`except`, מחזיר `False`), ו-`repo['RiskAssessment']['DataSource']` יוצא ריק תמיד — גם כשהתיקייה מלאה בקבצי agent תקינים. התיקון הברור הוא `os.path.join(arguments.path, file_path)`.
+
+### B110. `getWindProfile` — `U_star` מחושב מאותו `z` שהוא מעריך, אז הפרופיל שטוח לגמרי
+**קובץ:** `hera/simulations/windProfile/toolkit.py:64,76` · **מקובע ב:** `test_windprofile_toolkit.py::TestGetWindProfileHasNoShear`
+
+```python
+U_star = (wind_speed * KARMAN) / np.log(z / z0)
+...
+U_z = (U_star / KARMAN) * np.log(z / z0)
+```
+
+שני הלוגריתמים מצטמצמים אלגברית: `U_z == wind_speed` עבור **כל** גובה. הפונקציה שכל תפקידה לבנות פרופיל רוח מחזירה בפועל את מהירות הרוח של התחנה בכל גובה — בלי שכבת גזירה (shear) בכלל, ובלי שום תלות ב-`z0`: שינוי של פי 50 באורך הגֵרוּיוּת מחזיר פרופיל זהה נומרית. כדי שחוק הלוג יַסֶה משהו, `U_star` חייב להיגזר מגובה מדידה קבוע (גובה התחנה) ולא מה-`z` של הלולאה. אותה בעיה חוזרת בענף האורבני עבור `z > hc`.
+
+### B111. `getWindProfile` — שורת `z=0` סינגולרית, ושני הענפים לא מסכימים מה יש בה
+**קובץ:** `hera/simulations/windProfile/toolkit.py:63` · **מקובע ב:** `test_windprofile_toolkit.py::TestGetWindProfileGroundRow`
+
+לולאת הגבהים היא `numpy.arange(0, height + dz, dz)`, כלומר היא תמיד מעריכה את חוק הלוג ב-`z=0` — נקודה סינגולרית (`log(0/z0) = -inf`). הענף הלא-אורבני מחזיר `NaN` ל-`u`/`v`/`U_z` באותה שורה, והענף האורבני מחזיר `-0.0` לאותו קלט. כל פרופיל שמוחזר מתחיל בשורת זבל, ושתי הענפים חולקים חוסר-עקביות לגבי מה בדיוק היא מכילה.
+
+### B112. `_getStationsInRegion` — `wind_stations.json` בנתיב יחסי ל-CWD
+**קובץ:** `hera/simulations/windProfile/toolkit.py:118` · **מקובע ב:** `test_windprofile_toolkit.py::TestGetStationsInRegionCannotFindItsDataFile`
+
+```python
+with open('wind_stations.json', 'r') as json_file:
+```
+
+הקובץ אכן נשלח עם המודול, אבל הוא נפתח כנתיב יחסי חשוף — כלומר יחסית ל-cwd של התהליך. מכל תיקייה שאינה תיקיית המודול, המתודה קורסת ב-`FileNotFoundError`. ה"אחות" שלה `getSpaceTime` קוראת את אותו קובץ נכון, דרך `os.path.dirname(os.path.abspath(__file__))`. אותה משפחת באגים כמו B109.
+
+### B113. `plotOrigin` — `plt.scatter` במקום `ax.scatter`, מתעלם מה-`ax` שהועבר
+**קובץ:** `hera/measurements/experiment/presentation.py` · **מקובע ב:** `test_experiment_presentation.py::TestPlotOriginIgnoresItsAxes`
+
+המתודה מקבלת `ax`, מחזירה אותו — אבל מציירת עם `plt.scatter(...)` הגלובלי. כשהקורא מעביר צירים שאינם ה"נוכחיים", הסמן נוחת על צירים אחרים לגמרי וה-`ax` שהוחזר נשאר ריק. אומת: 0 collections על ה-`ax` שהועבר, 1 על הצירים הנוכחיים.
+
+### B114. `generateLatexTable` — קורא ל-`plotDevices` עם פרמטרים שלא קיימים בחתימה
+**קובץ:** `hera/measurements/experiment/presentation.py` · **מקובע ב:** `test_experiment_presentation.py::TestGenerateLatexTableIsDead`
+
+```python
+fig , _ = self.plotDevices(trialSetName=..., trialName=..., device=device_name, display=False)
+```
+
+החתימה האמיתית היא `plotDevices(self, trialSetName, trialName, deviceType, mapName, ax=None, plotkwargs=None)` — אין `device` ואין `display`, ו-`mapName` הוא פרמטר חובה. כל קריאה קורסת ב-`TypeError: plotDevices() got an unexpected keyword argument 'device'` לפני שנוצר משהו. כל נתיב הייצוא ל-LaTeX הוא קוד מת.
+
+### B115. `getRecordByIndex` — המרת שניות דרך מספר ימים float מאבדת ננושנייה
+**קובץ:** `hera/measurements/experiment/parsers.py` **וגם** `hera/measurements/meteorology/highfreqdata/parsers/CampbellBinary.py` · **מקובע ב:** `test_experiment_parsers_more.py::TestRecordTimestampsLoseTheirLastNanosecond`
+
+```python
+time = pandas.Timestamp(1990, 1, 1) + pandas.Timedelta(days=lastSec / 86400.0, milliseconds=lastmili)
+```
+
+החלוקה ב-float לא עושה round-trip: רשומה ששדה ה-SECONDS שלה הוא 11 מפוענחת ל-`1990-01-01 00:00:10.999999999`. אומת: 77 מתוך 600 ערכי השניות הראשונים נפגעים (בערך רשומה אחת מכל 8). מכיוון ש-`getRecordIndexByTime` משווה חותמות זמן בשוויון מדויק, רשומה כזו לא ניתנת למצוא לפי השנייה שהיא באמת מסומנת בה. `pandas.Timedelta(seconds=lastSec)` מדויק.
+
+### B116. `_getDataFromStream` — לולאת ההמרה מתחילה שדה אחד מאוחר מדי
+**קובץ:** שני הקבצים מ-B115 · **מקובע ב:** `test_experiment_parsers_more.py::TestFirstDataColumnIsNeverConverted`
+
+```python
+for i in range(3, len(retval)):   # אבל retval[0],retval[1] הם SECONDS/NANOSECONDS
+...
+return retval[0], retval[1] / 1000000, retval[2:]
+```
+
+שדה הנתונים הראשון הוא `retval[2]`, והלולאה מדלגת עליו. אומת: רשומה עם שני שדות FP2 **זהים בבתים** מפוענחת ל-`[31, 7936.12109375]` — הראשון חוזר כ-`uint16` גולמי, השני מומר. אותו דבר עם `ASCII(n)`: העמודה הראשונה חוזרת כ-`bytes` גולמי.
+
+### B117. `_newfloatConvert` — `key / 256` במקום `key // 256`
+**קובץ:** שני הקבצים מ-B115 · **מקובע ב:** `test_experiment_parsers_more.py::TestFp2LowByteIsDividedInsteadOfShifted`
+
+```python
+val = self._floatConvert(int(key % 256), key / 256)
+```
+
+הפרמטר השני של `_floatConvert` מתועד כ-low byte, אבל `/` היא חלוקה אמיתית, כך שמה שמועבר הוא `lowbyte + hbyte/256` — ה-high byte "דולף" בחזרה וכל קריאת FP2 סוחבת היסט מדומה. אומת: `_newfloatConvert(0x001F)` מחזיר `7936.12109375` במקום `7936.0` שהבתים האלה מקודדים.
+
+### B118. `_newfloatConvert` — B107 משוכפל בעותק השני של הפרסר
+**קובץ:** `hera/measurements/experiment/parsers.py` · **מקובע ב:** `test_experiment_parsers_more.py::TestNanSentinelDoesNotReturnItsOwnCachedValue`
+
+בדיוק אותו פגם שתועד כ-B107 (ענף ה-sentinel של NaN שומר ב-cache אבל לא מחזיר), בעותק השני של הקוד. **הערה רוחבית:** `experiment/parsers.py` ו-`meteorology/highfreqdata/parsers/CampbellBinary.py` הם שני עותקים עצמאיים של אותו פרסר בינארי — ההבדל היחיד ביניהם הוא `parse`. לכן B115, B116 ו-B117 קיימים פעמיים כל אחד, וכל תיקון צריך להיעשות בשני המקומות (או, עדיף, שהכפילות תבוטל).
+
+### B119. `_VTFunc` — מספר ריינולדס בלי צפיפות האוויר
+**קובץ:** `hera/simulations/gaussian/FallingNonEvaporatingDroplets.py:331` · **מקובע ב:** `test_gaussian_falling_droplets.py::TestTerminalVelocity`
+
+```python
+Re = (uVt*self.particleDiameter/nu_air).magnitude   # nu_air היא צמיגות דינמית
+```
+
+`Re = ρVd/µ`, אבל כאן חסרה הצפיפות, כך שהביטוי אינו חסר-מידות בכלל — ו-`.magnitude` פשוט מחזיר בשקט את הערך המספרי של ביטוי מורכב, כלומר פי `10/ρ_air ≈ 8.3` מ-Re האמיתי. שורה 422 ב-`_fallingParticle` מבצעת את אותו חישוב **נכון** (`rho_air*Uabs*self.particleDiameter/nu_air`), מה שמראה את הכוונה. השגיאה מתבטלת במשטר Stokes (שם `Cd·Re = 24` קבוע ו-Re נושר) אבל לא מעליו: טיפה של 3 מ"מ מקבלת 2.831 מ'/ש' במקום 8.156 מ'/ש' שמאזן הכוחות נותן (טיפת גשם של 3 מ"מ נמדדת בערך 8 מ'/ש').
+
+### B120. `correctionCloud_Plume`/`_Puff` — `numpy.mean` על רשימת Quantity, קורס תמיד
+**קובץ:** `hera/simulations/gaussian/FallingNonEvaporatingDroplets.py:342,346` · **מקובע ב:** `test_gaussian_falling_droplets.py::TestCloudSigmaCorrection`
+
+```python
+Ubar = numpy.mean([self.meteorology.getWindVelocity(z) for z in numpy.arange(0, ...)])
+```
+
+זו רשימת פייתון של אובייקטי `Quantity` של pint; numpy לא יכול לבנות מהם מערך, אז שתי המתודות קורסות ב-`ValueError: setting an array element with a sequence.` לכל קלט. הכוונה הייתה `numpy.mean(ureg.Quantity([...], "m/s"))`. מכיוון ש-`correctionCloudFunc` ברירת המחדל היא `"Plume"`, גם `solveToTime` בלתי שמיש בנתיב הזה.
+
+### B121. `numpy.max(z, 0)` — ה-0 מתפרש כ-`axis`, לא כרצפה (פגם רדום)
+**קובץ:** `hera/simulations/gaussian/FallingNonEvaporatingDroplets.py:402`
+
+הכוונה הברורה היא "אל תרד מתחת לקרקע", אבל הפרמטר השני של `numpy.max` הוא `axis` ולא רצפה, כך שהחיתוך הוא no-op: `numpy.max(-5.0, 0) == -5.0`. הצורה הנכונה היא `numpy.maximum(z, 0)`. הפגם רדום כרגע כי השורה בלתי-נגישה כל עוד B12 עומד.
+
+### B122. `Injury.__str__` ו-`InjuryLevel.__str__` — בלי `return`
+**קובץ:** `hera/riskassessment/agents/effects/Injury.py`, `InjuryLevel.py:170` · **מקובע ב:** `test_risk_injury_effects.py::TestSerialisation`
+
+שתי המתודות מחשבות `json.dumps(self.toJSON(), indent=4)` וזורקות את התוצאה, אז הן מחזירות `None`. כל `str()`/`print()`/f-string על injury או injury level קורס ב-`TypeError: __str__ returned non-string (type NoneType)`. אומת ישירות.
+
+### B123. הרמז "Injuries found" — חיתוך `x[6:]` עיוור
+**קובץ:** `hera/riskassessment/agents/effects/Injury.py` · **מקובע ב:** `test_risk_injury_effects.py::TestInjuryFactoryValidation`
+
+```python
+[x[6:] for x in dir(module) if x.startswith("Injury")]
+```
+
+החיתוך העיוור של 6 תווים מפרסם גם את `Factory` (מ-`InjuryFactory`, שאינו injury) וגם שם ריק (מהמחלקה המופשטת `Injury`). ההודעה בפועל: `Injuries found: ,Exponential,Factory,Lognormal10,Threshold`. אומת ישירות.
+
+### B124. `calculator` ריק → `IndexError` במקום ה-`ValueError` המתועד
+**קובץ:** `hera/riskassessment/agents/effects/Injury.py` · **מקובע ב:** `test_risk_injury_effects.py`
+
+```python
+try:
+    calculatorTypeAndParams = cfgJSON["calculator"]
+    calcType,calcParam = [x for x in calculatorTypeAndParams.items()][0]
+except KeyError:
+    raise ValueError("Calculator not defined")
+```
+
+עם `{"calculator": {}}` הגישה לאיבר 0 ברשימה ריקה מעלה `IndexError`, ששומר ה-`except KeyError` לא יכול לתפוס. בדיוק המקרה שהקוד מתכוון לדווח עליו בצורה ידידותית הופך לשגיאה פנימית שלא ניתן להבדיל אותה מבאג. אומת ישירות.
+
+### B125. `units = ureg(units)` — מייצר `Quantity` ולא `pint.Unit`
+**קובץ:** `hera/riskassessment/agents/effects/Injury.py` · **מקובע ב:** `test_risk_injury_effects.py::TestDescriptorUnits`
+
+`ureg("mg/m**3")` מחזיר `Quantity(1.0, 'milligram / meter ** 3')`, וה-Quantity הזה מועבר לכל level בתור `units`. לכן `InjuryLevel.units` (מתועד "pint.Unit or None") מקבל טיפוס שגוי, `toJSON()` מסדר אותו כ-`"1.0 milligram / meter ** 3"`, ו-`hera.utils.tounit` (שמקבל רק `Unit` או `str`) נופל לענף ה-fallback שלו. הצורה הנכונה היא `ureg.Unit(units)`. אומת ישירות.
+
+### B126. `hera-GIS` כולו מת — `_setup` מייבא את קבועי ה-CRS מהמודול הלא-נכון
+**קובץ:** `hera/measurements/GIS/CLI.py:14` · **מקובע ב:** `test_gis_cli.py::TestSetup`, `TestEveryCommandIsDeadOnArrival`
+
+```python
+from hera.utils import WSG84 as _w, ITM as _i
+```
+
+`WSG84`/`ITM` חיים ב-`hera/measurements/GIS/utils.py` ואינם מיוצאים מ-`hera.utils` (ה-`__getattr__` העצל שלו מחפש רק ב-unitHandler/jsonutils/query/matplotlibCountour/angle/zipUtils). כל ה-handlers עטופים ב-`@_lazy_setup`, כך שאף פקודת `hera-GIS` לא יכולה לרוץ בכלל: `ImportError: cannot import name 'WSG84' from 'hera.utils'`. מחמיר: `_setup` מסמן `_initialized = True` **לפני** הייבואים, כך שניסיון שני חוזר בשקט עם `WSG84`/`ITM` שנשארו `None` — שגיאה רועשת מתדרדרת לנתיב שקט עם ערכים שגויים.
+
+### B127. `get_landocver` — קורא את `arguments.windDirectionis` (שגיאת כתיב)
+**קובץ:** `hera/measurements/GIS/CLI.py:213` · **מקובע ב:** `test_gis_cli.py::TestGetLandcover`
+
+```python
+windDirection = None if arguments.windDirection is None else float(arguments.windDirectionis)
+```
+
+השם `windDirectionis` לא קיים, כך ש-`hera-GIS landcover getLandcover --windDirection 270` (חובה כש-`isBuilding=True`) קורס ב-`AttributeError` לפני שה-toolkit נקרא בכלל.
+
+### B128. `buildings_raster_toSTL` — מחשב ארבעה ארגומנטים ולא מעביר אף אחד
+**קובץ:** `hera/measurements/GIS/CLI.py:168-177` · **מקובע ב:** `test_gis_cli.py::TestBuildingsRasterToSTL`
+
+הפונקציה גוזרת `dxdy`, `inputCRS`, `outputCRS` ו-`dataSourceName` — ואז קוראת `getBuildingsFromRectangle(minx, miny, maxx, maxy, withElevation=True)` בלבד. `--dataSourceName`, `--inputCRS`, `--outputCRS` ו-`--dxdy` נבלעים בשקט, ותמיד נעשה שימוש ב-datasource ברירת המחדל ב-WGS84.
+
+### B129. `hera-experiment create` תמיד נכשל — סדר הקריאות הפוך
+**קובץ:** `hera/measurements/experiment/CLI.py:159-160,287-289` · **מקובע ב:** `test_experiment_cli.py::TestCreateExperiment`
+
+`create_experiment` קורא ל-`_create_repository` **לפני** `_make_runtimeExperimentData`, אבל `_create_repository` מסיים בכתיבת `runtimeExperimentData/Datasources_Configurations.json` — תיקייה שרק `_make_runtimeExperimentData` יוצר. הפקודה תמיד מתה ב-`FileNotFoundError`, ומשאירה מאחור `code/`, `data/` ואת ה-repository JSON, בלי שאף פעם נקרא `repository_load`.
+
+### B130. `createNodeRedDeviceMap.sh` נכתב בשם קובץ חשוף ונוחת ב-CWD
+**קובץ:** `hera/measurements/experiment/CLI.py:166` · **מקובע ב:** `test_experiment_cli.py`
+
+אותה משפחה כמו B109/B112: הסקריפט נכתב עם שם חשוף במקום `os.path.join(experiment_path, ...)`, כך שעם `--path` הוא נוחת בתיקיית העבודה של התהליך ולא בתיקיית הניסוי. (הפגם הזה באמת לכלך את שורש הריפו בהרצת בדיקה ראשונה, לפני שהבדיקה קובעה עם `chdir`.)
+
+### B131. `workflow_delete` — כותב `completeDelete.py` ומדפיס `completeRemove.py`
+**קובץ:** `hera/simulations/CLI.py:120,123` · **מקובע ב:** `test_simulations_cli.py::TestWorkflowDelete`
+
+הסקריפט נכתב ל-`completeDelete.py` אבל ההודעה למשתמש היא `"In order to remove all directories from disk type: python completeRemove.py"`. מי שיעקוב אחרי ההוראה יקבל "No such file". אומת בקוד: שורה 120 פותחת `completeDelete.py`, שורה 123 מדפיסה `completeRemove.py`.
+
+### B132. `workflow_list` — קורא `arguments.object` שלא קיים, ובלי `return` אחריו
+**קובץ:** `hera/simulations/CLI.py:436` · **מקובע ב:** `test_simulations_cli.py::TestWorkflowList`
+
+ענף ה"לא נמצא כלום" מדפיס `arguments.object`, אבל ה-parser של `list workflows` מגדיר רק `group`, `projectName`, `nodes`, `parameters`. לכן `hera-workflows list workflows nosuchgroup` קורס ב-`AttributeError`. ה-attribute החסר גם מסתיר פגם שני: לענף אין `return`, כך שגם אם היה `object`, הביצוע היה ממשיך ל-`simDocument[0]` ומעלה `IndexError` על רשימה ריקה.
+
+### B133. `create_workflow_variations` — מדווח על קובץ variations חסר וממשיך לפתוח אותו
+**קובץ:** `hera/simulations/CLI.py:291-298` · **מקובע ב:** `test_simulations_cli.py`
+
+`logger.error(f"{path} doesn't point to anything.")` ואחריו — בלי `return` — `open(variation_json_path)`. `hera-workflows variation wf nosuchfile.json` קורס ב-`FileNotFoundError` אחרי שכבר דיווח על השגיאה בצורה מסודרת.
+
+### B134. `create_workflow_variations` — מדווח "workflow not found" וממשיך לאנדקס רשימה ריקה
+**קובץ:** `hera/simulations/CLI.py:283-285` · **מקובע ב:** `test_simulations_cli.py`
+
+אותה תבנית כמו B133: `logger.error(...)` בלי `return`, ומיד `workflow_doc_list[0]` → `IndexError`.
+
+### B135. `workflow_compare --file` שבור בדיוק בפורמט ברירת המחדל
+**קובץ:** `hera/simulations/CLI.py:592-593,615` · **מקובע ב:** `test_simulations_cli.py::TestWorkflowCompare`
+
+עבור `--format pandas` (ברירת המחדל של ה-argparse) `output` נשאר ה-DataFrame הגולמי, ואז `outputFile.write(output)` מעלה `TypeError: write() argument must be str` — ומשאיר קובץ ריק מאחור. כלומר `hera-workflows compare wf_0 wf_1 --file out` נכשל תמיד אלא אם המשתמש מציין פורמט אחר במפורש.
+
+### B136. `getHermesWorkflowFromJSON` — `pydoc.locate("hermes.workflow")` מחזיר מודול, לא מחלקה
+**קובץ:** `hera/simulations/hermesWorkflowToolkit.py` · **מקובע ב:** `test_hermes_workflow_toolkit_db.py::TestGetHermesWorkflowFromJSON`
+
+נתיב ה-fallback (workflow בלי solver) מאתר `hermes.workflow` — שהוא ה**מודול** `hermes/workflow/__init__.py`; המחלקה עצמה היא `hermes.workflow.workflow.workflow`. לכן טעינת workflow ללא solver קורסת ב-`TypeError: 'module' object is not callable`.
+
+### B137. מסנן ה-`component` מקבל prefix כפול, אז אף template לא נמצא
+**קובץ:** `hera/simulations/hermesWorkflowToolkit.py` · **מקובע ב:** `test_hermes_workflow_toolkit_db.py::TestComponentFilteredTemplateLookups`
+
+`getHermesFlowTemplate`, `getHermesNodeTemplate` ו-`listHermesNodesTemplates` מעבירים `desc__component=...`, אבל `collection.getDocuments` מזרים כל kwarg נוסף דרך `dictToMongoQuery(..., prefix="desc")` — והתוצאה היא השדה `desc__desc__component`. לכן החיפוש תמיד מחזיר `None`, בזמן ש-`getDataSourceDocumentsList(component="Flow")` כן מוצא את אותו מסמך. (ל-`listHermesNodesTemplates` יש פגם שני שמוסתר מאחורי הראשון: היא קוראת `doc.desc['desc']`/`doc.desc['datasourceName']`, ו-`addDataSource` לא יוצר את ה-`desc` המקונן הזה.)
+
+### B138. `getHermesWorkflowFromDB` עובד רק אם מעבירים לו רשימה
+**קובץ:** `hera/simulations/hermesWorkflowToolkit.py` · **מקובע ב:** `test_hermes_workflow_toolkit_db.py::TestGetHermesWorkflowFromDB`
+
+עבור מזהה שאינו רשימה, `getWorkflowListDocumentFromDB` מחזיר את ה-`QuerySet` של mongoengine כמו שהוא; אז `getHemresWorkflowFromDocument` בודק `isinstance(documentList, list)` (שקר עבור QuerySet), עוטף את כל ה-QuerySet ברשימה בת איבר אחד וקורא `.desc` עליו. `tk.getHermesWorkflowFromDB("flow_0000")` קורס ב-`AttributeError: 'QuerySet' object has no attribute 'desc'`, בזמן ש-`tk.getHermesWorkflowFromDB(["flow_0000"])` עובד.
+
+### B139. `longFormat=True` בלתי שמיש מכל נקודות הכניסה להשוואה
+**קובץ:** `hera/simulations/hermesWorkflowToolkit.py` + `hera/utils/dataframeutils.py:137` · **מקובע ב:** `test_hermes_workflow_toolkit_db.py::TestCompareWorkflowObj`
+
+`compareWorkflowObj` מקודד `changeDotToUnderscore=True` בקוד, ואז `dataframeutils` מפעיל `.replace(".", "_")` על `ret.T.columns` — שבפורמט הארוך הם אינדקס שורה שלם (int). התוצאה: `AttributeError: 'int' object has no attribute 'replace'`. שורש הבעיה ב-`dataframeutils`, אבל רק הקומבינציה הזו מגיעה אליה, ו-`test_utils_dataframeutils.py` לא בדק את שני הדגלים יחד.
+
+### B140. כל השוואה מבוססת-DB מתה: `resource=` במקום `Resource_path=`
+**קובץ:** `hera/simulations/hermesWorkflowToolkit.py:907,937` · **מקובע ב:** `test_hermes_workflow_toolkit_db.py::TestCompareWorkflows`, `TestCompareWorkflowInGroupAndWorkflowTable`
+
+```python
+workflow(..., name=..., resource=simulationDoc['resource'])
+```
+
+הבנאי של `hermes.workflow` מקבל `Resource_path` (`workflow.py:91`), לא `resource` — ושאר נקודות הקריאה באותו קובץ עצמו (שורות 279, 721, 740) מעבירות נכון `Resource_path=`. לכן `compareWorkflowInGroup`, `workflowTable` ו-`compareWorkflows` על קבוצה קורסים ב-`TypeError: workflow.__init__() got an unexpected keyword argument 'resource'`. רק הנתיב של קבוצה ריקה (שלא בונה כלום) ונתיב הקבצים של `compareWorkflows` עובדים. אומת בקוד.
+
+### B141. `findAvailableName` קורא מונה אחד ו-`addWorkflowToGroup` מקדם מונה אחר
+**קובץ:** `hera/simulations/hermesWorkflowToolkit.py:591` מול `:718` · **מקובע ב:** `test_hermes_workflow_toolkit_db.py::TestFindAvailableName`
+
+```python
+newID = self.getCounterAndAdd(f"simulations_{simulationGroup}")   # findAvailableName
+groupID = self.getCounterAndAdd(groupName)                        # addWorkflowToGroup
+```
+
+שני מונים נפרדים לחלוטין, שלעולם לא מסונכרנים. אחרי הוספת שני workflows לקבוצה `flow` (שקיבלו `flow_0000`, `flow_0001`), `findAvailableName("flow")` מחזיר `(0, "flow_0000")` — שם שכבר תפוס.
