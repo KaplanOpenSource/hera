@@ -9,7 +9,13 @@ export enum LogLineKind {
   Summary = 'SUMMARY',
   Output = 'OUTPUT',
   Technical = 'TECHNICAL',
+  Event = 'EVENT',
 }
+
+// Prefix every Luigi task/dependency event line carries. Emitted by the server's
+// in-process runner (execute_workflow_inprocess.py, EVENT_PREFIX). These are hidden
+// by default so they don't clutter the task's own output.
+export const EVENT_PREFIX = '[luigi-event]';
 
 export interface ClassifiedLine {
   index: number,
@@ -47,6 +53,11 @@ export const classifyLog = (
   let insideSummary = false;
   let afterSummary = false;
   return raw.split('\n').map((text, index) => {
+    // Luigi event lines are self-identifying by prefix; classify them first so the
+    // summary/output logic below never reclassifies them.
+    if (text.startsWith(EVENT_PREFIX)) {
+      return { index, kind: LogLineKind.Event, text };
+    }
     const isMarker = text.includes(SUMMARY_MARKER);
     if (isMarker) {
       if (insideSummary) {

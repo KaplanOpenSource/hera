@@ -22,6 +22,65 @@ from hermes import workflow
 from hera.utils.logging import get_classMethod_logger
 
 
+# Every Luigi event line starts with this prefix so the UI log parser can spot
+# them and hide them by default, without confusing them for a task's own output.
+# Kept in sync with EVENT_PREFIX in the client's classifyLog.ts.
+EVENT_PREFIX = "[luigi-event]"
+
+
+def _event(message):
+    """Print one Luigi-event line with the shared prefix (flushed for live output)."""
+    print(f"{EVENT_PREFIX} {message}", flush=True)
+
+
+# Register once at import: these fire for every luigi.Task run in this process.
+# With workers>1 each fires inside that task's worker process; the print still
+# reaches the shared pipe via inherited fd 1/2.
+@luigi.Task.event_handler(luigi.Event.START)
+def _on_task_start(task):
+    _event(f"START {task.task_family}")
+
+
+@luigi.Task.event_handler(luigi.Event.SUCCESS)
+def _on_task_success(task):
+    _event(f"SUCCESS {task.task_family}")
+
+
+@luigi.Task.event_handler(luigi.Event.FAILURE)
+def _on_task_failure(task, exception):
+    _event(f"FAILURE {task.task_family}: {exception}")
+
+
+@luigi.Task.event_handler(luigi.Event.PROCESSING_TIME)
+def _on_task_time(task, seconds):
+    _event(f"TIME {task.task_family}: {seconds:.2f}s")
+
+
+@luigi.Task.event_handler(luigi.Event.BROKEN_TASK)
+def _on_task_broken(task, exception):
+    _event(f"BROKEN {task.task_family}: {exception}")
+
+
+@luigi.Task.event_handler(luigi.Event.PROGRESS)
+def _on_task_progress(task, progress):
+    _event(f"PROGRESS {task.task_family}: {progress}")
+
+
+@luigi.Task.event_handler(luigi.Event.DEPENDENCY_DISCOVERED)
+def _on_dependency_discovered(task, dependency):
+    _event(f"DEP DISCOVERED {task.task_family} -> {dependency.task_family}")
+
+
+@luigi.Task.event_handler(luigi.Event.DEPENDENCY_MISSING)
+def _on_dependency_missing(task):
+    _event(f"DEP MISSING {task.task_family}")
+
+
+@luigi.Task.event_handler(luigi.Event.DEPENDENCY_PRESENT)
+def _on_dependency_present(task):
+    _event(f"DEP PRESENT {task.task_family}")
+
+
 def executeWorkflowFromDB_inprocess(
     workflow_toolkit,
     nameOrWorkflowFileOrJSONOrResource,
