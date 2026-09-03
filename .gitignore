@@ -50,3 +50,6 @@ config.json
 # Conda package tarballs — large binary blobs, not needed in source repo
 additional installations/*.tar.bz2
 additional installations/*.conda
+
+# Local Claude instructions
+CLAUDE.local.md

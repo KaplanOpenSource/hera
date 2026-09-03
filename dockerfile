@@ -13,15 +13,6 @@ RUN apt-get install -y \
     pkg-config \
     libgirepository1.0-dev
 
-# Install MongoDB 6.0 + mongosh (new shell)
-# RUN curl -fsSL https://pgp.mongodb.com/server-6.0.asc | gpg --dearmor -o /usr/share/keyrings/mongodb-server-6.0.gpg && \
-#     echo "deb [ signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse" \
-#       | tee /etc/apt/sources.list.d/mongodb-org-6.0.list
-# RUN apt-get update
-# RUN apt-get install -y \
-#     mongodb-org \
-#     mongodb-mongosh \
-
 # Install Python 3.11 from deadsnakes (prebuilt, matches CI).
 RUN add-apt-repository -y ppa:deadsnakes/ppa && apt-get update && \
     apt-get install -y python3.11 python3.11-venv python3.11-dev python3.11-distutils
@@ -44,19 +35,17 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
 
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Pre-initialize MongoDB users using mongosh, and close it - will start with container
-# RUN mkdir -p /data/db /var/run/mongodb && \
-#     mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db && \
-#     mongosh admin --eval 'db.createUser({ user: "Admin", pwd: "Admin", roles: [ { role: "userAdminAnyDatabase", db: "admin" }, "readWriteAnyDatabase" ] })' && \
-#     mongosh admin --eval 'db.createUser({ user: "user", pwd: "1234", roles: [ { role: "readWrite", db: "dbhera" } ] })' && \
-#     mongod --shutdown
-    
 # Set working directory and copy project files (exclude .venv, .git via .dockerignore)
 WORKDIR /app
 COPY requirements.txt .
 
 # Install Python dependencies
 RUN python -m pip install --no-cache-dir -r requirements.txt
+
+# Disable the jupytext lab extension; it is built for JupyterLab 4.4+ and errors on 4.3.
+# RUN mkdir -p "$VIRTUAL_ENV/share/jupyter/lab/settings" && \
+#     printf '{"disabledExtensions": {"jupyterlab-jupytext": true}}\n' \
+#       > "$VIRTUAL_ENV/share/jupyter/lab/settings/page_config.json"
 
 ENV PATH="/app:/app/hera/bin:${PATH}"
 ENV PYTHONPATH="/app:/app/hera/bin"

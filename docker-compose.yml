@@ -22,6 +22,8 @@ configs:
 services:
   mongo:
     image: mongo:5.0
+    # --quiet drops the per-connection open/close log spam from the healthcheck.
+    command: ["mongod", "--quiet"]
     volumes:
       - ./mongo-db-datadir:/data/db
       - ./mongo-init.d:/docker-entrypoint-initdb.d
@@ -30,7 +32,7 @@ services:
       MONGO_HERA_PWD: heracles
     # No ports: Mongo is only reachable by the server over the internal network.
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -53,11 +55,13 @@ services:
     environment:
       # Hermes is a submodule with no setup.py, so add it to the path.
       PYTHONPATH: /app:/app/hera/bin:/app/Hermes
+    # Bound to 127.0.0.1 so only this computer can reach them, not the LAN.
     ports:
-      - "8000:8000"   # API
-      - "8888:8888"   # Jupyter
-      - "5678:5678"   # debugpy
-    command: python ui/server/server.py
+      - "127.0.0.1:8000:8000"   # API
+      - "127.0.0.1:8888:8888"   # Jupyter
+      - "127.0.0.1:5678:5678"   # debugpy
+    # --cors remote binds Jupyter to 0.0.0.0 so port 8888 is reachable from the host.
+    command: python ui/server/server.py --cors remote
 
   client:
     # Only starts with: docker compose --profile work up  (or: docker compose up client)
@@ -71,4 +75,4 @@ services:
       - /client/node_modules       # keep the image's node_modules (see below)
     command: npm run dev -- --host
     ports:
-      - "5173:5173"
+      - "127.0.0.1:5173:5173"
