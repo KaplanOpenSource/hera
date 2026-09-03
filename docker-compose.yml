@@ -32,8 +32,10 @@ services:
       MONGO_HERA_USER: hera
       MONGO_HERA_PWD: heracles
     # No ports: Mongo is only reachable by the server over the internal network.
+    # Bare TCP port check: opens the socket and closes it, no handshake, so it
+    # logs nothing on success. Fails (unhealthy) only when the port is down.
     healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/27017"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -88,8 +90,9 @@ services:
     image: ollama/ollama
     volumes:
       - ./ollama-data:/root/.ollama
+    # Bare TCP port check (no HTTP request), so GIN logs nothing on success.
     healthcheck:
-      test: ["CMD", "ollama", "list"]
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/11434"]
       interval: 10s
       timeout: 5s
       retries: 5
