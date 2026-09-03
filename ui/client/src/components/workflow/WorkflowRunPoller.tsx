@@ -61,7 +61,7 @@ export const WorkflowRunPoller = () => {
         setRunOutput(workflowName, result.output ?? '');
         timer = setTimeout(poll, POLL_MS);
       } else if (result.status === 'done') {
-        setRunResult(workflowName, { status: WorkflowRunStatus.Done, output: result.output ?? '', error: '' });
+        setRunResult(workflowName, { status: WorkflowRunStatus.Done, output: result.output ?? '', error: '', chunks: result.chunks });
         pushInfo(`Workflow "${workflowName}" finished`);
         clearRunningSnackbar();
       } else if (result.status === 'error') {

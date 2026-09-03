@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { WorkflowChunk } from '../io/runWorkflow';
 
 export enum WorkflowRunStatus {
   Running = 'running',
@@ -11,6 +12,8 @@ export type WorkflowRun = {
   status: WorkflowRunStatus,
   output: string,
   error: string,
+  // Per-task output segments; set when the run finishes (null while running).
+  chunks?: WorkflowChunk[] | null,
 };
 
 type WorkflowRunStore = {
@@ -24,7 +27,7 @@ type WorkflowRunStore = {
   // Called by the poller when the run finishes (done or error).
   setRunResult: (
     workflowName: string,
-    result: { status: WorkflowRunStatus, output: string, error: string },
+    result: { status: WorkflowRunStatus, output: string, error: string, chunks?: WorkflowChunk[] | null },
   ) => void,
 };
 
