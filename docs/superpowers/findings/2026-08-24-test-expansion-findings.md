@@ -2565,3 +2565,96 @@ import seaborn as sns; sns.set()
 ```
 
 הקריאה מתבצעת ב**זמן ייבוא המודול**, ו-`seaborn.set()` מחדש את קיצורי הצבע החד-אותיים של matplotlib ברמת התהליך. אומת ניסויית: אותה קריאה בדיוק ל-`ax.scatter(..., c="r")` ב-`experiment/presentation.py` מחזירה `(1.0, 0.0, 0.0, 1.0)` כשהמודול לא יובא, ו-`(0.769, 0.306, 0.322, 1.0)` אחרי שיובא. כלומר **ייבוא של מודול hera אחד משנה את מה ש"אדום" אומר בכל שאר האפליקציה** — כולל בקוד שלא יודע ש-seaborn קיים. זה גם מה שגרם לבדיקה שעברה בבידוד להיכשל בהרצה מלאה; הבדיקה תוקנה להשוות מול הצבע ש-matplotlib מפענח בפועל (`to_rgba("r")`) במקום מול RGBA ספרותי. הכשל הזה אינו רק אסתטי: הוא הופך פלט גרפי לתלוי בסדר הייבוא.
+
+## אצווה 33 — `pvOpenFOAMBase.py` (B310-B313)
+
+מקובע ב-`test_openfoam_pvopenfoambase.py`. **הערה על הסביבה:** בניגוד להנחה, `paraview` אינו מוחזר כ-MagicMock — בלוק הייבוא של המודול נפתח ב-`import vtkmodules.numpy_interface.dataset_adapter`, ו-`vtkmodules` אינו מותקן **ואינו מסוטב**, כך שכל ה-`try` מת בשורה הראשונה ואף אחד מ-`dsa`/`pvsimple`/`servermanager`/`Proxy` לא מוגדר. הבדיקות מחדירות את השמות האלה כ-globals עם מחלקות stand-in כתובות ביד (לא MagicMock) בדיוק במקומות שבהם הקוד עושה `isinstance` — כך שלוגיקת הענפים נבדקת באמת ולא מומצאת.
+
+### B310. `paraviewOpenFOAM.__init__` — הפרמטר `name` נקשר ונזרק
+הבנאי מצהיר `name="mainreader"` אבל הגוף (שורות 39–91) קובע רק `_componentsNames`, `casePath`, `caseType`. `initializeReader` נופל בחזרה ל-`readerName="reader"` משלו. אומת: `sorted(vars(obj)) == ["_componentsNames","casePath","caseType"]`.
+
+### B311. `readTimeSteps(timelist=None)` — אין שומר, ולולאה על `None`
+`for timeslice in timelist:` → `TypeError: 'NoneType' object is not iterable`. הטיפול המיועד **קיים באותה מחלקה** 300 שורות אחר כך (`_resolveTimeList`: `self.reader.TimestepValues if timeList is None else timeList`), והדוקסטרינג של `writeCase` מבטיח "None = all available from the reader". ארבעה aliases מיושנים (`to_pandas`, `to_xarray`, `to_dataFrame`, `to_dataArray`) מעבירים את אותה ברירת מחדל שבורה.
+
+### B312. `_ensureOutputDirs` — השומר מתיר בדיוק את הערך היחיד ש-`makedirs` לא מקבל
+**קובץ:** `hera/simulations/openFoam/postProcess/pvOpenFOAMBase.py:457-459`
+
+`outputPath = os.path.dirname(outputFile)` ואז `if not os.path.isdir(outputPath): os.makedirs(outputPath)`. לשם פלט יחסי חשוף `dirname` מחזיר `""`, `os.path.isdir("")` הוא `False`, ו-`os.makedirs("")` זורק `FileNotFoundError` — בעוד שההתנהגות הנכונה היא no-op (התיקייה היא ה-cwd). אומת בקוד.
+
+### B313. `_parsePointSet` — מסנן בעל נקודה אחת מאבד את הקואורדינטות שלו
+**קובץ:** `hera/simulations/openFoam/postProcess/pvOpenFOAMBase.py:204`
+
+`points = numpy.array(pointSet.Points).squeeze()` ואז x/y/z נשמרים רק `if len(points.shape)==2`, עם ההערה "it means that there are no points". ההסקה שגויה עבור מסנן עם **נקודה אחת בדיוק** (ProbeLocation, PointSource של נקודה): `squeeze` מפיל את הציר באורך 1, `(1,3)` הופך ל-`(3,)`, והקואורדינטות של הבדיקה נזרקות בשקט — השורה חוזרת עם `time` בלבד. אומת על הגבול: נקודה אחת מאבדת קואורדינטות, שתיים שומרות.
+
+## אצווה 33 — TilesToolkit ו-VTKPipeline (B314-B323)
+
+מקובע ב-`test_gis_tiles_last.py` ו-`test_openfoam_vtkpipeline.py`.
+
+### B314. `_getImageFromTiles` — off-by-one שמפיל את שורת/עמודת האריחים האחרונה
+**קובץ:** `hera/measurements/GIS/raster/tiles.py`
+
+גודל המוזאיקה מחושב כ-`lr - ul` במקום `lr - ul + 1`, כך ששורת האריחים המזרחית והדרומית ביותר של התיבה המבוקשת **לעולם לא נמשכת**. אומת: תיבה 34.7E..35.2E / 31.9N..32.3N ב-zoom 10 פורשת אריחים 610..612 × 414..416 — תשעה אריחים — אבל רק ארבעה נמשכים.
+
+### B315. אותה מתודה — תיבה בתוך אריח בודד מחזירה תמונה 0×0 בשקט
+כשפינות התיבה נופלות באותו אריח, `lr - ul` הוא אפס, וה-toolkit בונה תמונה 0×0 **בלי לפנות לשרת בכלל**. קורא שהתמקד ברחוב אחד מקבל תמונה ריקה ואף שגיאה.
+
+### B322. `presentation.plot` — סדר ה-extent הפוך לכל CRS שאינו ITM
+`[x_min, x_max, y_min, y_max]` מוחל רק תחת `if outputCRS==ITM`; כל CRS אחר נופל ל-`else` שפולט `[y_min, y_max, x_min, x_max]`. ציור ב-WGS84 מותח את התמונה על תיבה מוחלפת — קווי רוחב על ציר ה-x.
+
+### B323. `_getImageFromTiles` — משנה את רשימת הפינות של הקורא במקום
+`lrTiles[0] = ulTiles[0] + sqrx` כותב בחזרה לתוך הרשימה שהקורא העביר. קורא שממחזר את רשימת הפינות שלו — למשל כדי למשוך את אותה תיבה בשתי רזולוציות — מקבל בשקט תיבה **אחרת** בפעם השנייה.
+
+### B316. `VTKFilter.fullName` — מחזיר שם שנקשר רק בענף שלעולם לא נלקח
+**קובץ:** `hera/simulations/openFoam/postProcess/VTKPipeline.py`
+
+`fatherName` נקשר רק בתוך `if filter.father is not None`, ואז מוחזר ללא תנאי. `father` הוא attribute של המחלקה שערכו `None` ו**אף פעם לא מוקצה** בשום מקום במודול (לא ב-`__init__`, לא ב-`addFilter`, לא ב-`addFilterFromObj` ולא ב-`__setitem__`), כך שהשומר תמיד שקרי.
+
+### B317. `vtkFilter_IntegrateVariables.__init__` — לא מעביר את `params` החובה
+לוקח `**kwargs` ומעביר ל-`VTKFilter.__init__`, ש-`params` בו הוא ארגומנט פוזיציונלי חובה — בשונה מכל חמש מחלקות המסננים האחיות שלו (Slice, PlotOverLine, CellCenters, DescriptiveStatistics ו-ExtractBlock) שמעבירות אותו במפורש.
+
+### B318. `_buildFilterQuery` — משתף את אובייקט ה-`simulationParams` ואז כותב לתוכו
+בונה `dict(simulation=self.simulationParams, ...)` — כלומר שומר את **אותו אובייקט** ולא עותק — ואז כותב לתוכו (`qry['simulation']['regularMesh'] = regularMesh`). בניית שאילתה משנה בכך את `simulationParams` של האובייקט עצמו.
+
+### B319. `_filterCachedTimesteps` — משתמש במשתנה אחד לכל המסננים
+מקשר מחדש את ה-local היחיד `timeList` בתוך הלולאה לכל מסנן (`timeList = [ts for ts in timeList if ts not in dbTimeList]`) ומחזיר את אותה רשימה לכל מסנן. מסנן שה-cache שלו מלא **מרוקן בכך את רשימת צעדי הזמן של כל האחרים**.
+
+### B320. `clearCache` — מוחק מהאוסף הלא-נכון
+מוחק דרך `self.datalayer.deleteSimulationsDocuments(...)` — אוסף ה-Simulations — בעוד שה-cache שהוא אמור לנקות נכתב על ידי `_updateCacheDB` עם `addCacheDocument` ונקרא בחזרה על ידי `_filterCachedTimesteps` עם `getCacheDocuments`, כלומר אוסף ה-Cache. הפקודה לא מנקה כלום.
+
+### B321. `clearCache` — שורת ה-debug קוראת מפתח שהמחלקה עצמה לא כותבת
+קוראת `doc['desc']['workflowName']`, אבל ה-`desc` שהמחלקה הזו עצמה כותבת (`_updateCacheDB` → `_buildFilterQuery`) מקננת את השם תחת `desc['simulation']['workflowName']` ואין בה `workflowName` ברמה העליונה כלל. ה-f-string נבנה בשקיקה, ללא תלות ברמת הלוג.
+
+## אצווה 33 — `abstractLagrangianSolver.py` (B324-B332)
+
+מקובע ב-`test_openfoam_abstract_lagrangian.py` (173 בדיקות).
+
+### B324. `getCaseConcentrationsEulerian` — חמישה ארגומנטים פוזיציונליים לפונקציה שמקבלת ארבעה
+קורא `self._loadCaseDataViaDask(finalCasePath, loader, timeList, forceSingleProcessor, self.daskClient)`, בעוד שהחתימה היא `(self, casePath, loader, timeList, forceSingleProcessor)` — הפונקציה קוראת את `self.daskClient` בעצמה. ה"אח" `getCaseResults` מעביר ארבעה. כל קריאה עם cache קר → `TypeError`.
+
+### B325. `getOriginalFlowFieldExtentAsDict` — `zmax` נקרא מציר ה-y
+`zmax = lims.Cy.loc['max']` במקום `lims.Cz`. חמשת המפתחות האחרים קוראים כל אחד את הציר שלו (`zmin` כן קורא `Cz`). קוטע בשקט את המרחב האנכי.
+
+### B326. `analysis.calcConcentrationFieldFullMesh` — `AttributeError` בשורה הראשונה
+ההוראה הראשונה היא `self._resolveCaseDescriptorName(...)`, שמוגדרת על `absractStochasticLagrangianSolver_toolkitExtension` ולא על `analysis` (כל קריאת datalayer אחרת באותה מתודה עוברת דרך `self.datalayer(.toolkit)`).
+
+### B327. `getDispersionFlowDocument`/`getOriginalFlowDocument` — הודעת השגיאה נשמרת ולא נזרקת
+ענף ה-`else` משים את הודעת שגיאת-הטיפוס ל-local בשם `err` ואף פעם לא זורק אותה; הביצוע ממשיך ל-`logger.info(f"... {dffname}")` כאשר `dffname` לא קשור → `UnboundLocalError`.
+
+### B328. `getMassFromLog` — קורא `self._datalayer` שלא קיים בהיררכיה
+`self._datalayer.cloudName`, אבל `cloudName` יושב על מחלקת ההרחבה, שה-attributes שלה הם `toolkit`/`analysis`/`presentation`/`daskClient` — אף מחלקה בהיררכיה לא מגדירה `_datalayer` (העותק כמעט-זהה ב-`OFLSMToolkit.Analysis` כן מגדיר). בלתי שמיש לכל קלט.
+
+### B329. `analysis.calcDocumentConcentrationPointWise`/`getConcentrationField` — קוראים cache דרך אובייקט שלא מכיר אותו
+קוראים `self.datalayer.getCacheDocuments(...)`/`addCacheDocument(...)`, אבל `self.datalayer` הוא ההרחבה, שלא מגדירה אף אחת מהשתיים. ה"אח" `calcConcentrationFieldFullMesh` כן כותב נכון: `self.datalayer.toolkit.getCacheDocuments`.
+
+### B330. `getCaseListDocumentFromDB` — שם שלא מוגדר בשום מקום ב-hera
+ארבעה אתרי קריאה משתמשים ב-`self.toolkit.getCaseListDocumentFromDB`. אומת: ארבע ההופעות היחידות בכל הריפו הן אתרי הקריאה האלה, ואין שום `def` בשם הזה. השם האמיתי הוא `getWorkflowListDocumentFromDB`. לכן `createDispersionCaseDirectory` לא יכול לרוץ אף פעם.
+
+### B331. `_checkDBConsistency` — `compareWorkflowsObj` עם s מיותרת
+המתודה על `hermesWorkflowToolkit` היא `compareWorkflowObj`, בלי `s`. נגיש רק אחרי שמדמים את התיקון של B330.
+
+### B332. `from hera.utils.unitHandler import *` מסתיר את ה-builtin `min`
+**קובץ:** `hera/simulations/openFoam/lagrangian/abstractLagrangianSolver.py`
+
+הייבוא-כוכבית מייצא מחדש את טבלת יחידות unum, שהרשומה של דקה בה נקראת ממש `min`. לכן `min` ברמת המודול הוא `unum.Unum` ולא ה-builtin. אומת ישירות: `type(module.min).__name__ == 'Unum'`, `repr` הוא `1 [min]`, ו-`callable(module.min)` הוא **False**.
+
+`_buildTimeMapping` משתמש בו בשני מקומות — `TS[min(range(len(TS)), key=lambda i: abs(TS[i] - timeStep))]`, בענף ה-steadyState ובענף הדינמי — וזה בדיוק הקוד שמכבד `flowData['originalFlow']['timeStep']` מפורש. כלומר העברת timeStep מפורש מעלה `TypeError: 'Unum' object is not callable`, ו**רק ברירות המחדל של הצעד הראשון/אחרון ניתנות לשימוש בפועל**. (זהו ה-builtin היחיד שמוסתר במודול.)

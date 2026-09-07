@@ -228,3 +228,17 @@ class TestMolarVolume:
         broken = _build(molarVolume=None)
         with pytest.raises(TypeError):
             broken.molecularDiffusion_FSG(300.0)
+
+
+@pytest.mark.unit
+class TestDinamicViscocityModelProperty:
+    """The last uncovered member of this class: a plain round-tripping
+    property, spelled `dinamicViscocityModel` (sic -- the misspelling is
+    part of the public surface)."""
+
+    def test_it_round_trips(self, models):
+        models.dinamicViscocityModel = "somethingElse"
+        assert models.dinamicViscocityModel == "somethingElse"
+
+    def test_the_constructor_value_is_visible_through_the_getter(self, models):
+        assert models.dinamicViscocityModel == models._dinamicViscocityModel
