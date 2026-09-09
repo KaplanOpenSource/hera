@@ -18,7 +18,7 @@ class WorkflowDone(NamedTuple):
     """Sent once on the result queue when the run finishes successfully.
 
     ``dispatch_id`` is None when the run used no dispatch id (the legacy flat layout);
-    see ``executeWorkflowFromDB_inprocess``.
+    see ``run_workflow_child_inprocess``.
     """
 
     dispatch_id: Optional[str]
