@@ -8,7 +8,7 @@ from typing import Optional
 from .run_status import RunStatus
 from .task_pointer import BETWEEN
 from time_utils import now_readable
-from .run_workflow_child_inprocess import run_workflow_child_inprocess
+from .run_workflow_child_inprocess import WorkflowChildInProcess
 from .workflow_child_result import WorkflowError, WorkflowMessage, WorkflowOutput, WorkflowRunResult
 from .workflow_log_builder import WorkflowLogBuilder
 
@@ -112,7 +112,7 @@ class WorkflowRunner:
 
             total_started = time.perf_counter()
             process = ctx.Process(
-                target=run_workflow_child_inprocess,
+                target=WorkflowChildInProcess.start_child,
                 args=(project_name, workflow_name, result_queue),
             )
             process.start()

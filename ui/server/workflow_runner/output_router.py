@@ -36,6 +36,8 @@ class OutputRouter:
         self._queue = result_queue
         # The TaskPointer whose `current` value tags each captured piece.
         self._task_pointer = task_pointer
+        # True once stop() has torn down; makes stop() safe to call more than once.
+        self._stopped = False
 
     def start(self) -> None:
         # The capture pipe: everything written to fd 1/2 lands here.
@@ -64,6 +66,9 @@ class OutputRouter:
             self._queue.put(WorkflowOutput(task=self._task_pointer.current, text=chunk.decode(errors="replace")))
 
     def stop(self) -> None:
+        if self._stopped:
+            return
+        self._stopped = True
         sys.stdout.flush()
         sys.stderr.flush()
         # Restore the real fds. This drops the last writers on the capture pipe's
