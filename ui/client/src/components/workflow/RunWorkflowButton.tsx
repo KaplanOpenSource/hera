@@ -89,11 +89,6 @@ export const RunWorkflowButton = ({
   // Only save on click when there is something to save.
   const saveOnClick = saveBeforeRun && canSave && Boolean(isChanged);
 
-  // With unsaved changes and saving off, a plain run would execute the stale
-  // saved version, so block it. The right-click menu still opens (it lives on
-  // the wrapper Box) so the user can save-and-run or turn saving back on.
-  const runBlocked = canSave && Boolean(isChanged) && !saveBeforeRun;
-
   const handleClick = () => {
     return doRun(saveOnClick);
   };
@@ -113,14 +108,13 @@ export const RunWorkflowButton = ({
   };
 
   // Disabled while this workflow is running so both buttons block during a run.
-  const effectiveDisabled = disabled || runBlocked || isRunning;
-  let title = 'Run workflow (right click for more options)';
+  // Unsaved changes no longer block: the run uses the shown workflow, not the saved one.
+  const effectiveDisabled = disabled || isRunning;
+  let title = 'Run the workflow as shown (right click for options)';
   if (isRunning) {
     title = 'Workflow is running…';
   } else if (disabled && disabledReason) {
     title = disabledReason;
-  } else if (runBlocked) {
-    title = 'Save changes before running (right click for options)';
   }
   let icon = <PlayArrow />;
   if (isRunning) {
@@ -137,7 +131,7 @@ export const RunWorkflowButton = ({
   return (
     <>
       {/* The context menu lives on the wrapper so right click still opens it
-          when the button itself is disabled by unsaved changes. */}
+          even while the button is disabled (e.g. during a run). */}
       <Box component="span" onContextMenu={openMenu} sx={{ display: 'inline-flex' }}>
         <ButtonTooltip
           title={title}
@@ -155,8 +149,8 @@ export const RunWorkflowButton = ({
         anchorReference="anchorPosition"
         anchorPosition={menuAnchor ? { top: menuAnchor.y, left: menuAnchor.x } : undefined}
       >
-        <MenuItem onClick={() => runFromMenu(false)} disabled={isRunning || (canSave && Boolean(isChanged))}>
-          Run
+        <MenuItem onClick={() => runFromMenu(false)} disabled={isRunning}>
+          Run as shown
         </MenuItem>
         {canSave && (
           <MenuItem onClick={() => runFromMenu(true)} disabled={isRunning || !isChanged}>

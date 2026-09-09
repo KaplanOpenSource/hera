@@ -58,7 +58,7 @@ describe('RunWorkflowButton', () => {
     // The run buttons live in `container`; the output dialog renders in a portal.
     const { container } = render(<RunWorkflowButton projectName="TestProject" workflowName="hello_1" doc={testDoc} />);
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /run workflow/i }));
+      fireEvent.click(screen.getByRole('button', { name: /run the workflow/i }));
     });
 
     await waitFor(() => {
@@ -109,7 +109,7 @@ describe('RunWorkflowButton', () => {
       </>,
     );
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /run workflow/i }));
+      fireEvent.click(screen.getByRole('button', { name: /run the workflow/i }));
     });
 
     await waitFor(() => {
@@ -134,7 +134,7 @@ describe('RunWorkflowButton', () => {
       </>,
     );
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /run workflow/i }));
+      fireEvent.click(screen.getByRole('button', { name: /run the workflow/i }));
     });
 
     await waitFor(() => {
@@ -149,7 +149,7 @@ describe('RunWorkflowButton', () => {
 
     render(<RunWorkflowButton projectName="P" workflowName="w" doc={testDoc} />);
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /run workflow/i }));
+      fireEvent.click(screen.getByRole('button', { name: /run the workflow/i }));
     });
 
     await waitFor(() => {
@@ -165,7 +165,7 @@ describe('RunWorkflowButton', () => {
 
     render(<RunWorkflowButton projectName="P" workflowName="w" doc={testDoc} />);
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /run workflow/i }));
+      fireEvent.click(screen.getByRole('button', { name: /run the workflow/i }));
     });
 
     await waitFor(() => {
@@ -192,18 +192,26 @@ describe('RunWorkflowButton', () => {
 
     render(<RunWorkflowButton projectName="P" workflowName="w" doc={testDoc} save={save} />);
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /run workflow/i }));
+      fireEvent.click(screen.getByRole('button', { name: /run the workflow/i }));
     });
 
     await waitFor(() => expect(mockStartWorkflow).toHaveBeenCalled());
     expect(save).not.toHaveBeenCalled();
   });
 
-  it('disables the run button when there are unsaved changes and saving is off', () => {
+  it('runs unsaved changes without saving (runs the shown workflow)', async () => {
     const save = vi.fn().mockResolvedValue(undefined);
 
     render(<RunWorkflowButton projectName="P" workflowName="w" doc={testDoc} isChanged save={save} />);
-    expect(screen.getByRole('button', { name: /save changes before running/i })).toHaveProperty('disabled', true);
+    const button = screen.getByRole('button', { name: /run the workflow/i });
+    expect(button).toHaveProperty('disabled', false);
+
+    await act(async () => {
+      fireEvent.click(button);
+    });
+
+    await waitFor(() => expect(mockStartWorkflow).toHaveBeenCalled());
+    expect(save).not.toHaveBeenCalled();
   });
 
   it('enables the run button with unsaved changes once saving is on', () => {
@@ -211,7 +219,7 @@ describe('RunWorkflowButton', () => {
     const save = vi.fn().mockResolvedValue(undefined);
 
     render(<RunWorkflowButton projectName="P" workflowName="w" doc={testDoc} isChanged save={save} />);
-    expect(screen.getByRole('button', { name: /run workflow/i })).toHaveProperty('disabled', false);
+    expect(screen.getByRole('button', { name: /run the workflow/i })).toHaveProperty('disabled', false);
   });
 
   it('saves before running on left click when the flag is on', async () => {
@@ -223,7 +231,7 @@ describe('RunWorkflowButton', () => {
 
     render(<RunWorkflowButton projectName="P" workflowName="w" doc={testDoc} isChanged save={save} />);
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /run workflow/i }));
+      fireEvent.click(screen.getByRole('button', { name: /run the workflow/i }));
     });
 
     await waitFor(() => expect(mockStartWorkflow).toHaveBeenCalled());
@@ -261,7 +269,7 @@ describe('RunWorkflowButton', () => {
     expect(isSaving()).toBe(false);
   });
 
-  it('keeps every run button in sync when the flag toggles', () => {
+  it('syncs the auto-save flag across every run button', () => {
     const save = vi.fn().mockResolvedValue(undefined);
 
     render(
@@ -271,16 +279,17 @@ describe('RunWorkflowButton', () => {
       </>,
     );
     const buttons = () => screen.getAllByRole('button') as HTMLButtonElement[];
-    // Both start disabled: unsaved changes with saving off.
     expect(buttons()).toHaveLength(2);
-    expect(buttons().every(b => b.disabled)).toBe(true);
+    // No save-before-run badge yet.
+    expect(screen.queryAllByTestId('SaveIcon')).toHaveLength(0);
 
     // Turn saving on from the first button's menu.
     fireEvent.contextMenu(buttons()[0]);
     fireEvent.click(screen.getByText('Auto save before run'));
+    expect(isSaving()).toBe(true);
 
-    // Both buttons react, not just the one that toggled it.
-    expect(buttons().every(b => !b.disabled)).toBe(true);
+    // Both buttons show the save badge, not just the one that set the flag.
+    expect(screen.getAllByTestId('SaveIcon')).toHaveLength(2);
   });
 
   it('disables "Run with save" when there are no unsaved changes', () => {
