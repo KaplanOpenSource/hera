@@ -66,7 +66,8 @@ export const WorkflowRunPoller = () => {
         clearRunningSnackbar();
       } else if (result.status === 'error') {
         const message = result.error || 'Workflow failed';
-        setRunResult(workflowName, { status: WorkflowRunStatus.Error, error: message, chunks: [] });
+        // Keep the output that led to the failure so the log stays with the error.
+        setRunResult(workflowName, { status: WorkflowRunStatus.Error, error: message, chunks: result.chunks ?? [] });
         pushError(`run workflow: ${message}`);
         clearRunningSnackbar();
       } else {

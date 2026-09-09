@@ -53,4 +53,20 @@ describe('WorkflowOutputDialog', () => {
 
     expect(screen.getByText('it broke')).toBeTruthy();
   });
+
+  it('keeps the log visible alongside the error on failure', () => {
+    render(
+      <WorkflowOutputDialog
+        open
+        running={false}
+        chunks={[{ name: '__between__', text: 'log that led to the failure' }]}
+        error={'it broke'}
+        workflowName="w"
+        onClose={() => {}}
+      />,
+    );
+
+    expect(screen.getByText('it broke')).toBeTruthy();
+    expect(screen.getByText('log that led to the failure')).toBeTruthy();
+  });
 });

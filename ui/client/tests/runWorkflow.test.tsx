@@ -119,6 +119,31 @@ describe('RunWorkflowButton', () => {
     });
   });
 
+  it('keeps the log with the error when the run fails', async () => {
+    mockStartWorkflow.mockResolvedValueOnce({ token: 'tok' });
+    mockPollWorkflow.mockResolvedValueOnce({
+      status: 'error',
+      error: 'workflow failed: boom',
+      chunks: [{ name: '__between__', text: 'log before the failure\n' }],
+    });
+
+    render(
+      <>
+        <WorkflowRunPoller />
+        <RunWorkflowButton projectName="P" workflowName="hello_1" doc={testDoc} />
+      </>,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /run workflow/i }));
+    });
+
+    await waitFor(() => {
+      // Both the error and the output that led to it are shown.
+      expect(screen.getByText(/workflow failed: boom/i)).toBeTruthy();
+      expect(screen.getByText(/log before the failure/i)).toBeTruthy();
+    });
+  });
+
   it('shows a busy message and does not enter the running state', async () => {
     mockStartWorkflow.mockResolvedValueOnce({ status: 'busy' });
 

@@ -81,6 +81,9 @@ class WorkflowRunner:
         except Exception as exc:
             # Surface the failure to the client via poll (this reports it, not hides it).
             status, error = RunStatus.ERROR, str(exc)
+            # Keep the output captured up to the failure; run() fed it into log as it
+            # streamed, so the client keeps the log that led to the error, not just it.
+            chunks = log.chunks()
             print("workflow run failed:", error)
         if self._token == token:
             self._error = error

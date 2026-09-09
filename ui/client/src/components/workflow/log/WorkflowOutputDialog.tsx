@@ -31,9 +31,10 @@ export const WorkflowOutputDialog = ({
 
   const chunkList = chunks ?? [];
   const showChunked = !running && chunkList.length > 0;
-  // The log area shows while running and after a successful run; on failure it is
-  // replaced by the error message, so the toolbar has nothing to act on.
-  const showLog = running || !error;
+  // Show the log while running and whenever there is output, even on failure: the
+  // log that led to the error stays visible (below the error message). Only when a
+  // failure produced no output at all is there nothing to show but the error.
+  const showLog = running || chunkList.length > 0;
 
   let metrics: LogMetrics;
   if (showChunked) {
