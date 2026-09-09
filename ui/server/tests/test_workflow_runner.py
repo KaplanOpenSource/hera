@@ -17,22 +17,22 @@ def _wait_done(runner, token, timeout=10.0):
 
 
 def test_run_returns_dispatch_id_and_captured_stdout(install_fake_hera, tmp_path):
-    def on_execute(workflow_name, scheduler):
+    def on_execute(workflow_name):
         # Real hera writes to the fds via a subprocess / os.system, so mimic that
         # (a plain print would go to pytest's replaced sys.stdout, not fd 1).
-        os.write(1, ("ran %s on %s\n" % (workflow_name, scheduler)).encode())
+        os.write(1, ("ran %s\n" % workflow_name).encode())
         return "dispatch-123"
 
     install_fake_hera(str(tmp_path), on_execute)
 
     result = WorkflowRunner().run("PROJECT", "WORKFLOW")
 
-    assert result["dispatch_id"] == "dispatch-123"
-    assert "ran WORKFLOW on local" in result["output"]
+    assert result.dispatch_id == "dispatch-123"
+    assert "ran WORKFLOW" in result.output
 
 
 def test_run_captures_stderr_too(install_fake_hera, tmp_path):
-    def on_execute(workflow_name, scheduler):
+    def on_execute(workflow_name):
         os.write(2, b"a warning on stderr\n")
         return "d"
 
@@ -40,57 +40,51 @@ def test_run_captures_stderr_too(install_fake_hera, tmp_path):
 
     result = WorkflowRunner().run("PROJECT", "WORKFLOW")
 
-    assert "a warning on stderr" in result["output"]
+    assert "a warning on stderr" in result.output
 
 
-def test_run_uses_the_workflows_toolkit_and_local_scheduler(install_fake_hera, tmp_path):
-    record = install_fake_hera(str(tmp_path))
-
-    WorkflowRunner().run("MY_PROJECT", "MY_WORKFLOW")
-
-    assert record.get_toolkit_kwargs == {
-        "toolkitName": "SIMULATIONS_WORKFLOWS",
-        "projectName": "MY_PROJECT",
-    }
-    assert record.execute_calls == [("MY_WORKFLOW", "local")]
-
-
-def test_pythonpath_contains_files_dir_during_the_run(install_fake_hera, tmp_path):
-    seen = {}
-
-    def on_execute(workflow_name, scheduler):
-        seen["pythonpath"] = os.environ.get("PYTHONPATH")
+def test_run_executes_the_named_workflow_in_process(install_fake_hera, tmp_path):
+    def on_execute(workflow_name):
+        os.write(1, ("executing %s\n" % workflow_name).encode())
         return "d"
 
     install_fake_hera(str(tmp_path), on_execute)
 
-    WorkflowRunner().run("PROJECT", "WORKFLOW")
+    result = WorkflowRunner().run("MY_PROJECT", "MY_WORKFLOW")
 
-    assert seen["pythonpath"].split(os.pathsep)[0] == str(tmp_path)
-
-
-def test_run_restores_pythonpath_when_absent(install_fake_hera, tmp_path, monkeypatch):
-    monkeypatch.delenv("PYTHONPATH", raising=False)
-    install_fake_hera(str(tmp_path))
-
-    WorkflowRunner().run("PROJECT", "WORKFLOW")
-
-    assert "PYTHONPATH" not in os.environ
+    assert "executing MY_WORKFLOW" in result.output
 
 
-def test_run_restores_previous_pythonpath(install_fake_hera, tmp_path, monkeypatch):
-    monkeypatch.setenv("PYTHONPATH", "/original/path")
-    install_fake_hera(str(tmp_path))
+def test_pythonpath_contains_files_dir_during_the_run(install_fake_hera, tmp_path):
+    def on_execute(workflow_name):
+        first = os.environ.get("PYTHONPATH", "").split(os.pathsep)[0]
+        os.write(1, ("pythonpath0=%s\n" % first).encode())
+        return "d"
 
-    WorkflowRunner().run("PROJECT", "WORKFLOW")
+    install_fake_hera(str(tmp_path), on_execute)
 
-    assert os.environ["PYTHONPATH"] == "/original/path"
+    result = WorkflowRunner().run("PROJECT", "WORKFLOW")
+
+    assert ("pythonpath0=%s" % tmp_path) in result.output
 
 
-def test_run_restores_pythonpath_even_on_error(install_fake_hera, tmp_path, monkeypatch):
-    monkeypatch.delenv("PYTHONPATH", raising=False)
+def test_chunks_cover_the_whole_output(install_fake_hera, tmp_path):
+    def on_execute(workflow_name):
+        os.write(1, b"hello chunks\n")
+        return "d"
 
-    def on_execute(workflow_name, scheduler):
+    install_fake_hera(str(tmp_path), on_execute)
+
+    result = WorkflowRunner().run("PROJECT", "WORKFLOW")
+
+    joined = "".join(chunk["text"] for chunk in result.chunks)
+    assert "hello chunks" in joined
+    # The flat log is exactly the per-task chunks in order.
+    assert result.output == joined
+
+
+def test_run_raises_on_workflow_error(install_fake_hera, tmp_path):
+    def on_execute(workflow_name):
         raise RuntimeError("workflow blew up")
 
     install_fake_hera(str(tmp_path), on_execute)
@@ -98,11 +92,9 @@ def test_run_restores_pythonpath_even_on_error(install_fake_hera, tmp_path, monk
     with pytest.raises(RuntimeError, match="workflow blew up"):
         WorkflowRunner().run("PROJECT", "WORKFLOW")
 
-    assert "PYTHONPATH" not in os.environ
-
 
 def test_start_then_poll_reports_done_with_output(install_fake_hera, tmp_path):
-    def on_execute(workflow_name, scheduler):
+    def on_execute(workflow_name):
         os.write(1, ("ran %s\n" % workflow_name).encode())
         return "dispatch-123"
 
@@ -118,7 +110,7 @@ def test_start_then_poll_reports_done_with_output(install_fake_hera, tmp_path):
 
 
 def test_start_then_poll_reports_error(install_fake_hera, tmp_path):
-    def on_execute(workflow_name, scheduler):
+    def on_execute(workflow_name):
         raise RuntimeError("workflow blew up")
 
     install_fake_hera(str(tmp_path), on_execute)
@@ -132,7 +124,7 @@ def test_start_then_poll_reports_error(install_fake_hera, tmp_path):
 def test_poll_returns_partial_output_while_running(install_fake_hera, tmp_path):
     gate = tmp_path / "gate"
 
-    def on_execute(workflow_name, scheduler):
+    def on_execute(workflow_name):
         os.write(1, b"partial line\n")
         # Block until the test lets us finish, so it can observe running output.
         while not gate.exists():

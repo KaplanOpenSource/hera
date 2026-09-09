@@ -15,28 +15,26 @@ sys.argv = ["server"]
 
 @pytest.fixture
 def install_fake_hera(monkeypatch):
-    """Install a fake `hera` module so code under test doesn't need real hera.
+    """Install fakes so the runner works without real hera or luigi.
 
     Returns a factory: ``install_fake_hera(files_directory, on_execute=None)``.
-    The returned record captures the getToolkit kwargs and every
-    executeWorkflowFromDB call so tests can assert on them.
+
+    It fakes two things the workflow child imports:
+      - ``hera.toolkitHome`` -> a toolkit exposing ``FilesDirectory``.
+      - ``execute_workflow_inprocess.executeWorkflowFromDB_inprocess`` -> a stub that
+        calls ``on_execute(workflow_name)`` and returns a dispatch id. This avoids
+        importing luigi and the real build/run.
+
+    The child runs in a forked process, so anything ``on_execute`` records in memory
+    (or writes to the recorded namespace) is NOT visible to the parent. Tests must
+    assert on the run's observable result instead: the returned output / dispatch id
+    / chunks, or what ``poll`` reports. ``on_execute`` can ``os.write(1/2, ...)`` to
+    produce captured output, and return a dispatch id.
     """
     def _install(files_directory, on_execute=None):
-        record = types.SimpleNamespace(get_toolkit_kwargs=None, execute_calls=[])
-
-        def execute_workflow_from_db(workflow_name, scheduler):
-            record.execute_calls.append((workflow_name, scheduler))
-            if on_execute is not None:
-                return on_execute(workflow_name, scheduler)
-            return "dispatch-default"
-
-        toolkit = types.SimpleNamespace(
-            FilesDirectory=files_directory,
-            executeWorkflowFromDB=execute_workflow_from_db,
-        )
+        toolkit = types.SimpleNamespace(FilesDirectory=files_directory)
 
         def get_toolkit(toolkitName, projectName):
-            record.get_toolkit_kwargs = {"toolkitName": toolkitName, "projectName": projectName}
             return toolkit
 
         toolkit_home = types.SimpleNamespace(
@@ -46,6 +44,14 @@ def install_fake_hera(monkeypatch):
         fake_hera = types.ModuleType("hera")
         fake_hera.toolkitHome = toolkit_home
         monkeypatch.setitem(sys.modules, "hera", fake_hera)
-        return record
+
+        def execute_inprocess(workflow_toolkit, workflow_name, workers=1):
+            if on_execute is not None:
+                return on_execute(workflow_name)
+            return "dispatch-default"
+
+        fake_exec = types.ModuleType("execute_workflow_inprocess")
+        fake_exec.executeWorkflowFromDB_inprocess = execute_inprocess
+        monkeypatch.setitem(sys.modules, "execute_workflow_inprocess", fake_exec)
 
     return _install

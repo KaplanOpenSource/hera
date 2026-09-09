@@ -70,7 +70,7 @@ def test_workflow_status_delegates_to_runner_poll(monkeypatch):
 def test_run_workflow_endpoint_through_real_runner(install_fake_hera, tmp_path):
     # Exercises the actual WorkflowRunner (not mocked) against a fake hera, so the
     # route + runner + capture path all run together: start, then poll until done.
-    def on_execute(workflow_name, scheduler):
+    def on_execute(workflow_name):
         os.write(1, ("workflow %s done\n" % workflow_name).encode())
         return "dispatch-xyz"
 

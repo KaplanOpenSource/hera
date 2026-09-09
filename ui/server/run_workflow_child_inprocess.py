@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import os
-import sys
 import time
 import traceback
 from multiprocessing.queues import Queue
 
 from output_router import OutputRouter
-from run_chunk_state import state as chunk_state
-from workflow_child_result import WorkflowChildError, WorkflowChildResult, WorkflowChildSuccess
+from task_pointer import task_pointer
+from workflow_child_result import WorkflowDone, WorkflowError, WorkflowMessage
 
 # Number of Luigi workers when running in-process. 1 = sequential (today's behaviour).
 LUIGI_WORKERS = 1
@@ -17,20 +16,17 @@ LUIGI_WORKERS = 1
 def run_workflow_child_inprocess(
     project_name: str,
     workflow_name: str,
-    write_fd: int,
-    result_queue: Queue[WorkflowChildResult],
+    result_queue: Queue[WorkflowMessage],
 ) -> None:
     """Run a saved workflow inside a forked child, executing Luigi in this process.
 
-    fd 1/2 are routed through OutputRouter so output is both forwarded to the server
-    pipe (live, unchanged) and bucketed per task by the chunk pointer. The dispatch
-    id, the execution time and the per-task chunks are sent to the parent through
-    ``result_queue``. On failure the traceback is sent back instead so the parent can
-    surface it.
+    The router captures fd 1/2 and streams the output to ``result_queue`` as
+    ``WorkflowOutput`` messages, tagged per task. When the run finishes the child
+    puts one ``WorkflowDone`` (dispatch id + timing); on failure it puts a
+    ``WorkflowError`` with the traceback instead. The parent reads these off the queue.
     """
-    router = OutputRouter(forward_fd=write_fd, state=chunk_state)
+    router = OutputRouter(result_queue=result_queue, task_pointer=task_pointer)
     router.start()
-    os.close(write_fd)  # the router duped it; drop our extra copy
 
     try:
         from hera import toolkitHome
@@ -49,19 +45,16 @@ def run_workflow_child_inprocess(
         )
         exec_seconds = time.perf_counter() - started
 
-        # Stop the router first so all output is drained and bucketed before we read it.
+        # Stop the router first so every output message is on the queue before done.
         router.stop()
         router = None
-        chunks = chunk_state.as_list()
-
-        sys.stdout.flush()
-        sys.stderr.flush()
-        result_queue.put(WorkflowChildSuccess(dispatch_id=dispatch_id, exec_seconds=exec_seconds, chunks=chunks))
+        result_queue.put(WorkflowDone(dispatch_id=dispatch_id, exec_seconds=exec_seconds))
     except Exception:
         tb = traceback.format_exc()
-        sys.stdout.flush()
-        sys.stderr.flush()
-        result_queue.put(WorkflowChildError(error=tb))
+        if router is not None:
+            router.stop()
+            router = None
+        result_queue.put(WorkflowError(error=tb))
     finally:
         if router is not None:
             router.stop()

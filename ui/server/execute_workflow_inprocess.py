@@ -21,72 +21,8 @@ from hermes import workflow
 
 from hera.utils.logging import get_classMethod_logger
 
-from run_chunk_state import BETWEEN, state as chunk_state
-
-
-# Every Luigi event line starts with this prefix so the UI log parser can spot
-# them and hide them by default, without confusing them for a task's own output.
-# Kept in sync with EVENT_PREFIX in the client's classifyLog.ts.
-EVENT_PREFIX = "[luigi-event]"
-
-
-def _event(message):
-    """Print one Luigi-event line with the shared prefix (flushed for live output)."""
-    print(f"{EVENT_PREFIX} {message}", flush=True)
-
-
-# Register once at import: these fire for every luigi.Task run in this process.
-# START/SUCCESS/FAILURE also move the chunk pointer so the output router buckets
-# each task's output under the task's name (see run_chunk_state / output_router).
-@luigi.Task.event_handler(luigi.Event.START)
-def _on_task_start(task):
-    # Point at this task first, so the START line and the run's output land in its bucket.
-    chunk_state.current = task.task_family
-    _event(f"START {task.task_family}")
-
-
-@luigi.Task.event_handler(luigi.Event.SUCCESS)
-def _on_task_success(task):
-    # Print while still on the task's bucket, then stop pointing at it.
-    _event(f"SUCCESS {task.task_family}")
-    chunk_state.current = BETWEEN
-
-
-@luigi.Task.event_handler(luigi.Event.FAILURE)
-def _on_task_failure(task, exception):
-    _event(f"FAILURE {task.task_family}: {exception}")
-    chunk_state.current = BETWEEN
-
-
-@luigi.Task.event_handler(luigi.Event.PROCESSING_TIME)
-def _on_task_time(task, seconds):
-    _event(f"TIME {task.task_family}: {seconds:.2f}s")
-
-
-@luigi.Task.event_handler(luigi.Event.BROKEN_TASK)
-def _on_task_broken(task, exception):
-    _event(f"BROKEN {task.task_family}: {exception}")
-    chunk_state.current = BETWEEN
-
-
-@luigi.Task.event_handler(luigi.Event.PROGRESS)
-def _on_task_progress(task, progress):
-    _event(f"PROGRESS {task.task_family}: {progress}")
-
-
-@luigi.Task.event_handler(luigi.Event.DEPENDENCY_DISCOVERED)
-def _on_dependency_discovered(task, dependency):
-    _event(f"DEP DISCOVERED {task.task_family} -> {dependency.task_family}")
-
-
-@luigi.Task.event_handler(luigi.Event.DEPENDENCY_MISSING)
-def _on_dependency_missing(task):
-    _event(f"DEP MISSING {task.task_family}")
-
-
-@luigi.Task.event_handler(luigi.Event.DEPENDENCY_PRESENT)
-def _on_dependency_present(task):
-    _event(f"DEP PRESENT {task.task_family}")
+# Imported for its side effect: defining the class registers the Luigi event handlers.
+import luigi_task_events  # noqa: F401
 
 
 def executeWorkflowFromDB_inprocess(
