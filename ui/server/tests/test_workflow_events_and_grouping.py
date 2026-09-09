@@ -54,8 +54,8 @@ def test_log_builder_groups_consecutive_output_by_task():
     assert [chunk["name"] for chunk in chunks] == [PREAMBLE, "TaskA", "TaskB", BETWEEN]
     # Consecutive pieces for the same task merge into one segment.
     assert chunks[1]["text"] == "a1\na2\n"
-    # The flat log is every piece in arrival order.
-    assert builder.output() == "scheduling\na1\na2\nb\ndone\n"
+    # Joining the chunks in order gives every piece in arrival order.
+    assert "".join(chunk["text"] for chunk in chunks) == "scheduling\na1\na2\nb\ndone\n"
 
 
 def test_log_builder_keeps_separate_between_segments_in_order():

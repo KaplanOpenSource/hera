@@ -34,9 +34,9 @@ def test_run_workflow_response_start_token():
 
 
 def test_run_workflow_response_poll_done():
-    resp = RunWorkflowResponse(status="done", output="log")
+    resp = RunWorkflowResponse(status="done", chunks=[{"name": "__between__", "text": "log"}])
     assert resp.status == "done"
-    assert resp.output == "log"
+    assert resp.chunks[0].text == "log"
     assert resp.error == ""
 
 

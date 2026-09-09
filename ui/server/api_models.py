@@ -37,11 +37,10 @@ class WorkflowChunk(BaseModel):
 
 
 class RunWorkflowResponse(BaseModel):
-    # start returns token (or status "busy"); poll returns status + output/error.
+    # start returns token (or status "busy"); poll returns status + chunks/error.
     token: Optional[str] = None
     status: Optional[str] = None
-    output: str = ""
     error: str = ""
-    # Per-task output segments, in run order. Filled in only once the run is done;
-    # None while the run is still going.
+    # Per-task output segments, in run order. Grows live while the run is going;
+    # None only before any output (or when the token is unknown).
     chunks: Optional[List[WorkflowChunk]] = None

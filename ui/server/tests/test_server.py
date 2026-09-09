@@ -67,13 +67,13 @@ def test_start_workflow_delegates_to_runner_start(monkeypatch):
 def test_workflow_status_delegates_to_runner_poll(monkeypatch):
     monkeypatch.setattr(
         server.workflow_runner, "poll",
-        lambda token: {"status": "done", "output": "log", "error": ""},
+        lambda token: {"status": "done", "error": "", "chunks": [{"name": "__between__", "text": "log"}]},
     )
 
     resp = server.workflow_status("t1")
 
     assert resp.status == "done"
-    assert resp.output == "log"
+    assert resp.chunks[0].text == "log"
 
 
 def test_run_workflow_endpoint_through_real_runner(install_fake_hera, tmp_path):
@@ -95,7 +95,7 @@ def test_run_workflow_endpoint_through_real_runner(install_fake_hera, tmp_path):
         resp = server.workflow_status(start.token)
 
     assert resp.status == "done"
-    assert "workflow hello done" in resp.output
+    assert "workflow hello done" in "".join(chunk.text for chunk in resp.chunks)
 
 
 def test_truncate_for_log_keeps_short_values():

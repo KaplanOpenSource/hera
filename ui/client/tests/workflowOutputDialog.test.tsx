@@ -12,7 +12,7 @@ describe('WorkflowOutputDialog', () => {
       <WorkflowOutputDialog
         open
         running
-        output={'partial line while running'}
+        chunks={[{ name: '__preamble__', text: 'partial line while running' }]}
         error={null}
         workflowName="w"
         onClose={() => {}}
@@ -28,7 +28,7 @@ describe('WorkflowOutputDialog', () => {
       <WorkflowOutputDialog
         open
         running={false}
-        output={'final output line'}
+        chunks={[{ name: '__between__', text: 'final output line' }]}
         error={null}
         workflowName="w"
         onClose={() => {}}
@@ -44,7 +44,7 @@ describe('WorkflowOutputDialog', () => {
       <WorkflowOutputDialog
         open
         running={false}
-        output={null}
+        chunks={null}
         error={'it broke'}
         workflowName="w"
         onClose={() => {}}

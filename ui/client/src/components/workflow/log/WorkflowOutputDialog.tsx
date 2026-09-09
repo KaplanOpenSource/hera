@@ -1,16 +1,14 @@
 import { Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
-import { WorkflowChunk } from '../../../io/runWorkflow';
+import { chunksToText, WorkflowChunk } from '../../../io/runWorkflow';
 import { WorkflowChunkedLog } from './WorkflowChunkedLog';
 import { WorkflowLogView } from './WorkflowLogView';
 
-// Shows a workflow run's output. While the run is in progress it shows the flat log
-// as it grows with a small "running" hint; on finish, if per-task segments are
-// available it shows the grouped view, otherwise the final flat classified log
-// (or an error message).
+// Shows a workflow run's output, always from the per-task chunks. While the run is
+// in progress it shows the flat log (the chunks joined) as it grows with a small
+// "running" hint; on finish it shows the grouped per-task view (or an error).
 export const WorkflowOutputDialog = ({
   open,
   running,
-  output,
   chunks,
   error,
   workflowName,
@@ -18,7 +16,6 @@ export const WorkflowOutputDialog = ({
 }: {
   open: boolean,
   running: boolean,
-  output: string | null,
   chunks?: WorkflowChunk[] | null,
   error: string | null,
   workflowName: string,
@@ -44,7 +41,7 @@ export const WorkflowOutputDialog = ({
             )}
             {showChunked
               ? <WorkflowChunkedLog chunks={chunks} />
-              : <WorkflowLogView output={output ?? ''} />}
+              : <WorkflowLogView output={chunksToText(chunks)} />}
           </>
         )}
       </DialogContent>

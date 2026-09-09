@@ -6,6 +6,11 @@ import pytest
 from workflow_runner import WorkflowRunner, RunStatus
 
 
+def _joined(chunks):
+    """Join per-task chunks into the flat text the run produced."""
+    return "".join(chunk["text"] for chunk in chunks)
+
+
 def _wait_done(runner, token, timeout=10.0):
     """Poll a token until the run leaves the running state; return the poll result."""
     deadline = time.time() + timeout
@@ -28,7 +33,7 @@ def test_run_returns_dispatch_id_and_captured_stdout(install_fake_hera, tmp_path
     result = WorkflowRunner().run("PROJECT", "WORKFLOW")
 
     assert result.dispatch_id == "dispatch-123"
-    assert "ran WORKFLOW" in result.output
+    assert "ran WORKFLOW" in _joined(result.chunks)
 
 
 def test_run_captures_stderr_too(install_fake_hera, tmp_path):
@@ -40,7 +45,7 @@ def test_run_captures_stderr_too(install_fake_hera, tmp_path):
 
     result = WorkflowRunner().run("PROJECT", "WORKFLOW")
 
-    assert "a warning on stderr" in result.output
+    assert "a warning on stderr" in _joined(result.chunks)
 
 
 def test_run_executes_the_named_workflow_in_process(install_fake_hera, tmp_path):
@@ -52,7 +57,7 @@ def test_run_executes_the_named_workflow_in_process(install_fake_hera, tmp_path)
 
     result = WorkflowRunner().run("MY_PROJECT", "MY_WORKFLOW")
 
-    assert "executing MY_WORKFLOW" in result.output
+    assert "executing MY_WORKFLOW" in _joined(result.chunks)
 
 
 def test_pythonpath_contains_files_dir_during_the_run(install_fake_hera, tmp_path):
@@ -65,7 +70,7 @@ def test_pythonpath_contains_files_dir_during_the_run(install_fake_hera, tmp_pat
 
     result = WorkflowRunner().run("PROJECT", "WORKFLOW")
 
-    assert ("pythonpath0=%s" % tmp_path) in result.output
+    assert ("pythonpath0=%s" % tmp_path) in _joined(result.chunks)
 
 
 def test_chunks_cover_the_whole_output(install_fake_hera, tmp_path):
@@ -77,10 +82,7 @@ def test_chunks_cover_the_whole_output(install_fake_hera, tmp_path):
 
     result = WorkflowRunner().run("PROJECT", "WORKFLOW")
 
-    joined = "".join(chunk["text"] for chunk in result.chunks)
-    assert "hello chunks" in joined
-    # The flat log is exactly the per-task chunks in order.
-    assert result.output == joined
+    assert "hello chunks" in _joined(result.chunks)
 
 
 def test_run_raises_on_workflow_error(install_fake_hera, tmp_path):
@@ -106,7 +108,7 @@ def test_start_then_poll_reports_done_with_output(install_fake_hera, tmp_path):
 
     result = _wait_done(runner, start["token"])
     assert result["status"] == RunStatus.DONE
-    assert "ran WORKFLOW" in result["output"]
+    assert "ran WORKFLOW" in _joined(result["chunks"])
 
 
 def test_start_then_poll_reports_error(install_fake_hera, tmp_path):
@@ -138,23 +140,23 @@ def test_poll_returns_partial_output_while_running(install_fake_hera, tmp_path):
     # Wait until the partial output shows up while the run is still going.
     deadline = time.time() + 10
     result = runner.poll(token)
-    while "partial line" not in result["output"] and time.time() < deadline:
+    while "partial line" not in _joined(result["chunks"] or []) and time.time() < deadline:
         assert result["status"] == RunStatus.RUNNING
         time.sleep(0.01)
         result = runner.poll(token)
     assert result["status"] == RunStatus.RUNNING
-    assert "partial line" in result["output"]
+    assert "partial line" in _joined(result["chunks"])
 
     # Let the run finish; the final output still has the partial line.
     gate.write_text("go")
     final = _wait_done(runner, token)
     assert final["status"] == RunStatus.DONE
-    assert "partial line" in final["output"]
+    assert "partial line" in _joined(final["chunks"])
 
 
 def test_poll_unknown_token_is_not_found():
     assert WorkflowRunner().poll("nope") == {
-        "status": RunStatus.NOT_FOUND, "output": "", "error": "",
+        "status": RunStatus.NOT_FOUND, "error": "", "chunks": None,
     }
 
 

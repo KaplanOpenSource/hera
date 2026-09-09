@@ -50,9 +50,7 @@ export const RunWorkflowButton = ({
 
   const canSave = Boolean(save);
   const isRunning = starting || run?.status === WorkflowRunStatus.Running;
-  // Output while running (partial) and when done (final); the dialog shows it live.
-  const output = run ? run.output : null;
-  // Per-task segments, present only when the run is done; drives the grouped view.
+  // Per-task output segments; the source of truth for the dialog, live and final.
   const chunks = run ? run.chunks : null;
   const runError = run?.status === WorkflowRunStatus.Error ? run.error : null;
 
@@ -172,7 +170,6 @@ export const RunWorkflowButton = ({
       <WorkflowOutputDialog
         open={open}
         running={isRunning}
-        output={output}
         chunks={chunks}
         error={startError ?? runError}
         workflowName={workflowName}

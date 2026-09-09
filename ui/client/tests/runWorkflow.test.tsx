@@ -8,6 +8,7 @@ const mockPollWorkflow = vi.fn();
 vi.mock('../src/io/runWorkflow', () => ({
   startWorkflow: (...args: any[]) => mockStartWorkflow(...args),
   pollWorkflow: (...args: any[]) => mockPollWorkflow(...args),
+  chunksToText: (chunks: { text: string }[] | null | undefined) => (chunks ?? []).map((c) => c.text).join(''),
 }));
 
 const mockPushInfo = vi.fn();
@@ -42,7 +43,7 @@ beforeEach(() => {
   useWorkflowRunStore.setState({ runs: {} });
   // Default: starting returns a token; the run then stays running until polled.
   mockStartWorkflow.mockResolvedValue({ token: 't1' });
-  mockPollWorkflow.mockResolvedValue({ status: 'running', output: '', error: '' });
+  mockPollWorkflow.mockResolvedValue({ status: 'running', error: '', chunks: [] });
 });
 
 describe('RunWorkflowButton', () => {
@@ -91,7 +92,7 @@ describe('RunWorkflowButton', () => {
 
   it('runs end to end with the poller: shows output and info on done', async () => {
     mockStartWorkflow.mockResolvedValueOnce({ token: 'tok' });
-    mockPollWorkflow.mockResolvedValueOnce({ status: 'done', output: 'hello from hera\n', error: '' });
+    mockPollWorkflow.mockResolvedValueOnce({ status: 'done', error: '', chunks: [{ name: '__between__', text: 'hello from hera\n' }] });
 
     render(
       <>

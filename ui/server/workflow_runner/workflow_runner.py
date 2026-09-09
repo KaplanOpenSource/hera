@@ -30,7 +30,6 @@ class WorkflowRunner:
         # the background thread starts the run so poll() can read partial output.
         self._token: Optional[str] = None
         self._status: RunStatus = RunStatus.IDLE
-        self._output: str = ""
         self._error: str = ""
         self._chunks = None  # per-task output segments, filled in once the run is done
         self._log: Optional[WorkflowLogBuilder] = None
@@ -41,7 +40,6 @@ class WorkflowRunner:
             return {"status": RunStatus.BUSY}
         self._token = uuid.uuid4().hex
         self._status = RunStatus.RUNNING
-        self._output = ""
         self._error = ""
         self._chunks = None
         self._log = None
@@ -54,21 +52,19 @@ class WorkflowRunner:
         return {"token": self._token}
 
     def poll(self, token: str) -> dict:
-        """Return ``{"status", "output", "error", "chunks"}`` for a token, or not_found."""
+        """Return ``{"status", "error", "chunks"}`` for a token, or not_found."""
         # Read the token first: a mismatch means this isn't the run we hold.
         if self._token != token:
             print(f"[{now_readable()}] poll {token}: not_found")
-            return {"status": RunStatus.NOT_FOUND, "output": "", "error": ""}
+            return {"status": RunStatus.NOT_FOUND, "error": "", "chunks": None}
         print(f"[{now_readable()}] poll {token}: {self._status}")
-        # While running, read the live builder so the client sees output as it grows.
-        # Once done, _output / _chunks hold the final values (with the timing line).
+        # While running, read the live builder so the client sees chunks as they grow.
+        # Once done, _chunks holds the final value (with the timing line).
         if self._status == RunStatus.RUNNING and self._log is not None:
-            output = self._log.output()
             chunks = self._log.chunks()
         else:
-            output = self._output
             chunks = self._chunks
-        return {"status": self._status, "output": output, "error": self._error, "chunks": chunks}
+        return {"status": self._status, "error": self._error, "chunks": chunks}
 
     def _background(self, token: str, project_name: str, workflow_name: str) -> None:
         # Runs in a background thread; record the outcome for poll(). The token guard
@@ -80,14 +76,13 @@ class WorkflowRunner:
         chunks = None
         try:
             result = self.run(project_name, workflow_name, log)
-            status, output, error = RunStatus.DONE, result.output, ""
+            status, error = RunStatus.DONE, ""
             chunks = result.chunks
         except Exception as exc:
             # Surface the failure to the client via poll (this reports it, not hides it).
-            status, output, error = RunStatus.ERROR, "", str(exc)
+            status, error = RunStatus.ERROR, str(exc)
             print("workflow run failed:", error)
         if self._token == token:
-            self._output = output
             self._error = error
             self._chunks = chunks
             self._status = status
@@ -95,9 +90,9 @@ class WorkflowRunner:
     def run(self, project_name: str, workflow_name: str, log: Optional[WorkflowLogBuilder] = None) -> WorkflowRunResult:
         """Build and execute a saved workflow in a forked child process.
 
-        Returns the flat log (with timing lines appended), the per-task chunks, and
-        the dispatch id. Output is the child's captured console output; timing lines
-        say how long the workflow ran and the total wall time including process spawn.
+        Returns the per-task chunks (with the timing line as a final chunk) and the
+        dispatch id. Chunks hold the child's captured console output; the timing line
+        says how long the workflow ran and the total wall time including process spawn.
 
         ``log`` accumulates the child's output; when omitted a fresh one is made.
         ``start`` passes one it also stored on the job so ``poll`` can read the
@@ -141,6 +136,5 @@ class WorkflowRunner:
                 log.add(WorkflowOutput(task=BETWEEN, text=timing))
                 return WorkflowRunResult(
                     dispatch_id=message.dispatch_id,
-                    output=log.output(),
                     chunks=log.chunks(),
                 )
