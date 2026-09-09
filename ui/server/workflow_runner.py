@@ -8,12 +8,7 @@ from typing import Optional
 
 from pipe_tee import PipeTee
 from run_workflow_child_inprocess import run_workflow_child_inprocess
-from run_workflow_child_subprocess import run_workflow_child_subprocess
 from workflow_child_result import WorkflowChildError, WorkflowChildResult, WorkflowRunResult
-
-# Run Luigi in the child process via luigi.build instead of shelling out to
-# `python -m luigi`. Lets us set workers and hook Luigi events. Flip to try it.
-INPROCESS_LUIGI = True
 
 
 class RunStatus(str, Enum):
@@ -135,14 +130,8 @@ class WorkflowRunner:
             result_queue: Queue[WorkflowChildResult] = ctx.Queue()
 
             total_started = time.perf_counter()
-            # Pick the child entry point here: in-process routes output per task and
-            # takes a worker count; the subprocess path redirects output straight through.
-            if INPROCESS_LUIGI:
-                target = run_workflow_child_inprocess
-            else:
-                target = run_workflow_child_subprocess
             process = ctx.Process(
-                target=target,
+                target=run_workflow_child_inprocess,
                 args=(project_name, workflow_name, tee.write_fd, result_queue),
             )
             process.start()
@@ -162,8 +151,8 @@ class WorkflowRunner:
                 f"\n[workflow ran in {result.exec_seconds:.2f}s; "
                 f"total {total_seconds:.2f}s including process spawn]\n"
             )
-            # chunks: per-task output buckets from the in-process router (None on the
-            # subprocess path). Passed through so callers can show output per task.
+            # chunks: per-task output buckets from the in-process router, passed
+            # through so callers can show output grouped per task.
             return WorkflowRunResult(
                 dispatch_id=result.dispatch_id,
                 output=output + timing,

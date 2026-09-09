@@ -42,6 +42,6 @@ class RunWorkflowResponse(BaseModel):
     status: Optional[str] = None
     output: str = ""
     error: str = ""
-    # Per-task output segments, in run order. Filled in only once the run is done
-    # (in-process path only); None while running or on the subprocess path.
+    # Per-task output segments, in run order. Filled in only once the run is done;
+    # None while the run is still going.
     chunks: Optional[List[WorkflowChunk]] = None

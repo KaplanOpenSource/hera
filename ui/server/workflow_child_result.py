@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import NamedTuple, Optional, Union
+from typing import NamedTuple, Union
 
 
 class WorkflowChildSuccess(NamedTuple):
@@ -8,7 +8,7 @@ class WorkflowChildSuccess(NamedTuple):
 
     dispatch_id: str
     exec_seconds: float
-    chunks: Optional[list]  # per-task output segments; None on the subprocess path
+    chunks: list  # per-task output segments from the in-process router
 
 
 class WorkflowChildError(NamedTuple):
@@ -27,4 +27,4 @@ class WorkflowRunResult(NamedTuple):
 
     dispatch_id: str
     output: str
-    chunks: Optional[list]
+    chunks: list
