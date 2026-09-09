@@ -1,41 +1,48 @@
 """In-process twin of ``hermesWorkflowToolkit.executeWorkflowFromDB``.
 
-Same build-and-run steps as the toolkit's method, but step 5 calls
-``luigi.build(...)`` in the current process instead of shelling out to
-``python3 -m luigi ...``. This keeps the toolkit code untouched while letting the
-server run Luigi in-process: it can set ``workers`` for parallelism and register
-Luigi event handlers (they fire in this same process).
+Shares the build steps with the toolkit's method via
+``prepareWorkflowRunFromDoc`` (rebuild, build, write, clean target files), but
+runs the result by calling ``luigi.build(...)`` in the current process instead
+of shelling out to ``python3 -m luigi ...``. Running Luigi in-process lets the
+server set ``workers`` for parallelism and register Luigi event handlers (they
+fire in this same process).
 
 Run this inside the forked workflow child (see ``run_workflow_child_inprocess.py``): that makes
 it the main thread of a fresh process, so Luigi's signal handler registration
 works and each run imports the generated module fresh.
 """
 
+from __future__ import annotations
+
 import importlib
 import os
-import shutil
 import sys
+from typing import TYPE_CHECKING
 
 import luigi
-from hermes import workflow
 
 from hera.utils.logging import get_classMethod_logger
 
 # Imported for its side effect: defining the class registers the Luigi event handlers.
 from . import luigi_task_events  # noqa: F401
 
+if TYPE_CHECKING:
+    from hera.simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
+
 
 def executeWorkflowFromDB_inprocess(
-    workflow_toolkit,
-    nameOrWorkflowFileOrJSONOrResource,
-    dispatch_id=None,
-    workers=1,
-    targetTask="finalnode_xx_0",
-):
+    workflow_toolkit: hermesWorkflowToolkit,
+    nameOrWorkflowFileOrJSONOrResource: str | dict,
+    dispatch_id: str | None = None,
+    workers: int = 1,
+    targetTask: str = "finalnode_xx_0",
+) -> str | None:
     """Build a saved workflow and run it in-process with ``luigi.build``.
 
-    Mirrors ``hermesWorkflowToolkit.executeWorkflowFromDB`` step for step; only the
-    execution (step 5) differs. Returns the ``dispatch_id`` used for the run.
+    Prep (rebuild, build, write, clean target files) is delegated to the toolkit's
+    ``prepareWorkflowRunFromDoc``; only the execution differs from
+    ``hermesWorkflowToolkit.executeWorkflowFromDB``. Returns the ``dispatch_id``
+    used for the run.
 
     Parameters
     ----------
@@ -60,35 +67,10 @@ def executeWorkflowFromDB_inprocess(
     logger.info(f"In-process execution with dispatch_id='{dispatch_id}' workers={workers}")
 
     for doc in docList:
-        workflowJSON = doc.desc["workflow"]
-        workflowName = doc.desc["workflowName"]
-        logger.info(f"Processing {workflowName}")
-
-        # Step 1: Reconstruct the hermes workflow object from the stored JSON.
-        hermesWF = workflow_toolkit.getHermesWorkflowFromJSON(
-            workflowJSON, name=workflowName, resource=doc["resource"]
-        )
-
-        # Step 2: Build the workflow into a Luigi task module (Python source).
-        logger.info(f"Building the workflow {workflowName}")
-        build = hermesWF.build(buildername=workflow.BUILDER_LUIGI)
-
-        # Step 3: Write the workflow JSON and the generated Python module to disk.
-        logger.info(f"Writing the workflow and the executer python {workflowName}")
-        wfFileName = hermesWF.Resource_path
-        hermesWF.write(wfFileName)
-
-        pythonFileName = os.path.join(workflow_toolkit.FilesDirectory, f"{workflowName}.py")
-        with open(pythonFileName, "w") as outFile:
-            outFile.write(build)
-
-        # Step 4: Clean previous execution artifacts (Luigi target files) so every
-        # task re-runs from scratch.
-        logger.debug("Removing the targetfiles")
-        executionfileDir = os.path.join(
-            workflow_toolkit.FilesDirectory, f"{workflowName}_targetFiles"
-        )
-        shutil.rmtree(executionfileDir, ignore_errors=True)
+        # Steps 1-4: rebuild, build, write and clean target files (no execution).
+        # Shared with the subprocess path so both build the module the same way.
+        pythonFileName, workflowName, targetFilesDir = workflow_toolkit.prepareWorkflowRunFromDoc(doc)
+        print(f"[in-process luigi.build] target files for {workflowName} at {targetFilesDir}", flush=True)
 
         # Step 5: Execute in-process via luigi.build instead of a subprocess.
         # The generated module lives in FilesDirectory; put it on sys.path so the
