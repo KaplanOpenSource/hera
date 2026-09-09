@@ -1,8 +1,17 @@
 import os
 import time
 
+import pytest
+
 import server
 from api_models import ExecPayload, RunWorkflowPayload
+
+
+@pytest.fixture
+def warmed(monkeypatch):
+    # exec_code returns WARMING_UP until the off-thread hera warmup finishes. There is
+    # no real hera in tests, so mark warmup ready to exercise the exec path itself.
+    monkeypatch.setattr(server.warmup, "_ready", True)
 
 
 def test_healthz():
@@ -14,25 +23,25 @@ def test_cors_info_shape():
     assert "origins" in info
 
 
-def test_exec_returns_result_value():
+def test_exec_returns_result_value(warmed):
     resp = server.exec_code(ExecPayload(code="result = 1 + 2"))
     assert resp.problem is None
     assert resp.data == 3
 
 
-def test_exec_without_result_is_none():
+def test_exec_without_result_is_none(warmed):
     resp = server.exec_code(ExecPayload(code="x = 5"))
     assert resp.problem is None
     assert resp.data is None
 
 
-def test_exec_returns_jsonable_structure():
+def test_exec_returns_jsonable_structure(warmed):
     resp = server.exec_code(ExecPayload(code="result = {'a': [1, 2], 'b': 'x'}"))
     assert resp.problem is None
     assert resp.data == {"a": [1, 2], "b": "x"}
 
 
-def test_exec_reports_errors():
+def test_exec_reports_errors(warmed):
     resp = server.exec_code(ExecPayload(code="raise ValueError('boom')"))
     assert resp.data is None
     assert "ValueError" in resp.problem.error
