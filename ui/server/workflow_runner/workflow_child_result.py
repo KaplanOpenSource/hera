@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import NamedTuple, Union
+from typing import NamedTuple, Optional, Union
 
 
 class WorkflowOutput(NamedTuple):
@@ -15,9 +15,13 @@ class WorkflowOutput(NamedTuple):
 
 
 class WorkflowDone(NamedTuple):
-    """Sent once on the result queue when the run finishes successfully."""
+    """Sent once on the result queue when the run finishes successfully.
 
-    dispatch_id: str
+    ``dispatch_id`` is None when the run used no dispatch id (the legacy flat layout);
+    see ``executeWorkflowFromDB_inprocess``.
+    """
+
+    dispatch_id: Optional[str]
     exec_seconds: float
 
 
@@ -34,8 +38,8 @@ WorkflowMessage = Union[WorkflowOutput, WorkflowDone, WorkflowError]
 
 class WorkflowRunResult(NamedTuple):
     """What ``WorkflowRunner.run`` returns to its caller: the flat log with timing
-    lines appended, the per-task chunks, and the dispatch id."""
+    lines appended, the per-task chunks, and the dispatch id (None if unused)."""
 
-    dispatch_id: str
+    dispatch_id: Optional[str]
     output: str
     chunks: list
