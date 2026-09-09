@@ -10,10 +10,9 @@ export enum WorkflowRunStatus {
 export type WorkflowRun = {
   token: string,
   status: WorkflowRunStatus,
-  output: string,
   error: string,
-  // Per-task output segments; set when the run finishes (null while running).
-  chunks?: WorkflowChunk[] | null,
+  // Per-task output segments; the single source of truth, growing live and final.
+  chunks: WorkflowChunk[],
 };
 
 type WorkflowRunStore = {
@@ -22,12 +21,12 @@ type WorkflowRunStore = {
   // Called when a run is started; marks the workflow as running.
   startRun: (workflowName: string, token: string) => void,
   // Called by the poller while the run is still going, to show the growing output.
-  // Keeps status = running; only updates the output text.
-  setRunOutput: (workflowName: string, output: string) => void,
+  // Keeps status = running; only updates the chunks.
+  setRunChunks: (workflowName: string, chunks: WorkflowChunk[]) => void,
   // Called by the poller when the run finishes (done or error).
   setRunResult: (
     workflowName: string,
-    result: { status: WorkflowRunStatus, output: string, error: string, chunks?: WorkflowChunk[] | null },
+    result: { status: WorkflowRunStatus, error: string, chunks: WorkflowChunk[] },
   ) => void,
 };
 
@@ -41,20 +40,20 @@ export const useWorkflowRunStore = create<WorkflowRunStore>((set) => {
         return {
           runs: {
             ...state.runs,
-            [workflowName]: { token, status: WorkflowRunStatus.Running, output: '', error: '' },
+            [workflowName]: { token, status: WorkflowRunStatus.Running, error: '', chunks: [] },
           },
         };
       });
     },
-    setRunOutput: (workflowName, output) => {
+    setRunChunks: (workflowName, chunks) => {
       return set((state) => {
         const existing = state.runs[workflowName];
         if (!existing) {
-          console.error(`setRunOutput: no run in progress for workflow "${workflowName}"`);
+          console.error(`setRunChunks: no run in progress for workflow "${workflowName}"`);
           return {};
         }
         return {
-          runs: { ...state.runs, [workflowName]: { ...existing, output } },
+          runs: { ...state.runs, [workflowName]: { ...existing, chunks } },
         };
       });
     },

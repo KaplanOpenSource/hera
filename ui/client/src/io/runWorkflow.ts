@@ -1,4 +1,5 @@
 import { BASEURL } from '../shared/baseurl';
+import { ProjectDocument } from '../shared/types';
 
 // Reply from starting a run: a token to poll with, or status "busy" when a run
 // is already in progress on the server.
@@ -14,12 +15,18 @@ export type WorkflowChunk = {
   text: string,
 };
 
+// Joins per-task chunks into one flat text, in run order (for a plain-text view).
+export const chunksToText = (
+  chunks?: WorkflowChunk[] | null,
+): string => {
+  return (chunks ?? []).map((chunk) => { return chunk.text; }).join('');
+};
+
 // Reply from polling a run. status is one of running / done / error / not_found.
-// output and error are filled in once the run is done / failed. chunks holds the
-// per-task segments, present only once the run is done (in-process runs).
+// error is filled in once the run fails. chunks holds the per-task output segments,
+// growing live while the run runs and complete once it is done.
 export type PollWorkflowResult = {
   status: string,
-  output: string,
   error: string,
   chunks?: WorkflowChunk[] | null,
 };
@@ -28,15 +35,16 @@ export type PollWorkflowResult = {
 // busy status when the server is already running a workflow.
 export const startWorkflow = async ({
   projectName,
-  workflowName,
+  doc,
 }: {
   projectName: string,
-  workflowName: string,
+  // The whole workflow document. Sent so the server builds from it, no DB lookup.
+  doc: ProjectDocument,
 }): Promise<StartWorkflowResult> => {
   const response = await fetch(`${BASEURL}/start_workflow`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ projectName, workflowName }),
+    body: JSON.stringify({ projectName, doc }),
   });
   const text = await response.text();
   if (!response.ok) {
@@ -46,7 +54,7 @@ export const startWorkflow = async ({
   return JSON.parse(text);
 };
 
-// Polls a run's status by token. Once done, output holds the full console output.
+// Polls a run's status by token. chunks holds the per-task output, live and final.
 export const pollWorkflow = async (token: string): Promise<PollWorkflowResult> => {
   const response = await fetch(`${BASEURL}/workflow_status/${token}`);
   const text = await response.text();

@@ -6,6 +6,7 @@ import { startWorkflow } from '../../io/runWorkflow';
 import { pushError } from '../../io/snackbar';
 import { useViewSettingsStore } from '../../stores/useViewSettingsStore';
 import { useWorkflowRunStore, WorkflowRunStatus } from '../../stores/useWorkflowRunStore';
+import { ProjectDocument } from '../../shared/types';
 import { WorkflowOutputDialog } from './log/WorkflowOutputDialog';
 
 // Runs a saved workflow via the server. The run happens in the background: starting
@@ -21,6 +22,7 @@ import { WorkflowOutputDialog } from './log/WorkflowOutputDialog';
 export const RunWorkflowButton = ({
   projectName,
   workflowName,
+  doc,
   isChanged,
   save,
   disabled,
@@ -29,6 +31,8 @@ export const RunWorkflowButton = ({
 }: {
   projectName: string,
   workflowName: string,
+  // The whole workflow document. Sent to the server so it builds from it, no DB lookup.
+  doc: ProjectDocument,
   // True when the open document has unsaved edits.
   isChanged?: boolean,
   // Persists the current document; awaited before running when saving is requested.
@@ -50,9 +54,7 @@ export const RunWorkflowButton = ({
 
   const canSave = Boolean(save);
   const isRunning = starting || run?.status === WorkflowRunStatus.Running;
-  // Output while running (partial) and when done (final); the dialog shows it live.
-  const output = run ? run.output : null;
-  // Per-task segments, present only when the run is done; drives the grouped view.
+  // Per-task output segments; the source of truth for the dialog, live and final.
   const chunks = run ? run.chunks : null;
   const runError = run?.status === WorkflowRunStatus.Error ? run.error : null;
 
@@ -64,7 +66,10 @@ export const RunWorkflowButton = ({
       if (withSave && save) {
         await save();
       }
-      const result = await startWorkflow({ projectName, workflowName });
+      // Ensure the sent doc carries the resolved name; the server reads it as
+      // desc.workflowName (the doc's own desc may leave it unset, falling back to the doc name).
+      const docToRun = { ...doc, desc: { ...doc.desc, workflowName } };
+      const result = await startWorkflow({ projectName, doc: docToRun });
       if (result.status === 'busy') {
         const message = 'The server is busy running another workflow. Try again shortly.';
         setStartError(message);
@@ -83,11 +88,6 @@ export const RunWorkflowButton = ({
 
   // Only save on click when there is something to save.
   const saveOnClick = saveBeforeRun && canSave && Boolean(isChanged);
-
-  // With unsaved changes and saving off, a plain run would execute the stale
-  // saved version, so block it. The right-click menu still opens (it lives on
-  // the wrapper Box) so the user can save-and-run or turn saving back on.
-  const runBlocked = canSave && Boolean(isChanged) && !saveBeforeRun;
 
   const handleClick = () => {
     return doRun(saveOnClick);
@@ -108,14 +108,13 @@ export const RunWorkflowButton = ({
   };
 
   // Disabled while this workflow is running so both buttons block during a run.
-  const effectiveDisabled = disabled || runBlocked || isRunning;
-  let title = 'Run workflow (right click for more options)';
+  // Unsaved changes no longer block: the run uses the shown workflow, not the saved one.
+  const effectiveDisabled = disabled || isRunning;
+  let title = 'Run the workflow as shown (right click for options)';
   if (isRunning) {
     title = 'Workflow is running…';
   } else if (disabled && disabledReason) {
     title = disabledReason;
-  } else if (runBlocked) {
-    title = 'Save changes before running (right click for options)';
   }
   let icon = <PlayArrow />;
   if (isRunning) {
@@ -132,7 +131,7 @@ export const RunWorkflowButton = ({
   return (
     <>
       {/* The context menu lives on the wrapper so right click still opens it
-          when the button itself is disabled by unsaved changes. */}
+          even while the button is disabled (e.g. during a run). */}
       <Box component="span" onContextMenu={openMenu} sx={{ display: 'inline-flex' }}>
         <ButtonTooltip
           title={title}
@@ -150,8 +149,8 @@ export const RunWorkflowButton = ({
         anchorReference="anchorPosition"
         anchorPosition={menuAnchor ? { top: menuAnchor.y, left: menuAnchor.x } : undefined}
       >
-        <MenuItem onClick={() => runFromMenu(false)} disabled={isRunning || (canSave && Boolean(isChanged))}>
-          Run
+        <MenuItem onClick={() => runFromMenu(false)} disabled={isRunning}>
+          Run as shown
         </MenuItem>
         {canSave && (
           <MenuItem onClick={() => runFromMenu(true)} disabled={isRunning || !isChanged}>
@@ -172,7 +171,6 @@ export const RunWorkflowButton = ({
       <WorkflowOutputDialog
         open={open}
         running={isRunning}
-        output={output}
         chunks={chunks}
         error={startError ?? runError}
         workflowName={workflowName}
