@@ -6,7 +6,7 @@ Same build-and-run steps as the toolkit's method, but step 5 calls
 server run Luigi in-process: it can set ``workers`` for parallelism and register
 Luigi event handlers (they fire in this same process).
 
-Run this inside the forked workflow child (see ``workflow_child.py``): that makes
+Run this inside the forked workflow child (see ``run_workflow_child_inprocess.py``): that makes
 it the main thread of a fresh process, so Luigi's signal handler registration
 works and each run imports the generated module fresh.
 """
