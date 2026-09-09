@@ -22,7 +22,7 @@ from hermes import workflow
 from hera.utils.logging import get_classMethod_logger
 
 # Imported for its side effect: defining the class registers the Luigi event handlers.
-import luigi_task_events  # noqa: F401
+from . import luigi_task_events  # noqa: F401
 
 
 def executeWorkflowFromDB_inprocess(

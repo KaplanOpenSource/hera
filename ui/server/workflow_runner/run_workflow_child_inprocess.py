@@ -5,9 +5,9 @@ import time
 import traceback
 from multiprocessing.queues import Queue
 
-from output_router import OutputRouter
-from task_pointer import task_pointer
-from workflow_child_result import WorkflowDone, WorkflowError, WorkflowMessage
+from .output_router import OutputRouter
+from .task_pointer import task_pointer
+from .workflow_child_result import WorkflowDone, WorkflowError, WorkflowMessage
 
 # Number of Luigi workers when running in-process. 1 = sequential (today's behaviour).
 LUIGI_WORKERS = 1
@@ -39,7 +39,7 @@ def run_workflow_child_inprocess(
         os.environ["PYTHONPATH"] = workflow_toolkit.FilesDirectory + os.pathsep + os.environ.get("PYTHONPATH", "")
 
         started = time.perf_counter()
-        from execute_workflow_inprocess import executeWorkflowFromDB_inprocess
+        from .execute_workflow_inprocess import executeWorkflowFromDB_inprocess
         dispatch_id = executeWorkflowFromDB_inprocess(
             workflow_toolkit, workflow_name, workers=LUIGI_WORKERS
         )

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import threading
 
-from workflow_child_result import WorkflowOutput
+from .workflow_child_result import WorkflowOutput
 
 
 class WorkflowLogBuilder:

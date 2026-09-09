@@ -8,7 +8,7 @@ so the output router tags each task's output with the task's name.
 
 import luigi
 
-from task_pointer import BETWEEN, task_pointer
+from .task_pointer import BETWEEN, task_pointer
 
 
 # Every Luigi event line starts with this prefix so the UI log parser can spot

@@ -19,8 +19,8 @@ import sys
 import threading
 from multiprocessing.queues import Queue
 
-from task_pointer import TaskPointer
-from workflow_child_result import WorkflowMessage, WorkflowOutput
+from .task_pointer import TaskPointer
+from .workflow_child_result import WorkflowMessage, WorkflowOutput
 
 
 class OutputRouter:

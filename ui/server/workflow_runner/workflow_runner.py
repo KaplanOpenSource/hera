@@ -5,12 +5,12 @@ import multiprocessing
 from multiprocessing.queues import Queue
 from typing import Optional
 
-from run_status import RunStatus
-from task_pointer import BETWEEN
+from .run_status import RunStatus
+from .task_pointer import BETWEEN
 from time_utils import now_readable
-from run_workflow_child_inprocess import run_workflow_child_inprocess
-from workflow_child_result import WorkflowError, WorkflowMessage, WorkflowOutput, WorkflowRunResult
-from workflow_log_builder import WorkflowLogBuilder
+from .run_workflow_child_inprocess import run_workflow_child_inprocess
+from .workflow_child_result import WorkflowError, WorkflowMessage, WorkflowOutput, WorkflowRunResult
+from .workflow_log_builder import WorkflowLogBuilder
 
 
 class WorkflowRunner:

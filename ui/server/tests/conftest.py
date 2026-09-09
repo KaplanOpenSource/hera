@@ -21,9 +21,9 @@ def install_fake_hera(monkeypatch):
 
     It fakes two things the workflow child imports:
       - ``hera.toolkitHome`` -> a toolkit exposing ``FilesDirectory``.
-      - ``execute_workflow_inprocess.executeWorkflowFromDB_inprocess`` -> a stub that
-        calls ``on_execute(workflow_name)`` and returns a dispatch id. This avoids
-        importing luigi and the real build/run.
+      - ``workflow_runner.execute_workflow_inprocess.executeWorkflowFromDB_inprocess``
+        -> a stub that calls ``on_execute(workflow_name)`` and returns a dispatch id.
+        This avoids importing luigi and the real build/run.
 
     The child runs in a forked process, so anything ``on_execute`` records in memory
     (or writes to the recorded namespace) is NOT visible to the parent. Tests must
@@ -50,8 +50,8 @@ def install_fake_hera(monkeypatch):
                 return on_execute(workflow_name)
             return "dispatch-default"
 
-        fake_exec = types.ModuleType("execute_workflow_inprocess")
+        fake_exec = types.ModuleType("workflow_runner.execute_workflow_inprocess")
         fake_exec.executeWorkflowFromDB_inprocess = execute_inprocess
-        monkeypatch.setitem(sys.modules, "execute_workflow_inprocess", fake_exec)
+        monkeypatch.setitem(sys.modules, "workflow_runner.execute_workflow_inprocess", fake_exec)
 
     return _install
