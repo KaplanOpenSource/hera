@@ -793,38 +793,8 @@ class hermesWorkflowToolkit(abstractToolkit):
         logger.info(f"Executing with scheduler='{scheduler}' dispatch_id='{dispatch_id}'")
 
         for doc in docList:
-            workflowJSON = doc.desc['workflow']
-            workflowName = doc.desc['workflowName']
-            logger.info(f"Processing {workflowName}")
-
-            # Step 1: Reconstruct the hermes workflow object from the stored JSON.
-            # The workflow class is resolved dynamically via pydoc.locate based on
-            # the 'solver' field (generic hermes.workflow or solver-specific subclass).
-            hermesWF = self.getHermesWorkflowFromJSON(workflowJSON, name=workflowName, resource=doc['resource'])
-
-            # Step 2: Build the workflow into a Luigi task DAG.
-            # hermes.build() traverses the workflow node tree, wraps each node in a
-            # Luigi task, and returns the Python source code for the task module.
-            logger.info(f"Building and executing the workflow {workflowName}")
-            build = hermesWF.build(buildername=workflow.BUILDER_LUIGI)
-
-            # Step 3: Write the workflow JSON and generated Python module to disk.
-            # The JSON is written to the resource path; the Python module contains
-            # the Luigi task definitions that will be executed.
-            logger.info(f"Writing the workflow and the executer python {workflowName}")
-            wfFileName = hermesWF.Resource_path
-            hermesWF.write(wfFileName)
-
-            pythonFileName = os.path.join(self.FilesDirectory, f"{workflowName}.py")
-            with open(pythonFileName, "w") as outFile:
-                outFile.write(build)
-
-            # Step 4: Clean previous execution artifacts (Luigi target files).
-            # Luigi uses target files to track task completion. Removing them
-            # forces all tasks to re-execute from scratch.
-            logger.debug("Removing the targetfiles and execute")
-            executionfileDir = os.path.join(self.FilesDirectory, f"{workflowName}_targetFiles")
-            shutil.rmtree(executionfileDir, ignore_errors=True)
+            # Steps 1-4: rebuild, build, write and clean target files (no execution).
+            pythonFileName, workflowName, _targetFilesDir = self.prepareWorkflowRunFromDoc(doc)
 
             # Step 5: Execute the Luigi pipeline via command line.
             # 'finalnode_xx_0' is the terminal task that triggers the full DAG.
@@ -843,6 +813,65 @@ class hermesWorkflowToolkit(abstractToolkit):
             os.remove(pythonFileName)
 
         return dispatch_id
+
+    def prepareWorkflowRunFromDoc(self, doc):
+        """Build a saved workflow document into a runnable Luigi module on disk.
+
+            Runs the pre-execution steps shared by every workflow runner: rebuild the
+            hermes workflow object from the stored JSON, build it into a Luigi task
+            module, write the workflow JSON and the generated Python module to disk,
+            and clear any previous Luigi target files so the run starts from scratch.
+
+            This does NOT execute the workflow; the caller runs the returned module.
+
+        Parameters
+        ----------
+        doc : Simulations document
+            One saved-workflow document (as returned by getWorkflowListDocumentFromDB).
+            Only doc.desc['workflow'], doc.desc['workflowName'] and doc['resource'] are used.
+
+        Returns
+        -------
+            (str, str, str)
+                The path of the generated Python module (<FilesDirectory>/<name>.py),
+                the workflow name, and the target-files directory
+                (<FilesDirectory>/<name>_targetFiles) that holds the task outputs.
+        """
+        logger = get_classMethod_logger(self, "prepareWorkflowRunFromDoc")
+        workflowJSON = doc.desc['workflow']
+        workflowName = doc.desc['workflowName']
+        logger.info(f"Processing {workflowName}")
+
+        # Step 1: Reconstruct the hermes workflow object from the stored JSON.
+        # The workflow class is resolved dynamically via pydoc.locate based on
+        # the 'solver' field (generic hermes.workflow or solver-specific subclass).
+        hermesWF = self.getHermesWorkflowFromJSON(workflowJSON, name=workflowName, resource=doc['resource'])
+
+        # Step 2: Build the workflow into a Luigi task DAG.
+        # hermes.build() traverses the workflow node tree, wraps each node in a
+        # Luigi task, and returns the Python source code for the task module.
+        logger.info(f"Building the workflow {workflowName}")
+        build = hermesWF.build(buildername=workflow.BUILDER_LUIGI)
+
+        # Step 3: Write the workflow JSON and generated Python module to disk.
+        # The JSON is written to the resource path; the Python module contains
+        # the Luigi task definitions that will be executed.
+        logger.info(f"Writing the workflow and the executer python {workflowName}")
+        wfFileName = hermesWF.Resource_path
+        hermesWF.write(wfFileName)
+
+        pythonFileName = os.path.join(self.FilesDirectory, f"{workflowName}.py")
+        with open(pythonFileName, "w") as outFile:
+            outFile.write(build)
+
+        # Step 4: Clean previous execution artifacts (Luigi target files).
+        # Luigi uses target files to track task completion. Removing them
+        # forces all tasks to re-execute from scratch.
+        logger.debug("Removing the targetfiles")
+        executionfileDir = os.path.join(self.FilesDirectory, f"{workflowName}_targetFiles")
+        shutil.rmtree(executionfileDir, ignore_errors=True)
+
+        return pythonFileName, workflowName, executionfileDir
 
 
     def compareWorkflowObj(self,
