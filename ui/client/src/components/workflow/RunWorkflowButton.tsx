@@ -6,6 +6,7 @@ import { startWorkflow } from '../../io/runWorkflow';
 import { pushError } from '../../io/snackbar';
 import { useViewSettingsStore } from '../../stores/useViewSettingsStore';
 import { useWorkflowRunStore, WorkflowRunStatus } from '../../stores/useWorkflowRunStore';
+import { ProjectDocument } from '../../shared/types';
 import { WorkflowOutputDialog } from './log/WorkflowOutputDialog';
 
 // Runs a saved workflow via the server. The run happens in the background: starting
@@ -21,6 +22,7 @@ import { WorkflowOutputDialog } from './log/WorkflowOutputDialog';
 export const RunWorkflowButton = ({
   projectName,
   workflowName,
+  doc,
   isChanged,
   save,
   disabled,
@@ -29,6 +31,8 @@ export const RunWorkflowButton = ({
 }: {
   projectName: string,
   workflowName: string,
+  // The whole workflow document. Sent to the server so it builds from it, no DB lookup.
+  doc: ProjectDocument,
   // True when the open document has unsaved edits.
   isChanged?: boolean,
   // Persists the current document; awaited before running when saving is requested.
@@ -62,7 +66,10 @@ export const RunWorkflowButton = ({
       if (withSave && save) {
         await save();
       }
-      const result = await startWorkflow({ projectName, workflowName });
+      // Ensure the sent doc carries the resolved name; the server reads it as
+      // desc.workflowName (the doc's own desc may leave it unset, falling back to the doc name).
+      const docToRun = { ...doc, desc: { ...doc.desc, workflowName } };
+      const result = await startWorkflow({ projectName, doc: docToRun });
       if (result.status === 'busy') {
         const message = 'The server is busy running another workflow. Try again shortly.';
         setStartError(message);

@@ -22,9 +22,20 @@ def test_exec_response_with_problem():
     assert resp.problem.traceback == "tb"
 
 
-def test_run_workflow_payload_requires_fields():
+def test_run_workflow_payload_requires_project():
     with pytest.raises(ValidationError):
-        RunWorkflowPayload(projectName="P")  # missing workflowName
+        RunWorkflowPayload(doc={"desc": {}})  # missing projectName
+
+
+def test_run_workflow_payload_requires_doc():
+    with pytest.raises(ValidationError):
+        RunWorkflowPayload(projectName="P")  # missing doc
+
+
+def test_run_workflow_payload_accepts_doc():
+    doc = {"desc": {"workflow": {"solver": "s"}, "workflowName": "W"}, "resource": "/tmp/W.json"}
+    payload = RunWorkflowPayload(projectName="P", doc=doc)
+    assert payload.doc == doc
 
 
 def test_run_workflow_response_start_token():

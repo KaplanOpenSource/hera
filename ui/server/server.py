@@ -173,7 +173,7 @@ def start_workflow(payload: RunWorkflowPayload) -> RunWorkflowResponse:
     Returns a token to poll with, or status "busy" if a run is already in progress.
     Poll GET /workflow_status/{token} for status and chunks. See WorkflowRunner.
     """
-    result = workflow_runner.start(payload.projectName, payload.workflowName)
+    result = workflow_runner.start(payload.projectName, payload.doc)
     return RunWorkflowResponse(**result)
 
 

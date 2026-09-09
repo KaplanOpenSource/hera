@@ -52,15 +52,16 @@ def test_exec_reports_errors(warmed):
 def test_start_workflow_delegates_to_runner_start(monkeypatch):
     calls = {}
 
-    def fake_start(project_name, workflow_name):
-        calls["args"] = (project_name, workflow_name)
+    def fake_start(project_name, doc):
+        calls["args"] = (project_name, doc)
         return {"token": "t1"}
 
     monkeypatch.setattr(server.workflow_runner, "start", fake_start)
 
-    resp = server.start_workflow(RunWorkflowPayload(projectName="P", workflowName="W"))
+    doc = {"desc": {"workflow": {"solver": "s"}, "workflowName": "W"}, "resource": "/tmp/W.json"}
+    resp = server.start_workflow(RunWorkflowPayload(projectName="P", doc=doc))
 
-    assert calls["args"] == ("P", "W")
+    assert calls["args"] == ("P", doc)
     assert resp.token == "t1"
 
 
@@ -85,7 +86,8 @@ def test_run_workflow_endpoint_through_real_runner(install_fake_hera, tmp_path):
 
     install_fake_hera(str(tmp_path), on_execute)
 
-    start = server.start_workflow(RunWorkflowPayload(projectName="P", workflowName="hello"))
+    hello_doc = {"desc": {"workflow": {"solver": "s"}, "workflowName": "hello"}, "resource": str(tmp_path / "hello.json")}
+    start = server.start_workflow(RunWorkflowPayload(projectName="P", doc=hello_doc))
     assert start.token
 
     deadline = time.time() + 10.0

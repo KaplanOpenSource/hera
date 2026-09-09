@@ -3,7 +3,7 @@ import uuid
 import threading
 import multiprocessing
 from multiprocessing.queues import Queue
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from .run_status import RunStatus
 from .task_pointer import BETWEEN
@@ -34,7 +34,7 @@ class WorkflowRunner:
         self._chunks = None  # per-task output segments, filled in once the run is done
         self._log: Optional[WorkflowLogBuilder] = None
 
-    def start(self, project_name: str, workflow_name: str) -> dict:
+    def start(self, project_name: str, doc: Dict[str, Any]) -> dict:
         """Start a run in the background. Returns ``{"token"}`` or ``{"status": "busy"}``."""
         if self._status == RunStatus.RUNNING:
             return {"status": RunStatus.BUSY}
@@ -45,7 +45,7 @@ class WorkflowRunner:
         self._log = None
         thread = threading.Thread(
             target=self._background,
-            args=(self._token, project_name, workflow_name),
+            args=(self._token, project_name, doc),
             daemon=True,
         )
         thread.start()
@@ -66,7 +66,7 @@ class WorkflowRunner:
             chunks = self._chunks
         return {"status": self._status, "error": self._error, "chunks": chunks}
 
-    def _background(self, token: str, project_name: str, workflow_name: str) -> None:
+    def _background(self, token: str, project_name: str, doc: Dict[str, Any]) -> None:
         # Runs in a background thread; record the outcome for poll(). The token guard
         # keeps a finished run from clobbering a newer one that took the runner over.
         # Create the log builder here and store it so poll() can read partial output.
@@ -75,7 +75,7 @@ class WorkflowRunner:
             self._log = log
         chunks = None
         try:
-            result = self.run(project_name, workflow_name, log)
+            result = self.run(project_name, doc, log)
             status, error = RunStatus.DONE, ""
             chunks = result.chunks
         except Exception as exc:
@@ -87,7 +87,7 @@ class WorkflowRunner:
             self._chunks = chunks
             self._status = status
 
-    def run(self, project_name: str, workflow_name: str, log: Optional[WorkflowLogBuilder] = None) -> WorkflowRunResult:
+    def run(self, project_name: str, doc: Dict[str, Any], log: Optional[WorkflowLogBuilder] = None) -> WorkflowRunResult:
         """Build and execute a saved workflow in a forked child process.
 
         Returns the per-task chunks (with the timing line as a final chunk) and the
@@ -108,7 +108,7 @@ class WorkflowRunner:
             total_started = time.perf_counter()
             process = ctx.Process(
                 target=WorkflowChildInProcess.start_child,
-                args=(project_name, workflow_name, result_queue),
+                args=(project_name, doc, result_queue),
             )
             process.start()
 

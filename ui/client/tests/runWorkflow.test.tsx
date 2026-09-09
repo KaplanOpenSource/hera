@@ -20,6 +20,11 @@ vi.mock('../src/io/snackbar', () => ({
   dismiss: vi.fn(),
 }));
 
+import type { ProjectDocument } from '../src/shared/types';
+
+// A minimal workflow document to hand the button; only desc + resource are read.
+const testDoc = { desc: {}, resource: '' } as unknown as ProjectDocument;
+
 const { RunWorkflowButton } = await import('../src/components/workflow/RunWorkflowButton');
 const { WorkflowRunPoller } = await import('../src/components/workflow/WorkflowRunPoller');
 const { useViewSettingsStore } = await import('../src/stores/useViewSettingsStore');
@@ -51,13 +56,16 @@ describe('RunWorkflowButton', () => {
     mockStartWorkflow.mockResolvedValueOnce({ token: 'abc123' });
 
     // The run buttons live in `container`; the output dialog renders in a portal.
-    const { container } = render(<RunWorkflowButton projectName="TestProject" workflowName="hello_1" />);
+    const { container } = render(<RunWorkflowButton projectName="TestProject" workflowName="hello_1" doc={testDoc} />);
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /run workflow/i }));
     });
 
     await waitFor(() => {
-      expect(mockStartWorkflow).toHaveBeenCalledWith({ projectName: 'TestProject', workflowName: 'hello_1' });
+      expect(mockStartWorkflow).toHaveBeenCalledWith({
+        projectName: 'TestProject',
+        doc: { desc: { workflowName: 'hello_1' }, resource: '' },
+      });
       // The run button shows a spinner and is disabled while running.
       const runButtons = Array.from(container.querySelectorAll('button'))
         .filter(b => b.querySelector('[role="progressbar"]'));
@@ -69,8 +77,8 @@ describe('RunWorkflowButton', () => {
   it('disables every button for the same workflow while it runs', async () => {
     const { container } = render(
       <>
-        <RunWorkflowButton projectName="P" workflowName="shared" />
-        <RunWorkflowButton projectName="P" workflowName="shared" />
+        <RunWorkflowButton projectName="P" workflowName="shared" doc={testDoc} />
+        <RunWorkflowButton projectName="P" workflowName="shared" doc={testDoc} />
       </>,
     );
     const buttons = () => Array.from(container.querySelectorAll('button'));
@@ -97,7 +105,7 @@ describe('RunWorkflowButton', () => {
     render(
       <>
         <WorkflowRunPoller />
-        <RunWorkflowButton projectName="P" workflowName="hello_1" />
+        <RunWorkflowButton projectName="P" workflowName="hello_1" doc={testDoc} />
       </>,
     );
     await act(async () => {
@@ -114,7 +122,7 @@ describe('RunWorkflowButton', () => {
   it('shows a busy message and does not enter the running state', async () => {
     mockStartWorkflow.mockResolvedValueOnce({ status: 'busy' });
 
-    render(<RunWorkflowButton projectName="P" workflowName="w" />);
+    render(<RunWorkflowButton projectName="P" workflowName="w" doc={testDoc} />);
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /run workflow/i }));
     });
@@ -130,7 +138,7 @@ describe('RunWorkflowButton', () => {
     mockStartWorkflow.mockReset();
     mockStartWorkflow.mockRejectedValueOnce(new Error('boom'));
 
-    render(<RunWorkflowButton projectName="P" workflowName="w" />);
+    render(<RunWorkflowButton projectName="P" workflowName="w" doc={testDoc} />);
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /run workflow/i }));
     });
@@ -146,6 +154,7 @@ describe('RunWorkflowButton', () => {
       <RunWorkflowButton
         projectName="TestProject"
         workflowName="hello_1"
+        doc={testDoc}
         disabled
         disabledReason="Save changes before running"
       />,
@@ -156,7 +165,7 @@ describe('RunWorkflowButton', () => {
   it('does not save on a plain left click when there are no unsaved changes', async () => {
     const save = vi.fn().mockResolvedValue(undefined);
 
-    render(<RunWorkflowButton projectName="P" workflowName="w" save={save} />);
+    render(<RunWorkflowButton projectName="P" workflowName="w" doc={testDoc} save={save} />);
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /run workflow/i }));
     });
@@ -168,7 +177,7 @@ describe('RunWorkflowButton', () => {
   it('disables the run button when there are unsaved changes and saving is off', () => {
     const save = vi.fn().mockResolvedValue(undefined);
 
-    render(<RunWorkflowButton projectName="P" workflowName="w" isChanged save={save} />);
+    render(<RunWorkflowButton projectName="P" workflowName="w" doc={testDoc} isChanged save={save} />);
     expect(screen.getByRole('button', { name: /save changes before running/i })).toHaveProperty('disabled', true);
   });
 
@@ -176,7 +185,7 @@ describe('RunWorkflowButton', () => {
     setSaving(true);
     const save = vi.fn().mockResolvedValue(undefined);
 
-    render(<RunWorkflowButton projectName="P" workflowName="w" isChanged save={save} />);
+    render(<RunWorkflowButton projectName="P" workflowName="w" doc={testDoc} isChanged save={save} />);
     expect(screen.getByRole('button', { name: /run workflow/i })).toHaveProperty('disabled', false);
   });
 
@@ -187,7 +196,7 @@ describe('RunWorkflowButton', () => {
     mockStartWorkflow.mockReset();
     mockStartWorkflow.mockImplementation(async () => { order.push('run'); return { token: 't' }; });
 
-    render(<RunWorkflowButton projectName="P" workflowName="w" isChanged save={save} />);
+    render(<RunWorkflowButton projectName="P" workflowName="w" doc={testDoc} isChanged save={save} />);
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /run workflow/i }));
     });
@@ -199,7 +208,7 @@ describe('RunWorkflowButton', () => {
   it('runs with save from the right-click menu (one time, flag stays off)', async () => {
     const save = vi.fn().mockResolvedValue(undefined);
 
-    render(<RunWorkflowButton projectName="P" workflowName="w" isChanged save={save} />);
+    render(<RunWorkflowButton projectName="P" workflowName="w" doc={testDoc} isChanged save={save} />);
     fireEvent.contextMenu(screen.getByRole('button'));
     await act(async () => {
       fireEvent.click(screen.getByText('Run with save'));
@@ -213,7 +222,7 @@ describe('RunWorkflowButton', () => {
   it('toggles the always-save flag on and off from the menu', async () => {
     const save = vi.fn().mockResolvedValue(undefined);
 
-    render(<RunWorkflowButton projectName="P" workflowName="w" isChanged save={save} />);
+    render(<RunWorkflowButton projectName="P" workflowName="w" doc={testDoc} isChanged save={save} />);
 
     // Turn it on.
     fireEvent.contextMenu(screen.getByRole('button'));
@@ -232,8 +241,8 @@ describe('RunWorkflowButton', () => {
 
     render(
       <>
-        <RunWorkflowButton projectName="P" workflowName="w" isChanged save={save} />
-        <RunWorkflowButton projectName="P" workflowName="w" isChanged save={save} />
+        <RunWorkflowButton projectName="P" workflowName="w" doc={testDoc} isChanged save={save} />
+        <RunWorkflowButton projectName="P" workflowName="w" doc={testDoc} isChanged save={save} />
       </>,
     );
     const buttons = () => screen.getAllByRole('button') as HTMLButtonElement[];
@@ -252,7 +261,7 @@ describe('RunWorkflowButton', () => {
   it('disables "Run with save" when there are no unsaved changes', () => {
     const save = vi.fn().mockResolvedValue(undefined);
 
-    render(<RunWorkflowButton projectName="P" workflowName="w" save={save} />);
+    render(<RunWorkflowButton projectName="P" workflowName="w" doc={testDoc} save={save} />);
     fireEvent.contextMenu(screen.getByRole('button'));
     expect(screen.getByText('Run with save').closest('li')?.getAttribute('aria-disabled')).toBe('true');
   });

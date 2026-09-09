@@ -1,4 +1,5 @@
 import { BASEURL } from '../shared/baseurl';
+import { ProjectDocument } from '../shared/types';
 
 // Reply from starting a run: a token to poll with, or status "busy" when a run
 // is already in progress on the server.
@@ -34,15 +35,16 @@ export type PollWorkflowResult = {
 // busy status when the server is already running a workflow.
 export const startWorkflow = async ({
   projectName,
-  workflowName,
+  doc,
 }: {
   projectName: string,
-  workflowName: string,
+  // The whole workflow document. Sent so the server builds from it, no DB lookup.
+  doc: ProjectDocument,
 }): Promise<StartWorkflowResult> => {
   const response = await fetch(`${BASEURL}/start_workflow`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ projectName, workflowName }),
+    body: JSON.stringify({ projectName, doc }),
   });
   const text = await response.text();
   if (!response.ok) {

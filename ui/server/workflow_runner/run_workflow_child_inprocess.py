@@ -6,11 +6,12 @@ import sys
 import time
 import traceback
 from multiprocessing.queues import Queue
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, Dict, cast
 
 import luigi
 
 from .output_router import OutputRouter
+from .sent_workflow_doc import SentWorkflowDoc
 from .task_pointer import task_pointer
 from .workflow_child_result import WorkflowDone, WorkflowError, WorkflowMessage
 
@@ -40,11 +41,11 @@ class WorkflowChildInProcess:
     def __init__(
         self,
         project_name: str,
-        workflow_name: str,
+        doc: Dict[str, Any],
         result_queue: Queue[WorkflowMessage],
     ) -> None:
         self.project_name = project_name
-        self.workflow_name = workflow_name
+        self.doc = doc
         self.result_queue = result_queue
         self.router = OutputRouter(result_queue=result_queue, task_pointer=task_pointer)
 
@@ -58,11 +59,9 @@ class WorkflowChildInProcess:
 
             self.add_python_path(cast(str, workflow_toolkit.FilesDirectory))
 
-            # The UI runs a single named workflow, so exactly one document is expected.
-            docList = workflow_toolkit.getWorkflowListDocumentFromDB(self.workflow_name)
-            if len(docList) != 1:
-                raise RuntimeError(f"'{self.workflow_name}' did not resolve to exactly one workflow")
-            doc = docList[0]
+            # Build straight from the doc the client sent; no DB lookup. The wrapper
+            # exposes the sent dict the way prepareWorkflowRunFromDoc reads a saved doc.
+            doc = SentWorkflowDoc(self.doc)
 
             # Steps 1-4: rebuild, build, write, clean target files (shared with the subprocess path).
             pythonFileName, workflowName, targetFilesDir = workflow_toolkit.prepareWorkflowRunFromDoc(doc)
@@ -123,8 +122,8 @@ class WorkflowChildInProcess:
     @staticmethod
     def start_child(
         project_name: str,
-        workflow_name: str,
+        doc: Dict[str, Any],
         result_queue: Queue[WorkflowMessage],
     ) -> None:
-        """Process entry point: run one saved workflow in this (forked) process."""
-        WorkflowChildInProcess(project_name, workflow_name, result_queue).run()
+        """Process entry point: run one workflow (from the sent doc) in this (forked) process."""
+        WorkflowChildInProcess(project_name, doc, result_queue).run()

@@ -1,6 +1,6 @@
 """Request/response models for the Hera UI API endpoints."""
 
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
 
@@ -26,7 +26,9 @@ class ExecResponse(BaseModel):
 
 class RunWorkflowPayload(BaseModel):
     projectName: str
-    workflowName: str
+    # The whole workflow document (desc.workflow, desc.workflowName, resource, ...).
+    # The client always sends it, so the run builds straight from it, no DB lookup.
+    doc: Dict[str, Any]
 
 
 class WorkflowChunk(BaseModel):
