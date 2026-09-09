@@ -57,3 +57,8 @@ additional installations/*.conda
 # which is already ignored above.
 .coverage
 .coverage.*
+
+# Claude Code working files — plans, specs and findings written during a
+# session; useful locally, not part of the source tree.
+docs/superpowers/
+.claude/
