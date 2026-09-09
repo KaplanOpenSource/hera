@@ -6,6 +6,7 @@ import sys
 import time
 import traceback
 from multiprocessing.queues import Queue
+from typing import TYPE_CHECKING, cast
 
 import luigi
 
@@ -15,6 +16,9 @@ from .workflow_child_result import WorkflowDone, WorkflowError, WorkflowMessage
 
 # Imported for its side effect: defining the class registers the Luigi event handlers.
 from . import luigi_task_events  # noqa: F401
+
+if TYPE_CHECKING:
+    from hera.simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
 
 # Number of Luigi workers when running in-process. 1 = sequential (today's behaviour).
 LUIGI_WORKERS = 1
@@ -44,33 +48,20 @@ class WorkflowChildInProcess:
         self.result_queue = result_queue
         self.router = OutputRouter(result_queue=result_queue, task_pointer=task_pointer)
 
-    @staticmethod
-    def add_python_path(files_directory: str) -> None:
-        # Make the generated module importable: sys.path for the in-process import,
-        # PYTHONPATH for any subprocess Luigi may spawn.
-        if files_directory not in sys.path:
-            sys.path.insert(0, files_directory)
-        os.environ["PYTHONPATH"] = files_directory + os.pathsep + os.environ.get("PYTHONPATH", "")
-
     def run(self) -> None:
         self.router.start()
 
         try:
-            from hera import toolkitHome
-
-            workflow_toolkit = toolkitHome.getToolkit(
-                toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS,
-                projectName=self.project_name,
-            )
-            # The generated workflow module lives in the toolkit's files directory.
-            self.add_python_path(workflow_toolkit.FilesDirectory)
-
             started = time.perf_counter()
+
+            workflow_toolkit = self.get_workflow_toolkit()
+
+            self.add_python_path(cast(str, workflow_toolkit.FilesDirectory))
 
             # The UI runs a single named workflow, so exactly one document is expected.
             docList = workflow_toolkit.getWorkflowListDocumentFromDB(self.workflow_name)
             if len(docList) != 1:
-                raise RuntimeError(f"expected exactly one workflow for '{self.workflow_name}', got {len(docList)}")
+                raise RuntimeError(f"'{self.workflow_name}' did not resolve to exactly one workflow")
             doc = docList[0]
 
             # Steps 1-4: rebuild, build, write, clean target files (shared with the subprocess path).
@@ -108,6 +99,26 @@ class WorkflowChildInProcess:
             self.result_queue.put(WorkflowError(error=tb))
         finally:
             self.router.stop()
+
+    @staticmethod
+    def add_python_path(files_directory: str) -> None:
+        # Make the generated module importable: sys.path for the in-process import,
+        # PYTHONPATH for any subprocess Luigi may spawn.
+        if files_directory not in sys.path:
+            sys.path.insert(0, files_directory)
+        os.environ["PYTHONPATH"] = files_directory + os.pathsep + os.environ.get("PYTHONPATH", "")
+
+    def get_workflow_toolkit(self) -> "hermesWorkflowToolkit":
+        from hera import toolkitHome
+
+        workflow_toolkit = toolkitHome.getToolkit(
+            toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS,
+            projectName=self.project_name,
+        )
+        if not isinstance(workflow_toolkit.FilesDirectory, str) or not workflow_toolkit.FilesDirectory:
+            raise RuntimeError(f"project '{self.project_name}' has no FilesDirectory")
+
+        return workflow_toolkit
 
     @staticmethod
     def start_child(
