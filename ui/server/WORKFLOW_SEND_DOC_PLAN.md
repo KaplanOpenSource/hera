@@ -31,12 +31,15 @@ uses only those. So a synthesized doc works.
 - The editor already holds the workflow. Serialize it to the hermes workflow JSON
   shape and send it in the start payload.
 
+## Decisions
+
+- Require the workflow JSON. The client always sends it. No DB-lookup fallback, so
+  drop `getWorkflowListDocumentFromDB` from this path.
+- No save needed. Saving to the DB is handled on the UI, separately. The run works
+  straight from the sent JSON.
+
 ## Open questions
 
-- Backward compatibility: keep the DB-lookup path when no `workflow` is sent, or
-  require the client to always send it? Decide before wiring.
-- Does the run still need the workflow saved in the DB first (for later lookups,
-  target files, results), or is an unsaved run acceptable?
 - Exact resource path + name rules, so a sent-doc run and a saved-doc run do not
   collide on disk.
 
