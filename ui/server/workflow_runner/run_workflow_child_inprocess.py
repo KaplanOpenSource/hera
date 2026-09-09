@@ -15,8 +15,9 @@ from .sent_workflow_doc import SentWorkflowDoc
 from .task_pointer import task_pointer
 from .workflow_child_result import WorkflowDone, WorkflowError, WorkflowMessage
 
-# Imported for its side effect: defining the class registers the Luigi event handlers.
-from . import luigi_task_events  # noqa: F401
+# Importing registers the Luigi event handlers (side effect); also read for the
+# task failures its FAILURE handler records, so a failed run surfaces the real error.
+from . import luigi_task_events
 
 if TYPE_CHECKING:
     from hera.simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
@@ -79,8 +80,15 @@ class WorkflowChildInProcess:
             taskClass = getattr(mod, TARGET_TASK)
             # No dispatch id: local scheduler, one serialized run, so nodes use the flat layout.
             finalTask = taskClass()
+            # Clear failures from any earlier run so we read only this run's.
+            luigi_task_events.task_failures.clear()
             ok = luigi.build([finalTask], workers=LUIGI_WORKERS, local_scheduler=True)
             if not ok:
+                # luigi.build only returns a bool; the FAILURE event handler recorded
+                # the real task errors, so surface those instead of a bare "False".
+                if luigi_task_events.task_failures:
+                    details = "; ".join(f"{name}: {message}" for name, message in luigi_task_events.task_failures)
+                    raise RuntimeError(f"workflow {workflowName} failed: {details}")
                 raise RuntimeError(f"workflow {workflowName} failed (luigi.build returned False)")
 
             # Step 6: Clean up the generated Python module (the workflow JSON stays).

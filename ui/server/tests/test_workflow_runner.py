@@ -26,18 +26,18 @@ def _wait_done(runner, token, timeout=10.0):
     return result
 
 
-def test_run_returns_dispatch_id_and_captured_stdout(install_fake_hera, tmp_path):
+def test_run_returns_no_dispatch_id_and_captured_stdout(install_fake_hera, tmp_path):
     def on_execute(workflow_name):
         # Real hera writes to the fds via a subprocess / os.system, so mimic that
         # (a plain print would go to pytest's replaced sys.stdout, not fd 1).
         os.write(1, ("ran %s\n" % workflow_name).encode())
-        return "dispatch-123"
 
     install_fake_hera(str(tmp_path), on_execute)
 
     result = WorkflowRunner().run("PROJECT", _doc("WORKFLOW"))
 
-    assert result.dispatch_id == "dispatch-123"
+    # The in-process run uses the local scheduler with the flat layout, no dispatch id.
+    assert result.dispatch_id is None
     assert "ran WORKFLOW" in _joined(result.chunks)
 
 

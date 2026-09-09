@@ -16,6 +16,11 @@ from .task_pointer import BETWEEN, task_pointer
 # Kept in sync with EVENT_PREFIX in the client's classifyLog.ts.
 EVENT_PREFIX = "[luigi-event]"
 
+# Task failures seen during the current run, as (task_family, message). The child
+# clears this before luigi.build and reads it after, so a failed run can surface the
+# real task error instead of luigi.build's bare False.
+task_failures = []
+
 
 def _event(message):
     """Print one Luigi-event line with the shared prefix (flushed for live output)."""
@@ -48,6 +53,7 @@ class LuigiTaskEvents:
     @luigi.Task.event_handler(luigi.Event.FAILURE)
     def on_failure(task, exception):
         _event(f"FAILURE {task.task_family}: {exception}")
+        task_failures.append((task.task_family, str(exception)))
         task_pointer.current = BETWEEN
 
     @staticmethod
@@ -59,6 +65,7 @@ class LuigiTaskEvents:
     @luigi.Task.event_handler(luigi.Event.BROKEN_TASK)
     def on_broken(task, exception):
         _event(f"BROKEN {task.task_family}: {exception}")
+        task_failures.append((task.task_family, str(exception)))
         task_pointer.current = BETWEEN
 
     @staticmethod
