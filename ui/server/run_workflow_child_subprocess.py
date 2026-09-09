@@ -1,14 +1,19 @@
+from __future__ import annotations
+
 import os
 import sys
 import time
 import traceback
+from multiprocessing.queues import Queue
+
+from workflow_child_result import WorkflowChildError, WorkflowChildResult, WorkflowChildSuccess
 
 
 def run_workflow_child_subprocess(
     project_name: str,
     workflow_name: str,
     write_fd: int,
-    result_queue,
+    result_queue: Queue[WorkflowChildResult],
 ) -> None:
     """Run a saved workflow inside a forked child, shelling Luigi out to a subprocess.
 
@@ -38,9 +43,9 @@ def run_workflow_child_subprocess(
 
         sys.stdout.flush()
         sys.stderr.flush()
-        result_queue.put({"dispatch_id": dispatch_id, "exec_seconds": exec_seconds, "chunks": None})
+        result_queue.put(WorkflowChildSuccess(dispatch_id=dispatch_id, exec_seconds=exec_seconds, chunks=None))
     except Exception:
         tb = traceback.format_exc()
         sys.stdout.flush()
         sys.stderr.flush()
-        result_queue.put({"error": tb})
+        result_queue.put(WorkflowChildError(error=tb))

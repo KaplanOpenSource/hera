@@ -1,10 +1,14 @@
+from __future__ import annotations
+
 import os
 import sys
 import time
 import traceback
+from multiprocessing.queues import Queue
 
 from output_router import OutputRouter
 from run_chunk_state import state as chunk_state
+from workflow_child_result import WorkflowChildError, WorkflowChildResult, WorkflowChildSuccess
 
 # Number of Luigi workers when running in-process. 1 = sequential (today's behaviour).
 LUIGI_WORKERS = 1
@@ -14,7 +18,7 @@ def run_workflow_child_inprocess(
     project_name: str,
     workflow_name: str,
     write_fd: int,
-    result_queue,
+    result_queue: Queue[WorkflowChildResult],
 ) -> None:
     """Run a saved workflow inside a forked child, executing Luigi in this process.
 
@@ -52,12 +56,12 @@ def run_workflow_child_inprocess(
 
         sys.stdout.flush()
         sys.stderr.flush()
-        result_queue.put({"dispatch_id": dispatch_id, "exec_seconds": exec_seconds, "chunks": chunks})
+        result_queue.put(WorkflowChildSuccess(dispatch_id=dispatch_id, exec_seconds=exec_seconds, chunks=chunks))
     except Exception:
         tb = traceback.format_exc()
         sys.stdout.flush()
         sys.stderr.flush()
-        result_queue.put({"error": tb})
+        result_queue.put(WorkflowChildError(error=tb))
     finally:
         if router is not None:
             router.stop()

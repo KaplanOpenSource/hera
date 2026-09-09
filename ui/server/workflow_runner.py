@@ -3,11 +3,13 @@ import uuid
 import threading
 import multiprocessing
 from enum import Enum
+from multiprocessing.queues import Queue
 from typing import Optional
 
 from pipe_tee import PipeTee
 from run_workflow_child_inprocess import run_workflow_child_inprocess
 from run_workflow_child_subprocess import run_workflow_child_subprocess
+from workflow_child_result import WorkflowChildError, WorkflowChildResult, WorkflowRunResult
 
 # Run Luigi in the child process via luigi.build instead of shelling out to
 # `python -m luigi`. Lets us set workers and hook Luigi events. Flip to try it.
@@ -102,8 +104,8 @@ class WorkflowRunner:
         chunks = None
         try:
             result = self.run(project_name, workflow_name, tee)
-            status, output, error = RunStatus.DONE, result["output"], ""
-            chunks = result.get("chunks")
+            status, output, error = RunStatus.DONE, result.output, ""
+            chunks = result.chunks
         except Exception as exc:
             # Surface the failure to the client via poll (this reports it, not hides it).
             status, output, error = RunStatus.ERROR, "", str(exc)
@@ -114,7 +116,7 @@ class WorkflowRunner:
             self._chunks = chunks
             self._status = status
 
-    def run(self, project_name: str, workflow_name: str, tee: Optional[PipeTee] = None) -> dict:
+    def run(self, project_name: str, workflow_name: str, tee: Optional[PipeTee] = None) -> WorkflowRunResult:
         """Build and execute a saved workflow in a forked child process.
 
         Returns ``{"dispatch_id", "output"}``. Output is the child's captured
@@ -130,7 +132,7 @@ class WorkflowRunner:
         with self._lock:
             # Fork so the child inherits the already-warmed hera import.
             ctx = multiprocessing.get_context("fork")
-            result_queue = ctx.Queue()
+            result_queue: Queue[WorkflowChildResult] = ctx.Queue()
 
             total_started = time.perf_counter()
             # Pick the child entry point here: in-process routes output per task and
@@ -147,23 +149,23 @@ class WorkflowRunner:
             # The write end belongs to the child now; drop ours so the reader sees EOF.
             tee.close_write()
 
-            result = result_queue.get()
+            result: WorkflowChildResult = result_queue.get()
             process.join()
             total_seconds = time.perf_counter() - total_started
 
             output = tee.result()
 
-            if "error" in result:
-                raise RuntimeError(result["error"])
+            if isinstance(result, WorkflowChildError):
+                raise RuntimeError(result.error)
 
             timing = (
-                f"\n[workflow ran in {result['exec_seconds']:.2f}s; "
+                f"\n[workflow ran in {result.exec_seconds:.2f}s; "
                 f"total {total_seconds:.2f}s including process spawn]\n"
             )
             # chunks: per-task output buckets from the in-process router (None on the
             # subprocess path). Passed through so callers can show output per task.
-            return {
-                "dispatch_id": result["dispatch_id"],
-                "output": output + timing,
-                "chunks": result.get("chunks"),
-            }
+            return WorkflowRunResult(
+                dispatch_id=result.dispatch_id,
+                output=output + timing,
+                chunks=result.chunks,
+            )
