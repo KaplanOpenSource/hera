@@ -6,9 +6,9 @@ import { LogToolbar } from './LogToolbar';
 import { WorkflowChunkedLog } from './WorkflowChunkedLog';
 import { WorkflowLogView } from './WorkflowLogView';
 
-// Shows a workflow run's output, always from the per-task chunks. While the run is
-// in progress it shows the flat log (the chunks joined) as it grows with a small
-// "running" hint; on finish it shows the grouped per-task view (or an error). The
+// Shows a workflow run's output as per-task cards, growing live as the run streams
+// (with a small "running" hint) and staying in the same shape once it finishes, so
+// the view does not reflow at the end. On failure it also shows the error. The
 // log-level filter + copy-all toolbar sits in the bottom action bar, outside the
 // scrolling log, so it stays put while the log scrolls.
 export const WorkflowOutputDialog = ({
@@ -30,7 +30,9 @@ export const WorkflowOutputDialog = ({
   const toggle = useLogFilterStore((state) => { return state.toggle; });
 
   const chunkList = chunks ?? [];
-  const showChunked = !running && chunkList.length > 0;
+  // Cards throughout: the chunks carry their task name while running too, so the
+  // view grows live and does not switch shape when the run finishes.
+  const showChunked = chunkList.length > 0;
   // Show the log while running and whenever there is output, even on failure: the
   // log that led to the error stays visible (below the error message). Only when a
   // failure produced no output at all is there nothing to show but the error.
