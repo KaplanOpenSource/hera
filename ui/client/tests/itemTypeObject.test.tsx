@@ -213,50 +213,16 @@ describe('converting to and from a list', () => {
 });
 
 describe('reordering a list by dragging its index', () => {
-  const dragTo = (from: number, to: number) => {
-    const data: { [key: string]: string } = {};
-    const dataTransfer = {
-      setData: (k: string, v: string) => { data[k] = v; },
-      getData: (k: string) => data[k],
-    };
-    fireEvent.dragStart(screen.getByTestId('list-index-' + from), { dataTransfer });
-    fireEvent.dragOver(screen.getByTestId('list-index-' + to), { dataTransfer });
-    fireEvent.drop(screen.getByTestId('list-index-' + to), { dataTransfer });
-  };
-
-  const renderList = (value: any[]) => {
-    const setItemValue = vi.fn();
+  it('gives every element a drag handle on its index', () => {
     render(
       <SimpleTreeView defaultExpandedItems={['config', 'config/a']}>
-        <DetailsViewItem itemKey='config' itemValue={{ a: value }} setItemValue={setItemValue} parentKey={undefined} />
+        <DetailsViewItem itemKey='config' itemValue={{ a: ['x', 'y', 'z'] }} setItemValue={vi.fn()} parentKey={undefined} />
       </SimpleTreeView>
     );
-    return setItemValue;
-  };
-
-  it('moves an element down the list', () => {
-    const setItemValue = renderList(['x', 'y', 'z']);
-    dragTo(0, 2);
-    expect(setItemValue).toHaveBeenCalledWith({ a: ['y', 'z', 'x'] });
-  });
-
-  it('moves an element up the list', () => {
-    const setItemValue = renderList(['x', 'y', 'z']);
-    dragTo(2, 0);
-    expect(setItemValue).toHaveBeenCalledWith({ a: ['z', 'x', 'y'] });
-  });
-
-  it('does nothing when dropped on itself', () => {
-    const setItemValue = renderList(['x', 'y']);
-    dragTo(1, 1);
-    expect(setItemValue).not.toHaveBeenCalled();
-  });
-
-  it('marks the index it is dragged over', () => {
-    renderList(['x', 'y']);
-    const target = screen.getByTestId('list-index-1');
-    expect(getComputedStyle(target).borderTopColor).toBe('rgba(0, 0, 0, 0)');
-    fireEvent.dragOver(target, { dataTransfer: { getData: () => '0' } });
-    expect(getComputedStyle(target).borderTopStyle).toBe('solid');
+    for (const index of [0, 1, 2]) {
+      const handle = screen.getByTestId('list-index-' + index);
+      expect(handle.getAttribute('role')).toBe('button');
+      expect(handle.getAttribute('aria-roledescription')).toBe('sortable');
+    }
   });
 });

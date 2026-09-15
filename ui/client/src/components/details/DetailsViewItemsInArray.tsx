@@ -1,6 +1,21 @@
 import { MouseEvent, ReactNode } from 'react';
-import { DetailsViewItem } from './DetailsViewItem';
-import { DetailsViewListIndex } from './DetailsViewListIndex';
+import {
+  DndContext,
+  DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
+import { DetailsViewSortableItem } from './DetailsViewSortableItem';
 import { FieldDef } from './fieldDef';
 
 // The elements of a list row, kept in their own order and always still a list.
@@ -21,47 +36,51 @@ export const DetailsViewItemsInArray = ({
   onRowContextMenu?: (itemKey: string, parentKey: string | undefined, event: MouseEvent<HTMLElement>) => void,
   onValueCaret?: (itemKey: string, parentKey: string | undefined, value: string, caret: number | null, el: HTMLInputElement) => void,
 }) => {
-  // Drag an index onto another one to move that element there.
-  const moveElement = (from: number, to: number) => {
-    if (from === to) {
-      return;
+  const sensors = useSensors(
+    // A few pixels of movement start a drag, so a plain click still works.
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  // Ids are positions, which is all a list element has to identify it by.
+  const ids = itemValue.map((_, index) => `${parentKey}#${index}`);
+
+  const onDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setItemValue(arrayMove(itemValue, ids.indexOf(active.id as string), ids.indexOf(over.id as string)));
     }
-    const next = [...itemValue];
-    const [moved] = next.splice(from, 1);
-    next.splice(to, 0, moved);
-    setItemValue(next);
   };
 
   return (
-    <>
-      {itemValue.map((value, index) => {
-        const setElement = (newVal: any) => {
-          setItemValue(itemValue.map((v, i) => (i === index ? newVal : v)));
-        };
-
-        // An index can't be renamed, so only deletion goes through here.
-        const deleteElement = (newKey: string | undefined) => {
-          if (newKey === undefined) {
-            setItemValue(itemValue.filter((_, i) => i !== index));
-          }
-        };
-
-        return (
-          <DetailsViewItem
-            key={index}
-            itemKey={String(index)}
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={onDragEnd}
+      modifiers={[restrictToVerticalAxis]}
+    >
+      <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+        {itemValue.map((value, index) => (
+          <DetailsViewSortableItem
+            key={ids[index]}
+            id={ids[index]}
+            index={index}
             itemValue={value}
-            setItemValue={setElement}
-            setItemKey={deleteElement}
-            nameView={<DetailsViewListIndex index={index} onMove={moveElement} />}
+            setItemValue={newVal => setItemValue(itemValue.map((v, i) => (i === index ? newVal : v)))}
+            // An index can't be renamed, so only deletion goes through here.
+            setItemKey={newKey => {
+              if (newKey === undefined) {
+                setItemValue(itemValue.filter((_, i) => i !== index));
+              }
+            }}
             parentKey={parentKey}
-            def={def?.children?.[String(index)]}
+            def={def}
             renderBeforeName={renderBeforeName}
             onRowContextMenu={onRowContextMenu}
             onValueCaret={onValueCaret}
           />
-        );
-      })}
-    </>
+        ))}
+      </SortableContext>
+    </DndContext>
   );
 };

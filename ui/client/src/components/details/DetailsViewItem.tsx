@@ -1,5 +1,5 @@
 import { Box, Stack, Typography } from '@mui/material';
-import { MouseEvent, ReactNode } from 'react';
+import { CSSProperties, MouseEvent, ReactNode } from 'react';
 import { TreeItem } from '@mui/x-tree-view';
 import { useTreeViewContext, UseTreeViewExpansionSignature } from '@mui/x-tree-view/internals';
 import { RenameField } from '../../elements/RenameField';
@@ -23,6 +23,8 @@ export const DetailsViewItem = ({
   setItemValue,
   setItemKey = undefined,
   nameView = undefined,
+  rootRef = undefined,
+  rootStyle = undefined,
   parentKey,
   def = undefined,
   renderBeforeName = undefined,
@@ -35,6 +37,9 @@ export const DetailsViewItem = ({
   setItemKey?: (newKey: string | undefined) => void | undefined,
   // Replaces the editable field name, e.g. with a list element's index.
   nameView?: ReactNode,
+  // Root row ref and style, used to animate a list element while it is dragged.
+  rootRef?: (node: HTMLElement | null) => void,
+  rootStyle?: CSSProperties,
   parentKey?: string,
   // This field's definition: `required` for the editor, `children` for sub-fields.
   def?: FieldDef,
@@ -61,6 +66,8 @@ export const DetailsViewItem = ({
     <TreeItem
       key={key}
       itemId={key}
+      ref={rootRef}
+      style={rootStyle}
       // MUI clips the label, which would cut the delete button hanging off the left.
       sx={{ '& > .MuiTreeItem-content > .MuiTreeItem-label': { overflow: 'visible' } }}
       label={(
