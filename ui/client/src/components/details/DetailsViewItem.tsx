@@ -22,7 +22,7 @@ export const DetailsViewItem = ({
   itemValue,
   setItemValue,
   setItemKey = undefined,
-  isListIndex = false,
+  nameView = undefined,
   parentKey,
   def = undefined,
   renderBeforeName = undefined,
@@ -33,8 +33,8 @@ export const DetailsViewItem = ({
   itemValue: any,
   setItemValue: (newVal: any) => void,
   setItemKey?: (newKey: string | undefined) => void | undefined,
-  // True for a list element, whose index is narrow, greyed and not renameable.
-  isListIndex?: boolean,
+  // Replaces the editable field name, e.g. with a list element's index.
+  nameView?: ReactNode,
   parentKey?: string,
   // This field's definition: `required` for the editor, `children` for sub-fields.
   def?: FieldDef,
@@ -82,13 +82,8 @@ export const DetailsViewItem = ({
 
           {/* The delete button sits on the name's top-left corner, over no text. */}
           <Box sx={{ position: 'relative', display: 'flex', minWidth: 0 }}>
-            {/* A list index shows as [0], narrow and grey, and never renames. */}
-            {isListIndex && (
-              <Typography sx={{ fontFamily: 'monospace', color: 'text.secondary', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                {`[${itemKey}]`}
-              </Typography>
-            )}
-            {!isListIndex && (
+            {nameView}
+            {!nameView && (
               <RenameField
                 value={itemKey}
                 setValue={setItemKey}

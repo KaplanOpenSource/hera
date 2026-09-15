@@ -211,3 +211,52 @@ describe('converting to and from a list', () => {
     expect(setItemValue).toHaveBeenCalledWith({ a: '' });
   });
 });
+
+describe('reordering a list by dragging its index', () => {
+  const dragTo = (from: number, to: number) => {
+    const data: { [key: string]: string } = {};
+    const dataTransfer = {
+      setData: (k: string, v: string) => { data[k] = v; },
+      getData: (k: string) => data[k],
+    };
+    fireEvent.dragStart(screen.getByTestId('list-index-' + from), { dataTransfer });
+    fireEvent.dragOver(screen.getByTestId('list-index-' + to), { dataTransfer });
+    fireEvent.drop(screen.getByTestId('list-index-' + to), { dataTransfer });
+  };
+
+  const renderList = (value: any[]) => {
+    const setItemValue = vi.fn();
+    render(
+      <SimpleTreeView defaultExpandedItems={['config', 'config/a']}>
+        <DetailsViewItem itemKey='config' itemValue={{ a: value }} setItemValue={setItemValue} parentKey={undefined} />
+      </SimpleTreeView>
+    );
+    return setItemValue;
+  };
+
+  it('moves an element down the list', () => {
+    const setItemValue = renderList(['x', 'y', 'z']);
+    dragTo(0, 2);
+    expect(setItemValue).toHaveBeenCalledWith({ a: ['y', 'z', 'x'] });
+  });
+
+  it('moves an element up the list', () => {
+    const setItemValue = renderList(['x', 'y', 'z']);
+    dragTo(2, 0);
+    expect(setItemValue).toHaveBeenCalledWith({ a: ['z', 'x', 'y'] });
+  });
+
+  it('does nothing when dropped on itself', () => {
+    const setItemValue = renderList(['x', 'y']);
+    dragTo(1, 1);
+    expect(setItemValue).not.toHaveBeenCalled();
+  });
+
+  it('marks the index it is dragged over', () => {
+    renderList(['x', 'y']);
+    const target = screen.getByTestId('list-index-1');
+    expect(getComputedStyle(target).borderTopColor).toBe('rgba(0, 0, 0, 0)');
+    fireEvent.dragOver(target, { dataTransfer: { getData: () => '0' } });
+    expect(getComputedStyle(target).borderTopStyle).toBe('solid');
+  });
+});
