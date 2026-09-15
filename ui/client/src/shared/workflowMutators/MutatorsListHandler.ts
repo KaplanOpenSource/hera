@@ -1,5 +1,4 @@
 import { WorkflowDesc } from '../types';
-import { FillProjectNameMutator } from './mutators/FillProjectNameMutator';
 import { SyncParametersMutator } from './mutators/SyncParametersMutator';
 import { WorkflowMutatorBase } from './WorkflowMutatorBase';
 
@@ -8,16 +7,15 @@ import { WorkflowMutatorBase } from './WorkflowMutatorBase';
 export class MutatorsListHandler {
   // The phases, in run order. Add a mutator here to include it in the pipeline.
   static readonly mutators: WorkflowMutatorBase[] = [
-    new FillProjectNameMutator(),
     new SyncParametersMutator(),
   ];
 
   // Runs every mutator in turn over the desc. A non-workflow desc is returned
   // unchanged (each phase no-ops without a workflow block).
-  static normalize(desc: WorkflowDesc, projectName: string): WorkflowDesc {
+  static normalize(desc: WorkflowDesc): WorkflowDesc {
     let result = desc;
     for (const mutator of MutatorsListHandler.mutators) {
-      result = mutator.mutate(result, { projectName });
+      result = mutator.mutate(result);
     }
     return result;
   }

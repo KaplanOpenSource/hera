@@ -1,13 +1,6 @@
 import { WorkflowBlock, WorkflowDesc } from '../types';
 import { getWorkflowBlock, isTopLevelBlock } from '../workflow';
 
-// What a phase may need to know about the run, beyond the desc itself. A phase
-// reads only the parts it cares about (most ignore it).
-export interface WorkflowMutatorContext {
-  // The project the document lives in.
-  projectName: string;
-}
-
 // Base for one phase of normalizing a workflow document after an in-memory
 // change. A subclass implements mutate() for its phase; the base offers block
 // read/write helpers so a phase works at the desc level while the optional
@@ -17,7 +10,7 @@ export abstract class WorkflowMutatorBase {
   abstract readonly name: string;
 
   // Runs this phase, returning the corrected desc (or the same one unchanged).
-  abstract mutate(desc: WorkflowDesc, context: WorkflowMutatorContext): WorkflowDesc;
+  abstract mutate(desc: WorkflowDesc): WorkflowDesc;
 
   // The workflow block within a desc (unwraps the optional { workflow } level).
   protected getBlock(desc: WorkflowDesc): WorkflowBlock | undefined {
