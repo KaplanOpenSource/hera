@@ -1,8 +1,9 @@
-import { Typography } from '@mui/material';
+import { Stack, Typography } from '@mui/material';
+import { DragIndicator } from '@mui/icons-material';
 import { DraggableAttributes } from '@dnd-kit/core';
 import { SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities';
 
-// A list element's index. It is the drag handle for reordering the list.
+// A list element's index, next to a grip. Both are the handle for reordering.
 export const DetailsViewListIndex = ({
   index,
   attributes,
@@ -13,13 +14,14 @@ export const DetailsViewListIndex = ({
   listeners?: SyntheticListenerMap,
 }) => {
   return (
-    <Typography
+    <Stack
+      direction="row"
+      alignItems="center"
+      spacing={0.25}
       data-testid={`list-index-${index}`}
       onClick={e => e.stopPropagation()}
       sx={{
-        fontFamily: 'monospace',
         color: 'text.secondary',
-        whiteSpace: 'nowrap',
         flexShrink: 0,
         cursor: 'grab',
         touchAction: 'none',
@@ -27,7 +29,10 @@ export const DetailsViewListIndex = ({
       {...attributes}
       {...listeners}
     >
-      {`[${index}]`}
-    </Typography>
+      <DragIndicator sx={{ fontSize: '1rem' }} />
+      <Typography sx={{ fontFamily: 'monospace' }}>
+        {index}
+      </Typography>
+    </Stack>
   );
 };
