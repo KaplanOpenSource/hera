@@ -23,6 +23,15 @@ export const renderApp = (path = '/') => {
   );
 };
 
+/**
+ * Open the "Actions" popover on the project tree node. The project-level buttons
+ * (add document, delete project, detect notebooks) live inside it.
+ */
+export const openProjectActions = async () => {
+  const actionsWrapper = await screen.findByLabelText('Actions', {}, { timeout: 15000 });
+  await act(async () => { fireEvent.click(within(actionsWrapper).getByRole('button')); });
+};
+
 /** Render the app, click "Add project", fill the dialog, submit, cleanup. */
 export const createProjectViaUI = async (projectName: string) => {
   resetStore();
@@ -63,17 +72,18 @@ export const addDocumentViaUI = async (
     expect(useProjectStore.getState().currProject?.name).toBe(projectName);
   }, { timeout: 15000 });
 
-  const addWrapper = await screen.findByLabelText('Add Document');
+  await openProjectActions();
+  const addWrapper = await screen.findByLabelText('Add document');
   await act(async () => { fireEvent.click(within(addWrapper).getByRole('button')); });
 
   const dialog = await screen.findByRole('dialog');
+  // Pick the kind first: switching kind resets the name field to a default.
+  if (opts.agent) {
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Agent' }));
+  }
   fireEvent.change(within(dialog).getByRole('textbox', { name: /^name$/i }), {
     target: { value: docName },
   });
-  if (opts.agent) {
-    fireEvent.mouseDown(within(dialog).getByText('Regular'));
-    fireEvent.click(await screen.findByRole('option', { name: 'Agent' }));
-  }
 
   await act(async () => {
     fireEvent.click(within(dialog).getByRole('button', { name: /add document/i }));

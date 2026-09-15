@@ -252,13 +252,7 @@ jobs:
       # globalSetup.ts starts the server itself on a free port, so hermes and
       # pyargos have to be importable by the child process it spawns.
       - name: Run integration tests
-        run: |
-          npx vitest run tests/integration -c vitest.integ.config.ts \
-            --no-file-parallelism --retry 1 \
-            --exclude '**/documents.integ.test.tsx' \
-            --exclude '**/agentConfig.integ.test.tsx' \
-            --exclude '**/deleteProject.integ.test.tsx' \
-            --exclude '**/centralRepo.integ.test.tsx'
+        run: npx vitest run tests/integration -c vitest.integ.config.ts --no-file-parallelism --retry 1
         working-directory: ui/client
         env:
           PYTHONPATH: ${{ github.workspace }}/_vendor/hermes:${{ github.workspace }}/_vendor/pyargos

@@ -195,13 +195,12 @@ result = isRepoJson('${REPO_DIR}/mixcase.json')
     localStorage.setItem('hera-central-repo-folder', REPO_DIR);
     renderApp('/CentralTestProject');
 
-    const reposLabel = await screen.findByText('Repositories', {}, { timeout: 15000 });
-    const reposContent = reposLabel.closest('.MuiTreeItem-content')!;
-    await act(async () => { fireEvent.click(reposContent); });
-
-    const folderLabel = await screen.findByText(REPO_DIR, {}, { timeout: 5000 });
-    const centralContent = folderLabel.closest('.MuiTreeItem-content')!;
-    await act(async () => { fireEvent.click(centralContent); });
+    // "Repositories" is a plain section heading now, not a tree node, so the
+    // central repo folder is visible without expanding anything first.
+    const folderLabel = await screen.findByText(REPO_DIR, {}, { timeout: 15000 });
+    const folderItem = folderLabel.closest('.MuiTreeItem-root')!;
+    const expandIcon = folderItem.querySelector('.MuiTreeItem-iconContainer')!;
+    await act(async () => { fireEvent.click(expandIcon); });
 
     await waitFor(() => {
       expect(screen.getByText(`${REPO_DIR}/valid.json`)).toBeTruthy();

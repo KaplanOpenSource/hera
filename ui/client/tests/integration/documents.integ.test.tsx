@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import { screen, fireEvent, waitFor, within, cleanup, act } from '@testing-library/react';
-import { createProjectViaUI, renderApp, resetStore } from './integHelpers';
+import { createProjectViaUI, openProjectActions, renderApp, resetStore } from './integHelpers';
 import type { ProjectDocument } from '../../src/shared/types';
 
 vi.mock('../../src/shared/baseurl', async () => (await import('./mockFactories')).createBaseurlMock());
@@ -29,7 +29,8 @@ describe('Documents UI integration', () => {
   it('add a regular document via the UI and verify it appears', async () => {
     await loadProject();
 
-    const addWrapper = await screen.findByLabelText('Add Document');
+    await openProjectActions();
+    const addWrapper = await screen.findByLabelText('Add document');
     await act(async () => { fireEvent.click(within(addWrapper).getByRole('button')); });
 
     const dialog = await screen.findByRole('dialog');
@@ -53,15 +54,16 @@ describe('Documents UI integration', () => {
   it('add an agent document via the UI', async () => {
     await loadProject();
 
-    const addWrapper = await screen.findByLabelText('Add Document');
+    await openProjectActions();
+    const addWrapper = await screen.findByLabelText('Add document');
     await act(async () => { fireEvent.click(within(addWrapper).getByRole('button')); });
 
     const dialog = await screen.findByRole('dialog');
+    // Pick the kind first: switching kind resets the name field to a default.
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Agent' }));
     fireEvent.change(within(dialog).getByRole('textbox', { name: /^name$/i }), {
       target: { value: 'AgentDoc1' },
     });
-    fireEvent.mouseDown(within(dialog).getByText('Regular'));
-    fireEvent.click(await screen.findByRole('option', { name: 'Agent' }));
 
     await act(async () => {
       fireEvent.click(within(dialog).getByRole('button', { name: /add document/i }));
@@ -76,13 +78,15 @@ describe('Documents UI integration', () => {
     }, { timeout: 15000 });
   }, 30000);
 
-  it('delete a document via the tree view UI', async () => {
+  it('delete a document from the details view', async () => {
     await loadProject();
 
+    // Selecting the document in the tree opens its details, which is where the
+    // delete button lives now.
     const docLabel = await screen.findByText('IntegDoc1', {}, { timeout: 10000 });
+    await act(async () => { fireEvent.click(docLabel); });
 
-    const docRow = docLabel.closest('[class*="MuiStack-root"]')!;
-    const deleteWrapper = within(docRow as HTMLElement).getByLabelText(/delete document/i);
+    const deleteWrapper = await screen.findByLabelText('Delete Document', {}, { timeout: 10000 });
     await act(async () => {
       fireEvent.click(within(deleteWrapper).getByRole('button'));
     });
