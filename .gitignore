@@ -44,6 +44,7 @@ cache/*
 !cache/.gitkeep
 
 .claude/settings.json
+CLAUDE.local.md
 
 # Personal MongoDB config (never commit credentials)
 config.json
@@ -54,3 +55,5 @@ additional installations/*.conda
 
 # Local Claude instructions
 CLAUDE.local.md
+
+ollama-data/

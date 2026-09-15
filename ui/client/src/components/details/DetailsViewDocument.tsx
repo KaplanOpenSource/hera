@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { DocumentObj } from '../../objects/ProjectObj';
 import { ProjectDocument, WorkflowDesc } from '../../shared/types';
 import { isWorkflowDoc } from '../../shared/workflow';
-import { MutatorsListHandler } from '../../shared/workflowMutators/MutatorsListHandler';
+import { DocumentFieldsMutator } from '../../shared/workflowMutators/DocumentFieldsMutator';
 import { DetailsViewDocumentContent } from './DetailsViewDocumentContent';
 
 export const DetailsViewDocument = ({
@@ -30,7 +30,7 @@ export const DetailsViewDocument = ({
   // Every user edit goes through here; a workflow doc is run through its mutator pipeline before being stored.
   const changeShownDoc = (newDoc: ProjectDocument) => {
     if (isWorkflowDoc(newDoc)) {
-      setShownDoc({ ...newDoc, desc: MutatorsListHandler.normalize(newDoc.desc as WorkflowDesc, doc.project.name) });
+      setShownDoc({ ...newDoc, desc: DocumentFieldsMutator.mutate(newDoc.desc as WorkflowDesc) });
     } else {
       setShownDoc(newDoc);
     }
