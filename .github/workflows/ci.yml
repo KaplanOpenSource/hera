@@ -130,3 +130,36 @@ jobs:
         env:
           MPLBACKEND: Agg
           PYTHONPATH: ${{ github.workspace }}/_vendor/hermes:${{ github.workspace }}/_vendor/pyargos
+
+  ui-client:
+    name: UI client checks
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ui/client
+
+    steps:
+      - name: Checkout hera
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: ui/client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The three steps below follow ui/client/TEST_UI.md, in order.
+      - name: TypeScript type-checking
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npm run test
+
+      # Build to a temp dir so the checked-in ui/client/bundle stays untouched.
+      - name: Production build
+        run: npx vite build --outDir /tmp/hera-vite-build --emptyOutDir
