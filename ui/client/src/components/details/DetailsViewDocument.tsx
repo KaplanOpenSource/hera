@@ -30,7 +30,7 @@ export const DetailsViewDocument = ({
   // Every user edit goes through here; a workflow doc is run through its mutator pipeline before being stored.
   const changeShownDoc = (newDoc: ProjectDocument) => {
     if (isWorkflowDoc(newDoc)) {
-      setShownDoc({ ...newDoc, desc: MutatorsListHandler.normalize(newDoc.desc as WorkflowDesc, doc.project.name) });
+      setShownDoc({ ...newDoc, desc: MutatorsListHandler.normalize(newDoc.desc as WorkflowDesc) });
     } else {
       setShownDoc(newDoc);
     }
