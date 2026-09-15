@@ -41,7 +41,7 @@ export const DetailsViewItemsInArray = ({
             itemValue={value}
             setItemValue={setElement}
             setItemKey={deleteElement}
-            canRenameKey={false}
+            isListIndex
             parentKey={parentKey}
             def={def?.children?.[String(index)]}
             renderBeforeName={renderBeforeName}

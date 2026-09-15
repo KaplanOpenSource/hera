@@ -22,7 +22,7 @@ export const DetailsViewItem = ({
   itemValue,
   setItemValue,
   setItemKey = undefined,
-  canRenameKey = true,
+  isListIndex = false,
   parentKey,
   def = undefined,
   renderBeforeName = undefined,
@@ -33,8 +33,8 @@ export const DetailsViewItem = ({
   itemValue: any,
   setItemValue: (newVal: any) => void,
   setItemKey?: (newKey: string | undefined) => void | undefined,
-  // False for a list element: its index is fixed, so only deleting is allowed.
-  canRenameKey?: boolean,
+  // True for a list element, whose index is narrow, greyed and not renameable.
+  isListIndex?: boolean,
   parentKey?: string,
   // This field's definition: `required` for the editor, `children` for sub-fields.
   def?: FieldDef,
@@ -81,21 +81,29 @@ export const DetailsViewItem = ({
           {/* The delete button overlays the right side of the name, so showing
               it on hover never changes the row's size. */}
           <Box sx={{ position: 'relative', display: 'flex', minWidth: 0 }}>
-            <RenameField
-              value={itemKey}
-              setValue={canRenameKey ? setItemKey : undefined}
-              labelMinWidth="100px"
-              // The top-level `desc` field isn't renameable, so show a friendlier label.
-              valueForView={(
-                itemKey === DESC_FIELD && !parentKey
-                  ? (
-                    <Typography sx={{ whiteSpace: 'nowrap', minWidth: '100px', flexShrink: 0 }}>
-                      Description (desc)
-                    </Typography>
-                  )
-                  : undefined
-              )}
-            />
+            {/* A list index shows as [0], narrow and grey, and never renames. */}
+            {isListIndex && (
+              <Typography sx={{ fontFamily: 'monospace', color: 'text.secondary', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                {`[${itemKey}]`}
+              </Typography>
+            )}
+            {!isListIndex && (
+              <RenameField
+                value={itemKey}
+                setValue={setItemKey}
+                labelMinWidth="100px"
+                // The top-level `desc` field isn't renameable, so show a friendlier label.
+                valueForView={(
+                  itemKey === DESC_FIELD && !parentKey
+                    ? (
+                      <Typography sx={{ whiteSpace: 'nowrap', minWidth: '100px', flexShrink: 0 }}>
+                        Description (desc)
+                      </Typography>
+                    )
+                    : undefined
+                )}
+              />
+            )}
             {setItemKey && (
               <Box
                 className="field-delete"

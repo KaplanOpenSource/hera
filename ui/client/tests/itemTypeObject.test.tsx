@@ -105,8 +105,8 @@ describe('list as a field type', () => {
       </SimpleTreeView>
     );
     expect(screen.getByText('array')).toBeDefined();
-    const names = screen.getAllByText(/^\d+$/).map(el => el.textContent);
-    expect(names).toEqual(['0', '1', '2']);
+    const names = screen.getAllByText(/^\[\d+\]$/).map(el => el.textContent);
+    expect(names).toEqual(['[0]', '[1]', '[2]']);
   });
 
   it('sorts indices numerically, not as text', () => {
@@ -116,8 +116,8 @@ describe('list as a field type', () => {
         <DetailsViewItem itemKey='config' itemValue={{ a: many }} setItemValue={vi.fn()} parentKey={undefined} />
       </SimpleTreeView>
     );
-    const names = screen.getAllByText(/^\d+$/).map(el => el.textContent);
-    expect(names).toEqual(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10']);
+    const names = screen.getAllByText(/^\[\d+\]$/).map(el => el.textContent);
+    expect(names).toEqual(['[0]', '[1]', '[2]', '[3]', '[4]', '[5]', '[6]', '[7]', '[8]', '[9]', '[10]']);
   });
 
   it('keeps a list a list when an element is edited', () => {
@@ -163,7 +163,7 @@ describe('list as a field type', () => {
       </SimpleTreeView>
     );
     const before = screen.getAllByRole('textbox').length;
-    fireEvent.click(screen.getByText('0'));
+    fireEvent.click(screen.getByText('[0]'));
     expect(screen.getAllByRole('textbox').length).toBe(before);
   });
 
