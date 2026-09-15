@@ -163,3 +163,27 @@ jobs:
       # Build to a temp dir so the checked-in ui/client/bundle stays untouched.
       - name: Production build
         run: npx vite build --outDir /tmp/hera-vite-build --emptyOutDir
+
+  ui-server:
+    name: UI server tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout hera
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: ui/server/requirements-server.txt
+
+      # The minimal server dependency set, not the repo-root requirements.txt.
+      # The tests fake hera, so none of the heavy scientific stack is needed.
+      - name: Install Python dependencies
+        run: pip install -r ui/server/requirements-server.txt
+
+      - name: Run UI server tests
+        run: pytest tests -v
+        working-directory: ui/server
