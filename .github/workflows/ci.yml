@@ -39,24 +39,24 @@ jobs:
 
     steps:
       - name: Checkout hera
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Checkout hermes (internal dependency)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: KaplanOpenSource/hermes
           path: _vendor/hermes
           # token: ${{ secrets.INTERNAL_REPO_PAT }}   # uncomment if private
 
       - name: Checkout pyargos (internal dependency — provides the `argos` package)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: KaplanOpenSource/pyargos
           path: _vendor/pyargos
           # token: ${{ secrets.INTERNAL_REPO_PAT }}   # uncomment if private
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.11'
           cache: 'pip'
@@ -116,7 +116,7 @@ jobs:
 
       - name: Cache test data
         id: cache-test-data
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.TEST_HERA }}
           key: hera-test-data-${{ steps.tdv.outputs.version }}
@@ -141,10 +141,10 @@ jobs:
 
     steps:
       - name: Checkout hera
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'npm'
@@ -170,10 +170,10 @@ jobs:
 
     steps:
       - name: Checkout hera
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.11'
           cache: 'pip'
