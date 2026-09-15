@@ -61,6 +61,8 @@ export const DetailsViewItem = ({
     <TreeItem
       key={key}
       itemId={key}
+      // MUI clips the label, which would cut the delete button hanging off the left.
+      sx={{ '& > .MuiTreeItem-content > .MuiTreeItem-label': { overflow: 'visible' } }}
       label={(
         <Stack
           direction='row'
@@ -78,8 +80,7 @@ export const DetailsViewItem = ({
 
           {renderBeforeName?.(itemKey, parentKey, def)}
 
-          {/* The delete button overlays the right side of the name, so showing
-              it on hover never changes the row's size. */}
+          {/* The delete button sits on the name's top-left corner, over no text. */}
           <Box sx={{ position: 'relative', display: 'flex', minWidth: 0 }}>
             {/* A list index shows as [0], narrow and grey, and never renames. */}
             {isListIndex && (
@@ -109,10 +110,12 @@ export const DetailsViewItem = ({
                 className="field-delete"
                 sx={{
                   position: 'absolute',
-                  right: 0,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
+                  left: '-8px',
+                  top: 0,
+                  transform: 'translateY(-40%)',
                   zIndex: 2,
+                  '& .MuiIconButton-root': { padding: '2px' },
+                  '& .MuiSvgIcon-root': { fontSize: '0.8rem' },
                 }}
               >
                 <DeleteFieldButton
