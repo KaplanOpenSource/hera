@@ -1,7 +1,3 @@
-import { NO_PROJECT, useProjectStore } from '../../../stores/useProjectStore';
-import { WorkflowDesc } from '../../types';
-import { WorkflowMutatorBase } from '../WorkflowMutatorBase';
-
 // True for a field name that names a project: `ProjectName`, `projectName`,
 // `projectname` - any casing. Hera/Hermes nodes use `ProjectName`.
 export const isProjectNameKey = (key: string): boolean => {
@@ -35,18 +31,3 @@ export const fillProjectName = (value: any, projectName: string): any => {
   }
   return next;
 };
-
-// Phase: seed every empty project-name field in the document's desc with the
-// current project. Covers a field the user just renamed to ProjectName, one
-// seeded by adding a node, and one that was already there and empty.
-export class FillProjectNameMutator extends WorkflowMutatorBase {
-  readonly name = 'fillProjectName';
-
-  mutate(desc: WorkflowDesc): WorkflowDesc {
-    const projectName = useProjectStore.getState().currProjectName;
-    if (!projectName || projectName === NO_PROJECT) {
-      return desc;
-    }
-    return fillProjectName(desc, projectName);
-  }
-}

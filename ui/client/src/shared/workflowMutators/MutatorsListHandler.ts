@@ -1,24 +1,19 @@
+import { NO_PROJECT, useProjectStore } from '../../stores/useProjectStore';
 import { WorkflowDesc } from '../types';
-import { FillProjectNameMutator } from './mutators/FillProjectNameMutator';
-import { SyncParametersMutator } from './mutators/SyncParametersMutator';
-import { WorkflowMutatorBase } from './WorkflowMutatorBase';
+import { fillProjectName } from './mutators/FillProjectNameMutator';
+import { syncParameters } from './mutators/SyncParametersMutator';
 
-// Holds the workflow mutators and runs them as one pipeline over a workflow
-// desc, on every in-memory change (edit and create, not load).
 export class MutatorsListHandler {
-  // The phases, in run order. Add a mutator here to include it in the pipeline.
-  static readonly mutators: WorkflowMutatorBase[] = [
-    new FillProjectNameMutator(),
-    new SyncParametersMutator(),
-  ];
-
-  // Runs every mutator in turn over the desc. A non-workflow desc is returned
-  // unchanged (each phase no-ops without a workflow block).
+  // Corrects a workflow desc after an in-memory change (edit and create, not
+  // load): seed every empty project-name field with the current project, then
+  // rebuild the parameters index from the result. A non-workflow desc comes
+  // back with no index, since it has no workflow block.
   static normalize(desc: WorkflowDesc): WorkflowDesc {
     let result = desc;
-    for (const mutator of MutatorsListHandler.mutators) {
-      result = mutator.mutate(result);
+    const projectName = useProjectStore.getState().currProjectName;
+    if (projectName && projectName !== NO_PROJECT) {
+      result = fillProjectName(result, projectName);
     }
-    return result;
+    return syncParameters(result);
   }
 }
