@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { NO_PROJECT, useProjectStore } from '../src/stores/useProjectStore';
 import { MutatorsListHandler } from '../src/shared/workflowMutators/MutatorsListHandler';
-import { WorkflowMutatorBase } from '../src/shared/workflowMutators/WorkflowMutatorBase';
-import { SyncParametersMutator, workflowParameters } from '../src/shared/workflowMutators/mutators/SyncParametersMutator';
+import { syncParameters, workflowParameters } from '../src/shared/workflowMutators/mutators/SyncParametersMutator';
 import {
   WORKFLOW_DOC_TYPE,
   getWorkflowBlock,
@@ -208,20 +207,15 @@ describe('MutatorsListHandler.normalize', () => {
   });
 });
 
-describe('workflow mutator phases', () => {
+describe('syncParameters on its own', () => {
   beforeEach(() => {
     useProjectStore.getState().selectProject(NO_PROJECT);
   });
 
   const desc = () => ({ workflow: { workflow: { nodeList: ['A'], nodes: { A: { Execution: { input_parameters: { ProjectName: '' } } } } } } });
 
-  it('exposes each phase as a WorkflowMutator', () => {
-    expect(MutatorsListHandler.mutators.every(m => m instanceof WorkflowMutatorBase)).toBe(true);
-    expect(MutatorsListHandler.mutators.map(m => m.name)).toEqual(['fillProjectName', 'syncParameters']);
-  });
-
-  it('SyncParametersMutator only syncs parameters', () => {
-    const result = new SyncParametersMutator().mutate(desc());
+  it('syncParameters only syncs parameters', () => {
+    const result = syncParameters(desc());
     expect(result.workflow?.workflow.nodes.A.Execution.input_parameters.ProjectName).toBe('');
     expect(result.parameters).toEqual({ A: { ProjectName: '' } });
   });

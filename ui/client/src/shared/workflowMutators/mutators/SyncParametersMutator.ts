@@ -1,5 +1,5 @@
 import { WorkflowBlock, WorkflowDesc } from '../../types';
-import { WorkflowMutatorBase } from '../WorkflowMutatorBase';
+import { getWorkflowBlock } from '../../workflow';
 
 // The `parameters` map derived from a block: each node's input_parameters keyed
 // by node name. Mirrors the Hermes `workflow.parametersJSON` property, which the
@@ -18,16 +18,12 @@ export const workflowParameters = (block: WorkflowBlock): { [node: string]: any 
   return parameters;
 };
 
-// Phase: rebuild desc.parameters (the query index) from the workflow's nodes, so
-// it never drifts from the workflow itself.
-export class SyncParametersMutator extends WorkflowMutatorBase {
-  readonly name = 'syncParameters';
-
-  mutate(desc: WorkflowDesc): WorkflowDesc {
-    const block = this.getBlock(desc);
-    if (!block) {
-      return desc;
-    }
-    return { ...desc, parameters: workflowParameters(block) };
+// Rebuilds desc.parameters (the query index) from the workflow's nodes, so it
+// never drifts from the workflow itself. A desc with no block is left alone.
+export const syncParameters = (desc: WorkflowDesc): WorkflowDesc => {
+  const block = getWorkflowBlock(desc.workflow);
+  if (!block) {
+    return desc;
   }
-}
+  return { ...desc, parameters: workflowParameters(block) };
+};
