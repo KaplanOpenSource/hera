@@ -17,7 +17,7 @@ vi.mock('../src/io/snackbar', () => ({
   dismiss: vi.fn(),
 }));
 
-const { WorkflowRunPoller } = await import('../src/components/workflow/WorkflowRunPoller');
+const { WorkflowRunPoller, POLL_MS } = await import('../src/components/workflow/WorkflowRunPoller');
 const { useWorkflowRunStore, WorkflowRunStatus } = await import('../src/stores/useWorkflowRunStore');
 
 const startRun = (workflowName: string, token: string) => {
@@ -29,6 +29,7 @@ const runOf = (workflowName: string) => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
 });
 
 beforeEach(() => {
@@ -55,6 +56,8 @@ describe('WorkflowRunPoller', () => {
   });
 
   it('keeps polling while running, then stops on done', async () => {
+    // Fake timers so the test does not sit through the real POLL_MS wait.
+    vi.useFakeTimers();
     mockPollWorkflow.mockResolvedValueOnce({ status: 'running', error: '', chunks: [] });
     mockPollWorkflow.mockResolvedValueOnce({ status: 'done', error: '', chunks: [{ name: '__between__', text: 'done now' }] });
 
@@ -63,7 +66,15 @@ describe('WorkflowRunPoller', () => {
       startRun('w', 'tok');
     });
 
-    await waitFor(() => expect(runOf('w').status).toBe(WorkflowRunStatus.Done));
+    // The first poll said "running", so the run is still going and a retry is pending.
+    expect(runOf('w').status).toBe(WorkflowRunStatus.Running);
+    expect(mockPollWorkflow).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(POLL_MS);
+    });
+
+    expect(runOf('w').status).toBe(WorkflowRunStatus.Done);
     expect(mockPollWorkflow).toHaveBeenCalledTimes(2);
   });
 
@@ -73,15 +84,24 @@ describe('WorkflowRunPoller', () => {
     mockPollWorkflow.mockResolvedValueOnce({ status: 'running', error: '', chunks: partial });
     mockPollWorkflow.mockResolvedValueOnce({ status: 'done', error: '', chunks: final });
 
+    // Fake timers so the test does not sit through the real POLL_MS wait.
+    vi.useFakeTimers();
+
     render(<WorkflowRunPoller />);
     await act(async () => {
       startRun('w', 'tok');
     });
 
     // The running poll updates chunks but keeps the run in the running state.
-    await waitFor(() => expect(runOf('w').chunks).toEqual(partial));
+    expect(runOf('w').chunks).toEqual(partial);
+    expect(runOf('w').status).toBe(WorkflowRunStatus.Running);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(POLL_MS);
+    });
+
     // Then it finishes with the final chunks.
-    await waitFor(() => expect(runOf('w').status).toBe(WorkflowRunStatus.Done));
+    expect(runOf('w').status).toBe(WorkflowRunStatus.Done);
     expect(runOf('w').chunks).toEqual(final);
   });
 

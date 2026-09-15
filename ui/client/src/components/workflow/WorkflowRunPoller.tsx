@@ -5,7 +5,7 @@ import { dismiss, pushError, pushInfo, pushRunning } from '../../io/snackbar';
 import { useWorkflowRunStore, WorkflowRunStatus } from '../../stores/useWorkflowRunStore';
 
 // How often to poll a running workflow for its status.
-const POLL_MS = 500;
+export const POLL_MS = 500;
 
 // Mounted once (in App). Watches the workflow-run store for a running run and
 // polls it until it finishes, writing the result back to the store so every run
