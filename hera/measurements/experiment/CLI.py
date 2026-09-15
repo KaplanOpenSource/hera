@@ -1,18 +1,15 @@
 import os
 import logging
-from ...utils.jsonutils import loadJSON
-from ... import toolkitHome
-from argos.experimentSetup.dataObjects import ExperimentZipFile
-import pandas
 import json
 import shutil
-from hera import datalayer
-from ...utils.data.toolkit import dataToolkit
 import glob
-import requests
-import zipfile
-from hera import toolkitHome
+from ...utils.jsonutils import loadJSON
+from hera import datalayer
 from hera.utils.data import CLI as projectCLI
+
+# argos, pandas and dataToolkit (pint) cost ~4s to import and are each used in a
+# single function, so they are imported at call time — see the sibling
+# experimentHome imports below.
 
 def _resolve_project_name(arguments):
     """
@@ -114,6 +111,7 @@ def get_experiment_data(arguments):
         deviceName=getattr(arguments, "deviceName", None),
         perDevice=getattr(arguments, "perDevice", None),
     )
+    import pandas
     print(pandas.DataFrame(parquet))
 
 
@@ -233,6 +231,7 @@ def _create_repository(argos_zip,experiment_path,experimentName,relative):
     logger = logging.getLogger("hera.bin._create_repository")
     logger.info(f"Creating the repository")
     logger.debug(f" Since zip file is provided, creating a repository..")
+    from argos.experimentSetup.dataObjects import ExperimentZipFile
     metadata = ExperimentZipFile(argos_zip) if argos_zip else None
 
     repo = {}
@@ -343,6 +342,7 @@ def load_experiment_to_project(arguments):
     if arguments.projectName not in datalayer.getProjectList():
         logger.info(f" No project with name {arguments.projectName}, will create a new one.")
 
+    from ...utils.data.toolkit import dataToolkit
     data_tk = dataToolkit()
     data_tk.addRepository(repositoryName=repository_name,
                       repositoryPath=repository,
