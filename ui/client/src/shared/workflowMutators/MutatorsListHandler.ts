@@ -1,4 +1,5 @@
 import { WorkflowDesc } from '../types';
+import { FillProjectNameMutator } from './mutators/FillProjectNameMutator';
 import { SyncParametersMutator } from './mutators/SyncParametersMutator';
 import { WorkflowMutatorBase } from './WorkflowMutatorBase';
 
@@ -7,6 +8,7 @@ import { WorkflowMutatorBase } from './WorkflowMutatorBase';
 export class MutatorsListHandler {
   // The phases, in run order. Add a mutator here to include it in the pipeline.
   static readonly mutators: WorkflowMutatorBase[] = [
+    new FillProjectNameMutator(),
     new SyncParametersMutator(),
   ];
 
