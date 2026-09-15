@@ -35,9 +35,6 @@ class presenation:
         return self._datalayer
 
     def __init__(self, dataLayer, analysis):
-        print("📥 presenation.__init__ called")
-        print("   📌 dataLayer =", type(dataLayer))
-        print("   📌 analysis =", type(analysis))
 
         self._datalayer = dataLayer
         self._analysis = analysis
@@ -65,8 +62,6 @@ class Plots(object):
     _scatterdict=None
 
     def __init__(self, presentation):
-        print("📥 Plots.__init__ called")
-        print("   📌 Received presentation object of type:", type(presentation))
 
         self._presentation = presentation
 
@@ -183,7 +178,6 @@ class Plots(object):
 class SeasonalPlots(Plots):
 
     def __init__(self, presentation):
-        print("📥 SeasonalPlots.__init__ called")
         super().__init__(presentation)
 
     def plotProbContourf_bySeason(self,
@@ -304,7 +298,6 @@ class DailyPlots(Plots):
     _linedict=None
 
     def __init__(self, presentation):
-        print("📥 DailyPlots.__init__ called")
         super().__init__(presentation)
 
         self._linedict = dict(
