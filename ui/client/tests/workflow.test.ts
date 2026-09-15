@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { NO_PROJECT, useProjectStore } from '../src/stores/useProjectStore';
 import { MutatorsListHandler } from '../src/shared/workflowMutators/MutatorsListHandler';
 import { WorkflowMutatorBase } from '../src/shared/workflowMutators/WorkflowMutatorBase';
 import { SyncParametersMutator, workflowParameters } from '../src/shared/workflowMutators/mutators/SyncParametersMutator';
@@ -165,18 +166,24 @@ describe('workflowParameters', () => {
   });
 });
 
+// No project selected, so the project-name fill is a no-op and these tests see
+// the parameters sync alone. The fill has its own tests in fillProjectName.
 describe('MutatorsListHandler.normalize', () => {
+  beforeEach(() => {
+    useProjectStore.getState().selectProject(NO_PROJECT);
+  });
+
   const descWith = (nodes: { [name: string]: any }, nodeList: string[]) => {
     return { workflow: { workflow: { nodeList, nodes } } };
   };
 
   it('syncs parameters (nested block)', () => {
     const desc = descWith(
-      { A: { Execution: { input_parameters: { ProjectName: 'KEEP' } } } },
+      { A: { Execution: { input_parameters: { ProjectName: 'P' } } } },
       ['A'],
     );
     const result = MutatorsListHandler.normalize(desc);
-    expect(result.parameters).toEqual({ A: { ProjectName: 'KEEP' } });
+    expect(result.parameters).toEqual({ A: { ProjectName: 'P' } });
   });
 
   it('preserves a top-level (unnested) block', () => {
@@ -186,13 +193,13 @@ describe('MutatorsListHandler.normalize', () => {
     expect(result.parameters).toEqual({ A: { x: 1 } });
   });
 
-  it('leaves node parameters untouched', () => {
+  it('leaves node parameters untouched when no project is selected', () => {
     const desc = descWith(
-      { A: { Execution: { input_parameters: { ProjectName: 'OTHER' } } } },
+      { A: { Execution: { input_parameters: { ProjectName: '' } } } },
       ['A'],
     );
     const result = MutatorsListHandler.normalize(desc);
-    expect(result.workflow?.workflow.nodes.A.Execution.input_parameters.ProjectName).toBe('OTHER');
+    expect(result.workflow?.workflow.nodes.A.Execution.input_parameters.ProjectName).toBe('');
   });
 
   it('returns a non-workflow desc unchanged', () => {
@@ -202,11 +209,15 @@ describe('MutatorsListHandler.normalize', () => {
 });
 
 describe('workflow mutator phases', () => {
+  beforeEach(() => {
+    useProjectStore.getState().selectProject(NO_PROJECT);
+  });
+
   const desc = () => ({ workflow: { workflow: { nodeList: ['A'], nodes: { A: { Execution: { input_parameters: { ProjectName: '' } } } } } } });
 
   it('exposes each phase as a WorkflowMutator', () => {
     expect(MutatorsListHandler.mutators.every(m => m instanceof WorkflowMutatorBase)).toBe(true);
-    expect(MutatorsListHandler.mutators.map(m => m.name)).toEqual(['syncParameters']);
+    expect(MutatorsListHandler.mutators.map(m => m.name)).toEqual(['fillProjectName', 'syncParameters']);
   });
 
   it('SyncParametersMutator only syncs parameters', () => {
