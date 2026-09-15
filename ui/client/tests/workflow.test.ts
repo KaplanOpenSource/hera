@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { NO_PROJECT, useProjectStore } from '../src/stores/useProjectStore';
-import { MutatorsListHandler } from '../src/shared/workflowMutators/MutatorsListHandler';
+import { DocumentFieldsMutator } from '../src/shared/workflowMutators/DocumentFieldsMutator';
 import { syncParameters, workflowParameters } from '../src/shared/workflowMutators/mutators/SyncParametersMutator';
 import {
   WORKFLOW_DOC_TYPE,
@@ -167,7 +167,7 @@ describe('workflowParameters', () => {
 
 // No project selected, so the project-name fill is a no-op and these tests see
 // the parameters sync alone. The fill has its own tests in fillProjectName.
-describe('MutatorsListHandler.normalize', () => {
+describe('DocumentFieldsMutator.mutate', () => {
   beforeEach(() => {
     useProjectStore.getState().selectProject(NO_PROJECT);
   });
@@ -181,13 +181,13 @@ describe('MutatorsListHandler.normalize', () => {
       { A: { Execution: { input_parameters: { ProjectName: 'P' } } } },
       ['A'],
     );
-    const result = MutatorsListHandler.normalize(desc);
+    const result = DocumentFieldsMutator.mutate(desc);
     expect(result.parameters).toEqual({ A: { ProjectName: 'P' } });
   });
 
   it('preserves a top-level (unnested) block', () => {
     const desc = { workflow: { nodeList: ['A'], nodes: { A: { Execution: { input_parameters: { x: 1 } } } } } };
-    const result = MutatorsListHandler.normalize(desc);
+    const result = DocumentFieldsMutator.mutate(desc);
     expect(result.workflow?.nodeList).toEqual(['A']);
     expect(result.parameters).toEqual({ A: { x: 1 } });
   });
@@ -197,13 +197,13 @@ describe('MutatorsListHandler.normalize', () => {
       { A: { Execution: { input_parameters: { ProjectName: '' } } } },
       ['A'],
     );
-    const result = MutatorsListHandler.normalize(desc);
+    const result = DocumentFieldsMutator.mutate(desc);
     expect(result.workflow?.workflow.nodes.A.Execution.input_parameters.ProjectName).toBe('');
   });
 
   it('returns a non-workflow desc unchanged', () => {
     const desc = { toolkit: 'X' } as any;
-    expect(MutatorsListHandler.normalize(desc)).toBe(desc);
+    expect(DocumentFieldsMutator.mutate(desc)).toBe(desc);
   });
 });
 
@@ -223,7 +223,7 @@ describe('syncParameters on its own', () => {
 
 // Coverage for normalize as a whole, with a project selected: both phases run,
 // in order, and the parameters index is built from the FILLED values.
-describe('MutatorsListHandler.normalize with a project selected', () => {
+describe('DocumentFieldsMutator.mutate with a project selected', () => {
   const PROJECT = 'MY_PROJECT';
 
   beforeEach(() => {
@@ -234,7 +234,7 @@ describe('MutatorsListHandler.normalize with a project selected', () => {
     const desc = {
       workflow: { workflow: { nodeList: ['A'], nodes: { A: { Execution: { input_parameters: { ProjectName: '' } } } } } },
     };
-    const result = MutatorsListHandler.normalize(desc);
+    const result = DocumentFieldsMutator.mutate(desc);
     expect(result.workflow?.workflow.nodes.A.Execution.input_parameters.ProjectName).toBe(PROJECT);
     // Proves the fill runs before the sync: the index carries the filled value.
     expect(result.parameters).toEqual({ A: { ProjectName: PROJECT } });
@@ -244,20 +244,20 @@ describe('MutatorsListHandler.normalize with a project selected', () => {
     const desc = {
       workflow: { workflow: { nodeList: ['A'], nodes: { A: { Execution: { input_parameters: { ProjectName: 'OTHER' } } } } } },
     };
-    const result = MutatorsListHandler.normalize(desc);
+    const result = DocumentFieldsMutator.mutate(desc);
     expect(result.workflow?.workflow.nodes.A.Execution.input_parameters.ProjectName).toBe('OTHER');
     expect(result.parameters).toEqual({ A: { ProjectName: 'OTHER' } });
   });
 
   it('fills a project-name field that sits outside the workflow block', () => {
     const desc = { projectname: '', workflow: { nodeList: [], nodes: {} } };
-    const result: any = MutatorsListHandler.normalize(desc);
+    const result: any = DocumentFieldsMutator.mutate(desc);
     expect(result.projectname).toBe(PROJECT);
   });
 
   it('fills a project-name field nested in a list', () => {
     const desc = { steps: [{ ProjectName: '' }], workflow: { nodeList: [], nodes: {} } };
-    const result: any = MutatorsListHandler.normalize(desc);
+    const result: any = DocumentFieldsMutator.mutate(desc);
     expect(result.steps).toEqual([{ ProjectName: PROJECT }]);
   });
 
@@ -266,7 +266,7 @@ describe('MutatorsListHandler.normalize with a project selected', () => {
       workflowName: 'W',
       workflow: { nodeList: ['A'], nodes: { A: { Execution: { input_parameters: { x: 1 } } } } },
     };
-    const result: any = MutatorsListHandler.normalize(desc);
+    const result: any = DocumentFieldsMutator.mutate(desc);
     expect(result.workflowName).toBe('W');
     expect(result.workflow.nodeList).toEqual(['A']);
     expect(result.parameters).toEqual({ A: { x: 1 } });
@@ -274,13 +274,13 @@ describe('MutatorsListHandler.normalize with a project selected', () => {
 
   it('handles a block with no nodes', () => {
     const desc = { workflow: { nodeList: [], nodes: {} } };
-    const result: any = MutatorsListHandler.normalize(desc);
+    const result: any = DocumentFieldsMutator.mutate(desc);
     expect(result.parameters).toEqual({});
   });
 
   it('leaves a node that has no Execution out of the index', () => {
     const desc = { workflow: { nodeList: ['A'], nodes: { A: { type: 'general.RunOsCommand' } } } };
-    const result: any = MutatorsListHandler.normalize(desc);
+    const result: any = DocumentFieldsMutator.mutate(desc);
     // toStrictEqual, so an { A: undefined } entry is a failure, not a match.
     expect(result.parameters).toStrictEqual({});
     expect(result.workflow.nodes.A).toEqual({ type: 'general.RunOsCommand' });
@@ -297,14 +297,14 @@ describe('MutatorsListHandler.normalize with a project selected', () => {
         },
       },
     };
-    const result: any = MutatorsListHandler.normalize(desc);
+    const result: any = DocumentFieldsMutator.mutate(desc);
     // C is not in nodeList, so it is not indexed; B comes before A.
     expect(Object.keys(result.parameters)).toEqual(['B', 'A']);
   });
 
   it('returns a non-workflow desc unchanged', () => {
     const desc = { toolkit: 'X' } as any;
-    const result: any = MutatorsListHandler.normalize(desc);
+    const result: any = DocumentFieldsMutator.mutate(desc);
     expect(result).toEqual({ toolkit: 'X' });
     expect(result.parameters).toBeUndefined();
   });
@@ -316,14 +316,14 @@ describe('MutatorsListHandler.normalize with a project selected', () => {
         B: { Execution: { input_parameters: { ProjectName: undefined } } },
       } },
     };
-    const result: any = MutatorsListHandler.normalize(desc);
+    const result: any = DocumentFieldsMutator.mutate(desc);
     expect(result.workflow.nodes.A.Execution.input_parameters.ProjectName).toBe(PROJECT);
     expect(result.workflow.nodes.B.Execution.input_parameters.ProjectName).toBe(PROJECT);
   });
 
   it('matches the field name in any casing, and only that name', () => {
     const desc = { PROJECTNAME: '', projectNames: '', theProjectName: '', workflow: { nodeList: [], nodes: {} } };
-    const result: any = MutatorsListHandler.normalize(desc);
+    const result: any = DocumentFieldsMutator.mutate(desc);
     expect(result.PROJECTNAME).toBe(PROJECT);
     // Near misses stay empty: the name must match end to end.
     expect(result.projectNames).toBe('');
@@ -332,19 +332,19 @@ describe('MutatorsListHandler.normalize with a project selected', () => {
 
   it('leaves a null value under another field alone', () => {
     const desc = { note: null, workflow: { nodeList: [], nodes: {} } };
-    const result: any = MutatorsListHandler.normalize(desc);
+    const result: any = DocumentFieldsMutator.mutate(desc);
     expect(result.note).toBeNull();
   });
 
   it('handles a block that has nodeList but no nodes map', () => {
     const desc = { workflow: { nodeList: ['A'] } };
-    const result: any = MutatorsListHandler.normalize(desc);
+    const result: any = DocumentFieldsMutator.mutate(desc);
     expect(result.parameters).toStrictEqual({});
   });
 
   it('falls back to the nodes map when the block has no nodeList', () => {
     const desc = { workflow: { nodes: { A: { Execution: { input_parameters: { x: 1 } } } } } };
-    const result: any = MutatorsListHandler.normalize(desc);
+    const result: any = DocumentFieldsMutator.mutate(desc);
     expect(result.parameters).toEqual({ A: { x: 1 } });
   });
 
@@ -352,21 +352,21 @@ describe('MutatorsListHandler.normalize with a project selected', () => {
     const desc = {
       workflow: { workflow: { nodeList: ['A'], nodes: { A: { Execution: { input_parameters: { ProjectName: '' } } } } } },
     };
-    MutatorsListHandler.normalize(desc);
+    DocumentFieldsMutator.mutate(desc);
     expect(desc.workflow.workflow.nodes.A.Execution.input_parameters.ProjectName).toBe('');
     expect((desc as any).parameters).toBeUndefined();
   });
 });
 
 // The remaining guard in the fill phase: an empty project name in the store.
-describe('MutatorsListHandler.normalize with an empty project name', () => {
+describe('DocumentFieldsMutator.mutate with an empty project name', () => {
   beforeEach(() => {
     useProjectStore.getState().selectProject('');
   });
 
   it('does not fill, but still syncs parameters', () => {
     const desc = { workflow: { nodeList: ['A'], nodes: { A: { Execution: { input_parameters: { ProjectName: '' } } } } } };
-    const result: any = MutatorsListHandler.normalize(desc);
+    const result: any = DocumentFieldsMutator.mutate(desc);
     expect(result.workflow.nodes.A.Execution.input_parameters.ProjectName).toBe('');
     expect(result.parameters).toEqual({ A: { ProjectName: '' } });
   });
