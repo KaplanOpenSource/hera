@@ -18,7 +18,7 @@ from .sourcesFactoryTool import sourcesFactoryTool
 from itertools import product
 
 try:
-    from evtk.hl import pointsToVTK, structuredToVTK
+    from pyevtk.hl import pointsToVTK, structuredToVTK
 except ImportError:
     pointsToVTK = structuredToVTK = None
 
