@@ -1,6 +1,7 @@
 import io
 import logging
 import subprocess
+import re
 
 import dask.dataframe
 import numpy
@@ -37,10 +38,20 @@ class absractStochasticLagrangianSolver_toolkitExtension:
     DOCTYPE_LAGRANGIAN_CACHE = "lagrangianCacheDocType"
     DOCTYPE_CONCENTRATIONEULERIAN_CACHE = "EulerianConcentrationCacheDocType"
 
-    def __init__(self, toolkit):
-        """Initialize with a reference to the parent toolkit."""
+    def __init__(self, toolkit, useDaskClient=False):
+        """Initialize with a reference to the parent toolkit.
+
+        Parameters
+        ----------
+        toolkit : object
+            The parent toolkit instance.
+        useDaskClient : bool, optional
+            If True, initializes a distributed Dask Client for cluster-based execution.
+            Defaults to False (uses local threaded scheduler), which is faster and
+            easier to debug on single machines.
+        """
         self.toolkit = toolkit
-        self.daskClient = Client()
+        self.daskClient = Client() if useDaskClient else None
         self.analysis = analysis(self)
 
     def createDispersionFlowField(self, flowName, flowData, OriginalFlowField, dispersionDuration,
@@ -1103,7 +1114,10 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             loaderList = list(timeList)
 
         logger.debug(f"Loading {len(loaderList)} items")
-        return dask_dataframe.from_delayed(self.daskClient.map(loader, loaderList))
+        # Use dask.delayed to create a lazy graph instead of Client.map (which returns Futures).
+        # This avoids hangs and allows the scheduler to optimize execution during .to_parquet().
+        delayed_results = [delayed(loader)(item) for item in loaderList]
+        return dask_dataframe.from_delayed(delayed_results)
 
     def _saveToCacheParquet(self, data, cacheDoc, caseDescriptor,
                              workflowName, cloudName, doctype, dataFormat):
@@ -1125,7 +1139,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             )
 
         logger.info(f"Writing to parquet: {fullname}")
-        data.set_index("datetime").repartition(partition_size="100MB").to_parquet(fullname)
+        data.repartition(partition_size="100MB").to_parquet(fullname)
         return dask.dataframe.read_parquet(fullname, engine='pyarrow')
 
     def _saveToCacheNetCDF(self, data, cacheDoc, caseDescriptor,
@@ -1328,7 +1342,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
         # Step 5: Load data via Dask.
         ret = self._loadCaseDataViaDask(
-            finalCasePath, loader, timeList, forceSingleProcessor, self.daskClient
+            finalCasePath, loader, timeList, forceSingleProcessor
         )
 
         # Step 6: Cache as netCDF (group by grid cell, sum concentrations).
@@ -1559,7 +1573,7 @@ class analysis:
         logger = get_classMethod_logger(self, "calcConcentrationFieldFullMesh")
 
         # Step 1: Resolve case name and check for existing cache.
-        caseDescriptorName = self._resolveCaseDescriptorName(caseDescriptor)
+        caseDescriptorName = self.datalayer._resolveCaseDescriptorName(caseDescriptor)
 
         mdata = dict(extents=extents, dxdydz=dxdydz, caseDescriptorName=caseDescriptorName)
         mdata.update(**metadata)
@@ -1601,8 +1615,15 @@ class analysis:
             # Step 7: Pad remaining timesteps with zero concentrations.
             # This ensures the time series extends to the full dispersion
             # duration, needed for moving-window risk averaging (assumes dt=1).
+            if workflow is not None:
+                dispersionDuration = workflow.dispersionDuration
+            else:
+                # Fallback: use the maximum timestep present in the data if no DB record exists
+                # Check len(data.columns) instead of .empty because Dask forbids .empty for performance reasons
+                dispersionDuration = data['datetime'].max().compute() if len(data.columns) > 0 else 0
+
             self._padRemainingTimesteps(
-                timeName, workflow.dispersionDuration, partitionID + 1,
+                timeName, dispersionDuration, partitionID + 1,
                 path_to_data, extents, dxdydz, xfield, yfield, zfield
             )
         else:
@@ -1771,20 +1792,32 @@ def robustOpenFOAMFileValuesParser(path, columnNames):
         data = numpy.tile(single_val, (count, 1))
         return pandas.DataFrame(data, columns=columnNames).astype(float)
 
-    # failing in the process should give an unexpected error meaning we missed some case
-    proc = subprocess.run(sed_command, capture_output=True, text=True, check=True)
-    
-    if not proc.stdout.strip():
-        return pandas.DataFrame(columns=columnNames).astype(float)
+    # Use Popen to stream output directly into pandas to avoid huge memory buffers (preventing hangs on large clouds)
+    proc = subprocess.Popen(sed_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    try:
+        # Pandas can read from the pipe directly without loading the entire file into a Python string first
+        df = pandas.read_csv(
+            proc.stdout,
+            sep=',',
+            header=None,
+            names=columnNames,
+            engine='c',
+            dtype=float
+        ).astype(float)
 
-    return pandas.read_csv(
-        io.StringIO(proc.stdout),
-        sep=',',
-        header=None,
-        names=columnNames,
-        engine='c',
-        dtype=float
-    ).astype(float)
+        # Check for process errors after consuming the stdout stream
+        exit_code = proc.wait()
+        if exit_code != 0:
+            stderr = proc.stderr.read()
+            raise subprocess.CalledProcessError(exit_code, sed_command, stderr=stderr)
+
+        if df.empty:
+            return pandas.DataFrame(columns=columnNames).astype(float)
+
+        return df
+    except Exception as e:
+        proc.kill()
+        raise e
 
 
 
@@ -1792,7 +1825,6 @@ def robustOpenFOAMFileValuesParser(path, columnNames):
 def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTimes=False, withMass=True,
                          cloudName="kinematicCloud"):
     """Read a single Lagrangian time step record from the case directory."""
-
     columnsDict = dict(x=[], y=[], z=[], id=[], procId=[], globalID=[],datetime=[])
     if withVelocity:
         columnsDict['U_x'] = []
@@ -1852,7 +1884,6 @@ def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTime
         except:
             newData = newData.compute()
             newData["mass"] = dataM["mass"]
-
     return newData.dropna()
 
 def readEulerianConcentration(timeName, casePath,cloudName="kinematicCloud"):
