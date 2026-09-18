@@ -114,6 +114,7 @@ json5==0.10.0
 jsonpath-ng==1.7.0
 jsonpath-rw==1.4.0
 jsonpath-rw-ext==1.2.2
+jsonpatch==1.32
 jsonpointer==3.0.0
 jsonschema==4.23.0
 jsonschema-specifications==2024.10.1
