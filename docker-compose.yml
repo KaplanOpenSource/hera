@@ -1,0 +1,98 @@
+# Hera full stack.
+#   docker compose up                        -> mongo + server
+#   docker compose --profile work up         -> + client (Vite dev)
+#   docker compose --profile work --profile ai up -> + ollama (internal)
+#
+# The server finds Mongo via ~/.pyhera/config.json. We inject our own config
+# (see the "configs" block below) so dbIP points at the "mongo" service name
+# instead of the 127.0.0.1 baked into the image.
+name: hera-stack
+
+configs:
+  pyhera_config:
+    content: |
+      {
+        "root": {
+          "dbIP": "mongo",
+          "dbName": "olymp",
+          "username": "hera",
+          "password": "heracles"
+        }
+      }
+
+services:
+  mongo:
+    image: mongo:5.0
+    # --quiet drops the per-connection open/close log spam from the healthcheck.
+    command: ["mongod", "--quiet"]
+    volumes:
+      - ./mongo-db-datadir:/data/db
+      - ./mongo-init.d:/docker-entrypoint-initdb.d
+    environment:
+      MONGO_HERA_USER: hera
+      MONGO_HERA_PWD: heracles
+    # No ports: Mongo is only reachable by the server over the internal network.
+    # Bare TCP port check: opens the socket and closes it, no handshake, so it
+    # logs nothing on success. Fails (unhealthy) only when the port is down.
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/27017"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  server:
+    build:
+      context: .
+      dockerfile: dockerfile
+    image: hera-server
+    depends_on:
+      mongo:
+        condition: service_healthy
+    volumes:
+      # Live code mount, matches run_server_docker.sh (-v .:/app).
+      - .:/app
+    configs:
+      # Point hera at the mongo service instead of 127.0.0.1.
+      - source: pyhera_config
+        target: /root/.pyhera/config.json
+    environment:
+      # Hermes is a submodule with no setup.py, so add it to the path.
+      PYTHONPATH: /app:/app/hera/bin:/app/Hermes
+      # jupyter-ai/langchain use this to reach the ollama service (started with
+      # --profile ai). When ollama is not up, the name fails fast (100ms).
+      OLLAMA_HOST: http://ollama:11434
+    # Bound to 127.0.0.1 so only this computer can reach them, not the LAN.
+    ports:
+      - "127.0.0.1:8000:8000"   # API
+      - "127.0.0.1:8888:8888"   # Jupyter
+      - "127.0.0.1:5678:5678"   # debugpy
+    # --cors remote binds Jupyter to 0.0.0.0 so port 8888 is reachable from the host.
+    command: python ui/server/server.py --cors remote
+
+  client:
+    # Only starts with: docker compose --profile work up  (or: docker compose up client)
+    profiles: ["work"]
+    image: hera-server
+    depends_on:
+      - server
+    working_dir: /client
+    volumes:
+      - ./ui/client:/client        # live source for hot reload
+      - /client/node_modules       # keep the image's node_modules (see below)
+    command: npm run dev -- --host
+    ports:
+      - "127.0.0.1:5173:5173"
+
+  ollama:
+    # Only starts with: docker compose --profile ai up
+    # No ports: reachable only by the server over the internal network.
+    profiles: ["ai"]
+    image: ollama/ollama
+    volumes:
+      - ./ollama-data:/root/.ollama
+    # Bare TCP port check (no HTTP request), so GIN logs nothing on success.
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/11434"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

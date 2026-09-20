@@ -1,5 +1,5 @@
 import { Box, Stack, Typography } from '@mui/material';
-import { MouseEvent, ReactNode } from 'react';
+import { CSSProperties, MouseEvent, ReactNode } from 'react';
 import { TreeItem } from '@mui/x-tree-view';
 import { useTreeViewContext, UseTreeViewExpansionSignature } from '@mui/x-tree-view/internals';
 import { RenameField } from '../../elements/RenameField';
@@ -8,8 +8,10 @@ import { DetailsViewItemBranchActions } from './DetailsViewItemBranchActions';
 import { DeleteFieldButton } from './DeleteFieldButton';
 import { ItemTypeSelector, calcItemType, ItemTypesEnum } from './ItemTypeSelector';
 import { EmptyBranchLabel } from './EmptyBranchLabel';
-import { DATA_FORMAT_FIELD, DESC_FIELD, FILES_DIRECTORY_FIELD } from '../../shared/constants';
+import { DATA_FORMAT_FIELD, DESC_FIELD } from '../../shared/constants';
 import { FieldDef } from './fieldDef';
+import { DetailsViewItemsInArray } from './DetailsViewItemsInArray';
+import { DetailsViewItemsInObject } from './DetailsViewItemsInObject';
 
 export const keyForDetailsViewItem = (itemKey: string, parentKey?: string) => {
   return parentKey ? `${parentKey}/${itemKey}` : itemKey;
@@ -20,6 +22,9 @@ export const DetailsViewItem = ({
   itemValue,
   setItemValue,
   setItemKey = undefined,
+  nameView = undefined,
+  rootRef = undefined,
+  rootStyle = undefined,
   parentKey,
   def = undefined,
   renderBeforeName = undefined,
@@ -30,27 +35,27 @@ export const DetailsViewItem = ({
   itemValue: any,
   setItemValue: (newVal: any) => void,
   setItemKey?: (newKey: string | undefined) => void | undefined,
+  // Replaces the editable field name, e.g. with a list element's index.
+  nameView?: ReactNode,
+  // Root row ref and style, used to animate a list element while it is dragged.
+  rootRef?: (node: HTMLElement | null) => void,
+  rootStyle?: CSSProperties,
   parentKey?: string,
-  // Definition of this field: `required` for the value editor, `children` for
-  // the sub-fields below it.
+  // This field's definition: `required` for the editor, `children` for sub-fields.
   def?: FieldDef,
-  // Optional slot rendered before the field name, given the row's key info and
-  // its def (e.g. the workflow editor renders a source dot wrapped in a connection
-  // handle). Nothing is rendered when not provided. Passed down the tree.
+  // Optional extra content before the field name.
   renderBeforeName?: (itemKey: string, parentKey: string | undefined, def?: FieldDef) => ReactNode,
-  // Optional right-click handler for a row, given the row's key info (e.g. the
-  // workflow editor opens a per-field menu). Passed down the tree.
+  // Optional right-click handler for a row.
   onRowContextMenu?: (itemKey: string, parentKey: string | undefined, event: MouseEvent<HTMLElement>) => void,
-  // Optional caret/value reporter for a row's leaf value editor, tagged with the
-  // row's key info (e.g. the workflow editor drives inline autocomplete). Passed
-  // down the tree.
+  // Optional report of a leaf value and its caret position, for autocomplete.
   onValueCaret?: (itemKey: string, parentKey: string | undefined, value: string, caret: number | null, el: HTMLInputElement) => void,
 }) => {
   const key = keyForDetailsViewItem(itemKey, parentKey);
-  const isTree = calcItemType(itemValue) === ItemTypesEnum.object;
+  const itemType = calcItemType(itemValue);
+  const isArray = itemType === ItemTypesEnum.array;
+  const isTree = isArray || itemType === ItemTypesEnum.object;
   const level = parentKey?.split('/').length || 0;
-  // Only required leaf fields need bottom room for their floating "required"
-  // helper text; every other row stays compact.
+  // Only a required leaf needs room below for its floating "required" text.
   let marginBottom = 3;
   if (!isTree && !!def?.required) {
     marginBottom = 14;
@@ -61,14 +66,17 @@ export const DetailsViewItem = ({
     <TreeItem
       key={key}
       itemId={key}
+      ref={rootRef}
+      style={rootStyle}
+      // MUI clips the label, which would cut the delete button hanging off the left.
+      sx={{ '& > .MuiTreeItem-content > .MuiTreeItem-label': { overflow: 'visible' } }}
       label={(
         <Stack
           direction='row'
           spacing={1}
           justifyItems={'stretch'}
           alignItems={'center'}
-          // Bottom space on every row reserves room for a field's "required"
-          // helper text, so it shows without moving anything.
+          // Room below every row, so "required" text shows without moving anything.
           style={{ marginTop: 2, marginBottom }}
           sx={{
             '& .field-delete, & .field-json': { display: 'none' },
@@ -79,33 +87,37 @@ export const DetailsViewItem = ({
 
           {renderBeforeName?.(itemKey, parentKey, def)}
 
-          {/* The delete button overlays the right side of the name, so showing
-              it on hover never changes the row's size. */}
+          {/* The delete button sits on the name's top-left corner, over no text. */}
           <Box sx={{ position: 'relative', display: 'flex', minWidth: 0 }}>
-            <RenameField
-              value={itemKey}
-              setValue={setItemKey}
-              labelMinWidth="100px"
-              // The top-level `desc` field isn't renameable, so show a friendlier label.
-              valueForView={(
-                itemKey === DESC_FIELD && !parentKey
-                  ? (
-                    <Typography sx={{ whiteSpace: 'nowrap', minWidth: '100px', flexShrink: 0 }}>
-                      Description (desc)
-                    </Typography>
-                  )
-                  : undefined
-              )}
-            />
+            {nameView}
+            {!nameView && (
+              <RenameField
+                value={itemKey}
+                setValue={setItemKey}
+                labelMinWidth="100px"
+                // The top-level `desc` field isn't renameable, so show a friendlier label.
+                valueForView={(
+                  itemKey === DESC_FIELD && !parentKey
+                    ? (
+                      <Typography sx={{ whiteSpace: 'nowrap', minWidth: '100px', flexShrink: 0 }}>
+                        Description (desc)
+                      </Typography>
+                    )
+                    : undefined
+                )}
+              />
+            )}
             {setItemKey && (
               <Box
                 className="field-delete"
                 sx={{
                   position: 'absolute',
-                  right: 0,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
+                  left: '-8px',
+                  top: 0,
+                  transform: 'translateY(-40%)',
                   zIndex: 2,
+                  '& .MuiIconButton-root': { padding: '2px' },
+                  '& .MuiSvgIcon-root': { fontSize: '0.8rem' },
                 }}
               >
                 <DeleteFieldButton
@@ -125,7 +137,8 @@ export const DetailsViewItem = ({
               setItemValue={newVal => {
                 setItemValue(newVal);
                 // Switching to an object opens its new substructure.
-                if (calcItemType(newVal) === ItemTypesEnum.object) {
+                const newType = calcItemType(newVal);
+                if (newType === ItemTypesEnum.object || newType === ItemTypesEnum.array) {
                   publicAPI.setItemExpansion({ itemId: key, shouldBeExpanded: true });
                 }
               }}
@@ -155,34 +168,29 @@ export const DetailsViewItem = ({
       {isTree && Object.keys(itemValue).length === 0 && (
         <EmptyBranchLabel level={level} />
       )}
-      {isTree && (<>
-        {Object.entries(itemValue).sort().map(([k, v]) => {
-          const isDir = parentKey === undefined && itemKey === DESC_FIELD && k === FILES_DIRECTORY_FIELD;
-
-          const changeKey = (newKey: string | undefined) => {
-            const item = { ...itemValue };
-            delete item[k];
-            if (newKey !== undefined) {
-              item[newKey] = v;
-            }
-            setItemValue(item);
-          };
-          return (
-            <DetailsViewItem
-              key={k}
-              itemKey={k}
-              itemValue={v}
-              parentKey={key}
-              setItemValue={newVal => setItemValue({ ...itemValue, [k]: newVal })}
-              setItemKey={isDir ? undefined : changeKey}
-              def={def?.children?.[k]}
-              renderBeforeName={renderBeforeName}
-              onRowContextMenu={onRowContextMenu}
-              onValueCaret={onValueCaret}
-            />
-          )
-        })}
-      </>)}
+      {isArray && (
+        <DetailsViewItemsInArray
+          itemValue={itemValue}
+          setItemValue={setItemValue}
+          parentKey={key}
+          def={def}
+          renderBeforeName={renderBeforeName}
+          onRowContextMenu={onRowContextMenu}
+          onValueCaret={onValueCaret}
+        />
+      )}
+      {isTree && !isArray && (
+        <DetailsViewItemsInObject
+          itemValue={itemValue}
+          setItemValue={setItemValue}
+          parentKey={key}
+          def={def}
+          renderBeforeName={renderBeforeName}
+          onRowContextMenu={onRowContextMenu}
+          onValueCaret={onValueCaret}
+          isDescRoot={parentKey === undefined && itemKey === DESC_FIELD}
+        />
+      )}
     </TreeItem>
   )
 }

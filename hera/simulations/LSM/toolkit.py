@@ -211,7 +211,7 @@ class LSMToolkit(toolkit.abstractToolkit):
                                    resource=fileNameOrData,
                                    dataFormat=datalayer.datatypes.STRING,
                                    version=version,
-                                   **kwargs)
+                                   desc=kwargs)
 
             else:
                 if  (saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB):

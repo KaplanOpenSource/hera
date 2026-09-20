@@ -75,6 +75,7 @@ export const DetailsViewDocumentContent = ({
           <RunWorkflowButton
             projectName={doc.project.name}
             workflowName={(shownDoc.desc as WorkflowDesc).workflowName ?? doc.name}
+            doc={shownDoc}
             isChanged={isChanged}
             save={() => setDoc(new DocumentObj(shownDoc, doc.project))}
           />
@@ -179,6 +180,7 @@ export const DetailsViewDocumentContent = ({
             <RunWorkflowButton
               projectName={doc.project.name}
               workflowName={(shownDoc.desc as WorkflowDesc).workflowName ?? doc.name}
+              doc={shownDoc}
               isChanged={isChanged}
               save={() => setDoc(new DocumentObj(shownDoc, doc.project))}
               sx={{ bgcolor: 'background.paper', boxShadow: 1, p: 0.5 }}

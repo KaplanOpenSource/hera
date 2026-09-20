@@ -1,0 +1,19 @@
+{
+    "workflow": {
+        "nodes": {
+            "SlowStep": {
+                "Execution": {
+                    "input_parameters": {
+                        "Method": "Command list",
+                        "Command": [
+                            "echo 'starting slow task'",
+                            "sleep 5",
+                            "echo 'slow task done'"
+                        ]
+                    }
+                },
+                "type": "general.RunOsCommand"
+            }
+        }
+    }
+}

@@ -28,9 +28,16 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
   const { name, node, catalog, onRename, onChange, onDelete, onFieldContextMenu, onFieldInlineEdit } = data as WorkflowFlowNodeData;
   const [draft, setDraft] = useState(name);
   const [hover, setHover] = useState(false);
-  // Controlled so the input_parameters chevron also shows/hides the outputs.
-  const [expandedItems, setExpandedItems] = useState<string[]>([keyForDetailsViewItem(INPUT_PARAMETERS_KEY)]);
+
   const params = node.Execution?.input_parameters ?? {};
+
+  // Expanded two levels by default: input_parameters and each parameter under it,
+  // so nested parameter values are visible without a click.
+  const [expandedItems, setExpandedItems] = useState<string[]>(() => {
+    const inputsKey = keyForDetailsViewItem(INPUT_PARAMETERS_KEY);
+    return [inputsKey, ...Object.keys(params).map(param => keyForDetailsViewItem(param, inputsKey))];
+  });
+
   const typeOptions = catalog.map(entry => entry.type);
   const typeIssue = nodeTypeIssue(node, catalog);
   const paramsDef = paramsFieldDef(node, catalog);

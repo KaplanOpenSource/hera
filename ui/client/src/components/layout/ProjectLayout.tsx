@@ -2,7 +2,7 @@ import { useTheme } from '@mui/material';
 import { Action, Actions, ITabRenderValues, Layout, TabNode } from 'flexlayout-react';
 import { useCallback, useEffect, useState } from 'react';
 import { ProjectObj } from '../../objects/ProjectObj';
-import { classifyItemId, idFromDocId, ItemKind, normalizeSplitId } from '../../shared/idDocId';
+import { classifyItemId, idFromDocId, ItemKind } from '../../shared/idDocId';
 import { classifyTab } from '../../shared/tabKind';
 import { TAB_KIND_STYLES } from '../../shared/tabKindConfig';
 import { useFlexlayoutTheme } from '../../theme';
@@ -50,9 +50,11 @@ export const ProjectLayout = ({
     if (!rawShowItemId) return;
 
     const kind = classifyItemId(rawShowItemId);
+    // Toolkit / split groups no longer open a tab; their info shows in a hover tooltip.
+    if (kind === ItemKind.Split) return;
+
     let showItemId = rawShowItemId;
     if (kind === ItemKind.Config) showItemId = CONFIG_ITEM_ID;
-    else if (kind === ItemKind.Split) showItemId = normalizeSplitId(rawShowItemId, project.documents);
 
     layout.openOrFocusDetailsTab(showItemId, project);
     setActiveShowItemId(showItemId);

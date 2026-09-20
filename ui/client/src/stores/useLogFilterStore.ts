@@ -9,9 +9,12 @@ type LogFilterStore = {
   toggle: (kind: LogLineKind) => void;
 };
 
-// All kinds start visible.
-const allVisible = (): LogKindVisibility => {
-  return Object.fromEntries(Object.values(LogLineKind).map((k) => { return [k, true]; })) as LogKindVisibility;
+// All kinds start visible except Luigi events, which are hidden by default (they
+// are diagnostic noise most of the time; toggle the Events chip to show them).
+const defaultVisible = (): LogKindVisibility => {
+  return Object.fromEntries(
+    Object.values(LogLineKind).map((k) => { return [k, k !== LogLineKind.Event]; })
+  ) as LogKindVisibility;
 };
 
 // Which workflow-log line kinds are shown. Persisted so the user's choice sticks
@@ -20,7 +23,7 @@ export const useLogFilterStore = create<LogFilterStore>()(
   persist(
     (set) => {
       return {
-        visible: allVisible(),
+        visible: defaultVisible(),
         toggle: (kind) => {
           return set((state) => { return { visible: { ...state.visible, [kind]: !state.visible[kind] } }; });
         },

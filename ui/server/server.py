@@ -171,15 +171,15 @@ def start_workflow(payload: RunWorkflowPayload) -> RunWorkflowResponse:
     """Start a saved Hermes workflow run in the background (local Luigi scheduler).
 
     Returns a token to poll with, or status "busy" if a run is already in progress.
-    Poll GET /workflow_status/{token} for status and output. See WorkflowRunner.
+    Poll GET /workflow_status/{token} for status and chunks. See WorkflowRunner.
     """
-    result = workflow_runner.start(payload.projectName, payload.workflowName)
+    result = workflow_runner.start(payload.projectName, payload.doc)
     return RunWorkflowResponse(**result)
 
 
 @app.get("/workflow_status/{token}", response_model=RunWorkflowResponse)
 def workflow_status(token: str) -> RunWorkflowResponse:
-    """Report a run's status and, once done, its full captured output. See WorkflowRunner."""
+    """Report a run's status and its captured output as per-task chunks. See WorkflowRunner."""
     result = workflow_runner.poll(token)
     return RunWorkflowResponse(**result)
 

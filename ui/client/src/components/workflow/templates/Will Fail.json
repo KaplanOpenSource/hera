@@ -1,0 +1,17 @@
+{
+    "workflow": {
+        "nodes": {
+            "WillFail": {
+                "Execution": {
+                    "input_parameters": {
+                        "Method": "Command list",
+                        "Command": [
+                            "echo 'this workflow fails on purpose' && exit 1"
+                        ]
+                    }
+                },
+                "type": "general.RunOsCommand"
+            }
+        }
+    }
+}
