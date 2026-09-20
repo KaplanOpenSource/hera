@@ -311,6 +311,33 @@ class TestOtherWindProfiles:
 
 
 @pytest.mark.unit
+class TestPowerLawTemperatureProperties:
+    """The `meteorology` fixture above uses the log profile; these target
+    the powerLaw variant's own temperature/skinSurfaceTemperature
+    properties specifically."""
+
+    @pytest.fixture()
+    def power_law(self, factory):
+        return factory.getMeteorologyFromU10(
+            u10=5 * ureg.m / ureg.s,
+            inversion=1000 * ureg.m,
+            verticalProfileType="powerLaw",
+            temperature=ureg.Quantity(20, ureg.degC),
+            skinSurfaceTemperature=ureg.Quantity(35, ureg.degC),
+        )
+
+    def test_temperature_is_stored_in_kelvin(self, power_law):
+        assert power_law.temperature.to(ureg.degC).magnitude == pytest.approx(20.0)
+
+    def test_skin_surface_temperature_is_stored_in_kelvin(self, power_law):
+        assert power_law.skinSurfaceTemperature.to(ureg.degC).magnitude == pytest.approx(35.0)
+
+    def test_temperature_can_be_reassigned(self, power_law):
+        power_law.temperature = ureg.Quantity(0, ureg.degC)
+        assert power_law.temperature.to(ureg.degC).magnitude == pytest.approx(0.0)
+
+
+@pytest.mark.unit
 class TestFactory:
     @pytest.mark.parametrize(
         "profileType, expected",

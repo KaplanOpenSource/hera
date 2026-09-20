@@ -224,6 +224,119 @@ class TestStabilityAndAnisotropy:
 
 
 @pytest.mark.unit
+class TestSimpleDerivedColumns:
+    def test_hour_extracts_the_hour_from_the_index(self):
+        mc = _mean_data_calculator(**_second_moments_row())
+        mc.MeanData.index = pandas.date_range("2020-01-01 03:00", periods=1, freq="30min")
+        mc.hour()
+        assert mc.MeanData["hour"].iloc[0] == 3
+
+    def test_timewithinday_is_fractional_hours(self):
+        mc = _mean_data_calculator(**_second_moments_row())
+        mc.MeanData.index = pandas.date_range("2020-01-01 03:30", periods=1, freq="30min")
+        mc.timeWithinDay()
+        assert mc.MeanData["timeWithinDay"].iloc[0] == pytest.approx(3.5)
+
+    def test_tke_is_half_the_trace_of_the_stress_tensor(self):
+        mc = _mean_data_calculator(**_second_moments_row())
+        mc.TKE()
+        assert mc.MeanData["TKE"].iloc[0] == pytest.approx(0.5 * (0.5 + 0.3 + 0.1))
+
+    def test_sigmaw_over_windspeed_divides_sigmaw_by_horizontal_speed(self):
+        mc = _mean_data_calculator(**_second_moments_row())
+        mc.sigmaWOverWindSpeed()
+        assert mc.MeanData["sigmaWOverWindSpeed"].iloc[0] == pytest.approx(
+            mc.MeanData["sigmaW"].iloc[0] / mc.MeanData["horizontal_speed_bar"].iloc[0]
+        )
+
+    def test_uv_to_spddir_converts_components_to_speed_and_bearing(self):
+        mc = _mean_data_calculator(**_second_moments_row())
+        speed, direction = mc._UV_to_SpdDir(1.0, 1.0)
+        assert speed == pytest.approx(numpy.sqrt(2))
+        assert direction == pytest.approx(45.0)
+
+    def test_compute_returns_the_accumulated_mean_data(self):
+        mc = _mean_data_calculator(**_second_moments_row())
+        mc.TKE()
+        assert mc.compute() is mc.MeanData
+
+
+@pytest.mark.unit
+class TestEigDirect:
+    def test_eig_called_directly_on_the_class_computes_eigenvalues(self):
+        """B71 is about the bound-method call through DataFrame.apply;
+        calling the underlying function directly (as it must be called,
+        since it has no `self` parameter) works fine and lets it be
+        exercised on its own."""
+        from hera.measurements.meteorology.highfreqdata.analysis.meandatacalculator import (
+            MeanDataCalculator,
+        )
+
+        row = pandas.Series({"uu": 0.5, "vv": 0.3, "ww": 0.1, "uv": 0.05, "uw": 0.02, "vw": 0.01})
+        result = MeanDataCalculator._eig(row)
+        assert set(result.index) == {"lambda_1", "lambda_2", "lambda_3"}
+        assert not result.isna().any()
+
+    def test_eig_returns_nan_when_the_diagonal_sums_to_zero(self):
+        from hera.measurements.meteorology.highfreqdata.analysis.meandatacalculator import (
+            MeanDataCalculator,
+        )
+
+        row = pandas.Series({"uu": 0.0, "vv": 0.0, "ww": 0.0, "uv": 0.0, "uw": 0.0, "vw": 0.0})
+        result = MeanDataCalculator._eig(row)
+        assert result.isna().all()
+
+
+@pytest.mark.unit
+class TestThresholdsAndFilterDatesInplace:
+    """Non-inplace mode hits B70 (same as the constructor bug documented
+    above): it builds a fresh MeanDataCalculator from the filtered plain
+    DataFrame, and that path can never succeed. inplace=True mutates the
+    existing instance instead and sidesteps the constructor entirely."""
+
+    def test_thresholds_inplace_filters_and_returns_self(self):
+        mc = _mean_data_calculator(u_bar=[2.0, 3.0], v_bar=[1.0, 0.5])
+        result = mc.thresholds([("u_bar", "gt", 2.5)], inplace=True)
+        assert result is mc
+        assert mc.MeanData["u_bar"].tolist() == [3.0]
+
+    def test_thresholds_not_inplace_currently_raises(self):
+        """Characterisation of B70 resurfacing in thresholds()."""
+        mc = _mean_data_calculator(u_bar=[2.0, 3.0], v_bar=[1.0, 0.5])
+        with pytest.raises(ValueError, match="singlePointTurbulenceStatistics"):
+            mc.thresholds([("u_bar", "gt", 2.5)])
+
+    def test_filterdates_inplace_narrows_to_the_interval(self):
+        mc = _mean_data_calculator(u_bar=[2.0, 3.0], v_bar=[1.0, 0.5])
+        mc.MeanData.index = pandas.date_range("2020-01-01", periods=2, freq="30min")
+        result = mc.filterDates(start=mc.MeanData.index[0], end=mc.MeanData.index[1], inplace=True)
+        assert result is mc
+        assert len(mc.MeanData) == 1
+
+    def test_filterdates_not_inplace_currently_raises(self):
+        """Characterisation of B70 resurfacing in filterDates()."""
+        mc = _mean_data_calculator(u_bar=[2.0, 3.0], v_bar=[1.0, 0.5])
+        mc.MeanData.index = pandas.date_range("2020-01-01", periods=2, freq="30min")
+        with pytest.raises(ValueError, match="singlePointTurbulenceStatistics"):
+            mc.filterDates(start=mc.MeanData.index[0], end=mc.MeanData.index[1])
+
+
+@pytest.mark.unit
+class TestStructureFunctionDissipation:
+    def test_strucfun_eps_averages_the_masked_estimations_per_tau(self):
+        mc = _mean_data_calculator(D11_1s=[0.1, 0.2, 0.3], D11_2s=[0.05, 0.1, 0.15], u_mag=[1.0, 2.0, 3.0])
+        mc.StrucFun_eps(tau_range=[1, 2], rmin=0, rmax=10)
+        assert "eps_D11" in mc.MeanData.columns
+        assert not mc.MeanData["eps_D11"].isna().any()
+
+    def test_thirdstrucfun_eps_averages_the_masked_estimations_per_tau(self):
+        mc = _mean_data_calculator(D111_1s=[0.1, 0.2, 0.3], D111_2s=[0.05, 0.1, 0.15], u_mag=[1.0, 2.0, 3.0])
+        mc.ThirdStrucFun_eps(tau_range=[1, 2], rmin=0, rmax=10)
+        assert "eps_D111" in mc.MeanData.columns
+        assert not mc.MeanData["eps_D111"].isna().any()
+
+
+@pytest.mark.unit
 class TestAveragingCalculator:
     def test_get_data_returns_the_resampled_bar_columns(self):
         times = pandas.date_range("2020-01-01", periods=10, freq="1s")

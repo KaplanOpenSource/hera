@@ -970,6 +970,8 @@ eig_data = self.MeanData.apply(self._eig, axis=1)
 
 `_eig` מוגדרת בלי `self` כפרמטר ראשון, אבל נגישה כ-`self._eig` — bound method שמעביר את `self` אוטומטית. כשה-DataFrame.apply קורא לה עם השורה, מתקבלות שתי ארגומנטים לפונקציה שמקבלת רק אחד: `TypeError`. `anisotropyCats` קורסת באותה צורה כי היא קוראת ל-`anisotropyEigs` קודם.
 
+**עדכון (batch29):** B70 חוזרת גם ב-`thresholds()` ו-`filterDates()` (לא רק בבנאי): שני אלה, ב-mode `inplace=False` (ברירת המחדל), בונים `MeanDataCalculator` חדש מ-`filter_obj.data` שהוא `pandas.DataFrame` רגיל — אותה תבנית השוואה שבורה, אז זה תמיד קורס ב-`ValueError`. רק `inplace=True` עובד בפועל. מקובע ב-`TestThresholdsAndFilterDatesInplace`.
+
 ### B72. `InMemoryRawData.append` — מתודת pandas שהוסרה
 **קובץ:** `hera/measurements/meteorology/highfreqdata/analysis/turbulencestatistics.py:1478` · **מקובע ב:** `test_meteorology_turbulencestatistics.py::TestInMemoryRawData`
 
@@ -1146,3 +1148,626 @@ def shapes(self):
 
 ### נדחה עדיין — לא נבדק
 `vector/topography.py` (9 פונקציות) — דורש DEM אמיתי או mongomock מורכב יותר; `BuildingsToolkit.getBuildingsFromRectangle`/`getBuildingHeightFromRasterTopographyToolkit`/`buildingsGeopandasToSTLRasterTopography` — דורשים datasource רשום אמיתי או FreeCAD מלא; `analysis.LambdaFromBuildingData`/`calculatePopulationInPolygon` — pipeline מלא עם cache, דורש datasource אמיתי; שתי מחלקות ה-`presentation` (buildings + demography, ~20 פונקציות) — matplotlib בעיקרו.
+
+---
+
+## אצווה 21 — `simulations/openFoam/toolkit.py` (החלקים הטהורים, בלי solver אמיתי)
+
+### B83. `getTimeList` — הענף single-processor מחזיר תמיד רשימה ריקה
+**קובץ:** `hera/simulations/openFoam/toolkit.py` (בתוך `getTimeList`) · **מקובע ב:** `test_openfoam_toolkit_pure.py::TestGetTimeListSingleProcessorIsBroken`
+
+```python
+timeList = sorted([float(x) for x in os.listdir(case) if (
+        os.path.isdir(x) and   # <- x הוא שם יחסי, לא os.path.join(case, x)
+        ...
+```
+
+הבדיקה `os.path.isdir(x)` נבדקת יחסית ל-**תיקיית העבודה הנוכחית**, לא ל-`case`. הענף המקביל (multi-processor) כמה שורות מטה עושה את זה נכון (`os.path.isdir(os.path.join(case, processorList[0], x))`). התוצאה: לכל case שלא רץ מבפנים תיקיית ה-case עצמה — כלומר כמעט תמיד — הרשימה חוזרת ריקה, גם כשיש תתי-תיקיות זמן אמיתיות.
+
+### מה שנמצא תקין
+`processorList` (glob על `processor*`), `read_points_file` (פרסור נכון של קובץ נקודות OpenFOAM, כולל עצירה בסוגר הסוגר), ו-`getMeshExtent` (bounding box נכון מנקודות, `FileNotFoundError` כשהקובץ חסר).
+
+---
+
+## אצווה 22 — `openFoam/CLI.py` (חלק טהור) + `eulerian/abstractEulerianSolver.py`
+
+### B84-B86. `absractEulerianSolver_toolkitExtension` — שלושה NameError ברצף — **נפתרו במקביל**
+**קובץ:** `hera/simulations/openFoam/eulerian/abstractEulerianSolver.py` · **מקובע במקור ב:** `test_openfoam_eulerian_solver.py`
+
+- **B84**: `flowType` — ענף ה-`else` הפנה ל-`SIMULATIONTYPE_COMPRESSIBLE`, שם שלא קיים בשום מקום בקובץ (הייבוא בראש הקובץ הוא `FLOWTYPE_COMPRESSIBLE`). כל קריאה עם `incompressible=False` קרסה.
+- **B85**: `blockMesh_setBoundFromFile` — הפרמטר נקרא `eulerianWorkFlow`, אבל הגוף בדק `isinstance(eulerianWF, workflow_Eulerian)` — `eulerianWF` לא היה קיים בכלל כפרמטר. קרס תמיד לפני שנוגע בקלט.
+- **B86**: `blockMesh_setDomainHeight` — העתק-הדבק של `blockMesh_setBoundFromFile` בלי התאמה: אותו `eulerianWF` לא מוגדר, וגם הפנה ל-`fileName`/`dx`/`dy` — אף אחד מהם לא פרמטר של המתודה הזו (`eulerianWorkFlow, Z, dz`). `Z`, הקלט האמיתי היחיד שלה, אף פעם לא היה בשימוש.
+
+**עדכון:** שלושתם היו ממצאים אמיתיים ומדויקים בזמן שתועדו. commit `276d9a93` ("fix: repair OpenFOAM Eulerian solver name errors and method mismatches") תיקן את כולם — `flowType` משתמש ב-`FLOWTYPE_COMPRESSIBLE`, ושתי מתודות ה-`blockMesh_*` בודקות נכון את `eulerianWorkFlow` — במקביל ובאופן בלתי תלוי במאמץ הרחבת הטסטים הזה. תוך כדי אימות מול venv נעול התגלה גם פער נפרד בשכבת ה-stub (`hermes.workflow` כ-`MagicMock` גולמי גרם ל-`isinstance` לזרוק `TypeError` במקום לעבוד) — תוקן ב-`_stubs.py`. הטסטים כעת בודקים גם את הנתיב התקין (workflow אמיתי) וגם את הדחייה הנקייה (workflow לא תקין).
+
+### מה שנמצא תקין
+`Foam_parser_FieldDescription` (CLI) — כותב JSON תקין לתיאור שדות, עם ברירת מחדל ל-`exampleField` כשלא סופקו שדות.
+
+### נדחה
+שאר `openFoam/CLI.py` (~25 פקודות) — כולן דורשות טולקיט OpenFOAM אמיתי מחובר (mongomock + hermes workflow), לא רק לוגיקה טהורה.
+
+---
+
+## אצווה 23 — `openFoam/lagrangian/abstractLagrangianSolver.py` (מקורות חלקיקים + ריכוז)
+
+בלי ממצא חדש — כל 17 הפונקציות שכוסו עבדו נכון: `sourcesTypeList`, שש שיטות `makeSource_*` (Point/Circle/Sphere/Cylinder/Rectangle/Cube — כולן בתוך התחום הגיאומטרי המתועד), `writeParticlePositionFile` (דחיית סוג לא ידוע, כתיבת קובץ קואורדינטות OpenFOAM תקין), ו-`analysis.calcConcentrationPointWise` (חלוקה לתאים, סכימת מסה, C=mass/dV נכון).
+
+---
+
+## אצווה 24 — `datalayer/datahandler.py` (המשך פורמטים)
+
+### B87. `DataHandler_JSON_geopandas.saveData` — קורא ל-API הלא נכון, קורס תמיד
+**קובץ:** `hera/datalayer/datahandler.py:550` · **מקובע ב:** `test_datalayer_datahandler_formats.py::TestJsonGeopandasHandlerIsBroken`
+
+```python
+resource.to_json(fileName,**kwargs)
+```
+
+`geopandas.GeoDataFrame.to_json` הפרמטר הפוזיציוני הראשון שלה הוא `na` (ערכים אפשריים: `'null'/'drop'/'keep'`) — **לא נתיב קובץ**, והמתודה **מחזירה מחרוזת JSON**, לא כותבת לדיסק בכלל. `fileName` (נתיב) נופל ל-`na=`, ותמיד נכשל בבדיקת תקינות. `saveData` קורס בכל קריאה. `getData` (טעינה) עצמאית ותקינה — נבדקה מול קובץ שנכתב ידנית.
+
+### מה שנמצא תקין
+`DataHandler_time`, `DataHandler_dict` (no-op לשמירה, מעביר ישר בטעינה), `DataHandler_csv_pandas`, `DataHandler_JSON_pandas` (DataFrame ו-Series כולל דגל `pandasSeries`), `DataHandler_netcdf_xarray` (round-trip נתונים ו-attrs — עם הערה ש-`JSONToConfiguration` הופך כל מחרוזת שניתנת לפרסור כיחידת pint ל-`Quantity`, ללא קשר לשם המפתח — לא באג בקובץ הזה), `DataHandler_geopandas` (round-trip GPKG כולל CRS), ו-`DataHandler_image` (round-trip מערך RGB דרך matplotlib).
+
+### נדחה
+`DataHandler_geotiff` (דורש raster GDAL אמיתי), `DataHandler_HDF` (`pytables` לא מותקן), `DataHandler_zarr_xarray` (`zarr` לא מותקן).
+
+---
+
+## אצווה 25 — `datalayer/project.py` (השלמת שכבת השאילתות/שמירה)
+
+### B88. `Project.getProjectList` — decorator שגוי, קריאה תקינה קורסת
+**קובץ:** `hera/datalayer/project.py:1051-1052` · **מקובע ב:** `test_datalayer_project_remaining.py::TestClassmethodGetProjectListIsBroken`
+
+```python
+@staticmethod
+def getProjectList(cls,user=None):
+    ...
+    return list(set(AbstractCollection(connectionName=user).getProjectList()))
+```
+
+מתודה שמוגדרת `@staticmethod` אך מקבלת פרמטר ראשון בשם `cls` שאף פעם לא נעשה בו שימוש בגוף הפונקציה. קריאה טבעית `Project.getProjectList()` קורסת ב-`TypeError: missing 1 required positional argument: 'cls'`. הקריאה "עובדת" רק אם המשתמש "מבריח" ערך שרירותי לתוך `cls` (למשל `Project.getProjectList(None)`), מה שמצביע על כך שזה היה אמור להיות `@classmethod` (או סתם השמטת הפרמטר), ואף אחד לא קרא לזה נכון עד כה. פונקציית המודול המקבילה `getProjectList(connectionName=None)` תקינה ולא מושפעת.
+
+### מה שנמצא תקין
+`Project.FilesDirectory`/`filesDirectory` (מתאימים זה לזה), `updateProjectNameOnDoc` (תמיד מחתים/דורס את שם הפרויקט הנוכחי), משפחת `save*Data` (Measurement/Cache/Simulation — רושמים לקולקציה הנכונה, כולל override של `type`), `getDocumentByID`, `getMetadata`, `getAllDocuments`, שלישיית get/delete `*DocumentsAsDict`/`delete*Documents` לשלוש הקולקציות, ופונקציית המודול `getProjectList`. הערה חשובה: `getCounterAndAdd` מחזירה את הערך **אחרי** ההוספה (לא לפני, כפי שה-docstring עלול לרמז) — לא באג, אבל התנהגות שקל לפרש לא נכון.
+
+### הערת בדיקה
+השוואת `QuerySet` ריק (מ-mongoengine) ל-`[]` ישירות (`queryset == []`) מחזירה `False` למרות ש-`repr` שלו מציג `[]` — יש לעטוף ב-`list(...)` לפני ההשוואה. לא באג בקוד הפרויקט, מלכודת נפוצה בבדיקות בלבד.
+
+---
+
+## אצווה 26 — `measurements/experiment/parsers.py` (המשך: לוגיקת הפרסור בפועל)
+
+### B89. `Parser_CampbellBinary.getData` — שכפול מדויק של B82 בקובץ נפרד
+**קובץ:** `hera/measurements/experiment/parsers.py:347` · **מקובע ב:** `test_experiment_parsers_logic.py::TestParserCampbellBinaryGetDataIsBroken`
+
+קובץ זה מכיל עותק עצמאי ומלא (לא import) של `CampbellBinaryInterface` ו-`Parser_CampbellBinary`/`getData` מתוך `measurements/meteorology/highfreqdata/parsers/CampbellBinary.py`, כולל אותו באג בדיוק שתועד שם כ-B82: `columnsIndexes` מחושב כאילו הוא מאנדקס לתוך הרשומה הגולמית (כולל שני שדות timestamp מובילים), בעוד `line` (מ-`_getDataFromStream`, `retval[2:]`) כבר חתך אותם. התוצאה: עמודת נתונים ראשונה חסרה בכל שורה, ו-pandas מסרב לבנות את ה-DataFrame. מכיוון שזה עותק עצמאי, תיקון אחד לא יתקן את השני.
+
+### B90. `Parser_OldStyleMetaDataParquet._getLists` — כיוון שגוי ב-`DataFrame.from_dict`
+**קובץ:** `hera/measurements/experiment/parsers.py:111` · **מקובע ב:** `test_experiment_parsers_logic.py::TestParserOldStyleMetaDataParquetGetListsIsBroken`
+
+```python
+stationsData = pandas.DataFrame.from_dict(descriptionData['stationLocations'])\
+    .reset_index()\
+    .rename(columns={"index": "station_name"})
+```
+
+`from_dict` בברירת המחדל (`orient="columns"`) הופך כל שם תחנה למפתח **עמודה**, ואת שמות התכונות שלה (`lat`/`lon`/`station_code`) ל-**אינדקס שורות** — ההפך הגמור ממה שהקוד בהמשך מצפה לו (`stndata['lat'].item()` אחרי `.query("station_name==@stn")`). יש להשתמש ב-`orient="index"`. כתוצאה מכך, כל קמפיין עם יותר משדה בודד לכל תחנה קורס ב-`KeyError: 'lat'` בתוך `_getLists`/`getExperimentDict`/`parse`.
+
+### מה שנמצא תקין
+`CampbellBinaryInterface` (הקורא הבינארי הנמוך-רמה, זהה למקור התקין) בקובץ זה — עדיין תקין. `Parser_TOA5` כבר תועד קודם כ-stub ריק (B44, ב-`test_experiment_parsers.py`).
+
+### הערה
+מודול שלם זה (`experiment/parsers.py`) מתועד כ"יתום" — שום קוד לא מייבא אותו בפרודקשן (ראה `TestParserModuleIsOrphaned` הקיים). שני הבאגים החדשים כאן משפיעים רק אם/כאשר מישהו יחבר את המודול הזה בעתיד.
+
+---
+
+## אצווה 26 (המשך) — `utils/data/toolkit_repository.py` ו-`utils/data/repositoryExport.py`
+
+### B91. `mergeDocumentsIntoRepository` — הדוח מדווח שם פריט לפני הפתרון של התנגשות שמות
+**קובץ:** `hera/utils/data/repositoryExport.py:141,146` · **מקובע ב:** `test_utils_data_repository_export.py::TestMergeReportNameIsBrokenOnCollision`
+
+```python
+else:
+    report["added"].append(item_name)   # <-- לפני הרזולוציה
+
+sectionDict = toolkitDict.setdefault(section, {})
+item_name = _uniqueItemName(sectionDict, item_name, entry["contentHash"])   # <-- item_name משתנה כאן
+sectionDict[item_name] = entry
+```
+
+כאשר שני מסמכים שונים בתוכן חולקים אותו `item_name` (למשל אותו `sourceId`), `_uniqueItemName` פותר את ההתנגשות ומשנה את המפתח שבפועל נשמר במילון — אבל `report["added"]`/`report["overwritten"]` כבר נרשם עם השם *לפני* השינוי. התוצאה: הדוח המוחזר למשתמש עלול להצביע על שם פריט ששייך בפועל למסמך אחר לגמרי (זה שכבר היה קיים תחת אותו שם), בעוד המסמך שבאמת נוסף שוכן תחת שם מופרד (`<name>_<hash>`) שהדוח אף פעם לא מזכיר.
+
+### מה שנמצא תקין
+`ToolkitRepository` (register/getToolkitDocument/getToolkitTable, כולל overwrite ואי-overwrite) — כל ההתנהגות תואמת את התיעוד. שאר `repositoryExport.py`: `documentContentHash` (שתי אסטרטגיות, כולל שגיאות), `documentToRepositoryItem` (מיפוי `_cls`, בחירת שם פריט), `deduplicateRepository` (איחוד לפי contentHash, אי-שינוי הקלט).
+
+---
+
+## אצווה 26 (המשך 2) — `measurements/meteorology/lowfreqdata/presentationLayer.py`
+
+בלי ממצא חדש. כוסו: `presenation` (חיווט datalayer/analysis/seasonalPlots/dailyPlots), `Plots.__init__` (מילוני ברירת מחדל לעיצוב), `_getCountourDict`/`_getContourfDict` (מפרטי contour/contourf, כולל שימור מפת הצבעים), ו-`_getcmap` (under/over color, ואי-שינוי `matplotlib.colormaps["jet"]` הגלובלי — `copy.copy` אכן מגן על המפה המשותפת). המתודות הכבדות יותר (`SeasonalPlots`/`DailyPlots` — ציורי contour בפועל) נותרו לא מכוסות, דורשות נתוני רוח אמיתיים בצורה ספציפית.
+
+### הערה (לא באג)
+`presenation.__init__` ו-`Plots.__init__` מדפיסים debug prints עם אימוג'ים (`print("📥 ... called")`) ישירות ל-stdout בקוד פרודקשן — לא משפיע על נכונות, אבל שווה ניקוי מתישהו.
+
+---
+
+## אצווה 27 — `simulations/LSM/toolkit.py` (LSMToolkit)
+
+### B92. `getTemplatesTable` — קורס תמיד, כי `loadData` אף פעם לא שומר את ה-`desc` של הקובץ עצמו
+**קובץ:** `hera/simulations/LSM/toolkit.py:153` (התוצאה) · השורש ב-`hera/simulations/LSM/toolkit.py:210-214` (`loadData`) · **מקובע ב:** `test_simulations_lsm_toolkit.py::TestGetTemplatesTableIsBroken`
+
+```python
+templateName = desc['name']   # desc נטען מקובץ ה-JSON
+...
+self.addDataSource(dataSourceName=templateName,
+                   resource=fileNameOrData,
+                   dataFormat=datalayer.datatypes.STRING,
+                   version=version,
+                   **kwargs)   # <-- ה-desc שנטען מהקובץ אף פעם לא מועבר!
+```
+
+`loadData` קורא את קובץ ה-JSON של התבנית לתוך משתנה מקומי `desc`, אבל משתמש בו רק כדי לשלוף `desc['name']`. שאר תוכן ה-JSON (למשל `params`) **לעולם לא** מגיע למסמך שנשמר ב-DB — רק ה-`**kwargs` שהקורא עצמו מעביר ל-`loadData` נשמרים. בהמשך, `getTemplatesTable()` מניחה בעיוורון ש-`desc.pop('params')` יעבוד על כל מסמך שמוחזר מה-DB — וכך קורסת ב-`KeyError: 'params'` על כל תבנית שנרשמה אי-פעם דרך הנתיב הרגיל (ברירת המחדל `saveMode=TOOLKIT_SAVEMODE_FILEANDDB`).
+
+### מה שנמצא תקין
+בנאי `LSMToolkit` וה-properties שלו (`to_xarray`/`to_database`/`forceKeep` עם ולידציית boolean, `analysis`, `singleSimulation`), מחלקת `analysis` הפנימית (`coordinateHandler`/`datalayer`), `loadData` עם `TOOLKIT_SAVEMODE_NOSAVE` (לא נוגע ב-DB כלל), `getTemplates`/`getTemplateByName` (מוצאים תבנית שנרשמה, מחזירים `None`/רשימה ריקה כשלא קיימת), ודחיית רישום כפול לאותו שם תבנית.
+
+### נדחה
+`getSimulations`/`getSimulationsList` (דורשים מסמכי `SingleSimulation` אמיתיים) ו-`prepareSlurmLSMExecution` (דורש סביבת Slurm/כתיבת קבצי הרצה מורכבת) — נותרו לא מכוסים.
+
+---
+
+## אצווה 28 — `simulations/utils/interpolations.py` (spatialInterpolate)
+
+### B93. `windprofile` — הוגדר בתוך מחלקה בלי `self`
+**קובץ:** `hera/simulations/utils/interpolations.py:101` · **מקובע ב:** `test_simulations_utils_interpolations.py::TestWindprofileIsBroken`
+
+```python
+class spatialInterpolate():
+    ...
+    def windprofile(z, uref=3, href=24, he=24, lambdap=0.3, lambdaf=0.3, beta=0.3):
+```
+
+מוגדרת בתוך גוף המחלקה בלי פרמטר `self`. קריאה טבעית על מופע (`spatialInterpolate().windprofile(24)`) קושרת את המופע עצמו ל-`z`, וכל שאר הפרמטרים זזים מקום אחד ימינה (`24` הופך ל-`uref`) — התוצאה קריסה עמוקה בתוך גוף הפונקציה עם `TypeError` שלא מרמז על הסיבה האמיתית. פועלת רק אם קוראים לה ישירות דרך המחלקה (`spatialInterpolate.windprofile(24)`), עוקפים למעשה את כל הסיבה להיותה בתוך מחלקה.
+
+### B94. **נשלל** — `interpPandas` נבדק מול pandas שגוי, לא קיים תחת הגרסה הנעולה
+**קובץ:** `hera/simulations/utils/interpolations.py:87` · **מקובע במקור ב:** `test_simulations_utils_interpolations.py::TestInterpPandas`
+
+```python
+points["interpulation"][i] = self.interp(point=point, stations=stations, topography=topography, ...)
+```
+
+תועד כ-assignment משורשר שתחת copy-on-write של pandas **לעולם לא** מעדכן את ה-DataFrame המקורי — אבל זה אומת מול pandas 3.0.2 שהתקין מקומית (שם copy-on-write חובה), לא מול הגרסה הנעולה בפועל ב-`requirements.txt` (pandas==2.2.3). תחת 2.2.3, copy-on-write הוא opt-in ולא ברירת המחדל — ה-assignment המשורשר עדיין עובד (רק `FutureWarning`/`SettingWithCopyWarning`). `interpPandas` **כן** ממלאת נכון את עמודת `interpulation` היום. הבאג הזה עשוי לחזור אם/כש-pandas ישודרג מעבר ל-2.x עם copy-on-write כברירת מחדל — שווה לדעת, לא שווה לקבע כממצא חי.
+
+### B95. `interpArray` — מעביר `topography=` שלא קיים ב-`interpPandas`, קורס תמיד
+**קובץ:** `hera/simulations/utils/interpolations.py:98` · **מקובע ב:** `test_simulations_utils_interpolations.py::TestInterpArrayIsBroken`
+
+```python
+def interpArray(self, points, stations, columnNames={...}, dx=20, dy=20, C=1000, D=5, Hsl=100, b=150):
+    newPoints = pandas.DataFrame({...})
+    return self.interpPandas(points=newPoints, stations=stations, topography=newPoints["topography"], ...)
+```
+
+`interpPandas` לא מקבל פרמטר `topography` בכלל (יש רק `columnNames` עם מיפוי `"topography"`) — כל קריאה ל-`interpArray` קורסת ב-`TypeError` עוד לפני שהיא מגיעה ל-B94 שהייתה אמורה לרשת ממנו.
+
+### מה שנמצא תקין
+`interp` (התאמה מדויקת, שקלול לפי מרחק הפוך, ערכים סקלריים ווקטוריים, התאמת טופוגרפיה), `checkInterpulation` (הפרשי אחוזים בין נתונים מדודים למשוקללים — עובד נכון עבור תחנות בפורמט ה-vector המתועד).
+
+### נדחה
+`canopyWindProfile.urbanLogExponentProfile` (פונקציה מונוליתית יחידה, דורשת geopandas גיאומטרי מלא + רשת תלת-ממדית מורכבת) — נותרה לא מכוסה.
+
+---
+
+## אצווה 28 (המשך) — `simulations/gaussian/FallingNonEvaporatingDroplets.py`
+
+### B96. הבנאי שבור לחלוטין — כל יצירת מופע קורסת
+**קובץ:** `hera/simulations/gaussian/FallingNonEvaporatingDroplets.py:219` · **מקובע ב:** `test_gaussian_falling_droplets.py::TestConstructorIsBroken`
+
+```python
+self._meteorology = MeteorologyFactory().getMeteorology(meteorologyName,**met_kwargs)
+```
+
+`MeteorologyFactory` (ב-`Meteorology.py`) **לא מגדירה מתודה בשם `getMeteorology` בכלל** — יש לה רק `getMeteorologyFromU10` ו-`getMeteorologyFromURefHeight`, ששתיהן דורשות פרמטרים שונים לגמרי (לא שם מחרוזת יחיד). כתוצאה מכך, **כל** קריאה ל-`FallingNonEvaporatingDroplets(...)` קורסת ב-`AttributeError` עוד לפני שהבנאי מסיים — המחלקה כולה לא שמישה דרך ה-API הציבורי שלה. נבדק גם ישירות: `hasattr(MeteorologyFactory(), "getMeteorology")` הוא `False`.
+
+בגלל זה, הטסטים בדקו את החלקים הטהורים (property setters/getters, ארבע נוסחאות מקדם הגרר, `hit_ground`) דרך `__new__` תוך עקיפת הבנאי השבור — כדי לוודא שהם *יעבדו נכון* ברגע שמישהו יתקן את B96.
+
+### מה שנמצא תקין (נבדק תוך עקיפת הבנאי השבור)
+`position`/`cloudSigma` (ולידציית 3-tuple, גישה ל-x/y/z), `particleMass` (נגזר מ-`rho_p`+`particleDiameter`, `None` עד ששניהם מוגדרים), `beta`/`SpreadFactor`/`g` (קבועים), `N` (מסה כוללת חלקי מסת חלקיק), ארבע פונקציות `_DragCoefficient_*` (Ik/Kelbaliyev15/Fan/Haugen — כל הענפים לפי Re, מונוטוניות, רוויה בערכי Re גבוהים), `correctionCloud_None`, ו-`hit_ground` (אירוע עצירה טרמינלי).
+
+### נדחה
+`getTerminalVelocity`, `_VTFunc`, `correctionCloud_Plume`/`_Puff`, `solveToTime`, `_fallingParticle` — כולן תלויות ב-`self.meteorology`, שאי אפשר להשיג כלל כל עוד B96 לא תוקן (אי אפשר גם "לזייף" אותו בקלות בלי לדעת את הממשק המדויק שה-methods הללו מצפים לו).
+
+---
+
+## אצווה 28 (המשך 2) — `utils/data/CLI.py` (הפונקציות הטהורות)
+
+בלי ממצא חדש. כוסו `_parse_query_value` (פרסור מחרוזת query ל-int/float/bool/None/מחרוזת מצוטטת) ו-`load_project_name` (קריאת `projectName` מ-`caseConfiguration.json`, כולל שגיאות קובץ חסר/שדה חסר/שדה ריק). שאר ~26 פקודות ה-CLI (`project_list`, `toolkit_register` וכו') נותרו לא מכוסות — כולן נוגעות ב-Project/toolkit אמיתיים דרך `_setup()` העצל, ודורשות harness גדול יותר מבוסס DB.
+
+---
+
+## אצווה 29 — `datalayer/datahandler.py` (המשך: tif, numpy_dict_array, Class)
+
+בלי ממצא חדש. כוסו: `guessHandler` (פונקציית המודול, מאצילה נכון ל-`datatypes.guessHandler`), `DataHandler_tif.getData` (נבדק מול GeoTIFF אמיתי שנוצר עם `rasterio` — הספרייה כן מותקנת תחת ה-venv הנעול, בניגוד ל-`osgeo`/`tables`/`zarr` שדרושות ל-geotiff/HDF/zarr ונותרות חסומות), `DataHandler_tif.saveData` (NotImplementedError מתועד), `DataHandler_numpy_dict_array` (round-trip `.npz` תקין), ו-`DataHandler_Class` — טעינת מחלקה דינמית: גם נתיב `sys.path` רגיל וגם ה-fallback לטעינה ישירה מ-`resource` (כש-`sys.path` לא מוצא את המודול), כלל המיזוג הנכון בין `desc.parameters` ל-`kwargs` (הראשון גובר), `instantiate=False` (מחזיר את המחלקה עצמה), חסר `classpath` (`ValueError`), ו-`saveData` (`NotImplementedError`).
+
+### הערת בדיקה
+כל הטסטים באצווה זו הורצו ואומתו ישירות מול ה-venv הנעול-לפי-`requirements.txt` (`/home/ilay-falach/hera-pinned-venv`), לא מול `heraenv` (שהתגלה סוטה משמעותית — ראה התיקונים בסבב הקודם). ממשיכים כך מכאן ואילך למניעת עוד ממצאים שגויים בגלל גרסאות.
+
+---
+
+## אצווה 29 (המשך) — `simulations/LSM/singleSimulation.py`
+
+### B98. `getConcentrationAtPoint` — קורס תמיד עם נקודה בודדת, בדיוק כפי שמתועד
+**קובץ:** `hera/simulations/LSM/singleSimulation.py:129` · **מקובע ב:** `test_lsm_single_simulation.py::TestGetConcentrationAtPointIsBroken`
+
+```python
+return self.getConcentration(...)['C'].interp(x=x, y=y, datetime=datetime).values[0]
+```
+
+כאשר `x`, `y`, ו-`datetime` הם כולם סקלרים בודדים (בדיוק כפי שהדוקסטרינג מתאר — "x: int... y: int... הערך המבוקש") — `.interp()` מצמצם את כל הממדים המתאימים ומחזיר `DataArray` **אפס-ממדי**. `.values` על מערך כזה הוא מערך numpy 0-ממדי (צורה `()`), ואינדוקס שלו עם `[0]` זורק `IndexError: too many indices for array: array is 0-dimensional`. במילים אחרות: השימוש הכי בסיסי והכי מתועד של הפונקציה — לקבל את הריכוז בנקודה אחת — קורס תמיד.
+
+### מה שנמצא תקין
+בנאי `SingleSimulation` — כל שלושת הנתיבים (Dataset ישיר, מסמך עם `getData()`, מחרוזת נתיב — הראשון והשני נבדקו). `params`/`version` (קריאה מ-`_document['desc']`). `getDosage` — גם עם ציר זמן `datetime64` וגם עם ציר זמן מספרי (שניות), חישוב `dt` נכון בשני המקרים, קנה-מידה נכון לפי `Q`, ויחידות `Q`/`C` לפי הבקשה. `getConcentration` — נגזרת ה-Dosage לאורך זמן (ממד `datetime` קטן באחד, כמצופה מ-`diff`), חישוב `C = dDosage/dt` נכון.
+
+---
+
+## אצווה 29 (המשך 2) — `simulations/LSM/template.py`
+
+### B99. `getSimulationByID` — קורא למתודה שלא קיימת על עצמו
+**קובץ:** `hera/simulations/LSM/template.py:469` · **מקובע ב:** `test_lsm_template.py::TestGetSimulationByIDIsBroken`
+
+```python
+def getSimulationByID(self,id):
+    return SingleSimulation(self.getDocumentByID(id))
+```
+
+`getDocumentByID` היא מתודה של `Project`/הטולקיט (`self.Toolkit.getDocumentByID`), לא של `LSMTemplate` עצמו — `self.getDocumentByID` לא קיימת. כל קריאה ל-`getSimulationByID` קורסת ב-`AttributeError`.
+
+### הערה: `LSMToolkit.loadData` (B92, כבר מתועד באצווה 27) חוסם בדיקה ישירה של תבניות שנטענות דרך ה-API הרגיל
+כדי לבודד את הלוגיקה של `LSMTemplate` עצמה מה-B92 הקיים, הטסטים כאן בונים את המסמך (`_document`) ידנית במקום דרך `toolkit.loadData(...)` — כי B92 גורם ל-`params`/`modelFolder` לזרוק `KeyError` על כל תבנית שנטענת דרך הנתיב הרגיל.
+
+### מה שנמצא תקין
+כל ה-properties (`Toolkit`, `doctype_simulation`, `dirPath`, `params`, `version`, `templateName`, `modelFolder` — גם יחסי וגם מוחלט). `prepareParams` (סטטית) — ללא `template_desc`, עם המרת יחידות (`pint`, כולל `duration` שמטופל כדקות גם בלי הגדרה מפורשת), וקאסט ל-`int` עבור `TopoXn`/`TopoYn`. `getSimulationByName`/`getSimulations` — לוגיקת השאילתה נכונה (נבדקה מול `SingleSimulation` מדומה, כי בניית אחת אמיתית דורשת קובצי netcdf אמיתיים): `getSimulations()` בלי ארגומנטים מסנן לפי ה-`params` **של התבנית עצמה** (לא "הכל"), וניתן לדרוס עם קלט מפורש.
+
+### נדחה
+`run()`/`_toNetcdf()` — דורשים בינארי LSM אמיתי, קבצי תבנית קלט אמיתיים, והרצת subprocess. `_getSimulationsList`/`getSimulationsTable` — נותרו לא מכוסים.
+
+---
+
+## אצווה 29 (המשך 3) — `datalayer/autocache.py`, `utils/logging/helpers.py`, `gaussian/DropletCloud.py`
+
+בלי ממצא חדש ב-autocache/logging (decorator `cacheFunction` מקצה-לקצה, `clearFunctionCache`, `add_FileHandler`/`add_formatter`).
+
+### B100. `FixedPointClippedDropletCloud` — סדר אתחול הפוך, קורס לפני שמגיע ל-B96
+**קובץ:** `hera/simulations/gaussian/DropletCloud.py:148` · **מקובע ב:** `test_gaussian_dropletcloud.py`
+
+`__init__` קורא ל-`super().__init__()` (שמפעיל דרך פולימורפיזם את ה-`_initDropletPosition` **של המחלקה הזו עצמה**, שמשתמש ב-`self.clippedDiameter`) **לפני** שההגדרה `self.clippedDiameter = clippedDiameter` בכלל רצה. כתוצאה, `clippedDiameter` הוא `None` בזמן השימוש, וקורס ב-`TypeError` (numpy `log` על `None`) — עוד לפני שמגיעים לקריסה של B96 (שאר מחלקות הקובץ, שבונות ישירות `FallingNonEvaporatingDroplets`, כן מגיעות ל-B96 בצורה נקייה).
+
+### הערה
+כל מחלקות `DropletCloud.py` בונות `FallingNonEvaporatingDroplets` — B96 (מאצווה 28: הבנאי תמיד קורס) מתפשט אליהן כולן.
+
+---
+
+## אצווה 29 (המשך 4) — hermes/pyargos אמיתיים מקושרים ל-venv הנעול + `openFoam/toolkit.py`
+
+מ-נקודה זו, ה-venv הנעול (`hera-pinned-venv`) מקושר קבוע (`.pth`) ל-hermes/pyargos האמיתיים שכבר קיימים ב-`$HOME` (לא stub, לא clone) — פותח גישה לכל openFoam/LSM lagrangian/hermesWorkflowToolkit לבדיקה אמיתית. torch **לא** ב-`requirements.txt` בכלל (ההערה הישנה ב-`_stubs.py` הייתה שגויה) — נשאר לא מותקן, machineLearningDeepLearning עדיין חסום.
+
+### B101. `clearVTKPipelineCache` — קורס בגלל שורת לוג debug שמוערכת תמיד
+**קובץ:** `hera/simulations/openFoam/toolkit.py:935` · **מקובע ב:** `test_openfoam_toolkit_vtk_cache.py`
+
+```python
+logger.debug(f"Deleting resource {doc['desc']['filterName']} : {doc['desc']['pipeline']['filters']} ")
+```
+
+ה-f-string נבנה תמיד (גם אם רמת הלוג לא debug), וקורא ל-`doc['desc']['pipeline']['filters']`. `pipeline` אינו מפתח מתועד/נדרש בסכמה של `vtk_filter` (התיעוד של `getVTKPipelineCacheDocuments` מזכיר רק `regularMesh`/`filterName`/`simulation`) — כל מסמך cache בלי `pipeline` (למשל אחד שנוצר ידנית תואם לסכמה המתועדת) גורם ל-`clearVTKPipelineCache` לקרוס ב-`KeyError`.
+
+### מה שנמצא תקין
+`OFToolkit.__init__` (analysis/presentation/OFObjectHome), `getVTKPipelineCacheDocuments` (סינון לפי regularMesh/workflowName/groupName), `getVTKPipelineCacheTable`.
+
+### B102. `splitWorkflowName` — `"".join` במקום `"_".join`, מאבד underscore בשם הבסיס
+**קובץ:** `hera/simulations/hermesWorkflowToolkit.py:628` · **מקובע ב:** `test_hermes_workflow_toolkit_names.py`
+
+```python
+return "".join(split_name[:-1]), split_name[-1]
+```
+
+לא ההיפוך של `getworkFlowName` (שבונה `f"{baseName}_{formatted_number}"`) — כל שם בסיס שמכיל underscore משלו (כמו `"my_flow"`) מאבד אותו: `splitWorkflowName("my_flow_0007")` מחזיר `("myflow", "0007")` במקום `("my_flow", "0007")`.
+
+### B103. `OFLSMToolkit.__init__` — קורא לקבוע `toolkitHome` שלא קיים, לא ניתן לבנייה
+**קובץ:** `hera/simulations/openFoam/lagrangian/LSM/toolkit.py:97` · **מקובע ב:** `test_openfoam_lagrangian_lsm_toolkit.py`
+
+```python
+self._topography = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_TOPOGRAPHY,projectName=projectName)
+```
+
+`toolkitHome.GIS_TOPOGRAPHY` לא קיים (הקבועים האמיתיים הם `GIS_RASTER_TOPOGRAPHY`/`GIS_VECTOR_TOPOGRAPHY`). כל בנייה של `OFLSMToolkit` דרך `toolkitHome.getToolkit` קורסת ב-`AttributeError` — כל המחלקה לא שמישה. ה-properties (`doctype`, `casePath`, `cloudName`, `parallelCase`) נבדקו בעקיפת הבנאי (`__new__`) ועובדים נכון.
+
+### B104. `meteorology/analysis.py` — `addDatesColumns`/`calcHourlyDist` מוגדרות בלי `self`
+**קובץ:** `hera/measurements/meteorology/analysis.py:31,75` · **מקובע ב:** `test_meteorology_analysis_missing_self.py`
+
+אותו דפוס באג כמו B93/B100: שתי המתודות מוגדרות בתוך מחלקת `analysis` בלי פרמטר `self` (`def addDatesColumns(data, ...)`, `def calcHourlyDist(data, Field, ...)`). קריאה טבעית על מופע (`analysis(dl).addDatesColumns(df)`) קושרת את המופע עצמו ל-`data`, וקורסת ב-`AttributeError` (`'analysis' object has no attribute 'assign'`/`'dropna'`). פועלות רק כשקוראים להן ישירות דרך המחלקה. ה-`lowfreqdata/analysis.py` המקביל מגדיר את אותן מתודות נכון (עם `self`).
+
+### B105. `AbstractCalculator` — כל נתיב שנוגע ב-DB הוא קוד מת (`datalayer.Cache` לא קיים)
+**קובץ:** `hera/measurements/meteorology/highfreqdata/analysis/abstractcalculator.py:172,190,221` · **מקובע ב:** `test_meteorology_abstractcalculator.py::TestSaveToDbIsUnreachable`
+
+```python
+from hera.datalayer import collection as datalayer
+...
+datalayer.Cache.getDocuments(...)   # ב-_compute_from_db_and_save / _compute_from_db_and_not_save
+...
+datalayer.Cache.addDocument(**doc)  # ב-_save_to_db
+```
+
+המודול `hera.datalayer.collection` מגדיר רק את המחלקה `Cache_Collection` — אין בו singleton בשם `Cache`. ה-singleton האמיתי חי ב-`hera.datalayer.Cache` (רמת ה-package, ייבוא אחד למעלה). לכן `_compute_from_db_and_save`, `_compute_from_db_and_not_save`, ו-`_save_to_db` (וכפועל יוצא גם `_compute_not_from_db_and_save`, שקוראת ל-`_save_to_db`) קורסים תמיד ב-`AttributeError: module 'hera.datalayer.collection' has no attribute 'Cache'`. מכל ארבעת מצבי ה-`compute()` (`not_from_db_and_not_save` / `from_db_and_save` / `from_db_and_not_save` / `not_from_db_and_save`), רק ברירת המחדל — זו שלא נוגעת ב-DB בכלל — עובדת בפועל.
+
+### B106. `AbstractCalculator._saveProperties` — dict mutable משותף בין כל המופעים
+**קובץ:** `hera/measurements/meteorology/highfreqdata/analysis/abstractcalculator.py:28` · **מקובע ב:** `test_meteorology_abstractcalculator.py::TestSaveSharedAcrossInstancesIsBroken`
+
+```python
+class AbstractCalculator(object):
+    _saveProperties = {'dataFormat': None}   # class attribute
+    def __init__(self, rawData, metadata):
+        ...  # לא מעתיק _saveProperties למופע
+```
+
+`_saveProperties` מוגדר כ-attribute של המחלקה (dict אחד משותף), ו-`__init__` אף פעם לא יוצר עותק ברמת המופע. `set_saveProperties()` מבצע `self._saveProperties['dataFormat'] = dataFormat` — מאחר ואין attribute מקביל ברמת ה-instance, זו מוטציה על אותו ה-dict המשותף. כתוצאה מכך, קריאה ל-`set_saveProperties` על מופע אחד "דולפת" לכל שאר המופעים — קיימים וגם עתידיים — עד שמישהו יאתחל dict חדש במפורש. גילוי אגבי: הבדיקות ל-B105 נתקלו בזה כי בדיקה קודמת בקובץ קבעה `dataFormat`, וזה "דלף" למופע חדש בבדיקה הבאה.
+
+### B107. `CampbellBinaryInterface._newfloatConvert` — ה-sentinel של NaN לא מחזיר את מה שהוא שומר ב-cache
+**קובץ:** `hera/measurements/meteorology/highfreqdata/parsers/CampbellBinary.py:503-512` · **מקובע ב:** `test_meteorology_campbellbinary.py::TestNewFloatConvertNanSentinelIsInconsistent`
+
+```python
+def _newfloatConvert(self, key):
+    try:
+        return self._lut[key]
+    except:
+        if key == 65183:
+            self._lut[key] = float('nan')
+            return                      # <-- מחזיר None, לא את ה-nan שנשמר
+        val = self._floatConvert(int(key % 256), key / 256)
+        self._lut[key] = val
+        return val
+```
+
+`key == 65183` הוא ה-sentinel של Campbell ל"אין נתונים" בפורמט FP2. הענף שומר `float('nan')` ב-`_lut[key]`, אבל ה-`return` בלי ערך מחזיר בפועל `None` — לא את ה-NaN שנשמר. קריאה שנייה עם אותו `key` כן מחזירה `nan`, כי היא פוגעת ב-`return self._lut[key]` שבתחילת הפונקציה (ה-cache) ומדלגת על הענף השבור לגמרי. התוצאה: אותו קלט מחזיר תשובה שונה בהתאם לכך אם זו הפעם הראשונה שהוא נקרא או לא — `None` בפעם הראשונה, `nan` בכל פעם אחרי זה.
+
+### B108. `thresholdGeoDataFrame._calculatePopulationInPolygon` — `not` על Series רב-איברי, קורס תמיד
+**קובץ:** `hera/riskassessment/agents/effects/thresholdGeoDataFrame.py:125` · **מקובע ב:** `test_risk_thresholdgeodataframe.py::TestCalculatePopulationInPolygonIsBroken`
+
+```python
+res_intersect_poly = demography.loc[not demography["geometry"].intersection(poly).is_empty]
+```
+
+`demography["geometry"].intersection(poly).is_empty` הוא Series בוליאני (per-row). הפעלת `not` על Series כזה — גם אם יש בו רק שורה אחת — מעלה תמיד `ValueError: The truth value of a Series is ambiguous` (בניגוד לסקלר numpy, ל-pandas Series אין קיצור דרך ל-Series באורך 1). המתודה קורסת ב-100% מהמקרים, לא משנה כמה שורות יש ב-demography. השלילה האלמנטרית שהקוד כנראה התכוון אליה היא `~` (או `.apply(...)`), לא `not`. מכיוון ש-`project`→`_project`→`_calculatePopulationInPolygon` היא שרשרת הקריאות המלאה, זה שובר כל נתיב אמיתי של חישוב אוכלוסייה בפוליגון סף.
+
+### B109. `riskassessment/CLI.py createRepository` — נתיב לא מחובר, ה-repository תמיד ריק
+**קובץ:** `hera/riskassessment/CLI.py:28-29` · **מקובע ב:** `test_riskassessment_cli.py::TestCreateRepositoryIsBroken`
+
+```python
+for file_path in os.listdir(arguments.path):
+    agent_json_description = _check_if_agent(file_path)   # <-- לא os.path.join(arguments.path, file_path)
+```
+
+`os.listdir(arguments.path)` מחזיר שמות קבצים חשופים (בלי הנתיב המלא), אבל `_check_if_agent` מקבל אותם ישירות בלי `os.path.join` עם `arguments.path`. בפועל `_check_if_agent` פותח אותם יחסית ל-cwd הנוכחי של התהליך, לא יחסית לתיקייה שנסרקת. אלא אם התהליך רץ במקרה כשה-cwd שלו זהה בדיוק ל-`arguments.path`, כל חיפוש קובץ נכשל בשקט (נתפס ב-`except`, מחזיר `False`), ו-`repo['RiskAssessment']['DataSource']` יוצא ריק תמיד — גם כשהתיקייה מלאה בקבצי agent תקינים. התיקון הברור הוא `os.path.join(arguments.path, file_path)`.
+
+### B110. `getWindProfile` — `U_star` מחושב מאותו `z` שהוא מעריך, אז הפרופיל שטוח לגמרי
+**קובץ:** `hera/simulations/windProfile/toolkit.py:64,76` · **מקובע ב:** `test_windprofile_toolkit.py::TestGetWindProfileHasNoShear`
+
+```python
+U_star = (wind_speed * KARMAN) / np.log(z / z0)
+...
+U_z = (U_star / KARMAN) * np.log(z / z0)
+```
+
+שני הלוגריתמים מצטמצמים אלגברית: `U_z == wind_speed` עבור **כל** גובה. הפונקציה שכל תפקידה לבנות פרופיל רוח מחזירה בפועל את מהירות הרוח של התחנה בכל גובה — בלי שכבת גזירה (shear) בכלל, ובלי שום תלות ב-`z0`: שינוי של פי 50 באורך הגֵרוּיוּת מחזיר פרופיל זהה נומרית. כדי שחוק הלוג יַסֶה משהו, `U_star` חייב להיגזר מגובה מדידה קבוע (גובה התחנה) ולא מה-`z` של הלולאה. אותה בעיה חוזרת בענף האורבני עבור `z > hc`.
+
+### B111. `getWindProfile` — שורת `z=0` סינגולרית, ושני הענפים לא מסכימים מה יש בה
+**קובץ:** `hera/simulations/windProfile/toolkit.py:63` · **מקובע ב:** `test_windprofile_toolkit.py::TestGetWindProfileGroundRow`
+
+לולאת הגבהים היא `numpy.arange(0, height + dz, dz)`, כלומר היא תמיד מעריכה את חוק הלוג ב-`z=0` — נקודה סינגולרית (`log(0/z0) = -inf`). הענף הלא-אורבני מחזיר `NaN` ל-`u`/`v`/`U_z` באותה שורה, והענף האורבני מחזיר `-0.0` לאותו קלט. כל פרופיל שמוחזר מתחיל בשורת זבל, ושתי הענפים חולקים חוסר-עקביות לגבי מה בדיוק היא מכילה.
+
+### B112. `_getStationsInRegion` — `wind_stations.json` בנתיב יחסי ל-CWD
+**קובץ:** `hera/simulations/windProfile/toolkit.py:118` · **מקובע ב:** `test_windprofile_toolkit.py::TestGetStationsInRegionCannotFindItsDataFile`
+
+```python
+with open('wind_stations.json', 'r') as json_file:
+```
+
+הקובץ אכן נשלח עם המודול, אבל הוא נפתח כנתיב יחסי חשוף — כלומר יחסית ל-cwd של התהליך. מכל תיקייה שאינה תיקיית המודול, המתודה קורסת ב-`FileNotFoundError`. ה"אחות" שלה `getSpaceTime` קוראת את אותו קובץ נכון, דרך `os.path.dirname(os.path.abspath(__file__))`. אותה משפחת באגים כמו B109.
+
+### B113. `plotOrigin` — `plt.scatter` במקום `ax.scatter`, מתעלם מה-`ax` שהועבר
+**קובץ:** `hera/measurements/experiment/presentation.py` · **מקובע ב:** `test_experiment_presentation.py::TestPlotOriginIgnoresItsAxes`
+
+המתודה מקבלת `ax`, מחזירה אותו — אבל מציירת עם `plt.scatter(...)` הגלובלי. כשהקורא מעביר צירים שאינם ה"נוכחיים", הסמן נוחת על צירים אחרים לגמרי וה-`ax` שהוחזר נשאר ריק. אומת: 0 collections על ה-`ax` שהועבר, 1 על הצירים הנוכחיים.
+
+### B114. `generateLatexTable` — קורא ל-`plotDevices` עם פרמטרים שלא קיימים בחתימה
+**קובץ:** `hera/measurements/experiment/presentation.py` · **מקובע ב:** `test_experiment_presentation.py::TestGenerateLatexTableIsDead`
+
+```python
+fig , _ = self.plotDevices(trialSetName=..., trialName=..., device=device_name, display=False)
+```
+
+החתימה האמיתית היא `plotDevices(self, trialSetName, trialName, deviceType, mapName, ax=None, plotkwargs=None)` — אין `device` ואין `display`, ו-`mapName` הוא פרמטר חובה. כל קריאה קורסת ב-`TypeError: plotDevices() got an unexpected keyword argument 'device'` לפני שנוצר משהו. כל נתיב הייצוא ל-LaTeX הוא קוד מת.
+
+### B115. `getRecordByIndex` — המרת שניות דרך מספר ימים float מאבדת ננושנייה
+**קובץ:** `hera/measurements/experiment/parsers.py` **וגם** `hera/measurements/meteorology/highfreqdata/parsers/CampbellBinary.py` · **מקובע ב:** `test_experiment_parsers_more.py::TestRecordTimestampsLoseTheirLastNanosecond`
+
+```python
+time = pandas.Timestamp(1990, 1, 1) + pandas.Timedelta(days=lastSec / 86400.0, milliseconds=lastmili)
+```
+
+החלוקה ב-float לא עושה round-trip: רשומה ששדה ה-SECONDS שלה הוא 11 מפוענחת ל-`1990-01-01 00:00:10.999999999`. אומת: 77 מתוך 600 ערכי השניות הראשונים נפגעים (בערך רשומה אחת מכל 8). מכיוון ש-`getRecordIndexByTime` משווה חותמות זמן בשוויון מדויק, רשומה כזו לא ניתנת למצוא לפי השנייה שהיא באמת מסומנת בה. `pandas.Timedelta(seconds=lastSec)` מדויק.
+
+### B116. `_getDataFromStream` — לולאת ההמרה מתחילה שדה אחד מאוחר מדי
+**קובץ:** שני הקבצים מ-B115 · **מקובע ב:** `test_experiment_parsers_more.py::TestFirstDataColumnIsNeverConverted`
+
+```python
+for i in range(3, len(retval)):   # אבל retval[0],retval[1] הם SECONDS/NANOSECONDS
+...
+return retval[0], retval[1] / 1000000, retval[2:]
+```
+
+שדה הנתונים הראשון הוא `retval[2]`, והלולאה מדלגת עליו. אומת: רשומה עם שני שדות FP2 **זהים בבתים** מפוענחת ל-`[31, 7936.12109375]` — הראשון חוזר כ-`uint16` גולמי, השני מומר. אותו דבר עם `ASCII(n)`: העמודה הראשונה חוזרת כ-`bytes` גולמי.
+
+### B117. `_newfloatConvert` — `key / 256` במקום `key // 256`
+**קובץ:** שני הקבצים מ-B115 · **מקובע ב:** `test_experiment_parsers_more.py::TestFp2LowByteIsDividedInsteadOfShifted`
+
+```python
+val = self._floatConvert(int(key % 256), key / 256)
+```
+
+הפרמטר השני של `_floatConvert` מתועד כ-low byte, אבל `/` היא חלוקה אמיתית, כך שמה שמועבר הוא `lowbyte + hbyte/256` — ה-high byte "דולף" בחזרה וכל קריאת FP2 סוחבת היסט מדומה. אומת: `_newfloatConvert(0x001F)` מחזיר `7936.12109375` במקום `7936.0` שהבתים האלה מקודדים.
+
+### B118. `_newfloatConvert` — B107 משוכפל בעותק השני של הפרסר
+**קובץ:** `hera/measurements/experiment/parsers.py` · **מקובע ב:** `test_experiment_parsers_more.py::TestNanSentinelDoesNotReturnItsOwnCachedValue`
+
+בדיוק אותו פגם שתועד כ-B107 (ענף ה-sentinel של NaN שומר ב-cache אבל לא מחזיר), בעותק השני של הקוד. **הערה רוחבית:** `experiment/parsers.py` ו-`meteorology/highfreqdata/parsers/CampbellBinary.py` הם שני עותקים עצמאיים של אותו פרסר בינארי — ההבדל היחיד ביניהם הוא `parse`. לכן B115, B116 ו-B117 קיימים פעמיים כל אחד, וכל תיקון צריך להיעשות בשני המקומות (או, עדיף, שהכפילות תבוטל).
+
+### B119. `_VTFunc` — מספר ריינולדס בלי צפיפות האוויר
+**קובץ:** `hera/simulations/gaussian/FallingNonEvaporatingDroplets.py:331` · **מקובע ב:** `test_gaussian_falling_droplets.py::TestTerminalVelocity`
+
+```python
+Re = (uVt*self.particleDiameter/nu_air).magnitude   # nu_air היא צמיגות דינמית
+```
+
+`Re = ρVd/µ`, אבל כאן חסרה הצפיפות, כך שהביטוי אינו חסר-מידות בכלל — ו-`.magnitude` פשוט מחזיר בשקט את הערך המספרי של ביטוי מורכב, כלומר פי `10/ρ_air ≈ 8.3` מ-Re האמיתי. שורה 422 ב-`_fallingParticle` מבצעת את אותו חישוב **נכון** (`rho_air*Uabs*self.particleDiameter/nu_air`), מה שמראה את הכוונה. השגיאה מתבטלת במשטר Stokes (שם `Cd·Re = 24` קבוע ו-Re נושר) אבל לא מעליו: טיפה של 3 מ"מ מקבלת 2.831 מ'/ש' במקום 8.156 מ'/ש' שמאזן הכוחות נותן (טיפת גשם של 3 מ"מ נמדדת בערך 8 מ'/ש').
+
+### B120. `correctionCloud_Plume`/`_Puff` — `numpy.mean` על רשימת Quantity, קורס תמיד
+**קובץ:** `hera/simulations/gaussian/FallingNonEvaporatingDroplets.py:342,346` · **מקובע ב:** `test_gaussian_falling_droplets.py::TestCloudSigmaCorrection`
+
+```python
+Ubar = numpy.mean([self.meteorology.getWindVelocity(z) for z in numpy.arange(0, ...)])
+```
+
+זו רשימת פייתון של אובייקטי `Quantity` של pint; numpy לא יכול לבנות מהם מערך, אז שתי המתודות קורסות ב-`ValueError: setting an array element with a sequence.` לכל קלט. הכוונה הייתה `numpy.mean(ureg.Quantity([...], "m/s"))`. מכיוון ש-`correctionCloudFunc` ברירת המחדל היא `"Plume"`, גם `solveToTime` בלתי שמיש בנתיב הזה.
+
+### B121. `numpy.max(z, 0)` — ה-0 מתפרש כ-`axis`, לא כרצפה (פגם רדום)
+**קובץ:** `hera/simulations/gaussian/FallingNonEvaporatingDroplets.py:402`
+
+הכוונה הברורה היא "אל תרד מתחת לקרקע", אבל הפרמטר השני של `numpy.max` הוא `axis` ולא רצפה, כך שהחיתוך הוא no-op: `numpy.max(-5.0, 0) == -5.0`. הצורה הנכונה היא `numpy.maximum(z, 0)`. הפגם רדום כרגע כי השורה בלתי-נגישה כל עוד B12 עומד.
+
+### B122. `Injury.__str__` ו-`InjuryLevel.__str__` — בלי `return`
+**קובץ:** `hera/riskassessment/agents/effects/Injury.py`, `InjuryLevel.py:170` · **מקובע ב:** `test_risk_injury_effects.py::TestSerialisation`
+
+שתי המתודות מחשבות `json.dumps(self.toJSON(), indent=4)` וזורקות את התוצאה, אז הן מחזירות `None`. כל `str()`/`print()`/f-string על injury או injury level קורס ב-`TypeError: __str__ returned non-string (type NoneType)`. אומת ישירות.
+
+### B123. הרמז "Injuries found" — חיתוך `x[6:]` עיוור
+**קובץ:** `hera/riskassessment/agents/effects/Injury.py` · **מקובע ב:** `test_risk_injury_effects.py::TestInjuryFactoryValidation`
+
+```python
+[x[6:] for x in dir(module) if x.startswith("Injury")]
+```
+
+החיתוך העיוור של 6 תווים מפרסם גם את `Factory` (מ-`InjuryFactory`, שאינו injury) וגם שם ריק (מהמחלקה המופשטת `Injury`). ההודעה בפועל: `Injuries found: ,Exponential,Factory,Lognormal10,Threshold`. אומת ישירות.
+
+### B124. `calculator` ריק → `IndexError` במקום ה-`ValueError` המתועד
+**קובץ:** `hera/riskassessment/agents/effects/Injury.py` · **מקובע ב:** `test_risk_injury_effects.py`
+
+```python
+try:
+    calculatorTypeAndParams = cfgJSON["calculator"]
+    calcType,calcParam = [x for x in calculatorTypeAndParams.items()][0]
+except KeyError:
+    raise ValueError("Calculator not defined")
+```
+
+עם `{"calculator": {}}` הגישה לאיבר 0 ברשימה ריקה מעלה `IndexError`, ששומר ה-`except KeyError` לא יכול לתפוס. בדיוק המקרה שהקוד מתכוון לדווח עליו בצורה ידידותית הופך לשגיאה פנימית שלא ניתן להבדיל אותה מבאג. אומת ישירות.
+
+### B125. `units = ureg(units)` — מייצר `Quantity` ולא `pint.Unit`
+**קובץ:** `hera/riskassessment/agents/effects/Injury.py` · **מקובע ב:** `test_risk_injury_effects.py::TestDescriptorUnits`
+
+`ureg("mg/m**3")` מחזיר `Quantity(1.0, 'milligram / meter ** 3')`, וה-Quantity הזה מועבר לכל level בתור `units`. לכן `InjuryLevel.units` (מתועד "pint.Unit or None") מקבל טיפוס שגוי, `toJSON()` מסדר אותו כ-`"1.0 milligram / meter ** 3"`, ו-`hera.utils.tounit` (שמקבל רק `Unit` או `str`) נופל לענף ה-fallback שלו. הצורה הנכונה היא `ureg.Unit(units)`. אומת ישירות.
+
+### B126. `hera-GIS` כולו מת — `_setup` מייבא את קבועי ה-CRS מהמודול הלא-נכון
+**קובץ:** `hera/measurements/GIS/CLI.py:14` · **מקובע ב:** `test_gis_cli.py::TestSetup`, `TestEveryCommandIsDeadOnArrival`
+
+```python
+from hera.utils import WSG84 as _w, ITM as _i
+```
+
+`WSG84`/`ITM` חיים ב-`hera/measurements/GIS/utils.py` ואינם מיוצאים מ-`hera.utils` (ה-`__getattr__` העצל שלו מחפש רק ב-unitHandler/jsonutils/query/matplotlibCountour/angle/zipUtils). כל ה-handlers עטופים ב-`@_lazy_setup`, כך שאף פקודת `hera-GIS` לא יכולה לרוץ בכלל: `ImportError: cannot import name 'WSG84' from 'hera.utils'`. מחמיר: `_setup` מסמן `_initialized = True` **לפני** הייבואים, כך שניסיון שני חוזר בשקט עם `WSG84`/`ITM` שנשארו `None` — שגיאה רועשת מתדרדרת לנתיב שקט עם ערכים שגויים.
+
+### B127. `get_landocver` — קורא את `arguments.windDirectionis` (שגיאת כתיב)
+**קובץ:** `hera/measurements/GIS/CLI.py:213` · **מקובע ב:** `test_gis_cli.py::TestGetLandcover`
+
+```python
+windDirection = None if arguments.windDirection is None else float(arguments.windDirectionis)
+```
+
+השם `windDirectionis` לא קיים, כך ש-`hera-GIS landcover getLandcover --windDirection 270` (חובה כש-`isBuilding=True`) קורס ב-`AttributeError` לפני שה-toolkit נקרא בכלל.
+
+### B128. `buildings_raster_toSTL` — מחשב ארבעה ארגומנטים ולא מעביר אף אחד
+**קובץ:** `hera/measurements/GIS/CLI.py:168-177` · **מקובע ב:** `test_gis_cli.py::TestBuildingsRasterToSTL`
+
+הפונקציה גוזרת `dxdy`, `inputCRS`, `outputCRS` ו-`dataSourceName` — ואז קוראת `getBuildingsFromRectangle(minx, miny, maxx, maxy, withElevation=True)` בלבד. `--dataSourceName`, `--inputCRS`, `--outputCRS` ו-`--dxdy` נבלעים בשקט, ותמיד נעשה שימוש ב-datasource ברירת המחדל ב-WGS84.
+
+### B129. `hera-experiment create` תמיד נכשל — סדר הקריאות הפוך
+**קובץ:** `hera/measurements/experiment/CLI.py:159-160,287-289` · **מקובע ב:** `test_experiment_cli.py::TestCreateExperiment`
+
+`create_experiment` קורא ל-`_create_repository` **לפני** `_make_runtimeExperimentData`, אבל `_create_repository` מסיים בכתיבת `runtimeExperimentData/Datasources_Configurations.json` — תיקייה שרק `_make_runtimeExperimentData` יוצר. הפקודה תמיד מתה ב-`FileNotFoundError`, ומשאירה מאחור `code/`, `data/` ואת ה-repository JSON, בלי שאף פעם נקרא `repository_load`.
+
+### B130. `createNodeRedDeviceMap.sh` נכתב בשם קובץ חשוף ונוחת ב-CWD
+**קובץ:** `hera/measurements/experiment/CLI.py:166` · **מקובע ב:** `test_experiment_cli.py`
+
+אותה משפחה כמו B109/B112: הסקריפט נכתב עם שם חשוף במקום `os.path.join(experiment_path, ...)`, כך שעם `--path` הוא נוחת בתיקיית העבודה של התהליך ולא בתיקיית הניסוי. (הפגם הזה באמת לכלך את שורש הריפו בהרצת בדיקה ראשונה, לפני שהבדיקה קובעה עם `chdir`.)
+
+### B131. `workflow_delete` — כותב `completeDelete.py` ומדפיס `completeRemove.py`
+**קובץ:** `hera/simulations/CLI.py:120,123` · **מקובע ב:** `test_simulations_cli.py::TestWorkflowDelete`
+
+הסקריפט נכתב ל-`completeDelete.py` אבל ההודעה למשתמש היא `"In order to remove all directories from disk type: python completeRemove.py"`. מי שיעקוב אחרי ההוראה יקבל "No such file". אומת בקוד: שורה 120 פותחת `completeDelete.py`, שורה 123 מדפיסה `completeRemove.py`.
+
+### B132. `workflow_list` — קורא `arguments.object` שלא קיים, ובלי `return` אחריו
+**קובץ:** `hera/simulations/CLI.py:436` · **מקובע ב:** `test_simulations_cli.py::TestWorkflowList`
+
+ענף ה"לא נמצא כלום" מדפיס `arguments.object`, אבל ה-parser של `list workflows` מגדיר רק `group`, `projectName`, `nodes`, `parameters`. לכן `hera-workflows list workflows nosuchgroup` קורס ב-`AttributeError`. ה-attribute החסר גם מסתיר פגם שני: לענף אין `return`, כך שגם אם היה `object`, הביצוע היה ממשיך ל-`simDocument[0]` ומעלה `IndexError` על רשימה ריקה.
+
+### B133. `create_workflow_variations` — מדווח על קובץ variations חסר וממשיך לפתוח אותו
+**קובץ:** `hera/simulations/CLI.py:291-298` · **מקובע ב:** `test_simulations_cli.py`
+
+`logger.error(f"{path} doesn't point to anything.")` ואחריו — בלי `return` — `open(variation_json_path)`. `hera-workflows variation wf nosuchfile.json` קורס ב-`FileNotFoundError` אחרי שכבר דיווח על השגיאה בצורה מסודרת.
+
+### B134. `create_workflow_variations` — מדווח "workflow not found" וממשיך לאנדקס רשימה ריקה
+**קובץ:** `hera/simulations/CLI.py:283-285` · **מקובע ב:** `test_simulations_cli.py`
+
+אותה תבנית כמו B133: `logger.error(...)` בלי `return`, ומיד `workflow_doc_list[0]` → `IndexError`.
+
+### B135. `workflow_compare --file` שבור בדיוק בפורמט ברירת המחדל
+**קובץ:** `hera/simulations/CLI.py:592-593,615` · **מקובע ב:** `test_simulations_cli.py::TestWorkflowCompare`
+
+עבור `--format pandas` (ברירת המחדל של ה-argparse) `output` נשאר ה-DataFrame הגולמי, ואז `outputFile.write(output)` מעלה `TypeError: write() argument must be str` — ומשאיר קובץ ריק מאחור. כלומר `hera-workflows compare wf_0 wf_1 --file out` נכשל תמיד אלא אם המשתמש מציין פורמט אחר במפורש.
+
+### B136. `getHermesWorkflowFromJSON` — `pydoc.locate("hermes.workflow")` מחזיר מודול, לא מחלקה
+**קובץ:** `hera/simulations/hermesWorkflowToolkit.py` · **מקובע ב:** `test_hermes_workflow_toolkit_db.py::TestGetHermesWorkflowFromJSON`
+
+נתיב ה-fallback (workflow בלי solver) מאתר `hermes.workflow` — שהוא ה**מודול** `hermes/workflow/__init__.py`; המחלקה עצמה היא `hermes.workflow.workflow.workflow`. לכן טעינת workflow ללא solver קורסת ב-`TypeError: 'module' object is not callable`.
+
+### B137. מסנן ה-`component` מקבל prefix כפול, אז אף template לא נמצא
+**קובץ:** `hera/simulations/hermesWorkflowToolkit.py` · **מקובע ב:** `test_hermes_workflow_toolkit_db.py::TestComponentFilteredTemplateLookups`
+
+`getHermesFlowTemplate`, `getHermesNodeTemplate` ו-`listHermesNodesTemplates` מעבירים `desc__component=...`, אבל `collection.getDocuments` מזרים כל kwarg נוסף דרך `dictToMongoQuery(..., prefix="desc")` — והתוצאה היא השדה `desc__desc__component`. לכן החיפוש תמיד מחזיר `None`, בזמן ש-`getDataSourceDocumentsList(component="Flow")` כן מוצא את אותו מסמך. (ל-`listHermesNodesTemplates` יש פגם שני שמוסתר מאחורי הראשון: היא קוראת `doc.desc['desc']`/`doc.desc['datasourceName']`, ו-`addDataSource` לא יוצר את ה-`desc` המקונן הזה.)
+
+### B138. `getHermesWorkflowFromDB` עובד רק אם מעבירים לו רשימה
+**קובץ:** `hera/simulations/hermesWorkflowToolkit.py` · **מקובע ב:** `test_hermes_workflow_toolkit_db.py::TestGetHermesWorkflowFromDB`
+
+עבור מזהה שאינו רשימה, `getWorkflowListDocumentFromDB` מחזיר את ה-`QuerySet` של mongoengine כמו שהוא; אז `getHemresWorkflowFromDocument` בודק `isinstance(documentList, list)` (שקר עבור QuerySet), עוטף את כל ה-QuerySet ברשימה בת איבר אחד וקורא `.desc` עליו. `tk.getHermesWorkflowFromDB("flow_0000")` קורס ב-`AttributeError: 'QuerySet' object has no attribute 'desc'`, בזמן ש-`tk.getHermesWorkflowFromDB(["flow_0000"])` עובד.
+
+### B139. `longFormat=True` בלתי שמיש מכל נקודות הכניסה להשוואה
+**קובץ:** `hera/simulations/hermesWorkflowToolkit.py` + `hera/utils/dataframeutils.py:137` · **מקובע ב:** `test_hermes_workflow_toolkit_db.py::TestCompareWorkflowObj`
+
+`compareWorkflowObj` מקודד `changeDotToUnderscore=True` בקוד, ואז `dataframeutils` מפעיל `.replace(".", "_")` על `ret.T.columns` — שבפורמט הארוך הם אינדקס שורה שלם (int). התוצאה: `AttributeError: 'int' object has no attribute 'replace'`. שורש הבעיה ב-`dataframeutils`, אבל רק הקומבינציה הזו מגיעה אליה, ו-`test_utils_dataframeutils.py` לא בדק את שני הדגלים יחד.
+
+### B140. כל השוואה מבוססת-DB מתה: `resource=` במקום `Resource_path=`
+**קובץ:** `hera/simulations/hermesWorkflowToolkit.py:907,937` · **מקובע ב:** `test_hermes_workflow_toolkit_db.py::TestCompareWorkflows`, `TestCompareWorkflowInGroupAndWorkflowTable`
+
+```python
+workflow(..., name=..., resource=simulationDoc['resource'])
+```
+
+הבנאי של `hermes.workflow` מקבל `Resource_path` (`workflow.py:91`), לא `resource` — ושאר נקודות הקריאה באותו קובץ עצמו (שורות 279, 721, 740) מעבירות נכון `Resource_path=`. לכן `compareWorkflowInGroup`, `workflowTable` ו-`compareWorkflows` על קבוצה קורסים ב-`TypeError: workflow.__init__() got an unexpected keyword argument 'resource'`. רק הנתיב של קבוצה ריקה (שלא בונה כלום) ונתיב הקבצים של `compareWorkflows` עובדים. אומת בקוד.
+
+### B141. `findAvailableName` קורא מונה אחד ו-`addWorkflowToGroup` מקדם מונה אחר
+**קובץ:** `hera/simulations/hermesWorkflowToolkit.py:591` מול `:718` · **מקובע ב:** `test_hermes_workflow_toolkit_db.py::TestFindAvailableName`
+
+```python
+newID = self.getCounterAndAdd(f"simulations_{simulationGroup}")   # findAvailableName
+groupID = self.getCounterAndAdd(groupName)                        # addWorkflowToGroup
+```
+
+שני מונים נפרדים לחלוטין, שלעולם לא מסונכרנים. אחרי הוספת שני workflows לקבוצה `flow` (שקיבלו `flow_0000`, `flow_0001`), `findAvailableName("flow")` מחזיר `(0, "flow_0000")` — שם שכבר תפוס.
