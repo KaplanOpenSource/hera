@@ -1,11 +1,15 @@
 """datalayer/project.py: export/load round trip, the `all` property, and
 AbstractCollection.deleteDocumentByID.
 
-addDocumentFromJSON is left uncovered: probing it showed inconsistent
-mongomock behavior (.save() reports success and a new id, but the
-document is not found immediately after by that id) that needs isolating
-from a possible mongomock quirk before it can be asserted as a real
-hera defect -- out of scope to chase down here.
+addDocumentFromJSON is covered in test_datalayer_collection.py, and the
+"inconsistent mongomock behavior" this docstring used to blame is now
+resolved: it is not mongomock at all. mongoengine's
+``Document.from_json(json_data, created=False)`` defaults to treating a
+payload that carries an ``_id`` as already persisted, so the following
+``.save()`` issues an update with an empty change set -- nothing is
+inserted, nothing errors. Since ``asDict(with_id=True)``, ``to_json()``
+and ``exportProject`` all emit ``_id``, re-importing exported documents
+silently drops every one. Pinned as B261.
 """
 import os
 
