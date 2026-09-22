@@ -2,6 +2,7 @@ import { Box, CircularProgress, Typography } from '@mui/material';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { chunksToText, WorkflowChunk } from '../../../io/runWorkflow';
 import { useLogFilterStore } from '../../../stores/useLogFilterStore';
+import { useWorkflowFocusStore } from '../../../stores/useWorkflowFocusStore';
 import { chunkedMetrics, flatMetrics, LogMetrics } from './logMetrics';
 import { LogToolbar } from './LogToolbar';
 import { isTaskChunk } from './WorkflowChunkLog';
@@ -19,13 +20,16 @@ export const WorkflowOutputView = ({
   running,
   chunks,
   error,
+  workflowName,
 }: {
   running: boolean,
   chunks?: WorkflowChunk[] | null,
   error: string | null,
+  workflowName?: string,
 }) => {
   const visible = useLogFilterStore((state) => { return state.visible; });
   const toggle = useLogFilterStore((state) => { return state.toggle; });
+  const focusNode = useWorkflowFocusStore((state) => { return state.focusNode; });
 
   const chunkList = chunks ?? [];
   // Cards throughout: the chunks carry their task name while running too, so the
@@ -71,6 +75,10 @@ export const WorkflowOutputView = ({
     }
     view.scrollTop += card.getBoundingClientRect().top - view.getBoundingClientRect().top;
     setCurrentIndex(index);
+    // The select only offers task chunks, so the name is a node on the canvas.
+    if (workflowName) {
+      focusNode(workflowName, chunkList[index].name);
+    }
   };
 
   let metrics: LogMetrics;

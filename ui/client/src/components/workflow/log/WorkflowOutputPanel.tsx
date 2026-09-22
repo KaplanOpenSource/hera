@@ -18,6 +18,7 @@ export const WorkflowOutputPanel = ({
         running={run.status === WorkflowRunStatus.Running}
         chunks={run.chunks}
         error={run.status === WorkflowRunStatus.Error ? run.error : null}
+        workflowName={workflowName}
       />
     )
     : <Typography sx={{ p: 2 }} color="text.secondary">No run yet.</Typography>;

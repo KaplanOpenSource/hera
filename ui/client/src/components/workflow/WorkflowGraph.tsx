@@ -32,6 +32,8 @@ interface WorkflowGraphProps {
   nodeNames: string[];
   nodes: { [name: string]: WorkflowNode };
   selectedNode?: string;
+  // A request from the output tab to centre on one node.
+  focus?: { nodeName: string, seq: number };
   // Extra controls rendered in the canvas's top-right corner (e.g. a run button).
   actionButtons?: ReactNode;
   onSelectNode: (name: string | undefined) => void;
@@ -52,6 +54,7 @@ const WorkflowGraphInner = ({
   nodeNames,
   nodes,
   selectedNode,
+  focus,
   actionButtons,
   onSelectNode,
   onAddNode,
@@ -164,6 +167,17 @@ const WorkflowGraphInner = ({
       setCenter(x, y, { zoom: getViewport().zoom, duration: 300 });
     }
   }, [nodesInitialized]);
+
+  // The output tab asked for a node: pan to it, keeping the current zoom.
+  useEffect(() => {
+    const node = focus && getNode(focus.nodeName);
+    if (!node) {
+      return;
+    }
+    const x = node.position.x + (node.measured?.width ?? 0) / 2;
+    const y = node.position.y + (node.measured?.height ?? 0) / 2;
+    setCenter(x, y, { zoom: getViewport().zoom, duration: 300 });
+  }, [focus?.seq]);
 
   // Once nodes are measured, push down only the ones that overlap within their
   // column (using real measured heights) — so growing a node, e.g. by picking a

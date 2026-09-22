@@ -39,6 +39,7 @@ const WorkflowCanvas = ({
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <WorkflowEditor
+        workflowName={(shownDoc.desc as WorkflowDesc).workflowName ?? doc.name}
         workflow={(shownDoc.desc as WorkflowDesc).workflow}
         setWorkflow={newVal => setShownDoc({ ...shownDoc, desc: { ...shownDoc.desc, workflow: newVal } as WorkflowDesc })}
         actionButtons={
