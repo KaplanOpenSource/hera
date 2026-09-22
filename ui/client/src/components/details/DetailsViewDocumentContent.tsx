@@ -13,11 +13,11 @@ import { getWorkflowSolver, isWorkflowDoc, setWorkflowSolver } from '../../share
 import { copyOnly, copyWithout, reorderEntries } from '../../utils/utils';
 import { AgentConfigEditor } from '../agents/AgentConfigEditor';
 import { RunWorkflowButton } from '../workflow/RunWorkflowButton';
-import { WorkflowEditor } from '../workflow/WorkflowEditor';
 import { DeleteDocumentButton } from './DeleteDocumentButton';
 import { DetailsViewDocumentHeader } from './DetailsViewDocumentHeader';
 import { RawViewToggle } from './RawViewToggle';
 import { DetailsViewItem, keyForDetailsViewItem } from './DetailsViewItem';
+import { useShownDoc } from './useShownDoc';
 
 const HIDE_ON_DESC = ['datasourceName', 'toolkit', 'version'];
 const isAgentConfigDoc = (doc: ProjectDocument) => {
@@ -26,15 +26,10 @@ const isAgentConfigDoc = (doc: ProjectDocument) => {
 
 export const DetailsViewDocumentContent = ({
   doc,
-  setDoc,
-  shownDoc,
-  setShownDoc,
 }: {
   doc: DocumentObj,
-  setDoc: (newDoc: DocumentObj) => Promise<void>,
-  shownDoc: ProjectDocument,
-  setShownDoc: (newDoc: ProjectDocument) => void,
 }) => {
+  const { shownDoc, setShownDoc, saveShownDoc } = useShownDoc(doc);
   const isAgent = isAgentConfigDoc(shownDoc);
   const isWorkflow = isWorkflowDoc(shownDoc);
 
@@ -77,14 +72,14 @@ export const DetailsViewDocumentContent = ({
             workflowName={(shownDoc.desc as WorkflowDesc).workflowName ?? doc.name}
             doc={shownDoc}
             isChanged={isChanged}
-            save={() => setDoc(new DocumentObj(shownDoc, doc.project))}
+            save={saveShownDoc}
           />
         )}
         {isChanged
           ? (<>
             <ButtonTooltip
               title='Update Document'
-              onClick={() => setDoc(new DocumentObj(shownDoc, doc.project))}
+              onClick={saveShownDoc}
             >
               <Done />
             </ButtonTooltip>
@@ -172,22 +167,6 @@ export const DetailsViewDocumentContent = ({
         )
         : null
       }
-      {showWorkflow && (
-        <WorkflowEditor
-          workflow={(shownDoc.desc as WorkflowDesc).workflow}
-          setWorkflow={newVal => setShownDoc({ ...shownDoc, desc: { ...shownDoc.desc, workflow: newVal } as WorkflowDesc })}
-          actionButtons={
-            <RunWorkflowButton
-              projectName={doc.project.name}
-              workflowName={(shownDoc.desc as WorkflowDesc).workflowName ?? doc.name}
-              doc={shownDoc}
-              isChanged={isChanged}
-              save={() => setDoc(new DocumentObj(shownDoc, doc.project))}
-              sx={{ bgcolor: 'background.paper', boxShadow: 1, p: 0.25, '& .MuiSvgIcon-root': { fontSize: 16 } }}
-            />
-          }
-        />
-      )}
     </>
   );
 }

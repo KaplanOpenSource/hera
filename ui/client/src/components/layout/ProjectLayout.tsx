@@ -8,6 +8,7 @@ import { TAB_KIND_STYLES } from '../../shared/tabKindConfig';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { useFlexlayoutTheme } from '../../theme';
 import { hasPreview } from '../details/PreviewPanel';
+import { isWorkflowDoc } from '../../shared/workflow';
 import { DETAILS_TAB_PREFIX, LayoutModel } from './LayoutModel';
 import { LayoutPanel } from './LayoutPanel';
 
@@ -60,6 +61,13 @@ export const ProjectLayout = ({
 
     layout.openOrFocusDetailsTab(showItemId, project);
     setActiveShowItemId(showItemId);
+
+    // A workflow's canvas is a tab of its own, opened beside its details tab.
+    const docid = idFromDocId(showItemId);
+    const docObj = docid ? project.allDocuments.find(d => d.docid === docid) : undefined;
+    if (docObj && isWorkflowDoc(docObj.data)) {
+      layout.openOrFocusCanvasTab(docObj.docid, docObj.name);
+    }
   }, [layout, project]);
 
   useEffect(() => {

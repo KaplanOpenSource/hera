@@ -11,6 +11,7 @@ const TREE_TABSET_ID = 'tree-tabset';
 const DETAILS_TABSET_ID = 'details-tabset';
 export const DETAILS_TAB_PREFIX = 'details:';
 const PREVIEW_TAB_PREFIX = 'preview:';
+const CANVAS_TAB_PREFIX = 'canvas:';
 
 const GLOBAL_LAYOUT_CONFIG = {
   tabEnableClose: true,
@@ -49,6 +50,15 @@ const makePreviewTab = (docid: string, docName: string): IJsonTabNode => ({
   id: `${PREVIEW_TAB_PREFIX}${docid}`,
   name: `Preview: ${docName}`,
   component: LayoutComponent.Preview,
+  config: { docid },
+});
+
+// Tab node for a workflow document's canvas.
+const makeCanvasTab = (docid: string, docName: string): IJsonTabNode => ({
+  type: 'tab',
+  id: `${CANVAS_TAB_PREFIX}${docid}`,
+  name: `Canvas: ${docName}`,
+  component: LayoutComponent.Canvas,
   config: { docid },
 });
 
@@ -140,6 +150,16 @@ export class LayoutModel {
     }
   }
 
+  // Open a workflow's canvas below the details panel, or focus it if it is open.
+  openOrFocusCanvasTab(docid: string, docName: string): void {
+    const canvasId = `${CANVAS_TAB_PREFIX}${docid}`;
+    if (this._model.getNodeById(canvasId)) {
+      this._model.doAction(Actions.selectTab(canvasId));
+    } else {
+      this._model.doAction(Actions.addTab(makeCanvasTab(docid, docName), DETAILS_TABSET_ID, DockLocation.BOTTOM, -1));
+    }
+  }
+
   // Show or hide the tree panel.
   setTreeVisible(visible: boolean): void {
     const treeNode = this._model.getNodeById(TREE_TAB_ID);
@@ -177,10 +197,12 @@ export class LayoutModel {
         this._model.doAction(Actions.deleteTab(t.getId()));
       }
     }
-    for (const t of this.tabsWithPrefix(PREVIEW_TAB_PREFIX)) {
-      const oid = t.getConfig()?.docid as string | undefined;
-      if (oid && !project.documentIds.has(oid)) {
-        this._model.doAction(Actions.deleteTab(t.getId()));
+    for (const prefix of [PREVIEW_TAB_PREFIX, CANVAS_TAB_PREFIX]) {
+      for (const t of this.tabsWithPrefix(prefix)) {
+        const oid = t.getConfig()?.docid as string | undefined;
+        if (oid && !project.documentIds.has(oid)) {
+          this._model.doAction(Actions.deleteTab(t.getId()));
+        }
       }
     }
   }

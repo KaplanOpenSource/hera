@@ -4,12 +4,14 @@ import { ProjectObj } from '../../objects/ProjectObj';
 import { DetailsViewPanel } from '../details/DetailsViewPanel';
 import { PreviewPanel } from '../details/PreviewPanel';
 import { ProjectTreeView } from '../project/ProjectTreeView';
+import { WorkflowCanvasPanel } from '../workflow/WorkflowCanvasPanel';
 
 // The component identifiers flexlayout stores on each tab and passes to the factory.
 export enum LayoutComponent {
   Tree = 'tree',
   Details = 'details',
   Preview = 'preview',
+  Canvas = 'canvas',
 }
 
 // Renders the content for a single dock node, chosen by its flexlayout component id.
@@ -42,6 +44,9 @@ export const LayoutPanel = ({
       break;
     case LayoutComponent.Preview:
       content = <PreviewPanel docid={config?.docid} />;
+      break;
+    case LayoutComponent.Canvas:
+      content = <WorkflowCanvasPanel project={project} docid={config?.docid} />;
       break;
   }
   return content;
