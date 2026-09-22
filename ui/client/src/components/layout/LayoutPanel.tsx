@@ -5,6 +5,7 @@ import { DetailsViewPanel } from '../details/DetailsViewPanel';
 import { PreviewPanel } from '../details/PreviewPanel';
 import { ProjectTreeView } from '../project/ProjectTreeView';
 import { WorkflowCanvasPanel } from '../workflow/WorkflowCanvasPanel';
+import { WorkflowOutputPanel } from '../workflow/log/WorkflowOutputPanel';
 
 // The component identifiers flexlayout stores on each tab and passes to the factory.
 export enum LayoutComponent {
@@ -12,6 +13,7 @@ export enum LayoutComponent {
   Details = 'details',
   Preview = 'preview',
   Canvas = 'canvas',
+  Output = 'output',
 }
 
 // Renders the content for a single dock node, chosen by its flexlayout component id.
@@ -47,6 +49,9 @@ export const LayoutPanel = ({
       break;
     case LayoutComponent.Canvas:
       content = <WorkflowCanvasPanel project={project} docid={config?.docid} />;
+      break;
+    case LayoutComponent.Output:
+      content = <WorkflowOutputPanel workflowName={config?.workflowName} />;
       break;
   }
   return content;

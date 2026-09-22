@@ -1,11 +1,12 @@
 import { useTheme } from '@mui/material';
 import { Action, Actions, ITabRenderValues, Layout, TabNode } from 'flexlayout-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { classifyItemId, idFromDocId, ItemKind } from '../../shared/idDocId';
 import { classifyTab } from '../../shared/tabKind';
 import { TAB_KIND_STYLES } from '../../shared/tabKindConfig';
 import { useProjectStore } from '../../stores/useProjectStore';
+import { useWorkflowRunStore } from '../../stores/useWorkflowRunStore';
 import { useFlexlayoutTheme } from '../../theme';
 import { hasPreview } from '../details/PreviewPanel';
 import { isWorkflowDoc } from '../../shared/workflow';
@@ -77,6 +78,18 @@ export const ProjectLayout = ({
       layout.setPreview();
     }
   }, [activeShowItemId, previewAvailable, activeDocId, layout]);
+
+  // A started run opens (or focuses) its output tab. Keyed on the run token, so a
+  // re-run brings the tab back after it was closed, while live chunk updates don't.
+  const runs = useWorkflowRunStore(state => state.runs);
+  const shownTokens = useRef<{ [workflowName: string]: string }>({});
+  useEffect(() => {
+    for (const [workflowName, run] of Object.entries(runs)) {
+      if (shownTokens.current[workflowName] === run.token) continue;
+      shownTokens.current[workflowName] = run.token;
+      layout.openOrFocusOutputTab(workflowName);
+    }
+  }, [runs, layout]);
 
   // Keep open tabs in sync with the project: close tabs whose document was
   // deleted, then rename the survivors (e.g. a new notebook's tab once its

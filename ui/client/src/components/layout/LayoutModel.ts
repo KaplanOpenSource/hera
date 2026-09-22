@@ -12,6 +12,7 @@ const DETAILS_TABSET_ID = 'details-tabset';
 export const DETAILS_TAB_PREFIX = 'details:';
 const PREVIEW_TAB_PREFIX = 'preview:';
 const CANVAS_TAB_PREFIX = 'canvas:';
+const OUTPUT_TAB_PREFIX = 'output:';
 
 const GLOBAL_LAYOUT_CONFIG = {
   tabEnableClose: true,
@@ -60,6 +61,15 @@ const makeCanvasTab = (docid: string, docName: string): IJsonTabNode => ({
   name: `Canvas: ${docName}`,
   component: LayoutComponent.Canvas,
   config: { docid },
+});
+
+// Tab node for a workflow run's output.
+const makeOutputTab = (workflowName: string): IJsonTabNode => ({
+  type: 'tab',
+  id: `${OUTPUT_TAB_PREFIX}${workflowName}`,
+  name: `Output: ${workflowName}`,
+  component: LayoutComponent.Output,
+  config: { workflowName },
 });
 
 // Wraps a flexlayout Model, exposing the layout operations this app performs on
@@ -162,6 +172,27 @@ export class LayoutModel {
     const openCanvas = this.tabsWithPrefix(CANVAS_TAB_PREFIX)[0];
     if (openCanvas) {
       this._model.doAction(Actions.addTab(tab, openCanvas.getParent()!.getId(), DockLocation.CENTER, -1));
+    } else {
+      this._model.doAction(Actions.addTab(tab, DETAILS_TABSET_ID, DockLocation.BOTTOM, -1));
+    }
+  }
+
+  // Open a workflow's run output to the right of the canvas, or focus it if it is
+  // open. Later outputs join the first one's tabset, like the canvas tabs do. With
+  // no canvas open the output falls back to below the details panel.
+  openOrFocusOutputTab(workflowName: string): void {
+    const outputId = `${OUTPUT_TAB_PREFIX}${workflowName}`;
+    if (this._model.getNodeById(outputId)) {
+      this._model.doAction(Actions.selectTab(outputId));
+      return;
+    }
+    const tab = makeOutputTab(workflowName);
+    const openOutput = this.tabsWithPrefix(OUTPUT_TAB_PREFIX)[0];
+    const openCanvas = this.tabsWithPrefix(CANVAS_TAB_PREFIX)[0];
+    if (openOutput) {
+      this._model.doAction(Actions.addTab(tab, openOutput.getParent()!.getId(), DockLocation.CENTER, -1));
+    } else if (openCanvas) {
+      this._model.doAction(Actions.addTab(tab, openCanvas.getParent()!.getId(), DockLocation.RIGHT, -1));
     } else {
       this._model.doAction(Actions.addTab(tab, DETAILS_TABSET_ID, DockLocation.BOTTOM, -1));
     }

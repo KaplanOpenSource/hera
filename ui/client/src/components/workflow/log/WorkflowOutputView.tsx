@@ -1,4 +1,4 @@
-import { Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
+import { Box, CircularProgress, Typography } from '@mui/material';
 import { chunksToText, WorkflowChunk } from '../../../io/runWorkflow';
 import { useLogFilterStore } from '../../../stores/useLogFilterStore';
 import { chunkedMetrics, flatMetrics, LogMetrics } from './logMetrics';
@@ -9,22 +9,16 @@ import { WorkflowLogView } from './WorkflowLogView';
 // Shows a workflow run's output as per-task cards, growing live as the run streams
 // (with a small "running" hint) and staying in the same shape once it finishes, so
 // the view does not reflow at the end. On failure it also shows the error. The
-// log-level filter + copy-all toolbar sits in the bottom action bar, outside the
-// scrolling log, so it stays put while the log scrolls.
-export const WorkflowOutputDialog = ({
-  open,
+// log-level filter + copy-all toolbar sits in a bottom bar, outside the scrolling
+// log, so it stays put while the log scrolls.
+export const WorkflowOutputView = ({
   running,
   chunks,
   error,
-  workflowName,
-  onClose,
 }: {
-  open: boolean,
   running: boolean,
   chunks?: WorkflowChunk[] | null,
   error: string | null,
-  workflowName: string,
-  onClose: () => void,
 }) => {
   const visible = useLogFilterStore((state) => { return state.visible; });
   const toggle = useLogFilterStore((state) => { return state.toggle; });
@@ -46,9 +40,8 @@ export const WorkflowOutputDialog = ({
   }
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>Workflow "{workflowName}" output</DialogTitle>
-      <DialogContent dividers>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <Box sx={{ flexGrow: 1, overflow: 'auto', p: 1, minHeight: 0 }}>
         {!running && error && (
           <Typography color="error" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
             {error}
@@ -67,15 +60,12 @@ export const WorkflowOutputDialog = ({
               : <WorkflowLogView output={metrics.fullText} />}
           </>
         )}
-      </DialogContent>
-      <DialogActions>
-        {showLog && (
-          <Box sx={{ flexGrow: 1, display: 'flex' }}>
-            <LogToolbar counts={metrics.counts} visible={visible} onToggle={toggle} fullText={metrics.fullText} />
-          </Box>
-        )}
-        <Button onClick={onClose}>Close</Button>
-      </DialogActions>
-    </Dialog>
+      </Box>
+      {showLog && (
+        <Box sx={{ display: 'flex', borderTop: 1, borderColor: 'divider', px: 1, py: 0.5 }}>
+          <LogToolbar counts={metrics.counts} visible={visible} onToggle={toggle} fullText={metrics.fullText} />
+        </Box>
+      )}
+    </Box>
   );
 };

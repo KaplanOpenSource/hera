@@ -7,13 +7,13 @@ import { pushError } from '../../io/snackbar';
 import { useViewSettingsStore } from '../../stores/useViewSettingsStore';
 import { useWorkflowRunStore, WorkflowRunStatus } from '../../stores/useWorkflowRunStore';
 import { ProjectDocument } from '../../shared/types';
-import { WorkflowOutputDialog } from './log/WorkflowOutputDialog';
 
 // Runs a saved workflow via the server. The run happens in the background: starting
 // it returns a token, and the shared WorkflowRunPoller polls that token until the
 // run finishes. The run lives in useWorkflowRunStore keyed by workflow name, so
 // every button for the same workflow shares it: they all disable and show a spinner
-// while it runs, and completion/errors reach every one of them.
+// while it runs, and completion/errors reach every one of them. The output shows in
+// its own dock tab, opened by the layout when the run enters the store.
 //
 // Left click runs the workflow. Right click opens a menu with more options:
 // run, run with save (one time), and a toggle to always save before running.
@@ -41,12 +41,9 @@ export const RunWorkflowButton = ({
   disabledReason?: string,
   sx?: SxProps<Theme>,
 }) => {
-  const [open, setOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<{ x: number, y: number } | null>(null);
   // True only during the brief start request (before the run enters the store).
   const [starting, setStarting] = useState(false);
-  // Set when starting fails (busy / network); run failures come from the store.
-  const [startError, setStartError] = useState<string | null>(null);
   const saveBeforeRun = useViewSettingsStore(state => state.viewSettings.alwaysSaveBeforeRun);
   const setViewSettings = useViewSettingsStore(state => state.setViewSettings);
   const run = useWorkflowRunStore(state => state.runs[workflowName]);
@@ -54,14 +51,9 @@ export const RunWorkflowButton = ({
 
   const canSave = Boolean(save);
   const isRunning = starting || run?.status === WorkflowRunStatus.Running;
-  // Per-task output segments; the source of truth for the dialog, live and final.
-  const chunks = run ? run.chunks : null;
-  const runError = run?.status === WorkflowRunStatus.Error ? run.error : null;
 
   const doRun = async (withSave: boolean) => {
-    setOpen(true);
     setStarting(true);
-    setStartError(null);
     try {
       if (withSave && save) {
         await save();
@@ -71,15 +63,13 @@ export const RunWorkflowButton = ({
       const docToRun = { ...doc, desc: { ...doc.desc, workflowName } };
       const result = await startWorkflow({ projectName, doc: docToRun });
       if (result.status === 'busy') {
-        const message = 'The server is busy running another workflow. Try again shortly.';
-        setStartError(message);
-        pushError(`run workflow: ${message}`);
+        // A failed start makes no run, so there is no output tab: the snackbar tells it.
+        pushError('run workflow: The server is busy running another workflow. Try again shortly.');
       } else if (result.token) {
         // Hand the run to the store; the poller drives it from here.
         startRun(workflowName, result.token);
       }
     } catch (e: any) {
-      setStartError(e?.message ?? String(e));
       pushError(`run workflow: ${e?.message ?? e}`);
     } finally {
       setStarting(false);
@@ -168,14 +158,6 @@ export const RunWorkflowButton = ({
           </MenuItem>
         )}
       </Menu>
-      <WorkflowOutputDialog
-        open={open}
-        running={isRunning}
-        chunks={chunks}
-        error={startError ?? runError}
-        workflowName={workflowName}
-        onClose={() => { return setOpen(false); }}
-      />
     </>
   );
 };
