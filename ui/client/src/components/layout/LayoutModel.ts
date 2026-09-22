@@ -151,12 +151,19 @@ export class LayoutModel {
   }
 
   // Open a workflow's canvas below the details panel, or focus it if it is open.
+  // Later canvases join the first one's tabset, so they don't each split the row.
   openOrFocusCanvasTab(docid: string, docName: string): void {
     const canvasId = `${CANVAS_TAB_PREFIX}${docid}`;
     if (this._model.getNodeById(canvasId)) {
       this._model.doAction(Actions.selectTab(canvasId));
+      return;
+    }
+    const tab = makeCanvasTab(docid, docName);
+    const openCanvas = this.tabsWithPrefix(CANVAS_TAB_PREFIX)[0];
+    if (openCanvas) {
+      this._model.doAction(Actions.addTab(tab, openCanvas.getParent()!.getId(), DockLocation.CENTER, -1));
     } else {
-      this._model.doAction(Actions.addTab(makeCanvasTab(docid, docName), DETAILS_TABSET_ID, DockLocation.BOTTOM, -1));
+      this._model.doAction(Actions.addTab(tab, DETAILS_TABSET_ID, DockLocation.BOTTOM, -1));
     }
   }
 
