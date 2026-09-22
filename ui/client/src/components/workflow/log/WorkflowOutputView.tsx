@@ -67,6 +67,21 @@ export const WorkflowOutputView = ({
   // A live run adds cards, so the shown node is recomputed as the log grows too.
   useEffect(syncCurrent, [syncCurrent, chunkList.length]);
 
+  // Focus the node the select shows, but not the one in view when it first opens.
+  const firstShow = useRef(true);
+  useEffect(() => {
+    if (currentIndex === undefined) {
+      return;
+    }
+    if (firstShow.current) {
+      firstShow.current = false;
+      return;
+    }
+    if (workflowName) {
+      focusNode(workflowName, chunkList[currentIndex].name);
+    }
+  }, [currentIndex]);
+
   const scrollToChunk = (index: number) => {
     const view = scrollRef.current;
     const card = cards().find((c) => { return Number(c.dataset.chunkIndex) === index; });
@@ -75,10 +90,6 @@ export const WorkflowOutputView = ({
     }
     view.scrollTop += card.getBoundingClientRect().top - view.getBoundingClientRect().top;
     setCurrentIndex(index);
-    // The select only offers task chunks, so the name is a node on the canvas.
-    if (workflowName) {
-      focusNode(workflowName, chunkList[index].name);
-    }
   };
 
   let metrics: LogMetrics;
