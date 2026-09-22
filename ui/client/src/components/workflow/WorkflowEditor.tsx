@@ -7,7 +7,7 @@ import { useWorkflowRunStore, WorkflowRunStatus } from '../../stores/useWorkflow
 import { nodeRunStatuses } from './nodeRunStatus';
 import { nodeNameFromTask } from './taskNodeName';
 import { NodeCatalogReader, useNodeCatalog } from './useNodeCatalog';
-import { WorkflowGraph } from './WorkflowGraph';
+import { WorkflowGraphWrapper } from './WorkflowGraph';
 
 // Returns the node's `requires` with oldName replaced by newName, preserving
 // its single-name / list shape (or undefined when the node had no requires).
@@ -159,7 +159,7 @@ export const WorkflowEditor = ({
         ? <Typography color="text.secondary">No workflow found in this document.</Typography>
         : (
           <>
-            <WorkflowGraph
+            <WorkflowGraphWrapper
               catalog={catalog}
               nodeNames={nodeNames}
               nodes={block.nodes ?? {}}

@@ -13,7 +13,7 @@ vi.mock('../src/components/workflow/useNodeCatalog', () => ({
 // through the real chain: the editor -> DetailsViewDocument -> fillProjectName.
 let graphProps: any = null;
 vi.mock('../src/components/workflow/WorkflowGraph', () => ({
-  WorkflowGraph: (props: any) => {
+  WorkflowGraphWrapper: (props: any) => {
     graphProps = props;
     return null;
   },

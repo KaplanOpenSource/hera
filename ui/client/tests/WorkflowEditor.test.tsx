@@ -12,7 +12,7 @@ vi.mock('../src/components/workflow/useNodeCatalog', () => ({
 // props, so we can drive WorkflowEditor's logic without rendering ReactFlow.
 let graphProps: any = null;
 vi.mock('../src/components/workflow/WorkflowGraph', () => ({
-  WorkflowGraph: (props: any) => {
+  WorkflowGraphWrapper: (props: any) => {
     graphProps = props;
     return null;
   },
