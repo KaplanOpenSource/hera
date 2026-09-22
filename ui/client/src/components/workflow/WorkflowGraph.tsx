@@ -77,7 +77,7 @@ const WorkflowGraphInner = ({
   const { fitView, getViewport, setViewport, getNode, setCenter } = useReactFlow();
   const nodesInitialized = useNodesInitialized();
   const containerRef = useRef<HTMLDivElement>(null);
-  const prevHeightRef = useRef<number | null>(null);
+  const prevSizeRef = useRef<{ width: number, height: number } | null>(null);
   // What to do once nodes are measured after a structure change: 'all' fits the
   // whole graph (initial load / bulk), a node name pans to focus that newly
   // added node while keeping the current zoom. prevNames detects the change.
@@ -184,25 +184,33 @@ const WorkflowGraphInner = ({
 
   // When the canvas height changes, scale the zoom by the same ratio so the same
   // slice of the graph stays framed (anchored at the top-left) instead of
-  // revealing more or less of it as the height grows or shrinks.
+  // revealing more or less of it as the height grows or shrinks. When both sides
+  // change at once (maximize / restore the tab) just fit the whole graph.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) {
       return;
     }
     const observer = new ResizeObserver(entries => {
-      const height = entries[0].contentRect.height;
-      const prev = prevHeightRef.current;
-      prevHeightRef.current = height;
-      if (prev && height && prev !== height) {
-        const ratio = height / prev;
+      const { width, height } = entries[0].contentRect;
+      const prev = prevSizeRef.current;
+      prevSizeRef.current = { width, height };
+      if (!prev || !width || !height || !prev.width || !prev.height) {
+        return;
+      }
+      if (prev.width !== width && prev.height !== height) {
+        fitView({ duration: 300, maxZoom: FIT_MAX_ZOOM });
+        return;
+      }
+      if (prev.height !== height) {
+        const ratio = height / prev.height;
         const { x, y, zoom } = getViewport();
         setViewport({ x: x * ratio, y: y * ratio, zoom: zoom * ratio });
       }
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [getViewport, setViewport]);
+  }, [getViewport, setViewport, fitView]);
 
   // Overlay current selection and data (with fresh handlers) each render, so the
   // node always calls the latest rename handler — no stale closures, no ref.
