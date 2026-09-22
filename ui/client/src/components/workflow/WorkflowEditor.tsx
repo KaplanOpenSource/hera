@@ -3,6 +3,8 @@ import { ReactNode, useEffect, useState } from 'react';
 import { WorkflowBlock, WorkflowData, WorkflowNode } from '../../shared/types';
 import { getWorkflowBlock, isTopLevelBlock, normalizeRequires } from '../../shared/workflow';
 import { useWorkflowFocusStore } from '../../stores/useWorkflowFocusStore';
+import { useWorkflowRunStore, WorkflowRunStatus } from '../../stores/useWorkflowRunStore';
+import { nodeRunStatuses } from './nodeRunStatus';
 import { nodeNameFromTask } from './taskNodeName';
 import { NodeCatalogReader, useNodeCatalog } from './useNodeCatalog';
 import { WorkflowGraph } from './WorkflowGraph';
@@ -63,6 +65,14 @@ export const WorkflowEditor = ({
       setSelectedNode(focusName);
     }
   }, [focusName, storeFocus?.seq]);
+
+  // How each node did in this workflow's run, so the canvas can outline them.
+  const run = useWorkflowRunStore(s => (workflowName ? s.runs[workflowName] : undefined));
+  const nodeStatuses = nodeRunStatuses({
+    chunks: run?.chunks ?? [],
+    nodeNames,
+    runFinished: Boolean(run) && run!.status !== WorkflowRunStatus.Running,
+  });
 
   const uniqueNodeName = (): string => {
     let i = nodeNames.length + 1;
@@ -154,6 +164,7 @@ export const WorkflowEditor = ({
               nodeNames={nodeNames}
               nodes={block.nodes ?? {}}
               selectedNode={selectedNode}
+              nodeStatuses={nodeStatuses}
               focus={focus}
               onHoverNode={name => workflowName && hoverNode(workflowName, name ?? null)}
               actionButtons={actionButtons}

@@ -16,6 +16,7 @@ import { buildDataflowEdges, clearInputReference, dataflowReference, insertRefer
 import { WorkflowLayout } from './WorkflowLayout';
 import { WorkflowInlineReference } from './WorkflowInlineReference';
 import { computeLayers } from './workflowGeometry';
+import { NodeRunStatus, NodeRunStatusMap } from './nodeRunStatus';
 
 // Defined once (module scope) so ReactFlow doesn't warn about changing types.
 const NODE_TYPES = { workflow: WorkflowFlowNode };
@@ -32,6 +33,8 @@ interface WorkflowGraphProps {
   nodeNames: string[];
   nodes: { [name: string]: WorkflowNode };
   selectedNode?: string;
+  // How each node did in the last run, keyed by node name. Missing means pending.
+  nodeStatuses?: NodeRunStatusMap;
   // A request from the output tab to centre on one node.
   focus?: { nodeName: string, seq: number };
   // The node the pointer is over, or undefined when it left one.
@@ -56,6 +59,7 @@ const WorkflowGraphInner = ({
   nodeNames,
   nodes,
   selectedNode,
+  nodeStatuses,
   focus,
   onHoverNode,
   actionButtons,
@@ -240,6 +244,7 @@ const WorkflowGraphInner = ({
       name: node.id,
       node: nodes[node.id] ?? {},
       catalog,
+      runStatus: nodeStatuses?.[node.id] ?? NodeRunStatus.Pending,
       onRename: (newName: string) => onRenameNode(node.id, newName),
       onChange: (updated: WorkflowNode) => onSetNode(node.id, updated),
       onDelete: () => onDeleteNode(node.id),

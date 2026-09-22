@@ -1,8 +1,9 @@
-import { Autocomplete, Box, InputBase, Stack, TextField, Typography } from '@mui/material';
+import { Autocomplete, Box, InputBase, Stack, TextField, Theme, Typography, useTheme } from '@mui/material';
 import { Handle, NodeProps, NodeResizer, Position } from '@xyflow/react';
 import { useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
 import { keyForDetailsViewItem } from '../details/DetailsViewItem';
+import { NodeRunStatus } from './nodeRunStatus';
 import { NodeCatalogEntry, nodeOutputNames, nodeTypeGroup, nodeTypeIssue, paramsFieldDef } from './nodeCatalog';
 import { paramsOnTypeChange } from './nodeTypeParams';
 import { WorkflowNodeDeleteButton } from './WorkflowNodeDeleteButton';
@@ -19,13 +20,53 @@ export interface WorkflowFlowNodeData {
   onDelete: () => void;
   onFieldContextMenu: (param: string, x: number, y: number, caret?: number) => void;
   onFieldInlineEdit: (param: string, value: string, caret: number | null, el: HTMLInputElement) => void;
+  // How the node did in the last run of this workflow.
+  runStatus?: NodeRunStatus;
   [key: string]: unknown;
 }
+
+// Outline color per run state. Pending has none, so the node keeps its normal border.
+const runStatusColor = (status: NodeRunStatus, theme: Theme): string => {
+  if (status === NodeRunStatus.Success) {
+    return theme.palette.success.main;
+  }
+  if (status === NodeRunStatus.Failure) {
+    return theme.palette.error.main;
+  }
+  if (status === NodeRunStatus.Running) {
+    return theme.palette.info.main;
+  }
+  return '';
+};
+
+// A dashed outline that keeps moving, drawn just outside the node's border.
+// Four gradient strips (top, bottom, left, right) slid by one dash each cycle.
+const marchingAntsSx = (color: string) => {
+  return {
+    '@keyframes workflowNodeAnts': {
+      to: { backgroundPosition: '26px 0, -26px 100%, 0 -26px, 100% 26px' },
+    },
+    '&::before': {
+      content: '""',
+      position: 'absolute',
+      inset: '-14px',
+      borderRadius: 'inherit',
+      pointerEvents: 'none',
+      backgroundImage: `linear-gradient(90deg, ${color} 50%, transparent 0), linear-gradient(90deg, ${color} 50%, transparent 0), linear-gradient(0deg, ${color} 50%, transparent 0), linear-gradient(0deg, ${color} 50%, transparent 0)`,
+      backgroundSize: '26px 10px, 26px 10px, 10px 26px, 10px 26px',
+      backgroundRepeat: 'repeat-x, repeat-x, repeat-y, repeat-y',
+      backgroundPosition: '0 0, 0 100%, 0 0, 100% 0',
+      animation: 'workflowNodeAnts 0.6s linear infinite',
+    },
+  };
+};
 
 // Custom ReactFlow node: edits the node name, type, and input parameters in
 // place. Delete on hover.
 export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
   const { name, node, catalog, onRename, onChange, onDelete, onFieldContextMenu, onFieldInlineEdit } = data as WorkflowFlowNodeData;
+  const runStatus = (data as WorkflowFlowNodeData).runStatus ?? NodeRunStatus.Pending;
+  const theme = useTheme();
   const [draft, setDraft] = useState(name);
   const [hover, setHover] = useState(false);
 
@@ -43,6 +84,29 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
   const paramsDef = paramsFieldDef(node, catalog);
   const outputs = nodeOutputNames(node, catalog);
   const inputsExpanded = expandedItems.includes(keyForDetailsViewItem(INPUT_PARAMETERS_KEY));
+
+  // The run state wins over the type warning and the selection, so a failed or
+  // finished node is visible at a glance.
+  const statusColor = runStatusColor(runStatus, theme);
+  let borderColor = 'divider';
+  if (selected) {
+    borderColor = 'primary.main';
+  }
+  if (typeIssue) {
+    borderColor = 'warning.main';
+  }
+  if (statusColor) {
+    borderColor = statusColor;
+  }
+  // Much thicker than the 1px selection border, so the two never look alike.
+  let borderWidth = 1;
+  if (statusColor) {
+    borderWidth = 10;
+  }
+  let runningSx = {};
+  if (runStatus === NodeRunStatus.Running) {
+    runningSx = marchingAntsSx(statusColor);
+  }
 
   // Free-form typing keeps the type as-is (custom types stay allowed); picking a
   // known type also seeds its parameters from the catalog.
@@ -69,6 +133,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
     <Box
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
+      data-run-status={runStatus}
       sx={{
         position: 'relative',
         px: 1,
@@ -81,7 +146,9 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
         borderRadius: 1,
         bgcolor: 'background.paper',
         border: '1px solid',
-        borderColor: typeIssue ? 'warning.main' : selected ? 'primary.main' : 'divider',
+        borderWidth,
+        borderColor,
+        ...runningSx,
       }}
     >
       {/* Drag handles to resize the node; shown while it's selected. Size is
