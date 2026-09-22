@@ -172,12 +172,21 @@ describe('WorkflowFlowNode', () => {
     expect(screen.getByDisplayValue('aaa')).toBe(input);
   });
 
-  it('names the parameters section "parameters", with no type chip', () => {
+  it('names the parameters section "Parameters", with no type chip', () => {
     renderNode({ type: 'general.JinjaTransform', Execution: { input_parameters: { x: 'aaa' } } });
-    expect(screen.getByText('parameters')).toBeDefined();
+    expect(screen.getByText('Parameters')).toBeDefined();
     expect(screen.queryByText('input_parameters')).toBeNull();
     // Only the parameter row has a type chip now, not the title row.
     expect(screen.getAllByText('string')).toHaveLength(1);
     expect(screen.queryByText('object')).toBeNull();
+  });
+
+  it('shows a readable parameter name, and the hermes name while editing it', () => {
+    renderNode({ type: 'general.JinjaTransform', Execution: { input_parameters: { project_name: 'p1' } } });
+    expect(screen.getByText('Project Name')).toBeDefined();
+    expect(screen.queryByText('project_name')).toBeNull();
+
+    fireEvent.click(screen.getByText('Project Name'));
+    expect(screen.getByDisplayValue('project_name')).toBeDefined();
   });
 });

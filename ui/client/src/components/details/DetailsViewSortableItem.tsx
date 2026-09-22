@@ -14,6 +14,7 @@ export const DetailsViewSortableItem = ({
   setItemKey,
   parentKey,
   def,
+  nameForView,
   renderBeforeName,
   onRowContextMenu,
   onValueCaret,
@@ -25,6 +26,7 @@ export const DetailsViewSortableItem = ({
   setItemKey: (newKey: string | undefined) => void,
   parentKey: string,
   def?: FieldDef,
+  nameForView?: (itemKey: string, parentKey: string | undefined) => ReactNode,
   renderBeforeName?: (itemKey: string, parentKey: string | undefined, def?: FieldDef) => ReactNode,
   onRowContextMenu?: (itemKey: string, parentKey: string | undefined, event: MouseEvent<HTMLElement>) => void,
   onValueCaret?: (itemKey: string, parentKey: string | undefined, value: string, caret: number | null, el: HTMLInputElement) => void,
@@ -53,7 +55,15 @@ export const DetailsViewSortableItem = ({
       itemValue={itemValue}
       setItemValue={setItemValue}
       setItemKey={setItemKey}
-      nameView={<DetailsViewListIndex index={index} attributes={attributes} listeners={listeners} />}
+      // A list element is named by its position, which the user can't rename.
+      // Rows under it keep the name function passed from above.
+      nameForView={(k, pk) => {
+        if (pk === parentKey && k === String(index)) {
+          return <DetailsViewListIndex index={index} attributes={attributes} listeners={listeners} />;
+        }
+        return nameForView?.(k, pk);
+      }}
+      allowRename={false}
       parentKey={parentKey}
       def={def?.children?.[String(index)]}
       renderBeforeName={renderBeforeName}

@@ -22,7 +22,8 @@ export const DetailsViewItem = ({
   itemValue,
   setItemValue,
   setItemKey = undefined,
-  nameView = undefined,
+  nameForView = undefined,
+  allowRename = true,
   hideTypeSelector = false,
   rootRef = undefined,
   rootStyle = undefined,
@@ -36,8 +37,11 @@ export const DetailsViewItem = ({
   itemValue: any,
   setItemValue: (newVal: any) => void,
   setItemKey?: (newKey: string | undefined) => void | undefined,
-  // Replaces the editable field name, e.g. with a list element's index.
-  nameView?: ReactNode,
+  // What to show instead of a row's raw key. With `allowRename` the key still
+  // shows while editing; without it the row's name is only this.
+  nameForView?: (itemKey: string, parentKey: string | undefined) => ReactNode,
+  // False for a row whose name is not the user's text, e.g. a list index.
+  allowRename?: boolean,
   // Hides the type chip, for a row whose type is not the user's choice.
   hideTypeSelector?: boolean,
   // Root row ref and style, used to animate a list element while it is dragged.
@@ -65,6 +69,17 @@ export const DetailsViewItem = ({
   }
   const { publicAPI } = useTreeViewContext<[UseTreeViewExpansionSignature]>();
 
+  // What the name reads as. The top-level `desc` field isn't renameable, so it
+  // gets a friendlier label of its own.
+  let shownName = nameForView?.(itemKey, parentKey);
+  if (shownName === undefined && itemKey === DESC_FIELD && !parentKey) {
+    shownName = (
+      <Typography sx={{ whiteSpace: 'nowrap', minWidth: '100px', flexShrink: 0 }}>
+        Description (desc)
+      </Typography>
+    );
+  }
+
   return (
     <TreeItem
       key={key}
@@ -91,23 +106,24 @@ export const DetailsViewItem = ({
           {renderBeforeName?.(itemKey, parentKey, def)}
 
           {/* The delete button sits on the name's top-left corner, over no text. */}
-          <Box sx={{ position: 'relative', display: 'flex', minWidth: 0 }}>
-            {nameView}
-            {!nameView && (
+          <Box
+            sx={{
+              position: 'relative',
+              display: 'flex',
+              minWidth: 0,
+              // A row with a custom name keeps it whole; other names may be cut short.
+              flexShrink: shownName !== undefined ? 0 : 1,
+            }}
+          >
+            {!allowRename && shownName}
+            {allowRename && (
               <RenameField
                 value={itemKey}
                 setValue={setItemKey}
                 labelMinWidth="100px"
-                // The top-level `desc` field isn't renameable, so show a friendlier label.
-                valueForView={(
-                  itemKey === DESC_FIELD && !parentKey
-                    ? (
-                      <Typography sx={{ whiteSpace: 'nowrap', minWidth: '100px', flexShrink: 0 }}>
-                        Description (desc)
-                      </Typography>
-                    )
-                    : undefined
-                )}
+                valueForView={shownName}
+                // A custom name is shown in full; the value field gives up the room.
+                keepViewWidth
               />
             )}
             {setItemKey && (
@@ -177,6 +193,7 @@ export const DetailsViewItem = ({
           setItemValue={setItemValue}
           parentKey={key}
           def={def}
+          nameForView={nameForView}
           renderBeforeName={renderBeforeName}
           onRowContextMenu={onRowContextMenu}
           onValueCaret={onValueCaret}
@@ -188,6 +205,7 @@ export const DetailsViewItem = ({
           setItemValue={setItemValue}
           parentKey={key}
           def={def}
+          nameForView={nameForView}
           renderBeforeName={renderBeforeName}
           onRowContextMenu={onRowContextMenu}
           onValueCaret={onValueCaret}

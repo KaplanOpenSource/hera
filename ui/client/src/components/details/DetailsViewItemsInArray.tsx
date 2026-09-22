@@ -24,6 +24,7 @@ export const DetailsViewItemsInArray = ({
   setItemValue,
   parentKey,
   def,
+  nameForView,
   renderBeforeName,
   onRowContextMenu,
   onValueCaret,
@@ -32,6 +33,7 @@ export const DetailsViewItemsInArray = ({
   setItemValue: (newVal: any) => void,
   parentKey: string,
   def?: FieldDef,
+  nameForView?: (itemKey: string, parentKey: string | undefined) => ReactNode,
   renderBeforeName?: (itemKey: string, parentKey: string | undefined, def?: FieldDef) => ReactNode,
   onRowContextMenu?: (itemKey: string, parentKey: string | undefined, event: MouseEvent<HTMLElement>) => void,
   onValueCaret?: (itemKey: string, parentKey: string | undefined, value: string, caret: number | null, el: HTMLInputElement) => void,
@@ -75,6 +77,7 @@ export const DetailsViewItemsInArray = ({
             }}
             parentKey={parentKey}
             def={def}
+            nameForView={nameForView}
             renderBeforeName={renderBeforeName}
             onRowContextMenu={onRowContextMenu}
             onValueCaret={onValueCaret}
