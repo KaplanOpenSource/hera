@@ -43,7 +43,6 @@ beforeEach(() => {
     projectNames: [{ name: 'TestProject' }],
     currProjectName: 'TestProject',
     currProject: { name: 'TestProject', documents: [configDoc, doc('doc1'), doc('doc2')] },
-    toolkits: [],
   });
 });
 

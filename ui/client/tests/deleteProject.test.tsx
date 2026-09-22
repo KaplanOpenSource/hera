@@ -22,7 +22,6 @@ beforeEach(() => {
     projectNames: [{ name: 'Alpha' }, { name: 'Beta' }],
     currProjectName: 'Alpha',
     currProject: { name: 'Alpha', documents: [] },
-    toolkits: [],
   });
 });
 

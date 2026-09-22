@@ -2,6 +2,7 @@ import { ProjectEntire, ProjectName, Toolkit } from "@shared/types";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { NO_PROJECT, useProjectStore } from "../stores/useProjectStore";
+import { useToolkitStore } from "../stores/useToolkitStore";
 import { fetchPython, fetchPythonClean } from "./fetchPython";
 import { ProjectCommands } from "./ProjectCommands";
 
@@ -73,8 +74,8 @@ project = {"name": '${projectName}', "documents": docs['documents']}
     },
   );
   if (data) {
-    const { currProjectName, setCurrentProject, setToolkits } = useProjectStore.getState();
-    setToolkits(parseToolkits(data.toolkitDocs));
+    const { currProjectName, setCurrentProject } = useProjectStore.getState();
+    useToolkitStore.getState().setToolkits(parseToolkits(data.toolkitDocs));
     if (currProjectName === projectName) {
       setCurrentProject(data.project as ProjectEntire);
     }

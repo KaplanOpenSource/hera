@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { resolveProjectFromUrl, fetchProjectsNames, fetchProjectDetails, fetchProjectData } from '../src/io/FetchProjects';
 import { useProjectStore, NO_PROJECT } from '../src/stores/useProjectStore';
+import { useToolkitStore } from '../src/stores/useToolkitStore';
 
 vi.mock('../src/io/fetchPython', () => ({
   fetchPython: vi.fn(),
@@ -166,8 +167,8 @@ describe('fetchProjectData', () => {
     useProjectStore.setState({
       currProjectName: 'TestProject',
       currProject: null,
-      toolkits: [],
     });
+    useToolkitStore.setState({ toolkits: [] });
     vi.mocked(fetchPython).mockReset();
   });
 
@@ -185,7 +186,7 @@ describe('fetchProjectData', () => {
 
     await fetchProjectData('TestProject');
 
-    expect(useProjectStore.getState().toolkits).toEqual([
+    expect(useToolkitStore.getState().toolkits).toEqual([
       { toolkit: 'LSM', cls: 'lsm.cls', description: 'Linear' },
       { toolkit: 'GIS', cls: 'gis.cls' },
     ]);
@@ -199,7 +200,7 @@ describe('fetchProjectData', () => {
 
     await fetchProjectData('TestProject');
 
-    expect(useProjectStore.getState().toolkits).toEqual([]);
+    expect(useToolkitStore.getState().toolkits).toEqual([]);
     expect(useProjectStore.getState().currProject).toBeNull();
   });
 
@@ -210,7 +211,7 @@ describe('fetchProjectData', () => {
     );
 
     const promise = fetchProjectData('TestProject');
-    expect(useProjectStore.getState().toolkits).toEqual([]);
+    expect(useToolkitStore.getState().toolkits).toEqual([]);
     expect(useProjectStore.getState().currProject).toBeNull();
 
     resolve({
@@ -221,7 +222,7 @@ describe('fetchProjectData', () => {
     });
     await promise;
 
-    expect(useProjectStore.getState().toolkits).toEqual([
+    expect(useToolkitStore.getState().toolkits).toEqual([
       { toolkit: 'T1', cls: 't1.cls' },
     ]);
     expect(useProjectStore.getState().currProject).toEqual({ name: 'TestProject', documents: [] });

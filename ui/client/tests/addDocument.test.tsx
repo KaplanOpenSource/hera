@@ -10,6 +10,7 @@ vi.mock('../src/io/fetchPython', () => ({
 
 const { AddDocumentButton } = await import('../src/components/project/AddDocumentButton');
 const { useProjectStore } = await import('../src/stores/useProjectStore');
+const { useToolkitStore } = await import('../src/stores/useToolkitStore');
 
 afterEach(() => {
   cleanup();
@@ -31,6 +32,8 @@ beforeEach(() => {
     projectNames: [{ name: 'TestProject' }],
     currProjectName: 'TestProject',
     currProject: { name: 'TestProject', documents: [configDoc] },
+  });
+  useToolkitStore.setState({
     toolkits: [
       { toolkit: 'LSM', cls: 'lsm.cls' },
       { toolkit: 'GIS', cls: 'gis.cls' },

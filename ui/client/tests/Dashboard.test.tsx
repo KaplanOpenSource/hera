@@ -45,7 +45,6 @@ describe('Dashboard', () => {
       projectNames: [],
       currProjectName: '* NONE *',
       currProject: null,
-      toolkits: [],
     });
   });
 

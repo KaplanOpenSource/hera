@@ -10,7 +10,6 @@ export const resetStore = () => {
     projectNames: [],
     currProjectName: NO_PROJECT,
     currProject: null,
-    toolkits: [],
   });
 };
 
