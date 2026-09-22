@@ -17,35 +17,56 @@ type SegmentStyle = {
 
 const styleForName = (
   name: string,
+  isLast: boolean,
 ): SegmentStyle => {
   if (name === PREAMBLE) {
     return { label: 'setup', color: 'text.disabled', dashed: true };
   }
   if (name === BETWEEN) {
+    // The trailing non-task segment closes the run, it is not a gap between tasks.
+    if (isLast) {
+      return { label: 'final', color: 'text.disabled', dashed: true };
+    }
     return { label: 'between', color: 'text.disabled', dashed: true };
   }
   return { label: name, color: 'primary.main', dashed: false };
 };
 
+// Whether a chunk is a real task, not the setup / between / final filler.
+export const isTaskChunk = (name: string): boolean => {
+  return name !== PREAMBLE && name !== BETWEEN;
+};
+
+// Whether a chunk renders a card at all (the filter may still hide its lines).
+export const chunkHasContent = (chunk: WorkflowChunk): boolean => {
+  return classifyLog(withoutEventLines(chunk.text)).some((line) => { return line.text.trim() !== ''; });
+};
+
 // Renders one output chunk (a single task's segment) as a self-contained boxed card:
-// the task name (or "setup" / "between") as a header, then its classified lines.
+// the task name (or "setup" / "between" / "final") as a header, then its lines.
 // Reads the shared log-level filter so it stays in sync with the toolbar. Kept on
 // its own so it can later show a single task's log on the canvas. Renders nothing
 // when the chunk has no visible content.
 export const WorkflowChunkLog = ({
   chunk,
+  isLast = false,
+  index,
 }: {
   chunk: WorkflowChunk,
+  isLast?: boolean,
+  // Marks the card in the DOM so the output panel can scroll to it.
+  index?: number,
 }) => {
   const visible = useLogFilterStore((state) => { return state.visible; });
 
-  const style = styleForName(chunk.name);
+  const style = styleForName(chunk.name, isLast);
   const lines = classifyLog(withoutEventLines(chunk.text));
   const hasContent = lines.some((line) => { return line.text.trim() !== ''; });
 
   return hasContent && (
     <Paper
       variant="outlined"
+      data-chunk-index={index}
       sx={{
         fontFamily: 'monospace',
         fontSize: 12,

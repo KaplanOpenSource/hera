@@ -1,0 +1,47 @@
+{
+    "workflow": {
+        "nodes": {
+            "SlowFirst": {
+                "Execution": {
+                    "input_parameters": {
+                        "Method": "Command list",
+                        "Command": [
+                            "echo 'slow step 1 starting'",
+                            "sleep 5",
+                            "echo 'slow step 1 done'"
+                        ]
+                    }
+                },
+                "type": "general.RunOsCommand"
+            },
+            "SlowSecond": {
+                "requires": "SlowFirst",
+                "Execution": {
+                    "input_parameters": {
+                        "Method": "Command list",
+                        "Command": [
+                            "echo 'slow step 2 starting, after step 1'",
+                            "sleep 5",
+                            "echo 'slow step 2 done'"
+                        ]
+                    }
+                },
+                "type": "general.RunOsCommand"
+            },
+            "SlowThird": {
+                "requires": "SlowSecond",
+                "Execution": {
+                    "input_parameters": {
+                        "Method": "Command list",
+                        "Command": [
+                            "echo 'slow step 3 starting, after step 2'",
+                            "sleep 5",
+                            "echo 'slow step 3 done'"
+                        ]
+                    }
+                },
+                "type": "general.RunOsCommand"
+            }
+        }
+    }
+}

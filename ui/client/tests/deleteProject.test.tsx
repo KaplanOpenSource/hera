@@ -11,6 +11,7 @@ vi.mock('../src/io/fetchPython', () => ({
 
 const { DeleteProjectButton } = await import('../src/components/header/DeleteProjectButton');
 const { useProjectStore } = await import('../src/stores/useProjectStore');
+const { useProjectListStore } = await import('../src/stores/useProjectListStore');
 
 afterEach(() => {
   cleanup();
@@ -19,11 +20,10 @@ afterEach(() => {
 beforeEach(() => {
   vi.clearAllMocks();
   useProjectStore.setState({
-    projectNames: [{ name: 'Alpha' }, { name: 'Beta' }],
     currProjectName: 'Alpha',
     currProject: { name: 'Alpha', documents: [] },
-    toolkits: [],
   });
+  useProjectListStore.setState({ projectNames: [{ name: 'Alpha' }, { name: 'Beta' }] });
 });
 
 const Wrapper = () => (
@@ -94,7 +94,7 @@ describe('DeleteProjectButton', () => {
 
     await waitFor(() => {
       const state = useProjectStore.getState();
-      expect(state.projectNames).toEqual([{ name: 'Beta' }]);
+      expect(useProjectListStore.getState().projectNames).toEqual([{ name: 'Beta' }]);
       expect(state.currProject?.name).toBe('Beta');
     });
   });

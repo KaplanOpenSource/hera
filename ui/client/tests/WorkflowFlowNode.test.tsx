@@ -11,6 +11,12 @@ vi.mock('@xyflow/react', () => ({
 
 import { WorkflowFlowNode } from '../src/components/workflow/WorkflowFlowNode';
 import { NodeCatalogEntry } from '../src/components/workflow/nodeCatalog';
+import { NodeRunStatus } from '../src/components/workflow/nodeRunStatus';
+
+// The outlined box is the node's own root element.
+const nodeBox = (): HTMLElement => {
+  return document.querySelector('[data-run-status]') as HTMLElement;
+};
 
 afterEach(() => cleanup());
 
@@ -26,13 +32,13 @@ const catalog: NodeCatalogEntry[] = [
   { type: 'general.JinjaTransform', parameters: [] },
 ];
 
-const renderNode = (node: any = {}) => {
+const renderNode = (node: any = {}, runStatus?: NodeRunStatus) => {
   const onRename = vi.fn();
   const onChange = vi.fn();
   const onDelete = vi.fn();
   render(
     <WorkflowFlowNode
-      data={{ name: 'node1', node, catalog, onRename, onChange, onDelete }}
+      data={{ name: 'node1', node, catalog, onRename, onChange, onDelete, runStatus }}
       selected={false}
       // The rest of NodeProps is unused by the component.
       {...({} as any)}
@@ -102,6 +108,38 @@ describe('WorkflowFlowNode', () => {
     expect(screen.getAllByText('required')).toHaveLength(2);
   });
 
+  it('has no run outline before the node ran', () => {
+    renderNode({ type: 'general.JinjaTransform' });
+    expect(nodeBox().dataset.runStatus).toBe(NodeRunStatus.Pending);
+    expect(getComputedStyle(nodeBox()).borderWidth).toBe('1px');
+  });
+
+  it('outlines a finished node in green', () => {
+    renderNode({ type: 'general.JinjaTransform' }, NodeRunStatus.Success);
+    const style = getComputedStyle(nodeBox());
+    expect(style.borderWidth).toBe('10px');
+    expect(style.borderColor).toBe('rgb(46, 125, 50)');
+  });
+
+  it('outlines a failed node in red', () => {
+    renderNode({ type: 'general.JinjaTransform' }, NodeRunStatus.Failure);
+    expect(getComputedStyle(nodeBox()).borderColor).toBe('rgb(211, 47, 47)');
+  });
+
+  // The run outline matters more than the unknown-type warning.
+  it('outlines a failed node in red even when its type is unknown', () => {
+    renderNode({ type: 'made.up' }, NodeRunStatus.Failure);
+    expect(getComputedStyle(nodeBox()).borderColor).toBe('rgb(211, 47, 47)');
+  });
+
+  it('gives a running node a moving outline', () => {
+    renderNode({ type: 'general.JinjaTransform' }, NodeRunStatus.Running);
+    expect(nodeBox().dataset.runStatus).toBe(NodeRunStatus.Running);
+    // jsdom does not compute pseudo-element styles, so read the emitted CSS.
+    const css = Array.from(document.querySelectorAll('style')).map((el) => { return el.textContent; }).join('');
+    expect(css).toContain('workflowNodeAnts');
+  });
+
   // Regression for #990: the auto-reload re-renders the editor with fresh
   // (equal) objects every few seconds; the focused input must not remount and
   // lose focus while the user is typing.
@@ -132,5 +170,23 @@ describe('WorkflowFlowNode', () => {
 
     expect(document.activeElement).toBe(input);
     expect(screen.getByDisplayValue('aaa')).toBe(input);
+  });
+
+  it('names the parameters section "Parameters", with no type chip', () => {
+    renderNode({ type: 'general.JinjaTransform', Execution: { input_parameters: { x: 'aaa' } } });
+    expect(screen.getByText('Parameters')).toBeDefined();
+    expect(screen.queryByText('input_parameters')).toBeNull();
+    // Only the parameter row has a type chip now, not the title row.
+    expect(screen.getAllByText('string')).toHaveLength(1);
+    expect(screen.queryByText('object')).toBeNull();
+  });
+
+  it('shows a readable parameter name, and the hermes name while editing it', () => {
+    renderNode({ type: 'general.JinjaTransform', Execution: { input_parameters: { project_name: 'p1' } } });
+    expect(screen.getByText('Project Name')).toBeDefined();
+    expect(screen.queryByText('project_name')).toBeNull();
+
+    fireEvent.click(screen.getByText('Project Name'));
+    expect(screen.getByDisplayValue('project_name')).toBeDefined();
   });
 });

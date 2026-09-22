@@ -8,6 +8,7 @@ import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { CENTRAL_REPO_FOLDER_ID, idDocId, idFromDocId } from '../../shared/idDocId';
 import { useProjectStore } from '../../stores/useProjectStore';
+import { useToolkitStore } from '../../stores/useToolkitStore';
 import { documentMatchesQuery, documentSearchText, parseSearchQuery, unknownSearchFields } from '../../utils/documentSearch';
 import { collectBranchKeys, SplitTree } from '../../utils/splitTree';
 import { DocumentSplitGroup } from './DocumentSplitGroup';
@@ -26,7 +27,7 @@ export const ProjectTreeView = ({
 }) => {
   const { docId } = useParams<{ docId: string }>();
   const navigate = useNavigate();
-  const { toolkits } = useProjectStore();
+  const { toolkits } = useToolkitStore();
   const { viewSettings } = useViewSettingsStore();
   const [selectedIds, setSelectedIds] = useState<string[]>(docId ? [idDocId(docId)] : []);
   const [expandedItems, setExpandedItems] = useState<string[]>(['project-documents', 'no-toolkit']);

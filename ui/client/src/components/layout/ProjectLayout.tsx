@@ -1,12 +1,15 @@
 import { useTheme } from '@mui/material';
 import { Action, Actions, ITabRenderValues, Layout, TabNode } from 'flexlayout-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { classifyItemId, idFromDocId, ItemKind } from '../../shared/idDocId';
 import { classifyTab } from '../../shared/tabKind';
 import { TAB_KIND_STYLES } from '../../shared/tabKindConfig';
+import { useProjectStore } from '../../stores/useProjectStore';
+import { useWorkflowRunStore } from '../../stores/useWorkflowRunStore';
 import { useFlexlayoutTheme } from '../../theme';
 import { hasPreview } from '../details/PreviewPanel';
+import { isWorkflowDoc } from '../../shared/workflow';
 import { DETAILS_TAB_PREFIX, LayoutModel } from './LayoutModel';
 import { LayoutPanel } from './LayoutPanel';
 
@@ -25,6 +28,7 @@ export const ProjectLayout = ({
   useFlexlayoutTheme();
   const dark = useTheme().palette.mode === 'dark';
   const [activeShowItemId, setActiveShowItemId] = useState<string | undefined>(undefined);
+  const setEditedDoc = useProjectStore(state => state.setEditedDoc);
 
   const [layout, setLayout] = useState(() => LayoutModel.create(!treeCollapsed));
 
@@ -60,6 +64,13 @@ export const ProjectLayout = ({
     setActiveShowItemId(showItemId);
   }, [layout, project]);
 
+  // Follows the document, not the selection: a new workflow is selected before it loads.
+  useEffect(() => {
+    if (activeDoc && isWorkflowDoc(activeDoc.data)) {
+      layout.openOrFocusCanvasTab(activeDoc.docid, activeDoc.name);
+    }
+  }, [activeDoc, layout]);
+
   useEffect(() => {
     if (previewAvailable && activeDocId) {
       layout.setPreview(activeDocId, activeDoc!.name);
@@ -67,6 +78,18 @@ export const ProjectLayout = ({
       layout.setPreview();
     }
   }, [activeShowItemId, previewAvailable, activeDocId, layout]);
+
+  // A started run opens (or focuses) its output tab. Keyed on the run token, so a
+  // re-run brings the tab back after it was closed, while live chunk updates don't.
+  const runs = useWorkflowRunStore(state => state.runs);
+  const shownTokens = useRef<{ [workflowName: string]: string }>({});
+  useEffect(() => {
+    for (const [workflowName, run] of Object.entries(runs)) {
+      if (shownTokens.current[workflowName] === run.token) continue;
+      shownTokens.current[workflowName] = run.token;
+      layout.openOrFocusOutputTab(workflowName);
+    }
+  }, [runs, layout]);
 
   // Keep open tabs in sync with the project: close tabs whose document was
   // deleted, then rename the survivors (e.g. a new notebook's tab once its
@@ -77,6 +100,14 @@ export const ProjectLayout = ({
   }, [project, layout]);
 
   const handleAction = useCallback((action: Action) => {
+    // Closing the last tab of a document drops its edits, after the dispatch.
+    if (action.type === Actions.DELETE_TAB) {
+      const tabId = action.data.node as string;
+      const docid = layout.docIdOfTab(tabId);
+      if (docid && !layout.hasOtherTabForDoc(docid, tabId)) {
+        queueMicrotask(() => setEditedDoc(docid, null));
+      }
+    }
     if (action.type === Actions.SELECT_TAB) {
       const tabId = action.data.tabNode as string;
       if (tabId?.startsWith(DETAILS_TAB_PREFIX)) {
@@ -87,7 +118,7 @@ export const ProjectLayout = ({
       }
     }
     return action;
-  }, [layout]);
+  }, [layout, setEditedDoc]);
 
   const onRenderTab = useCallback((node: TabNode, renderValues: ITabRenderValues) => {
     const showItemId = node.getConfig()?.showItemId as string | undefined;

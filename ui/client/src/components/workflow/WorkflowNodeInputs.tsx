@@ -1,9 +1,11 @@
+import { Typography } from '@mui/material';
 import { SimpleTreeView } from '@mui/x-tree-view';
 import { Handle, Position } from '@xyflow/react';
 import { DetailsViewItem, keyForDetailsViewItem } from '../details/DetailsViewItem';
 import { FieldDef } from '../details/fieldDef';
 import { FieldSourceDot } from '../details/FieldSourceDot';
 import { inputHandleId } from './workflowDataflow';
+import { friendlyParamName } from './friendlyParamName';
 
 // The node field holding a workflow node's input parameters — the key of the tree
 // this component renders, and the parent key of each top-level parameter row.
@@ -60,6 +62,22 @@ export const WorkflowNodeInputs = ({
         itemValue={params}
         parentKey={undefined}
         def={paramsDef}
+        // The title row only names the section, so no hermes name and no type chip.
+        // A parameter row shows a readable name; its hermes name shows while editing.
+        nameForView={(itemKey, parentKey) => {
+          if (parentKey === undefined) {
+            return <Typography sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}>Parameters</Typography>;
+          }
+          if (parentKey !== keyForDetailsViewItem(INPUT_PARAMETERS_KEY)) {
+            return undefined;
+          }
+          return (
+            <Typography sx={{ whiteSpace: 'nowrap', minWidth: '100px', flexShrink: 0 }}>
+              {friendlyParamName(itemKey)}
+            </Typography>
+          );
+        }}
+        hideTypeSelector
         setItemValue={onChangeParams}
         // Right-click on a top-level parameter opens a menu for that field.
         // Stop the event so ReactFlow's node menu doesn't also open; other rows

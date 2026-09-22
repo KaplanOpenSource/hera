@@ -1,9 +1,13 @@
 import { Box, Typography } from '@mui/material';
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { WorkflowBlock, WorkflowData, WorkflowNode } from '../../shared/types';
 import { getWorkflowBlock, isTopLevelBlock, normalizeRequires } from '../../shared/workflow';
+import { useWorkflowFocusStore } from '../../stores/useWorkflowFocusStore';
+import { useWorkflowRunStore, WorkflowRunStatus } from '../../stores/useWorkflowRunStore';
+import { nodeRunStatuses } from './nodeRunStatus';
+import { nodeNameFromTask } from './taskNodeName';
 import { NodeCatalogReader, useNodeCatalog } from './useNodeCatalog';
-import { WorkflowGraph } from './WorkflowGraph';
+import { WorkflowGraphWrapper } from './WorkflowGraph';
 
 // Returns the node's `requires` with oldName replaced by newName, preserving
 // its single-name / list shape (or undefined when the node had no requires).
@@ -23,10 +27,13 @@ export const WorkflowEditor = ({
   workflow,
   setWorkflow,
   actionButtons,
+  workflowName,
 }: {
   workflow?: WorkflowData,
   setWorkflow: (workflow: WorkflowData) => void,
   actionButtons?: ReactNode,
+  // Set on the canvas tab, so the output tab can point this editor at a node.
+  workflowName?: string,
 }) => {
   const [selectedNode, setSelectedNode] = useState<string | undefined>(undefined);
   const catalog = useNodeCatalog(s => s.catalog);
@@ -45,6 +52,27 @@ export const WorkflowEditor = ({
   const nodeNames = block?.nodeList?.length
     ? block.nodeList
     : Object.keys(block?.nodes ?? {});
+
+  // The output tab names a Luigi task; map it back to this workflow's node.
+  const storeFocus = useWorkflowFocusStore(s => s.focus);
+  const hoverNode = useWorkflowFocusStore(s => s.hoverNode);
+  const focusName = storeFocus && storeFocus.workflowName === workflowName
+    ? nodeNameFromTask(storeFocus.nodeName, nodeNames)
+    : undefined;
+  const focus = focusName ? { nodeName: focusName, seq: storeFocus!.seq } : undefined;
+  useEffect(() => {
+    if (focusName) {
+      setSelectedNode(focusName);
+    }
+  }, [focusName, storeFocus?.seq]);
+
+  // How each node did in this workflow's run, so the canvas can outline them.
+  const run = useWorkflowRunStore(s => (workflowName ? s.runs[workflowName] : undefined));
+  const nodeStatuses = nodeRunStatuses({
+    chunks: run?.chunks ?? [],
+    nodeNames,
+    runFinished: Boolean(run) && run!.status !== WorkflowRunStatus.Running,
+  });
 
   const uniqueNodeName = (): string => {
     let i = nodeNames.length + 1;
@@ -131,11 +159,14 @@ export const WorkflowEditor = ({
         ? <Typography color="text.secondary">No workflow found in this document.</Typography>
         : (
           <>
-            <WorkflowGraph
+            <WorkflowGraphWrapper
               catalog={catalog}
               nodeNames={nodeNames}
               nodes={block.nodes ?? {}}
               selectedNode={selectedNode}
+              nodeStatuses={nodeStatuses}
+              focus={focus}
+              onHoverNode={name => workflowName && hoverNode(workflowName, name ?? null)}
               actionButtons={actionButtons}
               onSelectNode={setSelectedNode}
               onAddNode={addNode}

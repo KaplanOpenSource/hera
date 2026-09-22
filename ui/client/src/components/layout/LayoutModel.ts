@@ -11,6 +11,8 @@ const TREE_TABSET_ID = 'tree-tabset';
 const DETAILS_TABSET_ID = 'details-tabset';
 export const DETAILS_TAB_PREFIX = 'details:';
 const PREVIEW_TAB_PREFIX = 'preview:';
+const CANVAS_TAB_PREFIX = 'canvas:';
+const OUTPUT_TAB_PREFIX = 'output:';
 
 const GLOBAL_LAYOUT_CONFIG = {
   tabEnableClose: true,
@@ -50,6 +52,24 @@ const makePreviewTab = (docid: string, docName: string): IJsonTabNode => ({
   name: `Preview: ${docName}`,
   component: LayoutComponent.Preview,
   config: { docid },
+});
+
+// Tab node for a workflow document's canvas.
+const makeCanvasTab = (docid: string, docName: string): IJsonTabNode => ({
+  type: 'tab',
+  id: `${CANVAS_TAB_PREFIX}${docid}`,
+  name: `Canvas: ${docName}`,
+  component: LayoutComponent.Canvas,
+  config: { docid },
+});
+
+// Tab node for a workflow run's output.
+const makeOutputTab = (workflowName: string): IJsonTabNode => ({
+  type: 'tab',
+  id: `${OUTPUT_TAB_PREFIX}${workflowName}`,
+  name: `Output: ${workflowName}`,
+  component: LayoutComponent.Output,
+  config: { workflowName },
 });
 
 // Wraps a flexlayout Model, exposing the layout operations this app performs on
@@ -106,6 +126,30 @@ export class LayoutModel {
     return tabs;
   }
 
+  // The document a tab shows, from either a preview or a details tab's config.
+  private docIdOfNode(node: TabNode): string | undefined {
+    const config = node.getConfig();
+    return config?.docid ?? idFromDocId(config?.showItemId ?? '');
+  }
+
+  // The document a tab shows, or undefined if it shows no document.
+  docIdOfTab(tabId: string): string | undefined {
+    const tab = this.getTab(tabId);
+    return tab ? this.docIdOfNode(tab) : undefined;
+  }
+
+  // Whether a tab other than the given one still shows the same document.
+  hasOtherTabForDoc(docid: string, exceptTabId: string): boolean {
+    let found = false;
+    this._model.visitNodes((node) => {
+      if (node.getType() !== 'tab' || node.getId() === exceptTabId) return;
+      if (this.docIdOfNode(node as TabNode) === docid) {
+        found = true;
+      }
+    });
+    return found;
+  }
+
   // Open the details tab for an item, or focus it if it is already open.
   openOrFocusDetailsTab(showItemId: string, project: ProjectObj): void {
     const detailsId = `${DETAILS_TAB_PREFIX}${showItemId}`;
@@ -113,6 +157,44 @@ export class LayoutModel {
       this._model.doAction(Actions.selectTab(detailsId));
     } else {
       this._model.doAction(Actions.addTab(makeDetailsTab(showItemId, project), DETAILS_TABSET_ID, DockLocation.CENTER, -1));
+    }
+  }
+
+  // Open a workflow's canvas below the details panel, or focus it if it is open.
+  // Later canvases join the first one's tabset, so they don't each split the row.
+  openOrFocusCanvasTab(docid: string, docName: string): void {
+    const canvasId = `${CANVAS_TAB_PREFIX}${docid}`;
+    if (this._model.getNodeById(canvasId)) {
+      this._model.doAction(Actions.selectTab(canvasId));
+      return;
+    }
+    const tab = makeCanvasTab(docid, docName);
+    const openCanvas = this.tabsWithPrefix(CANVAS_TAB_PREFIX)[0];
+    if (openCanvas) {
+      this._model.doAction(Actions.addTab(tab, openCanvas.getParent()!.getId(), DockLocation.CENTER, -1));
+    } else {
+      this._model.doAction(Actions.addTab(tab, DETAILS_TABSET_ID, DockLocation.BOTTOM, -1));
+    }
+  }
+
+  // Open a workflow's run output to the right of the canvas, or focus it if it is
+  // open. Later outputs join the first one's tabset, like the canvas tabs do. With
+  // no canvas open the output falls back to below the details panel.
+  openOrFocusOutputTab(workflowName: string): void {
+    const outputId = `${OUTPUT_TAB_PREFIX}${workflowName}`;
+    if (this._model.getNodeById(outputId)) {
+      this._model.doAction(Actions.selectTab(outputId));
+      return;
+    }
+    const tab = makeOutputTab(workflowName);
+    const openOutput = this.tabsWithPrefix(OUTPUT_TAB_PREFIX)[0];
+    const openCanvas = this.tabsWithPrefix(CANVAS_TAB_PREFIX)[0];
+    if (openOutput) {
+      this._model.doAction(Actions.addTab(tab, openOutput.getParent()!.getId(), DockLocation.CENTER, -1));
+    } else if (openCanvas) {
+      this._model.doAction(Actions.addTab(tab, openCanvas.getParent()!.getId(), DockLocation.RIGHT, -1));
+    } else {
+      this._model.doAction(Actions.addTab(tab, DETAILS_TABSET_ID, DockLocation.BOTTOM, -1));
     }
   }
 
@@ -153,10 +235,12 @@ export class LayoutModel {
         this._model.doAction(Actions.deleteTab(t.getId()));
       }
     }
-    for (const t of this.tabsWithPrefix(PREVIEW_TAB_PREFIX)) {
-      const oid = t.getConfig()?.docid as string | undefined;
-      if (oid && !project.documentIds.has(oid)) {
-        this._model.doAction(Actions.deleteTab(t.getId()));
+    for (const prefix of [PREVIEW_TAB_PREFIX, CANVAS_TAB_PREFIX]) {
+      for (const t of this.tabsWithPrefix(prefix)) {
+        const oid = t.getConfig()?.docid as string | undefined;
+        if (oid && !project.documentIds.has(oid)) {
+          this._model.doAction(Actions.deleteTab(t.getId()));
+        }
       }
     }
   }

@@ -13,13 +13,14 @@ vi.mock('../src/components/workflow/useNodeCatalog', () => ({
 // through the real chain: the editor -> DetailsViewDocument -> fillProjectName.
 let graphProps: any = null;
 vi.mock('../src/components/workflow/WorkflowGraph', () => ({
-  WorkflowGraph: (props: any) => {
+  WorkflowGraphWrapper: (props: any) => {
     graphProps = props;
     return null;
   },
 }));
 
-import { DetailsViewDocument } from '../src/components/details/DetailsViewDocument';
+import { DetailsViewDocumentContent } from '../src/components/details/DetailsViewDocumentContent';
+import { WorkflowCanvasPanel } from '../src/components/workflow/WorkflowCanvasPanel';
 import { DocumentObj, ProjectObj } from '../src/objects/ProjectObj';
 import { fillProjectName, isProjectNameKey } from '../src/shared/workflowMutators/mutators/FillProjectNameMutator';
 import { WORKFLOW_DOC_TYPE } from '../src/shared/workflow';
@@ -124,8 +125,20 @@ const renameField = (from: string, to: string) => {
   fireEvent.blur(input);
 };
 
+// The details tree and the canvas are separate dock tabs that edit the same
+// stored document, so render both to drive either one.
+const renderDoc = (doc: DocumentObj) => {
+  return render(
+    <>
+      <DetailsViewDocumentContent doc={doc} />
+      <WorkflowCanvasPanel project={doc.project} docid={doc.docid} />
+    </>
+  );
+};
+
 beforeEach(() => {
   graphProps = null;
+  useProjectStore.setState({ editedDocs: {} });
   useProjectStore.getState().selectProject(PROJECT);
 });
 
@@ -133,7 +146,7 @@ afterEach(() => cleanup());
 
 describe('ProjectName autofill in the document view', () => {
   it('fills a desc field renamed to projectname', () => {
-    render(<DetailsViewDocument doc={makeWorkflowDoc({ Command: 'ls' }, { newItem_1: '' })} setDoc={vi.fn()} />);
+    renderDoc(makeWorkflowDoc({ Command: 'ls' }, { newItem_1: '' }));
 
     renameField('newItem_1', 'projectname');
 
@@ -141,7 +154,7 @@ describe('ProjectName autofill in the document view', () => {
   });
 
   it('fills a ProjectName the user just added to a node', () => {
-    render(<DetailsViewDocument doc={makeWorkflowDoc({ Command: 'ls' })} setDoc={vi.fn()} />);
+    renderDoc(makeWorkflowDoc({ Command: 'ls' }));
 
     editNode({ Command: 'ls', ProjectName: '' });
 
@@ -149,7 +162,7 @@ describe('ProjectName autofill in the document view', () => {
   });
 
   it('fills a ProjectName seeded empty by a new node', () => {
-    render(<DetailsViewDocument doc={makeWorkflowDoc({ Command: 'ls' })} setDoc={vi.fn()} />);
+    renderDoc(makeWorkflowDoc({ Command: 'ls' }));
 
     act(() => graphProps.onAddNode());
     act(() => graphProps.onSetNode('node2', {
@@ -161,7 +174,7 @@ describe('ProjectName autofill in the document view', () => {
   });
 
   it('fills an empty ProjectName that was already in the document', () => {
-    render(<DetailsViewDocument doc={makeWorkflowDoc({ ProjectName: '' })} setDoc={vi.fn()} />);
+    renderDoc(makeWorkflowDoc({ ProjectName: '' }));
 
     // The load path does not fill, so it is still empty on screen.
     expect(shownParams().ProjectName).toBe('');
@@ -172,7 +185,7 @@ describe('ProjectName autofill in the document view', () => {
   });
 
   it('matches the field name in any casing', () => {
-    render(<DetailsViewDocument doc={makeWorkflowDoc({ Command: 'ls' })} setDoc={vi.fn()} />);
+    renderDoc(makeWorkflowDoc({ Command: 'ls' }));
 
     editNode({ Command: 'ls', projectname: '' });
 
@@ -180,7 +193,7 @@ describe('ProjectName autofill in the document view', () => {
   });
 
   it('never blocks a user pointing the node at another project', () => {
-    render(<DetailsViewDocument doc={makeWorkflowDoc({ ProjectName: '' })} setDoc={vi.fn()} />);
+    renderDoc(makeWorkflowDoc({ ProjectName: '' }));
 
     editNode({ ProjectName: 'OTHER_PROJECT' });
 
@@ -188,7 +201,7 @@ describe('ProjectName autofill in the document view', () => {
   });
 
   it('does not add a ProjectName field to a node that has none', () => {
-    render(<DetailsViewDocument doc={makeWorkflowDoc({ Command: 'ls' })} setDoc={vi.fn()} />);
+    renderDoc(makeWorkflowDoc({ Command: 'ls' }));
 
     editNode({ Command: 'pwd' });
 
@@ -197,7 +210,7 @@ describe('ProjectName autofill in the document view', () => {
 
   it('leaves the field empty when no project is selected', () => {
     useProjectStore.getState().selectProject(NO_PROJECT);
-    render(<DetailsViewDocument doc={makeWorkflowDoc({ Command: 'ls' })} setDoc={vi.fn()} />);
+    renderDoc(makeWorkflowDoc({ Command: 'ls' }));
 
     editNode({ Command: 'ls', ProjectName: '' });
 
