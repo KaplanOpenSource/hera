@@ -7,6 +7,7 @@ import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { WorkflowBlock, WorkflowNode } from '../../shared/types';
 import { workflowTemplates } from './workflowTemplates';
 import { NodeCatalogEntry, nodeOutputNames } from './nodeCatalog';
+import { CanvasResize, canvasResizeAction } from './canvasResize';
 import { WorkflowContextMenu, WorkflowContextMenuKind, WorkflowContextMenuTarget } from './WorkflowContextMenu';
 import { WorkflowFlowNode } from './WorkflowFlowNode';
 import { WorkflowRequiresEdge } from './WorkflowRequiresEdge';
@@ -22,6 +23,9 @@ const NODE_TYPES = { workflow: WorkflowFlowNode };
 const EDGE_TYPES = { requires: WorkflowRequiresEdge, dataflow: WorkflowRequiresEdge };
 // Cap fit-to-view zoom so a single small node doesn't fill the whole screen.
 const FIT_MAX_ZOOM = 1;
+
+// Settle time before refitting, so a splitter drag fits once.
+const FIT_SETTLE_MS = 120;
 
 interface WorkflowGraphProps {
   catalog: NodeCatalogEntry[];
@@ -182,34 +186,32 @@ const WorkflowGraphInner = ({
     });
   }, [measuredKey]);
 
-  // When the canvas height changes, scale the zoom by the same ratio so the same
-  // slice of the graph stays framed (anchored at the top-left) instead of
-  // revealing more or less of it as the height grows or shrinks. When both sides
-  // change at once (maximize / restore the tab) just fit the whole graph.
+  // A width change refits the graph; height alone just scales the zoom to match.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) {
       return;
     }
+    let fitTimer: ReturnType<typeof setTimeout>;
     const observer = new ResizeObserver(entries => {
       const { width, height } = entries[0].contentRect;
       const prev = prevSizeRef.current;
       prevSizeRef.current = { width, height };
-      if (!prev || !width || !height || !prev.width || !prev.height) {
-        return;
-      }
-      if (prev.width !== width && prev.height !== height) {
-        fitView({ duration: 300, maxZoom: FIT_MAX_ZOOM });
-        return;
-      }
-      if (prev.height !== height) {
-        const ratio = height / prev.height;
+      const action = canvasResizeAction(prev, { width, height });
+      if (action === CanvasResize.Fit) {
+        clearTimeout(fitTimer);
+        fitTimer = setTimeout(() => fitView({ duration: 300, maxZoom: FIT_MAX_ZOOM }), FIT_SETTLE_MS);
+      } else if (action === CanvasResize.ScaleZoom) {
+        const ratio = height / prev!.height;
         const { x, y, zoom } = getViewport();
         setViewport({ x: x * ratio, y: y * ratio, zoom: zoom * ratio });
       }
     });
     observer.observe(el);
-    return () => observer.disconnect();
+    return () => {
+      clearTimeout(fitTimer);
+      observer.disconnect();
+    };
   }, [getViewport, setViewport, fitView]);
 
   // Overlay current selection and data (with fresh handlers) each render, so the
@@ -445,7 +447,7 @@ const WorkflowGraphInner = ({
           setMenu({ kind: WorkflowContextMenuKind.Edge, source: edge.source, target: edge.target, x: event.clientX, y: event.clientY });
         }}
       >
-        <Panel position="top-right">
+        <Panel position="top-right" style={{ marginRight: 24 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-end' }}>
             <ButtonTooltip
               title="Add node"

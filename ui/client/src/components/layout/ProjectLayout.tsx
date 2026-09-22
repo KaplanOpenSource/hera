@@ -62,14 +62,14 @@ export const ProjectLayout = ({
 
     layout.openOrFocusDetailsTab(showItemId, project);
     setActiveShowItemId(showItemId);
-
-    // A workflow's canvas is a tab of its own, opened beside its details tab.
-    const docid = idFromDocId(showItemId);
-    const docObj = docid ? project.allDocuments.find(d => d.docid === docid) : undefined;
-    if (docObj && isWorkflowDoc(docObj.data)) {
-      layout.openOrFocusCanvasTab(docObj.docid, docObj.name);
-    }
   }, [layout, project]);
+
+  // Follows the document, not the selection: a new workflow is selected before it loads.
+  useEffect(() => {
+    if (activeDoc && isWorkflowDoc(activeDoc.data)) {
+      layout.openOrFocusCanvasTab(activeDoc.docid, activeDoc.name);
+    }
+  }, [activeDoc, layout]);
 
   useEffect(() => {
     if (previewAvailable && activeDocId) {
