@@ -1,3 +1,4 @@
+import { Typography } from '@mui/material';
 import { SimpleTreeView } from '@mui/x-tree-view';
 import { Handle, Position } from '@xyflow/react';
 import { DetailsViewItem, keyForDetailsViewItem } from '../details/DetailsViewItem';
@@ -60,6 +61,9 @@ export const WorkflowNodeInputs = ({
         itemValue={params}
         parentKey={undefined}
         def={paramsDef}
+        // The title row only names the section, so no hermes name and no type chip.
+        nameView={<Typography sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}>Parameters</Typography>}
+        hideTypeSelector
         setItemValue={onChangeParams}
         // Right-click on a top-level parameter opens a menu for that field.
         // Stop the event so ReactFlow's node menu doesn't also open; other rows

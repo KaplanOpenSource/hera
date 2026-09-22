@@ -171,4 +171,13 @@ describe('WorkflowFlowNode', () => {
     expect(document.activeElement).toBe(input);
     expect(screen.getByDisplayValue('aaa')).toBe(input);
   });
+
+  it('names the parameters section "parameters", with no type chip', () => {
+    renderNode({ type: 'general.JinjaTransform', Execution: { input_parameters: { x: 'aaa' } } });
+    expect(screen.getByText('parameters')).toBeDefined();
+    expect(screen.queryByText('input_parameters')).toBeNull();
+    // Only the parameter row has a type chip now, not the title row.
+    expect(screen.getAllByText('string')).toHaveLength(1);
+    expect(screen.queryByText('object')).toBeNull();
+  });
 });

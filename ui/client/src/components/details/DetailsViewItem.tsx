@@ -23,6 +23,7 @@ export const DetailsViewItem = ({
   setItemValue,
   setItemKey = undefined,
   nameView = undefined,
+  hideTypeSelector = false,
   rootRef = undefined,
   rootStyle = undefined,
   parentKey,
@@ -37,6 +38,8 @@ export const DetailsViewItem = ({
   setItemKey?: (newKey: string | undefined) => void | undefined,
   // Replaces the editable field name, e.g. with a list element's index.
   nameView?: ReactNode,
+  // Hides the type chip, for a row whose type is not the user's choice.
+  hideTypeSelector?: boolean,
   // Root row ref and style, used to animate a list element while it is dragged.
   rootRef?: (node: HTMLElement | null) => void,
   rootStyle?: CSSProperties,
@@ -131,7 +134,7 @@ export const DetailsViewItem = ({
           {/* The type chip picks string/number/null/object for every field,
               except dataFormat (own dropdown) and desc (hidden fields make a
               type switch unsafe). */}
-          {itemKey !== DATA_FORMAT_FIELD && itemKey !== DESC_FIELD && (
+          {!hideTypeSelector && itemKey !== DATA_FORMAT_FIELD && itemKey !== DESC_FIELD && (
             <ItemTypeSelector
               itemValue={itemValue}
               setItemValue={newVal => {
