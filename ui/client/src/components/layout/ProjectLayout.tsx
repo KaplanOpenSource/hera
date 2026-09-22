@@ -5,6 +5,7 @@ import { ProjectObj } from '../../objects/ProjectObj';
 import { classifyItemId, idFromDocId, ItemKind } from '../../shared/idDocId';
 import { classifyTab } from '../../shared/tabKind';
 import { TAB_KIND_STYLES } from '../../shared/tabKindConfig';
+import { useProjectStore } from '../../stores/useProjectStore';
 import { useFlexlayoutTheme } from '../../theme';
 import { hasPreview } from '../details/PreviewPanel';
 import { DETAILS_TAB_PREFIX, LayoutModel } from './LayoutModel';
@@ -25,6 +26,7 @@ export const ProjectLayout = ({
   useFlexlayoutTheme();
   const dark = useTheme().palette.mode === 'dark';
   const [activeShowItemId, setActiveShowItemId] = useState<string | undefined>(undefined);
+  const setEditedDoc = useProjectStore(state => state.setEditedDoc);
 
   const [layout, setLayout] = useState(() => LayoutModel.create(!treeCollapsed));
 
@@ -77,6 +79,14 @@ export const ProjectLayout = ({
   }, [project, layout]);
 
   const handleAction = useCallback((action: Action) => {
+    // Closing the last tab of a document drops its edits, after the dispatch.
+    if (action.type === Actions.DELETE_TAB) {
+      const tabId = action.data.node as string;
+      const docid = layout.docIdOfTab(tabId);
+      if (docid && !layout.hasOtherTabForDoc(docid, tabId)) {
+        queueMicrotask(() => setEditedDoc(docid, null));
+      }
+    }
     if (action.type === Actions.SELECT_TAB) {
       const tabId = action.data.tabNode as string;
       if (tabId?.startsWith(DETAILS_TAB_PREFIX)) {
@@ -87,7 +97,7 @@ export const ProjectLayout = ({
       }
     }
     return action;
-  }, [layout]);
+  }, [layout, setEditedDoc]);
 
   const onRenderTab = useCallback((node: TabNode, renderValues: ITabRenderValues) => {
     const showItemId = node.getConfig()?.showItemId as string | undefined;

@@ -106,6 +106,30 @@ export class LayoutModel {
     return tabs;
   }
 
+  // The document a tab shows, from either a preview or a details tab's config.
+  private docIdOfNode(node: TabNode): string | undefined {
+    const config = node.getConfig();
+    return config?.docid ?? idFromDocId(config?.showItemId ?? '');
+  }
+
+  // The document a tab shows, or undefined if it shows no document.
+  docIdOfTab(tabId: string): string | undefined {
+    const tab = this.getTab(tabId);
+    return tab ? this.docIdOfNode(tab) : undefined;
+  }
+
+  // Whether a tab other than the given one still shows the same document.
+  hasOtherTabForDoc(docid: string, exceptTabId: string): boolean {
+    let found = false;
+    this._model.visitNodes((node) => {
+      if (node.getType() !== 'tab' || node.getId() === exceptTabId) return;
+      if (this.docIdOfNode(node as TabNode) === docid) {
+        found = true;
+      }
+    });
+    return found;
+  }
+
   // Open the details tab for an item, or focus it if it is already open.
   openOrFocusDetailsTab(showItemId: string, project: ProjectObj): void {
     const detailsId = `${DETAILS_TAB_PREFIX}${showItemId}`;
