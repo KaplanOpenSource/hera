@@ -12,7 +12,13 @@ export const WorkflowChunkedLog = ({
   return (
     <Box sx={{ fontFamily: 'monospace', fontSize: 12 }}>
       {chunks.map((chunk, chunkIndex) => {
-        return <WorkflowChunkLog key={chunkIndex} chunk={chunk} />;
+        return (
+          <WorkflowChunkLog
+            key={chunkIndex}
+            chunk={chunk}
+            isLast={chunkIndex === chunks.length - 1}
+          />
+        );
       })}
     </Box>
   );
