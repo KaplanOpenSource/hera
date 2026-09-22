@@ -183,7 +183,7 @@ export const DetailsViewDocumentContent = ({
               doc={shownDoc}
               isChanged={isChanged}
               save={() => setDoc(new DocumentObj(shownDoc, doc.project))}
-              sx={{ bgcolor: 'background.paper', boxShadow: 1, p: 0.5 }}
+              sx={{ bgcolor: 'background.paper', boxShadow: 1, p: 0.25, '& .MuiSvgIcon-root': { fontSize: 16 } }}
             />
           }
         />

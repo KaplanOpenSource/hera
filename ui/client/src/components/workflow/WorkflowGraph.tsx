@@ -1,8 +1,9 @@
 import { Add, AutoAwesome } from '@mui/icons-material';
-import { Box, Divider, IconButton, Menu, MenuItem, Tooltip, useTheme } from '@mui/material';
+import { Box, Divider, Menu, MenuItem, useTheme } from '@mui/material';
 import { Background, Connection, Controls, Edge, MarkerType, Node, Panel, ReactFlow, ReactFlowProvider, useNodesInitialized, useNodesState, useReactFlow } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { WorkflowBlock, WorkflowNode } from '../../shared/types';
 import { workflowTemplates } from './workflowTemplates';
 import { NodeCatalogEntry, nodeOutputNames } from './nodeCatalog';
@@ -438,16 +439,20 @@ const WorkflowGraphInner = ({
       >
         <Panel position="top-right">
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-end' }}>
-            <Tooltip title="Add node">
-              <IconButton size="small" onClick={onAddNode} sx={{ bgcolor: 'background.paper', boxShadow: 1, p: 0.5 }}>
-                <Add fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Templates">
-              <IconButton size="small" onClick={e => setTemplatesAnchor(e.currentTarget)} sx={{ bgcolor: 'background.paper', boxShadow: 1, p: 0.5 }}>
-                <AutoAwesome fontSize="small" />
-              </IconButton>
-            </Tooltip>
+            <ButtonTooltip
+              title="Add node"
+              onClick={onAddNode}
+              sx={{ bgcolor: 'background.paper', boxShadow: 1, p: 0.25 }}
+            >
+              <Add sx={{ fontSize: 16 }} />
+            </ButtonTooltip>
+            <ButtonTooltip
+              title="Templates"
+              onClick={e => setTemplatesAnchor(e.currentTarget)}
+              sx={{ bgcolor: 'background.paper', boxShadow: 1, p: 0.25 }}
+            >
+              <AutoAwesome sx={{ fontSize: 16 }} />
+            </ButtonTooltip>
             {actionButtons}
           </Box>
           <Menu anchorEl={templatesAnchor} open={!!templatesAnchor} onClose={() => setTemplatesAnchor(null)}>
