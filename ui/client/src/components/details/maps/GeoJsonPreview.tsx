@@ -6,7 +6,7 @@ import type { GeoJSON } from 'geojson';
 import 'leaflet/dist/leaflet.css';
 import { fetchPython } from '../../../io/fetchPython';
 import { InvalidateOnResize } from './InvalidateOnResize';
-import { darkMapControlsSx, DARK_TILE_URL, LIGHT_TILE_URL } from './mapDarkStyles';
+import { darkMapControlsSx, TILE_ATTRIBUTION, TILE_URL } from './mapDarkStyles';
 
 const GEOJSON_EXTENSIONS = /\.(geojson|geo\.json)$/i;
 
@@ -90,7 +90,7 @@ export const GeoJsonPreview = ({
           zoom={8}
           style={{ height: '100%', width: '100%' }}
         >
-          <TileLayer url={dark ? DARK_TILE_URL : LIGHT_TILE_URL} />
+          <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} />
           <GeoJSONLayer data={mapState.geojson as any} />
           <FitBounds bounds={mapState.bounds} />
           <InvalidateOnResize />
