@@ -126,6 +126,7 @@ const renameField = (from: string, to: string) => {
 
 beforeEach(() => {
   graphProps = null;
+  useProjectStore.setState({ editedDocs: {} });
   useProjectStore.getState().selectProject(PROJECT);
 });
 

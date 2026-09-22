@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import { DocumentObj } from '../../objects/ProjectObj';
+import { useProjectStore } from '../../stores/useProjectStore';
 import { ProjectDocument, WorkflowDesc } from '../../shared/types';
 import { isWorkflowDoc } from '../../shared/workflow';
 import { DocumentFieldsMutator } from '../../shared/workflowMutators/DocumentFieldsMutator';
@@ -12,27 +13,21 @@ export const DetailsViewDocument = ({
   doc: DocumentObj,
   setDoc: (newDoc: DocumentObj) => Promise<void>,
 }) => {
-  const [shownDoc, setShownDoc] = useState<ProjectDocument>(JSON.parse(JSON.stringify(doc.data)));
-  const lastLoadedRef = useRef(doc.data);
+  const editedDoc = useProjectStore(state => state.editedDocs[doc.docid]);
+  const setEditedDoc = useProjectStore(state => state.setEditedDoc);
 
-  // On reload, adopt the new server data only if the user has no unsaved edits;
-  // if the document is being edited, keep their edits (don't reload it). This is
-  // the load path, so it does NOT run the workflow mutators.
-  useEffect(() => {
-    setShownDoc(prev =>
-      JSON.stringify(prev) === JSON.stringify(lastLoadedRef.current)
-        ? JSON.parse(JSON.stringify(doc.data))
-        : prev
-    );
-    lastLoadedRef.current = doc.data;
-  }, [doc.data])
+  // A copy, so nothing editing the shown document can touch the stored one.
+  const loadedDoc = useMemo(() => JSON.parse(JSON.stringify(doc.data)), [doc.data]);
+
+  // While the document has unsaved edits, show those; a reload leaves them alone.
+  const shownDoc = editedDoc ?? loadedDoc;
 
   // Every user edit goes through here; a workflow doc is run through its mutator pipeline before being stored.
   const changeShownDoc = (newDoc: ProjectDocument) => {
     if (isWorkflowDoc(newDoc)) {
-      setShownDoc({ ...newDoc, desc: DocumentFieldsMutator.mutate(newDoc.desc as WorkflowDesc) });
+      setEditedDoc(doc.docid, { ...newDoc, desc: DocumentFieldsMutator.mutate(newDoc.desc as WorkflowDesc) });
     } else {
-      setShownDoc(newDoc);
+      setEditedDoc(doc.docid, newDoc);
     }
   };
 
