@@ -1,11 +1,10 @@
-import { Box, Stack, Typography } from '@mui/material';
+import { Stack } from '@mui/material';
 import { CSSProperties, MouseEvent, ReactNode } from 'react';
 import { TreeItem } from '@mui/x-tree-view';
 import { useTreeViewContext, UseTreeViewExpansionSignature } from '@mui/x-tree-view/internals';
-import { RenameField } from '../../elements/RenameField';
 import { DetailsViewItemValue } from './DetailsViewItemValue';
 import { DetailsViewItemBranchActions } from './DetailsViewItemBranchActions';
-import { DeleteFieldButton } from './DeleteFieldButton';
+import { DetailsViewItemName } from './DetailsViewItemName';
 import { ItemTypeSelector, calcItemType, ItemTypesEnum } from './ItemTypeSelector';
 import { EmptyBranchLabel } from './EmptyBranchLabel';
 import { DATA_FORMAT_FIELD, DESC_FIELD } from '../../shared/constants';
@@ -69,17 +68,6 @@ export const DetailsViewItem = ({
   }
   const { publicAPI } = useTreeViewContext<[UseTreeViewExpansionSignature]>();
 
-  // What the name reads as. The top-level `desc` field isn't renameable, so it
-  // gets a friendlier label of its own.
-  let shownName = nameForView?.(itemKey, parentKey);
-  if (shownName === undefined && itemKey === DESC_FIELD && !parentKey) {
-    shownName = (
-      <Typography sx={{ whiteSpace: 'nowrap', minWidth: '100px', flexShrink: 0 }}>
-        Description (desc)
-      </Typography>
-    );
-  }
-
   return (
     <TreeItem
       key={key}
@@ -105,47 +93,13 @@ export const DetailsViewItem = ({
 
           {renderBeforeName?.(itemKey, parentKey, def)}
 
-          {/* The delete button sits on the name's top-left corner, over no text. */}
-          <Box
-            sx={{
-              position: 'relative',
-              display: 'flex',
-              minWidth: 0,
-              // A row with a custom name keeps it whole; other names may be cut short.
-              flexShrink: shownName !== undefined ? 0 : 1,
-            }}
-          >
-            {!allowRename && shownName}
-            {allowRename && (
-              <RenameField
-                value={itemKey}
-                setValue={setItemKey}
-                labelMinWidth="100px"
-                valueForView={shownName}
-                // A custom name is shown in full; the value field gives up the room.
-                keepViewWidth
-              />
-            )}
-            {setItemKey && (
-              <Box
-                className="field-delete"
-                sx={{
-                  position: 'absolute',
-                  left: '-8px',
-                  top: 0,
-                  transform: 'translateY(-40%)',
-                  zIndex: 2,
-                  '& .MuiIconButton-root': { padding: '2px' },
-                  '& .MuiSvgIcon-root': { fontSize: '0.8rem' },
-                }}
-              >
-                <DeleteFieldButton
-                  itemKey={itemKey}
-                  setItemKey={setItemKey}
-                />
-              </Box>
-            )}
-          </Box>
+          <DetailsViewItemName
+            itemKey={itemKey}
+            parentKey={parentKey}
+            setItemKey={setItemKey}
+            nameForView={nameForView}
+            allowRename={allowRename}
+          />
 
           {/* The type chip picks string/number/null/object for every field,
               except dataFormat (own dropdown) and desc (hidden fields make a
