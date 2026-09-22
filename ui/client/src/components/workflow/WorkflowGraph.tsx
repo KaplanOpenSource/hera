@@ -34,6 +34,8 @@ interface WorkflowGraphProps {
   selectedNode?: string;
   // A request from the output tab to centre on one node.
   focus?: { nodeName: string, seq: number };
+  // The node the pointer is over, or undefined when it left one.
+  onHoverNode?: (name: string | undefined) => void;
   // Extra controls rendered in the canvas's top-right corner (e.g. a run button).
   actionButtons?: ReactNode;
   onSelectNode: (name: string | undefined) => void;
@@ -55,6 +57,7 @@ const WorkflowGraphInner = ({
   nodes,
   selectedNode,
   focus,
+  onHoverNode,
   actionButtons,
   onSelectNode,
   onAddNode,
@@ -456,6 +459,8 @@ const WorkflowGraphInner = ({
           event.preventDefault();
           setMenu({ kind: WorkflowContextMenuKind.Node, name: node.id, x: event.clientX, y: event.clientY });
         }}
+        onNodeMouseEnter={(_event, node) => { return onHoverNode?.(node.id); }}
+        onNodeMouseLeave={() => { return onHoverNode?.(undefined); }}
         onEdgeContextMenu={(event, edge) => {
           event.preventDefault();
           setMenu({ kind: WorkflowContextMenuKind.Edge, source: edge.source, target: edge.target, x: event.clientX, y: event.clientY });

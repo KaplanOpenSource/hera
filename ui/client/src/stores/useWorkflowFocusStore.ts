@@ -8,9 +8,17 @@ export type NodeFocus = {
   seq: number,
 };
 
+// The node the pointer is over on a canvas, or null when it left.
+export type NodeHover = {
+  workflowName: string,
+  nodeName: string,
+};
+
 type WorkflowFocusStore = {
   focus: NodeFocus | null,
   focusNode: (workflowName: string, nodeName: string) => void,
+  hover: NodeHover | null,
+  hoverNode: (workflowName: string, nodeName: string | null) => void,
 };
 
 // Lets the output tab point the canvas tab at a node; the two are separate tabs,
@@ -22,6 +30,10 @@ export const useWorkflowFocusStore = create<WorkflowFocusStore>((set) => {
       return set((state) => {
         return { focus: { workflowName, nodeName, seq: (state.focus?.seq ?? 0) + 1 } };
       });
+    },
+    hover: null,
+    hoverNode: (workflowName, nodeName) => {
+      return set({ hover: nodeName === null ? null : { workflowName, nodeName } });
     },
   };
 });

@@ -10,7 +10,7 @@ const focus = () => {
 };
 
 beforeEach(() => {
-  useWorkflowFocusStore.setState({ focus: null });
+  useWorkflowFocusStore.setState({ focus: null, hover: null });
 });
 
 describe('useWorkflowFocusStore', () => {
@@ -39,5 +39,31 @@ describe('useWorkflowFocusStore', () => {
 
     expect(focus()?.workflowName).toBe('Other');
     expect(focus()?.nodeName).toBe('Build');
+  });
+});
+
+describe('useWorkflowFocusStore hover', () => {
+  const hoverNode = (workflowName: string, nodeName: string | null) => {
+    useWorkflowFocusStore.getState().hoverNode(workflowName, nodeName);
+  };
+  const hover = () => {
+    return useWorkflowFocusStore.getState().hover;
+  };
+
+  it('starts with nothing hovered', () => {
+    expect(hover()).toBeNull();
+  });
+
+  it('records the hovered node', () => {
+    hoverNode('Workflow2', 'ListFiles');
+
+    expect(hover()).toEqual({ workflowName: 'Workflow2', nodeName: 'ListFiles' });
+  });
+
+  it('clears when the pointer leaves the node', () => {
+    hoverNode('Workflow2', 'ListFiles');
+    hoverNode('Workflow2', null);
+
+    expect(hover()).toBeNull();
   });
 });

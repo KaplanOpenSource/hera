@@ -53,6 +53,7 @@ export const WorkflowEditor = ({
 
   // The output tab names a Luigi task; map it back to this workflow's node.
   const storeFocus = useWorkflowFocusStore(s => s.focus);
+  const hoverNode = useWorkflowFocusStore(s => s.hoverNode);
   const focusName = storeFocus && storeFocus.workflowName === workflowName
     ? nodeNameFromTask(storeFocus.nodeName, nodeNames)
     : undefined;
@@ -154,6 +155,7 @@ export const WorkflowEditor = ({
               nodes={block.nodes ?? {}}
               selectedNode={selectedNode}
               focus={focus}
+              onHoverNode={name => workflowName && hoverNode(workflowName, name ?? null)}
               actionButtons={actionButtons}
               onSelectNode={setSelectedNode}
               onAddNode={addNode}

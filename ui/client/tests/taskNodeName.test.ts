@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { nodeNameFromTask } from '../src/components/workflow/taskNodeName';
+import { nodeNameFromTask, taskBelongsToNode } from '../src/components/workflow/taskNodeName';
 
 const nodeNames = ['ListFiles', 'finalnode_xx', 'Run', 'Run_extra'];
 
@@ -27,5 +27,23 @@ describe('nodeNameFromTask', () => {
 
   it('does not match a suffix that is not an index', () => {
     expect(nodeNameFromTask('ListFiles_final', nodeNames)).toBeUndefined();
+  });
+});
+
+describe('taskBelongsToNode', () => {
+  it('matches a generated task to its node', () => {
+    expect(taskBelongsToNode('ListFiles_0', 'ListFiles')).toBe(true);
+  });
+
+  it('matches a task named exactly like the node', () => {
+    expect(taskBelongsToNode('ListFiles', 'ListFiles')).toBe(true);
+  });
+
+  it('does not match another node that shares a prefix', () => {
+    expect(taskBelongsToNode('Run_extra_0', 'Run')).toBe(false);
+  });
+
+  it('does not match filler output', () => {
+    expect(taskBelongsToNode('__between__', 'ListFiles')).toBe(false);
   });
 });

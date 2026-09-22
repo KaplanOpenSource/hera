@@ -5,6 +5,7 @@ import { useLogFilterStore } from '../../../stores/useLogFilterStore';
 import { useWorkflowFocusStore } from '../../../stores/useWorkflowFocusStore';
 import { chunkedMetrics, flatMetrics, LogMetrics } from './logMetrics';
 import { LogToolbar } from './LogToolbar';
+import { taskBelongsToNode } from '../taskNodeName';
 import { isTaskChunk } from './WorkflowChunkLog';
 import { WorkflowChunkedLog } from './WorkflowChunkedLog';
 import { WorkflowLogView } from './WorkflowLogView';
@@ -30,6 +31,7 @@ export const WorkflowOutputView = ({
   const visible = useLogFilterStore((state) => { return state.visible; });
   const toggle = useLogFilterStore((state) => { return state.toggle; });
   const focusNode = useWorkflowFocusStore((state) => { return state.focusNode; });
+  const hover = useWorkflowFocusStore((state) => { return state.hover; });
 
   const chunkList = chunks ?? [];
   // Cards throughout: the chunks carry their task name while running too, so the
@@ -69,6 +71,7 @@ export const WorkflowOutputView = ({
 
   // Focus the node the select shows, but not the one in view when it first opens.
   const firstShow = useRef(true);
+  const fromHover = useRef(false);
   useEffect(() => {
     if (currentIndex === undefined) {
       return;
@@ -77,20 +80,40 @@ export const WorkflowOutputView = ({
       firstShow.current = false;
       return;
     }
+    // Scrolled because the canvas was hovered; sending a focus back would ping-pong.
+    if (fromHover.current) {
+      fromHover.current = false;
+      return;
+    }
     if (workflowName) {
       focusNode(workflowName, chunkList[currentIndex].name);
     }
   }, [currentIndex]);
 
-  const scrollToChunk = (index: number) => {
+  const scrollToChunk = (index: number, silent = false) => {
     const view = scrollRef.current;
     const card = cards().find((c) => { return Number(c.dataset.chunkIndex) === index; });
     if (!view || !card) {
       return;
     }
-    view.scrollTop += card.getBoundingClientRect().top - view.getBoundingClientRect().top;
+    const by = card.getBoundingClientRect().top - view.getBoundingClientRect().top;
+    if (silent && by !== 0) {
+      fromHover.current = true;
+    }
+    view.scrollTop += by;
     setCurrentIndex(index);
   };
+
+  // Hovering a node on the canvas brings its output into view.
+  useEffect(() => {
+    if (!hover || hover.workflowName !== workflowName) {
+      return;
+    }
+    const index = chunkList.findIndex((chunk) => { return taskBelongsToNode(chunk.name, hover.nodeName); });
+    if (index >= 0) {
+      scrollToChunk(index, true);
+    }
+  }, [hover]);
 
   let metrics: LogMetrics;
   if (showChunked) {
