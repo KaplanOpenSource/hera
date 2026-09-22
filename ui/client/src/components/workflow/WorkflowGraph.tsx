@@ -305,7 +305,7 @@ const WorkflowGraphInner = ({
       .filter(option => option.outputs.length > 0)
     : [];
 
-  // Inserts a {sourceNode.parameters.output} reference into the field's value at
+  // Inserts a {sourceNode.output.name} reference into the field's value at
   // the right-click caret (defaulting to the end), leaving the rest of the value
   // intact (the menu closes itself afterward).
   const referenceOutput = (nodeName: string, param: string, sourceNode: string, output: string, caret?: number) => {
@@ -361,8 +361,8 @@ const WorkflowGraphInner = ({
   };
 
   // Picks the highlighted inline suggestion. Choosing a node writes the reference
-  // scaffold ({node.parameters.}) and switches to picking that node's output;
-  // choosing an output completes the {node.parameters.key} token and closes.
+  // scaffold ({node.output.}) and switches to picking that node's output;
+  // choosing an output completes the {node.output.key} token and closes.
   const pickInline = (option: string) => {
     if (inline === null) {
       return;
@@ -375,7 +375,7 @@ const WorkflowGraphInner = ({
       return;
     }
     if (token.stage === ReferenceTokenStage.Node) {
-      const scaffold = `{${option}.parameters.`;
+      const scaffold = `{${option}.output.`;
       const next = value.slice(0, token.start) + scaffold + value.slice(token.end);
       commitInlineValue(inline.node, inline.param, next, token.start + scaffold.length, el);
       setInline({ ...inline, options: nodeOutputNames(nodes[option] ?? {}, catalog) });

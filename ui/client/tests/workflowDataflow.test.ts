@@ -29,6 +29,7 @@ const catalog: NodeCatalogEntry[] = [{
 
 const nodes: { [name: string]: WorkflowNode } = {
   C: { type: 'general.CopyDirectory' },
+  // Kept in the legacy `parameters` form, so reading old workflows stays covered.
   A: { type: 'general.CopyDirectory', Execution: { input_parameters: { bbb: '{C.parameters.ggg}' } } },
 };
 
@@ -93,15 +94,15 @@ describe('parseDataflowConnection', () => {
 });
 
 describe('setInputReference', () => {
-  it('writes {source.parameters.name} into the target parameter', () => {
+  it('writes {source.output.name} into the target parameter', () => {
     const updated = setInputReference({ type: 'general.CopyDirectory' }, 'bbb', 'C', 'ggg');
-    expect(updated.Execution?.input_parameters?.bbb).toBe('{C.parameters.ggg}');
+    expect(updated.Execution?.input_parameters?.bbb).toBe('{C.output.ggg}');
   });
 
   it('keeps other parameters intact', () => {
     const node = { type: 'general.CopyDirectory', Execution: { input_parameters: { aaa: '1' } } };
     const updated = setInputReference(node, 'bbb', 'C', 'ggg');
-    expect(updated.Execution?.input_parameters).toEqual({ aaa: '1', bbb: '{C.parameters.ggg}' });
+    expect(updated.Execution?.input_parameters).toEqual({ aaa: '1', bbb: '{C.output.ggg}' });
   });
 
   it('round-trips into a dataflow edge', () => {
@@ -114,34 +115,34 @@ describe('setInputReference', () => {
 
 describe('dataflowReference', () => {
   it('builds the reference token', () => {
-    expect(dataflowReference('C', 'ggg')).toBe('{C.parameters.ggg}');
+    expect(dataflowReference('C', 'ggg')).toBe('{C.output.ggg}');
   });
 });
 
 describe('insertReferenceAt', () => {
   it('inserts the token at a caret in the middle', () => {
-    expect(insertReferenceAt('ab', 1, 'C', 'ggg')).toBe('a{C.parameters.ggg}b');
+    expect(insertReferenceAt('ab', 1, 'C', 'ggg')).toBe('a{C.output.ggg}b');
   });
 
   it('inserts at the start and at the end', () => {
-    expect(insertReferenceAt('ab', 0, 'C', 'ggg')).toBe('{C.parameters.ggg}ab');
-    expect(insertReferenceAt('ab', 2, 'C', 'ggg')).toBe('ab{C.parameters.ggg}');
+    expect(insertReferenceAt('ab', 0, 'C', 'ggg')).toBe('{C.output.ggg}ab');
+    expect(insertReferenceAt('ab', 2, 'C', 'ggg')).toBe('ab{C.output.ggg}');
   });
 
   it('is just the token for an empty value', () => {
-    expect(insertReferenceAt('', 0, 'C', 'ggg')).toBe('{C.parameters.ggg}');
+    expect(insertReferenceAt('', 0, 'C', 'ggg')).toBe('{C.output.ggg}');
   });
 
   it('clamps a caret out of range', () => {
-    expect(insertReferenceAt('ab', -5, 'C', 'ggg')).toBe('{C.parameters.ggg}ab');
-    expect(insertReferenceAt('ab', 99, 'C', 'ggg')).toBe('ab{C.parameters.ggg}');
+    expect(insertReferenceAt('ab', -5, 'C', 'ggg')).toBe('{C.output.ggg}ab');
+    expect(insertReferenceAt('ab', 99, 'C', 'ggg')).toBe('ab{C.output.ggg}');
   });
 });
 
 describe('tokenAtCaret', () => {
   it('returns null when the caret is not inside a {…} token', () => {
     expect(tokenAtCaret('hello', 3)).toBeNull();
-    expect(tokenAtCaret('{C.parameters.ggg} tail', 20)).toBeNull();
+    expect(tokenAtCaret('{C.output.ggg} tail', 16)).toBeNull();
   });
 
   it('reads the node stage before any dot', () => {
@@ -163,30 +164,30 @@ describe('tokenAtCaret', () => {
   });
 
   it('filters output keys by the text after the last dot', () => {
-    expect(tokenAtCaret('{C.parameters.gg', 16)).toEqual({
-      stage: ReferenceTokenStage.Output, nodePart: 'C', seed: 'gg', start: 0, end: 16,
+    expect(tokenAtCaret('{C.output.gg', 12)).toEqual({
+      stage: ReferenceTokenStage.Output, nodePart: 'C', seed: 'gg', start: 0, end: 12,
     });
   });
 
   it('spans past the closing brace when the token is already closed', () => {
-    const value = '{C.parameters.ggg}';
-    expect(tokenAtCaret(value, 16)).toEqual({
-      stage: ReferenceTokenStage.Output, nodePart: 'C', seed: 'gg', start: 0, end: 18,
+    const value = '{C.output.ggg}';
+    expect(tokenAtCaret(value, 12)).toEqual({
+      stage: ReferenceTokenStage.Output, nodePart: 'C', seed: 'gg', start: 0, end: 14,
     });
   });
 
   it('stops the span at the caret when the token is unclosed before another {', () => {
-    expect(tokenAtCaret('{C.parameters.g {D', 15)).toMatchObject({ start: 0, end: 15 });
+    expect(tokenAtCaret('{C.output.g {D', 11)).toMatchObject({ start: 0, end: 11 });
   });
 });
 
 describe('replaceReferenceAt', () => {
   it('overwrites the token span with a full reference', () => {
-    expect(replaceReferenceAt('{Cca', 0, 4, 'C', 'ggg')).toBe('{C.parameters.ggg}');
+    expect(replaceReferenceAt('{Cca', 0, 4, 'C', 'ggg')).toBe('{C.output.ggg}');
   });
 
   it('keeps text on either side of the span', () => {
-    expect(replaceReferenceAt('a {C.p} b', 2, 7, 'C', 'ggg')).toBe('a {C.parameters.ggg} b');
+    expect(replaceReferenceAt('a {C.p} b', 2, 7, 'C', 'ggg')).toBe('a {C.output.ggg} b');
   });
 });
 
