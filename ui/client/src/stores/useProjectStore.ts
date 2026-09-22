@@ -1,4 +1,4 @@
-import { ProjectEntire, ProjectName } from '@shared/types';
+import { ProjectEntire } from '@shared/types';
 import { create } from 'zustand';
 import { ProjectObj } from '../objects/ProjectObj';
 
@@ -7,22 +7,16 @@ export const DEFAULT_PROJECT = "defaultProject";
 export const EMPTY_NAME_PROJECT = "* Empty Name *";
 
 interface ProjectStore {
-  projectNames: ProjectName[]; // List of project names
   currProjectName: string;
   currProject: ProjectEntire | null; // Current project
-  setProjectNames: (names: ProjectName[]) => void; // Sets project names
   selectProject: (newProjectId: string) => void;
   setCurrentProject: (project: ProjectEntire | null) => void; // Sets current project
   getProject: () => ProjectObj | null;
 }
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
-  projectNames: [],
   currProjectName: NO_PROJECT,
   currProject: null,
-  setProjectNames: (names) => {
-    set({ projectNames: names })
-  },
   selectProject: (newProjectName: string) => {
     set({ currProjectName: newProjectName })
   },

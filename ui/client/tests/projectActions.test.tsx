@@ -16,6 +16,7 @@ vi.mock('../src/io/FetchProjects', () => ({
 const { DeleteSelectedButton } = await import('../src/components/project/DeleteSelectedButton');
 const { ProjectActionsButton } = await import('../src/components/project/ProjectActionsButton');
 const { useProjectStore } = await import('../src/stores/useProjectStore');
+const { useProjectListStore } = await import('../src/stores/useProjectListStore');
 const { idDocId, idRepoId } = await import('../src/shared/idDocId');
 
 const configDoc = {
@@ -40,10 +41,10 @@ const doc = (oid: string) => ({
 beforeEach(() => {
   vi.clearAllMocks();
   useProjectStore.setState({
-    projectNames: [{ name: 'TestProject' }],
     currProjectName: 'TestProject',
     currProject: { name: 'TestProject', documents: [configDoc, doc('doc1'), doc('doc2')] },
   });
+  useProjectListStore.setState({ projectNames: [{ name: 'TestProject' }] });
 });
 
 afterEach(() => {

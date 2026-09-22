@@ -8,6 +8,7 @@ vi.mock('../../src/stores/useServerConstants', async () => (await import('./mock
 vi.mock('../../src/io/snackbar', async () => (await import('./mockFactories')).createSnackbarMock());
 
 import { useProjectStore } from '../../src/stores/useProjectStore';
+import { useProjectListStore } from '../../src/stores/useProjectListStore';
 
 describe('Add Project UI integration', () => {
   beforeEach(() => { resetStore(); });
@@ -33,7 +34,7 @@ describe('Add Project UI integration', () => {
     });
 
     await waitFor(() => {
-      const names = useProjectStore.getState().projectNames;
+      const names = useProjectListStore.getState().projectNames;
       expect(names.some(p => p.name === 'UITestProject')).toBe(true);
     }, { timeout: 15000 });
   }, 30000);
@@ -43,7 +44,7 @@ describe('Add Project UI integration', () => {
     renderApp('/');
 
     await waitFor(() => {
-      const names = useProjectStore.getState().projectNames;
+      const names = useProjectListStore.getState().projectNames;
       expect(names.some(p => p.name === 'UITestProject')).toBe(true);
     }, { timeout: 10000 });
   }, 15000);

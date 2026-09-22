@@ -2,6 +2,7 @@ import { ProjectEntire, ProjectName, Toolkit } from "@shared/types";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { NO_PROJECT, useProjectStore } from "../stores/useProjectStore";
+import { useProjectListStore } from "../stores/useProjectListStore";
 import { useToolkitStore } from "../stores/useToolkitStore";
 import { fetchPython, fetchPythonClean } from "./fetchPython";
 import { ProjectCommands } from "./ProjectCommands";
@@ -9,7 +10,7 @@ import { ProjectCommands } from "./ProjectCommands";
 export const fetchProjectsNames = async () => {
   const { data } = await fetchPython(ProjectCommands.projectNames());
   if (data) {
-    useProjectStore.getState().setProjectNames(data.projects as ProjectName[])
+    useProjectListStore.getState().setProjectNames(data.projects as ProjectName[])
   }
 }
 
@@ -93,11 +94,8 @@ export const FetchProjects = ({
 }: {
   urlProjectName?: string,
 }) => {
-  const {
-    projectNames,
-    currProjectName,
-    selectProject,
-  } = useProjectStore();
+  const { projectNames } = useProjectListStore();
+  const { currProjectName, selectProject } = useProjectStore();
   const navigate = useNavigate();
 
   useEffect(() => {

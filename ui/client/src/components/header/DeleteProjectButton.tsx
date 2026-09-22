@@ -5,6 +5,7 @@ import { useDialog } from "../../elements/useDialog";
 import { fetchPython } from "../../io/fetchPython";
 import { ProjectEntire, ProjectName } from "../../shared/types";
 import { useProjectStore } from "../../stores/useProjectStore";
+import { useProjectListStore } from "../../stores/useProjectListStore";
 
 interface DeleteProjectValues {
   confirmName: string;
@@ -17,7 +18,8 @@ export const DeleteProjectButton = ({
   onDeleted?: () => void,
 }) => {
   const { openDialog, DialogComponent } = useDialog<DeleteProjectValues>();
-  const { currProjectName, selectProject, setProjectNames, setCurrentProject } = useProjectStore();
+  const { currProjectName, selectProject, setCurrentProject } = useProjectStore();
+  const { setProjectNames } = useProjectListStore();
 
   const deleteProject = async (deleteFiles: boolean) => {
     const { data } = await fetchPython({

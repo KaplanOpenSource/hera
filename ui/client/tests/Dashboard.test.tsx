@@ -3,6 +3,7 @@ import { render, screen, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { Dashboard } from '../src/Dashboard';
 import { useProjectStore } from '../src/stores/useProjectStore';
+import { useProjectListStore } from '../src/stores/useProjectListStore';
 
 vi.mock('../src/io/FetchProjects', () => ({
   FetchProjects: () => null,
@@ -42,10 +43,10 @@ describe('Dashboard', () => {
 
   beforeEach(() => {
     useProjectStore.setState({
-      projectNames: [],
       currProjectName: '* NONE *',
       currProject: null,
     });
+    useProjectListStore.setState({ projectNames: [] });
   });
 
   it('shows "No project loaded" when no project is selected', () => {
