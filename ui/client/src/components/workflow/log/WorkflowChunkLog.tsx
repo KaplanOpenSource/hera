@@ -32,6 +32,16 @@ const styleForName = (
   return { label: name, color: 'primary.main', dashed: false };
 };
 
+// Whether a chunk is a real task, not the setup / between / final filler.
+export const isTaskChunk = (name: string): boolean => {
+  return name !== PREAMBLE && name !== BETWEEN;
+};
+
+// Whether a chunk renders a card at all (the filter may still hide its lines).
+export const chunkHasContent = (chunk: WorkflowChunk): boolean => {
+  return classifyLog(withoutEventLines(chunk.text)).some((line) => { return line.text.trim() !== ''; });
+};
+
 // Renders one output chunk (a single task's segment) as a self-contained boxed card:
 // the task name (or "setup" / "between" / "final") as a header, then its lines.
 // Reads the shared log-level filter so it stays in sync with the toolbar. Kept on
@@ -40,9 +50,12 @@ const styleForName = (
 export const WorkflowChunkLog = ({
   chunk,
   isLast = false,
+  index,
 }: {
   chunk: WorkflowChunk,
   isLast?: boolean,
+  // Marks the card in the DOM so the output panel can scroll to it.
+  index?: number,
 }) => {
   const visible = useLogFilterStore((state) => { return state.visible; });
 
@@ -53,6 +66,7 @@ export const WorkflowChunkLog = ({
   return hasContent && (
     <Paper
       variant="outlined"
+      data-chunk-index={index}
       sx={{
         fontFamily: 'monospace',
         fontSize: 12,

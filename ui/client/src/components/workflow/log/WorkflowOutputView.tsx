@@ -1,10 +1,14 @@
 import { Box, CircularProgress, Typography } from '@mui/material';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { chunksToText, WorkflowChunk } from '../../../io/runWorkflow';
 import { useLogFilterStore } from '../../../stores/useLogFilterStore';
 import { chunkedMetrics, flatMetrics, LogMetrics } from './logMetrics';
 import { LogToolbar } from './LogToolbar';
+import { isTaskChunk } from './WorkflowChunkLog';
 import { WorkflowChunkedLog } from './WorkflowChunkedLog';
 import { WorkflowLogView } from './WorkflowLogView';
+import { WorkflowNodeSelect } from './WorkflowNodeSelect';
+import { ChunkEdge, currentChunkIndex } from './visibleChunk';
 
 // Shows a workflow run's output as per-task cards, growing live as the run streams
 // (with a small "running" hint) and staying in the same shape once it finishes, so
@@ -32,6 +36,43 @@ export const WorkflowOutputView = ({
   // failure produced no output at all is there nothing to show but the error.
   const showLog = running || chunkList.length > 0;
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [currentIndex, setCurrentIndex] = useState<number | undefined>(undefined);
+
+  // The rendered cards, in document order, marked by WorkflowChunkLog.
+  const cards = (): HTMLElement[] => {
+    return Array.from(scrollRef.current?.querySelectorAll<HTMLElement>('[data-chunk-index]') ?? []);
+  };
+
+  const syncCurrent = useCallback(() => {
+    const view = scrollRef.current;
+    if (!view) {
+      return;
+    }
+    const viewTop = view.getBoundingClientRect().top;
+    // Only node cards; the select cannot show the setup / between / final filler.
+    const edges: ChunkEdge[] = cards()
+      .map((card) => {
+        const rect = card.getBoundingClientRect();
+        return { index: Number(card.dataset.chunkIndex), top: rect.top, bottom: rect.bottom };
+      })
+      .filter((edge) => { return isTaskChunk(chunkList[edge.index]?.name ?? ''); });
+    setCurrentIndex(currentChunkIndex(viewTop, edges));
+  }, [chunkList]);
+
+  // A live run adds cards, so the shown node is recomputed as the log grows too.
+  useEffect(syncCurrent, [syncCurrent, chunkList.length]);
+
+  const scrollToChunk = (index: number) => {
+    const view = scrollRef.current;
+    const card = cards().find((c) => { return Number(c.dataset.chunkIndex) === index; });
+    if (!view || !card) {
+      return;
+    }
+    view.scrollTop += card.getBoundingClientRect().top - view.getBoundingClientRect().top;
+    setCurrentIndex(index);
+  };
+
   let metrics: LogMetrics;
   if (showChunked) {
     metrics = chunkedMetrics(chunkList);
@@ -40,8 +81,14 @@ export const WorkflowOutputView = ({
   }
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      <Box sx={{ flexGrow: 1, overflow: 'auto', p: 1, minHeight: 0 }}>
+    <Box sx={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      {/* Floats over the log rather than taking a bar of its own. */}
+      {showChunked && (
+        <Box sx={{ position: 'absolute', top: 8, right: 16, zIndex: 2 }}>
+          <WorkflowNodeSelect chunks={chunkList} currentIndex={currentIndex} onPick={scrollToChunk} />
+        </Box>
+      )}
+      <Box ref={scrollRef} onScroll={syncCurrent} sx={{ flexGrow: 1, overflow: 'auto', p: 1, minHeight: 0 }}>
         {!running && error && (
           <Typography color="error" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
             {error}

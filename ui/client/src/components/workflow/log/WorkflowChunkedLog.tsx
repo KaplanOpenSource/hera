@@ -16,6 +16,7 @@ export const WorkflowChunkedLog = ({
           <WorkflowChunkLog
             key={chunkIndex}
             chunk={chunk}
+            index={chunkIndex}
             isLast={chunkIndex === chunks.length - 1}
           />
         );
