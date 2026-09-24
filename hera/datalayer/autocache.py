@@ -8,6 +8,9 @@ from functools import wraps
 from bson import BSON
 from bson.errors import InvalidDocument
 
+# Project is imported lazily inside the functions that need it;
+# see hera/__init__.py for why.
+
 
 def clearAllFunctionsCache(projectName=None):
     """
@@ -37,6 +40,7 @@ def clearFunctionCache(functionName,projectName=None):
 
     """
     from hera import Project
+
     proj = Project(projectName=projectName)
     paramDict = dict()
     if functionName is not None:
@@ -222,7 +226,7 @@ class cacheDecorators:
                 doc = self.saveFunctionCache(call_info_serialized,data)
 
         ret = data if self.postProcessFunction is None else self.postProcessFunction(data)
-        return ret, doc if self.returnDoc else ret
+        return (ret, doc) if self.returnDoc else ret
 
     def _get_full_func_name(self,func):
         """Returns the full qualified path: module.[class.]function_name"""
@@ -268,6 +272,7 @@ class cacheDecorators:
         """
 
         from hera import Project
+
         proj = Project(self.projectName)
         docList = proj.getCacheDocuments(type="functionCacheData",**call_info)
         if len(docList) == 0:
@@ -291,6 +296,7 @@ class cacheDecorators:
 
         """
         from hera import Project
+
         proj = Project(self.projectName)
         return proj.saveCacheData(name=call_info['functionName'], data=data, desc=call_info, type="functionCacheData",dataFormat=self.dataFormat)
 

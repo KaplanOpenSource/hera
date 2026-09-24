@@ -53,7 +53,14 @@ config.json
 additional installations/*.tar.bz2
 additional installations/*.conda
 
-# Local Claude instructions
-CLAUDE.local.md
+# Coverage measurement data (see .coveragerc, `make coverage`).  parallel=True
+# means each run writes .coverage.<host>.<pid>.<rand> fragments, and the make
+# targets name one file per test layer.  The HTML report lands under cache/,
+# which is already ignored above.
+.coverage
+.coverage.*
 
-ollama-data/
+# Claude Code working files — plans, specs and findings written during a
+# session; useful locally, not part of the source tree.
+docs/superpowers/
+.claude/
