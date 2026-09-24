@@ -6,7 +6,7 @@ import dask
 import pandas
 import shutil
 import json
-from evtk import hl as evtk_hl
+from pyevtk import hl as evtk_hl
 import dask.dataframe as dask_dataframe
 from itertools import chain
 from itertools import product
