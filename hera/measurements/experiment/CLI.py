@@ -3,7 +3,7 @@ import logging
 import json
 import shutil
 import glob
-from ...utils.jsonutils import loadJSON
+from hera.utils.jsonutils import loadJSON
 from hera import datalayer
 from hera.utils.data import CLI as projectCLI
 
@@ -342,7 +342,7 @@ def load_experiment_to_project(arguments):
     if arguments.projectName not in datalayer.getProjectList():
         logger.info(f" No project with name {arguments.projectName}, will create a new one.")
 
-    from ...utils.data.toolkit import dataToolkit
+    from hera.utils.data.toolkit import dataToolkit
     data_tk = dataToolkit()
     data_tk.addRepository(repositoryName=repository_name,
                       repositoryPath=repository,
