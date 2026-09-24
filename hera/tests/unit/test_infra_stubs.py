@@ -13,8 +13,12 @@ def test_stub_modules_are_registered():
 
 @pytest.mark.unit
 def test_namespace_stub_supports_submodule_import():
-    """A namespace stub must carry __path__ or `import a.b` fails."""
-    assert sys.modules["PyFoam"].__path__ == []
+    """A namespace stub must carry __path__ or `import a.b` fails.
+
+    Real or stubbed, depending on whether PyFoam is installed here -- the
+    stub yields to a real install, so only the package-ness is asserted.
+    """
+    assert hasattr(sys.modules["PyFoam"], "__path__")
 
 
 @pytest.mark.unit

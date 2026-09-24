@@ -41,12 +41,21 @@ def write_pyhera_config():
 
     The caller is responsible for pointing HOME at a temp directory first;
     see the bootstrap block in conftest.py for why that cannot live here.
+    An existing config.json means HOME was NOT moved -- the temp HOME never
+    has one -- so the file is left alone and the run fails here rather than
+    overwriting the developer's real credentials.
 
     Returns the path of the file written.
     """
     pyhera = pathlib.Path(os.environ["HOME"], ".pyhera")
-    pyhera.mkdir(parents=True, exist_ok=True)
     config_path = pyhera / "config.json"
+    if config_path.exists():
+        raise RuntimeError(
+            f"{config_path} already exists, so HOME ({os.environ['HOME']}) is not "
+            "the temp directory the unit layer expects. Refusing to overwrite it; "
+            "check the bootstrap block at the top of hera/tests/unit/conftest.py."
+        )
+    pyhera.mkdir(parents=True, exist_ok=True)
     with open(config_path, "w", encoding="utf-8") as handle:
         json.dump({getpass.getuser(): dict(_UNIT_MONGO_CONFIG)}, handle)
     return config_path

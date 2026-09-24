@@ -218,11 +218,8 @@ jobs:
           # just downloaded and the integration half from the step above --
           # into a single .coverage that the report then reads.
           coverage combine
+          # fail_under lives in .coveragerc, next to the rest of the config.
           coverage report
-          # First numeric line; the rest of the file documents the baseline.
-          FLOOR="$(grep -oE '^[0-9]+' coverage_floor.txt | head -1)"
-          echo "Enforcing combined coverage floor: ${FLOOR}%"
-          coverage report --fail-under="${FLOOR}"
 
   ui-client:
     name: UI client checks

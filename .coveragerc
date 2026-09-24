@@ -17,6 +17,9 @@ omit =
     hera/simulations/openFoam/toberewritten/*
 
 [report]
+# Combined line+branch coverage floor, enforced in CI by `coverage report`.
+# Raise it in the same PR that raises coverage; never lower it.
+fail_under = 30
 show_missing = True
 skip_covered = False
 exclude_lines =
