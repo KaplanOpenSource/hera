@@ -1,20 +1,22 @@
 import json
-from typing import Literal
-import numpy
-import os.path
-import importlib
-import tqdm
-import pandas
-import pydoc
-from hera import get_classMethod_logger
-import hera.simulations.openFoam.postProcess.VTKPipeline as pipelineModule
-from hera.simulations.openFoam import CASETYPE_DECOMPOSED, CASETYPE_RECONSTRUCTED, TYPE_VTK_FILTER
-from hera.utils import dictToMongoQuery
-from hera.simulations.openFoam.postProcess.pvOpenFOAMBase import paraviewOpenFOAM
-import paraview.simple as pvsimple
-from deprecated import deprecated
 import os
+import os.path
+import pydoc
 import shutil
+from typing import Literal
+
+import numpy
+import pandas
+from paraview import servermanager
+from deprecated import deprecated
+
+import hera.simulations.openFoam.postProcess.VTKPipeline as pipelineModule
+from hera import get_classMethod_logger
+from hera.simulations.LSM.hermesWorkflowToolkit import workflowToolkit
+from hera.simulations.openFoam import CASETYPE_DECOMPOSED, TYPE_VTK_FILTER
+from hera.simulations.openFoam.postProcess.pvOpenFOAMBase import paraviewOpenFOAM
+from hera.utils import dictToMongoQuery
+
 
 class VTKPipeLine:
     """
@@ -207,7 +209,7 @@ class registeredVTKPipeLine:
     casePath = None
     pvOFBase = None
 
-    def __init__(self, datalayer, vtkpipeline, nameOrWorkflowFileOrJSONOrResource, serverName=None,
+    def __init__(self, datalayer:workflowToolkit, vtkpipeline:VTKPipeLine, nameOrWorkflowFileOrJSONOrResource, serverName=None,
                  caseType=CASETYPE_DECOMPOSED):
         """Initialize by binding a VTK pipeline to a simulation case from DB or directory."""
         logger = get_classMethod_logger(self, "__init__")
@@ -220,13 +222,16 @@ class registeredVTKPipeLine:
         if len(simulationDocumentList) != 0:
             logger.info(f"found {nameOrWorkflowFileOrJSONOrResource} in database")
             simulationDocument = simulationDocumentList[0]
-            self.casePath = simulationDocument.resource
+            if simulationDocument.type == workflowToolkit.DOCTYPE_WORKFLOW:
+                self.casePath = os.path.splitext(simulationDocument.resource)[0]
+            else:
+                self.casePath = simulationDocument.resource
             self.simulationDocument = simulationDocument
             simulationProperties = self.simulationDocument['desc'].copy()
             self.simulationParams = {
                 "workflowName": simulationProperties['workflowName'],
                 "groupName": simulationProperties['groupName'],
-                "workflowParameters": simulationProperties['parameters']
+                "workflowParameters": self.datalayer.getParamsFromDoc(simulationDocument)
             }
         elif os.path.isdir(nameOrWorkflowFileOrJSONOrResource):
             logger.info(f"{nameOrWorkflowFileOrJSONOrResource} is a directory, creating a psuedo document")
@@ -589,6 +594,7 @@ class registeredVTKPipeLine:
                 # Instantiate the actual ParaView filter object. `father` is the
                 # upstream pipeline source (reader or another filter) that feeds data
                 # into this filter.
+                logger.debug(f"getting {filtertype} from pvsimple")
                 filter = getattr(pvsimple, filtertype)(Input=father, guiName=newFilterName)
                 logger.debug(
                     f"Adding filter {filterGuiName} of type {filtertype} to {'Reader' if fatherName is None else fatherName}")
@@ -607,7 +613,20 @@ class registeredVTKPipeLine:
                         paramobj = getattr(paramobj, pname)
                     setattr(paramobj, paramnamelist[-1], pvalue)
                 # Force the filter to execute so downstream filters see updated data.
-                filter.UpdatePipeline()
+                logger.debug("Updating paraview pipeline")
+                # Debug: fetch upstream data before updating
+        try:
+            upstream = servermanager.Fetch(filter.Input)
+            if upstream is not None:
+                pt_arrays = [upstream.GetPointData().GetArrayName(i) for i in range(upstream.GetPointData().GetNumberOfArrays())] if upstream.GetPointData() else []
+                ct_arrays = [upstream.GetCellData().GetArrayName(i) for i in range(upstream.GetCellData().GetNumberOfArrays())] if upstream.GetCellData() else []
+                logger.debug(f"Upstream data for {newFilterName}: point arrays={pt_arrays}, cell arrays={ct_arrays}")
+            else:
+                logger.debug(f"Upstream data for {newFilterName} is None")
+        except Exception as e:
+            logger.error(f"Failed to fetch upstream data for {newFilterName}: {e}")
+        # Now force the filter to execute so downstream filters see updated data.
+        filter.UpdatePipeline()
                 logger.debug(f"Filter {newFilterName} added to the pipeline. Now adding its downstream filters.")
                 ret.append(newFilterName)
                 # Recurse into the downstream children of this filter, building the
