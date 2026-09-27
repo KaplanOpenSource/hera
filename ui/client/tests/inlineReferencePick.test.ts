@@ -6,8 +6,25 @@ describe('applyInlinePick', () => {
     expect(applyInlinePick('plain text', 5, 'A')).toBe(null);
   });
 
-  it('writes the scaffold when a node is picked, leaving it open', () => {
-    expect(applyInlinePick('{', 1, 'A')).toEqual({ value: '{A.output.', caret: 10, completed: false });
+  it('writes the node when a node is picked, leaving it open', () => {
+    expect(applyInlinePick('{', 1, 'A')).toEqual({ value: '{A.', caret: 3, completed: false });
+  });
+
+  it('writes the section when a kind is picked, leaving it open', () => {
+    expect(applyInlinePick('{A.', 3, 'Output')).toEqual({ value: '{A.output.', caret: 10, completed: false });
+    expect(applyInlinePick('{A.', 3, 'Input')).toEqual({
+      value: '{A.Execution.input_parameters.',
+      caret: 30,
+      completed: false,
+    });
+  });
+
+  it('completes an input reference when its key is picked', () => {
+    expect(applyInlinePick('{A.Execution.input_parameters.', 30, 'cmd')).toEqual({
+      value: '{A.Execution.input_parameters.cmd}',
+      caret: 34,
+      completed: true,
+    });
   });
 
   it('completes the reference when an output is picked', () => {

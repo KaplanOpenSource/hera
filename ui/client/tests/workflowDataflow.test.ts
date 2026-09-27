@@ -16,7 +16,7 @@ import {
   tokenAtCaret,
 } from '../src/components/workflow/workflowDataflow';
 import { Reference } from '../src/components/workflow/references/Reference';
-import { OUTPUT } from '../src/components/workflow/references/knownKinds';
+import { INPUT, OUTPUT } from '../src/components/workflow/references/knownKinds';
 import { NodeCatalogEntry } from '../src/components/workflow/nodeCatalog';
 import { NodeParameterSource, WorkflowNode } from '../src/shared/types';
 
@@ -53,6 +53,11 @@ describe('buildDataflowEdges', () => {
   it('ignores references to a key that is not an output', () => {
     const n = { A: { type: 'general.CopyDirectory', Execution: { input_parameters: { bbb: '{C.output.nope}' } } }, C: nodes.C };
     expect(buildDataflowEdges(['C', 'A'], n, catalog)).toEqual([]);
+  });
+
+  it('ignores a reference a node makes to itself', () => {
+    const n = { A: { type: 'general.CopyDirectory', Execution: { input_parameters: { bbb: '{A.output.ggg}' } } } };
+    expect(buildDataflowEdges(['A'], n, catalog)).toEqual([]);
   });
 
   it('ignores references to a node not in the graph', () => {
@@ -181,32 +186,44 @@ describe('tokenAtCaret', () => {
 
   it('reads the node stage before any dot', () => {
     expect(tokenAtCaret('{Cca', 4)).toEqual({
-      stage: ReferenceTokenStage.Node, nodePart: '', seed: 'Cca', start: 0, end: 4,
+      stage: ReferenceTokenStage.Node, nodePart: '', sectionPart: '', kind: null, seed: 'Cca', start: 0, end: 4,
     });
   });
 
   it('reads the node stage right after the opening brace', () => {
     expect(tokenAtCaret('x {', 3)).toEqual({
-      stage: ReferenceTokenStage.Node, nodePart: '', seed: '', start: 2, end: 3,
+      stage: ReferenceTokenStage.Node, nodePart: '', sectionPart: '', kind: null, seed: '', start: 2, end: 3,
     });
   });
 
-  it('reads the output stage once a dot is typed', () => {
+  it('reads the section stage once a dot is typed', () => {
     expect(tokenAtCaret('{C.', 3)).toEqual({
-      stage: ReferenceTokenStage.Output, nodePart: 'C', seed: '', start: 0, end: 3,
+      stage: ReferenceTokenStage.Section, nodePart: 'C', sectionPart: '', kind: null, seed: '', start: 0, end: 3,
     });
   });
 
-  it('filters output keys by the text after the last dot', () => {
+  it('keeps a half-typed dotted section in the section stage', () => {
+    expect(tokenAtCaret('{C.Execution.', 13)).toEqual({
+      stage: ReferenceTokenStage.Section, nodePart: 'C', sectionPart: 'Execution.', kind: null, seed: 'Execution.', start: 0, end: 13,
+    });
+  });
+
+  it('reads the key stage for a dotted section', () => {
+    expect(tokenAtCaret('{C.Execution.input_parameters.bb', 32)).toEqual({
+      stage: ReferenceTokenStage.Key, nodePart: 'C', sectionPart: 'Execution.input_parameters', kind: INPUT, seed: 'bb', start: 0, end: 32,
+    });
+  });
+
+  it('filters keys by the text after the last dot', () => {
     expect(tokenAtCaret('{C.output.gg', 12)).toEqual({
-      stage: ReferenceTokenStage.Output, nodePart: 'C', seed: 'gg', start: 0, end: 12,
+      stage: ReferenceTokenStage.Key, nodePart: 'C', sectionPart: 'output', kind: OUTPUT, seed: 'gg', start: 0, end: 12,
     });
   });
 
   it('spans past the closing brace when the token is already closed', () => {
     const value = '{C.output.ggg}';
     expect(tokenAtCaret(value, 12)).toEqual({
-      stage: ReferenceTokenStage.Output, nodePart: 'C', seed: 'gg', start: 0, end: 14,
+      stage: ReferenceTokenStage.Key, nodePart: 'C', sectionPart: 'output', kind: OUTPUT, seed: 'gg', start: 0, end: 14,
     });
   });
 

@@ -56,8 +56,8 @@ export const useInlineReference = ({
     caretRef.current = { el, pos: caret };
   };
 
-  // Picks the highlighted suggestion: a node leaves the reference open for its
-  // output, an output completes it and closes the menu.
+  // Picks the highlighted suggestion: a node or a kind leaves the reference open
+  // for the next part, a key completes it and closes the menu.
   const pickInline = (option: string) => {
     if (inline === null) {
       return;
@@ -72,7 +72,7 @@ export const useInlineReference = ({
     if (picked.completed) {
       setInline(null);
     } else {
-      setInline({ ...inline, options: references.referencesOf(option).map(reference => reference.key) });
+      setInline({ ...inline, options: references.inlineOptions(inline.node, picked.value, picked.caret) ?? [] });
     }
   };
 

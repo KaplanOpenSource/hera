@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { NodeParameterSource } from '../src/shared/types';
 import { NodeCatalogEntry } from '../src/components/workflow/nodeCatalog';
 import { Reference } from '../src/components/workflow/references/Reference';
-import { OUTPUT, knownKinds } from '../src/components/workflow/references/knownKinds';
+import { INPUT, OUTPUT, knownKinds } from '../src/components/workflow/references/knownKinds';
 
 const catalog: NodeCatalogEntry[] = [{
   type: 'general.Run',
@@ -70,18 +70,22 @@ describe('the kinds themselves', () => {
   it('names the kind a written section belongs to', () => {
     expect(knownKinds.bySection('output')).toBe(OUTPUT);
     expect(knownKinds.bySection('outputs')).toBe(OUTPUT);
+    expect(knownKinds.bySection('Execution.input_parameters')).toBe(INPUT);
     expect(knownKinds.bySection('mystery')).toBeNull();
   });
 
   it('keeps a half-typed section open', () => {
     expect(knownKinds.couldBe('out')).toEqual([OUTPUT]);
+    expect(knownKinds.couldBe('Exec')).toEqual([INPUT]);
     expect(knownKinds.couldBe('zz')).toEqual([]);
   });
 
-  it('lists what a node offers', () => {
-    expect(knownKinds.keysOf('A', { type: 'general.Run' }, catalog)).toEqual([
+  it('lists what a node offers, of both kinds', () => {
+    const node = { type: 'general.Run', Execution: { input_parameters: { cmd: 'ls' } } };
+    expect(knownKinds.keysOf('A', node, catalog)).toEqual([
       new Reference('A', OUTPUT, 'result'),
       new Reference('A', OUTPUT, 'log'),
+      new Reference('A', INPUT, 'cmd'),
     ]);
   });
 

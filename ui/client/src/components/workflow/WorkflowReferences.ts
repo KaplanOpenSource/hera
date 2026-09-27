@@ -34,8 +34,8 @@ export class WorkflowReferences {
 
   // The suggestions for the `{…}` token the caret sits in, or null when the
   // caret is not inside a token (so the inline menu should close). Node names
-  // before the section dot; the picked node's outputs after it - filtered by
-  // the typed text.
+  // before the first dot, then the kind labels the typed section still fits,
+  // then that kind's keys on the picked node - filtered by the typed text.
   inlineOptions(nodeName: string, value: string, caret: number | null): string[] | null {
     const token = tokenAtCaret(value, caret ?? value.length);
     if (token === null) {
@@ -49,8 +49,10 @@ export class WorkflowReferences {
     if (!others.includes(token.nodePart)) {
       return [];
     }
-    return this.referencesOf(token.nodePart)
-      .map(reference => reference.key)
+    if (token.stage === ReferenceTokenStage.Section) {
+      return knownKinds.couldBe(token.sectionPart).map(kind => kind.label);
+    }
+    return (token.kind?.namesOf(this.nodes[token.nodePart] ?? {}, this.catalog) ?? [])
       .filter(key => key.toLowerCase().includes(seed));
   }
 

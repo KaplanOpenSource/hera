@@ -35,7 +35,8 @@ export class WorkflowCanvasEdits {
   // Output→input (dataflow) connections skip the requires cycle check.
   canConnect(connection: Connection | Edge): boolean {
     if (parseDataflowConnection(connection.sourceHandle, connection.targetHandle)) {
-      return true;
+      // A node may not reference itself.
+      return connection.source !== connection.target;
     }
     return isValidConnection(connection, this.nodeNames, this.nodes);
   }

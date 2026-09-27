@@ -141,7 +141,7 @@ export const WorkflowContextMenu = ({
             onMouseEnter={() => setNodeSubmenuOpen(true)}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-              Reference output param
+              Reference another node
               <ArrowRight fontSize="small" sx={{ ml: 1, mr: -1 }} />
             </Box>
           </MenuItem>
@@ -194,13 +194,14 @@ export const WorkflowContextMenu = ({
             disablePortal
             options={nodeReferences}
             getOptionLabel={reference => reference.key}
+            groupBy={reference => reference.kind.label}
             onChange={(_e, value) => {
               if (value !== null && field !== null && refNode !== null) {
                 onReferenceOutput(field.node, field.param, value, field.caret);
                 closeAll();
               }
             }}
-            renderInput={(params) => <TextField {...params} label="Output" autoFocus />}
+            renderInput={(params) => <TextField {...params} label="Parameter" autoFocus />}
           />
         </Box>
       </Menu>

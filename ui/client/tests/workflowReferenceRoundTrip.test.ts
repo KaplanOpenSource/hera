@@ -159,17 +159,20 @@ describe('the typed token and the written token line up', () => {
 });
 
 describe('picking through the inline menu writes a resolvable reference', () => {
-  it('builds an edge from a node pick then an output pick', () => {
+  it('builds an edge from a node pick, a kind pick then an output pick', () => {
     const afterNode = applyInlinePick('{', 1, 'A')!;
     expect(afterNode.completed).toBe(false);
-    const afterOutput = applyInlinePick(afterNode.value, afterNode.caret, 'result')!;
+    const afterKind = applyInlinePick(afterNode.value, afterNode.caret, 'Output')!;
+    expect(afterKind.completed).toBe(false);
+    const afterOutput = applyInlinePick(afterKind.value, afterKind.caret, 'result')!;
     expect(afterOutput.completed).toBe(true);
     expect(onlyEdge(workflow(afterOutput.value)).source).toBe('A');
   });
 
   it('leaves the caret past the finished token', () => {
     const afterNode = applyInlinePick('{', 1, 'A')!;
-    const afterOutput = applyInlinePick(afterNode.value, afterNode.caret, 'result')!;
+    const afterKind = applyInlinePick(afterNode.value, afterNode.caret, 'Output')!;
+    const afterOutput = applyInlinePick(afterKind.value, afterKind.caret, 'result')!;
     expect(afterOutput.caret).toBe(afterOutput.value.length);
   });
 });

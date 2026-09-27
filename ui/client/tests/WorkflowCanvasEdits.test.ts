@@ -50,6 +50,16 @@ describe('WorkflowCanvasEdits', () => {
     })).toBe(true);
   });
 
+  it('refuses a dataflow line from a node to itself', () => {
+    const { edits } = build();
+    expect(edits.canConnect({
+      source: 'A',
+      target: 'A',
+      sourceHandle: outputHandleId('A', 'out'),
+      targetHandle: inputHandleId('A', 'p'),
+    })).toBe(false);
+  });
+
   it('clears the reference a dataflow line stands for', () => {
     const { callbacks, edits } = build();
     edits.removeDataflowEdge(new Reference('A', OUTPUT, 'result').edgeIdTo('B', 'cmd'));

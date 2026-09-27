@@ -67,20 +67,25 @@ export const insertReferenceAt = (
 };
 
 // Which part of a half-typed `{…}` reference the caret sits in: the node name
-// (before the first dot) or the output key (after it).
+// (before the first dot), the section, or the key (after the last dot).
 export enum ReferenceTokenStage {
   Node = 'node',
-  Output = 'output',
+  Section = 'section',
+  Key = 'key',
 }
 
 // The `{…}` reference the caret is inside, as parsed for inline autocomplete.
 export interface ReferenceTokenAtCaret {
   stage: ReferenceTokenStage;
-  // The node name already typed before the section dot — only set on the Output
-  // stage (empty on the Node stage).
+  // The node name already typed before the section dot — only set on the Section
+  // and Key stages (empty on the Node stage).
   nodePart: string;
-  // The partial text the caret is filtering by: a partial node name (Node stage)
-  // or a partial output key (Output stage).
+  // The section text typed after the node dot — empty on the Node stage.
+  sectionPart: string;
+  // The kind that section names, or null while no kind reads it yet.
+  kind: ReferenceKind | null;
+  // The partial text the caret is filtering by: a partial node name (Node stage),
+  // a partial section (Section stage) or a partial key (Key stage).
   seed: string;
   // The token's span in the value, from the opening `{` to just past the closing
   // `}` (or the caret, if the token is still unclosed) — what replaceReferenceAt
@@ -106,12 +111,23 @@ export const tokenAtCaret = (value: string, caret: number): ReferenceTokenAtCare
   const inner = value.slice(open + 1, at);
   const dot = inner.indexOf('.');
   if (dot === -1) {
-    return { stage: ReferenceTokenStage.Node, nodePart: '', seed: inner, start: open, end };
+    return { stage: ReferenceTokenStage.Node, nodePart: '', sectionPart: '', kind: null, seed: inner, start: open, end };
+  }
+  const nodePart = inner.slice(0, dot);
+  const afterNode = inner.slice(dot + 1);
+  // The key is what follows the last dot, so the section may itself hold dots.
+  const lastDot = afterNode.lastIndexOf('.');
+  const section = lastDot === -1 ? afterNode : afterNode.slice(0, lastDot);
+  const kind = knownKinds.bySection(section);
+  if (kind === null) {
+    return { stage: ReferenceTokenStage.Section, nodePart, sectionPart: afterNode, kind: null, seed: afterNode, start: open, end };
   }
   return {
-    stage: ReferenceTokenStage.Output,
-    nodePart: inner.slice(0, dot),
-    seed: inner.slice(inner.lastIndexOf('.') + 1),
+    stage: ReferenceTokenStage.Key,
+    nodePart,
+    sectionPart: section,
+    kind,
+    seed: lastDot === -1 ? '' : afterNode.slice(lastDot + 1),
     start: open,
     end,
   };
@@ -192,6 +208,9 @@ export const buildDataflowEdges = (
         return;
       }
       for (const reference of knownKinds.parseAll(value)) {
+        if (reference.node === target) {
+          continue;
+        }
         const inGraph = nodeNames.includes(reference.node);
         const isReal = inGraph
           && reference.kind.namesOf(nodes[reference.node] ?? {}, catalog).includes(reference.key);

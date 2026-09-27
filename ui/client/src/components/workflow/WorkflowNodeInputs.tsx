@@ -1,9 +1,10 @@
-import { Typography } from '@mui/material';
+import { Typography, useTheme } from '@mui/material';
 import { SimpleTreeView } from '@mui/x-tree-view';
 import { Handle, Position } from '@xyflow/react';
 import { DetailsViewItem, keyForDetailsViewItem } from '../details/DetailsViewItem';
 import { FieldDef } from '../details/fieldDef';
 import { FieldSourceDot } from '../details/FieldSourceDot';
+import { INPUT } from './references/knownKinds';
 import { inputHandleId } from './workflowDataflow';
 import { friendlyParamName } from './friendlyParamName';
 
@@ -37,6 +38,7 @@ export const WorkflowNodeInputs = ({
   // the input element (to anchor the suggestion menu to).
   onFieldInlineEdit: (param: string, value: string, caret: number | null, el: HTMLInputElement) => void,
 }) => {
+  const theme = useTheme();
   return (
     <SimpleTreeView
       expandedItems={expandedItems}
@@ -116,6 +118,18 @@ export const WorkflowNodeInputs = ({
           ) : (
             <FieldSourceDot source={def?.source} />
           )
+        )}
+        // A top-level parameter also gets a source dot on the node's right edge,
+        // so another node can read this parameter's value.
+        renderAfterValue={(itemKey, parentKey) => (
+          parentKey === keyForDetailsViewItem(INPUT_PARAMETERS_KEY) ? (
+            <Handle
+              type="source"
+              id={INPUT.handleId(nodeName, itemKey)}
+              position={Position.Right}
+              style={{ position: 'relative', top: 'auto', right: -14, transform: 'none', width: 8, height: 8, background: theme.palette.primary.main, border: 'none' }}
+            />
+          ) : undefined
         )}
       />
     </SimpleTreeView>

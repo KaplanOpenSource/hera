@@ -16,6 +16,7 @@ export const DetailsViewSortableItem = ({
   def,
   nameForView,
   renderBeforeName,
+  renderAfterValue,
   onRowContextMenu,
   onValueCaret,
 }: {
@@ -28,6 +29,7 @@ export const DetailsViewSortableItem = ({
   def?: FieldDef,
   nameForView?: (itemKey: string, parentKey: string | undefined) => ReactNode,
   renderBeforeName?: (itemKey: string, parentKey: string | undefined, def?: FieldDef) => ReactNode,
+  renderAfterValue?: (itemKey: string, parentKey: string | undefined, def?: FieldDef) => ReactNode,
   onRowContextMenu?: (itemKey: string, parentKey: string | undefined, event: MouseEvent<HTMLElement>) => void,
   onValueCaret?: (itemKey: string, parentKey: string | undefined, value: string, caret: number | null, el: HTMLInputElement) => void,
 }) => {
@@ -67,6 +69,7 @@ export const DetailsViewSortableItem = ({
       parentKey={parentKey}
       def={def?.children?.[String(index)]}
       renderBeforeName={renderBeforeName}
+      renderAfterValue={renderAfterValue}
       onRowContextMenu={onRowContextMenu}
       onValueCaret={onValueCaret}
     />
