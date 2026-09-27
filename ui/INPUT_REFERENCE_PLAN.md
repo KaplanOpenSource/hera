@@ -24,7 +24,8 @@ right dot.
 
 Step 2 is the only visible change. Step 4 is the real work.
 
-## Open question
+## Note
 
-An input reference reads a value the other node was given, not one it produced, yet Hermes still
-makes the reader wait for that node to finish. Safe, but it adds ordering the user may not expect.
+An input reference makes the reader wait for the other node to finish, even though the value was
+known before the run. That is Hermes' run order, not the client's or the server's. Nothing to do
+here.
