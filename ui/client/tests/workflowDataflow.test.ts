@@ -54,6 +54,35 @@ describe('buildDataflowEdges', () => {
     const n = { A: { type: 'general.CopyDirectory', Execution: { input_parameters: { bbb: '{Z.output.ggg}' } } } };
     expect(buildDataflowEdges(['A'], n, catalog)).toEqual([]);
   });
+
+  it('builds one edge per reference when a value holds two', () => {
+    const n = { C: nodes.C, A: { type: 'general.CopyDirectory', Execution: { input_parameters: { bbb: '{C.output.ggg} {C.output.copyDirectory}' } } } };
+    expect(buildDataflowEdges(['C', 'A'], n, catalog)).toHaveLength(2);
+  });
+
+  it('builds one edge when the same reference appears twice', () => {
+    const n = { C: nodes.C, A: { type: 'general.CopyDirectory', Execution: { input_parameters: { bbb: '{C.output.ggg} {C.output.ggg}' } } } };
+    expect(buildDataflowEdges(['C', 'A'], n, catalog)).toHaveLength(1);
+  });
+
+  it('allows spaces inside the braces', () => {
+    const n = { C: nodes.C, A: { type: 'general.CopyDirectory', Execution: { input_parameters: { bbb: '{ C.output.ggg }' } } } };
+    expect(buildDataflowEdges(['C', 'A'], n, catalog)).toHaveLength(1);
+  });
+
+  it('scans only top-level parameters, not nested ones', () => {
+    const n = { C: nodes.C, A: { type: 'general.CopyDirectory', Execution: { input_parameters: { nested: { deep: '{C.output.ggg}' } } } } };
+    expect(buildDataflowEdges(['C', 'A'], n, catalog)).toEqual([]);
+  });
+
+  it('ignores a parameter whose value is not a string', () => {
+    const n = { C: nodes.C, A: { type: 'general.CopyDirectory', Execution: { input_parameters: { bbb: 5 } } } };
+    expect(buildDataflowEdges(['C', 'A'], n, catalog)).toEqual([]);
+  });
+
+  it('has no edges for a node with no parameters at all', () => {
+    expect(buildDataflowEdges(['C'], { C: nodes.C }, catalog)).toEqual([]);
+  });
 });
 
 // Regression: the node-level requires handles once shared the "no id" slot with
@@ -179,6 +208,22 @@ describe('tokenAtCaret', () => {
   it('stops the span at the caret when the token is unclosed before another {', () => {
     expect(tokenAtCaret('{C.output.g {D', 11)).toMatchObject({ start: 0, end: 11 });
   });
+
+  // Caret 0 sits before the brace, yet lastIndexOf searches from 0 and finds
+  // it, so the node menu opens. Recorded as-is; changing it is a separate fix.
+  it('treats a caret at position 0 as inside a token that starts there', () => {
+    expect(tokenAtCaret('{C.output.ggg}', 0)).toMatchObject({
+      stage: ReferenceTokenStage.Node, seed: '', start: 0,
+    });
+  });
+
+  it('returns null at position 0 when no token starts there', () => {
+    expect(tokenAtCaret('x {C.output.ggg}', 0)).toBeNull();
+  });
+
+  it('clamps a caret past the end of the value', () => {
+    expect(tokenAtCaret('{C.out', 99)).toMatchObject({ nodePart: 'C', seed: 'out' });
+  });
 });
 
 describe('replaceReferenceAt', () => {
@@ -212,6 +257,11 @@ describe('clearInputReference', () => {
     const node = { type: 'general.CopyDirectory', Execution: { input_parameters: { bbb: 'x {C.output.ggg} y' } } };
     const updated = clearInputReference(node, 'bbb', 'C', 'ggg');
     expect(updated.Execution?.input_parameters?.bbb).toBe('x  y');
+  });
+
+  it('is a no-op for a parameter that is not there', () => {
+    const node = { type: 'general.CopyDirectory', Execution: { input_parameters: { bbb: 'x' } } };
+    expect(clearInputReference(node, 'zzz', 'C', 'ggg').Execution?.input_parameters).toEqual({ bbb: 'x' });
   });
 
   it('leaves a non-string value untouched', () => {
