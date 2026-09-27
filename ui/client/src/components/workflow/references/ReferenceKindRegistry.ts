@@ -52,6 +52,16 @@ export class ReferenceKindRegistry {
     return found;
   }
 
+  // One value's text with every known reference to `oldName` pointing at `newName`.
+  renamedNode(value: string, oldName: string, newName: string): string {
+    return value.replace(PARSE, (match, node, section, key) => {
+      if (node !== oldName || this.bySection(section) === null) {
+        return match;
+      }
+      return `{${newName}.${section}.${key}}`;
+    });
+  }
+
   // The reference a source dot stands for, or null when the id is not one.
   ofHandle(handleId: string): Reference | null {
     const match = HANDLE.exec(handleId);

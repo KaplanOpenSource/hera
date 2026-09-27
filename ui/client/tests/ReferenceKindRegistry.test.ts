@@ -93,3 +93,42 @@ describe('the kinds themselves', () => {
     expect(knownKinds.keysOf('A', { type: 'nope' }, catalog)).toEqual([]);
   });
 });
+
+describe('renamedNode', () => {
+  it('renames an output reference', () => {
+    expect(knownKinds.renamedNode('{a.output.x}', 'a', 'b')).toEqual('{b.output.x}');
+  });
+
+  it('renames an input reference', () => {
+    expect(knownKinds.renamedNode('{a.Execution.input_parameters.k}', 'a', 'b'))
+      .toEqual('{b.Execution.input_parameters.k}');
+  });
+
+  it('keeps the older parameters spelling', () => {
+    expect(knownKinds.renamedNode('{a.parameters.x}', 'a', 'b')).toEqual('{b.parameters.x}');
+  });
+
+  it('leaves a different node alone', () => {
+    expect(knownKinds.renamedNode('{c.output.x}', 'a', 'b')).toEqual('{c.output.x}');
+  });
+
+  it('leaves a name that only shares a prefix alone', () => {
+    expect(knownKinds.renamedNode('{ab.output.x}', 'a', 'b')).toEqual('{ab.output.x}');
+  });
+
+  it('renames two tokens in one string', () => {
+    expect(knownKinds.renamedNode('{a.output.x} {a.output.y}', 'a', 'b')).toEqual('{b.output.x} {b.output.y}');
+  });
+
+  it('leaves an unknown section alone', () => {
+    expect(knownKinds.renamedNode('{a.nope.x}', 'a', 'b')).toEqual('{a.nope.x}');
+  });
+
+  it('drops whitespace inside the braces', () => {
+    expect(knownKinds.renamedNode('{ a.output.x }', 'a', 'b')).toEqual('{b.output.x}');
+  });
+
+  it('keeps the text around the token', () => {
+    expect(knownKinds.renamedNode('-{a.output.x}+1e-6', 'a', 'b')).toEqual('-{b.output.x}+1e-6');
+  });
+});
