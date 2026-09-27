@@ -17,14 +17,18 @@ import { WorkflowFlowNode } from '../src/components/workflow/WorkflowFlowNode';
 
 const catalog = [{ type: 'RiskAssessment.calculateThresholds', parameters: [] }];
 
-const renderNode = (node: any) => {
-  render(
+const nodeElement = (node: any) => {
+  return (
     <WorkflowFlowNode
       data={{ name: 'node1', node, catalog, onRename: vi.fn(), onChange: vi.fn(), onDelete: vi.fn() }}
       selected={false}
       {...({} as any)}
-    />,
+    />
   );
+};
+
+const renderNode = (node: any) => {
+  return render(nodeElement(node));
 };
 
 // Past the hook's settle time, so the pending check actually goes out.
@@ -74,10 +78,10 @@ describe('node parameter validation', () => {
       Execution: { input_parameters: { Agent: 'H2S', Calculator: 'AEGL10min' } },
     });
     await settle();
-    expect(validateNodeParams).toHaveBeenCalledWith({
+    expect(validateNodeParams).toHaveBeenCalledWith(expect.objectContaining({
       type: 'RiskAssessment.calculateThresholds',
       params: { Agent: 'H2S', Calculator: 'AEGL10min' },
-    });
+    }));
   });
 
   it('does not ask before the settle time passes', () => {
@@ -86,6 +90,28 @@ describe('node parameter validation', () => {
       Execution: { input_parameters: { Agent: 'H2S' } },
     });
     expect(validateNodeParams).not.toHaveBeenCalled();
+  });
+
+  it('sends one check for a run of edits, with the last value', async () => {
+    const { rerender } = renderNode({
+      type: 'RiskAssessment.calculateThresholds',
+      Execution: { input_parameters: { Agent: 'H' } },
+    });
+    rerender(nodeElement({
+      type: 'RiskAssessment.calculateThresholds',
+      Execution: { input_parameters: { Agent: 'H2' } },
+    }));
+    rerender(nodeElement({
+      type: 'RiskAssessment.calculateThresholds',
+      Execution: { input_parameters: { Agent: 'H2S' } },
+    }));
+    expect(validateNodeParams).not.toHaveBeenCalled();
+    await settle();
+    expect(validateNodeParams).toHaveBeenCalledTimes(1);
+    expect(validateNodeParams).toHaveBeenLastCalledWith(expect.objectContaining({
+      type: 'RiskAssessment.calculateThresholds',
+      params: { Agent: 'H2S' },
+    }));
   });
 
   it('does not ask for a node with no type', async () => {
