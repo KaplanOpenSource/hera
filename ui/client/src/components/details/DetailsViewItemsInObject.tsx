@@ -11,6 +11,7 @@ export const DetailsViewItemsInObject = ({
   def,
   nameForView,
   renderBeforeName,
+  renderAfterValue,
   onRowContextMenu,
   onValueCaret,
   isDescRoot = false,
@@ -21,6 +22,7 @@ export const DetailsViewItemsInObject = ({
   def?: FieldDef,
   nameForView?: (itemKey: string, parentKey: string | undefined) => ReactNode,
   renderBeforeName?: (itemKey: string, parentKey: string | undefined, def?: FieldDef) => ReactNode,
+  renderAfterValue?: (itemKey: string, parentKey: string | undefined, def?: FieldDef) => ReactNode,
   onRowContextMenu?: (itemKey: string, parentKey: string | undefined, event: MouseEvent<HTMLElement>) => void,
   onValueCaret?: (itemKey: string, parentKey: string | undefined, value: string, caret: number | null, el: HTMLInputElement) => void,
   // True on the document's top-level desc, whose files directory is fixed.
@@ -51,6 +53,7 @@ export const DetailsViewItemsInObject = ({
             def={def?.children?.[k]}
             nameForView={nameForView}
             renderBeforeName={renderBeforeName}
+            renderAfterValue={renderAfterValue}
             onRowContextMenu={onRowContextMenu}
             onValueCaret={onValueCaret}
           />

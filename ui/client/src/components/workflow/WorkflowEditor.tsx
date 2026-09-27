@@ -4,6 +4,8 @@ import { WorkflowBlock, WorkflowData, WorkflowNode } from '../../shared/types';
 import { getWorkflowBlock, isTopLevelBlock, normalizeRequires } from '../../shared/workflow';
 import { useWorkflowFocusStore } from '../../stores/useWorkflowFocusStore';
 import { useWorkflowRunStore, WorkflowRunStatus } from '../../stores/useWorkflowRunStore';
+import { mapStrings } from '../../utils/mapStrings';
+import { knownKinds } from './references/knownKinds';
 import { nodeRunStatuses } from './nodeRunStatus';
 import { nodeNameFromTask } from './taskNodeName';
 import { NodeCatalogReader, useNodeCatalog } from './useNodeCatalog';
@@ -107,7 +109,8 @@ export const WorkflowEditor = ({
       const requires = normalizeRenamed(node.requires, oldName, name);
       nodes[key === oldName ? name : key] = requires === undefined ? node : { ...node, requires };
     }
-    setBlock({ ...block, nodeList: nodeNames.map(n => (n === oldName ? name : n)), nodes });
+    const renamed = mapStrings(nodes, text => knownKinds.renamedNode(text, oldName, name));
+    setBlock({ ...block, nodeList: nodeNames.map(n => (n === oldName ? name : n)), nodes: renamed });
     if (selectedNode === oldName) {
       setSelectedNode(name);
     }

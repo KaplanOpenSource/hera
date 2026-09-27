@@ -172,6 +172,13 @@ jobs:
       - name: Checkout hera
         uses: actions/checkout@v6
 
+      # node_params looks for the node directories in <repo>/Hermes.
+      - name: Checkout hermes (internal dependency)
+        uses: actions/checkout@v6
+        with:
+          repository: KaplanOpenSource/hermes
+          path: Hermes
+
       - name: Set up Python 3.11
         uses: actions/setup-python@v7
         with:

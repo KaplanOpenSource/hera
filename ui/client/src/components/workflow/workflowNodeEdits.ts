@@ -1,5 +1,6 @@
 import { WorkflowNode } from '../../shared/types';
 import { insertReferenceAt } from './workflowDataflow';
+import { Reference } from './references/Reference';
 
 // Pure edits on a single workflow node. Each one returns a new node; nothing
 // here touches the canvas.
@@ -21,16 +22,15 @@ export const nodeWithParamValue = (node: WorkflowNode, param: string, value: any
   return { ...node, Execution: { ...node.Execution, input_parameters: { ...paramsOf(node), [param]: value } } };
 };
 
-// The node with a {sourceNode.output.name} reference inserted into a parameter
-// at the caret (the end when there is none), leaving the rest of the value intact.
+// The node with a reference inserted into a parameter at the caret (the end when
+// there is none), leaving the rest of the value intact.
 export const nodeWithReferenceAt = (
   node: WorkflowNode,
   param: string,
-  sourceNode: string,
-  output: string,
+  reference: Reference,
   caret?: number,
 ): WorkflowNode => {
   const current = paramsOf(node)[param];
   const text = typeof current === 'string' ? current : '';
-  return nodeWithParamValue(node, param, insertReferenceAt(text, caret ?? text.length, sourceNode, output));
+  return nodeWithParamValue(node, param, insertReferenceAt(text, caret ?? text.length, reference));
 };

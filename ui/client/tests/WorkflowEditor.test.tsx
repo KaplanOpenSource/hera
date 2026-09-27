@@ -88,6 +88,52 @@ describe('WorkflowEditor renameNode', () => {
     expect(setWorkflow.mock.calls[0][0].nodes.b.requires).toEqual(['x', 'c']);
   });
 
+  it('renames a reference in a top-level string parameter', () => {
+    const { setWorkflow } = setup({
+      nodeList: ['a', 'b'],
+      nodes: { a: {}, b: { Execution: { input_parameters: { p: '{a.output.x}' } } } },
+    });
+    act(() => graphProps.onRenameNode('a', 'x'));
+    expect(setWorkflow.mock.calls[0][0].nodes.b.Execution.input_parameters.p).toEqual('{x.output.x}');
+  });
+
+  it('renames a reference nested in a dict parameter', () => {
+    const { setWorkflow } = setup({
+      nodeList: ['a', 'b'],
+      nodes: { a: {}, b: { Execution: { input_parameters: { p: { q: '{a.output.x}' } } } } },
+    });
+    act(() => graphProps.onRenameNode('a', 'x'));
+    expect(setWorkflow.mock.calls[0][0].nodes.b.Execution.input_parameters.p.q).toEqual('{x.output.x}');
+  });
+
+  it('renames a reference inside a list parameter', () => {
+    const { setWorkflow } = setup({
+      nodeList: ['a', 'b'],
+      nodes: { a: {}, b: { Execution: { input_parameters: { p: ['{a.output.x}'] } } } },
+    });
+    act(() => graphProps.onRenameNode('a', 'x'));
+    expect(setWorkflow.mock.calls[0][0].nodes.b.Execution.input_parameters.p).toEqual(['{x.output.x}']);
+  });
+
+  it('leaves a requires naming a third node untouched', () => {
+    const { setWorkflow } = setup({
+      nodeList: ['a', 'b'],
+      nodes: { a: {}, b: { requires: ['c'] } },
+    });
+    act(() => graphProps.onRenameNode('a', 'x'));
+    expect(setWorkflow.mock.calls[0][0].nodes.b.requires).toEqual(['c']);
+  });
+
+  it('rewrites the renamed node own parameters but not its reference to another node', () => {
+    const { setWorkflow } = setup({
+      nodeList: ['a', 'c'],
+      nodes: { a: { Execution: { input_parameters: { p: '{a.output.x} {c.output.y}' } } }, c: {} },
+    });
+    act(() => graphProps.onRenameNode('a', 'x'));
+    expect(setWorkflow.mock.calls[0][0].nodes.x.Execution.input_parameters.p)
+      .toEqual('{x.output.x} {c.output.y}');
+  });
+
   it('does nothing for an empty, unchanged, or duplicate name', () => {
     const { setWorkflow } = setup({ nodeList: ['a', 'b'], nodes: { a: {}, b: {} } });
     act(() => graphProps.onRenameNode('a', '   '));

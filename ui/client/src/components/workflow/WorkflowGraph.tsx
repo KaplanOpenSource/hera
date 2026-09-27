@@ -9,7 +9,7 @@ import { WorkflowCanvasToolbar } from './WorkflowCanvasToolbar';
 import { WorkflowDisplayEdges } from './WorkflowDisplayEdges';
 import { WorkflowReferences } from './WorkflowReferences';
 import { FIT_MAX_ZOOM } from './WorkflowViewport';
-import { WorkflowContextMenu, WorkflowContextMenuKind, WorkflowContextMenuTarget } from './WorkflowContextMenu';
+import { ReferenceOption, WorkflowContextMenu, WorkflowContextMenuKind, WorkflowContextMenuTarget } from './WorkflowContextMenu';
 import { WorkflowFlowNode } from './WorkflowFlowNode';
 import { WorkflowRequiresEdge } from './WorkflowRequiresEdge';
 import { buildWorkflowEdges } from './workflowEdges';
@@ -111,9 +111,9 @@ const WorkflowGraph = ({
     .withDataflow(dataflowDeps, theme.palette.primary.main, id => edits.removeDataflowEdge(id))
     .all();
 
-  // While a field's menu is open, the other nodes that produce outputs — the
-  // options for its "Reference another node's output…" autocomplete steps.
-  let referenceOptions: { node: string, outputs: string[] }[] = [];
+  // While a field's menu is open, the other nodes that offer something to point
+  // at - the options for its "Reference output param" autocomplete steps.
+  let referenceOptions: ReferenceOption[] = [];
   if (menu?.kind === WorkflowContextMenuKind.Field) {
     referenceOptions = references.optionsFor(menu.node);
   }
@@ -162,7 +162,7 @@ const WorkflowGraph = ({
         onDeleteNode={onDeleteNode}
         onDeleteField={(nodeName, param) => edits.deleteField(nodeName, param)}
         onRemoveRequire={onRemoveRequire}
-        onReferenceOutput={(nodeName, param, source, output, caret) => edits.referenceOutput(nodeName, param, source, output, caret)}
+        onReferenceOutput={(nodeName, param, reference, caret) => edits.referenceOutput(nodeName, param, reference, caret)}
       />
       <WorkflowInlineReference
         anchorEl={inline?.anchorEl ?? null}

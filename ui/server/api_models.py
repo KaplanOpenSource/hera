@@ -46,3 +46,17 @@ class RunWorkflowResponse(BaseModel):
     # Per-task output segments, in run order. Grows live while the run is going;
     # None only before any output (or when the token is unknown).
     chunks: Optional[List[WorkflowChunk]] = None
+
+
+class ValidateNodeParamsPayload(BaseModel):
+    # The node's dotted Hermes type, e.g. "RiskAssessment.calculateThresholds".
+    type: str
+    # The node's input_parameters, exactly as the editor holds them.
+    params: Dict[str, Any] = {}
+
+
+class ValidateNodeParamsResponse(BaseModel):
+    # ok with an empty message also means "nothing to say" (unknown type, or a
+    # node with no checks of its own).
+    ok: bool = True
+    message: str = ""

@@ -10,6 +10,7 @@ import { WorkflowNodeDeleteButton } from './WorkflowNodeDeleteButton';
 import { nodeInputHandleId, nodeOutputHandleId } from './workflowDataflow';
 import { INPUT_PARAMETERS_KEY, WorkflowNodeInputs } from './WorkflowNodeInputs';
 import { WorkflowNodeOutputs } from './WorkflowNodeOutputs';
+import { useNodeParamsValidation } from './useNodeParamsValidation';
 
 export interface WorkflowFlowNodeData {
   name: string;
@@ -81,9 +82,10 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
 
   const typeOptions = catalog.map(entry => entry.type);
   const typeIssue = nodeTypeIssue(node, catalog);
+  // Hermes's own complaint about the parameter values, shown under the node.
+  const paramsIssue = useNodeParamsValidation(node);
   const paramsDef = paramsFieldDef(node, catalog);
   const outputs = nodeOutputNames(node, catalog);
-  const inputsExpanded = expandedItems.includes(keyForDetailsViewItem(INPUT_PARAMETERS_KEY));
 
   // The run state wins over the type warning and the selection, so a failed or
   // finished node is visible at a glance.
@@ -183,7 +185,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
           onChange={(_e, value) => pickType(typeof value === 'string' ? value : value ?? '')}
           renderInput={(inputParams) => <TextField {...inputParams} label="type" fullWidth />}
         />
-        <Stack direction="row" spacing={1} sx={{ mt: 1, alignItems: 'flex-start' }}>
+        <Stack spacing={1} sx={{ mt: 1, alignItems: 'stretch' }}>
           <WorkflowNodeInputs
             nodeName={name}
             params={params}
@@ -198,7 +200,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
             onFieldInlineEdit={onFieldInlineEdit}
           />
           {outputs.length > 0 && (
-            <WorkflowNodeOutputs nodeName={name} outputs={outputs} expanded={inputsExpanded} />
+            <WorkflowNodeOutputs nodeName={name} outputs={outputs} />
           )}
         </Stack>
         {typeIssue && (
@@ -209,6 +211,16 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
             sx={{ display: 'block', mt: 0.5, userSelect: 'text' }}
           >
             {typeIssue}
+          </Typography>
+        )}
+        {paramsIssue && (
+          <Typography
+            className="nodrag"
+            variant="caption"
+            color="error.main"
+            sx={{ display: 'block', mt: 0.5, userSelect: 'text' }}
+          >
+            {paramsIssue}
           </Typography>
         )}
       </Box>

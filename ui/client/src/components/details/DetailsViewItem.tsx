@@ -29,6 +29,7 @@ export const DetailsViewItem = ({
   parentKey,
   def = undefined,
   renderBeforeName = undefined,
+  renderAfterValue = undefined,
   onRowContextMenu = undefined,
   onValueCaret = undefined,
 }: {
@@ -51,6 +52,8 @@ export const DetailsViewItem = ({
   def?: FieldDef,
   // Optional extra content before the field name.
   renderBeforeName?: (itemKey: string, parentKey: string | undefined, def?: FieldDef) => ReactNode,
+  // Optional extra content after the value editor, at the end of the row.
+  renderAfterValue?: (itemKey: string, parentKey: string | undefined, def?: FieldDef) => ReactNode,
   // Optional right-click handler for a row.
   onRowContextMenu?: (itemKey: string, parentKey: string | undefined, event: MouseEvent<HTMLElement>) => void,
   // Optional report of a leaf value and its caret position, for autocomplete.
@@ -135,6 +138,8 @@ export const DetailsViewItem = ({
             />
           )}
 
+          {renderAfterValue?.(itemKey, parentKey, def)}
+
         </Stack>
       )}
     >
@@ -149,6 +154,7 @@ export const DetailsViewItem = ({
           def={def}
           nameForView={nameForView}
           renderBeforeName={renderBeforeName}
+          renderAfterValue={renderAfterValue}
           onRowContextMenu={onRowContextMenu}
           onValueCaret={onValueCaret}
         />
@@ -161,6 +167,7 @@ export const DetailsViewItem = ({
           def={def}
           nameForView={nameForView}
           renderBeforeName={renderBeforeName}
+          renderAfterValue={renderAfterValue}
           onRowContextMenu={onRowContextMenu}
           onValueCaret={onValueCaret}
           isDescRoot={parentKey === undefined && itemKey === DESC_FIELD}
