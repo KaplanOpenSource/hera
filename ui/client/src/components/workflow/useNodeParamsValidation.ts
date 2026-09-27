@@ -7,14 +7,13 @@ const VALIDATE_SETTLE_MS = 500;
 // Hermes's complaint about this node's parameter values, or '' when it has none.
 export const useNodeParamsValidation = (node: WorkflowNode): string => {
   const [checked, setChecked] = useState({ request: '', message: '' });
-  const request = JSON.stringify({
-    type: node.type ?? '',
-    params: node.Execution?.input_parameters ?? {},
-  });
+  const type = node.type ?? '';
+  const params = node.Execution?.input_parameters ?? {};
+  // A string, so it compares by value between renders.
+  const request = JSON.stringify({ type, params });
 
   useEffect(() => {
     const timer = setTimeout(async () => {
-      const { type, params } = JSON.parse(request);
       if (!type) {
         setChecked({ request, message: '' });
         return;
