@@ -218,8 +218,11 @@ jobs:
           # just downloaded and the integration half from the step above --
           # into a single .coverage that the report then reads.
           coverage combine
-          # fail_under lives in .coveragerc, next to the rest of the config.
-          coverage report
+          # The floor lives here rather than in .coveragerc's fail_under,
+          # which would also gate the unit-only and integration-only runs
+          # above -- each about 21%, because each is half the measurement.
+          # Raise it in the same PR that raises coverage; never lower it.
+          coverage report --fail-under=30
 
   ui-client:
     name: UI client checks

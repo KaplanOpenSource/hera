@@ -281,9 +281,9 @@ coverage:
 	PYTHONPATH=.$${PYTHONPATH:+:$$PYTHONPATH} COVERAGE_FILE=.coverage.unit pytest hera/tests/unit -m unit -q --cov=hera --cov-report=
 	-PYTHONPATH=.$${PYTHONPATH:+:$$PYTHONPATH} COVERAGE_FILE=.coverage.integration TEST_HERA=$(TEST_HERA) pytest hera/tests -m "not notebook" --ignore=hera/tests/unit -q --cov=hera --cov-report=
 	coverage combine
-	coverage report
 	coverage html -d cache/coverage_html
-	@echo "floor is $$(grep -oE '^fail_under *= *[0-9]+' .coveragerc | grep -oE '[0-9]+')% -- see .coveragerc"
+	# Same gate as CI; the floor is defined in .github/workflows/ci.yml.
+	coverage report --fail-under=30
 
 test-ui:
 	cd ui/client && npm install && npm run test:all
