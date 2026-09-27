@@ -17,6 +17,22 @@ jobs:
       - name: Checkout hera
         uses: actions/checkout@v4
 
+      # Source checkouts, not services: the unit layer stays hermetic.  With
+      # them on PYTHONPATH below, the classes that hera subclasses at import
+      # time are the real ones rather than the placeholders in
+      # hera/tests/unit/_stubs.py, which yield to a real install.
+      - name: Checkout hermes (internal dependency)
+        uses: actions/checkout@v6
+        with:
+          repository: KaplanOpenSource/hermes
+          path: _vendor/hermes
+
+      - name: Checkout pyargos (internal dependency — provides the `argos` package)
+        uses: actions/checkout@v6
+        with:
+          repository: KaplanOpenSource/pyargos
+          path: _vendor/pyargos
+
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
@@ -46,6 +62,7 @@ jobs:
         env:
           MPLBACKEND: Agg
           JUPYTER_PLATFORM_DIRS: "1"
+          PYTHONPATH: ${{ github.workspace }}/_vendor/hermes:${{ github.workspace }}/_vendor/pyargos
           # A distinct filename, so the integration job can merge the two
           # halves without a collision.  pytest-cov folds its own parallel
           # fragments into this file at the end of the run, which is why there
