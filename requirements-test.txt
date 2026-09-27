@@ -1,0 +1,60 @@
+# Dependencies needed to run hera/tests/ (excluding the 'notebook' marker tests).
+# Derived from a static import scan of the tests and every hera module they reach.
+# The repo-root requirements.txt is a full `pip freeze` of a dev machine and
+# installs much more than the tests need.
+
+# --- core data ---
+numpy==1.26.4
+pandas==2.2.3
+scipy==1.13.1
+dask[dataframe]==2024.8.0
+dask-expr==1.1.10
+pyarrow==19.0.1
+xarray==2024.7.0
+netCDF4==1.7.2
+
+# --- geospatial ---
+geopandas==1.0.1
+shapely==2.0.7
+pyproj==3.6.1
+pyogrio==0.10.0
+Fiona>=1.10
+rasterio==1.4.3
+# GDAL (osgeo) must match system libgdal: pip install GDAL==$(gdal-config --version)
+
+# --- plotting ---
+matplotlib==3.9.4
+seaborn==0.13.2
+
+# --- database ---
+mongoengine==0.29.1
+pymongo==4.11.2
+
+# --- units ---
+Pint==0.24.4
+# Not optional: unitHandler defines unumToPint inside its `try: import unum` block.
+Unum==4.2.1
+
+# --- OpenFOAM / VTK output ---
+PyFoam==2023.7
+pyevtk==1.6.0
+foamlib==1.7.5
+
+# --- notebooks (imported by test_notebooks.py even when the tests are skipped) ---
+nbclient==0.10.2
+nbformat==5.10.4
+
+# --- needed by the vendored hermes package ---
+luigi==3.6.0
+jsonpath-rw==1.4.0
+jsonpath-rw-ext==1.2.2
+
+# --- misc ---
+Jinja2==3.1.6
+jsonpath-ng==1.7.0
+cloudpickle==3.1.1
+tqdm==4.67.1
+Deprecated==1.2.18
+
+# --- test runner ---
+pytest==7.2.0
