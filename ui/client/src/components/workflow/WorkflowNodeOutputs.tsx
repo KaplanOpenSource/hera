@@ -2,7 +2,7 @@ import { Typography } from '@mui/material';
 import { SimpleTreeView, TreeItem } from '@mui/x-tree-view';
 import { useState } from 'react';
 import { keyForDetailsViewItem } from '../details/DetailsViewItem';
-import { WorkflowNodeOutputChip } from './WorkflowNodeOutputChip';
+import { WorkflowNodeOutputRow } from './WorkflowNodeOutputRow';
 
 // The key of the outputs tree, and the parent key of each output row.
 export const OUTPUTS_KEY = 'outputs';
@@ -38,7 +38,7 @@ export const WorkflowNodeOutputs = ({
           <TreeItem
             key={name}
             itemId={keyForDetailsViewItem(name, OUTPUTS_KEY)}
-            label={<WorkflowNodeOutputChip nodeName={nodeName} name={name} />}
+            label={<WorkflowNodeOutputRow nodeName={nodeName} name={name} />}
           />
         ))}
       </TreeItem>
