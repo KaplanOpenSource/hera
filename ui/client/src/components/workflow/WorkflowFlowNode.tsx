@@ -86,7 +86,6 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
   const paramsIssue = useNodeParamsValidation(node);
   const paramsDef = paramsFieldDef(node, catalog);
   const outputs = nodeOutputNames(node, catalog);
-  const inputsExpanded = expandedItems.includes(keyForDetailsViewItem(INPUT_PARAMETERS_KEY));
 
   // The run state wins over the type warning and the selection, so a failed or
   // finished node is visible at a glance.
@@ -186,7 +185,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
           onChange={(_e, value) => pickType(typeof value === 'string' ? value : value ?? '')}
           renderInput={(inputParams) => <TextField {...inputParams} label="type" fullWidth />}
         />
-        <Stack direction="row" spacing={1} sx={{ mt: 1, alignItems: 'flex-start' }}>
+        <Stack spacing={1} sx={{ mt: 1, alignItems: 'stretch' }}>
           <WorkflowNodeInputs
             nodeName={name}
             params={params}
@@ -201,7 +200,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
             onFieldInlineEdit={onFieldInlineEdit}
           />
           {outputs.length > 0 && (
-            <WorkflowNodeOutputs nodeName={name} outputs={outputs} expanded={inputsExpanded} />
+            <WorkflowNodeOutputs nodeName={name} outputs={outputs} />
           )}
         </Stack>
         {typeIssue && (
