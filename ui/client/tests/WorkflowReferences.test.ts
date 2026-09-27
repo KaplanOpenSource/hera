@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { WorkflowReferences } from '../src/components/workflow/WorkflowReferences';
+import { Reference } from '../src/components/workflow/references/Reference';
+import { OUTPUT } from '../src/components/workflow/references/knownKinds';
 import { NodeCatalogEntry } from '../src/components/workflow/nodeCatalog';
 import { NodeParameterSource } from '../src/shared/types';
 
@@ -20,14 +22,19 @@ const nodes = {
 
 const references = new WorkflowReferences(['A', 'B', 'C'], nodes, catalog);
 
+// An output reference, the only kind there is today.
+const outputRef = (node: string, key: string): Reference => new Reference(node, OUTPUT, key);
+
 describe('WorkflowReferences', () => {
-  it('lists the other nodes that produce outputs', () => {
-    expect(references.optionsFor('A')).toEqual([{ node: 'C', outputs: ['first', 'second'] }]);
+  it('lists the other nodes that offer something to reference', () => {
+    expect(references.optionsFor('A')).toEqual([
+      { node: 'C', references: [outputRef('C', 'first'), outputRef('C', 'second')] },
+    ]);
   });
 
-  it('gives the outputs of one node', () => {
-    expect(references.outputsOf('C')).toEqual(['first', 'second']);
-    expect(references.outputsOf('B')).toEqual([]);
+  it('gives what one node offers', () => {
+    expect(references.referencesOf('C')).toEqual([outputRef('C', 'first'), outputRef('C', 'second')]);
+    expect(references.referencesOf('B')).toEqual([]);
   });
 
   it('has no inline suggestions outside a reference token', () => {

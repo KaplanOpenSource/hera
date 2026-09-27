@@ -72,7 +72,7 @@ export const useInlineReference = ({
     if (picked.completed) {
       setInline(null);
     } else {
-      setInline({ ...inline, options: references.outputsOf(option) });
+      setInline({ ...inline, options: references.referencesOf(option).map(reference => reference.key) });
     }
   };
 

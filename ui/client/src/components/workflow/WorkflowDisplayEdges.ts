@@ -42,7 +42,7 @@ export class WorkflowDisplayEdges {
   }
 
   // Dataflow edges from parameter values that reference another node's output
-  // (e.g. `{C.output.ggg}`), drawn output-handle -> input-handle.
+  // drawn source-handle -> input-handle.
   withDataflow(
     edges: WorkflowDataflowEdge[],
     color: string,

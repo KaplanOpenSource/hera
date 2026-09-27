@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { WorkflowCanvasEdits } from '../src/components/workflow/WorkflowCanvasEdits';
 import { inputHandleId, nodeInputHandleId, nodeOutputHandleId, outputHandleId } from '../src/components/workflow/workflowDataflow';
+import { Reference } from '../src/components/workflow/references/Reference';
+import { OUTPUT } from '../src/components/workflow/references/knownKinds';
 
 const nodes = {
   A: { type: 'maker' },
@@ -50,7 +52,7 @@ describe('WorkflowCanvasEdits', () => {
 
   it('clears the reference a dataflow line stands for', () => {
     const { callbacks, edits } = build();
-    edits.removeDataflowEdge('df:A.result->B.cmd');
+    edits.removeDataflowEdge(new Reference('A', OUTPUT, 'result').edgeIdTo('B', 'cmd'));
     expect(writtenParams(callbacks.onSetNode).cmd).not.toContain('{A.output.result}');
   });
 
@@ -68,7 +70,7 @@ describe('WorkflowCanvasEdits', () => {
 
   it('inserts a reference at the caret', () => {
     const { callbacks, edits } = build();
-    edits.referenceOutput('B', 'keep', 'A', 'result', 2);
+    edits.referenceOutput('B', 'keep', new Reference('A', OUTPUT, 'result'), 2);
     expect(writtenParams(callbacks.onSetNode).keep).toBe('as{A.output.result} is');
   });
 });

@@ -21,7 +21,7 @@ A second kind means editing all six. That is the whole cost.
 
 ## The design
 
-Three types, in a new `workflowReferenceKinds.ts`.
+Three types, in a new `references/` folder - one class per file.
 
 ### `Reference` - one reference, as a value
 
@@ -119,7 +119,7 @@ So a third kind is one subclass plus a dot if it needs one. Small, not free.
 
 ## Order of work
 
-1. Add `workflowReferenceKinds.ts` with the three types and `OutputReferenceKind` only. Behaviour
+1. Add the `references/` folder with the three types and `OutputReferenceKind` only. Behaviour
    unchanged.
 2. Move `workflowDataflow.ts` onto it - writer, parser, handle ids, edge ids. Existing tests should
    pass with only the edge id format changed.

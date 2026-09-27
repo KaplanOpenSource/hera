@@ -1,6 +1,7 @@
 import { Autocomplete, Box, Menu, MenuItem, TextField } from '@mui/material';
 import { ArrowRight } from '@mui/icons-material';
 import { ReactNode, useEffect, useRef, useState } from 'react';
+import { Reference } from './references/Reference';
 
 export enum WorkflowContextMenuKind {
   Node = 'node',
@@ -15,10 +16,10 @@ export type WorkflowContextMenuTarget =
   | { kind: WorkflowContextMenuKind.Field, node: string, param: string, x: number, y: number, caret?: number }
   | { kind: WorkflowContextMenuKind.Edge, source: string, target: string, x: number, y: number };
 
-// One node the user can reference, and the outputs it produces.
-export interface NodeOutputOption {
+// One node the user can reference, and what it offers to be referenced.
+export interface ReferenceOption {
   node: string;
-  outputs: string[];
+  references: Reference[];
 }
 
 // One entry in the menu: its label, what it does, and whether it's destructive
@@ -91,14 +92,14 @@ export const WorkflowContextMenu = ({
   menu: WorkflowContextMenuTarget | null,
   // The nodes (and their outputs) offerable when referencing from the current
   // field — only meaningful while a Field menu is open.
-  referenceOptions: NodeOutputOption[],
+  referenceOptions: ReferenceOption[],
   onClose: () => void,
   onDeleteNode: (name: string) => void,
   onDeleteField: (node: string, param: string) => void,
   onRemoveRequire: (source: string, target: string) => void,
-  // Called once both submenus are chosen: insert a reference to sourceNode's
-  // output into (node, param) at `caret` (the right-click position in the value).
-  onReferenceOutput: (node: string, param: string, sourceNode: string, output: string, caret?: number) => void,
+  // Called once both submenus are chosen: insert the reference into (node, param)
+  // at `caret` (the right-click position in the value).
+  onReferenceOutput: (node: string, param: string, reference: Reference, caret?: number) => void,
 }) => {
   // The item the node submenu flies out from, and the node box the output
   // submenu flies out from.
@@ -115,7 +116,7 @@ export const WorkflowContextMenu = ({
 
   const field = menu?.kind === WorkflowContextMenuKind.Field ? menu : null;
   const showReference = field !== null && referenceOptions.length > 0;
-  const outputsForNode = referenceOptions.find(o => o.node === refNode)?.outputs ?? [];
+  const nodeReferences = referenceOptions.find(o => o.node === refNode)?.references ?? [];
   const actions = menu ? actionsFor(menu, { onDeleteNode, onDeleteField, onRemoveRequire }) : [];
 
   // Closes the whole cascade (both submenus and the root menu).
@@ -191,10 +192,11 @@ export const WorkflowContextMenu = ({
             size="small"
             openOnFocus
             disablePortal
-            options={outputsForNode}
+            options={nodeReferences}
+            getOptionLabel={reference => reference.key}
             onChange={(_e, value) => {
               if (value !== null && field !== null && refNode !== null) {
-                onReferenceOutput(field.node, field.param, refNode, value, field.caret);
+                onReferenceOutput(field.node, field.param, value, field.caret);
                 closeAll();
               }
             }}

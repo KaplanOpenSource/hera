@@ -4,6 +4,8 @@ import {
   nodeWithParamValue,
   nodeWithReferenceAt,
 } from '../src/components/workflow/workflowNodeEdits';
+import { Reference } from '../src/components/workflow/references/Reference';
+import { OUTPUT } from '../src/components/workflow/references/knownKinds';
 import { WorkflowNode } from '../src/shared/types';
 
 const node = (params: { [param: string]: any }): WorkflowNode => {
@@ -53,27 +55,27 @@ describe('nodeWithParamValue', () => {
 
 describe('nodeWithReferenceAt', () => {
   it('appends the reference when there is no caret', () => {
-    const updated = nodeWithReferenceAt(node({ cmd: 'run' }), 'cmd', 'A', 'result');
+    const updated = nodeWithReferenceAt(node({ cmd: 'run' }), 'cmd', new Reference('A', OUTPUT, 'result'));
     expect(updated.Execution?.input_parameters?.cmd).toBe('run{A.output.result}');
   });
 
   it('inserts at the caret, keeping the text on both sides', () => {
-    const updated = nodeWithReferenceAt(node({ cmd: 'ab' }), 'cmd', 'A', 'result', 1);
+    const updated = nodeWithReferenceAt(node({ cmd: 'ab' }), 'cmd', new Reference('A', OUTPUT, 'result'), 1);
     expect(updated.Execution?.input_parameters?.cmd).toBe('a{A.output.result}b');
   });
 
   it('starts from empty text when the parameter is missing', () => {
-    const updated = nodeWithReferenceAt(node({}), 'cmd', 'A', 'result');
+    const updated = nodeWithReferenceAt(node({}), 'cmd', new Reference('A', OUTPUT, 'result'));
     expect(updated.Execution?.input_parameters?.cmd).toBe('{A.output.result}');
   });
 
   it('replaces a non-string value rather than appending to it', () => {
-    const updated = nodeWithReferenceAt(node({ cmd: 5 }), 'cmd', 'A', 'result');
+    const updated = nodeWithReferenceAt(node({ cmd: 5 }), 'cmd', new Reference('A', OUTPUT, 'result'));
     expect(updated.Execution?.input_parameters?.cmd).toBe('{A.output.result}');
   });
 
   it('leaves the other parameters alone', () => {
-    const updated = nodeWithReferenceAt(node({ cmd: '', keep: 'as is' }), 'cmd', 'A', 'result');
+    const updated = nodeWithReferenceAt(node({ cmd: '', keep: 'as is' }), 'cmd', new Reference('A', OUTPUT, 'result'));
     expect(updated.Execution?.input_parameters?.keep).toBe('as is');
   });
 });

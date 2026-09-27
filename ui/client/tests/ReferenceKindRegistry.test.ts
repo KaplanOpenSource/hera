@@ -1,0 +1,91 @@
+import { describe, expect, it } from 'vitest';
+import { NodeParameterSource } from '../src/shared/types';
+import { NodeCatalogEntry } from '../src/components/workflow/nodeCatalog';
+import { Reference } from '../src/components/workflow/references/Reference';
+import { OUTPUT, knownKinds } from '../src/components/workflow/references/knownKinds';
+
+const catalog: NodeCatalogEntry[] = [{
+  type: 'general.Run',
+  parameters: [],
+  outputs: [
+    { name: 'result', source: NodeParameterSource.Python },
+    { name: 'log', source: NodeParameterSource.Python },
+  ],
+}];
+
+describe('parseAll', () => {
+  it('parses back what a reference wrote', () => {
+    const reference = new Reference('A', OUTPUT, 'result');
+    expect(knownKinds.parseAll(reference.toString())).toEqual([reference]);
+  });
+
+  it('finds two references in one value', () => {
+    expect(knownKinds.parseAll('run {A.output.result} then {C.output.log}')).toEqual([
+      new Reference('A', OUTPUT, 'result'),
+      new Reference('C', OUTPUT, 'log'),
+    ]);
+  });
+
+  it('still reads the older parameters spelling', () => {
+    expect(knownKinds.parseAll('{A.parameters.result}')).toEqual([new Reference('A', OUTPUT, 'result')]);
+  });
+
+  it('skips a section no kind knows', () => {
+    expect(knownKinds.parseAll('{A.mystery.result}')).toEqual([]);
+  });
+
+  it('finds nothing in plain text', () => {
+    expect(knownKinds.parseAll('just a command')).toEqual([]);
+  });
+});
+
+describe('ofHandle', () => {
+  it('round trips a source dot', () => {
+    const reference = new Reference('A', OUTPUT, 'result');
+    expect(knownKinds.ofHandle(reference.handleId())).toEqual(reference);
+  });
+
+  it('ignores a requires handle', () => {
+    expect(knownKinds.ofHandle('A:req-out')).toBeNull();
+  });
+
+  it('ignores an input handle', () => {
+    expect(knownKinds.ofHandle('A:in:cmd')).toBeNull();
+  });
+});
+
+describe('ofEdgeId', () => {
+  it('round trips a dataflow edge id', () => {
+    const reference = new Reference('A', OUTPUT, 'result');
+    const id = reference.edgeIdTo('B', 'cmd');
+    expect(knownKinds.ofEdgeId(id)).toEqual({ reference, target: 'B', param: 'cmd' });
+  });
+
+  it('ignores an id that is not a dataflow edge', () => {
+    expect(knownKinds.ofEdgeId('A->B')).toBeNull();
+  });
+});
+
+describe('the kinds themselves', () => {
+  it('names the kind a written section belongs to', () => {
+    expect(knownKinds.bySection('output')).toBe(OUTPUT);
+    expect(knownKinds.bySection('outputs')).toBe(OUTPUT);
+    expect(knownKinds.bySection('mystery')).toBeNull();
+  });
+
+  it('keeps a half-typed section open', () => {
+    expect(knownKinds.couldBe('out')).toEqual([OUTPUT]);
+    expect(knownKinds.couldBe('zz')).toEqual([]);
+  });
+
+  it('lists what a node offers', () => {
+    expect(knownKinds.keysOf('A', { type: 'general.Run' }, catalog)).toEqual([
+      new Reference('A', OUTPUT, 'result'),
+      new Reference('A', OUTPUT, 'log'),
+    ]);
+  });
+
+  it('offers nothing for an unknown type', () => {
+    expect(knownKinds.keysOf('A', { type: 'nope' }, catalog)).toEqual([]);
+  });
+});

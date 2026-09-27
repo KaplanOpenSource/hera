@@ -1,6 +1,8 @@
 import { WorkflowNode } from '../../shared/types';
-import { NodeCatalogEntry, nodeOutputNames } from './nodeCatalog';
+import { NodeCatalogEntry } from './nodeCatalog';
 import { ReferenceTokenStage, tokenAtCaret } from './workflowDataflow';
+import { Reference } from './references/Reference';
+import { knownKinds } from './references/knownKinds';
 
 // Answers "which other node's output can this field point at?" for one workflow.
 // Build it once from the workflow and the node catalog, then ask it for the
@@ -21,13 +23,13 @@ export class WorkflowReferences {
     this.catalog = catalog;
   }
 
-  // The other nodes that produce outputs, with those outputs - what a field on
-  // `nodeName` may reference.
-  optionsFor(nodeName: string): { node: string, outputs: string[] }[] {
+  // The other nodes that offer something referenceable, with what they offer -
+  // what a field on `nodeName` may point at.
+  optionsFor(nodeName: string): { node: string, references: Reference[] }[] {
     return this.nodeNames
       .filter(name => name !== nodeName)
-      .map(name => ({ node: name, outputs: this.outputsOf(name) }))
-      .filter(option => option.outputs.length > 0);
+      .map(name => ({ node: name, references: this.referencesOf(name) }))
+      .filter(option => option.references.length > 0);
   }
 
   // The suggestions for the `{…}` token the caret sits in, or null when the
@@ -47,11 +49,13 @@ export class WorkflowReferences {
     if (!others.includes(token.nodePart)) {
       return [];
     }
-    return this.outputsOf(token.nodePart).filter(output => output.toLowerCase().includes(seed));
+    return this.referencesOf(token.nodePart)
+      .map(reference => reference.key)
+      .filter(key => key.toLowerCase().includes(seed));
   }
 
-  // The outputs one node produces.
-  outputsOf(nodeName: string): string[] {
-    return nodeOutputNames(this.nodes[nodeName] ?? {}, this.catalog);
+  // Everything one node offers to be referenced.
+  referencesOf(nodeName: string): Reference[] {
+    return knownKinds.keysOf(nodeName, this.nodes[nodeName] ?? {}, this.catalog);
   }
 }

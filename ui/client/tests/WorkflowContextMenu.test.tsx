@@ -1,12 +1,14 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { WorkflowContextMenu, WorkflowContextMenuKind } from '../src/components/workflow/WorkflowContextMenu';
+import { Reference } from '../src/components/workflow/references/Reference';
+import { OUTPUT } from '../src/components/workflow/references/knownKinds';
 
 afterEach(() => cleanup());
 
 const referenceOptions = [
-  { node: 'src', outputs: ['out1', 'out2'] },
-  { node: 'other', outputs: ['bee'] },
+  { node: 'src', references: [new Reference('src', OUTPUT, 'out1'), new Reference('src', OUTPUT, 'out2')] },
+  { node: 'other', references: [new Reference('other', OUTPUT, 'bee')] },
 ];
 
 describe('WorkflowContextMenu', () => {
@@ -44,7 +46,7 @@ describe('WorkflowContextMenu', () => {
     // Pick one of that node's outputs → inserts the reference and closes.
     fireEvent.change(await screen.findByRole('combobox', { name: 'Output' }), { target: { value: 'out2' } });
     fireEvent.click(await screen.findByRole('option', { name: 'out2' }));
-    expect(onReferenceOutput).toHaveBeenCalledWith('alpha', 'p', 'src', 'out2', 3);
+    expect(onReferenceOutput).toHaveBeenCalledWith('alpha', 'p', new Reference('src', OUTPUT, 'out2'), 3);
     expect(onClose).toHaveBeenCalled();
   });
 

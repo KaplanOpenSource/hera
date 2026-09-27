@@ -1,9 +1,11 @@
 import { WorkflowNode } from '../../shared/types';
-import { NodeCatalogEntry, nodeOutputNames } from './nodeCatalog';
+import { NodeCatalogEntry } from './nodeCatalog';
+import { Reference } from './references/Reference';
+import { ReferenceKind } from './references/ReferenceKind';
+import { OUTPUT, knownKinds } from './references/knownKinds';
 
-// A dataflow edge inferred from an input parameter that references another
-// node's output — e.g. a param value containing `{C.output.ggg}` (also
-// `parameter(s)` / `outputs`), where node C produces an output named `ggg`.
+// A dataflow edge inferred from a parameter value that references another node.
+// The reference formats live in the references folder.
 export interface WorkflowDataflowEdge {
   id: string;
   source: string;
@@ -12,41 +14,35 @@ export interface WorkflowDataflowEdge {
   targetHandle: string;
 }
 
-// Prefix on dataflow edge ids: df:<refNode>.<key>-><target>.<param>.
-export const DATAFLOW_EDGE_PREFIX = 'df:';
-
-// Handle ids, each scoped to its node so a node's requires + output/input
-// handles never collide. Only the dataflow (:out:/:in:) ids carry a trailing
-// name, so the matchers below can't mistake a requires handle for a dataflow one.
+// Handle ids, each scoped to its node so a node's requires and dataflow handles
+// never collide. Only the dataflow ids carry a trailing name, so the matchers
+// can't mistake a requires handle for a dataflow one.
 export const nodeOutputHandleId = (node: string): string => `${node}:req-out`;
 export const nodeInputHandleId = (node: string): string => `${node}:req-in`;
-export const outputHandleId = (node: string, name: string): string => `${node}:out:${name}`;
+export const outputHandleId = (node: string, name: string): string => new Reference(node, OUTPUT, name).handleId();
 export const inputHandleId = (node: string, param: string): string => `${node}:in:${param}`;
-const OUTPUT_HANDLE_MATCH = /:out:([^:]+)$/;
 const INPUT_HANDLE_MATCH = /:in:([^:]+)$/;
 
-// A reference embedded in a parameter value: {<node>.<section>.<key>}, where the
-// section is parameter(s) or output(s). We only care about the node and the key.
-const REFERENCE = /\{\s*(\w+)\.(?:parameters?|outputs?)\.(\w+)\s*\}/g;
-
-// A connection dragged from an output handle to an input handle: the output name
+// A connection dragged from a source handle to an input handle: the kind and key
 // it leaves from and the parameter it lands on.
 export interface DataflowConnection {
+  kind: ReferenceKind;
   outputName: string;
   param: string;
 }
 
-// If a connection runs from a dataflow output handle to a dataflow input handle,
-// return the output/param names it links; otherwise null (it's a requires drag).
+// If a connection runs from a dataflow source handle to a dataflow input handle,
+// return the reference/param names it links; otherwise null (it's a requires drag).
 export const parseDataflowConnection = (
   sourceHandle: string | null | undefined,
   targetHandle: string | null | undefined,
 ): DataflowConnection | null => {
-  const source = sourceHandle?.match(OUTPUT_HANDLE_MATCH);
+  const source = sourceHandle ? knownKinds.ofHandle(sourceHandle) : null;
   const target = targetHandle?.match(INPUT_HANDLE_MATCH);
   if (source && target) {
     return {
-      outputName: source[1],
+      kind: source.kind,
+      outputName: source.key,
       param: target[1],
     };
   }
@@ -57,19 +53,17 @@ export const parseDataflowConnection = (
 // another node's output — the same shape buildDataflowEdges parses back out.
 // Written as `output`; buildDataflowEdges still accepts the older `parameters`.
 export const dataflowReference = (sourceNode: string, outputName: string): string =>
-  `{${sourceNode}.output.${outputName}}`;
+  new Reference(sourceNode, OUTPUT, outputName).toString();
 
-// Splices a node-output reference into `value` at `caret`. The caret is clamped
-// into range, so out-of-range positions land at the start or end.
+// Splices a reference into `value` at `caret`. The caret is clamped into range,
+// so out-of-range positions land at the start or end.
 export const insertReferenceAt = (
   value: string,
   caret: number,
-  sourceNode: string,
-  outputName: string,
+  reference: Reference,
 ): string => {
-  const token = dataflowReference(sourceNode, outputName);
   const at = Math.max(0, Math.min(caret, value.length));
-  return value.slice(0, at) + token + value.slice(at);
+  return value.slice(0, at) + reference.toString() + value.slice(at);
 };
 
 // Which part of a half-typed `{…}` reference the caret sits in: the node name
@@ -123,31 +117,29 @@ export const tokenAtCaret = (value: string, caret: number): ReferenceTokenAtCare
   };
 };
 
-// Overwrites the token spanning [start, end) with a full reference to sourceNode's
-// output — used when a suggestion is picked from the inline menu.
+// Overwrites the token spanning [start, end) with a full reference — used when a
+// suggestion is picked from the inline menu.
 export const replaceReferenceAt = (
   value: string,
   start: number,
   end: number,
-  sourceNode: string,
-  outputName: string,
+  reference: Reference,
 ): string => {
-  return value.slice(0, start) + dataflowReference(sourceNode, outputName) + value.slice(end);
+  return value.slice(0, start) + reference.toString() + value.slice(end);
 };
 
-// Returns node with its `param` input set to reference sourceNode's output.
+// Returns node with its `param` input set to the given reference.
 export const setInputReference = (
   node: WorkflowNode,
   param: string,
-  sourceNode: string,
-  outputName: string,
+  reference: Reference,
 ): WorkflowNode => {
   const input_parameters = { ...(node.Execution?.input_parameters ?? {}) };
-  input_parameters[param] = dataflowReference(sourceNode, outputName);
+  input_parameters[param] = reference.toString();
   return { ...node, Execution: { ...node.Execution, input_parameters } };
 };
 
-// The parts of a dataflow edge id (df:<refNode>.<key>-><target>.<param>).
+// The parts of a dataflow edge id (df:<refNode>:<mark>:<key>-><target>.<param>).
 export interface DataflowEdgeRef {
   refNode: string;
   key: string;
@@ -158,14 +150,11 @@ export interface DataflowEdgeRef {
 // Parses a dataflow edge id back into its parts, or null if it isn't one (e.g. a
 // requires edge id) — lets onEdgesDelete tell dataflow lines from requires edges.
 export const parseDataflowEdgeId = (id: string): DataflowEdgeRef | null => {
-  if (!id.startsWith(DATAFLOW_EDGE_PREFIX)) {
+  const parsed = knownKinds.ofEdgeId(id);
+  if (parsed === null) {
     return null;
   }
-  const match = /^df:(\w+)\.(\w+)->(\w+)\.(\w+)$/.exec(id);
-  if (match === null) {
-    return null;
-  }
-  return { refNode: match[1], key: match[2], target: match[3], param: match[4] };
+  return { refNode: parsed.reference.node, key: parsed.reference.key, target: parsed.target, param: parsed.param };
 };
 
 // Returns node with the reference to refNode's `key` removed from `param`'s value
@@ -182,7 +171,7 @@ export const clearInputReference = (
   if (typeof value !== 'string') {
     return node;
   }
-  const token = new RegExp(`\\{\\s*${refNode}\\.(?:parameters?|outputs?)\\.${key}\\s*\\}`, 'g');
+  const token = new Reference(refNode, OUTPUT, key).clearToken();
   const input_parameters = { ...params, [param]: value.replace(token, '').trim() };
   return { ...node, Execution: { ...node.Execution, input_parameters } };
 };
@@ -202,24 +191,21 @@ export const buildDataflowEdges = (
       if (typeof value !== 'string') {
         return;
       }
-      REFERENCE.lastIndex = 0;
-      let match = REFERENCE.exec(value);
-      while (match !== null) {
-        const refNode = match[1];
-        const key = match[2];
-        const hasOutput = nodeNames.includes(refNode) && nodeOutputNames(nodes[refNode] ?? {}, catalog).includes(key);
-        const id = `${DATAFLOW_EDGE_PREFIX}${refNode}.${key}->${target}.${param}`;
-        if (hasOutput && !seen.has(id)) {
+      for (const reference of knownKinds.parseAll(value)) {
+        const inGraph = nodeNames.includes(reference.node);
+        const isReal = inGraph
+          && reference.kind.namesOf(nodes[reference.node] ?? {}, catalog).includes(reference.key);
+        const id = reference.edgeIdTo(target, param);
+        if (isReal && !seen.has(id)) {
           seen.add(id);
           edges.push({
             id,
-            source: refNode,
-            sourceHandle: outputHandleId(refNode, key),
+            source: reference.node,
+            sourceHandle: reference.handleId(),
             target,
             targetHandle: inputHandleId(target, param),
           });
         }
-        match = REFERENCE.exec(value);
       }
     });
   });

@@ -4,7 +4,10 @@ Scope: steps 1-3 of `REFERENCE_KINDS_PLAN.md`. One class owns what a reference i
 No new kind, no new dot, no UI change. Behaviour stays the same except the
 dataflow edge id format.
 
-## Step 1 - new file `src/components/workflow/workflowReferenceKinds.ts`
+Status: steps 1-3 are done. Next is step 4 of `REFERENCE_KINDS_PLAN.md`
+(`InputReferenceKind`).
+
+## Step 1 - new folder `src/components/workflow/references/`
 
 Nothing else changes in this step. Nothing imports it yet.
 
@@ -63,14 +66,14 @@ all(): ReferenceKind[]
 bySection(section: string): ReferenceKind | null
 parseAll(value: string): Reference[]                 // every reference in a value
 ofHandle(handleId: string): Reference | null         // `${node}:${mark}:${key}`
-ofEdgeId(id: string): { ref: Reference, target: string, param: string } | null
+ofEdgeId(id: string): { reference: Reference, target: string, param: string } | null
 couldBe(typedSection: string): ReferenceKind[]
 keysOf(node: string, workflowNode: WorkflowNode, catalog: NodeCatalogEntry[]): Reference[]
 ```
 
 `export const knownKinds = new ReferenceKindRegistry([new OutputReferenceKind()]);`
 
-New test file `tests/workflowReferenceKinds.test.ts`: format/parse round trip,
+New test files `tests/Reference.test.ts` and `tests/ReferenceKindRegistry.test.ts`: format/parse round trip,
 handle id round trip, edge id round trip, `parseAll` with two refs in one value,
 old `parameters` spelling still parsed, unknown section ignored.
 
@@ -103,26 +106,26 @@ should pass unchanged except any assertion on the literal edge id string. Grep
 
 ## Step 3 - the menus take a `Reference`
 
-- `WorkflowReferences.outputsOf(name)` -> `refsOf(name): Reference[]` using
-  `knownKinds.keysOf`. `optionsFor(name)` returns `{ node: string, refs: Reference[] }[]`,
+- `WorkflowReferences.outputsOf(name)` -> `referencesOf(name): Reference[]` using
+  `knownKinds.keysOf`. `optionsFor(name)` returns `{ node: string, references: Reference[] }[]`,
   still dropping self and empty nodes.
 - `inlineOptions` keeps returning `string[]` (node names, then keys) - it feeds an
-  autocomplete of plain strings. Its Output branch reads keys from `refsOf`.
+  autocomplete of plain strings. Its Output branch reads keys from `referencesOf`.
 - `WorkflowContextMenu`: rename `NodeOutputOption` to `ReferenceOption` with
-  `{ node: string, refs: Reference[] }`. Second submenu options are the node's
-  `Reference`s, `getOptionLabel = ref => ref.key`. `onReferenceOutput(node, param, ref, caret)`
+  `{ node: string, references: Reference[] }`. Second submenu options are the node's
+  `Reference`s, labelled by their `key`. `onReferenceOutput(node, param, reference, caret)`
   - one `Reference` argument instead of `(sourceNode, output)`.
-- `WorkflowCanvasEdits.referenceOutput(nodeName, param, ref, caret?)` and
-  `nodeWithReferenceAt(node, param, ref, caret?)`; `insertReferenceAt(value, caret, ref)`
-  and `replaceReferenceAt(value, start, end, ref)` take a `Reference` too.
-- `setInputReference(node, param, ref)` likewise; `WorkflowCanvasEdits.connect`
+- `WorkflowCanvasEdits.referenceOutput(nodeName, param, reference, caret?)` and
+  `nodeWithReferenceAt(node, param, reference, caret?)`; `insertReferenceAt` and
+  `replaceReferenceAt` take a `Reference` too.
+- `setInputReference(node, param, reference)` likewise; `WorkflowCanvasEdits.connect`
   builds `new Reference(connection.source, dataflow.kind, dataflow.key)`.
 - `applyInlinePick`: the Node branch writes the scaffold from the kind
   (`` `{${option}.${OUTPUT.section}.` ``, no literal `.output.`); the Output branch
   builds a `Reference`.
 - `WorkflowGraph.tsx`: `referenceOptions` type follows `optionsFor`; pass the
   `Reference` straight through to `edits.referenceOutput`.
-- `useInlineReference`: `references.refsOf(option).map(r => r.key)`.
+- `useInlineReference`: `references.referencesOf(option).map(r => r.key)`.
 
 Tests to update: `WorkflowReferences.test.ts`, `WorkflowContextMenu.test.tsx`,
 `inlineReferencePick.test.ts`, `workflowReferenceRoundTrip.test.ts` - argument
@@ -130,7 +133,7 @@ shapes only, no new expectations.
 
 ## Done when
 
-- No file outside `workflowReferenceKinds.ts` contains the literal `output` as part
+- No file outside `references/` contains the literal `output` as part
   of a reference or handle format. Check with
   `grep -rn "\.output\.\|:out:" src/components/workflow`.
 - `npx tsc --noEmit` clean, `npm run test` green.

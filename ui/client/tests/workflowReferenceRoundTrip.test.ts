@@ -13,6 +13,8 @@ import {
 } from '../src/components/workflow/workflowDataflow';
 import { applyInlinePick } from '../src/components/workflow/inlineReferencePick';
 import { WorkflowReferences } from '../src/components/workflow/WorkflowReferences';
+import { Reference } from '../src/components/workflow/references/Reference';
+import { OUTPUT } from '../src/components/workflow/references/knownKinds';
 import { NodeCatalogEntry } from '../src/components/workflow/nodeCatalog';
 import { NodeParameterSource, WorkflowNode } from '../src/shared/types';
 
@@ -34,6 +36,9 @@ const catalog: NodeCatalogEntry[] = [
 ];
 
 const NAMES = ['A', 'B'];
+
+// An output reference, the only kind there is today.
+const outputRef = (node: string, key: string): Reference => new Reference(node, OUTPUT, key);
 
 // Node B with one parameter, and node A producing the outputs above.
 const workflow = (cmd: any): { [name: string]: WorkflowNode } => {
@@ -64,7 +69,7 @@ describe('a written reference is found by the value parser', () => {
 
   it('is found through setInputReference too', () => {
     const nodes = workflow('');
-    nodes.B = setInputReference(nodes.B, 'cmd', 'A', 'result');
+    nodes.B = setInputReference(nodes.B, 'cmd', outputRef('A', 'result'));
     expect(onlyEdge(nodes).source).toBe('A');
   });
 });
@@ -89,6 +94,7 @@ describe('an edge hangs off the same dots a drag uses', () => {
   it('reads its own handles back as a dataflow connection', () => {
     const edge = onlyEdge(workflow(dataflowReference('A', 'result')));
     expect(parseDataflowConnection(edge.sourceHandle, edge.targetHandle)).toEqual({
+      kind: OUTPUT,
       outputName: 'result',
       param: 'cmd',
     });
@@ -105,7 +111,7 @@ describe('dragging a line and drawing it agree', () => {
   it('turns a drag between two handles into the very same edge', () => {
     const drag = parseDataflowConnection(outputHandleId('A', 'result'), inputHandleId('B', 'cmd'));
     const nodes = workflow('');
-    nodes.B = setInputReference(nodes.B, drag!.param, 'A', drag!.outputName);
+    nodes.B = setInputReference(nodes.B, drag!.param, new Reference('A', drag!.kind, drag!.outputName));
     const edge = onlyEdge(nodes);
     expect(edge.sourceHandle).toBe(outputHandleId('A', 'result'));
     expect(edge.targetHandle).toBe(inputHandleId('B', 'cmd'));
@@ -115,17 +121,17 @@ describe('dragging a line and drawing it agree', () => {
 describe('deleting a line undoes what writing it did', () => {
   it('clears the value and the edge with it', () => {
     const nodes = workflow('');
-    nodes.B = setInputReference(nodes.B, 'cmd', 'A', 'result');
-    const ref = parseDataflowEdgeId(onlyEdge(nodes).id)!;
-    nodes.B = clearInputReference(nodes.B, ref.param, ref.refNode, ref.key);
+    nodes.B = setInputReference(nodes.B, 'cmd', outputRef('A', 'result'));
+    const parsed = parseDataflowEdgeId(onlyEdge(nodes).id)!;
+    nodes.B = clearInputReference(nodes.B, parsed.param, parsed.refNode, parsed.key);
     expect(nodes.B.Execution?.input_parameters?.cmd).toBe('');
     expect(buildDataflowEdges(NAMES, nodes, catalog)).toEqual([]);
   });
 
   it('leaves the surrounding text behind', () => {
     const nodes = workflow(`run ${dataflowReference('A', 'result')} now`);
-    const ref = parseDataflowEdgeId(onlyEdge(nodes).id)!;
-    nodes.B = clearInputReference(nodes.B, ref.param, ref.refNode, ref.key);
+    const parsed = parseDataflowEdgeId(onlyEdge(nodes).id)!;
+    nodes.B = clearInputReference(nodes.B, parsed.param, parsed.refNode, parsed.key);
     expect(nodes.B.Execution?.input_parameters?.cmd).toBe('run  now');
   });
 
@@ -139,14 +145,14 @@ describe('deleting a line undoes what writing it did', () => {
 
 describe('the typed token and the written token line up', () => {
   it('sees the caret as inside a token just inserted', () => {
-    const value = insertReferenceAt('', 0, 'A', 'result');
+    const value = insertReferenceAt('', 0, outputRef('A', 'result'));
     const token = tokenAtCaret(value, value.length - 1);
     expect(token).not.toBeNull();
     expect(token!.nodePart).toBe('A');
   });
 
   it('spans the whole token it just wrote', () => {
-    const value = insertReferenceAt('xx', 2, 'A', 'result');
+    const value = insertReferenceAt('xx', 2, outputRef('A', 'result'));
     const token = tokenAtCaret(value, value.length - 1)!;
     expect(value.slice(token.start, token.end)).toBe(dataflowReference('A', 'result'));
   });
@@ -171,13 +177,12 @@ describe('picking through the inline menu writes a resolvable reference', () => 
 describe('everything the menus offer can actually be drawn', () => {
   const references = new WorkflowReferences(NAMES, workflow(''), catalog);
 
-  it('turns every offered output into a real edge', () => {
+  it('turns every offered reference into a real edge', () => {
     const offered = references.optionsFor('B');
     expect(offered.length).toBeGreaterThan(0);
     offered.forEach(option => {
-      option.outputs.forEach(output => {
-        const nodes = workflow(dataflowReference(option.node, output));
-        expect(buildDataflowEdges(NAMES, nodes, catalog)).toHaveLength(1);
+      option.references.forEach(offered => {
+        expect(buildDataflowEdges(NAMES, workflow(offered.toString()), catalog)).toHaveLength(1);
       });
     });
   });
