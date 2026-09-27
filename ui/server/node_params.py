@@ -24,7 +24,11 @@ _HERMES_ROOT = Path(__file__).resolve().parents[2] / "Hermes"
 
 
 def _executer_class(node_type: str):
-    """The executer class for a node type, or None when the type has no executer."""
+    """The executer class for a node type, or None when the type has no executer.
+
+    None also covers a class that isn't an ``abstractExecuter``, so only a real
+    node's own checks are ever run.
+    """
     if not _NODE_TYPE.match(node_type):
         return None
     node_dir = _HERMES_ROOT / "hermes" / "Resources" / Path(*node_type.split("."))
@@ -33,20 +37,23 @@ def _executer_class(node_type: str):
     if str(_HERMES_ROOT) not in sys.path:
         sys.path.insert(0, str(_HERMES_ROOT))
     module = importlib.import_module(f"hermes.Resources.{node_type}.executer")
+    from hermes.Resources.executers.abstractExecuter import abstractExecuter
     # The class is named after the node's own directory.
-    return getattr(module, node_type.rsplit(".", 1)[-1], None)
+    executer = getattr(module, node_type.rsplit(".", 1)[-1], None)
+    if not isinstance(executer, type) or not issubclass(executer, abstractExecuter):
+        return None
+    return executer
 
 
 def validate_node_params(node_type: str, params: dict) -> dict:
     """Test a node's parameter values against its own executer.
 
     Returns ``{"ok": bool, "message": str}``. ok with an empty message also covers
-    "nothing to say": an unknown type, or a node that defines no checks of its
-    own. Only a class that overrides ``testParamValues`` is called, because the
-    base stub is declared static yet takes ``self``.
+    "nothing to say": an unknown type, or a node with no checks of its own, whose
+    inherited stub passes everything.
     """
     executer = _executer_class(node_type)
-    if executer is None or "testParamValues" not in executer.__dict__:
+    if executer is None:
         return {"ok": True, "message": ""}
     ok, message = executer.testParamValues(params)
     return {"ok": bool(ok), "message": message or ""}

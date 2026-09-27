@@ -19,10 +19,6 @@ class _WithChecks:
         return False, "Agent 'x' doesn't exists, choose one of: H2S"
 
 
-class _NoChecks:
-    pass
-
-
 @pytest.fixture
 def warmed(monkeypatch):
     monkeypatch.setattr(server.warmup, "_ready", True)
@@ -41,10 +37,10 @@ def test_good_value_is_ok_with_no_message(monkeypatch):
     assert result == {"ok": True, "message": ""}
 
 
-def test_node_without_own_checks_reports_nothing(monkeypatch):
-    # The base stub is static yet takes self, so a class that doesn't override
-    # testParamValues must not be called at all.
-    monkeypatch.setattr(node_params, "_executer_class", lambda node_type: _NoChecks)
+def test_class_that_is_not_a_node_executer_is_never_called(monkeypatch):
+    # _executer_class only returns abstractExecuter subclasses, so anything else
+    # reads as "no node" rather than as something to run.
+    monkeypatch.setattr(node_params, "_executer_class", lambda node_type: None)
     assert node_params.validate_node_params("general.CopyFile", {}) == {"ok": True, "message": ""}
 
 
