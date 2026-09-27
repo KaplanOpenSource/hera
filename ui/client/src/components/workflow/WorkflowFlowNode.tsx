@@ -10,6 +10,7 @@ import { WorkflowNodeDeleteButton } from './WorkflowNodeDeleteButton';
 import { nodeInputHandleId, nodeOutputHandleId } from './workflowDataflow';
 import { INPUT_PARAMETERS_KEY, WorkflowNodeInputs } from './WorkflowNodeInputs';
 import { WorkflowNodeOutputs } from './WorkflowNodeOutputs';
+import { useNodeParamsValidation } from './useNodeParamsValidation';
 
 export interface WorkflowFlowNodeData {
   name: string;
@@ -81,6 +82,8 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
 
   const typeOptions = catalog.map(entry => entry.type);
   const typeIssue = nodeTypeIssue(node, catalog);
+  // Hermes's own complaint about the parameter values, shown under the node.
+  const paramsIssue = useNodeParamsValidation(node);
   const paramsDef = paramsFieldDef(node, catalog);
   const outputs = nodeOutputNames(node, catalog);
   const inputsExpanded = expandedItems.includes(keyForDetailsViewItem(INPUT_PARAMETERS_KEY));
@@ -209,6 +212,16 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
             sx={{ display: 'block', mt: 0.5, userSelect: 'text' }}
           >
             {typeIssue}
+          </Typography>
+        )}
+        {paramsIssue && (
+          <Typography
+            className="nodrag"
+            variant="caption"
+            color="error.main"
+            sx={{ display: 'block', mt: 0.5, userSelect: 'text' }}
+          >
+            {paramsIssue}
           </Typography>
         )}
       </Box>

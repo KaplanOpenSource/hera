@@ -21,11 +21,14 @@ from api_models import (
     Problem,
     RunWorkflowPayload,
     RunWorkflowResponse,
+    ValidateNodeParamsPayload,
+    ValidateNodeParamsResponse,
 )
 from cors_handler import CorsHandler
 from hera_warmup import HeraWarmup
 from jupyter_server_thread import JupyterServerThread, DEFAULT_JUPYTER_PORT
 from node_catalog import get_node_catalog
+from node_params import validate_node_params
 from workflow_runner import WorkflowRunner
 
 LOG_MAX_LEN = 350
@@ -191,6 +194,18 @@ def node_catalog() -> list:
     See ``node_catalog.get_node_catalog``.
     """
     return get_node_catalog()
+
+
+@app.post("/node-params/validate", response_model=ValidateNodeParamsResponse)
+def node_params_validate(payload: ValidateNodeParamsPayload) -> ValidateNodeParamsResponse:
+    """Test one node's parameter values with the node's own Hermes checks.
+
+    See ``node_params.validate_node_params``. The checks reach hera and MongoDB,
+    so before warmup there is nothing to report yet.
+    """
+    if not warmup.ready:
+        return ValidateNodeParamsResponse()
+    return ValidateNodeParamsResponse(**validate_node_params(payload.type, payload.params))
 
 
 @app.get("/file/{file_path:path}")
