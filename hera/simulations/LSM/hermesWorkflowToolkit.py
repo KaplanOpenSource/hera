@@ -1,25 +1,28 @@
-from enum import Enum, auto, unique
-from typing import Union
-import pandas
-import shutil
-import shlex
-import subprocess
 import os
-from hera.toolkit import abstractToolkit
-from hera.utils import loadJSON, compareJSONS
-from hera.utils.query import dictToMongoQuery
-from hera.utils.dataframeutils import compareDataframeConfigurations
-from hera.datalayer import datatypes
-import numpy
 import pydoc
+import shlex
+import shutil
+import subprocess
 import uuid
 import warnings
-from hera.utils.logging import with_logger, get_classMethod_logger
-from hera.simulations.hermesWorkflowToolkit import buildLuigiExecutionCommand, SCHEDULER_LOCAL, SCHEDULER_CENTRAL
+from enum import Enum, auto, unique
+from typing import Union
+
+import numpy
+import pandas
+
+from hera.datalayer import datatypes
+from hera.simulations.hermesWorkflowToolkit import (
+    SCHEDULER_LOCAL,
+    buildLuigiExecutionCommand,
+)
+from hera.toolkit import abstractToolkit
+from hera.utils import compareJSONS, loadJSON
+from hera.utils.logging import get_classMethod_logger
+from hera.utils.query import dictToMongoQuery
 
 try:
     from hermes import workflow
-    from hermes.utils.workflowAssembly import handler_build,handler_buildExecute,handler_expand,handler_execute
 except ImportError:
 #    raise ImportError("hermes is not installed. please install it to use the hermes workflow toolkit.")
     warnings.warn("hermes is not installed. some features will not work.")
@@ -80,6 +83,16 @@ class workflowToolkit(abstractToolkit):
         #                  WorkflowTypes.OF_FLOWFIELD.value  : "hera.simulations.openFoam.datalayer.hermesWorkflow.Workflow_Flow"
         # }
 
+
+    def getParamsFromDoc(self, doc):
+        """Retrieve parameters from a workflow document by extrapolating them from the JSON."""
+        workflowJSON = doc.get('desc', {}).get('workflow')
+        if not workflowJSON:
+            return {}
+
+        # Extrapolate parameters using the hermes library logic
+        wf = self.getHermesWorkflowFromJSON(workflowJSON)
+        return wf.parametersJSON
 
     def getHemresWorkflowFromDocument(self,documentList,returnFirst=True):
         """
@@ -181,7 +194,7 @@ class workflowToolkit(abstractToolkit):
 
 
 
-    def getWorkflowDocumentFromDB(self, nameOrWorkflowFileOrJSONOrResource, doctype=None, dockind="Simulations", **query):
+    def getWorkflowDocumentFromDB(self, nameOrWorkflowFileOrJSONOrResource : str | dict, doctype:str|None=None, dockind:str="Simulations", **query:dict):
         """
             Tries to find item as name, workflow directory , groupname or through the resource.
             Additional queries are also applicable.
@@ -555,15 +568,13 @@ class workflowToolkit(abstractToolkit):
                                                       groupID=groupID,
                                                       workflowName=workflowName,
                                                       solver=theSolver,
-                                                      workflow=hermesWF.json,
-                                                      parameters=hermesWF.parametersJSON)
+                                                      workflow=hermesWF.json)
                                                   )
 
             elif overwrite:
                 self.logger.info("Simulation in the DB, overwrite=True.  Updating... ")
                 doc = docList[0]
                 doc['desc']['workflow'] = hermesWF.json
-                doc['desc']['parameters'] = hermesWF.parametersJSON
                 doc.save()
             else:
                 info = f"The simulation {workflowName} with type {theSolver} is already in the database in group {groupName}. use the overwrite=True to update the record."
@@ -721,7 +732,7 @@ class workflowToolkit(abstractToolkit):
                 val['nodes'] = simdoc['desc']['workflow']['workflow']['nodeList']
 
             if listParameters:
-                val['parameters'] = simdoc['desc']['parameters']
+                val['parameters'] = self.getParamsFromDoc(simdoc)
 
             ret.append(val)
 

@@ -1,29 +1,31 @@
-import io
-import logging
-import subprocess
-
-import dask.dataframe
-import numpy
-import pandas
-import os
 import glob
-import shutil
+import io
 import json
-import xarray
+import os
+import re
+import shutil
+import subprocess
 from itertools import product
 
-from dask.delayed import delayed
+import dask.dataframe
 import dask.dataframe as dask_dataframe
-from pandas.core.array_algos.transforms import shift
+import numpy
+import pandas
+import xarray
 from dask.distributed import Client
-
-from hera.utils.unitHandler import *
 
 from hera.datalayer import datatypes
 from hera.datalayer.document.metadataDocument import MetadataFrame
-from hera.utils import dictToMongoQuery,JSONToConfiguration,get_classMethod_logger,ConfigurationToJSON,tonumber
-from hera.simulations.openFoam  import FLOWTYPE_INCOMPRESSIBLE
+from hera.simulations.openFoam import FLOWTYPE_INCOMPRESSIBLE
 from hera.simulations.openFoam.OFWorkflow import workflow_StochasticLagrangianSolver
+from hera.utils import (
+    ConfigurationToJSON,
+    dictToMongoQuery,
+    get_classMethod_logger,
+    tonumber,
+)
+from hera.utils.unitHandler import ureg
+
 
 class absractStochasticLagrangianSolver_toolkitExtension:
     """
@@ -159,7 +161,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         docList = self.toolkit.getWorkflowListDocumentFromDB(source)
 
         if len(docList) == 0:
-            logger.debug(f"Not in DB. Trying as a directory.")
+            logger.debug("Not in DB. Trying as a directory.")
             if not os.path.isdir(source):
                 raise FileNotFoundError(
                     f"The original flow {source} is not a directory and does not exist in the DB.")
@@ -330,7 +332,6 @@ class absractStochasticLagrangianSolver_toolkitExtension:
     def _copyOrLinkTimestep(self, origDir, destDir, origTime, destTime,
                              isParallel, linkData, linkMesh):
         """Copy or symlink a single timestep directory, plus mesh handling."""
-        logger = get_classMethod_logger(self, "_copyOrLinkTimestep")
         orig_ts = os.path.join(origDir, origTime)
         dest_ts = (os.path.join(destDir, os.path.basename(origDir), destTime)
                    if isParallel else os.path.join(destDir, destTime))
@@ -583,7 +584,6 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             if len(docList) > 0:
                 doc = docList[0]
                 doc.desc['workflow'] = workflow.json
-                doc.desc['parameters'] = workflow.parametersJSON
                 logger.info("Updating workflow in DB")
                 doc.save()
 
@@ -602,7 +602,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         constantDir = os.path.join(dispersionDirectory, "constant")
         systemDir = os.path.join(dispersionDirectory, "system")
 
-        logger.debug(f"Copying constant and system from the base flow")
+        logger.debug("Copying constant and system from the base flow")
         if os.path.exists(constantDir):
             shutil.rmtree(constantDir)
 
@@ -868,9 +868,9 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         """
         logger = get_classMethod_logger(self,"getMeshFromLagrangianName")
         logger.info(f"Getting the mesh for {nameOrWorkflowFileOrJSONOrResource}")
-        logger.debug(f"Getting the original flow field")
+        logger.debug("Getting the original flow field")
         originalFlowField = self.getOriginalFlowDocument(nameOrWorkflowFileOrJSONOrResource)
-        logger.debug(f"Getting the mesh from the original flow field")
+        logger.debug("Getting the mesh from the original flow field")
         return self.toolkit.getMesh(originalFlowField.getData())
 
 
@@ -908,8 +908,6 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         -------
         dask.dataframe.DataFrame
         """
-        logger = get_classMethod_logger(self, "getCaseResults")
-
         # Step 1: Resolve the case descriptor to a name string.
         caseDescriptorName = self._resolveCaseDescriptorName(caseDescriptor)
 
@@ -924,11 +922,12 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         finalCasePath, workflowName = self._locateCaseDirectory(caseDescriptorName, caseDescriptor)
 
         # Step 4: Build the record loader for Lagrangian particle data.
-        loader = lambda timeName: readLagrangianRecord(
-            timeName, casePath=finalCasePath,
-            withVelocity=withVelocity, withReleaseTimes=withReleaseTimes,
-            cloudName=cloudName, withMass=withMass
-        )
+        def loader(timeName):
+            readLagrangianRecord(
+                timeName, casePath=finalCasePath,
+                withVelocity=withVelocity, withReleaseTimes=withReleaseTimes,
+                cloudName=cloudName, withMass=withMass
+            )
 
         # Step 5: Discover timesteps and load data via Dask.
         
@@ -1192,7 +1191,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         elif isinstance(nameOrDispersionWorkflow,workflow_StochasticLagrangianSolver):
             dffname = nameOrDispersionWorkflow.dispersionFlowFieldName
         else:
-            err = f"{nameOrDispersionWorkflow} must be of type str or workflow_StochasticLagrangianSolver, got {type(nameOrDispersionWorkflow)}"
+            logger.error(f"{nameOrDispersionWorkflow} must be of type str or workflow_StochasticLagrangianSolver, got {type(nameOrDispersionWorkflow)}")
 
         logger.info(f"Trying to retireve the document for {dffname}")
         ret = self.toolkit.getWorkflowDocumentFromDB(dffname, doctype=self.toolkit.DOCTYPE_OF_FLOWDISPERSION)
@@ -1219,7 +1218,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         elif isinstance(nameOrDispersionWorkflow,workflow_StochasticLagrangianSolver):
             dffname = nameOrDispersionWorkflow.originalFlowFieldName
         else:
-            err = f"{nameOrDispersionWorkflow} must be of type str or workflow_StochasticLagrangianSolver, got {type(nameOrDispersionWorkflow)}"
+            logger.error(f"{nameOrDispersionWorkflow} must be of type str or workflow_StochasticLagrangianSolver, got {type(nameOrDispersionWorkflow)}")
 
         ret = self.toolkit.getWorkflowDocumentFromDB(dffname, doctype=self.toolkit.DOCTYPE_WORKFLOW)
         return ret[0] if len(ret) > 0 else None
@@ -1240,11 +1239,11 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         """
         logger = get_classMethod_logger(self,"getOriginalFlowFieldExtent")
         logger.info(f"Getting the mesh for {nameOrDispersionWorkflow}")
-        logger.debug(f"Getting the original flow field")
+        logger.debug("Getting the original flow field")
         originalFlowField = self.getOriginalFlowDocument(nameOrDispersionWorkflow)
-        logger.debug(f"Getting the mesh from the original flow field")
+        logger.debug("Getting the mesh from the original flow field")
         mesh = self.toolkit.getMesh(originalFlowField.getData())
-        logger.debug(f"Computing the extents. ")
+        logger.debug("Computing the extents. ")
         return mesh.getDataFrame()[['Cx','Cy','Cz']].agg(["min","max"])
 
     def getOriginalFlowFieldExtentAsDict(self,nameOrDispersionWorkflow):
@@ -1306,8 +1305,6 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         xarray.Dataset
             Concentration field indexed by (datetime, x, y, z).
         """
-        logger = get_classMethod_logger(self, "getCaseConcentrationsEulerian")
-
         # Step 1: Resolve case descriptor.
         caseDescriptorName = self._resolveCaseDescriptorName(caseDescriptor)
 
@@ -1322,9 +1319,10 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         finalCasePath, workflowName = self._locateCaseDirectory(caseDescriptorName, caseDescriptor)
 
         # Step 4: Build Eulerian concentration loader.
-        loader = lambda timeName: readEulerianConcentration(
-            timeName, casePath=finalCasePath, cloudName=cloudName
-        )
+        def loader(timeName):
+            readEulerianConcentration(
+                timeName, casePath=finalCasePath, cloudName=cloudName
+            )
 
         # Step 5: Load data via Dask.
         ret = self._loadCaseDataViaDask(
@@ -1460,7 +1458,7 @@ class analysis:
                 finalFileName = doc.resource
 
             C.to_parquet(finalFileName, compression="GZIP")
-            ret = doc
+            return doc
 
     def calcConcentrationTimeStepFullMesh(self, timeData, extents, dxdydz, xfield="x", yfield="y",
                                           zfield="z"):
@@ -1668,7 +1666,6 @@ class analysis:
     def _padRemainingTimesteps(self, lastTime, totalDuration, nextPartitionID,
                                 outputDir, extents, dxdydz, xfield, yfield, zfield):
         """Fill remaining timesteps with zero-concentration fields."""
-        logger = get_classMethod_logger(self, "_padRemainingTimesteps")
         L = []
         for t in range(int(lastTime + 1), totalDuration):
             xry = self.calcConcentrationTimeStepFullMesh(
@@ -1849,7 +1846,7 @@ def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTime
                             ['mass'])
         try:
             newData["mass"] = dataM["mass"]
-        except:
+        except Exception:
             newData = newData.compute()
             newData["mass"] = dataM["mass"]
 

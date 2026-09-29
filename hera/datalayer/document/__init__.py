@@ -1,14 +1,18 @@
-from hera.utils.logging import get_logger
-from mongoengine import *
-from mongoengine.connection import disconnect
-import os
-import json
 import getpass
+import json
 import logging
-from hera.datalayer.document.metadataDocument import MetadataFrame,nonDBMetadataFrame
+import os
 from pathlib import Path
 
+from mongoengine import DynamicDocument, connect
+from mongoengine.connection import disconnect
+
+from hera.datalayer.document.metadataDocument import MetadataFrame, nonDBMetadataFrame
+from hera.utils.logging import get_logger
+
 dbObjects = {}
+
+__all__ = ["nonDBMetadataFrame"]
 
 def getMongoJSON():
     """

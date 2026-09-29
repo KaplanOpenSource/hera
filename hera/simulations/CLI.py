@@ -182,7 +182,7 @@ def workflow_compareToDisk(arguments):
         if not os.path.isfile(outfileName):
             print(f"Workflow {sim.name} (file {outfileName} does not exist on the disk. use export to create it. ")
         else:
-            from ..utils import loadJSON,compareJSONS
+            from ..utils import compareJSONS, loadJSON
             localWorkflow = wftk.getHermesWorkflowFromJSON(loadJSON(outfileName),name="Local", resource=outfileName)
             smName = sim.name
             sim.name = "DB"
@@ -212,11 +212,12 @@ def workflow_sync_to_db(arguments):
     -------
 
     """
-    from ..simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
     from hera import toolkitHome
 
+    from ..simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
+
     logger = logging.getLogger("hera.bin.hera_workflows.sync_to_db")
-    logger.info(f" -- Starting: syncing workflows --")
+    logger.info(" -- Starting: syncing workflows --")
 
     _confirm_project_name(arguments, logger)
 
@@ -225,7 +226,7 @@ def workflow_sync_to_db(arguments):
     workflowDocList = wftk.getWorkflowListDocumentFromDB(list(arguments.workflows))
 
     if len(workflowDocList) == 0:
-        logger.error(f"... not found.")
+        logger.error("... not found.")
 
     for workflowDoc in workflowDocList:
         sim = wftk.getHemresWorkflowFromDocument(documentList=workflowDoc)
@@ -233,8 +234,9 @@ def workflow_sync_to_db(arguments):
         if not os.path.isfile(outfileName):
             print(f"Workflow {sim.name} (file {outfileName}) does not exist on the disk. use export to create it.")
         else:
-            from ..utils import loadJSON,compareJSONS
             import pandas
+
+            from ..utils import compareJSONS, loadJSON
             localWorkflow = wftk.getHermesWorkflowFromJSON(loadJSON(outfileName),name="Local", resource=outfileName)
             simName = sim.name
             sim.name = "DB"
@@ -262,11 +264,12 @@ def create_workflow_variations(arguments):
     -------
 
     """
-    from ..simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
     from hera import toolkitHome
 
+    from ..simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
+
     logger = logging.getLogger("hera.bin.hera_workflows.create_workflow_variations")
-    logger.info(f" -- Starting: creating workflow variation --")
+    logger.info(" -- Starting: creating workflow variation --")
     _confirm_project_name(arguments, logger)
     variation_json_path = str(arguments.variationJson)
     project_name = str(arguments.projectName)
@@ -334,10 +337,11 @@ def batch_delete_workflows(arguments):
 
     """
     from hera import toolkitHome
+
     from ..simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
 
     logger = logging.getLogger("hera.bin.hera_workflows.batch_delete_workflows")
-    logger.info(f" -- Starting: batch delete workflows --")
+    logger.info(" -- Starting: batch delete workflows --")
     _confirm_project_name(arguments, logger)
     project_name = str(arguments.projectName)
     workflow_name = str(arguments.workflow) if arguments.workflow else None
@@ -366,7 +370,7 @@ def _confirm_project_name(arguments, logger):
     from ..utils import loadJSON
     if arguments.projectName is None:
         logger.debug(
-            f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
+            "projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
         caseConfiguration = loadJSON("caseConfiguration.json")
         arguments.projectName = caseConfiguration['projectName']
 
@@ -470,7 +474,7 @@ def workflow_list(arguments):
                     print(f"\t\t + {node}")
 
         if parameters:
-            for nodeName,nodeData in doc['parameters'].items():
+            for nodeName,nodeData in wftk.getParamsFromDoc(doc).items():
 
                 print(f"\t\t + {nodeName}")
                 for pname,pvalue in nodeData.items():
@@ -499,6 +503,7 @@ def workflowNodes_list(arguments):
 
     if os.path.exists(arguments.workflowName) and not os.path.isdir(arguments.workflowName):
             from hermes import workflow
+
             from ..utils import loadJSON
             json = loadJSON(arguments.workflowName)
             hermesObject = workflow(json, Resource_path=arguments.workflowName)
@@ -547,6 +552,7 @@ def workflowNodes_listParameters(arguments):
 
     if os.path.isfile(arguments.workflowName):
             from hermes import workflow
+
             from ..utils import loadJSON
             json = loadJSON(arguments.workflowName)
             hermesObject = workflow(json, Resource_path=arguments.workflowName)
