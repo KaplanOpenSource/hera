@@ -40,7 +40,10 @@ setup(
         "geopandas>=0.10",
         "shapely>=1.8",
     ],
-    scripts=[s for s in glob.glob("hera/bin/hera-*") if not s.endswith(".old")],
+    # hera-* covers the domain CLIs; jupyter-lab-server does not match that glob
+    # and so was never installed, despite being documented in docs/cli/reference.md.
+    scripts=[s for s in glob.glob("hera/bin/hera-*") if not s.endswith(".old")]
+            + ["hera/bin/jupyter-lab-server"],
     extras_require={
         "rag": [
             "sentence-transformers>=2.7",

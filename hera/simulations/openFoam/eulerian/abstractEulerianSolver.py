@@ -27,7 +27,7 @@ class absractEulerianSolver_toolkitExtension:
     @property
     def flowType(self):
         """Return the flow type string based on the compressibility flag."""
-        return self.toolkit.FLOWTYPE_INCOMPRESSIBLE if self.incompressible else SIMULATIONTYPE_COMPRESSIBLE
+        return self.toolkit.FLOWTYPE_INCOMPRESSIBLE if self.incompressible else FLOWTYPE_COMPRESSIBLE
 
 
     def blockMesh_setBoundFromBounds(self, eulerianWF, minx,maxx,miny,maxy,minz,maxz,dx,dy,dz):
@@ -68,7 +68,7 @@ class absractEulerianSolver_toolkitExtension:
             logger.error(err)
             raise ValueError(err)
 
-        eulerianWF.set_blockMesh_boundaries(minx=minx,maxx=maxx,miny=miny,maxy=maxy,minz=minz,maxz=maxz,dx=dx,dy=dy,dz=dz)
+        eulerianWF.set_blockMesh_blockBoundaries(minx=minx,maxx=maxx,miny=miny,maxy=maxy,minz=minz,maxz=maxz,dx=dx,dy=dy,dz=dz)
 
 
     def blockMesh_setBoundFromFile(self,eulerianWorkFlow,fileName,dx,dy,dz):
@@ -85,13 +85,13 @@ class absractEulerianSolver_toolkitExtension:
 
         """
         logger = get_classMethod_logger(self, "blockMesh_setBoundFromBounds")
-        if not isinstance(eulerianWF, workflow_Eulerian):
-            err = f"The workflow is not eulerian (does not inherit the workflow_Eulerian class, cannot change the mesh. Got {type(eulerianWF)}"
+        if not isinstance(eulerianWorkFlow, workflow_Eulerian):
+            err = f"The workflow is not eulerian (does not inherit the workflow_Eulerian class, cannot change the mesh. Got {type(eulerianWorkFlow)}"
             logger.error(err)
             raise ValueError(err)
 
         corners = getObjFileBoundaries(fileName)
-        eulerianWF.set_blockMesh_boundaries(**corners, dx=dx,dy=dy, dz=dz)
+        eulerianWorkFlow.set_blockMesh_blockBoundaries(**corners, dx=dx,dy=dy, dz=dz)
 
 
     def blockMesh_setDomainHeight(self,eulerianWorkFlow,Z,dz):
@@ -108,13 +108,12 @@ class absractEulerianSolver_toolkitExtension:
 
         """
         logger = get_classMethod_logger(self, "blockMesh_setDomainHeight")
-        if not isinstance(eulerianWF, workflow_Eulerian):
-            err = f"The workflow is not eulerian (does not inherit the workflow_Eulerian class, cannot change the mesh. Got {type(eulerianWF)}"
+        if not isinstance(eulerianWorkFlow, workflow_Eulerian):
+            err = f"The workflow is not eulerian (does not inherit the workflow_Eulerian class, cannot change the mesh. Got {type(eulerianWorkFlow)}"
             logger.error(err)
             raise ValueError(err)
 
-        corners = getObjFileBoundaries(fileName)
-        eulerianWF.set_blockMesh_boundaries(**corners, dx=dx,dy=dy, dz=dz)
+        eulerianWorkFlow.set_blockMesh_blockHeight(Z=Z, dz=dz)
 
     def writeFieldInCase(self, fieldName,caseDirectory,components,xarrayData, boundaryConditions=None,data=None):
         """

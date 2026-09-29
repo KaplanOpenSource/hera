@@ -3,9 +3,6 @@ import os
 import glob
 from ....utils.logging import get_classMethod_logger
 from .. import FIELDTYPE_VECTOR, FIELDTYPE_TENSOR, FIELDTYPE_SCALAR
-# from PyFoam.RunDictionary.ParsedParameterFile import ParsedParameterFile,WriteParameterFile
-# from PyFoam.Basics.DataStructures import Field,Vector,Tensor,DictProxy,Dimension
-# from .utils import extractFieldFile,ParsedParameterFileToDataFrame
 
 class OFObject:
     """

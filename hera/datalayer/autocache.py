@@ -8,8 +8,6 @@ from functools import wraps
 from bson import BSON
 from bson.errors import InvalidDocument
 
-from hera import Project
-
 
 def clearAllFunctionsCache(projectName=None):
     """
@@ -38,6 +36,7 @@ def clearFunctionCache(functionName,projectName=None):
     -------
 
     """
+    from hera import Project
     proj = Project(projectName=projectName)
     paramDict = dict()
     if functionName is not None:
@@ -268,6 +267,7 @@ class cacheDecorators:
             the data otherwise.
         """
 
+        from hera import Project
         proj = Project(self.projectName)
         docList = proj.getCacheDocuments(type="functionCacheData",**call_info)
         if len(docList) == 0:
@@ -290,6 +290,7 @@ class cacheDecorators:
         -------
 
         """
+        from hera import Project
         proj = Project(self.projectName)
         return proj.saveCacheData(name=call_info['functionName'], data=data, desc=call_info, type="functionCacheData",dataFormat=self.dataFormat)
 

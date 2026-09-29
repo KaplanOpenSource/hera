@@ -1,5 +1,4 @@
 import glob
-import io
 import json
 import os
 import re
@@ -12,6 +11,7 @@ import dask.dataframe as dask_dataframe
 import numpy
 import pandas
 import xarray
+from dask.delayed import delayed
 from dask.distributed import Client
 
 from hera.datalayer import datatypes
@@ -39,10 +39,20 @@ class absractStochasticLagrangianSolver_toolkitExtension:
     DOCTYPE_LAGRANGIAN_CACHE = "lagrangianCacheDocType"
     DOCTYPE_CONCENTRATIONEULERIAN_CACHE = "EulerianConcentrationCacheDocType"
 
-    def __init__(self, toolkit):
-        """Initialize with a reference to the parent toolkit."""
+    def __init__(self, toolkit, useDaskClient=False):
+        """Initialize with a reference to the parent toolkit.
+
+        Parameters
+        ----------
+        toolkit : object
+            The parent toolkit instance.
+        useDaskClient : bool, optional
+            If True, initializes a distributed Dask Client for cluster-based execution.
+            Defaults to False (uses local threaded scheduler), which is faster and
+            easier to debug on single machines.
+        """
         self.toolkit = toolkit
-        self.daskClient = Client()
+        self.daskClient = Client() if useDaskClient else None
         self.analysis = analysis(self)
 
     def createDispersionFlowField(self, flowName, flowData, OriginalFlowField, dispersionDuration,
@@ -1102,7 +1112,10 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             loaderList = list(timeList)
 
         logger.debug(f"Loading {len(loaderList)} items")
-        return dask_dataframe.from_delayed(self.daskClient.map(loader, loaderList))
+        # Use dask.delayed to create a lazy graph instead of Client.map (which returns Futures).
+        # This avoids hangs and allows the scheduler to optimize execution during .to_parquet().
+        delayed_results = [delayed(loader)(item) for item in loaderList]
+        return dask_dataframe.from_delayed(delayed_results)
 
     def _saveToCacheParquet(self, data, cacheDoc, caseDescriptor,
                              workflowName, cloudName, doctype, dataFormat):
@@ -1124,7 +1137,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             )
 
         logger.info(f"Writing to parquet: {fullname}")
-        data.set_index("datetime").repartition(partition_size="100MB").to_parquet(fullname)
+        data.repartition(partition_size="100MB").to_parquet(fullname)
         return dask.dataframe.read_parquet(fullname, engine='pyarrow')
 
     def _saveToCacheNetCDF(self, data, cacheDoc, caseDescriptor,
@@ -1326,7 +1339,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
         # Step 5: Load data via Dask.
         ret = self._loadCaseDataViaDask(
-            finalCasePath, loader, timeList, forceSingleProcessor, self.daskClient
+            finalCasePath, loader, timeList, forceSingleProcessor
         )
 
         # Step 6: Cache as netCDF (group by grid cell, sum concentrations).
@@ -1557,7 +1570,7 @@ class analysis:
         logger = get_classMethod_logger(self, "calcConcentrationFieldFullMesh")
 
         # Step 1: Resolve case name and check for existing cache.
-        caseDescriptorName = self._resolveCaseDescriptorName(caseDescriptor)
+        caseDescriptorName = self.datalayer._resolveCaseDescriptorName(caseDescriptor)
 
         mdata = dict(extents=extents, dxdydz=dxdydz, caseDescriptorName=caseDescriptorName)
         mdata.update(**metadata)
@@ -1599,8 +1612,15 @@ class analysis:
             # Step 7: Pad remaining timesteps with zero concentrations.
             # This ensures the time series extends to the full dispersion
             # duration, needed for moving-window risk averaging (assumes dt=1).
+            if workflow is not None:
+                dispersionDuration = workflow.dispersionDuration
+            else:
+                # Fallback: use the maximum timestep present in the data if no DB record exists
+                # Check len(data.columns) instead of .empty because Dask forbids .empty for performance reasons
+                dispersionDuration = data['datetime'].max().compute() if len(data.columns) > 0 else 0
+
             self._padRemainingTimesteps(
-                timeName, workflow.dispersionDuration, partitionID + 1,
+                timeName, dispersionDuration, partitionID + 1,
                 path_to_data, extents, dxdydz, xfield, yfield, zfield
             )
         else:
@@ -1768,20 +1788,32 @@ def robustOpenFOAMFileValuesParser(path, columnNames):
         data = numpy.tile(single_val, (count, 1))
         return pandas.DataFrame(data, columns=columnNames).astype(float)
 
-    # failing in the process should give an unexpected error meaning we missed some case
-    proc = subprocess.run(sed_command, capture_output=True, text=True, check=True)
-    
-    if not proc.stdout.strip():
-        return pandas.DataFrame(columns=columnNames).astype(float)
+    # Use Popen to stream output directly into pandas to avoid huge memory buffers (preventing hangs on large clouds)
+    proc = subprocess.Popen(sed_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    try:
+        # Pandas can read from the pipe directly without loading the entire file into a Python string first
+        df = pandas.read_csv(
+            proc.stdout,
+            sep=',',
+            header=None,
+            names=columnNames,
+            engine='c',
+            dtype=float
+        ).astype(float)
 
-    return pandas.read_csv(
-        io.StringIO(proc.stdout),
-        sep=',',
-        header=None,
-        names=columnNames,
-        engine='c',
-        dtype=float
-    ).astype(float)
+        # Check for process errors after consuming the stdout stream
+        exit_code = proc.wait()
+        if exit_code != 0:
+            stderr = proc.stderr.read()
+            raise subprocess.CalledProcessError(exit_code, sed_command, stderr=stderr)
+
+        if df.empty:
+            return pandas.DataFrame(columns=columnNames).astype(float)
+
+        return df
+    except Exception as e:
+        proc.kill()
+        raise e
 
 
 
@@ -1789,7 +1821,6 @@ def robustOpenFOAMFileValuesParser(path, columnNames):
 def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTimes=False, withMass=True,
                          cloudName="kinematicCloud"):
     """Read a single Lagrangian time step record from the case directory."""
-
     columnsDict = dict(x=[], y=[], z=[], id=[], procId=[], globalID=[],datetime=[])
     if withVelocity:
         columnsDict['U_x'] = []
@@ -1849,7 +1880,6 @@ def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTime
         except Exception:
             newData = newData.compute()
             newData["mass"] = dataM["mass"]
-
     return newData.dropna()
 
 def readEulerianConcentration(timeName, casePath,cloudName="kinematicCloud"):
@@ -1878,182 +1908,3 @@ def readEulerianConcentration(timeName, casePath,cloudName="kinematicCloud"):
     else:
         return pandas.DataFrame(dict(x=[],y=[],z=[],C=[],datetime=[]))
 
-
-    # def _extractFile(self, filePath, columnNames, vector=True):
-    #     """
-    #         Extracts data from a csv file.
-    #
-    #     Parameters
-    #     ----------
-    #     filePath: str
-    #         The path of the file
-    #     time: str
-    #         The files' time step
-    #     columnNames: list of str
-    #         The names of the columns
-    #     skiphead: int
-    #         Number of lines to skip from the beginning of the file
-    #     skipend: int
-    #         Number of lines to skip from the ending of the file
-    #
-    #     Returns
-    #     -------
-    #         Pandas with the data.
-    #     """
-    #
-    #     filePath = os.path.abspath(filePath)
-    #     skiphead = 0
-    #     with open(filePath, 'r') as infile:
-    #         for i in range(40):
-    #             lne = infile.readline()
-    #             if lne.startswith('('):
-    #                 skiphead += 1
-    #                 break
-    #             else:
-    #                 skiphead += 1
-    #
-    #     skipend = 4
-    #     cnvrt = lambda x: float(x.replace("(", "").replace(")", ""))
-    #     cnvrtDict = dict([(x, cnvrt) for x in columnNames])
-    #     try:
-    #         newData = pandas.read_csv(filePath,
-    #                                   skiprows=skiphead,
-    #                                   skipfooter=skipend,
-    #                                   engine='python',
-    #                                   header=None,
-    #                                   delim_whitespace=True,
-    #                                   converters=cnvrtDict,
-    #                                   names=columnNames)
-    #     except ValueError:
-    #         # logger.execute(f"{filePath} is not a cvs, going to a specialized parser")
-    #         newData = []
-    #
-    #     if len(newData) == 0:
-    #         with open(filePath, "r") as inflile:
-    #             lines = inflile.readlines()
-    #         vals = "\n".join(lines[15:-1])
-    #         data = []
-    #
-    #         if vector:
-    #             if "{" in vals:
-    #                 inputs = vals.split("{")
-    #                 repeat = int(inputs[0])
-    #                 valuesList = inputs[1][inputs[1].find("(") + 1:inputs[1].find(")")]
-    #                 data = dict(
-    #                     [(colname, [float(x)] * repeat) for colname, x in zip(columnNames, valuesList.split(" "))])
-    #             else:
-    #                 for rcrdListTuple in vals.split("(")[2:]:
-    #                     record = dict(
-    #                         [(name, float(y)) for name, y in zip(columnNames, rcrdListTuple.split(")")[0].split(" "))])
-    #                     data.append(record)
-    #         else:
-    #             if "{" in vals:
-    #                 inputs = vals.split("{")
-    #                 repeat = int(inputs[0])
-    #                 value = float(inputs[1].split("}")[0])
-    #                 data = [{columnNames[0]: value} for x in range(repeat)]
-    #
-    #             else:
-    #                 valuesList = vals.split("(")[1]
-    #                 for rcrdListItem in valuesList.split(" "):
-    #                     record = {columnNames[0]: float(rcrdListItem.split(")")[0])}
-    #                     data.append(record)
-    #
-    #         newData = pandas.DataFrame(data)
-    #
-    #     return newData.astype(float)
-
-    # def _readRecord(self, timeName, casePath, withVelocity=False, withReleaseTimes=False, withMass=False,
-    #                 cloudName="kinematicCloud"):
-    #     """
-    #         Reads a single lagrangian time step from frhe casePath.
-    #     Parameters
-    #     ----------
-    #     timeName : str
-    #     casePath  : str
-    #     withVelocity : bool
-    #         if True, load the velocity
-    #
-    #     withReleaseTimes : bool
-    #         If true, read the age of the lagrangian
-    #
-    #     withMass : bool
-    #         If true, read the mass of the particle.
-    #
-    #     Returns
-    #     -------
-    #         pandas.Dataframe of the simulation.
-    #     """
-    #     logger = get_classMethod_logger(self, "_readRecord")
-    #     columnsDict = dict(x=[], y=[], z=[], id=[], procId=[], globalID=[])  # ,wallDistance=[],tmpX=[], tmpY=[])
-    #     if withMass:
-    #         columnsDict['mass'] = []
-    #     if withReleaseTimes:
-    #         columnsDict['age'] = []
-    #     if withVelocity:
-    #         columnsDict['U_x'] = []
-    #         columnsDict['U_y'] = []
-    #         columnsDict['U_z'] = []
-    #
-    #     newData = pandas.DataFrame(columnsDict, dtype=numpy.float64)
-    #     #        try:
-    #     if os.path.exists(os.path.join(casePath, timeName, "lagrangian", cloudName, "globalSigmaPositions")):
-    #         # newData = self._extractFile(os.path.join(casePath,timeName,"lagrangian",cloudName,"globalSigmaPositions"),['tmpX', 'tmpY', 'wallDistance'])
-    #         # #newData = newData.drop(columns=['tmpX', 'tmpY'])
-    #         # newData['wallDistance'] = newData['wallDistance'].astype(numpy.float64)
-    #         # newData['tmpX'] = newData['tmpX'].astype(numpy.float64)
-    #         # newData['tmpY'] = newData['tmpY'].astype(numpy.float64)
-    #
-    #         dataID = self._extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "origId"), ['id'],
-    #                                    vector=False)
-    #         newData['id'] = dataID['id'].astype(numpy.float64)
-    #
-    #         dataprocID = self._extractFile(
-    #             os.path.join(casePath, timeName, "lagrangian", cloudName, "origProcId"), ['procId'], vector=False)
-    #         newData['procId'] = dataprocID['procId'].astype(numpy.float64)
-    #
-    #         newData = newData.ffill().assign(globalID=1000000000 * newData.procId + newData.id)
-    #
-    #         dataGlobal = self._extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "globalPositions"),
-    #                                        ['x', 'y', 'z'])
-    #         for col in ['x', 'y', 'z']:
-    #             newData[col] = dataGlobal[col].astype(numpy.float64)
-    #
-    #         if withVelocity:
-    #             dataU = self._extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "U"),
-    #                                       ['U_x', 'U_y', 'U_z'])
-    #
-    #             logger.debug(f"Read mass file {timeName}: {dataU}")
-    #             for col in ['U_x', 'U_y', 'U_z']:
-    #                 newData[col] = dataU[col]
-    #
-    #         if withReleaseTimes:
-    #             dataM = self._extractFile(os.path.join(self._casePath, timeName, "lagrangian", cloudName, "age"),
-    #                                       ['age'], vector=False)
-    #             # newData["releaseTime"] = dataM["time"] - dataM["age"] + releaseTime
-    #             logger.debug(f"Read mass file {timeName}: {dataM}")
-    #             newData["age"] = dataM["age"].astype(numpy.float64)
-    #
-    #         if withMass:
-    #             dataM = self._extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "mass"),
-    #                                       ['mass'], vector=False)
-    #             logger.debug(f"Read mass file {timeName}: {dataM}")
-    #             newData["mass"] = dataM["mass"].astype(numpy.float64)
-    #             # except:
-    #             #     newData = newData.compute()
-    #             #     newData["mass"] = dataM["mass"].astype(numpy.float64)
-    #
-    #     else:
-    #         logger.debug(f"No data at time {timeName}")
-    #
-    #     theTime = os.path.split(timeName)[-1]
-    #     newData['time'] = float(theTime)
-    #     logger.debug(f"The output is\n{newData.dtypes}")
-    #     return newData
-    #
-    # def _isTimestep(self, value):
-    #     try:
-    #         float(value)
-    #         return True
-    #     except ValueError:
-    #         return False

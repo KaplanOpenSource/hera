@@ -1,9 +1,12 @@
+import { Typography, useTheme } from '@mui/material';
 import { SimpleTreeView } from '@mui/x-tree-view';
 import { Handle, Position } from '@xyflow/react';
 import { DetailsViewItem, keyForDetailsViewItem } from '../details/DetailsViewItem';
 import { FieldDef } from '../details/fieldDef';
 import { FieldSourceDot } from '../details/FieldSourceDot';
+import { INPUT } from './references/knownKinds';
 import { inputHandleId } from './workflowDataflow';
+import { friendlyParamName } from './friendlyParamName';
 
 // The node field holding a workflow node's input parameters — the key of the tree
 // this component renders, and the parent key of each top-level parameter row.
@@ -35,6 +38,7 @@ export const WorkflowNodeInputs = ({
   // the input element (to anchor the suggestion menu to).
   onFieldInlineEdit: (param: string, value: string, caret: number | null, el: HTMLInputElement) => void,
 }) => {
+  const theme = useTheme();
   return (
     <SimpleTreeView
       expandedItems={expandedItems}
@@ -60,6 +64,22 @@ export const WorkflowNodeInputs = ({
         itemValue={params}
         parentKey={undefined}
         def={paramsDef}
+        // The title row only names the section, so no hermes name and no type chip.
+        // A parameter row shows a readable name; its hermes name shows while editing.
+        nameForView={(itemKey, parentKey) => {
+          if (parentKey === undefined) {
+            return <Typography sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}>Parameters</Typography>;
+          }
+          if (parentKey !== keyForDetailsViewItem(INPUT_PARAMETERS_KEY)) {
+            return undefined;
+          }
+          return (
+            <Typography sx={{ whiteSpace: 'nowrap', minWidth: '100px', flexShrink: 0 }}>
+              {friendlyParamName(itemKey)}
+            </Typography>
+          );
+        }}
+        hideTypeSelector
         setItemValue={onChangeParams}
         // Right-click on a top-level parameter opens a menu for that field.
         // Stop the event so ReactFlow's node menu doesn't also open; other rows
@@ -98,6 +118,18 @@ export const WorkflowNodeInputs = ({
           ) : (
             <FieldSourceDot source={def?.source} />
           )
+        )}
+        // A top-level parameter also gets a source dot on the node's right edge,
+        // so another node can read this parameter's value.
+        renderAfterValue={(itemKey, parentKey) => (
+          parentKey === keyForDetailsViewItem(INPUT_PARAMETERS_KEY) ? (
+            <Handle
+              type="source"
+              id={INPUT.handleId(nodeName, itemKey)}
+              position={Position.Right}
+              style={{ position: 'relative', top: 'auto', right: -14, transform: 'none', width: 8, height: 8, background: theme.palette.primary.main, border: 'none' }}
+            />
+          ) : undefined
         )}
       />
     </SimpleTreeView>

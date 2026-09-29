@@ -36,6 +36,7 @@ const DocumentSplitTree = ({
             itemId={node.itemKey}
             label={
               <DocumentSplitTreeLabel
+                itemKey={node.itemKey}
                 path={node.path}
                 value={node.value}
               />

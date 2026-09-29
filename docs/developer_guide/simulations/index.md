@@ -21,7 +21,6 @@ hera/simulations/
         preprocessOFObjects/   # Mesh and case preprocessing utilities
         postProcess/
             VTKPipeline.py     # VTK post-processing pipeline
-            VTKPipelineExecutionContext.py
     LSM/
         toolkit.py             # LSMToolkit — Lagrangian Stochastic Model
         singleSimulation.py    # Single LSM simulation handler

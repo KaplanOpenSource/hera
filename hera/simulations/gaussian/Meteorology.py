@@ -2,7 +2,6 @@ import pandas
 import numpy
 from hera.utils import *
 from hera.utils.unitHandler import ureg, unumToPint
-# from hera.utils import tounit, tonumber
 
 
 class StandardMeteorolgyConstant_powerLaw:
@@ -19,11 +18,6 @@ class StandardMeteorolgyConstant_powerLaw:
 
     _refHeight = None
     _u_refHeight = None
-
-    # inversion = None
-    # @property
-    # def inversion(self):
-    #     return self.inversion
 
     @property
     def ustar(self):

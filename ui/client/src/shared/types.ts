@@ -61,6 +61,9 @@ export type WorkflowData = WorkflowBlock | { workflow?: WorkflowBlock };
 export interface WorkflowDesc extends DocumentDesc {
   workflowName?: string;
   workflow?: WorkflowData;
+  // Flattened per-node input_parameters (keyed by node name). A query index the
+  // database filters workflows on; kept in sync with the workflow by the UI.
+  parameters?: { [node: string]: any };
 }
 
 export interface ProjectDocument {

@@ -2,12 +2,14 @@ import { Autocomplete, TextField } from "@mui/material";
 import { FolderOutlined } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { EMPTY_NAME_PROJECT, useProjectStore } from "../../stores/useProjectStore";
+import { useProjectListStore } from "../../stores/useProjectListStore";
 
 const displayName = (name: string) => name || EMPTY_NAME_PROJECT;
 const storeName = (name: string) => name === EMPTY_NAME_PROJECT ? "" : name;
 
 export const ProjectChooser = () => {
-  const { projectNames, currProjectName } = useProjectStore();
+  const { projectNames } = useProjectListStore();
+  const { currProjectName } = useProjectStore();
   const navigate = useNavigate();
 
   const options = projectNames.map(({ name }) => displayName(name));

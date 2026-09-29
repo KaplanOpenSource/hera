@@ -13,7 +13,6 @@ hera/measurements/
             topography.py      # TopographyToolkit — SRTM elevation data
             landcover.py       # LandCoverToolkit — MODIS land cover
             tiles.py           # TilesToolkit — tile server map images
-            hill2stl.py        # STL mesh generation from elevation
         vector/
             toolkit.py         # VectorToolkit — base class for vector GIS
             topography.py      # TopographyToolkit (vector contours)
@@ -78,12 +77,6 @@ Key constants and functions used across GIS toolkits:
 | `WSG84` | WGS84 CRS identifier (EPSG:4326) |
 | `ITM` | Israeli Transverse Mercator CRS identifier (EPSG:2039) |
 | `convertCRS(points, inputCRS, outputCRS)` | Transform coordinates between CRS |
-
-### STL generation (`GIS/raster/hill2stl.py`)
-
-The `hill2stl` module converts elevation grids to STL meshes for CFD simulations. Used by both the raster topography and buildings toolkits.
-
----
 
 ## Meteorology toolkits
 

@@ -8,11 +8,11 @@ from typing import Literal
 import numpy
 import pandas
 from paraview import servermanager
+import paraview.simple as pvsimple
 from deprecated import deprecated
-
 import hera.simulations.openFoam.postProcess.VTKPipeline as pipelineModule
 from hera import get_classMethod_logger
-from hera.simulations.LSM.hermesWorkflowToolkit import workflowToolkit
+from hera.simulations.hermesWorkflowToolkit import hermesWorkflowToolkit as workflowToolkit
 from hera.simulations.openFoam import CASETYPE_DECOMPOSED, TYPE_VTK_FILTER
 from hera.simulations.openFoam.postProcess.pvOpenFOAMBase import paraviewOpenFOAM
 from hera.utils import dictToMongoQuery
@@ -627,13 +627,13 @@ class registeredVTKPipeLine:
             logger.error(f"Failed to fetch upstream data for {newFilterName}: {e}")
         # Now force the filter to execute so downstream filters see updated data.
         filter.UpdatePipeline()
-                logger.debug(f"Filter {newFilterName} added to the pipeline. Now adding its downstream filters.")
-                ret.append(newFilterName)
-                # Recurse into the downstream children of this filter, building the
-                # tree depth-first.  The returned names are appended so the final list
-                # is in creation (topological) order.
-                ret += self._buildFilterLayer(newFilterName, filter,
-                                              structureJson[filterGuiName].get("downstream", None))
+        logger.debug(f"Filter {newFilterName} added to the pipeline. Now adding its downstream filters.")
+        ret.append(newFilterName)
+        # Recurse into the downstream children of this filter, building the
+        # tree depth-first.  The returned names are appended so the final list
+        # is in creation (topological) order.
+        ret += self._buildFilterLayer(newFilterName, filter,
+                                      structureJson[filterGuiName].get("downstream", None))
 
         return ret
 

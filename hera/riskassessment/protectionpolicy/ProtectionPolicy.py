@@ -127,7 +127,7 @@ class ProtectionPolicy(object):
 			The actions are under the "actions" key. 
 		"""
 		if isinstance(jsonStrOrFile,str): 
-			if os.JSONpath.exists(jsonStrOrFile):
+			if os.path.exists(jsonStrOrFile):
 				with open(jsonStrOrFile,"r") as jsonFile: 
 					jsonFile = json.load(jsonFile)
 			else: 

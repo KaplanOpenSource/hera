@@ -23,9 +23,6 @@ class HighFreqToolKit(toolkit.abstractToolkit):
     - **Campbell Scientific TOA5 ASCII** — via :class:`ASCIIParser`
     """
 
-    DOCTYPE_STATIONS = 'StationsData'
-    DOCTYPE_MEASUREMENTS = 'MeasurementsData'
-
     def __init__(self, projectName, filesDirectory=None, connectionName=None):
         """Initialise the high-frequency meteorology toolkit.
 

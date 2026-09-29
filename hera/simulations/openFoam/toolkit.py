@@ -524,12 +524,224 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
         """
         pass
 
+    def caseGeometry(self, caseDirectory, time=0, patchList=None, readParallel=True):
+        """
+            Returns the cell centres and the boundary face centres of a case.
+
+            Reads the ``C`` field with foamlib, so both the internal cells and
+            the faces of every patch come from one place. The field is written
+            by OpenFOAM's ``postProcess -func writeCellCentres``, which
+            :meth:`getMesh` runs.
+
+        Parameters
+        ----------
+        caseDirectory : str
+            The case directory.
+
+        time : str or int
+            The time directory the cell centres were written to.
+
+        patchList : list of str
+            The patches to return. None returns every patch that has per-face
+            centres, [] returns the internal field only.
+
+        readParallel : bool
+            Read every processor directory of a decomposed case.
+
+        Returns
+        -------
+            dict
+                {processorName : {"internalField" : (N,3) array, patchName : (M,3) array}}.
+
+        See Also
+        --------
+        hera.simulations.openFoam.preprocessOFObjects.datasetToOF.caseGeometry
+        """
+        from hera.simulations.openFoam.preprocessOFObjects import datasetToOF
+        return datasetToOF.caseGeometry(caseDirectory=caseDirectory,
+                                        time=time,
+                                        patchList=patchList,
+                                        readParallel=readParallel)
+
+    def datasetToCaseFields(self, caseDirectory, dataset, fieldMap, xCoordinate, yCoordinate, **kwargs):
+        """
+            Interpolates a meteorological dataset onto a case and writes it into its fields.
+
+            This is the toolkit function that replaces the netcdf2of.py script:
+            the internal field and the requested patches of every field in
+            ``fieldMap`` are filled with the dataset, interpolated onto the cell
+            centres (bilinear in the horizontal, linear in the vertical) and
+            written with foamlib.
+
+            The field files must already exist - they hold the type, the
+            dimensions and the boundary conditions. Create them with
+            :meth:`createEmptyCase` if needed.
+
+        Parameters
+        ----------
+        caseDirectory : str
+            The case to write into.
+
+        dataset : xarray.Dataset
+            The meteorological data.
+
+        fieldMap : dict
+            Maps an OpenFOAM field name to the dataset variable(s) that fill it.
+            A string is a scalar, a 3 (9) component tuple is a vector (tensor),
+            and a component may also be a fixed number. For example
+            dict(U=("ugrd","vgrd",0), T="Temp").
+
+        xCoordinate, yCoordinate : str
+            The names of the horizontal coordinates of the dataset.
+
+        kwargs :
+            The optional arguments of
+            :func:`~hera.simulations.openFoam.preprocessOFObjects.datasetToOF.datasetToCaseFields`:
+            verticalCoordinate, heightVariable, time, timeCoordinate,
+            datasetCRS, caseCRS, horizontalMethod, writeTime, geometryTime,
+            patchList and readParallel.
+
+        Returns
+        -------
+            list of str
+                The paths of the field files that were written.
+        """
+        from hera.simulations.openFoam.preprocessOFObjects import datasetToOF
+        return datasetToOF.datasetToCaseFields(caseDirectory=caseDirectory,
+                                               dataset=dataset,
+                                               fieldMap=fieldMap,
+                                               xCoordinate=xCoordinate,
+                                               yCoordinate=yCoordinate,
+                                               **kwargs)
+
+    def netcdfToCaseFields(self, caseDirectory, netcdfFile, fieldMap, xCoordinate, yCoordinate, **kwargs):
+        """
+            Same as :meth:`datasetToCaseFields`, for a dataset that is still on disk.
+
+        Parameters
+        ----------
+        caseDirectory : str
+            The case to write into.
+
+        netcdfFile : str
+            The path of the NetCDF file (anything xarray.open_dataset reads).
+
+        fieldMap : dict
+            See :meth:`datasetToCaseFields`.
+
+        xCoordinate, yCoordinate : str
+            The names of the horizontal coordinates of the dataset.
+
+        kwargs :
+            See :meth:`datasetToCaseFields`.
+
+        Returns
+        -------
+            list of str
+                The paths of the field files that were written.
+        """
+        import xarray
+        with xarray.open_dataset(netcdfFile) as dataset:
+            return self.datasetToCaseFields(caseDirectory=caseDirectory,
+                                            dataset=dataset,
+                                            fieldMap=fieldMap,
+                                            xCoordinate=xCoordinate,
+                                            yCoordinate=yCoordinate,
+                                            **kwargs)
+
+    def datasetToSetFieldsDict(self, dataset, fieldMap, xCoordinate, yCoordinate, verticalCoordinate, **kwargs):
+        """
+            Builds a setFieldsDict with one region per cell of the dataset.
+
+            Every cell of the dataset becomes a boxToCell (and, unless
+            includeFaces=False, a boxToFace) region whose box reaches halfway to
+            the neighbouring cells. The dictionary is written by foamlib, so the
+            header and the syntax are not assembled by hand.
+
+            Unlike :meth:`xarrayToSetFieldsDictDomain`, the coordinates of the
+            dataset are projected into the coordinate system of the case, a
+            terrain-following vertical coordinate is supported through
+            heightVariable, and the result is a complete, valid dictionary file.
+
+        Parameters
+        ----------
+        dataset : xarray.Dataset
+            The meteorological data.
+
+        fieldMap : dict
+            See :meth:`datasetToCaseFields`.
+
+        xCoordinate, yCoordinate : str
+            The names of the horizontal coordinates of the dataset. Either both
+            1D (a rectilinear grid) or both 2D (a curvilinear one).
+
+        verticalCoordinate : str
+            The name of the vertical dimension.
+
+        kwargs :
+            The optional arguments of
+            :func:`~hera.simulations.openFoam.preprocessOFObjects.datasetToOF.datasetToSetFieldsDict`:
+            heightVariable, time, timeCoordinate, datasetCRS, caseCRS, extent,
+            defaultFieldValues, includeFaces and outputFile.
+
+        Returns
+        -------
+            list
+                The regions entry, as a list of (regionType, dict) pairs.
+        """
+        from hera.simulations.openFoam.preprocessOFObjects import datasetToOF
+        return datasetToOF.datasetToSetFieldsDict(dataset=dataset,
+                                                 fieldMap=fieldMap,
+                                                 xCoordinate=xCoordinate,
+                                                 yCoordinate=yCoordinate,
+                                                 verticalCoordinate=verticalCoordinate,
+                                                 **kwargs)
+
+    def netcdfToSetFieldsDict(self, netcdfFile, fieldMap, xCoordinate, yCoordinate, verticalCoordinate, **kwargs):
+        """
+            Same as :meth:`datasetToSetFieldsDict`, for a dataset that is still on disk.
+
+        Parameters
+        ----------
+        netcdfFile : str
+            The path of the NetCDF file (anything xarray.open_dataset reads).
+
+        fieldMap : dict
+            See :meth:`datasetToCaseFields`.
+
+        xCoordinate, yCoordinate : str
+            The names of the horizontal coordinates of the dataset.
+
+        verticalCoordinate : str
+            The name of the vertical dimension.
+
+        kwargs :
+            See :meth:`datasetToSetFieldsDict`.
+
+        Returns
+        -------
+            list
+                The regions entry, as a list of (regionType, dict) pairs.
+        """
+        import xarray
+        with xarray.open_dataset(netcdfFile) as dataset:
+            return self.datasetToSetFieldsDict(dataset=dataset,
+                                               fieldMap=fieldMap,
+                                               xCoordinate=xCoordinate,
+                                               yCoordinate=yCoordinate,
+                                               verticalCoordinate=verticalCoordinate,
+                                               **kwargs)
+
     def xarrayToSetFieldsDictDomain(self, xarrayData, xColumnName="x", yColumnName="y", zColumnName="z", time=None,
                                     timeColumn="time", **kwargs):
         """
             Converts the xarray to the setFields dict of the internal domain.
 
-            Not debugged.
+            Returns the regions text only, and assumes that the coordinates of
+            the dataset are already those of the case. Prefer
+            :meth:`datasetToSetFieldsDict`, which projects the coordinates,
+            handles a terrain-following vertical coordinate and writes a
+            complete dictionary file.
 
             Use
 
@@ -585,13 +797,13 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
             coordNames.append(zColumnName)
 
         ret = []
-        arryToOFvector = lambda arry: f"({' '.join(arry)} )"
+        arryToOFvector = lambda arry: f"({' '.join([str(component) for component in arry])} )"
 
         # Iterate over all cells using Cartesian product of index ranges.
         # Each X is a tuple of indices (ix, iy, iz) defining one cell.
         # For each cell, compute the bounding box (lowerLeft, upperRight)
         # from the coordinate arrays, then extract field values at that cell.
-        for X in product(*coordList):
+        for X in product(*[range(cellCount) for cellCount in coordList]):
             lowerLeft = [xarrayData.coords[coordNames[coordIndx]][ind].item() for coordIndx, ind in enumerate(X)]
             upperRight = [xarrayData.coords[coordNames[coordIndx]][ind + 1].item() for coordIndx, ind in enumerate(X)]
 
@@ -610,20 +822,22 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
                 # Field mapping: kwargs maps OF field names to xarray field names.
                 # If the mapping is a tuple (e.g. U=("u","v",0)), it's a vector/tensor.
                 # Each component can be a field name (string) or a fixed value (float).
-                if isinstance(fieldName, Iterable):
-                    valArray = []
+                # A string is a scalar field name, not a sequence of characters,
+                # so it must be excluded from the Iterable branch explicitly.
+                if isinstance(fieldName, Iterable) and not isinstance(fieldName, str):
+                    componentValues = []
                     for mappedField in fieldName:
                         if isinstance(mappedField, str):
-                            valArray.append(valArray[mappedField].isel(**accessDict).item())
+                            componentValues.append(valArray[mappedField].isel(**accessDict).item())
                         elif isinstance(mappedField, float) or isinstance(mappedField, int):
-                            valArray.append(mappedField)
+                            componentValues.append(mappedField)
                         else:
                             err = f"The mapping {OFField}->{fieldName} contains a value that is not a string or number. "
                             raise ValueError(err)
                     if len(fieldName) == 3:
-                        fielaValueStr += f"volVectorFieldValue {OFField} {arryToOFvector(valArray)}\n"
+                        fielaValueStr += f"volVectorFieldValue {OFField} {arryToOFvector(componentValues)}\n"
                     elif len(fieldName) == 9:
-                        fielaValueStr += f"volTensorFieldValue {OFField} {arryToOFvector(valArray)}\n"
+                        fielaValueStr += f"volTensorFieldValue {OFField} {arryToOFvector(componentValues)}\n"
                     else:
                         err = f"The number of components in the  mapping {OFField}->{fieldName} must be 1,3 or 9. got {len(fieldName)}."
                         raise ValueError(err)

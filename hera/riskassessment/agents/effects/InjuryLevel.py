@@ -10,12 +10,6 @@ from hera.utils import tounit, ureg
 from hera.utils.matplotlibCountour import toGeopandas
 from hera.utils.unitHandler import unumToPint
 
-# from ....utils import tounit
-
-# from unum.units import *
-# from unum import Unum
-
-
 dosage = ureg.mg/ureg.m**3
 
 class InjuryLevel(object): 
@@ -292,7 +286,7 @@ class InjuryLevelLognormal10DoseResponse(InjuryLevel):
 		#CS = plt.tricontour(concentrationField[x], concentrationField[y], concentrationField, levels=ToxicLoads) This line has bug because
 		#	concentrationField is panas and we have to select the right column.
 
-		if numpy.max(CS.levels) < numpy.min(ToxicLoads): 
+		if numpy.max(CS.levels) < numpy.min(ToxicLoads):
 			ret = geopandas.GeoDataFrame()
 		else:
 			ret = toGeopandas(CS)

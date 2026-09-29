@@ -43,6 +43,7 @@ These variables control the behavior of the Pytest test suite.
 | `PREPARE_EXPECTED_OUTPUT` | No | unset | When set to `"1"`, switches the test suite into **generation mode**: tests write their current outputs as the new expected baselines instead of comparing against existing ones. |
 | `GDF_TOL_AREA` | No | `1e-7` | Tolerance for geometry comparison in GeoDataFrame tests. The comparison uses `symmetric_difference().area` and checks that the area is below this threshold. |
 | `HERA_FULL_LOGGING_TESTS` | No | unset | When set (to any value), enables full logging output during test runs. When unset, verbose logging tests are skipped. |
+| `PYARGOS_PATH` | No | unset | Optional developer-set path to a local `pyargos-master` (PyArgos) installation. Used only by `hera/tests/dynamic_loading_tests_pack/test_experiment_cli_shortcuts.py`, which prepends this directory to `PYTHONPATH` so the experiment toolkit CLI can locate PyArgos. If unset or the path does not exist, the related tests fall back to the default environment. |
 
 ### Usage Examples
 

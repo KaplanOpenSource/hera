@@ -74,7 +74,7 @@ class thresholdGeoDataFrame(geopandas.GeoDataFrame):
 			The project name for the DemographyToolkit. If None, uses the
 			project associated with the demographic data source.
 		"""
-		if isinstance(meteorological_angle,collections.Iterable):
+		if isinstance(meteorological_angle,collections.abc.Iterable):
 			retList = []
 			for metangle in meteorological_angle:
 				projectedValue = self._project(demographic=demographic,loc=loc,meteorological_angle=metangle,geometry=geometry,projectName=projectName)
@@ -86,7 +86,7 @@ class thresholdGeoDataFrame(geopandas.GeoDataFrame):
 				retList.append(projectedValue)
 			ret = pandas.concat(retList)
 
-		elif isinstance(mathematical_angle,collections.Iterable):
+		elif isinstance(mathematical_angle,collections.abc.Iterable):
 			retList = []
 			for mathangle in mathematical_angle:
 				projectedValue=self._project(demographic=demographic,loc=loc,mathematical_angle=mathangle,geometry=geometry,projectName=projectName)

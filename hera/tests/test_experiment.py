@@ -648,6 +648,56 @@ class TestPresentationInit:
         assert pres is not None
 
 
+class TestPresentationFrequencyDistribution:
+    """plotFrequencyDistribution against a stubbed analysis layer (no DB)."""
+
+    @staticmethod
+    def _presentation(tmpdir=None):
+        long = pd.DataFrame({
+            "timestamp": pd.date_range("2024-03-15 08:00", periods=6, freq="1min").repeat(1),
+            "deviceName": ["NDIR_1", "NDIR_1", "NDIR_1", "NDIR_2", "NDIR_2", "NDIR_2"],
+            "Frequency": [1.0, 0.5, 0.0, 0.9, 0.8, 0.7],
+        })
+
+        class MockDatalayer:
+            defaultTrialSet = "TS1"
+            trialSet = {}
+            entityType = {}
+
+        class MockAnalysis:
+            def getDeviceTypeTransmissionFrequencyOfTrial(self, deviceType, trialName,
+                                                          trialSetName=None, **kwargs):
+                assert trialSetName == "TS1", "default trial set was not resolved"
+                assert kwargs["wideFormat"] is False
+                return long
+
+        pres = experimentPresentation(MockDatalayer(), MockAnalysis())
+        pres.saveFigures = tmpdir is not None
+        if tmpdir is not None:
+            pres.savePath = str(tmpdir)
+        return pres
+
+    def test_per_message(self):
+        import matplotlib
+        matplotlib.use("Agg")
+        ax = self._presentation().plotFrequencyDistribution("NDIR", "trial1")
+        assert ax.get_ylabel() == "Fraction of messages"
+        assert ax.get_xlim() == (0, 1)
+
+    def test_per_device(self):
+        import matplotlib
+        matplotlib.use("Agg")
+        ax = self._presentation().plotFrequencyDistribution("NDIR", "trial1", perDevice=True)
+        assert ax.get_ylabel() == "Fraction of devices"
+
+    def test_saves_figure(self, tmp_path):
+        import matplotlib
+        matplotlib.use("Agg")
+        self._presentation(tmp_path).plotFrequencyDistribution("NDIR", "trial1")
+        figname = tmp_path / "technical" / "trial1_NDIR_MessagesFrequencyDistribution_TS1.png"
+        assert figname.exists()
+
+
 # ===========================================================================
 # 10. Parsers — synthetic (no DB)
 # ===========================================================================

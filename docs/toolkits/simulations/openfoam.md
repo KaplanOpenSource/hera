@@ -305,28 +305,67 @@ times = of.getTimeList("wind_study_simpleFoam")
 # ['0', '100', '200', '300', '400', '500']
 ```
 
-### Setting initial conditions from xarray data
+### Setting initial conditions from a meteorological dataset
 
-Import external data (e.g. from meteorological models) into OpenFOAM:
+The output of an atmospheric model (GFS/GDAS NetCDF, WRF, or anything that
+loads as an `xarray.Dataset`) can be used as the initial and boundary
+condition of a case — the meso-scale-to-CFD nesting step. There are two
+routes, and both read and write the case with
+[foamlib](https://github.com/gerlero/foamlib).
+
+**Route 1 — write the values straight into the fields of the case.**
+The dataset is interpolated onto the cell centres (bilinear in the
+horizontal, linear in the vertical) and onto the face centres of the
+requested patches:
 
 ```python
-import xarray as xr
+# The cell centres must exist; getMesh runs writeCellCentres for you.
+of.getMesh("/path/to/case")
 
-# Load external data (e.g. from a weather model)
-weather = xr.open_dataset("/data/weather/forecast.nc")
-
-# Convert to OpenFOAM setFields format
-# Maps xarray variables to OpenFOAM fields:
-#   U = (u_component, v_component, 0)  — vector field
-#   T = temperature                     — scalar field
-setfields_str = of.xarrayToSetFieldsDictDomain(
-    xarrayData=weather,
-    xColumnName="x", yColumnName="y", zColumnName="z",
-    time="2024-03-15T12:00",
-    U=("u10", "v10", 0),   # tuple = vector (3 components)
-    T="temperature",         # string = scalar
+written = of.netcdfToCaseFields(
+    caseDirectory="/path/to/case",
+    netcdfFile="forecast.nc",
+    fieldMap=dict(U=("ugrd", "vgrd", 0), T="tmp"),  # tuple = vector, string = scalar
+    xCoordinate="grid_xt", yCoordinate="grid_yt",   # names of the dataset coordinates
+    verticalCoordinate="pfull",
+    heightVariable="height",     # height [m] per level, for a terrain-following coordinate
+    time="2024-03-15T12:00",     # the nearest time step is selected
+    caseCRS=ITM,                 # the coordinate system of the case
+    datasetCRS=WSG84,            # ... and of the dataset
+    patchList=["inlet", "outlet"],
 )
 ```
+
+The field files must already exist — they carry the type, the dimensions and
+the boundary conditions; create them with `createEmptyCase` if needed. A
+decomposed case is handled by writing every `processor*` directory.
+`datasetToCaseFields` is the same function for a dataset that is already
+open.
+
+**Route 2 — emit a `setFieldsDict`.** Every cell of the dataset becomes a
+`boxToCell` (and a `boxToFace`) region whose box reaches halfway to the
+neighbouring cells, to be applied afterwards by OpenFOAM's `setFields`:
+
+```python
+of.datasetToSetFieldsDict(
+    dataset=weather,
+    fieldMap=dict(U=("Ue", "Ve", "W"), T="Temp"),
+    xCoordinate="XLONG", yCoordinate="XLAT",   # 1D or 2D (curvilinear) coordinates
+    verticalCoordinate="level",
+    heightVariable="gpt_hgt_M",
+    extent=dict(minX=735000, maxX=754000, minY=193100, maxY=222800, minZ=-60, maxZ=2690),
+    defaultFieldValues=["volScalarFieldValue", "T", 300],
+    outputFile="/path/to/case/system/setFieldsDict",
+)
+```
+
+Cells whose centre falls outside `extent` are dropped and the outermost
+boxes are clipped to it.
+
+`xarrayToSetFieldsDictDomain` is the older, narrower variant: it returns the
+regions as text only, treats the coordinates of the dataset as cell *edges*
+already in the coordinate system of the case, and does not write a file.
+Prefer `datasetToSetFieldsDict`.
 
 ---
 

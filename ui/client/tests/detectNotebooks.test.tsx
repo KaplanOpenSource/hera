@@ -15,6 +15,7 @@ vi.mock('../src/io/snackbar', () => ({
 
 const { DetectNotebooksButton } = await import('../src/components/project/DetectNotebooksButton');
 const { useProjectStore } = await import('../src/stores/useProjectStore');
+const { useProjectListStore } = await import('../src/stores/useProjectListStore');
 
 afterEach(() => {
   cleanup();
@@ -33,10 +34,10 @@ const configDoc = {
 beforeEach(() => {
   vi.clearAllMocks();
   useProjectStore.setState({
-    projectNames: [{ name: 'TestProject' }],
     currProjectName: 'TestProject',
     currProject: { name: 'TestProject', documents: [configDoc] },
   });
+  useProjectListStore.setState({ projectNames: [{ name: 'TestProject' }] });
 });
 
 describe('DetectNotebooksButton', () => {
