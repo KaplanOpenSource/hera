@@ -74,7 +74,13 @@ def _load_deferred():
     g["Project"] = _P
     g["datatypes"] = _dt
 
-    # 3. Now safe to import autocache (it does `from hera import Project`).
+    # 3. Now safe to import autocache.  autocache imports Project lazily,
+    #    inside the functions that need it: a module-level
+    #    `from hera import Project` there would make importing
+    #    hera.datalayer.autocache directly re-enter this function, which
+    #    reaches step 3 while the module is still half-executed and fails
+    #    with `cannot import name 'cacheFunction' from partially
+    #    initialized module`.
     from hera.datalayer.autocache import (
         cacheFunction as _cf,
         clearFunctionCache as _cfc,
