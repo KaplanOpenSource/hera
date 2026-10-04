@@ -1,10 +1,12 @@
 import { useTheme } from '@mui/material';
 import { Action, Actions, ITabRenderValues, Layout, TabNode } from 'flexlayout-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { classifyItemId, idFromDocId, ItemKind } from '../../shared/idDocId';
 import { classifyTab } from '../../shared/tabKind';
 import { TAB_KIND_STYLES } from '../../shared/tabKindConfig';
+import { projectPath } from '../../shared/projectPath';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { useWorkflowRunStore } from '../../stores/useWorkflowRunStore';
 import { useFlexlayoutTheme } from '../../theme';
@@ -29,6 +31,7 @@ export const ProjectLayout = ({
   const dark = useTheme().palette.mode === 'dark';
   const [activeShowItemId, setActiveShowItemId] = useState<string | undefined>(undefined);
   const setEditedDoc = useProjectStore(state => state.setEditedDoc);
+  const navigate = useNavigate();
   // Documents whose canvas the user closed, so it is not opened again on its own.
   const closedCanvases = useRef<Set<string>>(new Set());
 
@@ -120,9 +123,13 @@ export const ProjectLayout = ({
           closedCanvases.current.add(docid);
         }
         queueMicrotask(() => {
-          // The canvas belongs to the document's details tab, so it closes with it.
+          // The canvas belongs to the document's details tab, so it closes with it,
+          // and the URL moves to whichever details tab is left.
           if (tabId.startsWith(DETAILS_TAB_PREFIX)) {
             layout.closeCanvasTab(docid);
+            const nextTab = layout.activeDetailsTab();
+            setActiveShowItemId(nextTab?.getConfig()?.showItemId);
+            navigate(projectPath(project.name, nextTab && layout.docIdOfTab(nextTab.getId())), { replace: true });
           }
           if (!layout.hasOtherTabForDoc(docid, tabId)) {
             setEditedDoc(docid, null);
@@ -140,7 +147,7 @@ export const ProjectLayout = ({
       }
     }
     return action;
-  }, [layout, setEditedDoc]);
+  }, [layout, setEditedDoc, navigate, project.name]);
 
   const onRenderTab = useCallback((node: TabNode, renderValues: ITabRenderValues) => {
     const showItemId = node.getConfig()?.showItemId as string | undefined;

@@ -7,6 +7,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { CENTRAL_REPO_FOLDER_ID, idDocId, idFromDocId } from '../../shared/idDocId';
+import { projectPath } from '../../shared/projectPath';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { useToolkitStore } from '../../stores/useToolkitStore';
 import { documentMatchesQuery, documentSearchText, parseSearchQuery, unknownSearchFields } from '../../utils/documentSearch';
@@ -91,8 +92,7 @@ export const ProjectTreeView = ({
   // Sync the URL to the given item (the active one), or to the project root if none.
   const navigateToItem = useCallback((rawId: string | undefined) => {
     const oid = rawId ? idFromDocId(rawId) : undefined;
-    const basePath = '/' + encodeURIComponent(project?.name ?? '');
-    const newPath = oid ? `${basePath}/${oid}` : basePath;
+    const newPath = projectPath(project?.name ?? '', oid);
     if (location.pathname !== newPath) {
       navigate(newPath, { replace: true });
     }
@@ -167,6 +167,11 @@ export const ProjectTreeView = ({
     setSelectedIds(rawId ? [rawId] : []);
     onSelectItem(rawId);
   }, [project?.name]);
+
+  // The URL also changes when a tab is closed, so the highlight follows it.
+  useEffect(() => {
+    setSelectedIds(docId ? [idDocId(docId)] : []);
+  }, [docId]);
 
   // Expand branches to the initially selected document (e.g. from URL)
   const hasExpandedInitial = useRef(false);

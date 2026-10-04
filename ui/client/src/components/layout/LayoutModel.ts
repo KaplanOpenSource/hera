@@ -1,4 +1,4 @@
-import { Actions, DockLocation, IJsonModel, IJsonTabNode, Model, TabNode } from 'flexlayout-react';
+import { Actions, DockLocation, IJsonModel, IJsonTabNode, Model, TabNode, TabSetNode } from 'flexlayout-react';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { idFromDocId } from '../../shared/idDocId';
 import { tabKindClassName } from '../../shared/tabKind';
@@ -196,6 +196,20 @@ export class LayoutModel {
     } else {
       this._model.doAction(Actions.addTab(tab, DETAILS_TABSET_ID, DockLocation.BOTTOM, -1));
     }
+  }
+
+  // The details tab the user is looking at, or undefined when none is open. It is
+  // the tab its tabset has selected, which also holds before the first layout pass.
+  activeDetailsTab(): TabNode | undefined {
+    let active: TabNode | undefined;
+    this._model.visitNodes((node) => {
+      if (node.getType() !== 'tabset') return;
+      const selected = (node as TabSetNode).getSelectedNode();
+      if (selected?.getId().startsWith(DETAILS_TAB_PREFIX)) {
+        active = selected as TabNode;
+      }
+    });
+    return active;
   }
 
   // Close a document's canvas tab, if it has one open.

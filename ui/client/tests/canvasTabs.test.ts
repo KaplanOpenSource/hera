@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { Model, TabNode } from 'flexlayout-react';
 import { LayoutModel } from '../src/components/layout/LayoutModel';
+import { ProjectObj } from '../src/objects/ProjectObj';
+
+const project = new ProjectObj({ name: 'P', documents: [] } as any);
 
 const canvasTabs = (model: Model): TabNode[] => {
   const tabs: TabNode[] = [];
@@ -65,5 +68,21 @@ describe('LayoutModel.closeCanvasTab', () => {
     layout.closeCanvasTab('doc2');
 
     expect(canvasTabs(layout.model)).toHaveLength(1);
+  });
+});
+
+describe('LayoutModel.activeDetailsTab', () => {
+  it('is undefined when no details tab is open', () => {
+    const layout = LayoutModel.create(true);
+
+    expect(layout.activeDetailsTab()).toBeUndefined();
+  });
+
+  it('is the selected details tab', () => {
+    const layout = LayoutModel.create(true);
+    layout.openOrFocusDetailsTab('doc:doc1', project);
+    layout.openOrFocusDetailsTab('doc:doc2', project);
+
+    expect(layout.activeDetailsTab()?.getId()).toBe('details:doc:doc2');
   });
 });
