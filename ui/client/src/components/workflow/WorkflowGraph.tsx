@@ -192,7 +192,10 @@ const WorkflowGraph = ({
         <WorkflowNodeListPanel
           nodeNames={nodeNames}
           selectedNode={selectedNode}
+          pinnedNodes={pinnedNodes}
           onPickNode={name => onPickNode?.(name)}
+          onTogglePin={togglePin}
+          onDeleteNode={onDeleteNode}
         />
         <WorkflowCanvasToolbar
           actionButtons={actionButtons}

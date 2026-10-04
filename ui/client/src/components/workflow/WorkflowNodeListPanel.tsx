@@ -1,23 +1,31 @@
 import { FormatListBulleted } from '@mui/icons-material';
-import { Box, List, ListItemButton, ListItemText, Paper, TextField, Typography } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemText, Paper, TextField, Typography } from '@mui/material';
 import { Panel } from '@xyflow/react';
 import { useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
+import { WorkflowNodeDeleteButton } from './WorkflowNodeDeleteButton';
+import { WorkflowNodePinButton } from './WorkflowNodePinButton';
 
 // The button floats over the graph, so it carries its own surface.
 const BUTTON_SX = { bgcolor: 'background.paper', boxShadow: 1, p: 0.25 };
 
 // The canvas's list of all nodes, top-left, collapsed to one icon until opened.
 // A search box filters it. Clicking a row centres the canvas on that node and
-// opens it for editing.
+// opens it for editing; each row also carries the node's pin and delete icons.
 export const WorkflowNodeListPanel = ({
   nodeNames,
   selectedNode,
+  pinnedNodes,
   onPickNode,
+  onTogglePin,
+  onDeleteNode,
 }: {
   nodeNames: string[],
   selectedNode?: string,
+  pinnedNodes: string[],
   onPickNode: (name: string) => void,
+  onTogglePin: (name: string) => void,
+  onDeleteNode: (name: string) => void,
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -37,7 +45,7 @@ export const WorkflowNodeListPanel = ({
           <FormatListBulleted sx={{ fontSize: 16 }} />
         </ButtonTooltip>
         {open && (
-          <Paper sx={{ minWidth: 180, maxWidth: 240, maxHeight: 260, overflowY: 'auto' }}>
+          <Paper sx={{ minWidth: 220, maxWidth: 280, maxHeight: 260, overflowY: 'auto' }}>
             <Box sx={{ p: 0.5, position: 'sticky', top: 0, bgcolor: 'background.paper', zIndex: 1 }}>
               <TextField
                 size="small"
@@ -56,14 +64,26 @@ export const WorkflowNodeListPanel = ({
               <Typography variant="body2" color="text.secondary" sx={{ p: 1 }}>No match.</Typography>
             )}
             <List dense disablePadding>
+              {/* The pin comes wrapped in a block div, so line it up with the X. */}
               {shown.map(name => (
-                <ListItemButton
+                <ListItem
                   key={name}
-                  selected={name === selectedNode}
-                  onClick={() => onPickNode(name)}
+                  disablePadding
+                  secondaryAction={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, '& > div': { display: 'flex' } }}>
+                      <WorkflowNodePinButton pinned={pinnedNodes.includes(name)} onToggle={() => onTogglePin(name)} />
+                      <WorkflowNodeDeleteButton onDelete={() => onDeleteNode(name)} />
+                    </Box>
+                  }
                 >
-                  <ListItemText primary={name} slotProps={{ primary: { variant: 'body2', noWrap: true } }} />
-                </ListItemButton>
+                  <ListItemButton
+                    selected={name === selectedNode}
+                    onClick={() => onPickNode(name)}
+                    sx={{ pr: 7 }}
+                  >
+                    <ListItemText primary={name} slotProps={{ primary: { variant: 'body2', noWrap: true } }} />
+                  </ListItemButton>
+                </ListItem>
               ))}
             </List>
           </Paper>
