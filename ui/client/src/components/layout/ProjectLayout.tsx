@@ -12,7 +12,9 @@ import { useWorkflowRunStore } from '../../stores/useWorkflowRunStore';
 import { useFlexlayoutTheme } from '../../theme';
 import { hasPreview } from '../details/PreviewPanel';
 import { isWorkflowDoc } from '../../shared/workflow';
-import { CANVAS_TAB_PREFIX, DETAILS_TAB_PREFIX, LayoutModel } from './LayoutModel';
+import { LayoutModel } from './LayoutModel';
+import { canvasTab } from './tabs/CanvasTab';
+import { detailsTab } from './tabs/DetailsTab';
 import { LayoutPanel } from './LayoutPanel';
 
 // Fallback "item" shown when the tree selection isn't a document/repo/split.
@@ -119,13 +121,13 @@ export const ProjectLayout = ({
       const tabId = action.data.node as string;
       const docid = layout.docIdOfTab(tabId);
       if (docid) {
-        if (tabId.startsWith(DETAILS_TAB_PREFIX) || tabId.startsWith(CANVAS_TAB_PREFIX)) {
+        if (detailsTab.owns(tabId) || canvasTab.owns(tabId)) {
           closedCanvases.current.add(docid);
         }
         queueMicrotask(() => {
           // The canvas belongs to the document's details tab, so it closes with it,
           // and the URL moves to whichever details tab is left.
-          if (tabId.startsWith(DETAILS_TAB_PREFIX)) {
+          if (detailsTab.owns(tabId)) {
             layout.closeCanvasTab(docid);
             const nextTab = layout.activeDetailsTab();
             setActiveShowItemId(nextTab?.getConfig()?.showItemId);
@@ -139,7 +141,7 @@ export const ProjectLayout = ({
     }
     if (action.type === Actions.SELECT_TAB) {
       const tabId = action.data.tabNode as string;
-      if (tabId?.startsWith(DETAILS_TAB_PREFIX)) {
+      if (tabId && detailsTab.owns(tabId)) {
         const node = layout.getTab(tabId);
         if (node) {
           setActiveShowItemId(node.getConfig()?.showItemId);
