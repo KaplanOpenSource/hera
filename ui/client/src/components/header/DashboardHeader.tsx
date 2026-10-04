@@ -1,14 +1,12 @@
 import { HelpOutline, ViewQuilt } from '@mui/icons-material';
-import { AppBar, Box, createTheme, Stack, ThemeProvider, Toolbar, Typography } from '@mui/material';
+import { AppBar, Box, createTheme, Stack, ThemeProvider, Toolbar, Tooltip } from '@mui/material';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
+import { ThemeModeSwitch } from '../../elements/ThemeModeSwitch';
+import { ThemeMode, useViewSettingsStore } from '../../stores/useViewSettingsStore';
 import { ProjectViewSettingsButton } from '../project/ProjectViewSettingsButton';
 import { AddProjectButton } from './AddProjectButton';
-import { AutoReloadToggle } from './AutoReloadToggle';
-import { CorsIndicator } from './CorsIndicator';
 import { PageTitle } from './PageTitle';
 import { ProjectChooser } from './ProjectChooser';
-import { UserIndicator } from './UserIndicator';
-import { VersionShower } from './VersionShower';
 
 const headerTheme = createTheme({
   palette: {
@@ -36,25 +34,22 @@ export const DashboardHeader = ({
 }: {
   onResetLayout: () => void,
 }) => {
+  const { viewSettings, setViewSettings } = useViewSettingsStore();
   return (
     <ThemeProvider theme={headerTheme}>
       <AppBar position="static">
         <Toolbar>
-          {/* Left: title, project, and the user + CORS indicators. */}
+          {/* Left: title, project droplist and its add button. */}
           <Stack direction="row" spacing={1} alignItems="center">
             <PageTitle />
             <ProjectChooser />
-            <Stack direction="column" justifyContent="center">
-              <UserIndicator />
-              <CorsIndicator />
-            </Stack>
+            <AddProjectButton />
           </Stack>
 
           <Box sx={{ flexGrow: 1 }} />
 
-          {/* Right: add project, action buttons, settings, then the version. */}
+          {/* Right: action buttons, theme switch, then settings. */}
           <Stack direction="row" spacing={1} alignItems="center">
-            <AddProjectButton />
             <ButtonTooltip
               title="Reset panel layout"
               onClick={onResetLayout}
@@ -69,12 +64,15 @@ export const DashboardHeader = ({
             >
               <HelpOutline />
             </ButtonTooltip>
-            <Stack direction="row" spacing={0.5} alignItems="center">
-              <Typography variant="body2">Auto-reload</Typography>
-              <AutoReloadToggle />
-            </Stack>
+            <Tooltip title="Dark mode">
+              <span>
+                <ThemeModeSwitch
+                  mode={viewSettings.themeMode}
+                  setMode={(mode: ThemeMode) => setViewSettings({ themeMode: mode })}
+                />
+              </span>
+            </Tooltip>
             <ProjectViewSettingsButton />
-            <VersionShower />
           </Stack>
         </Toolbar>
       </AppBar>
