@@ -1,9 +1,7 @@
 import { DriveFolderUpload } from "@mui/icons-material";
 import { useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
-import { fetchPython } from "../../io/fetchPython";
-import { fetchProjectDetails } from "../../io/FetchProjects";
-import { useProjectStore } from "../../stores/useProjectStore";
+import { loadRepositoryIntoProject } from "../../io/loadRepositoryIntoProject";
 
 export const LoadRepositoryButton = ({
   repositoryName,
@@ -11,19 +9,10 @@ export const LoadRepositoryButton = ({
   repositoryName: string,
 }) => {
   const [loading, setLoading] = useState(false);
-  const { currProjectName } = useProjectStore();
 
   const handleClick = async () => {
     setLoading(true);
-    await fetchPython({
-      results: [],
-      label: `load repository ${repositoryName}`,
-      code: `
-from hera.utils.data.toolkit import dataToolkit
-dataToolkit().loadAllDatasourcesInRepositoryToProject(projectName='${currProjectName}', repositoryName='${repositoryName}', overwrite=False)
-`,
-    });
-    await fetchProjectDetails(currProjectName);
+    await loadRepositoryIntoProject(repositoryName);
     setLoading(false);
   };
 
