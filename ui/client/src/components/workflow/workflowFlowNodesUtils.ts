@@ -54,17 +54,17 @@ export const restackedFlowNodes = (prev: Node[], layout: Positions): Node[] => {
   return prev.map(node => ({ ...node, position: layout[node.id] ?? node.position }));
 };
 
-// The same nodes with only the y positions the de-overlap step changed. Returns
+// The same nodes moved to the positions the compaction step worked out. Returns
 // the list it was given when nothing moved, so React skips the re-render.
-export const deOverlappedFlowNodes = (prev: Node[], fixed: Positions): Node[] => {
+export const compactedFlowNodes = (prev: Node[], fixed: Positions): Node[] => {
   let changed = false;
   const next = prev.map(node => {
-    const y = fixed[node.id]?.y;
-    if (y === undefined || y === node.position.y) {
+    const position = fixed[node.id];
+    if (position === undefined || (position.x === node.position.x && position.y === node.position.y)) {
       return node;
     }
     changed = true;
-    return { ...node, position: { ...node.position, y } };
+    return { ...node, position };
   });
   return changed ? next : prev;
 };
@@ -121,10 +121,12 @@ export const flowLayerKey = (
   return JSON.stringify(computeLayers(nodeNames, nodes, dataflowDeps));
 };
 
-// A signature of the measured heights, so the de-overlap step runs only after a
-// node's real height changed.
+// A signature of the measured sizes, so the compaction step runs only after a
+// node's real width or height changed.
 export const flowMeasuredKey = (rfNodes: Node[]): string => {
-  return JSON.stringify(rfNodes.map(node => [node.id, Math.round(node.measured?.height ?? 0)]));
+  return JSON.stringify(rfNodes.map(node => {
+    return [node.id, Math.round(node.measured?.width ?? 0), Math.round(node.measured?.height ?? 0)];
+  }));
 };
 
 // What a node on the canvas calls back into, each handler naming the node it
@@ -146,6 +148,7 @@ export const displayFlowNodes = ({
   nodeStatuses,
   selectedNode,
   expandedNodes,
+  spaceTakingNodes,
   actionButtons,
   handlers,
 }: {
@@ -156,6 +159,9 @@ export const displayFlowNodes = ({
   selectedNode?: string,
   // The nodes that show their editor: the hovered one and the pinned ones.
   expandedNodes?: string[],
+  // The nodes whose editor takes the node's own space, so the canvas lays the
+  // others out around it - the pinned ones.
+  spaceTakingNodes?: string[],
   // The icons for one node's top-right corner, in the order to draw them.
   actionButtons?: (name: string) => ReactNode,
   handlers: FlowNodeHandlers,
@@ -179,6 +185,7 @@ export const displayFlowNodes = ({
         catalog,
         runStatus: nodeStatuses?.[node.id] ?? NodeRunStatus.Pending,
         expanded,
+        takeSpace: (spaceTakingNodes ?? []).includes(node.id),
         actionButtons: actionButtons?.(node.id),
         onRename: (newName: string) => handlers.onRename(node.id, newName),
         onChange: (updated: WorkflowNode) => handlers.onChange(node.id, updated),

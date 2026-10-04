@@ -116,6 +116,9 @@ const WorkflowGraph = ({
     nodeStatuses,
     selectedNode,
     expandedNodes,
+    // A pinned node's editor takes its own space, so the canvas lays the others
+    // out around it; a merely hovered one is laid over them.
+    spaceTakingNodes: pinnedNodes,
     // The icons on an open node's top-right corner, in this order.
     actionButtons: (name: string) => (
       <>

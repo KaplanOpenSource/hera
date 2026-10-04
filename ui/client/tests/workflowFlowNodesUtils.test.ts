@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  deOverlappedFlowNodes,
+  compactedFlowNodes,
   displayFlowNodes,
   FitKind,
   flowMeasuredKey,
@@ -43,15 +43,20 @@ describe('restackedFlowNodes', () => {
   });
 });
 
-describe('deOverlappedFlowNodes', () => {
-  it('pushes a node down to its fixed y', () => {
-    const fixed = deOverlappedFlowNodes([flowNode('A', 0, 0)], { A: { x: 0, y: 50 } });
+describe('compactedFlowNodes', () => {
+  it('pushes a node down to its compacted y', () => {
+    const fixed = compactedFlowNodes([flowNode('A', 0, 0)], { A: { x: 0, y: 50 } });
     expect(fixed[0].position).toEqual({ x: 0, y: 50 });
+  });
+
+  it('moves a node sideways to its compacted x', () => {
+    const fixed = compactedFlowNodes([flowNode('A', 0, 0)], { A: { x: 90, y: 0 } });
+    expect(fixed[0].position).toEqual({ x: 90, y: 0 });
   });
 
   it('returns the same list when nothing moved', () => {
     const prev = [flowNode('A', 0, 50)];
-    expect(deOverlappedFlowNodes(prev, { A: { x: 0, y: 50 } })).toBe(prev);
+    expect(compactedFlowNodes(prev, { A: { x: 0, y: 50 } })).toBe(prev);
   });
 });
 
@@ -109,6 +114,12 @@ describe('change keys', () => {
     const b = flowMeasuredKey([{ ...flowNode('A', 0, 0), measured: { height: 100.4 } }]);
     expect(a).toBe(b);
   });
+
+  it('changes when a measured width changes', () => {
+    const a = flowMeasuredKey([{ ...flowNode('A', 0, 0), measured: { width: 300, height: 100 } }]);
+    const b = flowMeasuredKey([{ ...flowNode('A', 0, 0), measured: { width: 500, height: 100 } }]);
+    expect(a).not.toBe(b);
+  });
 });
 
 describe('displayFlowNodes', () => {
@@ -134,6 +145,11 @@ describe('displayFlowNodes', () => {
   it('stacks an open node above the others', () => {
     const shown = displayFlowNodes({ rfNodes, nodes, catalog: [], expandedNodes: ['B'], handlers });
     expect(shown.map(node => node.zIndex)).toEqual([0, 999]);
+  });
+
+  it('lets a pinned node take its own space', () => {
+    const shown = displayFlowNodes({ rfNodes, nodes, catalog: [], expandedNodes: ['A'], spaceTakingNodes: ['A'], handlers });
+    expect(shown.map(node => node.data.takeSpace)).toEqual([true, false]);
   });
 
   it('gives each node the icons built for its own name', () => {

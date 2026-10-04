@@ -28,6 +28,9 @@ export interface WorkflowFlowNodeData {
   // The icons for the editor's top-right corner, drawn in the order given (the
   // pin, the delete X, ...). The node places them and knows nothing else.
   actionButtons?: ReactNode;
+  // True when the open editor should take the node's own space, so the canvas
+  // lays the other nodes out around it. Otherwise it is laid over them.
+  takeSpace?: boolean;
   [key: string]: unknown;
 }
 
@@ -79,6 +82,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
   const runStatus = (data as WorkflowFlowNodeData).runStatus ?? NodeRunStatus.Pending;
   const expanded = (data as WorkflowFlowNodeData).expanded ?? false;
   const actionButtons = (data as WorkflowFlowNodeData).actionButtons;
+  const takeSpace = (data as WorkflowFlowNodeData).takeSpace ?? false;
   const theme = useTheme();
   const [draft, setDraft] = useState(name);
 
@@ -140,6 +144,23 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
     updateNodeInternals(name);
   }, [expanded, name]);
 
+  // Where the open editor sits: in the node's own box when it takes space, laid
+  // over the summary card (and the canvas) when it is only hovered.
+  let editorSx = {};
+  if (!takeSpace) {
+    editorSx = {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      px: 1,
+      py: 0.5,
+      borderRadius: 1,
+      bgcolor: 'background.paper',
+      boxShadow: 6,
+      zIndex: 10,
+    };
+  }
+
   const commit = () => {
     const next = draft.trim();
     if (next && next !== name) {
@@ -173,27 +194,23 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
           view-only (React Flow's store), not saved with the workflow. */}
       <NodeResizer isVisible={selected} minWidth={260} minHeight={80} />
       <Handle type="target" id={nodeInputHandleId(name)} position={Position.Left} />
-      <WorkflowNodeSummary name={name} type={node.type} paramNames={Object.keys(params)} paramsDef={paramsDef} />
-      {/* The editor, laid over the summary card. Absolute, so opening it leaves
-          the node's measured size alone and the nodes below it stay put. */}
+      {!takeSpace && (
+        <WorkflowNodeSummary name={name} type={node.type} paramNames={Object.keys(params)} paramsDef={paramsDef} />
+      )}
+      {/* The editor. Laid over the summary card while only hovered, so a passing
+          pointer leaves the node's measured size, and the nodes below it, alone.
+          A node that takes space holds the editor in its own box instead, and
+          the canvas lays the others out around it. */}
       {expanded && (
         <Box
           className="nodrag"
           sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
             // As wide as the editor's own content needs, as the node itself was
             // before the summary card; never narrower than the card it covers.
             width: 'max-content',
             minWidth: '100%',
             maxWidth: 560,
-            px: 1,
-            py: 0.5,
-            borderRadius: 1,
-            bgcolor: 'background.paper',
-            boxShadow: 6,
-            zIndex: 10,
+            ...editorSx,
           }}
         >
         {/* The icon slot: whatever the canvas passed, in that order. */}

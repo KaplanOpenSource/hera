@@ -1,14 +1,15 @@
 import { WorkflowNode } from '../../shared/types';
-import { computeLayers, estimateHeight, V_GAP, X_GAP } from './workflowGeometry';
+import { computeLayers, estimateHeight, estimatedWidth, H_GAP, V_GAP, X_GAP } from './workflowGeometry';
 
 // A node placed on the canvas: the column (dependency layer) it belongs to, its
-// position, and its height.
+// position, and its size.
 export interface PlacedNode {
   id: string;
   layer: number;
   x: number;
   y: number;
   height: number;
+  width: number;
 }
 
 export interface NodePosition {
@@ -43,7 +44,7 @@ export class WorkflowLayout {
     const layers = computeLayers(nodeNames, nodes, extraDeps);
     const placed = nodeNames.map(id => {
       const layer = layers[id] ?? 0;
-      return { id, layer, x: layer * X_GAP, y: 0, height: estimateHeight(nodes[id] ?? {}) };
+      return { id, layer, x: layer * X_GAP, y: 0, height: estimateHeight(nodes[id] ?? {}), width: estimatedWidth() };
     });
     return new WorkflowLayout(placed).fixOverlaps();
   }
@@ -52,7 +53,7 @@ export class WorkflowLayout {
   // their real measured heights (falling back to an estimate before a node is
   // measured). Pair with fixOverlaps() to resolve overlaps after a size change.
   static fromFlowNodes(
-    flowNodes: { id: string, position: NodePosition, measured?: { height?: number } }[],
+    flowNodes: { id: string, position: NodePosition, measured?: { height?: number, width?: number } }[],
     nodeNames: string[],
     nodes: { [name: string]: WorkflowNode },
     extraDeps: { source: string, target: string }[] = [],
@@ -64,6 +65,7 @@ export class WorkflowLayout {
       x: node.position.x,
       y: node.position.y,
       height: node.measured?.height ?? estimateHeight(nodes[node.id] ?? {}),
+      width: node.measured?.width ?? estimatedWidth(),
     }));
     return new WorkflowLayout(placed);
   }
@@ -86,12 +88,15 @@ export class WorkflowLayout {
     return this;
   }
 
-  // Pull each column's nodes together: the topmost one stays where it is and
-  // every node below it sits one gap under the node above, using the heights
-  // this layout was built with. Built from the canvas's measured nodes, this is
-  // what keeps the columns as tight as the nodes really are. Mutates this
-  // layout in place and returns it.
-  compact(vGap: number = V_GAP): this {
+  // Pull the nodes together, using the sizes this layout was built with: each
+  // column sits one gap right of the widest node in the column before it, and
+  // within a column the topmost node stays where it is while every node below
+  // sits one gap under the one above. Built from the canvas's measured nodes,
+  // this is what keeps the canvas as tight as the nodes really are - and what
+  // makes a node that grew, e.g. one pinned open, push the others aside.
+  // Mutates this layout in place and returns it.
+  compact(vGap: number = V_GAP, hGap: number = H_GAP): this {
+    this.spreadColumns(hGap);
     Object.values(this.columns()).forEach(column => {
       let prevBottom: number | null = null;
       column
@@ -105,6 +110,27 @@ export class WorkflowLayout {
         });
     });
     return this;
+  }
+
+  // Put each column one gap right of the widest node in the column before it.
+  // The leftmost column stays where it is.
+  private spreadColumns(hGap: number): void {
+    const columns = this.columns();
+    let x: number | null = null;
+    Object.keys(columns)
+      .map(Number)
+      .sort((a, b) => a - b)
+      .forEach(layer => {
+        const column = columns[layer];
+        if (x === null) {
+          x = Math.min(...column.map(node => node.x));
+        }
+        const left = x;
+        column.forEach(node => {
+          node.x = left;
+        });
+        x = left + Math.max(...column.map(node => node.width)) + hGap;
+      });
   }
 
   // The nodes of each column (dependency layer), keyed by layer.

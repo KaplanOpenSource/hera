@@ -5,6 +5,7 @@ import { normalizeRequires } from '../../shared/workflow';
 // for the editor that opens over it on hover - the editor is laid over the
 // canvas and needs no room of its own.
 export const X_GAP = 420;      // horizontal distance between dependency layers
+export const H_GAP = 60;       // horizontal gap between one column and the next
 export const V_GAP = 40;       // vertical gap between nodes in a column
 export const BASE_HEIGHT = 52; // card height without params (name + type)
 export const ROW_HEIGHT = 22;  // card height per parameter row
@@ -40,6 +41,12 @@ export const computeLayers = (
   };
   nodeNames.forEach(resolve);
   return layer;
+};
+
+// Width assumed for a node that has not been measured yet, so an unmeasured
+// column leaves the same room as the estimated layout gives it.
+export const estimatedWidth = (): number => {
+  return X_GAP - H_GAP;
 };
 
 // Estimated height of a node's summary card before it is measured (avoids a

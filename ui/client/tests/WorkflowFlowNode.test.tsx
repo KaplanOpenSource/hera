@@ -35,7 +35,7 @@ const catalog: NodeCatalogEntry[] = [
 
 // The editor only shows while the pointer is on the node, which the canvas
 // reports as `expanded`; these tests are about the editor, so it starts open.
-const renderNode = (node: any = {}, runStatus?: NodeRunStatus, expanded = true) => {
+const renderNode = (node: any = {}, runStatus?: NodeRunStatus, expanded = true, takeSpace = false) => {
   const onRename = vi.fn();
   const onChange = vi.fn();
   const onIconClick = vi.fn();
@@ -43,7 +43,7 @@ const renderNode = (node: any = {}, runStatus?: NodeRunStatus, expanded = true) 
   const actionButtons = <button aria-label="an icon" onClick={onIconClick} />;
   render(
     <WorkflowFlowNode
-      data={{ name: 'node1', node, catalog, onRename, onChange, runStatus, expanded, actionButtons }}
+      data={{ name: 'node1', node, catalog, onRename, onChange, runStatus, expanded, takeSpace, actionButtons }}
       selected={false}
       // The rest of NodeProps is unused by the component.
       {...({} as any)}
@@ -215,6 +215,14 @@ describe('WorkflowFlowNode', () => {
     expect(screen.getByText('Y')).toBeDefined();
     // No values, so nothing to edit.
     expect(screen.queryByDisplayValue('1')).toBeNull();
+  });
+
+  // A pinned node holds its editor in its own box, so the canvas can lay the
+  // others out around it; the summary card would only be a duplicate.
+  it('drops the summary card when the editor takes the node space', () => {
+    renderNode({ type: 'general.JinjaTransform', Execution: { input_parameters: { project_name: 'p1' } } }, undefined, true, true);
+    expect(screen.getAllByText('Project Name')).toHaveLength(1);
+    expect(screen.getByDisplayValue('p1')).toBeDefined();
   });
 
   it('says so in the summary when the node has no type', () => {
