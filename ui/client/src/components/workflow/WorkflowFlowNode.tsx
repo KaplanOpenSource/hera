@@ -1,4 +1,5 @@
 import { Autocomplete, Box, InputBase, Stack, TextField, Theme, Typography, useTheme } from '@mui/material';
+import { cyan } from '@mui/material/colors';
 import { Handle, NodeProps, NodeResizer, Position, useUpdateNodeInternals } from '@xyflow/react';
 import { ReactNode, useEffect, useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
@@ -31,6 +32,8 @@ export interface WorkflowFlowNodeData {
   // True when the open editor should take the node's own space, so the canvas
   // lays the other nodes out around it. Otherwise it is laid over them.
   takeSpace?: boolean;
+  // True while the pointer is on this node, which gets a cyan silhouette.
+  hovered?: boolean;
   [key: string]: unknown;
 }
 
@@ -83,6 +86,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
   const expanded = (data as WorkflowFlowNodeData).expanded ?? false;
   const actionButtons = (data as WorkflowFlowNodeData).actionButtons;
   const takeSpace = (data as WorkflowFlowNodeData).takeSpace ?? false;
+  const hovered = (data as WorkflowFlowNodeData).hovered ?? false;
   const theme = useTheme();
   const [draft, setDraft] = useState(name);
 
@@ -144,6 +148,21 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
     updateNodeInternals(name);
   }, [expanded, name]);
 
+  // A thin cyan silhouette marks the node the pointer is on. It goes on
+  // whichever box is the visible frame: the floating editor when there is one,
+  // the node itself otherwise.
+  const floating = expanded && !takeSpace;
+  let silhouetteSx = {};
+  if (hovered) {
+    silhouetteSx = { outline: `1px solid ${cyan[400]}`, outlineOffset: '2px' };
+  }
+  let nodeSilhouetteSx = silhouetteSx;
+  let editorSilhouetteSx = {};
+  if (floating) {
+    nodeSilhouetteSx = {};
+    editorSilhouetteSx = silhouetteSx;
+  }
+
   // Where the open editor sits: in the node's own box when it takes space, laid
   // over the summary card (and the canvas) when it is only hovered.
   let editorSx = {};
@@ -187,6 +206,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
         border: '1px solid',
         borderWidth,
         borderColor,
+        ...nodeSilhouetteSx,
         ...runningSx,
       }}
     >
@@ -211,6 +231,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
             minWidth: '100%',
             maxWidth: 560,
             ...editorSx,
+            ...editorSilhouetteSx,
           }}
         >
         {/* The icon slot: whatever the canvas passed, in that order. */}

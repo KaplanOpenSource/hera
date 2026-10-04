@@ -12,8 +12,11 @@ import { computeLayers } from './workflowGeometry';
 
 type Positions = { [id: string]: NodePosition };
 
-// Stacking order of a node whose editor is open, above every other node.
-const EXPANDED_NODE_Z = 999;
+// Stacking order of a node whose editor is open, above the closed ones, and of
+// the hovered node, above every other open one. Both stay under the dataflow
+// lines (1000), so the lines still reach the parameter rows they end on.
+const EXPANDED_NODE_Z = 998;
+const HOVERED_NODE_Z = 999;
 
 // What the canvas should do once the nodes are measured.
 export enum FitKind {
@@ -148,6 +151,7 @@ export const displayFlowNodes = ({
   nodeStatuses,
   selectedNode,
   expandedNodes,
+  hoveredNode,
   spaceTakingNodes,
   actionButtons,
   handlers,
@@ -159,6 +163,8 @@ export const displayFlowNodes = ({
   selectedNode?: string,
   // The nodes that show their editor: the hovered one and the pinned ones.
   expandedNodes?: string[],
+  // The node the pointer is on, which stacks above every other open node.
+  hoveredNode?: string | null,
   // The nodes whose editor takes the node's own space, so the canvas lays the
   // others out around it - the pinned ones.
   spaceTakingNodes?: string[],
@@ -169,11 +175,14 @@ export const displayFlowNodes = ({
   return rfNodes.map(node => {
     const expanded = (expandedNodes ?? []).includes(node.id);
     // An open node's editor is laid over the canvas, so the node has to sit
-    // above the others. Just under the dataflow lines (1000), so the lines
-    // still reach the parameter rows they end on.
+    // above the others - and the hovered one above every other open node, so
+    // hovering always brings its editor to the front.
     let zIndex = 0;
     if (expanded) {
       zIndex = EXPANDED_NODE_Z;
+    }
+    if (node.id === hoveredNode) {
+      zIndex = HOVERED_NODE_Z;
     }
     return {
       ...node,
@@ -185,6 +194,7 @@ export const displayFlowNodes = ({
         catalog,
         runStatus: nodeStatuses?.[node.id] ?? NodeRunStatus.Pending,
         expanded,
+        hovered: node.id === hoveredNode,
         takeSpace: (spaceTakingNodes ?? []).includes(node.id),
         actionButtons: actionButtons?.(node.id),
         onRename: (newName: string) => handlers.onRename(node.id, newName),

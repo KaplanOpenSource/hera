@@ -35,7 +35,7 @@ const catalog: NodeCatalogEntry[] = [
 
 // The editor only shows while the pointer is on the node, which the canvas
 // reports as `expanded`; these tests are about the editor, so it starts open.
-const renderNode = (node: any = {}, runStatus?: NodeRunStatus, expanded = true, takeSpace = false) => {
+const renderNode = (node: any = {}, runStatus?: NodeRunStatus, expanded = true, takeSpace = false, hovered = false) => {
   const onRename = vi.fn();
   const onChange = vi.fn();
   const onIconClick = vi.fn();
@@ -43,7 +43,7 @@ const renderNode = (node: any = {}, runStatus?: NodeRunStatus, expanded = true, 
   const actionButtons = <button aria-label="an icon" onClick={onIconClick} />;
   render(
     <WorkflowFlowNode
-      data={{ name: 'node1', node, catalog, onRename, onChange, runStatus, expanded, takeSpace, actionButtons }}
+      data={{ name: 'node1', node, catalog, onRename, onChange, runStatus, expanded, takeSpace, hovered, actionButtons }}
       selected={false}
       // The rest of NodeProps is unused by the component.
       {...({} as any)}
@@ -223,6 +223,16 @@ describe('WorkflowFlowNode', () => {
     renderNode({ type: 'general.JinjaTransform', Execution: { input_parameters: { project_name: 'p1' } } }, undefined, true, true);
     expect(screen.getAllByText('Project Name')).toHaveLength(1);
     expect(screen.getByDisplayValue('p1')).toBeDefined();
+  });
+
+  it('draws a cyan silhouette around the hovered node', () => {
+    renderNode({ type: 't' }, undefined, false, false, true);
+    expect(getComputedStyle(nodeBox()).outline).toBe('1px solid #26c6da');
+  });
+
+  it('draws no silhouette when the pointer is elsewhere', () => {
+    renderNode({ type: 't' }, undefined, false, false, false);
+    expect(getComputedStyle(nodeBox()).outline).toBe('');
   });
 
   it('says so in the summary when the node has no type', () => {

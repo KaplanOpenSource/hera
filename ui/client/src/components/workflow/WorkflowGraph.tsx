@@ -116,6 +116,7 @@ const WorkflowGraph = ({
     nodeStatuses,
     selectedNode,
     expandedNodes,
+    hoveredNode,
     // A pinned node's editor takes its own space, so the canvas lays the others
     // out around it; a merely hovered one is laid over them.
     spaceTakingNodes: pinnedNodes,

@@ -142,9 +142,42 @@ describe('displayFlowNodes', () => {
     expect(shown.map(node => node.data.expanded)).toEqual([false, false]);
   });
 
-  it('stacks an open node above the others', () => {
+  it('stacks an open node above the closed ones', () => {
     const shown = displayFlowNodes({ rfNodes, nodes, catalog: [], expandedNodes: ['B'], handlers });
-    expect(shown.map(node => node.zIndex)).toEqual([0, 999]);
+    expect(shown.map(node => node.zIndex)).toEqual([0, 998]);
+  });
+
+  // Hovering a node always brings its editor to the front, even over a node
+  // pinned open right next to it.
+  it('stacks the hovered node above a pinned open one', () => {
+    const shown = displayFlowNodes({
+      rfNodes,
+      nodes,
+      catalog: [],
+      expandedNodes: ['A', 'B'],
+      hoveredNode: 'B',
+      spaceTakingNodes: ['A'],
+      handlers,
+    });
+    const z = new Map(shown.map(node => [node.id, node.zIndex]));
+    expect(z.get('B')).toBeGreaterThan(z.get('A') as number);
+  });
+
+  it('keeps both open nodes under the dataflow lines', () => {
+    const shown = displayFlowNodes({
+      rfNodes,
+      nodes,
+      catalog: [],
+      expandedNodes: ['A', 'B'],
+      hoveredNode: 'B',
+      handlers,
+    });
+    shown.forEach(node => expect(node.zIndex).toBeLessThan(1000));
+  });
+
+  it('marks the hovered node, for its silhouette', () => {
+    const shown = displayFlowNodes({ rfNodes, nodes, catalog: [], expandedNodes: ['B'], hoveredNode: 'B', handlers });
+    expect(shown.map(node => node.data.hovered)).toEqual([false, true]);
   });
 
   it('lets a pinned node take its own space', () => {
