@@ -116,19 +116,19 @@ export const tokenAtCaret = (value: string, caret: number): ReferenceTokenAtCare
   }
   const nodePart = inner.slice(0, dot);
   const afterNode = inner.slice(dot + 1);
-  // The key is what follows the last dot, so the section may itself hold dots.
-  const lastDot = afterNode.lastIndexOf('.');
-  const section = lastDot === -1 ? afterNode : afterNode.slice(0, lastDot);
-  const kind = knownKinds.bySection(section);
-  if (kind === null) {
+  // The section is the known prefix, so both it and the key may hold dots.
+  const split = knownKinds.splitSection(afterNode);
+  if (split === null) {
     return { stage: ReferenceTokenStage.Section, nodePart, sectionPart: afterNode, kind: null, seed: afterNode, start: open, end };
   }
   return {
     stage: ReferenceTokenStage.Key,
     nodePart,
-    sectionPart: section,
-    kind,
-    seed: lastDot === -1 ? '' : afterNode.slice(lastDot + 1),
+    sectionPart: afterNode.slice(0, afterNode.length - split.key.length - 1),
+    kind: split.kind,
+    // The whole key, path and all, so a key that already points inside an output
+    // matches no name and the menu gets out of the way.
+    seed: split.key,
     start: open,
     end,
   };
@@ -213,14 +213,14 @@ export const buildDataflowEdges = (
         }
         const inGraph = nodeNames.includes(reference.node);
         const isReal = inGraph
-          && reference.kind.namesOf(nodes[reference.node] ?? {}, catalog).includes(reference.key);
+          && reference.kind.namesOf(nodes[reference.node] ?? {}, catalog).includes(reference.rootKey());
         const id = reference.edgeIdTo(target, path);
         if (isReal && !seen.has(id)) {
           seen.add(id);
           edges.push({
             id,
             source: reference.node,
-            sourceHandle: reference.handleId(),
+            sourceHandle: reference.rootHandleId(),
             target,
             targetHandle: inputHandleId(target, path),
           });

@@ -3,14 +3,15 @@ import { NodeCatalogEntry } from '../nodeCatalog';
 import { Reference } from './Reference';
 import { ReferenceKind } from './ReferenceKind';
 
-// Any reference in a parameter value. The section is greedy so a kind whose
-// section holds a dot still parses; the last dotted part is always the key.
-const PARSE = /\{\s*(\w+)\.([\w.]+)\.(\w+)\s*\}/g;
+// Any reference in a parameter value: the node name, then everything else. Both
+// the section and the key may hold dots, so splitSection tells them apart. The
+// key may be a JSONPath into the output, e.g. `output.items[0].name`.
+const PARSE = /\{\s*(\w+)\.([\w.[\]*'"@$()?,:-]+?)\s*\}/g;
 // A source dot's handle id: <node>:<handleMark>:<key>.
 const HANDLE = /^(\w+):(\w+):(.+)$/;
 // A dataflow edge id: df:<node>:<handleMark>:<key>-><target>.<paramPath>.
-// The path may itself hold dots, so it is everything after the target's dot.
-const EDGE_ID = /^df:(\w+):(\w+):(\w+)->(\w+)\.(.+)$/;
+// Both the key and the path may hold dots, so `->` is the only split point.
+const EDGE_ID = /^df:(\w+):(\w+):(.+?)->(\w+)\.(.+)$/;
 
 // The questions that are about all the kinds at once rather than one of them.
 export class ReferenceKindRegistry {
@@ -38,15 +39,30 @@ export class ReferenceKindRegistry {
     return null;
   }
 
+  // The kind a reference's text after the node name starts with, and the key
+  // that follows its section. The longest matching section wins, so a kind whose
+  // section holds dots is not cut short by a shorter one. Null when no kind
+  // reads it. The key may be empty, for a section that is still being typed.
+  splitSection(rest: string): { kind: ReferenceKind, key: string } | null {
+    let best: { kind: ReferenceKind, key: string } | null = null;
+    for (const kind of this.kinds) {
+      const match = new RegExp(`^(?:${kind.sectionMatch()})\\.(.*)$`).exec(rest);
+      if (match !== null && (best === null || match[1].length < best.key.length)) {
+        best = { kind, key: match[1] };
+      }
+    }
+    return best;
+  }
+
   // Every reference written in one parameter value. Unknown sections are skipped.
   parseAll(value: string): Reference[] {
     const found: Reference[] = [];
     PARSE.lastIndex = 0;
     let match = PARSE.exec(value);
     while (match !== null) {
-      const kind = this.bySection(match[2]);
-      if (kind !== null) {
-        found.push(new Reference(match[1], kind, match[3]));
+      const split = this.splitSection(match[2]);
+      if (split !== null && split.key !== '') {
+        found.push(new Reference(match[1], split.kind, split.key));
       }
       match = PARSE.exec(value);
     }
@@ -55,11 +71,12 @@ export class ReferenceKindRegistry {
 
   // One value's text with every known reference to `oldName` pointing at `newName`.
   renamedNode(value: string, oldName: string, newName: string): string {
-    return value.replace(PARSE, (match, node, section, key) => {
-      if (node !== oldName || this.bySection(section) === null) {
+    return value.replace(PARSE, (match, node, rest) => {
+      const split = this.splitSection(rest);
+      if (node !== oldName || split === null || split.key === '') {
         return match;
       }
-      return `{${newName}.${section}.${key}}`;
+      return `{${newName}.${rest}}`;
     });
   }
 

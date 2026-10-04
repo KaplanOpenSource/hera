@@ -323,3 +323,60 @@ describe('clearInputReference', () => {
     expect(clearInputReference(node, 'bbb', 'C', 'ggg').Execution?.input_parameters?.bbb).toBe(5);
   });
 });
+
+// Issue #1064: a reference may point inside an output the catalog only knows by
+// its top-level name.
+describe('references into an output sub-field', () => {
+  const withValue = (value: string): { [name: string]: WorkflowNode } => ({
+    C: nodes.C,
+    A: { type: 'general.CopyDirectory', Execution: { input_parameters: { bbb: value } } },
+  });
+
+  it('links a dict field to the output it sits in', () => {
+    expect(buildDataflowEdges(['C', 'A'], withValue('{C.output.ggg.station}'), catalog)).toEqual([{
+      id: 'df:C:out:ggg.station->A.bbb',
+      source: 'C',
+      sourceHandle: 'C:out:ggg',
+      target: 'A',
+      targetHandle: 'A:in:bbb',
+    }]);
+  });
+
+  it('links a list element', () => {
+    expect(buildDataflowEdges(['C', 'A'], withValue('{C.output.ggg[0].name}'), catalog)).toEqual([{
+      id: 'df:C:out:ggg[0].name->A.bbb',
+      source: 'C',
+      sourceHandle: 'C:out:ggg',
+      target: 'A',
+      targetHandle: 'A:in:bbb',
+    }]);
+  });
+
+  it('still ignores a sub-field of an output that does not exist', () => {
+    expect(buildDataflowEdges(['C', 'A'], withValue('{C.output.nope.station}'), catalog)).toEqual([]);
+  });
+
+  it('draws one line per sub-field, all from the same dot', () => {
+    const edges = buildDataflowEdges(['C', 'A'], withValue('{C.output.ggg.a} {C.output.ggg.b}'), catalog);
+    expect(edges).toHaveLength(2);
+    expect(edges.map(e => e.sourceHandle)).toEqual(['C:out:ggg', 'C:out:ggg']);
+  });
+
+  it('clears only the sub-field the deleted line stood for', () => {
+    const node = { Execution: { input_parameters: { bbb: '{C.output.ggg.a} {C.output.ggg.b}' } } };
+    expect(clearInputReference(node, 'bbb', 'C', 'ggg.a').Execution?.input_parameters)
+      .toEqual({ bbb: '{C.output.ggg.b}' });
+  });
+
+  it('keeps the caret in the key stage while a sub-path is typed', () => {
+    expect(tokenAtCaret('{C.output.ggg[0].na', 19)).toEqual({
+      stage: ReferenceTokenStage.Key,
+      nodePart: 'C',
+      sectionPart: 'output',
+      kind: OUTPUT,
+      seed: 'ggg[0].na',
+      start: 0,
+      end: 19,
+    });
+  });
+});
