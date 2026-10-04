@@ -12,6 +12,7 @@ import { FIT_MAX_ZOOM } from './WorkflowViewport';
 import { ReferenceOption, WorkflowContextMenu, WorkflowContextMenuKind, WorkflowContextMenuTarget } from './WorkflowContextMenu';
 import { WorkflowFlowNode } from './WorkflowFlowNode';
 import { WorkflowNodeDeleteButton } from './WorkflowNodeDeleteButton';
+import { WorkflowNodeListPanel } from './WorkflowNodeListPanel';
 import { WorkflowNodePinButton } from './WorkflowNodePinButton';
 import { WorkflowRequiresEdge } from './WorkflowRequiresEdge';
 import { buildWorkflowEdges } from './workflowEdges';
@@ -38,6 +39,8 @@ interface WorkflowGraphProps {
   focus?: { nodeName: string, seq: number };
   // The node the pointer is over, or undefined when it left one.
   onHoverNode?: (name: string | undefined) => void;
+  // A node picked from the node list: centre the canvas on it.
+  onPickNode?: (name: string) => void;
   // Extra controls rendered in the canvas's top-right corner (e.g. a run button).
   actionButtons?: ReactNode;
   onSelectNode: (name: string | undefined) => void;
@@ -61,6 +64,7 @@ const WorkflowGraph = ({
   nodeStatuses,
   focus,
   onHoverNode,
+  onPickNode,
   actionButtons,
   onSelectNode,
   onAddNode,
@@ -185,6 +189,11 @@ const WorkflowGraph = ({
           setMenu({ kind: WorkflowContextMenuKind.Edge, source: edge.source, target: edge.target, x: event.clientX, y: event.clientY });
         }}
       >
+        <WorkflowNodeListPanel
+          nodeNames={nodeNames}
+          selectedNode={selectedNode}
+          onPickNode={name => onPickNode?.(name)}
+        />
         <WorkflowCanvasToolbar
           actionButtons={actionButtons}
           onAddNode={onAddNode}
