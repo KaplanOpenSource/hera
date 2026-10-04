@@ -73,11 +73,7 @@ export class WorkflowLayout {
   // it just enough to clear, while every non-colliding position (including
   // deliberate drags) is preserved. Mutates this layout in place and returns it.
   fixOverlaps(vGap: number = V_GAP): this {
-    const columns: { [layer: number]: PlacedNode[] } = {};
-    this.placed.forEach(node => {
-      (columns[node.layer] ??= []).push(node);
-    });
-    Object.values(columns).forEach(column => {
+    Object.values(this.columns()).forEach(column => {
       let prevBottom = -Infinity;
       column
         .slice()
@@ -88,6 +84,36 @@ export class WorkflowLayout {
         });
     });
     return this;
+  }
+
+  // Pull each column's nodes together: the topmost one stays where it is and
+  // every node below it sits one gap under the node above, using the heights
+  // this layout was built with. Built from the canvas's measured nodes, this is
+  // what keeps the columns as tight as the nodes really are. Mutates this
+  // layout in place and returns it.
+  compact(vGap: number = V_GAP): this {
+    Object.values(this.columns()).forEach(column => {
+      let prevBottom: number | null = null;
+      column
+        .slice()
+        .sort((a, b) => a.y - b.y)
+        .forEach(node => {
+          if (prevBottom !== null) {
+            node.y = prevBottom;
+          }
+          prevBottom = node.y + node.height + vGap;
+        });
+    });
+    return this;
+  }
+
+  // The nodes of each column (dependency layer), keyed by layer.
+  private columns(): { [layer: number]: PlacedNode[] } {
+    const columns: { [layer: number]: PlacedNode[] } = {};
+    this.placed.forEach(node => {
+      (columns[node.layer] ??= []).push(node);
+    });
+    return columns;
   }
 
   // The {x, y} of every node, keyed by id.

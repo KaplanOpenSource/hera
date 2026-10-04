@@ -71,3 +71,54 @@ describe('WorkflowLayout.fixOverlaps', () => {
     expect(layout.c).toEqual({ x: X_GAP, y: 0 });
   });
 });
+
+describe('WorkflowLayout.compact', () => {
+  const compact = (placed: { id: string, layer: number, x: number, y: number, height: number }[], vGap: number) => {
+    return WorkflowLayout.fromPlaced(placed).compact(vGap).positions();
+  };
+
+  it('pulls a node up to one gap under the one above', () => {
+    const layout = compact([
+      { id: 'a', layer: 0, x: 0, y: 0, height: 100 },
+      { id: 'b', layer: 0, x: 0, y: 500, height: 100 },
+    ], 20);
+    expect(layout.a.y).toBe(0);
+    expect(layout.b.y).toBe(120);
+  });
+
+  it('pushes a node down when the one above grew', () => {
+    const layout = compact([
+      { id: 'a', layer: 0, x: 0, y: 0, height: 200 },
+      { id: 'b', layer: 0, x: 0, y: 50, height: 100 },
+    ], 20);
+    expect(layout.b.y).toBe(220);
+  });
+
+  it('leaves the topmost node of a column where it is', () => {
+    const layout = compact([
+      { id: 'a', layer: 0, x: 0, y: 300, height: 100 },
+      { id: 'b', layer: 0, x: 0, y: 900, height: 100 },
+    ], 20);
+    expect(layout.a.y).toBe(300);
+    expect(layout.b.y).toBe(420);
+  });
+
+  it('keeps the order the nodes are already in', () => {
+    const layout = compact([
+      { id: 'a', layer: 0, x: 0, y: 900, height: 100 },
+      { id: 'b', layer: 0, x: 0, y: 0, height: 100 },
+    ], 20);
+    expect(layout.b.y).toBe(0);
+    expect(layout.a.y).toBe(120);
+  });
+
+  it('compacts each column on its own and keeps x', () => {
+    const layout = compact([
+      { id: 'a', layer: 0, x: 0, y: 0, height: 100 },
+      { id: 'b', layer: 0, x: 0, y: 800, height: 100 },
+      { id: 'c', layer: 1, x: X_GAP, y: 0, height: 100 },
+    ], 20);
+    expect(layout.b).toEqual({ x: 0, y: 120 });
+    expect(layout.c).toEqual({ x: X_GAP, y: 0 });
+  });
+});
