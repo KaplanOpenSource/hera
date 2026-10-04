@@ -1,12 +1,11 @@
 import { Autocomplete, Box, InputBase, Stack, TextField, Theme, Typography, useTheme } from '@mui/material';
 import { Handle, NodeProps, NodeResizer, Position, useUpdateNodeInternals } from '@xyflow/react';
-import { useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
 import { keyForDetailsViewItem } from '../details/DetailsViewItem';
 import { NodeRunStatus } from './nodeRunStatus';
 import { NodeCatalogEntry, nodeOutputNames, nodeTypeGroup, nodeTypeIssue, paramsFieldDef } from './nodeCatalog';
 import { paramsOnTypeChange } from './nodeTypeParams';
-import { WorkflowNodeDeleteButton } from './WorkflowNodeDeleteButton';
 import { nodeInputHandleId, nodeOutputHandleId } from './workflowDataflow';
 import { INPUT_PARAMETERS_KEY, WorkflowNodeInputs } from './WorkflowNodeInputs';
 import { WorkflowNodeOutputs } from './WorkflowNodeOutputs';
@@ -19,13 +18,16 @@ export interface WorkflowFlowNodeData {
   catalog: NodeCatalogEntry[];
   onRename: (newName: string) => void;
   onChange: (node: WorkflowNode) => void;
-  onDelete: () => void;
   onFieldContextMenu: (param: string, x: number, y: number, caret?: number) => void;
   onFieldInlineEdit: (param: string, value: string, caret: number | null, el: HTMLInputElement) => void;
   // How the node did in the last run of this workflow.
   runStatus?: NodeRunStatus;
-  // True while the pointer is on this node: show the editor, not the summary.
+  // True while this node shows its editor rather than its summary: the pointer
+  // is on it, or it is pinned open.
   expanded?: boolean;
+  // The icons for the editor's top-right corner, drawn in the order given (the
+  // pin, the delete X, ...). The node places them and knows nothing else.
+  actionButtons?: ReactNode;
   [key: string]: unknown;
 }
 
@@ -73,9 +75,10 @@ const marchingAntsSx = (color: string) => {
 // own small size while the editor is open, so the nodes below it never get
 // shoved aside by a passing pointer.
 export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
-  const { name, node, catalog, onRename, onChange, onDelete, onFieldContextMenu, onFieldInlineEdit } = data as WorkflowFlowNodeData;
+  const { name, node, catalog, onRename, onChange, onFieldContextMenu, onFieldInlineEdit } = data as WorkflowFlowNodeData;
   const runStatus = (data as WorkflowFlowNodeData).runStatus ?? NodeRunStatus.Pending;
   const expanded = (data as WorkflowFlowNodeData).expanded ?? false;
+  const actionButtons = (data as WorkflowFlowNodeData).actionButtons;
   const theme = useTheme();
   const [draft, setDraft] = useState(name);
 
@@ -193,7 +196,10 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
             zIndex: 10,
           }}
         >
-        <WorkflowNodeDeleteButton onDelete={onDelete} />
+        {/* The icon slot: whatever the canvas passed, in that order. */}
+        <Stack direction="row" spacing={0.5} sx={{ position: 'absolute', top: -12, right: -12 }}>
+          {actionButtons}
+        </Stack>
         <InputBase
           className="nodrag"
           value={draft}

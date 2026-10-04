@@ -11,6 +11,8 @@ import { WorkflowReferences } from './WorkflowReferences';
 import { FIT_MAX_ZOOM } from './WorkflowViewport';
 import { ReferenceOption, WorkflowContextMenu, WorkflowContextMenuKind, WorkflowContextMenuTarget } from './WorkflowContextMenu';
 import { WorkflowFlowNode } from './WorkflowFlowNode';
+import { WorkflowNodeDeleteButton } from './WorkflowNodeDeleteButton';
+import { WorkflowNodePinButton } from './WorkflowNodePinButton';
 import { WorkflowRequiresEdge } from './WorkflowRequiresEdge';
 import { buildWorkflowEdges } from './workflowEdges';
 import { buildDataflowEdges } from './workflowDataflow';
@@ -72,11 +74,28 @@ const WorkflowGraph = ({
   const theme = useTheme();
   const [menu, setMenu] = useState<WorkflowContextMenuTarget | null>(null);
   const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
-  // The node the pointer is on. It alone shows its editor; the rest stay small.
+  // The node the pointer is on, and the nodes pinned open by their pin button.
+  // Those show their editor; the rest stay small.
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const [pinnedNodes, setPinnedNodes] = useState<string[]>([]);
   // Dataflow dependencies (an input referencing another node's output) — used
   // both to draw the lines and to order the columns, alongside `requires`.
   const dataflowDeps = buildDataflowEdges(nodeNames, nodes, catalog);
+
+  const expandedNodes = [...pinnedNodes];
+  if (hoveredNode !== null && !expandedNodes.includes(hoveredNode)) {
+    expandedNodes.push(hoveredNode);
+  }
+
+  // Pin a node's editor open, or let it close with the pointer again.
+  const togglePin = (name: string) => {
+    setPinnedNodes(prev => {
+      if (prev.includes(name)) {
+        return prev.filter(pinned => pinned !== name);
+      }
+      return [...prev, name];
+    });
+  };
 
   // Which node outputs each field may point at (the reference menus ask this).
   const references = new WorkflowReferences(nodeNames, nodes, catalog);
@@ -96,11 +115,17 @@ const WorkflowGraph = ({
     catalog,
     nodeStatuses,
     selectedNode,
-    hoveredNode,
+    expandedNodes,
+    // The icons on an open node's top-right corner, in this order.
+    actionButtons: (name: string) => (
+      <>
+        <WorkflowNodePinButton pinned={pinnedNodes.includes(name)} onToggle={() => togglePin(name)} />
+        <WorkflowNodeDeleteButton onDelete={() => onDeleteNode(name)} />
+      </>
+    ),
     handlers: {
       onRename: onRenameNode,
       onChange: onSetNode,
-      onDelete: onDeleteNode,
       onFieldContextMenu: (name, param, x, y, caret) =>
         setMenu({ kind: WorkflowContextMenuKind.Field, node: name, param, x, y, caret }),
       onFieldInlineEdit: (name, param, value, caret, el) => handleInlineEdit(name, param, value, caret, el),
@@ -111,7 +136,7 @@ const WorkflowGraph = ({
 
   const displayEdges = WorkflowDisplayEdges.hovering(hoveredEdge)
     .withRequires(rfEdges, onRemoveRequire)
-    .withDataflow(dataflowDeps, theme.palette.primary.main, id => edits.removeDataflowEdge(id), hoveredNode)
+    .withDataflow(dataflowDeps, theme.palette.primary.main, id => edits.removeDataflowEdge(id), expandedNodes)
     .all();
 
   // While a field's menu is open, the other nodes that offer something to point

@@ -117,18 +117,29 @@ describe('displayFlowNodes', () => {
   const handlers = {
     onRename: () => {},
     onChange: () => {},
-    onDelete: () => {},
     onFieldContextMenu: () => {},
     onFieldInlineEdit: () => {},
   };
 
-  it('expands only the hovered node', () => {
-    const shown = displayFlowNodes({ rfNodes, nodes, catalog: [], hoveredNode: 'B', handlers });
+  it('expands only the nodes it is given', () => {
+    const shown = displayFlowNodes({ rfNodes, nodes, catalog: [], expandedNodes: ['B'], handlers });
     expect(shown.map(node => node.data.expanded)).toEqual([false, true]);
   });
 
-  it('expands none when the pointer is off the nodes', () => {
-    const shown = displayFlowNodes({ rfNodes, nodes, catalog: [], hoveredNode: null, handlers });
+  it('expands none when the pointer is off the nodes and nothing is pinned', () => {
+    const shown = displayFlowNodes({ rfNodes, nodes, catalog: [], expandedNodes: [], handlers });
     expect(shown.map(node => node.data.expanded)).toEqual([false, false]);
+  });
+
+  it('gives each node the icons built for its own name', () => {
+    const shown = displayFlowNodes({
+      rfNodes,
+      nodes,
+      catalog: [],
+      expandedNodes: [],
+      actionButtons: (name: string) => `icons for ${name}`,
+      handlers,
+    });
+    expect(shown.map(node => node.data.actionButtons)).toEqual(['icons for A', 'icons for B']);
   });
 });

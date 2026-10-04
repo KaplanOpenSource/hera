@@ -38,16 +38,18 @@ const catalog: NodeCatalogEntry[] = [
 const renderNode = (node: any = {}, runStatus?: NodeRunStatus, expanded = true) => {
   const onRename = vi.fn();
   const onChange = vi.fn();
-  const onDelete = vi.fn();
+  const onIconClick = vi.fn();
+  // The canvas passes the top-right icons in; the node only places them.
+  const actionButtons = <button aria-label="an icon" onClick={onIconClick} />;
   render(
     <WorkflowFlowNode
-      data={{ name: 'node1', node, catalog, onRename, onChange, onDelete, runStatus, expanded }}
+      data={{ name: 'node1', node, catalog, onRename, onChange, runStatus, expanded, actionButtons }}
       selected={false}
       // The rest of NodeProps is unused by the component.
       {...({} as any)}
     />,
   );
-  return { onRename, onChange, onDelete };
+  return { onRename, onChange, onIconClick };
 };
 
 describe('WorkflowFlowNode', () => {
@@ -194,6 +196,17 @@ describe('WorkflowFlowNode', () => {
     expect(screen.queryByLabelText('node name')).toBeNull();
     expect(screen.queryByLabelText('type')).toBeNull();
     expect(screen.queryByDisplayValue('p1')).toBeNull();
+  });
+
+  it('shows the icons the canvas passed for the top-right corner', () => {
+    const { onIconClick } = renderNode({ type: 't' });
+    fireEvent.click(screen.getByLabelText('an icon'));
+    expect(onIconClick).toHaveBeenCalled();
+  });
+
+  it('shows no icons while the editor is closed', () => {
+    renderNode({ type: 't' }, undefined, false);
+    expect(screen.queryByLabelText('an icon')).toBeNull();
   });
 
   it('lists every parameter in the summary, one per row', () => {

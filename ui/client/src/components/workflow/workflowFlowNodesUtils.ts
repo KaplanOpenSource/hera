@@ -1,4 +1,5 @@
 import { Node } from '@xyflow/react';
+import { ReactNode } from 'react';
 import { WorkflowNode } from '../../shared/types';
 import { NodeCatalogEntry } from './nodeCatalog';
 import { NodeRunStatus, NodeRunStatusMap } from './nodeRunStatus';
@@ -128,7 +129,6 @@ export const flowMeasuredKey = (rfNodes: Node[]): string => {
 export interface FlowNodeHandlers {
   onRename: (name: string, newName: string) => void;
   onChange: (name: string, node: WorkflowNode) => void;
-  onDelete: (name: string) => void;
   onFieldContextMenu: (name: string, param: string, x: number, y: number, caret?: number) => void;
   onFieldInlineEdit: (name: string, param: string, value: string, caret: number | null, el: HTMLInputElement) => void;
 }
@@ -142,7 +142,8 @@ export const displayFlowNodes = ({
   catalog,
   nodeStatuses,
   selectedNode,
-  hoveredNode,
+  expandedNodes,
+  actionButtons,
   handlers,
 }: {
   rfNodes: Node[],
@@ -150,8 +151,10 @@ export const displayFlowNodes = ({
   catalog: NodeCatalogEntry[],
   nodeStatuses?: NodeRunStatusMap,
   selectedNode?: string,
-  // The node the pointer is on: the only one that shows its editor.
-  hoveredNode?: string | null,
+  // The nodes that show their editor: the hovered one and the pinned ones.
+  expandedNodes?: string[],
+  // The icons for one node's top-right corner, in the order to draw them.
+  actionButtons?: (name: string) => ReactNode,
   handlers: FlowNodeHandlers,
 }): Node[] => {
   return rfNodes.map(node => ({
@@ -162,10 +165,10 @@ export const displayFlowNodes = ({
       node: nodes[node.id] ?? {},
       catalog,
       runStatus: nodeStatuses?.[node.id] ?? NodeRunStatus.Pending,
-      expanded: node.id === hoveredNode,
+      expanded: (expandedNodes ?? []).includes(node.id),
+      actionButtons: actionButtons?.(node.id),
       onRename: (newName: string) => handlers.onRename(node.id, newName),
       onChange: (updated: WorkflowNode) => handlers.onChange(node.id, updated),
-      onDelete: () => handlers.onDelete(node.id),
       onFieldContextMenu: (param: string, x: number, y: number, caret?: number) =>
         handlers.onFieldContextMenu(node.id, param, x, y, caret),
       onFieldInlineEdit: (param: string, value: string, caret: number | null, el: HTMLInputElement) =>

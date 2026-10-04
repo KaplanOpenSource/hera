@@ -7,7 +7,7 @@ import { nodeInputHandleId, nodeOutputHandleId, WorkflowDataflowEdge } from './w
 //
 //   WorkflowDisplayEdges.hovering(hoveredEdge)
 //     .withRequires(rfEdges, onRemoveRequire)
-//     .withDataflow(deps, color, removeDataflowEdge, expandedNode)
+//     .withDataflow(deps, color, removeDataflowEdge, expandedNodes)
 //     .all()
 //
 // Each step returns a new instance, so nothing is edited in place.
@@ -42,22 +42,22 @@ export class WorkflowDisplayEdges {
   }
 
   // Dataflow edges from parameter values that reference another node's output
-  // drawn source-handle -> input-handle. Only the expanded node shows those
+  // drawn source-handle -> input-handle. Only an expanded node shows those
   // per-row handles, so a line to or from a collapsed node lands on that node's
   // edge instead - the line stays on the canvas either way.
   withDataflow(
     edges: WorkflowDataflowEdge[],
     color: string,
     onRemove: (id: string) => void,
-    expandedNode: string | null,
+    expandedNodes: string[],
   ): WorkflowDisplayEdges {
     const built = edges.map(edge => {
       let sourceHandle = nodeOutputHandleId(edge.source);
-      if (edge.source === expandedNode) {
+      if (expandedNodes.includes(edge.source)) {
         sourceHandle = edge.sourceHandle;
       }
       let targetHandle = nodeInputHandleId(edge.target);
-      if (edge.target === expandedNode) {
+      if (expandedNodes.includes(edge.target)) {
         targetHandle = edge.targetHandle;
       }
       return {
