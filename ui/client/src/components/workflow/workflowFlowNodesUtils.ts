@@ -12,6 +12,9 @@ import { computeLayers } from './workflowGeometry';
 
 type Positions = { [id: string]: NodePosition };
 
+// Stacking order of a node whose editor is open, above every other node.
+const EXPANDED_NODE_Z = 999;
+
 // What the canvas should do once the nodes are measured.
 export enum FitKind {
   // Fit the whole graph (initial load, or a bulk change like a template).
@@ -157,22 +160,33 @@ export const displayFlowNodes = ({
   actionButtons?: (name: string) => ReactNode,
   handlers: FlowNodeHandlers,
 }): Node[] => {
-  return rfNodes.map(node => ({
-    ...node,
-    selected: node.id === selectedNode,
-    data: {
-      name: node.id,
-      node: nodes[node.id] ?? {},
-      catalog,
-      runStatus: nodeStatuses?.[node.id] ?? NodeRunStatus.Pending,
-      expanded: (expandedNodes ?? []).includes(node.id),
-      actionButtons: actionButtons?.(node.id),
-      onRename: (newName: string) => handlers.onRename(node.id, newName),
-      onChange: (updated: WorkflowNode) => handlers.onChange(node.id, updated),
-      onFieldContextMenu: (param: string, x: number, y: number, caret?: number) =>
-        handlers.onFieldContextMenu(node.id, param, x, y, caret),
-      onFieldInlineEdit: (param: string, value: string, caret: number | null, el: HTMLInputElement) =>
-        handlers.onFieldInlineEdit(node.id, param, value, caret, el),
-    },
-  }));
+  return rfNodes.map(node => {
+    const expanded = (expandedNodes ?? []).includes(node.id);
+    // An open node's editor is laid over the canvas, so the node has to sit
+    // above the others. Just under the dataflow lines (1000), so the lines
+    // still reach the parameter rows they end on.
+    let zIndex = 0;
+    if (expanded) {
+      zIndex = EXPANDED_NODE_Z;
+    }
+    return {
+      ...node,
+      selected: node.id === selectedNode,
+      zIndex,
+      data: {
+        name: node.id,
+        node: nodes[node.id] ?? {},
+        catalog,
+        runStatus: nodeStatuses?.[node.id] ?? NodeRunStatus.Pending,
+        expanded,
+        actionButtons: actionButtons?.(node.id),
+        onRename: (newName: string) => handlers.onRename(node.id, newName),
+        onChange: (updated: WorkflowNode) => handlers.onChange(node.id, updated),
+        onFieldContextMenu: (param: string, x: number, y: number, caret?: number) =>
+          handlers.onFieldContextMenu(node.id, param, x, y, caret),
+        onFieldInlineEdit: (param: string, value: string, caret: number | null, el: HTMLInputElement) =>
+          handlers.onFieldInlineEdit(node.id, param, value, caret, el),
+      },
+    };
+  });
 };

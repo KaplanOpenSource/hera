@@ -131,6 +131,11 @@ describe('displayFlowNodes', () => {
     expect(shown.map(node => node.data.expanded)).toEqual([false, false]);
   });
 
+  it('stacks an open node above the others', () => {
+    const shown = displayFlowNodes({ rfNodes, nodes, catalog: [], expandedNodes: ['B'], handlers });
+    expect(shown.map(node => node.zIndex)).toEqual([0, 999]);
+  });
+
   it('gives each node the icons built for its own name', () => {
     const shown = displayFlowNodes({
       rfNodes,
