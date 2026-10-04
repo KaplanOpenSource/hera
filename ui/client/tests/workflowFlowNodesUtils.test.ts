@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   deOverlappedFlowNodes,
+  displayFlowNodes,
   FitKind,
   flowMeasuredKey,
   flowNodeCenter,
@@ -107,5 +108,27 @@ describe('change keys', () => {
     const a = flowMeasuredKey([{ ...flowNode('A', 0, 0), measured: { height: 100.2 } }]);
     const b = flowMeasuredKey([{ ...flowNode('A', 0, 0), measured: { height: 100.4 } }]);
     expect(a).toBe(b);
+  });
+});
+
+describe('displayFlowNodes', () => {
+  const rfNodes = [flowNode('A', 0, 0), flowNode('B', 0, 0)];
+  const nodes = { A: { type: 'one' }, B: { type: 'two' } };
+  const handlers = {
+    onRename: () => {},
+    onChange: () => {},
+    onDelete: () => {},
+    onFieldContextMenu: () => {},
+    onFieldInlineEdit: () => {},
+  };
+
+  it('expands only the hovered node', () => {
+    const shown = displayFlowNodes({ rfNodes, nodes, catalog: [], hoveredNode: 'B', handlers });
+    expect(shown.map(node => node.data.expanded)).toEqual([false, true]);
+  });
+
+  it('expands none when the pointer is off the nodes', () => {
+    const shown = displayFlowNodes({ rfNodes, nodes, catalog: [], hoveredNode: null, handlers });
+    expect(shown.map(node => node.data.expanded)).toEqual([false, false]);
   });
 });

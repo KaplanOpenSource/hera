@@ -142,6 +142,7 @@ export const displayFlowNodes = ({
   catalog,
   nodeStatuses,
   selectedNode,
+  hoveredNode,
   handlers,
 }: {
   rfNodes: Node[],
@@ -149,6 +150,8 @@ export const displayFlowNodes = ({
   catalog: NodeCatalogEntry[],
   nodeStatuses?: NodeRunStatusMap,
   selectedNode?: string,
+  // The node the pointer is on: the only one that shows its editor.
+  hoveredNode?: string | null,
   handlers: FlowNodeHandlers,
 }): Node[] => {
   return rfNodes.map(node => ({
@@ -159,6 +162,7 @@ export const displayFlowNodes = ({
       node: nodes[node.id] ?? {},
       catalog,
       runStatus: nodeStatuses?.[node.id] ?? NodeRunStatus.Pending,
+      expanded: node.id === hoveredNode,
       onRename: (newName: string) => handlers.onRename(node.id, newName),
       onChange: (updated: WorkflowNode) => handlers.onChange(node.id, updated),
       onDelete: () => handlers.onDelete(node.id),

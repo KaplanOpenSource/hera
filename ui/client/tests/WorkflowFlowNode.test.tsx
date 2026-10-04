@@ -7,6 +7,7 @@ vi.mock('@xyflow/react', () => ({
   Handle: () => null,
   NodeResizer: () => null,
   Position: { Left: 'left', Right: 'right', Top: 'top', Bottom: 'bottom' },
+  useUpdateNodeInternals: () => () => {},
 }));
 
 import { WorkflowFlowNode } from '../src/components/workflow/WorkflowFlowNode';
@@ -32,13 +33,15 @@ const catalog: NodeCatalogEntry[] = [
   { type: 'general.JinjaTransform', parameters: [] },
 ];
 
-const renderNode = (node: any = {}, runStatus?: NodeRunStatus) => {
+// The editor only shows while the pointer is on the node, which the canvas
+// reports as `expanded`; these tests are about the editor, so it starts open.
+const renderNode = (node: any = {}, runStatus?: NodeRunStatus, expanded = true) => {
   const onRename = vi.fn();
   const onChange = vi.fn();
   const onDelete = vi.fn();
   render(
     <WorkflowFlowNode
-      data={{ name: 'node1', node, catalog, onRename, onChange, onDelete, runStatus }}
+      data={{ name: 'node1', node, catalog, onRename, onChange, onDelete, runStatus, expanded }}
       selected={false}
       // The rest of NodeProps is unused by the component.
       {...({} as any)}
@@ -155,6 +158,7 @@ describe('WorkflowFlowNode', () => {
           onDelete: vi.fn(),
           onFieldContextMenu: vi.fn(),
           onFieldInlineEdit: vi.fn(),
+          expanded: true,
         }}
         selected={false}
         {...({} as any)}
@@ -181,12 +185,44 @@ describe('WorkflowFlowNode', () => {
     expect(screen.queryByText('object')).toBeNull();
   });
 
+  it('shows only a summary while the pointer is away', () => {
+    renderNode({ type: 'general.JinjaTransform', Execution: { input_parameters: { project_name: 'p1' } } }, undefined, false);
+    expect(screen.getByText('node1')).toBeDefined();
+    expect(screen.getByText('general.JinjaTransform')).toBeDefined();
+    expect(screen.getByText('Project Name')).toBeDefined();
+    // No editor: no name field, no type field, no value editors.
+    expect(screen.queryByLabelText('node name')).toBeNull();
+    expect(screen.queryByLabelText('type')).toBeNull();
+    expect(screen.queryByDisplayValue('p1')).toBeNull();
+  });
+
+  it('lists every parameter in the summary, one per row', () => {
+    renderNode({ type: 'openFOAM.constant.g', Execution: { input_parameters: { x: 1, y: 2 } } }, undefined, false);
+    expect(screen.getByText('X')).toBeDefined();
+    expect(screen.getByText('Y')).toBeDefined();
+    // No values, so nothing to edit.
+    expect(screen.queryByDisplayValue('1')).toBeNull();
+  });
+
+  it('says so in the summary when the node has no type', () => {
+    renderNode({ Execution: { input_parameters: {} } }, undefined, false);
+    expect(screen.getByText('no type')).toBeDefined();
+  });
+
+  it('keeps its run outline while collapsed', () => {
+    renderNode({ type: 'general.JinjaTransform' }, NodeRunStatus.Failure, false);
+    expect(getComputedStyle(nodeBox()).borderColor).toBe('rgb(211, 47, 47)');
+  });
+
   it('shows a readable parameter name, and the hermes name while editing it', () => {
     renderNode({ type: 'general.JinjaTransform', Execution: { input_parameters: { project_name: 'p1' } } });
-    expect(screen.getByText('Project Name')).toBeDefined();
+    // The summary card under the editor names the parameter too, so take the
+    // editor's own row: the last one in the document.
+    const names = screen.getAllByText('Project Name');
+    expect(names.length).toBeGreaterThan(0);
     expect(screen.queryByText('project_name')).toBeNull();
 
-    fireEvent.click(screen.getByText('Project Name'));
+    fireEvent.click(names[names.length - 1]);
     expect(screen.getByDisplayValue('project_name')).toBeDefined();
   });
 });

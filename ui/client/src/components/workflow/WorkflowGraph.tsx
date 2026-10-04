@@ -72,6 +72,8 @@ const WorkflowGraph = ({
   const theme = useTheme();
   const [menu, setMenu] = useState<WorkflowContextMenuTarget | null>(null);
   const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
+  // The node the pointer is on. It alone shows its editor; the rest stay small.
+  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   // Dataflow dependencies (an input referencing another node's output) — used
   // both to draw the lines and to order the columns, alongside `requires`.
   const dataflowDeps = buildDataflowEdges(nodeNames, nodes, catalog);
@@ -94,6 +96,7 @@ const WorkflowGraph = ({
     catalog,
     nodeStatuses,
     selectedNode,
+    hoveredNode,
     handlers: {
       onRename: onRenameNode,
       onChange: onSetNode,
@@ -108,7 +111,7 @@ const WorkflowGraph = ({
 
   const displayEdges = WorkflowDisplayEdges.hovering(hoveredEdge)
     .withRequires(rfEdges, onRemoveRequire)
-    .withDataflow(dataflowDeps, theme.palette.primary.main, id => edits.removeDataflowEdge(id))
+    .withDataflow(dataflowDeps, theme.palette.primary.main, id => edits.removeDataflowEdge(id), hoveredNode)
     .all();
 
   // While a field's menu is open, the other nodes that offer something to point
@@ -140,8 +143,14 @@ const WorkflowGraph = ({
           event.preventDefault();
           setMenu({ kind: WorkflowContextMenuKind.Node, name: node.id, x: event.clientX, y: event.clientY });
         }}
-        onNodeMouseEnter={(_event, node) => { return onHoverNode?.(node.id); }}
-        onNodeMouseLeave={() => { return onHoverNode?.(undefined); }}
+        onNodeMouseEnter={(_event, node) => {
+          setHoveredNode(node.id);
+          onHoverNode?.(node.id);
+        }}
+        onNodeMouseLeave={() => {
+          setHoveredNode(null);
+          onHoverNode?.(undefined);
+        }}
         onEdgeContextMenu={(event, edge) => {
           event.preventDefault();
           setMenu({ kind: WorkflowContextMenuKind.Edge, source: edge.source, target: edge.target, x: event.clientX, y: event.clientY });

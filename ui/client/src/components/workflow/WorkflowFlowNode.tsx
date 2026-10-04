@@ -1,6 +1,6 @@
 import { Autocomplete, Box, InputBase, Stack, TextField, Theme, Typography, useTheme } from '@mui/material';
-import { Handle, NodeProps, NodeResizer, Position } from '@xyflow/react';
-import { useState } from 'react';
+import { Handle, NodeProps, NodeResizer, Position, useUpdateNodeInternals } from '@xyflow/react';
+import { useEffect, useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
 import { keyForDetailsViewItem } from '../details/DetailsViewItem';
 import { NodeRunStatus } from './nodeRunStatus';
@@ -10,6 +10,7 @@ import { WorkflowNodeDeleteButton } from './WorkflowNodeDeleteButton';
 import { nodeInputHandleId, nodeOutputHandleId } from './workflowDataflow';
 import { INPUT_PARAMETERS_KEY, WorkflowNodeInputs } from './WorkflowNodeInputs';
 import { WorkflowNodeOutputs } from './WorkflowNodeOutputs';
+import { WorkflowNodeSummary } from './WorkflowNodeSummary';
 import { useNodeParamsValidation } from './useNodeParamsValidation';
 
 export interface WorkflowFlowNodeData {
@@ -23,6 +24,8 @@ export interface WorkflowFlowNodeData {
   onFieldInlineEdit: (param: string, value: string, caret: number | null, el: HTMLInputElement) => void;
   // How the node did in the last run of this workflow.
   runStatus?: NodeRunStatus;
+  // True while the pointer is on this node: show the editor, not the summary.
+  expanded?: boolean;
   [key: string]: unknown;
 }
 
@@ -64,12 +67,17 @@ const marchingAntsSx = (color: string) => {
 
 // Custom ReactFlow node: edits the node name, type, and input parameters in
 // place. Delete on hover.
+//
+// Away from the pointer it is just a summary card, so a workflow of many nodes
+// stays readable. Hovering lays the editor over that card. The card keeps its
+// own small size while the editor is open, so the nodes below it never get
+// shoved aside by a passing pointer.
 export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
   const { name, node, catalog, onRename, onChange, onDelete, onFieldContextMenu, onFieldInlineEdit } = data as WorkflowFlowNodeData;
   const runStatus = (data as WorkflowFlowNodeData).runStatus ?? NodeRunStatus.Pending;
+  const expanded = (data as WorkflowFlowNodeData).expanded ?? false;
   const theme = useTheme();
   const [draft, setDraft] = useState(name);
-  const [hover, setHover] = useState(false);
 
   const params = node.Execution?.input_parameters ?? {};
 
@@ -122,6 +130,13 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
     });
   };
 
+  // The editor's handles (one per parameter row) mount without changing the
+  // node's own size, so ReactFlow has to be told to measure them again.
+  const updateNodeInternals = useUpdateNodeInternals();
+  useEffect(() => {
+    updateNodeInternals(name);
+  }, [expanded, name]);
+
   const commit = () => {
     const next = draft.trim();
     if (next && next !== name) {
@@ -133,8 +148,6 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
 
   return (
     <Box
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
       data-run-status={runStatus}
       sx={{
         position: 'relative',
@@ -157,73 +170,98 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
           view-only (React Flow's store), not saved with the workflow. */}
       <NodeResizer isVisible={selected} minWidth={260} minHeight={80} />
       <Handle type="target" id={nodeInputHandleId(name)} position={Position.Left} />
-      {hover && <WorkflowNodeDeleteButton onDelete={onDelete} />}
-      <InputBase
-        className="nodrag"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => { if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); } }}
-        inputProps={{ style: { padding: 0 }, 'aria-label': 'node name' }}
-        sx={{ fontSize: 13, fontWeight: 600 }}
-      />
-      <Box className="nodrag" sx={{ mt: 1 }}>
-        <Autocomplete
+      <WorkflowNodeSummary name={name} type={node.type} paramNames={Object.keys(params)} paramsDef={paramsDef} />
+      {/* The editor, laid over the summary card. Absolute, so opening it leaves
+          the node's measured size alone and the nodes below it stay put. */}
+      {expanded && (
+        <Box
           className="nodrag"
-          freeSolo
-          size="small"
-          options={typeOptions}
-          groupBy={(option) => nodeTypeGroup(option)}
-          inputValue={node.type ?? ''}
-          onInputChange={(_e, value, reason) => {
-            if (reason === 'input') {
-              setType(value);
-            } else if (reason === 'clear') {
-              setType('');
-            }
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            // As wide as the editor's own content needs, as the node itself was
+            // before the summary card; never narrower than the card it covers.
+            width: 'max-content',
+            minWidth: '100%',
+            maxWidth: 560,
+            px: 1,
+            py: 0.5,
+            borderRadius: 1,
+            bgcolor: 'background.paper',
+            boxShadow: 6,
+            zIndex: 10,
           }}
-          onChange={(_e, value) => pickType(typeof value === 'string' ? value : value ?? '')}
-          renderInput={(inputParams) => <TextField {...inputParams} label="type" fullWidth />}
+        >
+        <WorkflowNodeDeleteButton onDelete={onDelete} />
+        <InputBase
+          className="nodrag"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => { if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); } }}
+          inputProps={{ style: { padding: 0 }, 'aria-label': 'node name' }}
+          sx={{ fontSize: 13, fontWeight: 600 }}
         />
-        <Stack spacing={1} sx={{ mt: 1, alignItems: 'stretch' }}>
-          <WorkflowNodeInputs
-            nodeName={name}
-            params={params}
-            paramsDef={paramsDef}
-            expandedItems={expandedItems}
-            onExpandedItemsChange={setExpandedItems}
-            onChangeParams={(newVal) => onChange({
-              ...node,
-              Execution: { ...node.Execution, input_parameters: newVal },
-            })}
-            onFieldContextMenu={onFieldContextMenu}
-            onFieldInlineEdit={onFieldInlineEdit}
+        <Box className="nodrag" sx={{ mt: 1 }}>
+          <Autocomplete
+            className="nodrag"
+            freeSolo
+            size="small"
+            options={typeOptions}
+            groupBy={(option) => nodeTypeGroup(option)}
+            inputValue={node.type ?? ''}
+            onInputChange={(_e, value, reason) => {
+              if (reason === 'input') {
+                setType(value);
+              } else if (reason === 'clear') {
+                setType('');
+              }
+            }}
+            onChange={(_e, value) => pickType(typeof value === 'string' ? value : value ?? '')}
+            renderInput={(inputParams) => <TextField {...inputParams} label="type" fullWidth />}
           />
-          {outputs.length > 0 && (
-            <WorkflowNodeOutputs nodeName={name} outputs={outputs} />
+          <Stack spacing={1} sx={{ mt: 1, alignItems: 'stretch' }}>
+            <WorkflowNodeInputs
+              nodeName={name}
+              params={params}
+              paramsDef={paramsDef}
+              expandedItems={expandedItems}
+              onExpandedItemsChange={setExpandedItems}
+              onChangeParams={(newVal) => onChange({
+                ...node,
+                Execution: { ...node.Execution, input_parameters: newVal },
+              })}
+              onFieldContextMenu={onFieldContextMenu}
+              onFieldInlineEdit={onFieldInlineEdit}
+            />
+            {outputs.length > 0 && (
+              <WorkflowNodeOutputs nodeName={name} outputs={outputs} />
+            )}
+          </Stack>
+          {typeIssue && (
+            <Typography
+              className="nodrag"
+              variant="caption"
+              color="warning.main"
+              sx={{ display: 'block', mt: 0.5, userSelect: 'text' }}
+            >
+              {typeIssue}
+            </Typography>
           )}
-        </Stack>
-        {typeIssue && (
-          <Typography
-            className="nodrag"
-            variant="caption"
-            color="warning.main"
-            sx={{ display: 'block', mt: 0.5, userSelect: 'text' }}
-          >
-            {typeIssue}
-          </Typography>
-        )}
-        {paramsIssue && (
-          <Typography
-            className="nodrag"
-            variant="caption"
-            color="error.main"
-            sx={{ display: 'block', mt: 0.5, userSelect: 'text' }}
-          >
-            {paramsIssue}
-          </Typography>
-        )}
-      </Box>
+          {paramsIssue && (
+            <Typography
+              className="nodrag"
+              variant="caption"
+              color="error.main"
+              sx={{ display: 'block', mt: 0.5, userSelect: 'text' }}
+            >
+              {paramsIssue}
+            </Typography>
+          )}
+        </Box>
+        </Box>
+      )}
       <Handle type="source" id={nodeOutputHandleId(name)} position={Position.Right} />
     </Box>
   );

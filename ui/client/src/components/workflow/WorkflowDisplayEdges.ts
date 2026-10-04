@@ -7,7 +7,7 @@ import { nodeInputHandleId, nodeOutputHandleId, WorkflowDataflowEdge } from './w
 //
 //   WorkflowDisplayEdges.hovering(hoveredEdge)
 //     .withRequires(rfEdges, onRemoveRequire)
-//     .withDataflow(deps, color, removeDataflowEdge)
+//     .withDataflow(deps, color, removeDataflowEdge, expandedNode)
 //     .all()
 //
 // Each step returns a new instance, so nothing is edited in place.
@@ -42,23 +42,38 @@ export class WorkflowDisplayEdges {
   }
 
   // Dataflow edges from parameter values that reference another node's output
-  // drawn source-handle -> input-handle.
+  // drawn source-handle -> input-handle. Only the expanded node shows those
+  // per-row handles, so a line to or from a collapsed node lands on that node's
+  // edge instead - the line stays on the canvas either way.
   withDataflow(
     edges: WorkflowDataflowEdge[],
     color: string,
     onRemove: (id: string) => void,
+    expandedNode: string | null,
   ): WorkflowDisplayEdges {
-    const built = edges.map(edge => ({
-      ...edge,
-      type: 'dataflow',
-      markerEnd: { type: MarkerType.ArrowClosed, color },
-      style: { stroke: color },
-      animated: true,
-      // The input handle sits inside the node, so the line's end runs under the
-      // node box; lift it above the nodes so it stays visible.
-      zIndex: 1000,
-      data: this.dataFor(edge.id, () => onRemove(edge.id)),
-    }));
+    const built = edges.map(edge => {
+      let sourceHandle = nodeOutputHandleId(edge.source);
+      if (edge.source === expandedNode) {
+        sourceHandle = edge.sourceHandle;
+      }
+      let targetHandle = nodeInputHandleId(edge.target);
+      if (edge.target === expandedNode) {
+        targetHandle = edge.targetHandle;
+      }
+      return {
+        ...edge,
+        sourceHandle,
+        targetHandle,
+        type: 'dataflow',
+        markerEnd: { type: MarkerType.ArrowClosed, color },
+        style: { stroke: color },
+        animated: true,
+        // The input handle sits inside the node, so the line's end runs under the
+        // node box; lift it above the nodes so it stays visible.
+        zIndex: 1000,
+        data: this.dataFor(edge.id, () => onRemove(edge.id)),
+      };
+    });
     return new WorkflowDisplayEdges([...this.edges, ...built], this.hoveredEdge);
   }
 
