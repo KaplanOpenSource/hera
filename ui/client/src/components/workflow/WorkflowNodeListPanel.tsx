@@ -1,5 +1,5 @@
 import { FormatListBulleted } from '@mui/icons-material';
-import { Box, List, ListItemButton, ListItemText, Paper, Typography } from '@mui/material';
+import { Box, List, ListItemButton, ListItemText, Paper, TextField, Typography } from '@mui/material';
 import { Panel } from '@xyflow/react';
 import { useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
@@ -8,7 +8,8 @@ import { ButtonTooltip } from '../../elements/ButtonTooltip';
 const BUTTON_SX = { bgcolor: 'background.paper', boxShadow: 1, p: 0.25 };
 
 // The canvas's list of all nodes, top-left, collapsed to one icon until opened.
-// Clicking a row centres the canvas on that node and opens it for editing.
+// A search box filters it. Clicking a row centres the canvas on that node and
+// opens it for editing.
 export const WorkflowNodeListPanel = ({
   nodeNames,
   selectedNode,
@@ -19,6 +20,10 @@ export const WorkflowNodeListPanel = ({
   onPickNode: (name: string) => void,
 }) => {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const query = search.trim().toLowerCase();
+  const shown = nodeNames.filter(name => name.toLowerCase().includes(query));
 
   let title = 'Show the node list';
   if (open) {
@@ -32,12 +37,26 @@ export const WorkflowNodeListPanel = ({
           <FormatListBulleted sx={{ fontSize: 16 }} />
         </ButtonTooltip>
         {open && (
-          <Paper sx={{ minWidth: 140, maxWidth: 240, maxHeight: 260, overflowY: 'auto' }}>
+          <Paper sx={{ minWidth: 180, maxWidth: 240, maxHeight: 260, overflowY: 'auto' }}>
+            <Box sx={{ p: 0.5, position: 'sticky', top: 0, bgcolor: 'background.paper', zIndex: 1 }}>
+              <TextField
+                size="small"
+                autoFocus
+                placeholder="Search"
+                slotProps={{ htmlInput: { 'aria-label': 'search nodes' } }}
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                fullWidth
+              />
+            </Box>
             {nodeNames.length === 0 && (
               <Typography variant="body2" color="text.secondary" sx={{ p: 1 }}>No nodes.</Typography>
             )}
+            {nodeNames.length > 0 && shown.length === 0 && (
+              <Typography variant="body2" color="text.secondary" sx={{ p: 1 }}>No match.</Typography>
+            )}
             <List dense disablePadding>
-              {nodeNames.map(name => (
+              {shown.map(name => (
                 <ListItemButton
                   key={name}
                   selected={name === selectedNode}
