@@ -46,3 +46,24 @@ describe('LayoutModel.openOrFocusCanvasTab', () => {
     expect((layout.model.toJson().layout.children as any[]).length).toBe(rowsAfterFirst);
   });
 });
+
+describe('LayoutModel.closeCanvasTab', () => {
+  it('closes the canvas of one document and leaves the others', () => {
+    const layout = LayoutModel.create(true);
+    layout.openOrFocusCanvasTab('doc1', 'Workflow1');
+    layout.openOrFocusCanvasTab('doc2', 'Workflow2');
+
+    layout.closeCanvasTab('doc1');
+
+    expect(canvasTabs(layout.model).map(t => t.getId())).toEqual(['canvas:doc2']);
+  });
+
+  it('does nothing when the document has no canvas open', () => {
+    const layout = LayoutModel.create(true);
+    layout.openOrFocusCanvasTab('doc1', 'Workflow1');
+
+    layout.closeCanvasTab('doc2');
+
+    expect(canvasTabs(layout.model)).toHaveLength(1);
+  });
+});

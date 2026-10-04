@@ -10,7 +10,7 @@ import { useWorkflowRunStore } from '../../stores/useWorkflowRunStore';
 import { useFlexlayoutTheme } from '../../theme';
 import { hasPreview } from '../details/PreviewPanel';
 import { isWorkflowDoc } from '../../shared/workflow';
-import { DETAILS_TAB_PREFIX, LayoutModel } from './LayoutModel';
+import { CANVAS_TAB_PREFIX, DETAILS_TAB_PREFIX, LayoutModel } from './LayoutModel';
 import { LayoutPanel } from './LayoutPanel';
 
 // Fallback "item" shown when the tree selection isn't a document/repo/split.
@@ -29,6 +29,8 @@ export const ProjectLayout = ({
   const dark = useTheme().palette.mode === 'dark';
   const [activeShowItemId, setActiveShowItemId] = useState<string | undefined>(undefined);
   const setEditedDoc = useProjectStore(state => state.setEditedDoc);
+  // Documents whose canvas the user closed, so it is not opened again on its own.
+  const closedCanvases = useRef<Set<string>>(new Set());
 
   const [layout, setLayout] = useState(() => LayoutModel.create(!treeCollapsed));
 
@@ -60,16 +62,25 @@ export const ProjectLayout = ({
     let showItemId = rawShowItemId;
     if (kind === ItemKind.Config) showItemId = CONFIG_ITEM_ID;
 
+    // Picking the item in the tree asks for its canvas again.
+    const pickedDocId = idFromDocId(showItemId);
+    if (pickedDocId) {
+      closedCanvases.current.delete(pickedDocId);
+    }
     layout.openOrFocusDetailsTab(showItemId, project);
     setActiveShowItemId(showItemId);
   }, [layout, project]);
 
-  // Follows the document, not the selection: a new workflow is selected before it loads.
+  // Follows the document, not the selection: a new workflow is selected before it
+  // loads. Keyed on the docid, not the document object, which is rebuilt on every
+  // render and would reopen a canvas the user just closed.
+  const canvasDocId = activeDoc && isWorkflowDoc(activeDoc.data) ? activeDoc.docid : undefined;
+  const canvasDocName = activeDoc?.name;
   useEffect(() => {
-    if (activeDoc && isWorkflowDoc(activeDoc.data)) {
-      layout.openOrFocusCanvasTab(activeDoc.docid, activeDoc.name);
+    if (canvasDocId && !closedCanvases.current.has(canvasDocId)) {
+      layout.openOrFocusCanvasTab(canvasDocId, canvasDocName ?? '');
     }
-  }, [activeDoc, layout]);
+  }, [canvasDocId, canvasDocName, layout]);
 
   useEffect(() => {
     if (previewAvailable && activeDocId) {
@@ -104,8 +115,19 @@ export const ProjectLayout = ({
     if (action.type === Actions.DELETE_TAB) {
       const tabId = action.data.node as string;
       const docid = layout.docIdOfTab(tabId);
-      if (docid && !layout.hasOtherTabForDoc(docid, tabId)) {
-        queueMicrotask(() => setEditedDoc(docid, null));
+      if (docid) {
+        if (tabId.startsWith(DETAILS_TAB_PREFIX) || tabId.startsWith(CANVAS_TAB_PREFIX)) {
+          closedCanvases.current.add(docid);
+        }
+        queueMicrotask(() => {
+          // The canvas belongs to the document's details tab, so it closes with it.
+          if (tabId.startsWith(DETAILS_TAB_PREFIX)) {
+            layout.closeCanvasTab(docid);
+          }
+          if (!layout.hasOtherTabForDoc(docid, tabId)) {
+            setEditedDoc(docid, null);
+          }
+        });
       }
     }
     if (action.type === Actions.SELECT_TAB) {

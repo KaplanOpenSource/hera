@@ -11,7 +11,7 @@ const TREE_TABSET_ID = 'tree-tabset';
 const DETAILS_TABSET_ID = 'details-tabset';
 export const DETAILS_TAB_PREFIX = 'details:';
 const PREVIEW_TAB_PREFIX = 'preview:';
-const CANVAS_TAB_PREFIX = 'canvas:';
+export const CANVAS_TAB_PREFIX = 'canvas:';
 const OUTPUT_TAB_PREFIX = 'output:';
 
 const GLOBAL_LAYOUT_CONFIG = {
@@ -195,6 +195,14 @@ export class LayoutModel {
       this._model.doAction(Actions.addTab(tab, openCanvas.getParent()!.getId(), DockLocation.RIGHT, -1));
     } else {
       this._model.doAction(Actions.addTab(tab, DETAILS_TABSET_ID, DockLocation.BOTTOM, -1));
+    }
+  }
+
+  // Close a document's canvas tab, if it has one open.
+  closeCanvasTab(docid: string): void {
+    const tab = this.getTab(`${CANVAS_TAB_PREFIX}${docid}`);
+    if (tab) {
+      this._model.doAction(Actions.deleteTab(tab.getId()));
     }
   }
 
