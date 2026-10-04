@@ -11,18 +11,26 @@ import { WorkflowNodeInputs } from '../src/components/workflow/WorkflowNodeInput
 
 afterEach(() => cleanup());
 
-const sourceHandleIds = (): string[] => {
-  return Array.from(document.querySelectorAll('[data-handle-type="source"]'))
+const handleIds = (type: string): string[] => {
+  return Array.from(document.querySelectorAll(`[data-handle-type="${type}"]`))
     .map(el => el.getAttribute('data-handle-id') as string);
+};
+
+const sourceHandleIds = (): string[] => {
+  return handleIds('source');
+};
+
+const targetHandleIds = (): string[] => {
+  return handleIds('target');
 };
 
 const renderInputs = () => {
   render(
     <WorkflowNodeInputs
       nodeName="A"
-      params={{ cmd: 'ls', group: { inner: 'x' } }}
+      params={{ cmd: 'ls', group: { inner: 'x' }, list: ['a'] }}
       paramsDef={{}}
-      expandedItems={['input_parameters', 'input_parameters/group']}
+      expandedItems={['input_parameters', 'input_parameters/group', 'input_parameters/list']}
       onExpandedItemsChange={vi.fn()}
       onChangeParams={vi.fn()}
       onFieldContextMenu={vi.fn()}
@@ -39,6 +47,21 @@ describe('WorkflowNodeInputs', () => {
 
   it('puts no source handle on a nested row', () => {
     renderInputs();
-    expect(sourceHandleIds()).toEqual(['A:param:cmd', 'A:param:group']);
+    expect(sourceHandleIds()).toEqual(['A:param:cmd', 'A:param:group', 'A:param:list']);
+  });
+
+  it('puts a target handle on a key inside a dict, named by its path', () => {
+    renderInputs();
+    expect(targetHandleIds()).toContain('A:in:group.inner');
+  });
+
+  it('puts a target handle on a list element, named by its position', () => {
+    renderInputs();
+    expect(targetHandleIds()).toContain('A:in:list.0');
+  });
+
+  it('puts no target handle on a dict or list row, which holds no value', () => {
+    renderInputs();
+    expect(targetHandleIds()).toEqual(['A:in:cmd', 'A:in:group.inner', 'A:in:list.0']);
   });
 });

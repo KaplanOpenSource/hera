@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { Model, TabNode } from 'flexlayout-react';
 import { LayoutModel } from '../src/components/layout/LayoutModel';
+import { ProjectObj } from '../src/objects/ProjectObj';
+
+const project = new ProjectObj({ name: 'P', documents: [] } as any);
 
 const canvasTabs = (model: Model): TabNode[] => {
   const tabs: TabNode[] = [];
@@ -44,5 +47,42 @@ describe('LayoutModel.openOrFocusCanvasTab', () => {
 
     // No extra row was added, so nothing halved the details panel.
     expect((layout.model.toJson().layout.children as any[]).length).toBe(rowsAfterFirst);
+  });
+});
+
+describe('LayoutModel.closeCanvasTab', () => {
+  it('closes the canvas of one document and leaves the others', () => {
+    const layout = LayoutModel.create(true);
+    layout.openOrFocusCanvasTab('doc1', 'Workflow1');
+    layout.openOrFocusCanvasTab('doc2', 'Workflow2');
+
+    layout.closeCanvasTab('doc1');
+
+    expect(canvasTabs(layout.model).map(t => t.getId())).toEqual(['canvas:doc2']);
+  });
+
+  it('does nothing when the document has no canvas open', () => {
+    const layout = LayoutModel.create(true);
+    layout.openOrFocusCanvasTab('doc1', 'Workflow1');
+
+    layout.closeCanvasTab('doc2');
+
+    expect(canvasTabs(layout.model)).toHaveLength(1);
+  });
+});
+
+describe('LayoutModel.activeDetailsTab', () => {
+  it('is undefined when no details tab is open', () => {
+    const layout = LayoutModel.create(true);
+
+    expect(layout.activeDetailsTab()).toBeUndefined();
+  });
+
+  it('is the selected details tab', () => {
+    const layout = LayoutModel.create(true);
+    layout.openOrFocusDetailsTab('doc:doc1', project);
+    layout.openOrFocusDetailsTab('doc:doc2', project);
+
+    expect(layout.activeDetailsTab()?.getId()).toBe('details:doc:doc2');
   });
 });

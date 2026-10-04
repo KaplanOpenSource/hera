@@ -28,6 +28,7 @@ describe('Agent config UI integration', () => {
 
     const docLabel = await screen.findByText('TestAgent', {}, { timeout: 10000 });
     await act(async () => { fireEvent.click(docLabel); });
+    await act(async () => { fireEvent.doubleClick(docLabel); });
 
     await waitFor(() => {
       const headings = screen.getAllByText('TestAgent');

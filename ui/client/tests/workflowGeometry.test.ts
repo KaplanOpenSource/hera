@@ -3,7 +3,6 @@ import {
   BASE_HEIGHT,
   ROW_HEIGHT,
   computeLayers,
-  countRows,
   estimateHeight,
 } from '../src/components/workflow/workflowGeometry';
 
@@ -35,35 +34,20 @@ describe('computeLayers', () => {
   });
 });
 
-describe('countRows', () => {
-  it('is 0 for a primitive', () => {
-    expect(countRows(5)).toBe(0);
-    expect(countRows('x')).toBe(0);
-    expect(countRows(null)).toBe(0);
-  });
-
-  it('counts one row per key in a flat object', () => {
-    expect(countRows({ a: 1, b: 2 })).toBe(2);
-  });
-
-  it('counts nested keys recursively', () => {
-    expect(countRows({ a: { b: 1 } })).toBe(2);
-    expect(countRows({ a: { b: 1, c: 2 }, d: 3 })).toBe(4);
-  });
-
-  it('is 0 for an empty object', () => {
-    expect(countRows({})).toBe(0);
-  });
-});
-
 describe('estimateHeight', () => {
-  it('is base + one row for a node with no params', () => {
-    expect(estimateHeight({})).toBe(BASE_HEIGHT + ROW_HEIGHT);
+  it('is just the base for a node with no params', () => {
+    expect(estimateHeight({})).toBe(BASE_HEIGHT);
   });
 
   it('grows by a row per parameter', () => {
     const node = { Execution: { input_parameters: { a: 1, b: 2 } } };
-    expect(estimateHeight(node)).toBe(BASE_HEIGHT + (1 + 2) * ROW_HEIGHT);
+    expect(estimateHeight(node)).toBe(BASE_HEIGHT + 2 * ROW_HEIGHT);
+  });
+
+  // Nested values are rows of the editor, not of the summary card.
+  it('counts a nested dict as one row', () => {
+    const node = { Execution: { input_parameters: { a: { b: 1, c: 2 } } } };
+    expect(estimateHeight(node)).toBe(BASE_HEIGHT + ROW_HEIGHT);
   });
 });
 

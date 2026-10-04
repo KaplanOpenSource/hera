@@ -58,7 +58,7 @@ describe('ofEdgeId', () => {
   it('round trips a dataflow edge id', () => {
     const reference = new Reference('A', OUTPUT, 'result');
     const id = reference.edgeIdTo('B', 'cmd');
-    expect(knownKinds.ofEdgeId(id)).toEqual({ reference, target: 'B', param: 'cmd' });
+    expect(knownKinds.ofEdgeId(id)).toEqual({ reference, target: 'B', paramPath: 'cmd' });
   });
 
   it('ignores an id that is not a dataflow edge', () => {
@@ -130,5 +130,81 @@ describe('renamedNode', () => {
 
   it('keeps the text around the token', () => {
     expect(knownKinds.renamedNode('-{a.output.x}+1e-6', 'a', 'b')).toEqual('-{b.output.x}+1e-6');
+  });
+});
+
+// Issue #1064: the key may be a JSONPath into the output, which Hermes resolves.
+describe('a key that points inside the output', () => {
+  it('parses a dict field', () => {
+    expect(knownKinds.parseAll('{A.output.result.station}'))
+      .toEqual([new Reference('A', OUTPUT, 'result.station')]);
+  });
+
+  it('parses a list element', () => {
+    expect(knownKinds.parseAll('{A.output.items[0]}'))
+      .toEqual([new Reference('A', OUTPUT, 'items[0]')]);
+  });
+
+  it('parses a field inside a list element', () => {
+    expect(knownKinds.parseAll('{A.output.items[0].name}'))
+      .toEqual([new Reference('A', OUTPUT, 'items[0].name')]);
+  });
+
+  it('parses every element of a list', () => {
+    expect(knownKinds.parseAll('{A.output.items[*].name}'))
+      .toEqual([new Reference('A', OUTPUT, 'items[*].name')]);
+  });
+
+  it('still reads an input reference, whose section holds a dot', () => {
+    expect(knownKinds.parseAll('{A.Execution.input_parameters.cmd}'))
+      .toEqual([new Reference('A', INPUT, 'cmd')]);
+  });
+
+  it('reads a sub-path on an input reference too', () => {
+    expect(knownKinds.parseAll('{A.Execution.input_parameters.cmd.deep}'))
+      .toEqual([new Reference('A', INPUT, 'cmd.deep')]);
+  });
+
+  it('skips a section with no key after it', () => {
+    expect(knownKinds.parseAll('{A.output.}')).toEqual([]);
+  });
+
+  it('leaves braces that are not a reference alone', () => {
+    expect(knownKinds.parseAll('echo {} and {a b}')).toEqual([]);
+    expect(knownKinds.renamedNode('echo {} and {a b}', 'a', 'b')).toEqual('echo {} and {a b}');
+  });
+
+  it('renames a node on a reference with a sub-path', () => {
+    expect(knownKinds.renamedNode('{a.output.items[0].name}', 'a', 'b'))
+      .toEqual('{b.output.items[0].name}');
+  });
+
+  it('round trips an edge id whose key is a path', () => {
+    const reference = new Reference('A', OUTPUT, 'items[0].name');
+    expect(knownKinds.ofEdgeId(reference.edgeIdTo('B', 'Parameters.cmd')))
+      .toEqual({ reference, target: 'B', paramPath: 'Parameters.cmd' });
+  });
+
+  it('round trips a source dot whose key is a path', () => {
+    const reference = new Reference('A', OUTPUT, 'items[0].name');
+    expect(knownKinds.ofHandle(reference.handleId())).toEqual(reference);
+  });
+});
+
+describe('splitSection', () => {
+  it('tells the section from the key', () => {
+    expect(knownKinds.splitSection('output.result.station')).toEqual({ kind: OUTPUT, key: 'result.station' });
+  });
+
+  it('takes the longest section that matches', () => {
+    expect(knownKinds.splitSection('Execution.input_parameters.cmd')).toEqual({ kind: INPUT, key: 'cmd' });
+  });
+
+  it('allows an empty key, for a section still being typed', () => {
+    expect(knownKinds.splitSection('output.')).toEqual({ kind: OUTPUT, key: '' });
+  });
+
+  it('knows nothing of an unknown section', () => {
+    expect(knownKinds.splitSection('mystery.x')).toBeNull();
   });
 });

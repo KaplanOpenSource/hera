@@ -56,17 +56,17 @@ export class WorkflowCanvasEdits {
       connection.target,
       setInputReference(
         this.nodeOf(connection.target),
-        dataflow.param,
+        dataflow.paramPath,
         new Reference(connection.source, dataflow.kind, dataflow.outputName),
       ),
     );
   }
 
-  // Clears the reference a dataflow edge stands for from its target parameter.
+  // Clears the reference a dataflow edge stands for from its target value.
   removeDataflowEdge(id: string): void {
     const parsed = parseDataflowEdgeId(id);
     if (parsed) {
-      this.onSetNode(parsed.target, clearInputReference(this.nodeOf(parsed.target), parsed.param, parsed.refNode, parsed.key));
+      this.onSetNode(parsed.target, clearInputReference(this.nodeOf(parsed.target), parsed.paramPath, parsed.refNode, parsed.key));
     }
   }
 
@@ -82,14 +82,14 @@ export class WorkflowCanvasEdits {
     });
   }
 
-  // Removes one input parameter from a node (right-click a field -> delete).
-  deleteField(nodeName: string, param: string): void {
-    this.onSetNode(nodeName, nodeWithoutParam(this.nodeOf(nodeName), param));
+  // Removes one input value from a node (right-click a field -> delete).
+  deleteField(nodeName: string, paramPath: string): void {
+    this.onSetNode(nodeName, nodeWithoutParam(this.nodeOf(nodeName), paramPath));
   }
 
   // Inserts a reference into a field's value at the right-click caret.
-  referenceOutput(nodeName: string, param: string, reference: Reference, caret?: number): void {
-    this.onSetNode(nodeName, nodeWithReferenceAt(this.nodeOf(nodeName), param, reference, caret));
+  referenceOutput(nodeName: string, paramPath: string, reference: Reference, caret?: number): void {
+    this.onSetNode(nodeName, nodeWithReferenceAt(this.nodeOf(nodeName), paramPath, reference, caret));
   }
 
   private nodeOf(name: string): WorkflowNode {

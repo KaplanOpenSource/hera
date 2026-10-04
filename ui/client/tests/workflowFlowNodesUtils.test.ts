@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  deOverlappedFlowNodes,
+  compactedFlowNodes,
+  displayFlowNodes,
   FitKind,
   flowMeasuredKey,
   flowNodeCenter,
@@ -42,15 +43,20 @@ describe('restackedFlowNodes', () => {
   });
 });
 
-describe('deOverlappedFlowNodes', () => {
-  it('pushes a node down to its fixed y', () => {
-    const fixed = deOverlappedFlowNodes([flowNode('A', 0, 0)], { A: { x: 0, y: 50 } });
+describe('compactedFlowNodes', () => {
+  it('pushes a node down to its compacted y', () => {
+    const fixed = compactedFlowNodes([flowNode('A', 0, 0)], { A: { x: 0, y: 50 } });
     expect(fixed[0].position).toEqual({ x: 0, y: 50 });
+  });
+
+  it('moves a node sideways to its compacted x', () => {
+    const fixed = compactedFlowNodes([flowNode('A', 0, 0)], { A: { x: 90, y: 0 } });
+    expect(fixed[0].position).toEqual({ x: 90, y: 0 });
   });
 
   it('returns the same list when nothing moved', () => {
     const prev = [flowNode('A', 0, 50)];
-    expect(deOverlappedFlowNodes(prev, { A: { x: 0, y: 50 } })).toBe(prev);
+    expect(compactedFlowNodes(prev, { A: { x: 0, y: 50 } })).toBe(prev);
   });
 });
 
@@ -107,5 +113,87 @@ describe('change keys', () => {
     const a = flowMeasuredKey([{ ...flowNode('A', 0, 0), measured: { height: 100.2 } }]);
     const b = flowMeasuredKey([{ ...flowNode('A', 0, 0), measured: { height: 100.4 } }]);
     expect(a).toBe(b);
+  });
+
+  it('changes when a measured width changes', () => {
+    const a = flowMeasuredKey([{ ...flowNode('A', 0, 0), measured: { width: 300, height: 100 } }]);
+    const b = flowMeasuredKey([{ ...flowNode('A', 0, 0), measured: { width: 500, height: 100 } }]);
+    expect(a).not.toBe(b);
+  });
+});
+
+describe('displayFlowNodes', () => {
+  const rfNodes = [flowNode('A', 0, 0), flowNode('B', 0, 0)];
+  const nodes = { A: { type: 'one' }, B: { type: 'two' } };
+  const handlers = {
+    onRename: () => {},
+    onChange: () => {},
+    onFieldContextMenu: () => {},
+    onFieldInlineEdit: () => {},
+  };
+
+  it('expands only the nodes it is given', () => {
+    const shown = displayFlowNodes({ rfNodes, nodes, catalog: [], expandedNodes: ['B'], handlers });
+    expect(shown.map(node => node.data.expanded)).toEqual([false, true]);
+  });
+
+  it('expands none when the pointer is off the nodes and nothing is pinned', () => {
+    const shown = displayFlowNodes({ rfNodes, nodes, catalog: [], expandedNodes: [], handlers });
+    expect(shown.map(node => node.data.expanded)).toEqual([false, false]);
+  });
+
+  it('stacks an open node above the closed ones', () => {
+    const shown = displayFlowNodes({ rfNodes, nodes, catalog: [], expandedNodes: ['B'], handlers });
+    expect(shown.map(node => node.zIndex)).toEqual([0, 998]);
+  });
+
+  // Hovering a node always brings its editor to the front, even over a node
+  // pinned open right next to it.
+  it('stacks the hovered node above a pinned open one', () => {
+    const shown = displayFlowNodes({
+      rfNodes,
+      nodes,
+      catalog: [],
+      expandedNodes: ['A', 'B'],
+      hoveredNode: 'B',
+      spaceTakingNodes: ['A'],
+      handlers,
+    });
+    const z = new Map(shown.map(node => [node.id, node.zIndex]));
+    expect(z.get('B')).toBeGreaterThan(z.get('A') as number);
+  });
+
+  it('keeps both open nodes under the dataflow lines', () => {
+    const shown = displayFlowNodes({
+      rfNodes,
+      nodes,
+      catalog: [],
+      expandedNodes: ['A', 'B'],
+      hoveredNode: 'B',
+      handlers,
+    });
+    shown.forEach(node => expect(node.zIndex).toBeLessThan(1000));
+  });
+
+  it('marks the hovered node, for its silhouette', () => {
+    const shown = displayFlowNodes({ rfNodes, nodes, catalog: [], expandedNodes: ['B'], hoveredNode: 'B', handlers });
+    expect(shown.map(node => node.data.hovered)).toEqual([false, true]);
+  });
+
+  it('lets a pinned node take its own space', () => {
+    const shown = displayFlowNodes({ rfNodes, nodes, catalog: [], expandedNodes: ['A'], spaceTakingNodes: ['A'], handlers });
+    expect(shown.map(node => node.data.takeSpace)).toEqual([true, false]);
+  });
+
+  it('gives each node the icons built for its own name', () => {
+    const shown = displayFlowNodes({
+      rfNodes,
+      nodes,
+      catalog: [],
+      expandedNodes: [],
+      actionButtons: (name: string) => `icons for ${name}`,
+      handlers,
+    });
+    expect(shown.map(node => node.data.actionButtons)).toEqual(['icons for A', 'icons for B']);
   });
 });

@@ -68,6 +68,16 @@ export const WorkflowEditor = ({
     }
   }, [focusName, storeFocus?.seq]);
 
+  // A node picked from the canvas's node list goes through the same focus store
+  // the output tab uses, so the canvas centres on it the same way.
+  const focusNodeInStore = useWorkflowFocusStore(s => s.focusNode);
+  const pickNode = (name: string) => {
+    setSelectedNode(name);
+    if (workflowName) {
+      focusNodeInStore(workflowName, name);
+    }
+  };
+
   // How each node did in this workflow's run, so the canvas can outline them.
   const run = useWorkflowRunStore(s => (workflowName ? s.runs[workflowName] : undefined));
   const nodeStatuses = nodeRunStatuses({
@@ -170,6 +180,7 @@ export const WorkflowEditor = ({
               nodeStatuses={nodeStatuses}
               focus={focus}
               onHoverNode={name => workflowName && hoverNode(workflowName, name ?? null)}
+              onPickNode={pickNode}
               actionButtons={actionButtons}
               onSelectNode={setSelectedNode}
               onAddNode={addNode}

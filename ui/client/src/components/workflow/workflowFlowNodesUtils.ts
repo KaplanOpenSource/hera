@@ -1,4 +1,5 @@
 import { Node } from '@xyflow/react';
+import { ReactNode } from 'react';
 import { WorkflowNode } from '../../shared/types';
 import { NodeCatalogEntry } from './nodeCatalog';
 import { NodeRunStatus, NodeRunStatusMap } from './nodeRunStatus';
@@ -10,6 +11,12 @@ import { computeLayers } from './workflowGeometry';
 // what to do with the viewport once the new nodes are measured.
 
 type Positions = { [id: string]: NodePosition };
+
+// Stacking order of a node whose editor is open, above the closed ones, and of
+// the hovered node, above every other open one. Both stay under the dataflow
+// lines (1000), so the lines still reach the parameter rows they end on.
+const EXPANDED_NODE_Z = 998;
+const HOVERED_NODE_Z = 999;
 
 // What the canvas should do once the nodes are measured.
 export enum FitKind {
@@ -50,17 +57,17 @@ export const restackedFlowNodes = (prev: Node[], layout: Positions): Node[] => {
   return prev.map(node => ({ ...node, position: layout[node.id] ?? node.position }));
 };
 
-// The same nodes with only the y positions the de-overlap step changed. Returns
+// The same nodes moved to the positions the compaction step worked out. Returns
 // the list it was given when nothing moved, so React skips the re-render.
-export const deOverlappedFlowNodes = (prev: Node[], fixed: Positions): Node[] => {
+export const compactedFlowNodes = (prev: Node[], fixed: Positions): Node[] => {
   let changed = false;
   const next = prev.map(node => {
-    const y = fixed[node.id]?.y;
-    if (y === undefined || y === node.position.y) {
+    const position = fixed[node.id];
+    if (position === undefined || (position.x === node.position.x && position.y === node.position.y)) {
       return node;
     }
     changed = true;
-    return { ...node, position: { ...node.position, y } };
+    return { ...node, position };
   });
   return changed ? next : prev;
 };
@@ -117,10 +124,12 @@ export const flowLayerKey = (
   return JSON.stringify(computeLayers(nodeNames, nodes, dataflowDeps));
 };
 
-// A signature of the measured heights, so the de-overlap step runs only after a
-// node's real height changed.
+// A signature of the measured sizes, so the compaction step runs only after a
+// node's real width or height changed.
 export const flowMeasuredKey = (rfNodes: Node[]): string => {
-  return JSON.stringify(rfNodes.map(node => [node.id, Math.round(node.measured?.height ?? 0)]));
+  return JSON.stringify(rfNodes.map(node => {
+    return [node.id, Math.round(node.measured?.width ?? 0), Math.round(node.measured?.height ?? 0)];
+  }));
 };
 
 // What a node on the canvas calls back into, each handler naming the node it
@@ -128,7 +137,6 @@ export const flowMeasuredKey = (rfNodes: Node[]): string => {
 export interface FlowNodeHandlers {
   onRename: (name: string, newName: string) => void;
   onChange: (name: string, node: WorkflowNode) => void;
-  onDelete: (name: string) => void;
   onFieldContextMenu: (name: string, param: string, x: number, y: number, caret?: number) => void;
   onFieldInlineEdit: (name: string, param: string, value: string, caret: number | null, el: HTMLInputElement) => void;
 }
@@ -142,6 +150,10 @@ export const displayFlowNodes = ({
   catalog,
   nodeStatuses,
   selectedNode,
+  expandedNodes,
+  hoveredNode,
+  spaceTakingNodes,
+  actionButtons,
   handlers,
 }: {
   rfNodes: Node[],
@@ -149,23 +161,49 @@ export const displayFlowNodes = ({
   catalog: NodeCatalogEntry[],
   nodeStatuses?: NodeRunStatusMap,
   selectedNode?: string,
+  // The nodes that show their editor: the hovered one and the pinned ones.
+  expandedNodes?: string[],
+  // The node the pointer is on, which stacks above every other open node.
+  hoveredNode?: string | null,
+  // The nodes whose editor takes the node's own space, so the canvas lays the
+  // others out around it - the pinned ones.
+  spaceTakingNodes?: string[],
+  // The icons for one node's top-right corner, in the order to draw them.
+  actionButtons?: (name: string) => ReactNode,
   handlers: FlowNodeHandlers,
 }): Node[] => {
-  return rfNodes.map(node => ({
-    ...node,
-    selected: node.id === selectedNode,
-    data: {
-      name: node.id,
-      node: nodes[node.id] ?? {},
-      catalog,
-      runStatus: nodeStatuses?.[node.id] ?? NodeRunStatus.Pending,
-      onRename: (newName: string) => handlers.onRename(node.id, newName),
-      onChange: (updated: WorkflowNode) => handlers.onChange(node.id, updated),
-      onDelete: () => handlers.onDelete(node.id),
-      onFieldContextMenu: (param: string, x: number, y: number, caret?: number) =>
-        handlers.onFieldContextMenu(node.id, param, x, y, caret),
-      onFieldInlineEdit: (param: string, value: string, caret: number | null, el: HTMLInputElement) =>
-        handlers.onFieldInlineEdit(node.id, param, value, caret, el),
-    },
-  }));
+  return rfNodes.map(node => {
+    const expanded = (expandedNodes ?? []).includes(node.id);
+    // An open node's editor is laid over the canvas, so the node has to sit
+    // above the others - and the hovered one above every other open node, so
+    // hovering always brings its editor to the front.
+    let zIndex = 0;
+    if (expanded) {
+      zIndex = EXPANDED_NODE_Z;
+    }
+    if (node.id === hoveredNode) {
+      zIndex = HOVERED_NODE_Z;
+    }
+    return {
+      ...node,
+      selected: node.id === selectedNode,
+      zIndex,
+      data: {
+        name: node.id,
+        node: nodes[node.id] ?? {},
+        catalog,
+        runStatus: nodeStatuses?.[node.id] ?? NodeRunStatus.Pending,
+        expanded,
+        hovered: node.id === hoveredNode,
+        takeSpace: (spaceTakingNodes ?? []).includes(node.id),
+        actionButtons: actionButtons?.(node.id),
+        onRename: (newName: string) => handlers.onRename(node.id, newName),
+        onChange: (updated: WorkflowNode) => handlers.onChange(node.id, updated),
+        onFieldContextMenu: (param: string, x: number, y: number, caret?: number) =>
+          handlers.onFieldContextMenu(node.id, param, x, y, caret),
+        onFieldInlineEdit: (param: string, value: string, caret: number | null, el: HTMLInputElement) =>
+          handlers.onFieldInlineEdit(node.id, param, value, caret, el),
+      },
+    };
+  });
 };

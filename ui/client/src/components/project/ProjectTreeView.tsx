@@ -1,20 +1,14 @@
-import { ContentCopy, Folder } from '@mui/icons-material';
-import { Stack, Tooltip, Typography } from '@mui/material';
-import { TreeItem } from '@mui/x-tree-view';
-import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
+import { Box, Typography } from '@mui/material';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { CENTRAL_REPO_FOLDER_ID, idDocId, idFromDocId } from '../../shared/idDocId';
+import { projectPath } from '../../shared/projectPath';
 import { useProjectStore } from '../../stores/useProjectStore';
-import { useToolkitStore } from '../../stores/useToolkitStore';
 import { documentMatchesQuery, documentSearchText, parseSearchQuery, unknownSearchFields } from '../../utils/documentSearch';
 import { collectBranchKeys, SplitTree } from '../../utils/splitTree';
-import { DocumentSplitGroup } from './DocumentSplitGroup';
-import { ProjectActionsButton } from './ProjectActionsButton';
+import { DocumentTreeWhole } from './DocumentTreeWhole';
 import { RepoTreeWhole } from './RepoTreeWhole';
-import { treeSelectionSx } from './treeSelectionSx';
 import { TreeSearchBar } from './TreeSearchBar';
 import { useViewSettingsStore } from '../../stores/useViewSettingsStore';
 
@@ -27,7 +21,6 @@ export const ProjectTreeView = ({
 }) => {
   const { docId } = useParams<{ docId: string }>();
   const navigate = useNavigate();
-  const { toolkits } = useToolkitStore();
   const { viewSettings } = useViewSettingsStore();
   const [selectedIds, setSelectedIds] = useState<string[]>(docId ? [idDocId(docId)] : []);
   const [expandedItems, setExpandedItems] = useState<string[]>(['project-documents', 'no-toolkit']);
@@ -53,12 +46,17 @@ export const ProjectTreeView = ({
     [searchIndex, searchTerms, isSearching],
   );
 
+  // The tree as currently shown, so branch clicks only take the visible documents.
+  const displayTree = useMemo(
+    () => new SplitTree(filteredDocs, viewSettings.maxDepth, viewSettings),
+    [filteredDocs, viewSettings],
+  );
+
   // While searching, expand every matching branch so results aren't hidden in collapsed groups.
   const searchExpandedKeys = useMemo(() => {
     if (!isSearching) return [];
-    const tree = new SplitTree(filteredDocs, viewSettings.maxDepth, viewSettings);
-    return ['project-documents', ...collectBranchKeys(tree.nodes)];
-  }, [isSearching, filteredDocs, viewSettings]);
+    return ['project-documents', ...collectBranchKeys(displayTree.nodes)];
+  }, [isSearching, displayTree]);
 
   const effectiveExpandedItems = isSearching
     ? [...new Set([...expandedItems, ...searchExpandedKeys])]
@@ -82,7 +80,6 @@ export const ProjectTreeView = ({
     const tree = getSplitTree();
     if (!tree) return;
     const ancestors = tree.findAncestorKeys(docOid);
-    console.log('[focus] docOid:', docOid, 'ancestors:', ancestors);
     if (ancestors) {
       setExpandedItems(prev => [...new Set([...prev, 'project-documents', ...ancestors])]);
     }
@@ -91,43 +88,33 @@ export const ProjectTreeView = ({
   // Sync the URL to the given item (the active one), or to the project root if none.
   const navigateToItem = useCallback((rawId: string | undefined) => {
     const oid = rawId ? idFromDocId(rawId) : undefined;
-    const basePath = '/' + encodeURIComponent(project?.name ?? '');
-    const newPath = oid ? `${basePath}/${oid}` : basePath;
+    const newPath = projectPath(project?.name ?? '', oid);
     if (location.pathname !== newPath) {
       navigate(newPath, { replace: true });
     }
   }, [project?.name, navigate]);
 
-  // Multi-select highlights rows, but only the most recently added item opens/focuses a tab.
-  const handleSelectionChange = useCallback((event: React.SyntheticEvent | null, ids: string[]) => {
-    // Clicking the expand/collapse chevron shouldn't change the selection.
-    const target = (event?.target as HTMLElement | null);
-    if (target?.closest('[class*="iconContainer"]')) return;
+  // Opens the item in a tab. Only a double click (or Enter) does this.
+  const openItem = useCallback((rawId: string | undefined) => {
+    if (!rawId) return;
+    navigateToItem(rawId);
+    onSelectItem(rawId);
+  }, [navigateToItem, onSelectItem]);
 
-    const added = ids.filter(id => !selectedIds.includes(id));
+  // Only one of the two trees shows a selection at a time.
+  const handleSelectionChange = useCallback((ids: string[]) => {
     setSelectedIds(ids);
     setRepoSelectedIds([]);   // documents and repos share a single active highlight
-    const clicked = added[added.length - 1];
-    if (clicked) {
-      navigateToItem(clicked);
-      onSelectItem(clicked);
-    }
-  }, [selectedIds, navigateToItem, onSelectItem]);
+  }, []);
 
   // Same as handleSelectionChange, but for the separate repositories tree.
   const handleRepoSelectionChange = useCallback((event: React.SyntheticEvent | null, ids: string[]) => {
     const target = (event?.target as HTMLElement | null);
     if (target?.closest('[class*="iconContainer"]')) return;
 
-    const added = ids.filter(id => !repoSelectedIds.includes(id));
     setRepoSelectedIds(ids);
     setSelectedIds([]);   // clear the documents selection so only one item is active
-    const clicked = added[added.length - 1];
-    if (clicked) {
-      navigateToItem(clicked);
-      onSelectItem(clicked);
-    }
-  }, [repoSelectedIds, navigateToItem, onSelectItem]);
+  }, []);
 
   // The central repo folder only toggles from its chevron, not by clicking the row.
   const handleRepoExpandedChange = useCallback((e: React.SyntheticEvent | null, itemIds: string[]) => {
@@ -147,11 +134,16 @@ export const ProjectTreeView = ({
     setRepoExpandedItems(itemIds);
   }, [repoExpandedItems]);
 
+  // Forgets the selection and points the URL at the project root.
+  const clearSelection = useCallback(() => {
+    setSelectedIds([]);
+    navigateToItem(undefined);
+  }, [navigateToItem]);
+
   // Make the given document the selection (highlight, URL, open tab), or clear it when none.
   const selectDocument = useCallback((docOid?: string) => {
     if (!docOid) {
-      setSelectedIds([]);
-      navigateToItem(undefined);
+      clearSelection();
       return;
     }
     expandToDocument(docOid);
@@ -159,7 +151,15 @@ export const ProjectTreeView = ({
     setSelectedIds([id]);
     navigateToItem(id);
     onSelectItem(id);
-  }, [expandToDocument, navigateToItem, onSelectItem]);
+  }, [clearSelection, expandToDocument, navigateToItem, onSelectItem]);
+
+  // A click on the empty space of the panel clears both selections.
+  const handleBackgroundClick = useCallback((event: React.MouseEvent) => {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('.MuiTreeItem-content, input, button')) return;
+    setSelectedIds([]);
+    setRepoSelectedIds([]);
+  }, []);
 
   // Sync the selection from the URL on mount and when the project changes.
   useEffect(() => {
@@ -167,6 +167,11 @@ export const ProjectTreeView = ({
     setSelectedIds(rawId ? [rawId] : []);
     onSelectItem(rawId);
   }, [project?.name]);
+
+  // The URL also changes when a tab is closed, so the highlight follows it.
+  useEffect(() => {
+    setSelectedIds(docId ? [idDocId(docId)] : []);
+  }, [docId]);
 
   // Expand branches to the initially selected document (e.g. from URL)
   const hasExpandedInitial = useRef(false);
@@ -179,11 +184,8 @@ export const ProjectTreeView = ({
     }
   }, [project, selectedIds, expandToDocument]);
 
-  console.log(toolkits)
-  console.log(project)
-
   return (
-    <>
+    <Box sx={{ minHeight: '100%' }} onClick={handleBackgroundClick}>
     <TreeSearchBar value={search} onChange={setSearch} warning={searchWarning} />
     <Typography
       variant="overline"
@@ -191,62 +193,26 @@ export const ProjectTreeView = ({
     >
       Workspace Explorer
     </Typography>
-    <SimpleTreeView
+    <DocumentTreeWhole
+      project={project}
+      docs={filteredDocs}
+      tree={displayTree}
+      depth={viewSettings.maxDepth}
+      selectedIds={selectedIds}
+      onSelectedIdsChange={handleSelectionChange}
       expandedItems={effectiveExpandedItems}
-      onExpandedItemsChange={(_e, itemIds) => setExpandedItems(itemIds)}
-      selectedItems={selectedIds}
-      onSelectedItemsChange={(e, itemIds) => handleSelectionChange(e, itemIds)}
-      expansionTrigger={'content'}
-      multiSelect
-      sx={treeSelectionSx}
-    >
-      <TreeItem key={`project-documents`} itemId={`project-documents`}
-        label={(
-          <Stack direction='row' justifyContent="start" alignItems='center'>
-            <Typography marginRight={1}>
-              Project {project.name}
-            </Typography>
-            <ProjectActionsButton
-              selectedIds={selectedIds}
-              onSelectDocument={selectDocument}
-            />
-          </Stack>
-        )}
-      >
-        <Stack direction={'row'} spacing={0} alignItems={'center'} justifyContent={'start'} sx={{ marginLeft: 5, width: 'fit-content' }}>
-          <Folder sx={{ mr: 1 }} />
-          <Tooltip title='Files directory where the project is located'>
-            <Typography color={project.configDocument?.data.desc.filesDirectory ? 'text.primary' : 'text.secondary'}>
-              {project.configDocument?.data.desc.filesDirectory || 'No directory'}
-            </Typography>
-          </Tooltip>
-          {project.configDocument?.data.desc.filesDirectory && (
-            <ButtonTooltip
-              title='Copy path'
-              onClick={() => navigator.clipboard.writeText(project.configDocument?.data.desc.filesDirectory ?? '')}
-              sx={{ ml: 0.5 }}
-            >
-              <ContentCopy sx={{ fontSize: 16 }} />
-            </ButtonTooltip>
-          )}
-        </Stack>
-        <DocumentSplitGroup
-          docs={filteredDocs}
-          project={project}
-          depth={viewSettings.maxDepth}
-          onDocumentDeleted={() => {
-            setSelectedIds([]);
-            navigateToItem(undefined);
-          }}
-        />
-      </TreeItem>
-    </SimpleTreeView>
+      onExpandedItemsChange={setExpandedItems}
+      onOpenItem={openItem}
+      onSelectDocument={selectDocument}
+      onCleared={clearSelection}
+    />
     <RepoTreeWhole
       selectedIds={repoSelectedIds}
       onSelectedItemsChange={handleRepoSelectionChange}
       expandedItems={repoExpandedItems}
       onExpandedItemsChange={handleRepoExpandedChange}
+      onOpenItem={openItem}
     />
-    </>
+    </Box>
   );
 };

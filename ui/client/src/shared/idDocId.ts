@@ -24,6 +24,15 @@ export const idFromRepoId = (repoid: string) => {
   return repoid && repoid.startsWith(ID_PREFIX_REPO) ? repoid.replace(ID_PREFIX_REPO, "") : undefined;
 };
 
+// The repository name inside a tree row's DOM id, which MUI builds as `<treeId>-<itemId>`.
+export const idFromRepoDomId = (domId: string) => {
+  const at = domId?.indexOf(ID_PREFIX_REPO) ?? -1;
+  if (at === -1) {
+    return undefined;
+  }
+  return domId.slice(at + ID_PREFIX_REPO.length);
+};
+
 export const idFromToolkitSplitId = (id: string) => {
   if (!id?.startsWith(ID_PREFIX_TOOLKIT)) return undefined;
   const rest = id.slice(ID_PREFIX_TOOLKIT.length);

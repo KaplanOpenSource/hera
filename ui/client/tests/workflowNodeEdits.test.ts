@@ -32,6 +32,11 @@ describe('nodeWithoutParam', () => {
   it('copes with a node that has no Execution at all', () => {
     expect(nodeWithoutParam({ type: 'maker' }, 'a').Execution?.input_parameters).toEqual({});
   });
+
+  it('drops a key inside a dict parameter', () => {
+    const updated = nodeWithoutParam(node({ P: { one: '1', two: '2' } }), 'P.one');
+    expect(updated.Execution?.input_parameters).toEqual({ P: { two: '2' } });
+  });
 });
 
 describe('nodeWithParamValue', () => {
@@ -50,6 +55,11 @@ describe('nodeWithParamValue', () => {
 
   it('keeps the rest of the node', () => {
     expect(nodeWithParamValue(node({}), 'a', '1').type).toBe('maker');
+  });
+
+  it('sets a value inside a dict parameter', () => {
+    const updated = nodeWithParamValue(node({ P: { one: '1' } }), 'P.one', '9');
+    expect(updated.Execution?.input_parameters).toEqual({ P: { one: '9' } });
   });
 });
 
@@ -72,6 +82,11 @@ describe('nodeWithReferenceAt', () => {
   it('replaces a non-string value rather than appending to it', () => {
     const updated = nodeWithReferenceAt(node({ cmd: 5 }), 'cmd', new Reference('A', OUTPUT, 'result'));
     expect(updated.Execution?.input_parameters?.cmd).toBe('{A.output.result}');
+  });
+
+  it('inserts into a value inside a dict parameter', () => {
+    const updated = nodeWithReferenceAt(node({ P: { one: 'ab' } }), 'P.one', new Reference('A', OUTPUT, 'result'), 1);
+    expect(updated.Execution?.input_parameters?.P).toEqual({ one: 'a{A.output.result}b' });
   });
 
   it('leaves the other parameters alone', () => {
