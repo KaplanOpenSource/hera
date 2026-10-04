@@ -8,8 +8,9 @@ import { ReferenceKind } from './ReferenceKind';
 const PARSE = /\{\s*(\w+)\.([\w.]+)\.(\w+)\s*\}/g;
 // A source dot's handle id: <node>:<handleMark>:<key>.
 const HANDLE = /^(\w+):(\w+):(.+)$/;
-// A dataflow edge id: df:<node>:<handleMark>:<key>-><target>.<param>.
-const EDGE_ID = /^df:(\w+):(\w+):(\w+)->(\w+)\.(\w+)$/;
+// A dataflow edge id: df:<node>:<handleMark>:<key>-><target>.<paramPath>.
+// The path may itself hold dots, so it is everything after the target's dot.
+const EDGE_ID = /^df:(\w+):(\w+):(\w+)->(\w+)\.(.+)$/;
 
 // The questions that are about all the kinds at once rather than one of them.
 export class ReferenceKindRegistry {
@@ -75,8 +76,8 @@ export class ReferenceKindRegistry {
     return new Reference(match[1], kind, match[3]);
   }
 
-  // The reference and the parameter a dataflow edge id links, or null.
-  ofEdgeId(id: string): { reference: Reference, target: string, param: string } | null {
+  // The reference and the parameter path a dataflow edge id links, or null.
+  ofEdgeId(id: string): { reference: Reference, target: string, paramPath: string } | null {
     const match = EDGE_ID.exec(id);
     if (match === null) {
       return null;
@@ -85,7 +86,7 @@ export class ReferenceKindRegistry {
     if (kind === undefined) {
       return null;
     }
-    return { reference: new Reference(match[1], kind, match[3]), target: match[4], param: match[5] };
+    return { reference: new Reference(match[1], kind, match[3]), target: match[4], paramPath: match[5] };
   }
 
   // The kinds a half-typed section still fits.

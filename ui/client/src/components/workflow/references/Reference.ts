@@ -1,6 +1,6 @@
 import { ReferenceKind } from './ReferenceKind';
 
-// Prefix on dataflow edge ids: df:<node>:<handleMark>:<key>-><target>.<param>.
+// Prefix on dataflow edge ids: df:<node>:<handleMark>:<key>-><target>.<path>.
 export const DATAFLOW_EDGE_PREFIX = 'df:';
 
 // One reference, as a value: whose it is, of what kind, and which key.
@@ -20,8 +20,8 @@ export class Reference {
   }
 
   // The id of the canvas line from this reference to the parameter reading it.
-  edgeIdTo(target: string, param: string): string {
-    return `${DATAFLOW_EDGE_PREFIX}${this.handleId()}->${target}.${param}`;
+  edgeIdTo(target: string, paramPath: string): string {
+    return `${DATAFLOW_EDGE_PREFIX}${this.handleId()}->${target}.${paramPath}`;
   }
 
   clearToken(): RegExp {

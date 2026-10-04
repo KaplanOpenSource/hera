@@ -58,7 +58,7 @@ describe('ofEdgeId', () => {
   it('round trips a dataflow edge id', () => {
     const reference = new Reference('A', OUTPUT, 'result');
     const id = reference.edgeIdTo('B', 'cmd');
-    expect(knownKinds.ofEdgeId(id)).toEqual({ reference, target: 'B', param: 'cmd' });
+    expect(knownKinds.ofEdgeId(id)).toEqual({ reference, target: 'B', paramPath: 'cmd' });
   });
 
   it('ignores an id that is not a dataflow edge', () => {

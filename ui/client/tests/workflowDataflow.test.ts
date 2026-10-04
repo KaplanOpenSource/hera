@@ -80,9 +80,23 @@ describe('buildDataflowEdges', () => {
     expect(buildDataflowEdges(['C', 'A'], n, catalog)).toHaveLength(1);
   });
 
-  it('scans only top-level parameters, not nested ones', () => {
+  it('links a reference nested inside a dict parameter (issue #1120)', () => {
     const n = { C: nodes.C, A: { type: 'general.CopyDirectory', Execution: { input_parameters: { nested: { deep: '{C.output.ggg}' } } } } };
-    expect(buildDataflowEdges(['C', 'A'], n, catalog)).toEqual([]);
+    expect(buildDataflowEdges(['C', 'A'], n, catalog)).toEqual([
+      { id: 'df:C:out:ggg->A.nested.deep', source: 'C', sourceHandle: 'C:out:ggg', target: 'A', targetHandle: 'A:in:nested.deep' },
+    ]);
+  });
+
+  it('links one reference per key of a dict parameter', () => {
+    const params = { Parameters: { one: '{C.output.ggg}', two: '{C.output.copyDirectory}' } };
+    const n = { C: nodes.C, A: { type: 'general.CopyDirectory', Execution: { input_parameters: params } } };
+    expect(buildDataflowEdges(['C', 'A'], n, catalog).map(e => e.targetHandle))
+      .toEqual(['A:in:Parameters.one', 'A:in:Parameters.two']);
+  });
+
+  it('links a reference inside a list parameter, by its position', () => {
+    const n = { C: nodes.C, A: { type: 'general.CopyDirectory', Execution: { input_parameters: { Command: ['echo', '{C.output.ggg}'] } } } };
+    expect(buildDataflowEdges(['C', 'A'], n, catalog).map(e => e.targetHandle)).toEqual(['A:in:Command.1']);
   });
 
   it('ignores a parameter whose value is not a string', () => {
@@ -112,13 +126,13 @@ describe('handle ids let requires and dataflow coexist on one node', () => {
   it('parses a dataflow drag but not a requires drag between the same two nodes', () => {
     expect(parseDataflowConnection(nodeOutputHandleId('C'), nodeInputHandleId('A'))).toBeNull();
     expect(parseDataflowConnection(outputHandleId('C', 'ggg'), inputHandleId('A', 'bbb')))
-      .toEqual({ kind: OUTPUT, outputName: 'ggg', param: 'bbb' });
+      .toEqual({ kind: OUTPUT, outputName: 'ggg', paramPath: 'bbb' });
   });
 });
 
 describe('parseDataflowConnection', () => {
   it('parses an output→input connection into its output and param names', () => {
-    expect(parseDataflowConnection('C:out:ggg', 'A:in:bbb')).toEqual({ kind: OUTPUT, outputName: 'ggg', param: 'bbb' });
+    expect(parseDataflowConnection('C:out:ggg', 'A:in:bbb')).toEqual({ kind: OUTPUT, outputName: 'ggg', paramPath: 'bbb' });
   });
 
   it('returns null when either handle is not a dataflow handle', () => {
@@ -133,6 +147,18 @@ describe('parseDataflowConnection', () => {
 });
 
 describe('setInputReference', () => {
+  it('writes into a key inside a dict parameter', () => {
+    const node = { type: 'general.CopyDirectory', Execution: { input_parameters: { P: { one: '', two: 'keep' } } } };
+    const updated = setInputReference(node, 'P.one', outputRef('C', 'ggg'));
+    expect(updated.Execution?.input_parameters?.P).toEqual({ one: '{C.output.ggg}', two: 'keep' });
+  });
+
+  it('leaves the original node untouched', () => {
+    const node = { type: 'general.CopyDirectory', Execution: { input_parameters: { P: { one: '' } } } };
+    setInputReference(node, 'P.one', outputRef('C', 'ggg'));
+    expect(node.Execution.input_parameters.P.one).toBe('');
+  });
+
   it('writes {source.output.name} into the target parameter', () => {
     const updated = setInputReference({ type: 'general.CopyDirectory' }, 'bbb', outputRef('C', 'ggg'));
     expect(updated.Execution?.input_parameters?.bbb).toBe('{C.output.ggg}');
@@ -260,7 +286,7 @@ describe('replaceReferenceAt', () => {
 
 describe('parseDataflowEdgeId', () => {
   it('parses a dataflow edge id into its parts', () => {
-    expect(parseDataflowEdgeId('df:C:out:ggg->A.bbb')).toEqual({ refNode: 'C', key: 'ggg', target: 'A', param: 'bbb' });
+    expect(parseDataflowEdgeId('df:C:out:ggg->A.bbb')).toEqual({ refNode: 'C', key: 'ggg', target: 'A', paramPath: 'bbb' });
   });
 
   it('returns null for a non-dataflow edge id', () => {
@@ -269,6 +295,12 @@ describe('parseDataflowEdgeId', () => {
 });
 
 describe('clearInputReference', () => {
+  it('clears a key inside a dict parameter', () => {
+    const node = { type: 'general.CopyDirectory', Execution: { input_parameters: { P: { one: '{C.output.ggg}', two: 'keep' } } } };
+    const updated = clearInputReference(node, 'P.one', 'C', 'ggg');
+    expect(updated.Execution?.input_parameters?.P).toEqual({ one: '', two: 'keep' });
+  });
+
   it('clears a parameter that is exactly the reference', () => {
     const node = { type: 'general.CopyDirectory', Execution: { input_parameters: { bbb: '{C.output.ggg}' } } };
     const updated = clearInputReference(node, 'bbb', 'C', 'ggg');
