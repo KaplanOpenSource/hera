@@ -1,5 +1,6 @@
 import { Box } from '@mui/material';
 import { useProjectStore } from '../../../stores/useProjectStore';
+import { useToolkitStore } from '../../../stores/useToolkitStore';
 import { ProjectObj } from '../../../objects/ProjectObj';
 import { ToolkitObj } from '../../../objects/ToolkitObj';
 import { ToolkitDetails } from './ToolkitDetails';
@@ -10,7 +11,8 @@ export const DetailsViewToolkit = ({
 }: {
   toolkitName: string,
 }) => {
-  const { toolkits, currProject } = useProjectStore();
+  const { toolkits } = useToolkitStore();
+  const { currProject } = useProjectStore();
   const project = currProject ? new ProjectObj(currProject) : null;
   const isNoToolkit = toolkitName === VALUE_GROUP_UNDEFINED;
 

@@ -1,6 +1,6 @@
-// Carto dark basemap, used in place of the light OSM tiles when the app is in dark mode.
-export const DARK_TILE_URL = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
-export const LIGHT_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+// OSM has no dark tiles, so dark mode inverts these instead (see darkMapControlsSx).
+export const TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+export const TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 // Darkens Leaflet's built-in zoom buttons and attribution box so they don't show as
 // bright white boxes on a dark map. react-leaflet renders these into our own DOM
@@ -10,6 +10,10 @@ export const darkMapControlsSx = {
   // load and shows past the tile edges when zoomed out. Match the dark tiles.
   '& .leaflet-container': {
     backgroundColor: '#0e0e0e',
+  },
+  // Inverted, then the hue spun back, so water and parks keep roughly their colour.
+  '& .leaflet-tile-pane': {
+    filter: 'invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9)',
   },
   '& .leaflet-control-zoom a': {
     backgroundColor: '#2b2b2b',

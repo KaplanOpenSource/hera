@@ -43,6 +43,9 @@ export const DetailsViewDocumentHeader = ({
           gap: 0.5,
           flexDirection: 'row-reverse',
           '& .MuiAccordionSummary-content': { my: 0.75 },
+          // Right when closed, down when open, like the field tree chevron.
+          '& .MuiAccordionSummary-expandIconWrapper': { transform: 'rotate(-90deg)' },
+          '& .MuiAccordionSummary-expandIconWrapper.Mui-expanded': { transform: 'none' },
         }}
       >
         <Typography variant="overline" sx={{ fontSize: 10, color: 'text.secondary', fontWeight: 600, letterSpacing: 1 }}>

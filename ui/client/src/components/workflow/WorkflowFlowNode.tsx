@@ -1,14 +1,17 @@
-import { Autocomplete, Box, InputBase, Stack, TextField, Typography } from '@mui/material';
-import { Handle, NodeProps, NodeResizer, Position } from '@xyflow/react';
-import { useState } from 'react';
+import { Autocomplete, Box, InputBase, Stack, TextField, Theme, Typography, useTheme } from '@mui/material';
+import { cyan } from '@mui/material/colors';
+import { Handle, NodeProps, NodeResizer, Position, useUpdateNodeInternals } from '@xyflow/react';
+import { ReactNode, useEffect, useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
 import { keyForDetailsViewItem } from '../details/DetailsViewItem';
+import { NodeRunStatus } from './nodeRunStatus';
 import { NodeCatalogEntry, nodeOutputNames, nodeTypeGroup, nodeTypeIssue, paramsFieldDef } from './nodeCatalog';
 import { paramsOnTypeChange } from './nodeTypeParams';
-import { WorkflowNodeDeleteButton } from './WorkflowNodeDeleteButton';
 import { nodeInputHandleId, nodeOutputHandleId } from './workflowDataflow';
 import { INPUT_PARAMETERS_KEY, WorkflowNodeInputs } from './WorkflowNodeInputs';
 import { WorkflowNodeOutputs } from './WorkflowNodeOutputs';
+import { WorkflowNodeSummary } from './WorkflowNodeSummary';
+import { useNodeParamsValidation } from './useNodeParamsValidation';
 
 export interface WorkflowFlowNodeData {
   name: string;
@@ -16,18 +19,76 @@ export interface WorkflowFlowNodeData {
   catalog: NodeCatalogEntry[];
   onRename: (newName: string) => void;
   onChange: (node: WorkflowNode) => void;
-  onDelete: () => void;
   onFieldContextMenu: (param: string, x: number, y: number, caret?: number) => void;
   onFieldInlineEdit: (param: string, value: string, caret: number | null, el: HTMLInputElement) => void;
+  // How the node did in the last run of this workflow.
+  runStatus?: NodeRunStatus;
+  // True while this node shows its editor rather than its summary: the pointer
+  // is on it, or it is pinned open.
+  expanded?: boolean;
+  // The icons for the editor's top-right corner, drawn in the order given (the
+  // pin, the delete X, ...). The node places them and knows nothing else.
+  actionButtons?: ReactNode;
+  // True when the open editor should take the node's own space, so the canvas
+  // lays the other nodes out around it. Otherwise it is laid over them.
+  takeSpace?: boolean;
+  // True while the pointer is on this node, which gets a cyan silhouette.
+  hovered?: boolean;
   [key: string]: unknown;
 }
 
+// Outline color per run state. Pending has none, so the node keeps its normal border.
+const runStatusColor = (status: NodeRunStatus, theme: Theme): string => {
+  if (status === NodeRunStatus.Success) {
+    return theme.palette.success.main;
+  }
+  if (status === NodeRunStatus.Failure) {
+    return theme.palette.error.main;
+  }
+  if (status === NodeRunStatus.Running) {
+    return theme.palette.info.main;
+  }
+  return '';
+};
+
+// A dashed outline that keeps moving, drawn just outside the node's border.
+// Four gradient strips (top, bottom, left, right) slid by one dash each cycle.
+const marchingAntsSx = (color: string) => {
+  return {
+    '@keyframes workflowNodeAnts': {
+      to: { backgroundPosition: '26px 0, -26px 100%, 0 -26px, 100% 26px' },
+    },
+    '&::before': {
+      content: '""',
+      position: 'absolute',
+      inset: '-14px',
+      borderRadius: 'inherit',
+      pointerEvents: 'none',
+      backgroundImage: `linear-gradient(90deg, ${color} 50%, transparent 0), linear-gradient(90deg, ${color} 50%, transparent 0), linear-gradient(0deg, ${color} 50%, transparent 0), linear-gradient(0deg, ${color} 50%, transparent 0)`,
+      backgroundSize: '26px 10px, 26px 10px, 10px 26px, 10px 26px',
+      backgroundRepeat: 'repeat-x, repeat-x, repeat-y, repeat-y',
+      backgroundPosition: '0 0, 0 100%, 0 0, 100% 0',
+      animation: 'workflowNodeAnts 0.6s linear infinite',
+    },
+  };
+};
+
 // Custom ReactFlow node: edits the node name, type, and input parameters in
 // place. Delete on hover.
+//
+// Away from the pointer it is just a summary card, so a workflow of many nodes
+// stays readable. Hovering lays the editor over that card. The card keeps its
+// own small size while the editor is open, so the nodes below it never get
+// shoved aside by a passing pointer.
 export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
-  const { name, node, catalog, onRename, onChange, onDelete, onFieldContextMenu, onFieldInlineEdit } = data as WorkflowFlowNodeData;
+  const { name, node, catalog, onRename, onChange, onFieldContextMenu, onFieldInlineEdit } = data as WorkflowFlowNodeData;
+  const runStatus = (data as WorkflowFlowNodeData).runStatus ?? NodeRunStatus.Pending;
+  const expanded = (data as WorkflowFlowNodeData).expanded ?? false;
+  const actionButtons = (data as WorkflowFlowNodeData).actionButtons;
+  const takeSpace = (data as WorkflowFlowNodeData).takeSpace ?? false;
+  const hovered = (data as WorkflowFlowNodeData).hovered ?? false;
+  const theme = useTheme();
   const [draft, setDraft] = useState(name);
-  const [hover, setHover] = useState(false);
 
   const params = node.Execution?.input_parameters ?? {};
 
@@ -40,9 +101,33 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
 
   const typeOptions = catalog.map(entry => entry.type);
   const typeIssue = nodeTypeIssue(node, catalog);
+  // Hermes's own complaint about the parameter values, shown under the node.
+  const paramsIssue = useNodeParamsValidation(node);
   const paramsDef = paramsFieldDef(node, catalog);
   const outputs = nodeOutputNames(node, catalog);
-  const inputsExpanded = expandedItems.includes(keyForDetailsViewItem(INPUT_PARAMETERS_KEY));
+
+  // The run state wins over the type warning and the selection, so a failed or
+  // finished node is visible at a glance.
+  const statusColor = runStatusColor(runStatus, theme);
+  let borderColor = 'divider';
+  if (selected) {
+    borderColor = 'primary.main';
+  }
+  if (typeIssue) {
+    borderColor = 'warning.main';
+  }
+  if (statusColor) {
+    borderColor = statusColor;
+  }
+  // Much thicker than the 1px selection border, so the two never look alike.
+  let borderWidth = 1;
+  if (statusColor) {
+    borderWidth = 10;
+  }
+  let runningSx = {};
+  if (runStatus === NodeRunStatus.Running) {
+    runningSx = marchingAntsSx(statusColor);
+  }
 
   // Free-form typing keeps the type as-is (custom types stay allowed); picking a
   // known type also seeds its parameters from the catalog.
@@ -56,6 +141,45 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
     });
   };
 
+  // The editor's handles (one per parameter row) mount without changing the
+  // node's own size, so ReactFlow has to be told to measure them again.
+  const updateNodeInternals = useUpdateNodeInternals();
+  useEffect(() => {
+    updateNodeInternals(name);
+  }, [expanded, name]);
+
+  // A thin cyan silhouette marks the node the pointer is on. It goes on
+  // whichever box is the visible frame: the floating editor when there is one,
+  // the node itself otherwise.
+  const floating = expanded && !takeSpace;
+  let silhouetteSx = {};
+  if (hovered) {
+    silhouetteSx = { outline: `1px solid ${cyan[400]}`, outlineOffset: '2px' };
+  }
+  let nodeSilhouetteSx = silhouetteSx;
+  let editorSilhouetteSx = {};
+  if (floating) {
+    nodeSilhouetteSx = {};
+    editorSilhouetteSx = silhouetteSx;
+  }
+
+  // Where the open editor sits: in the node's own box when it takes space, laid
+  // over the summary card (and the canvas) when it is only hovered.
+  let editorSx = {};
+  if (!takeSpace) {
+    editorSx = {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      px: 1,
+      py: 0.5,
+      borderRadius: 1,
+      bgcolor: 'background.paper',
+      boxShadow: 6,
+      zIndex: 10,
+    };
+  }
+
   const commit = () => {
     const next = draft.trim();
     if (next && next !== name) {
@@ -67,8 +191,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
 
   return (
     <Box
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+      data-run-status={runStatus}
       sx={{
         position: 'relative',
         px: 1,
@@ -81,70 +204,108 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
         borderRadius: 1,
         bgcolor: 'background.paper',
         border: '1px solid',
-        borderColor: typeIssue ? 'warning.main' : selected ? 'primary.main' : 'divider',
+        borderWidth,
+        borderColor,
+        ...nodeSilhouetteSx,
+        ...runningSx,
       }}
     >
       {/* Drag handles to resize the node; shown while it's selected. Size is
           view-only (React Flow's store), not saved with the workflow. */}
       <NodeResizer isVisible={selected} minWidth={260} minHeight={80} />
       <Handle type="target" id={nodeInputHandleId(name)} position={Position.Left} />
-      {hover && <WorkflowNodeDeleteButton onDelete={onDelete} />}
-      <InputBase
-        className="nodrag"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => { if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); } }}
-        inputProps={{ style: { padding: 0 }, 'aria-label': 'node name' }}
-        sx={{ fontSize: 13, fontWeight: 600 }}
-      />
-      <Box className="nodrag" sx={{ mt: 1 }}>
-        <Autocomplete
+      {!takeSpace && (
+        <WorkflowNodeSummary name={name} type={node.type} paramNames={Object.keys(params)} paramsDef={paramsDef} />
+      )}
+      {/* The editor. Laid over the summary card while only hovered, so a passing
+          pointer leaves the node's measured size, and the nodes below it, alone.
+          A node that takes space holds the editor in its own box instead, and
+          the canvas lays the others out around it. */}
+      {expanded && (
+        <Box
           className="nodrag"
-          freeSolo
-          size="small"
-          options={typeOptions}
-          groupBy={(option) => nodeTypeGroup(option)}
-          inputValue={node.type ?? ''}
-          onInputChange={(_e, value, reason) => {
-            if (reason === 'input') {
-              setType(value);
-            } else if (reason === 'clear') {
-              setType('');
-            }
+          sx={{
+            // As wide as the editor's own content needs, as the node itself was
+            // before the summary card; never narrower than the card it covers.
+            width: 'max-content',
+            minWidth: '100%',
+            maxWidth: 560,
+            ...editorSx,
+            ...editorSilhouetteSx,
           }}
-          onChange={(_e, value) => pickType(typeof value === 'string' ? value : value ?? '')}
-          renderInput={(inputParams) => <TextField {...inputParams} label="type" fullWidth />}
-        />
-        <Stack direction="row" spacing={1} sx={{ mt: 1, alignItems: 'flex-start' }}>
-          <WorkflowNodeInputs
-            nodeName={name}
-            params={params}
-            paramsDef={paramsDef}
-            expandedItems={expandedItems}
-            onExpandedItemsChange={setExpandedItems}
-            onChangeParams={(newVal) => onChange({
-              ...node,
-              Execution: { ...node.Execution, input_parameters: newVal },
-            })}
-            onFieldContextMenu={onFieldContextMenu}
-            onFieldInlineEdit={onFieldInlineEdit}
-          />
-          {outputs.length > 0 && (
-            <WorkflowNodeOutputs nodeName={name} outputs={outputs} expanded={inputsExpanded} />
-          )}
+        >
+        {/* The icon slot: whatever the canvas passed, in that order. */}
+        <Stack direction="row" spacing={0.5} sx={{ position: 'absolute', top: -12, right: -12 }}>
+          {actionButtons}
         </Stack>
-        {typeIssue && (
-          <Typography
+        <InputBase
+          className="nodrag"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => { if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); } }}
+          inputProps={{ style: { padding: 0 }, 'aria-label': 'node name' }}
+          sx={{ fontSize: 13, fontWeight: 600 }}
+        />
+        <Box className="nodrag" sx={{ mt: 1 }}>
+          <Autocomplete
             className="nodrag"
-            variant="caption"
-            color="warning.main"
-            sx={{ display: 'block', mt: 0.5, userSelect: 'text' }}
-          >
-            {typeIssue}
-          </Typography>
-        )}
-      </Box>
+            freeSolo
+            size="small"
+            options={typeOptions}
+            groupBy={(option) => nodeTypeGroup(option)}
+            inputValue={node.type ?? ''}
+            onInputChange={(_e, value, reason) => {
+              if (reason === 'input') {
+                setType(value);
+              } else if (reason === 'clear') {
+                setType('');
+              }
+            }}
+            onChange={(_e, value) => pickType(typeof value === 'string' ? value : value ?? '')}
+            renderInput={(inputParams) => <TextField {...inputParams} label="type" fullWidth />}
+          />
+          <Stack spacing={1} sx={{ mt: 1, alignItems: 'stretch' }}>
+            <WorkflowNodeInputs
+              nodeName={name}
+              params={params}
+              paramsDef={paramsDef}
+              expandedItems={expandedItems}
+              onExpandedItemsChange={setExpandedItems}
+              onChangeParams={(newVal) => onChange({
+                ...node,
+                Execution: { ...node.Execution, input_parameters: newVal },
+              })}
+              onFieldContextMenu={onFieldContextMenu}
+              onFieldInlineEdit={onFieldInlineEdit}
+            />
+            {outputs.length > 0 && (
+              <WorkflowNodeOutputs nodeName={name} outputs={outputs} />
+            )}
+          </Stack>
+          {typeIssue && (
+            <Typography
+              className="nodrag"
+              variant="caption"
+              color="warning.main"
+              sx={{ display: 'block', mt: 0.5, userSelect: 'text' }}
+            >
+              {typeIssue}
+            </Typography>
+          )}
+          {paramsIssue && (
+            <Typography
+              className="nodrag"
+              variant="caption"
+              color="error.main"
+              sx={{ display: 'block', mt: 0.5, userSelect: 'text' }}
+            >
+              {paramsIssue}
+            </Typography>
+          )}
+        </Box>
+        </Box>
+      )}
       <Handle type="source" id={nodeOutputHandleId(name)} position={Position.Right} />
     </Box>
   );

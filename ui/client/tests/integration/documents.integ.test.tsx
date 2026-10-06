@@ -81,10 +81,11 @@ describe('Documents UI integration', () => {
   it('delete a document from the details view', async () => {
     await loadProject();
 
-    // Selecting the document in the tree opens its details, which is where the
+    // Opening the document in the tree shows its details, which is where the
     // delete button lives now.
     const docLabel = await screen.findByText('IntegDoc1', {}, { timeout: 10000 });
     await act(async () => { fireEvent.click(docLabel); });
+    await act(async () => { fireEvent.doubleClick(docLabel); });
 
     const deleteWrapper = await screen.findByLabelText('Delete Document', {}, { timeout: 10000 });
     await act(async () => {

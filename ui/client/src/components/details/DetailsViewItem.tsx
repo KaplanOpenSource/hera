@@ -1,11 +1,10 @@
-import { Box, Stack, Typography } from '@mui/material';
+import { Stack } from '@mui/material';
 import { CSSProperties, MouseEvent, ReactNode } from 'react';
 import { TreeItem } from '@mui/x-tree-view';
 import { useTreeViewContext, UseTreeViewExpansionSignature } from '@mui/x-tree-view/internals';
-import { RenameField } from '../../elements/RenameField';
 import { DetailsViewItemValue } from './DetailsViewItemValue';
 import { DetailsViewItemBranchActions } from './DetailsViewItemBranchActions';
-import { DeleteFieldButton } from './DeleteFieldButton';
+import { DetailsViewItemName } from './DetailsViewItemName';
 import { ItemTypeSelector, calcItemType, ItemTypesEnum } from './ItemTypeSelector';
 import { EmptyBranchLabel } from './EmptyBranchLabel';
 import { DATA_FORMAT_FIELD, DESC_FIELD } from '../../shared/constants';
@@ -22,12 +21,15 @@ export const DetailsViewItem = ({
   itemValue,
   setItemValue,
   setItemKey = undefined,
-  nameView = undefined,
+  nameForView = undefined,
+  allowRename = true,
+  hideTypeSelector = false,
   rootRef = undefined,
   rootStyle = undefined,
   parentKey,
   def = undefined,
   renderBeforeName = undefined,
+  renderAfterValue = undefined,
   onRowContextMenu = undefined,
   onValueCaret = undefined,
 }: {
@@ -35,8 +37,13 @@ export const DetailsViewItem = ({
   itemValue: any,
   setItemValue: (newVal: any) => void,
   setItemKey?: (newKey: string | undefined) => void | undefined,
-  // Replaces the editable field name, e.g. with a list element's index.
-  nameView?: ReactNode,
+  // What to show instead of a row's raw key. With `allowRename` the key still
+  // shows while editing; without it the row's name is only this.
+  nameForView?: (itemKey: string, parentKey: string | undefined) => ReactNode,
+  // False for a row whose name is not the user's text, e.g. a list index.
+  allowRename?: boolean,
+  // Hides the type chip, for a row whose type is not the user's choice.
+  hideTypeSelector?: boolean,
   // Root row ref and style, used to animate a list element while it is dragged.
   rootRef?: (node: HTMLElement | null) => void,
   rootStyle?: CSSProperties,
@@ -45,6 +52,8 @@ export const DetailsViewItem = ({
   def?: FieldDef,
   // Optional extra content before the field name.
   renderBeforeName?: (itemKey: string, parentKey: string | undefined, def?: FieldDef) => ReactNode,
+  // Optional extra content after the value editor, at the end of the row.
+  renderAfterValue?: (itemKey: string, parentKey: string | undefined, def?: FieldDef) => ReactNode,
   // Optional right-click handler for a row.
   onRowContextMenu?: (itemKey: string, parentKey: string | undefined, event: MouseEvent<HTMLElement>) => void,
   // Optional report of a leaf value and its caret position, for autocomplete.
@@ -87,51 +96,18 @@ export const DetailsViewItem = ({
 
           {renderBeforeName?.(itemKey, parentKey, def)}
 
-          {/* The delete button sits on the name's top-left corner, over no text. */}
-          <Box sx={{ position: 'relative', display: 'flex', minWidth: 0 }}>
-            {nameView}
-            {!nameView && (
-              <RenameField
-                value={itemKey}
-                setValue={setItemKey}
-                labelMinWidth="100px"
-                // The top-level `desc` field isn't renameable, so show a friendlier label.
-                valueForView={(
-                  itemKey === DESC_FIELD && !parentKey
-                    ? (
-                      <Typography sx={{ whiteSpace: 'nowrap', minWidth: '100px', flexShrink: 0 }}>
-                        Description (desc)
-                      </Typography>
-                    )
-                    : undefined
-                )}
-              />
-            )}
-            {setItemKey && (
-              <Box
-                className="field-delete"
-                sx={{
-                  position: 'absolute',
-                  left: '-8px',
-                  top: 0,
-                  transform: 'translateY(-40%)',
-                  zIndex: 2,
-                  '& .MuiIconButton-root': { padding: '2px' },
-                  '& .MuiSvgIcon-root': { fontSize: '0.8rem' },
-                }}
-              >
-                <DeleteFieldButton
-                  itemKey={itemKey}
-                  setItemKey={setItemKey}
-                />
-              </Box>
-            )}
-          </Box>
+          <DetailsViewItemName
+            itemKey={itemKey}
+            parentKey={parentKey}
+            setItemKey={setItemKey}
+            nameForView={nameForView}
+            allowRename={allowRename}
+          />
 
           {/* The type chip picks string/number/null/object for every field,
               except dataFormat (own dropdown) and desc (hidden fields make a
               type switch unsafe). */}
-          {itemKey !== DATA_FORMAT_FIELD && itemKey !== DESC_FIELD && (
+          {!hideTypeSelector && itemKey !== DATA_FORMAT_FIELD && itemKey !== DESC_FIELD && (
             <ItemTypeSelector
               itemValue={itemValue}
               setItemValue={newVal => {
@@ -162,6 +138,8 @@ export const DetailsViewItem = ({
             />
           )}
 
+          {renderAfterValue?.(itemKey, parentKey, def)}
+
         </Stack>
       )}
     >
@@ -174,7 +152,9 @@ export const DetailsViewItem = ({
           setItemValue={setItemValue}
           parentKey={key}
           def={def}
+          nameForView={nameForView}
           renderBeforeName={renderBeforeName}
+          renderAfterValue={renderAfterValue}
           onRowContextMenu={onRowContextMenu}
           onValueCaret={onValueCaret}
         />
@@ -185,7 +165,9 @@ export const DetailsViewItem = ({
           setItemValue={setItemValue}
           parentKey={key}
           def={def}
+          nameForView={nameForView}
           renderBeforeName={renderBeforeName}
+          renderAfterValue={renderAfterValue}
           onRowContextMenu={onRowContextMenu}
           onValueCaret={onValueCaret}
           isDescRoot={parentKey === undefined && itemKey === DESC_FIELD}

@@ -16,6 +16,7 @@ import { ButtonDialog } from "../../elements/ButtonDialog";
 import { TextProperty } from "../../elements/TextProperty";
 import { fetchPython } from "../../io/fetchPython";
 import { useProjectStore } from "../../stores/useProjectStore";
+import { useToolkitStore } from "../../stores/useToolkitStore";
 import { SelectProperty } from "../../elements/SelectProperty";
 import { buildAddDocumentCode } from "./buildAddDocumentCode";
 
@@ -59,7 +60,7 @@ export const AddDocumentButton = ({
   toolkit?: Toolkit | undefined,
   onDocumentCreated?: (docOid: string) => void,
 }) => {
-  const { toolkits } = useProjectStore();
+  const { toolkits } = useToolkitStore();
   const [name, setName] = useState('');
   const [resource, setResource] = useState('');
   const [kind, setKind] = useState(DocKind.Document);
@@ -88,7 +89,7 @@ export const AddDocumentButton = ({
         kind,
         projectName: currProjectName,
         desc,
-        toolkitNames: useProjectStore.getState().getProjectToolkitKeys(),
+        toolkitNames: useToolkitStore.getState().getProjectToolkitKeys(),
         notebookResource,
         collection: cls.collection,
         resource: kind === DocKind.Workflow ? workflowResource : resource,

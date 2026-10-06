@@ -27,6 +27,7 @@ const testDoc = { desc: {}, resource: '' } as unknown as ProjectDocument;
 
 const { RunWorkflowButton } = await import('../src/components/workflow/RunWorkflowButton');
 const { WorkflowRunPoller } = await import('../src/components/workflow/WorkflowRunPoller');
+const { WorkflowOutputPanel } = await import('../src/components/workflow/log/WorkflowOutputPanel');
 const { useViewSettingsStore } = await import('../src/stores/useViewSettingsStore');
 const { useWorkflowRunStore } = await import('../src/stores/useWorkflowRunStore');
 
@@ -55,7 +56,6 @@ describe('RunWorkflowButton', () => {
   it('starts the run and marks the button running (disabled + spinner)', async () => {
     mockStartWorkflow.mockResolvedValueOnce({ token: 'abc123' });
 
-    // The run buttons live in `container`; the output dialog renders in a portal.
     const { container } = render(<RunWorkflowButton projectName="TestProject" workflowName="hello_1" doc={testDoc} />);
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /run the workflow/i }));
@@ -106,6 +106,7 @@ describe('RunWorkflowButton', () => {
       <>
         <WorkflowRunPoller />
         <RunWorkflowButton projectName="P" workflowName="hello_1" doc={testDoc} />
+        <WorkflowOutputPanel workflowName="hello_1" />
       </>,
     );
     await act(async () => {
@@ -131,6 +132,7 @@ describe('RunWorkflowButton', () => {
       <>
         <WorkflowRunPoller />
         <RunWorkflowButton projectName="P" workflowName="hello_1" doc={testDoc} />
+        <WorkflowOutputPanel workflowName="hello_1" />
       </>,
     );
     await act(async () => {
@@ -154,7 +156,6 @@ describe('RunWorkflowButton', () => {
 
     await waitFor(() => {
       expect(mockPushError).toHaveBeenCalledWith(expect.stringContaining('busy'));
-      expect(screen.getByText(/busy/i)).toBeTruthy();
     });
     expect(useWorkflowRunStore.getState().runs.w).toBeUndefined();
   });

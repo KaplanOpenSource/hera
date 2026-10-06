@@ -1,7 +1,8 @@
 import { Close } from '@mui/icons-material';
 import { IconButton } from '@mui/material';
 
-// The little delete "X" shown at the top-right corner of a workflow node.
+// The delete "X" among a workflow node's top-right icons. The node's icon slot
+// places it; this only draws it.
 export const WorkflowNodeDeleteButton = ({
   onDelete,
 }: {
@@ -12,7 +13,7 @@ export const WorkflowNodeDeleteButton = ({
       className="nodrag"
       size="small"
       onClick={(e) => { e.stopPropagation(); onDelete(); }}
-      sx={{ position: 'absolute', top: -12, right: -12, p: '2px', bgcolor: 'background.paper', boxShadow: 1 }}
+      sx={{ p: '2px', bgcolor: 'background.paper', boxShadow: 1 }}
     >
       <Close sx={{ fontSize: 14 }} />
     </IconButton>

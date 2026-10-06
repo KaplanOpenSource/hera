@@ -28,6 +28,32 @@ def compareJSONS(longFormat=False,changeDotToUnderscore=False,**kwargs):
     return compareDataframeConfigurations(fulldata,datasetName="datasetName",parameterName="parameterNameFullPath",longFormat=longFormat,changeDotToUnderscore=changeDotToUnderscore)
 
 
+def diffJSONS(source, target):
+    """Return the RFC 6902 JSON Patch that turns `source` into `target`.
+
+    Use this for the two-document case; `compareJSONS` stays the tool for
+    comparing three or more documents as a table.
+
+    Parameters
+    ----------
+        source (dict): The document to change from.
+        target (dict): The document to change to.
+
+    Returns
+    -------
+        list: The patch operations, each a dict with `op`, `path` and, depending
+              on the operation, `value` and `from`. Empty when the two documents
+              are equal, so `if not diffJSONS(a, b)` reads as "no differences".
+
+    Examples
+    --------
+        >>> diffJSONS({"a": 1}, {"a": 2})
+        [{'op': 'replace', 'path': '/a', 'value': 2}]
+    """
+    import jsonpatch
+    return jsonpatch.make_patch(source, target).patch
+
+
 def ConfigurationToJSON(valueToProcess, standardize=False, splitUnits=False, keepOriginalUnits=True):
     """Converts a configuration dict (that might include unum objects) to JSON dict (where all the values are strings).
     The unum objects are converted to Str in a way that allows for their retrieval. (see the JSONToConfiguration function)
