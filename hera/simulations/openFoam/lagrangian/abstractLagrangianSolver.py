@@ -1691,7 +1691,7 @@ class analysis:
         """Fill remaining timesteps with zero-concentration fields."""
         logger = get_classMethod_logger(self, "_padRemainingTimesteps")
         L = []
-        for t in range(int(lastTime + 1), totalDuration):
+        for t in range(int(lastTime + 1), int(totalDuration)):
             xry = self.calcConcentrationTimeStepFullMesh(
                 timeData=t, extents=extents, dxdydz=dxdydz,
                 xfield=xfield, yfield=yfield, zfield=zfield
