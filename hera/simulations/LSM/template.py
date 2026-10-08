@@ -370,7 +370,6 @@ class LSMTemplate:
         """
         logger = get_classMethod_logger(self)
 
-        # outfilename = name
         filenameList = []
         times = []
         for infilename in glob.glob(os.path.join("%s*" % basefiles)):
@@ -400,7 +399,21 @@ class LSMTemplate:
             elif datetimeFormat == "seconds":
                 datetime = xray.time.values
 
-            # finalxarray.to_netcdf(os.path.join(topath,name,"%s_%s.nc" % (outfilename, str(cur['time'].iloc[0]).replace(".", "_"))) )
+            # Check for corresponding S file and add as STD
+            s_filename = curData[0].replace('OUTD', 'OUTS', 1)
+            s_values = None
+            if os.path.exists(s_filename):
+                s_cur = pandas.read_csv(s_filename, sep=r"\s+", names=["x", "y", "z", "Dosage"])
+                # Sort to match the D-file spatial ordering
+                s_values = s_cur.sort_values(['x', 'y', 'z'])['Dosage'].values
+
+            # Check for corresponding occupied volume file
+            vol_filename = curData[0].replace('OUTD', 'OUTV', 1)
+            vol_values = None
+            if os.path.exists(vol_filename):
+                vol_cur = pandas.read_csv(vol_filename, sep=r"\s+", names=["x", "y", "z", "OccupiedVolume"])
+                # Sort to match the D-file spatial ordering
+                vol_values = vol_cur.sort_values(['x', 'y', 'z'])['OccupiedVolume'].values
 
             if (i == 0) and addzero:
                 if datetimeFormat == "timestamp":
@@ -408,16 +421,37 @@ class LSMTemplate:
                 elif datetimeFormat == "seconds":
                     zdatetime = [0]
 
-                finalxarray = xarray.DataArray(numpy.zeros(xray['Dosage'].values.shape), \
-                                               coords={'x': xray.x, 'y': xray.y, 'z': xray.z, 'datetime': zdatetime},
-                                               dims=['datetime', 'x', 'y', 'z']).to_dataset(name='Dosage')
+                finalxarray = xarray.Dataset(
+                    coords={'x': xray.x, 'y': xray.y, 'z': xray.z, 'datetime': zdatetime},
+                    data_vars={
+                        'Dosage': (['datetime', 'x', 'y', 'z'], numpy.zeros(xray['Dosage'].values.shape))
+                    }
+                )
+                if s_values is not None:
+                    # Initialize STD with zeros if a corresponding file exists
+                    finalxarray['STD'] = (['datetime', 'x', 'y', 'z'], numpy.zeros(xray['Dosage'].values.shape))
+
+                # Initialize OccupiedVolume with zeros if it is expected to exist
+                if vol_values is not None:
+                     finalxarray['OccupiedVolume'] = (['datetime', 'x', 'y', 'z'], numpy.zeros(xray['Dosage'].values.shape))
 
                 yield finalxarray
-            # finalxarray.to_netcdf(os.path.join(topath,name,"%s_0_0.nc" % outfilename) )
 
-            finalxarray = xarray.DataArray(xray['Dosage'].values, \
-                                           coords={'x': xray.x, 'y': xray.y, 'z': xray.z, 'datetime': datetime},
-                                           dims=['datetime', 'x', 'y', 'z']).to_dataset(name='Dosage')
+            # Create the dataset for current time step
+            finalxarray = xarray.Dataset(
+                coords={'x': xray.x, 'y': xray.y, 'z': xray.z, 'datetime': datetime},
+                data_vars={
+                    'Dosage': (['datetime', 'x', 'y', 'z'], xray['Dosage'].values)
+                }
+            )
+
+            if s_values is not None:
+                # Reshape STD values to match the Dosage dimension (1, nx, ny, nz)
+                finalxarray['STD'] = (['datetime', 'x', 'y', 'z'], s_values.reshape(xray['Dosage'].shape))
+
+            if vol_values is not None:
+                # Reshape OccupiedVolume values to match the Dosage dimension (1, nx, ny, nz)
+                finalxarray['OccupiedVolume'] = (['datetime', 'x', 'y', 'z'], vol_values.reshape(xray['Dosage'].shape))
 
             yield finalxarray
 

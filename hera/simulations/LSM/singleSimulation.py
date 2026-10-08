@@ -72,10 +72,13 @@ class SingleSimulation(object):
         Qfactor = (Q.to(q_units) * ureg.min / ureg.m ** 3).m_as(q_units * time_units / ureg.m ** 3)
 
         final_xarray['Dosage']   = Qfactor*final_xarray['Dosage']
+        if 'STD' in final_xarray:
+            final_xarray['STD'] = Qfactor * final_xarray['STD']
+
 
         return final_xarray
 
-    def getConcentration(self, Q=1*ureg.kg, time_units=ureg.min, q_units=ureg.mg):
+    def getConcentration(self, Q=1*ureg.kg, time_units=ureg.min, q_units=ureg.mg, std=False):
         """
         Calculates the concentration
 
@@ -90,10 +93,13 @@ class SingleSimulation(object):
         q_units: unum.units
             Default value is mg
 
+        std : bool
+            If True, returns the standard deviation of the concentration from the simulation data
+
         Returns
         -------
         dDosage: xarray
-            The calculated concentration in 'C' key
+            The calculated concentration in 'C' key (and 'STD' if available)
         """
         time_units=unumToPint(time_units)
         Q = unumToPint(Q)
@@ -102,6 +108,13 @@ class SingleSimulation(object):
 
         dDosage = finalxarray['Dosage'].diff('datetime').to_dataset().rename({'Dosage': 'dDosage'})
         dDosage['C'] = dDosage['dDosage'] / finalxarray.attrs['dt'].m_as(time_units)
+
+        if 'STD' in finalxarray:
+            dDosage['STD'] = finalxarray['STD']
+
+        if 'OccupiedVolume' in finalxarray:
+            dDosage['OccupiedVolume'] = finalxarray['OccupiedVolume']
+
         dDosage.attrs = finalxarray.attrs
 
         return dDosage
