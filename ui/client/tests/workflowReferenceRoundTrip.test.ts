@@ -81,7 +81,7 @@ describe('an edge id survives a round trip', () => {
       refNode: 'A',
       key: 'result',
       target: 'B',
-      param: 'cmd',
+      paramPath: 'cmd',
     });
   });
 
@@ -96,7 +96,7 @@ describe('an edge hangs off the same dots a drag uses', () => {
     expect(parseDataflowConnection(edge.sourceHandle, edge.targetHandle)).toEqual({
       kind: OUTPUT,
       outputName: 'result',
-      param: 'cmd',
+      paramPath: 'cmd',
     });
   });
 
@@ -111,7 +111,7 @@ describe('dragging a line and drawing it agree', () => {
   it('turns a drag between two handles into the very same edge', () => {
     const drag = parseDataflowConnection(outputHandleId('A', 'result'), inputHandleId('B', 'cmd'));
     const nodes = workflow('');
-    nodes.B = setInputReference(nodes.B, drag!.param, new Reference('A', drag!.kind, drag!.outputName));
+    nodes.B = setInputReference(nodes.B, drag!.paramPath, new Reference('A', drag!.kind, drag!.outputName));
     const edge = onlyEdge(nodes);
     expect(edge.sourceHandle).toBe(outputHandleId('A', 'result'));
     expect(edge.targetHandle).toBe(inputHandleId('B', 'cmd'));
@@ -123,7 +123,7 @@ describe('deleting a line undoes what writing it did', () => {
     const nodes = workflow('');
     nodes.B = setInputReference(nodes.B, 'cmd', outputRef('A', 'result'));
     const parsed = parseDataflowEdgeId(onlyEdge(nodes).id)!;
-    nodes.B = clearInputReference(nodes.B, parsed.param, parsed.refNode, parsed.key);
+    nodes.B = clearInputReference(nodes.B, parsed.paramPath, parsed.refNode, parsed.key);
     expect(nodes.B.Execution?.input_parameters?.cmd).toBe('');
     expect(buildDataflowEdges(NAMES, nodes, catalog)).toEqual([]);
   });
@@ -131,7 +131,7 @@ describe('deleting a line undoes what writing it did', () => {
   it('leaves the surrounding text behind', () => {
     const nodes = workflow(`run ${dataflowReference('A', 'result')} now`);
     const parsed = parseDataflowEdgeId(onlyEdge(nodes).id)!;
-    nodes.B = clearInputReference(nodes.B, parsed.param, parsed.refNode, parsed.key);
+    nodes.B = clearInputReference(nodes.B, parsed.paramPath, parsed.refNode, parsed.key);
     expect(nodes.B.Execution?.input_parameters?.cmd).toBe('run  now');
   });
 

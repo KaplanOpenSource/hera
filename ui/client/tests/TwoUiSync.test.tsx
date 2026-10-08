@@ -170,9 +170,10 @@ describe('Two UI sync', () => {
     const treePanel = screen.getByTestId('tree-panel');
     const detailsPanel = screen.getByTestId('details-panel');
 
-    // Click on the document in the tree to select it
+    // Double click on the document in the tree to open it
     const docItem = await waitFor(() => within(treePanel).getByText('MyDoc'));
     fireEvent.click(docItem);
+    fireEvent.doubleClick(docItem);
 
     // Wait for the details panel to show the old value (read from the store)
     await waitFor(() => {

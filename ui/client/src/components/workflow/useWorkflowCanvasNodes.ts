@@ -3,7 +3,7 @@ import { RefObject, useEffect, useRef } from 'react';
 import { WorkflowNode } from '../../shared/types';
 import { CanvasResize, canvasResizeAction } from './canvasResize';
 import { NodeFocus } from '../../stores/useWorkflowFocusStore';
-import { deOverlappedFlowNodes, FitKind, flowLayerKey, flowMeasuredKey, flowStructureKey, PendingFit, pendingFitAfterChange, rebuiltFlowNodes, restackedFlowNodes } from './workflowFlowNodesUtils';
+import { compactedFlowNodes, FitKind, flowLayerKey, flowMeasuredKey, flowStructureKey, PendingFit, pendingFitAfterChange, rebuiltFlowNodes, restackedFlowNodes } from './workflowFlowNodesUtils';
 import { WorkflowLayout } from './WorkflowLayout';
 import { WorkflowViewport } from './WorkflowViewport';
 
@@ -12,7 +12,7 @@ const FIT_SETTLE_MS = 120;
 
 // Where the canvas's nodes sit and where the view looks. Keeps the ReactFlow
 // node list in step with the workflow (rebuild on a structure change, re-stack
-// when a node changes column, push apart nodes that grew) and moves the viewport
+// when a node changes column, pull each column tight once measured) and moves the viewport
 // to match (fit after a change, pan to a new or focused node, refit on resize).
 // Returns the node list for ReactFlow and the ref for the element to watch.
 export const useWorkflowCanvasNodes = ({
@@ -89,14 +89,14 @@ export const useWorkflowCanvasNodes = ({
     }
   }, [focus?.seq]);
 
-  // Once nodes are measured, push down only the ones that overlap within their
-  // column (using real measured heights) — so growing a node, e.g. by picking a
-  // type with more parameters, shoves the nodes below it instead of overlapping
-  // them, while leaving every non-colliding position (including drags) untouched.
+  // Once nodes are measured, pull the canvas together using the real measured
+  // sizes, so the gaps match how big the nodes actually are — a node that grew,
+  // e.g. one pinned open, pushes the columns right of it and the nodes under it
+  // aside, and one that shrank lets them back.
   const measuredKey = flowMeasuredKey(rfNodes);
   useEffect(() => {
-    const fixed = WorkflowLayout.fromFlowNodes(rfNodes, nodeNames, nodes, dataflowDeps).fixOverlaps().positions();
-    setRfNodes(prev => deOverlappedFlowNodes(prev, fixed));
+    const fixed = WorkflowLayout.fromFlowNodes(rfNodes, nodeNames, nodes, dataflowDeps).compact().positions();
+    setRfNodes(prev => compactedFlowNodes(prev, fixed));
   }, [measuredKey]);
 
   // A width change refits the graph; height alone just scales the zoom to match.

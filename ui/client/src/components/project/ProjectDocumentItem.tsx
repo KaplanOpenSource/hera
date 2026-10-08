@@ -11,11 +11,13 @@ import { DocumentKindIcon } from "./DocumentKindIcon";
 export const ProjectDocumentItem = ({
   document,
   kind,
+  onRowContextMenu,
 }: {
   project: ProjectEntire,
   document: ProjectDocument,
   kind: TabKind,
   onDocumentDeleted?: () => void,
+  onRowContextMenu?: (event: React.MouseEvent, itemId: string) => void,
 }) => {
   const { viewSettings } = useViewSettingsStore();
 
@@ -25,6 +27,7 @@ export const ProjectDocumentItem = ({
   return (
     <TreeItem
       key={id} itemId={id}
+      onContextMenu={event => onRowContextMenu?.(event, id)}
       label={
         <Stack direction='column' justifyContent="start" alignItems=''>
           <Stack direction='row' spacing={1} justifyContent="start" alignItems='center'>

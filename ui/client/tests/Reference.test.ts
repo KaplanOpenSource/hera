@@ -22,3 +22,26 @@ describe('Reference', () => {
     expect(value.replace(reference.clearToken(), '').trim()).toBe('{A.output.log}');
   });
 });
+
+describe('a key that points inside the output', () => {
+  const deep = new Reference('A', OUTPUT, 'items[0].name');
+
+  it('writes the whole path into the token', () => {
+    expect(deep.toString()).toBe('{A.output.items[0].name}');
+  });
+
+  it('names the output itself, without the path', () => {
+    expect(deep.rootKey()).toBe('items');
+    expect(new Reference('A', OUTPUT, 'result.station').rootKey()).toBe('result');
+    expect(reference.rootKey()).toBe('result');
+  });
+
+  it('leaves from the dot of the output it points into', () => {
+    expect(deep.rootHandleId()).toBe('A:out:items');
+  });
+
+  it('strips its own token and leaves a sibling path alone', () => {
+    const value = '{A.output.items[0].name} {A.output.items[1].name}';
+    expect(value.replace(deep.clearToken(), '').trim()).toBe('{A.output.items[1].name}');
+  });
+});

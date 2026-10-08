@@ -74,4 +74,15 @@ describe('WorkflowReferences', () => {
   it('suggests nothing for a node that cannot be referenced', () => {
     expect(references.inlineOptions('A', '{B.output.', 10)).toEqual([]);
   });
+
+  // Issue #1064: nothing is known about an output's own shape, so the menu gets
+  // out of the way once the user types a path into it.
+  it('suggests nothing once a sub-path is being typed', () => {
+    expect(references.inlineOptions('A', '{C.output.first.sta', 19)).toEqual([]);
+    expect(references.inlineOptions('A', '{C.output.first[0].', 19)).toEqual([]);
+  });
+
+  it('still lists the outputs while the output name itself is typed', () => {
+    expect(references.inlineOptions('A', '{C.output.fir', 13)).toEqual(['first']);
+  });
 });

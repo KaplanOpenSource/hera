@@ -80,9 +80,23 @@ describe('buildDataflowEdges', () => {
     expect(buildDataflowEdges(['C', 'A'], n, catalog)).toHaveLength(1);
   });
 
-  it('scans only top-level parameters, not nested ones', () => {
+  it('links a reference nested inside a dict parameter (issue #1120)', () => {
     const n = { C: nodes.C, A: { type: 'general.CopyDirectory', Execution: { input_parameters: { nested: { deep: '{C.output.ggg}' } } } } };
-    expect(buildDataflowEdges(['C', 'A'], n, catalog)).toEqual([]);
+    expect(buildDataflowEdges(['C', 'A'], n, catalog)).toEqual([
+      { id: 'df:C:out:ggg->A.nested.deep', source: 'C', sourceHandle: 'C:out:ggg', target: 'A', targetHandle: 'A:in:nested.deep' },
+    ]);
+  });
+
+  it('links one reference per key of a dict parameter', () => {
+    const params = { Parameters: { one: '{C.output.ggg}', two: '{C.output.copyDirectory}' } };
+    const n = { C: nodes.C, A: { type: 'general.CopyDirectory', Execution: { input_parameters: params } } };
+    expect(buildDataflowEdges(['C', 'A'], n, catalog).map(e => e.targetHandle))
+      .toEqual(['A:in:Parameters.one', 'A:in:Parameters.two']);
+  });
+
+  it('links a reference inside a list parameter, by its position', () => {
+    const n = { C: nodes.C, A: { type: 'general.CopyDirectory', Execution: { input_parameters: { Command: ['echo', '{C.output.ggg}'] } } } };
+    expect(buildDataflowEdges(['C', 'A'], n, catalog).map(e => e.targetHandle)).toEqual(['A:in:Command.1']);
   });
 
   it('ignores a parameter whose value is not a string', () => {
@@ -112,13 +126,13 @@ describe('handle ids let requires and dataflow coexist on one node', () => {
   it('parses a dataflow drag but not a requires drag between the same two nodes', () => {
     expect(parseDataflowConnection(nodeOutputHandleId('C'), nodeInputHandleId('A'))).toBeNull();
     expect(parseDataflowConnection(outputHandleId('C', 'ggg'), inputHandleId('A', 'bbb')))
-      .toEqual({ kind: OUTPUT, outputName: 'ggg', param: 'bbb' });
+      .toEqual({ kind: OUTPUT, outputName: 'ggg', paramPath: 'bbb' });
   });
 });
 
 describe('parseDataflowConnection', () => {
   it('parses an output→input connection into its output and param names', () => {
-    expect(parseDataflowConnection('C:out:ggg', 'A:in:bbb')).toEqual({ kind: OUTPUT, outputName: 'ggg', param: 'bbb' });
+    expect(parseDataflowConnection('C:out:ggg', 'A:in:bbb')).toEqual({ kind: OUTPUT, outputName: 'ggg', paramPath: 'bbb' });
   });
 
   it('returns null when either handle is not a dataflow handle', () => {
@@ -133,6 +147,18 @@ describe('parseDataflowConnection', () => {
 });
 
 describe('setInputReference', () => {
+  it('writes into a key inside a dict parameter', () => {
+    const node = { type: 'general.CopyDirectory', Execution: { input_parameters: { P: { one: '', two: 'keep' } } } };
+    const updated = setInputReference(node, 'P.one', outputRef('C', 'ggg'));
+    expect(updated.Execution?.input_parameters?.P).toEqual({ one: '{C.output.ggg}', two: 'keep' });
+  });
+
+  it('leaves the original node untouched', () => {
+    const node = { type: 'general.CopyDirectory', Execution: { input_parameters: { P: { one: '' } } } };
+    setInputReference(node, 'P.one', outputRef('C', 'ggg'));
+    expect(node.Execution.input_parameters.P.one).toBe('');
+  });
+
   it('writes {source.output.name} into the target parameter', () => {
     const updated = setInputReference({ type: 'general.CopyDirectory' }, 'bbb', outputRef('C', 'ggg'));
     expect(updated.Execution?.input_parameters?.bbb).toBe('{C.output.ggg}');
@@ -260,7 +286,7 @@ describe('replaceReferenceAt', () => {
 
 describe('parseDataflowEdgeId', () => {
   it('parses a dataflow edge id into its parts', () => {
-    expect(parseDataflowEdgeId('df:C:out:ggg->A.bbb')).toEqual({ refNode: 'C', key: 'ggg', target: 'A', param: 'bbb' });
+    expect(parseDataflowEdgeId('df:C:out:ggg->A.bbb')).toEqual({ refNode: 'C', key: 'ggg', target: 'A', paramPath: 'bbb' });
   });
 
   it('returns null for a non-dataflow edge id', () => {
@@ -269,6 +295,12 @@ describe('parseDataflowEdgeId', () => {
 });
 
 describe('clearInputReference', () => {
+  it('clears a key inside a dict parameter', () => {
+    const node = { type: 'general.CopyDirectory', Execution: { input_parameters: { P: { one: '{C.output.ggg}', two: 'keep' } } } };
+    const updated = clearInputReference(node, 'P.one', 'C', 'ggg');
+    expect(updated.Execution?.input_parameters?.P).toEqual({ one: '', two: 'keep' });
+  });
+
   it('clears a parameter that is exactly the reference', () => {
     const node = { type: 'general.CopyDirectory', Execution: { input_parameters: { bbb: '{C.output.ggg}' } } };
     const updated = clearInputReference(node, 'bbb', 'C', 'ggg');
@@ -289,5 +321,62 @@ describe('clearInputReference', () => {
   it('leaves a non-string value untouched', () => {
     const node = { type: 'general.CopyDirectory', Execution: { input_parameters: { bbb: 5 } } };
     expect(clearInputReference(node, 'bbb', 'C', 'ggg').Execution?.input_parameters?.bbb).toBe(5);
+  });
+});
+
+// Issue #1064: a reference may point inside an output the catalog only knows by
+// its top-level name.
+describe('references into an output sub-field', () => {
+  const withValue = (value: string): { [name: string]: WorkflowNode } => ({
+    C: nodes.C,
+    A: { type: 'general.CopyDirectory', Execution: { input_parameters: { bbb: value } } },
+  });
+
+  it('links a dict field to the output it sits in', () => {
+    expect(buildDataflowEdges(['C', 'A'], withValue('{C.output.ggg.station}'), catalog)).toEqual([{
+      id: 'df:C:out:ggg.station->A.bbb',
+      source: 'C',
+      sourceHandle: 'C:out:ggg',
+      target: 'A',
+      targetHandle: 'A:in:bbb',
+    }]);
+  });
+
+  it('links a list element', () => {
+    expect(buildDataflowEdges(['C', 'A'], withValue('{C.output.ggg[0].name}'), catalog)).toEqual([{
+      id: 'df:C:out:ggg[0].name->A.bbb',
+      source: 'C',
+      sourceHandle: 'C:out:ggg',
+      target: 'A',
+      targetHandle: 'A:in:bbb',
+    }]);
+  });
+
+  it('still ignores a sub-field of an output that does not exist', () => {
+    expect(buildDataflowEdges(['C', 'A'], withValue('{C.output.nope.station}'), catalog)).toEqual([]);
+  });
+
+  it('draws one line per sub-field, all from the same dot', () => {
+    const edges = buildDataflowEdges(['C', 'A'], withValue('{C.output.ggg.a} {C.output.ggg.b}'), catalog);
+    expect(edges).toHaveLength(2);
+    expect(edges.map(e => e.sourceHandle)).toEqual(['C:out:ggg', 'C:out:ggg']);
+  });
+
+  it('clears only the sub-field the deleted line stood for', () => {
+    const node = { Execution: { input_parameters: { bbb: '{C.output.ggg.a} {C.output.ggg.b}' } } };
+    expect(clearInputReference(node, 'bbb', 'C', 'ggg.a').Execution?.input_parameters)
+      .toEqual({ bbb: '{C.output.ggg.b}' });
+  });
+
+  it('keeps the caret in the key stage while a sub-path is typed', () => {
+    expect(tokenAtCaret('{C.output.ggg[0].na', 19)).toEqual({
+      stage: ReferenceTokenStage.Key,
+      nodePart: 'C',
+      sectionPart: 'output',
+      kind: OUTPUT,
+      seed: 'ggg[0].na',
+      start: 0,
+      end: 19,
+    });
   });
 });

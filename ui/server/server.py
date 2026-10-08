@@ -205,7 +205,10 @@ def node_params_validate(payload: ValidateNodeParamsPayload) -> ValidateNodePara
     """
     if not warmup.ready:
         return ValidateNodeParamsResponse()
-    return ValidateNodeParamsResponse(**validate_node_params(payload.type, payload.params))
+    result = validate_node_params(payload.type, payload.params)
+    if not result["ok"]:
+        print(f'node params invalid: {payload.type}: {result["message"]}', flush=True)
+    return ValidateNodeParamsResponse(**result)
 
 
 @app.get("/file/{file_path:path}")

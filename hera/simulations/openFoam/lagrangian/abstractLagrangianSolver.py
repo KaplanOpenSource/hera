@@ -1687,7 +1687,7 @@ class analysis:
                                 outputDir, extents, dxdydz, xfield, yfield, zfield):
         """Fill remaining timesteps with zero-concentration fields."""
         L = []
-        for t in range(int(lastTime + 1), totalDuration):
+        for t in range(int(lastTime + 1), int(totalDuration)):
             xry = self.calcConcentrationTimeStepFullMesh(
                 timeData=t, extents=extents, dxdydz=dxdydz,
                 xfield=xfield, yfield=yfield, zfield=zfield

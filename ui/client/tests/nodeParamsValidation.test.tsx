@@ -6,6 +6,7 @@ vi.mock('@xyflow/react', () => ({
   Handle: () => null,
   NodeResizer: () => null,
   Position: { Left: 'left', Right: 'right', Top: 'top', Bottom: 'bottom' },
+  useUpdateNodeInternals: () => () => {},
 }));
 
 const validateNodeParams = vi.fn();
@@ -20,7 +21,8 @@ const catalog = [{ type: 'RiskAssessment.calculateThresholds', parameters: [] }]
 const nodeElement = (node: any) => {
   return (
     <WorkflowFlowNode
-      data={{ name: 'node1', node, catalog, onRename: vi.fn(), onChange: vi.fn(), onDelete: vi.fn() }}
+      // The message shows in the editor, which opens on hover.
+      data={{ name: 'node1', node, catalog, onRename: vi.fn(), onChange: vi.fn(), onDelete: vi.fn(), expanded: true }}
       selected={false}
       {...({} as any)}
     />

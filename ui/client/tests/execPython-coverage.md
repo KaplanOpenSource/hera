@@ -16,8 +16,12 @@
 | 10 | `deleteDocument` | `src/components/details/DeleteDocumentButton.tsx` | yes | yes | yes | `deleteDocumentButton.test.tsx` |
 | 11 | load repo JSON (useEffect) | `src/components/details/DetailsViewRepo.tsx:23` | yes | yes | no | `detailsViewRepo.test.tsx` |
 | 12 | `addRepo` | `src/components/details/RepoTreeAddButton.tsx:23` | yes | yes | no | `repoTreeAddButton.test.tsx` |
+| 13 | `deleteDocuments` | `src/io/deleteDocuments.ts:6` | yes | no | no | `projectActions.test.tsx`, `treeInteractions.test.tsx` |
+| 14 | `duplicateDocuments` | `src/io/duplicateDocuments.ts:32` | yes | no | no | `treeInteractions.test.tsx` |
+| 15 | `loadRepositoryIntoProject` | `src/io/loadRepositoryIntoProject.ts:6` | yes | no | no | `repoTreeInteractions.test.tsx` |
 
 ## Gaps
 
 - **#7 `doAddProject`**: Only has integration test, no unit test with latency.
+- **#13-#15**: No latency tests and no integration tests.
 - **Integration missing for**: `fetchDocument` (#4), `readAllConstants` (#6), `loadRepoJson` (#11), `addRepo` (#12).

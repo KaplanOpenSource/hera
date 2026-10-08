@@ -182,19 +182,21 @@ def workflow_compareToDisk(arguments):
         if not os.path.isfile(outfileName):
             print(f"Workflow {sim.name} (file {outfileName} does not exist on the disk. use export to create it. ")
         else:
-            from ..utils import compareJSONS, loadJSON
+            import pandas
+
+            from hera.utils import diffJSONS, loadJSON
             localWorkflow = wftk.getHermesWorkflowFromJSON(loadJSON(outfileName),name="Local", resource=outfileName)
             smName = sim.name
             sim.name = "DB"
-            res = compareJSONS(DB=sim.parametersJSON,LocalFile=localWorkflow.parametersJSON)
+            res = diffJSONS(sim.parametersJSON, localWorkflow.parametersJSON)
             ttl = f"Simulation {smName}"
             print(ttl)
             print("-"*len(ttl))
-            if res.empty:
+            if not res:
                 print("\t\t ** Disk and DB are identical")
                 print(" ")
             else:
-                print(res)
+                print(pandas.DataFrame(res))
 
 def sorround_with_char(text:str, total_len:int, char:str="-"):
     chars = char*max(((total_len-len(text))//2 ), 0)
@@ -236,19 +238,19 @@ def workflow_sync_to_db(arguments):
         else:
             import pandas
 
-            from ..utils import compareJSONS, loadJSON
+            from ..utils import diffJSONS, loadJSON
             localWorkflow = wftk.getHermesWorkflowFromJSON(loadJSON(outfileName),name="Local", resource=outfileName)
             simName = sim.name
             sim.name = "DB"
-            res = compareJSONS(DB=sim.parametersJSON,LocalFile=localWorkflow.parametersJSON)
-            assert isinstance(res, pandas.DataFrame)
+            res = diffJSONS(sim.parametersJSON, localWorkflow.parametersJSON)
+            assert isinstance(res, list)
             title = sorround_with_char(f"Simulation {simName}", 64)
             if not arguments.quiet:
                 print(title)
             
             if not arguments.quiet:
-                print("Disk and DB parameters are identical" if res.empty else f"Found Changes:\n{res}")
-            if (not res.empty) or arguments.force:
+                print("Disk and DB parameters are identical" if not res else f"Found Changes:\n{pandas.DataFrame(res)}")
+            if res or arguments.force:
                 logger.info(f"Updating DB with the changes for {sim.name}")
                 wftk.updateDocumentWorkflow(document=workflowDoc, workflow=localWorkflow)
 
