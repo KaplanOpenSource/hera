@@ -1,46 +1,33 @@
-# Use Ubuntu 22.04 as the base image
-FROM ubuntu:22.04
+# Ubuntu 26.04 LTS with its native Python (3.14) -- issue #1125.
+FROM ubuntu:26.04
 
 # Set environment variables to avoid interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install base tools and the libs some Python packages need at build time
-RUN apt-get update
-RUN apt-get install -y \
-    nano curl git build-essential iputils-ping software-properties-common
-RUN apt-get install -y \
-    libcairo2-dev \
-    pkg-config \
-    libgirepository1.0-dev
+# Base tools, build deps for the few sdists, the system Python, GDAL and Node.
+# 26.04 ships Node 22 and Python 3.14 itself, so no PPAs are needed any more.
+RUN apt-get update && apt-get install -y \
+    nano curl git build-essential iputils-ping \
+    libcairo2-dev pkg-config libgirepository1.0-dev \
+    python3 python3-venv python3-dev \
+    libgdal-dev gdal-bin \
+    nodejs npm \
+ && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install Python 3.11 from deadsnakes (prebuilt, matches CI).
-RUN add-apt-repository -y ppa:deadsnakes/ppa && apt-get update && \
-    apt-get install -y python3.11 python3.11-venv python3.11-dev python3.11-distutils
-
-# Install into an isolated venv so pip stays clear of apt-owned packages.
+# Install into an isolated venv: PEP 668 forbids pip into the system Python.
 ENV VIRTUAL_ENV=/opt/venv
 ENV PATH="/opt/venv/bin:${PATH}"
-RUN python3.11 -m venv "$VIRTUAL_ENV" && \
-    python -m pip install --no-cache-dir --upgrade pip
-    
-# Install GDAL and other system dependencies    
-RUN apt-get update
-RUN apt-get install -y \
-    libgdal-dev \
-    gdal-bin \
-    python3-gdal
-
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
-    apt-get install -y nodejs
-
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN python3 -m venv "$VIRTUAL_ENV" && \
+    python -m pip install --no-cache-dir --upgrade pip setuptools wheel
 
 # Set working directory and copy project files (exclude .venv, .git via .dockerignore)
 WORKDIR /app
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN python -m pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies, then the GDAL binding built against the system
+# libgdal (same recipe as `make install-deps`; numpy must already be present).
+RUN python -m pip install --no-cache-dir -r requirements.txt && \
+    python -m pip install --no-cache-dir --no-build-isolation GDAL=="$(gdal-config --version)"
 
 # Disable the jupytext lab extension; it is built for JupyterLab 4.4+ and errors on 4.3.
 # RUN mkdir -p "$VIRTUAL_ENV/share/jupyter/lab/settings" && \
