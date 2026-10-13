@@ -16,6 +16,7 @@ export const KIND_STYLE: { [kind in LogLineKind]: LogKindStyle } = {
   [LogLineKind.Summary]: { label: 'Summary', color: 'secondary.main', bold: true },
   [LogLineKind.Output]: { label: 'Output', color: 'success.main', bold: true },
   [LogLineKind.Technical]: { label: 'Technical', color: 'info.main' },
+  [LogLineKind.Event]: { label: 'Events', color: '#ba68c8' },
 };
 
 // Display order for the filter buttons: task output first, then the log levels by
@@ -29,4 +30,5 @@ export const KIND_ORDER: LogLineKind[] = [
   LogLineKind.Debug,
   LogLineKind.Summary,
   LogLineKind.Technical,
+  LogLineKind.Event,
 ];

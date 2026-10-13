@@ -21,11 +21,14 @@ from api_models import (
     Problem,
     RunWorkflowPayload,
     RunWorkflowResponse,
+    ValidateNodeParamsPayload,
+    ValidateNodeParamsResponse,
 )
 from cors_handler import CorsHandler
 from hera_warmup import HeraWarmup
 from jupyter_server_thread import JupyterServerThread, DEFAULT_JUPYTER_PORT
 from node_catalog import get_node_catalog
+from node_params import validate_node_params
 from workflow_runner import WorkflowRunner
 
 LOG_MAX_LEN = 350
@@ -171,15 +174,15 @@ def start_workflow(payload: RunWorkflowPayload) -> RunWorkflowResponse:
     """Start a saved Hermes workflow run in the background (local Luigi scheduler).
 
     Returns a token to poll with, or status "busy" if a run is already in progress.
-    Poll GET /workflow_status/{token} for status and output. See WorkflowRunner.
+    Poll GET /workflow_status/{token} for status and chunks. See WorkflowRunner.
     """
-    result = workflow_runner.start(payload.projectName, payload.workflowName)
+    result = workflow_runner.start(payload.projectName, payload.doc)
     return RunWorkflowResponse(**result)
 
 
 @app.get("/workflow_status/{token}", response_model=RunWorkflowResponse)
 def workflow_status(token: str) -> RunWorkflowResponse:
-    """Report a run's status and, once done, its full captured output. See WorkflowRunner."""
+    """Report a run's status and its captured output as per-task chunks. See WorkflowRunner."""
     result = workflow_runner.poll(token)
     return RunWorkflowResponse(**result)
 
@@ -191,6 +194,21 @@ def node_catalog() -> list:
     See ``node_catalog.get_node_catalog``.
     """
     return get_node_catalog()
+
+
+@app.post("/node-params/validate", response_model=ValidateNodeParamsResponse)
+def node_params_validate(payload: ValidateNodeParamsPayload) -> ValidateNodeParamsResponse:
+    """Test one node's parameter values with the node's own Hermes checks.
+
+    See ``node_params.validate_node_params``. The checks reach hera and MongoDB,
+    so before warmup there is nothing to report yet.
+    """
+    if not warmup.ready:
+        return ValidateNodeParamsResponse()
+    result = validate_node_params(payload.type, payload.params)
+    if not result["ok"]:
+        print(f'node params invalid: {payload.type}: {result["message"]}', flush=True)
+    return ValidateNodeParamsResponse(**result)
 
 
 @app.get("/file/{file_path:path}")

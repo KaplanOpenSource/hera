@@ -182,19 +182,20 @@ def workflow_compareToDisk(arguments):
         if not os.path.isfile(outfileName):
             print(f"Workflow {sim.name} (file {outfileName} does not exist on the disk. use export to create it. ")
         else:
-            from hera.utils import loadJSON, compareJSONS
+            from hera.utils import loadJSON, diffJSONS
+            import pandas
             localWorkflow = wftk.getHermesWorkflowFromJSON(loadJSON(outfileName),name="Local", resource=outfileName)
             smName = sim.name
             sim.name = "DB"
-            res = compareJSONS(DB=sim.parametersJSON,LocalFile=localWorkflow.parametersJSON)
+            res = diffJSONS(sim.parametersJSON, localWorkflow.parametersJSON)
             ttl = f"Simulation {smName}"
             print(ttl)
             print("-"*len(ttl))
-            if res.empty:
+            if not res:
                 print("\t\t ** Disk and DB are identical")
                 print(" ")
             else:
-                print(res)
+                print(pandas.DataFrame(res))
 
 def sorround_with_char(text:str, total_len:int, char:str="-"):
     chars = char*max(((total_len-len(text))//2 ), 0)
@@ -233,20 +234,20 @@ def workflow_sync_to_db(arguments):
         if not os.path.isfile(outfileName):
             print(f"Workflow {sim.name} (file {outfileName}) does not exist on the disk. use export to create it.")
         else:
-            from hera.utils import loadJSON, compareJSONS
+            from hera.utils import loadJSON, diffJSONS
             import pandas
             localWorkflow = wftk.getHermesWorkflowFromJSON(loadJSON(outfileName),name="Local", resource=outfileName)
             simName = sim.name
             sim.name = "DB"
-            res = compareJSONS(DB=sim.parametersJSON,LocalFile=localWorkflow.parametersJSON)
-            assert isinstance(res, pandas.DataFrame)
+            res = diffJSONS(sim.parametersJSON, localWorkflow.parametersJSON)
+            assert isinstance(res, list)
             title = sorround_with_char(f"Simulation {simName}", 64)
             if not arguments.quiet:
                 print(title)
             
             if not arguments.quiet:
-                print("Disk and DB parameters are identical" if res.empty else f"Found Changes:\n{res}")
-            if (not res.empty) or arguments.force:
+                print("Disk and DB parameters are identical" if not res else f"Found Changes:\n{pandas.DataFrame(res)}")
+            if res or arguments.force:
                 logger.info(f"Updating DB with the changes for {sim.name}")
                 wftk.updateDocumentWorkflow(document=workflowDoc, workflow=localWorkflow)
 
@@ -363,7 +364,7 @@ def batch_delete_workflows(arguments):
 
 
 def _confirm_project_name(arguments, logger):
-    from hera.utils import loadJSON
+    from ..utils import loadJSON
     if arguments.projectName is None:
         logger.debug(
             f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
@@ -484,7 +485,7 @@ def workflowNodes_list(arguments):
 
     if os.path.exists(arguments.workflowName) and not os.path.isdir(arguments.workflowName):
             from hermes import workflow
-            from hera.utils import loadJSON
+            from ..utils import loadJSON
             json = loadJSON(arguments.workflowName)
             hermesObject = workflow(json, Resource_path=arguments.workflowName)
     else:
@@ -532,7 +533,7 @@ def workflowNodes_listParameters(arguments):
 
     if os.path.isfile(arguments.workflowName):
             from hermes import workflow
-            from hera.utils import loadJSON
+            from ..utils import loadJSON
             json = loadJSON(arguments.workflowName)
             hermesObject = workflow(json, Resource_path=arguments.workflowName)
     else:
@@ -599,7 +600,7 @@ def workflow_compare(arguments):
         output = res.to_csv()
         ext = "csv"
     else:
-        from hera.utils import loadJSON
+        from ..utils import loadJSON
         output = json.dumps(loadJSON(res.to_json()),indent=4)
         ext = "json"
 
