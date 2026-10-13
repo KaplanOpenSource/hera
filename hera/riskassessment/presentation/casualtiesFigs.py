@@ -234,7 +234,7 @@ class casualtiesPlot(object):
 								 .groupby("severity"),
 							  boundarycycler):
 
-			plt.plot(*severitydata.TotalPolygon.convex_hull.unary_union.exterior.xy,**prop)
+			plt.plot(*severitydata.TotalPolygon.convex_hull.union_all().exterior.xy,**prop)
 
 		return ax,retProj
 
