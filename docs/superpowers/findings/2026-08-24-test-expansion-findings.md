@@ -2658,3 +2658,12 @@ import seaborn as sns; sns.set()
 הייבוא-כוכבית מייצא מחדש את טבלת יחידות unum, שהרשומה של דקה בה נקראת ממש `min`. לכן `min` ברמת המודול הוא `unum.Unum` ולא ה-builtin. אומת ישירות: `type(module.min).__name__ == 'Unum'`, `repr` הוא `1 [min]`, ו-`callable(module.min)` הוא **False**.
 
 `_buildTimeMapping` משתמש בו בשני מקומות — `TS[min(range(len(TS)), key=lambda i: abs(TS[i] - timeStep))]`, בענף ה-steadyState ובענף הדינמי — וזה בדיוק הקוד שמכבד `flowData['originalFlow']['timeStep']` מפורש. כלומר העברת timeStep מפורש מעלה `TypeError: 'Unum' object is not callable`, ו**רק ברירות המחדל של הצעד הראשון/אחרון ניתנות לשימוש בפועל**. (זהו ה-builtin היחיד שמוסתר במודול.)
+
+## #1125 — מיגרציה ל-Ubuntu 26.04 / Python 3.14 (B333)
+
+### B333. `GFS.py` לא ניתן לייבוא גם כשכל התלויות מותקנות
+**קובץ:** `hera/measurements/meteorology/GFS.py`
+
+מתחת ל-`if __name__ == "__main__":` נשאר קוד-טיוטה ברמת המודול (מסביב לשורה 860) שקורא ל-`prob(...)` על נתיבים אישיים תחת `/data5/NOBACKUP/...`. אבל `prob` מוגדרת רק בתוך ה-guard, ולכן כל `import` של המודול זורק `NameError: name 'prob' is not defined`, גם עם sklearn ו-GDAL. הבדיקה `test_the_module_imports_when_the_dependency_is_present` דילגה עד עכשיו בכל סביבה (`importorskip("osgeo")`). אימג' ה-Ubuntu 26.04 הוא סביבת הבדיקה הראשונה עם GDAL, ושם זה התגלה.
+
+**בנוסף, חשיפות של סביבת 26.04 שאינן באגים בקוד:** בדיקות ה-geotiff וה-topography הניחו ש-GDAL חסר, ובדיקות `plotGuess` דרשו אזהרת "non-interactive" שמטפלוטליב מוציאה רק כשיש מסך. כך הן עברו רק על מחשב עם תצוגה, ולא ב-CI.
