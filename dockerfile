@@ -31,7 +31,8 @@ RUN python -m pip install --no-cache-dir -r requirements.txt && \
 
 # ParaView for the OpenFOAM VTK pipeline: same recipe as `make install-paraview`.
 # python3-paraview is built for the system Python against the system VTK, so the
-# venv links those in and drops pip's vtk.
+# venv links those in and drops pip's vtk.  Re-running `pip install -r requirements.txt`
+# in the image brings pip's vtk back over the links; repeat this step after it.
 RUN apt-get update && apt-get install -y --no-install-recommends python3-paraview && \
     apt-get clean && rm -rf /var/lib/apt/lists/* && \
     python -m pip uninstall -y vtk && \
