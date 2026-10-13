@@ -1651,7 +1651,7 @@ class analysis:
 
     def _createConcentrationCacheDoc(self, caseDescriptorName, mdata):
         """Create a new cache document for concentration data."""
-        newID = self.datalayer.toolkit.addCounter("cartesianMeshCounter")
+        newID = self.datalayer.toolkit.getCounterAndAdd("cartesianMeshCounter")
         resourcePath = os.path.join(
             self.datalayer.toolkit.filesDirectory, "cachedLagrangianData",
             f"{caseDescriptorName}_fullMeshCache_{newID}", "Concentrations*.nc"

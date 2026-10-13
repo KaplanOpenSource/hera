@@ -120,7 +120,7 @@ class casualtiesPlot(object):
 			windDist["distribution"] = windDist["distribution"] / maxDist + 2.
 			windDist["angle"] = 2.5*numpy.pi- windDist["angle"]*numpy.pi/180
 
-			tr = PolarAxes.PolarTransform()
+			tr = PolarAxes.PolarTransform(apply_theta_transforms=False)  # no axis: theta transforms were a no-op
 
 			angle_ticks = [(0, ""),
 						   (.25 * numpy.pi, ""),

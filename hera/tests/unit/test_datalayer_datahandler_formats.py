@@ -2,6 +2,8 @@
 JSON-pandas, GeoJSON/GeoPackage geopandas, image, and plain-dict passthrough.
 Each is a static save/load pair with real file I/O -- no DB involved.
 """
+import warnings
+
 import geopandas
 import numpy
 import pandas
@@ -51,6 +53,15 @@ class TestJsonPandasHandler:
         meta = datahandler.DataHandler_JSON_pandas.saveData(frame, str(target))
         assert meta == {"usePandas": True}
         restored = datahandler.DataHandler_JSON_pandas.getData(str(target))
+        assert list(restored["a"]) == [1, 2]
+
+    def test_reads_literal_json_text_without_a_deprecation(self):
+        """The resource may be the JSON text itself, not a path; pandas 2.1+
+        deprecates passing that as a str (and pandas 3 refuses it)."""
+        frame = pandas.DataFrame({"a": [1, 2], "b": [3.0, 4.0]})
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", FutureWarning)
+            restored = datahandler.DataHandler_JSON_pandas.getData(frame.to_json())
         assert list(restored["a"]) == [1, 2]
 
     def test_round_trips_a_series_with_the_series_flag(self, tmp_path):

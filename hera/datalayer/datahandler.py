@@ -1,4 +1,5 @@
 import importlib
+import io
 import json
 
 import cloudpickle
@@ -533,6 +534,8 @@ class DataHandler_JSON_pandas(object):
                 readParams = dict(typ="series")
             else:
                 readParams = dict()
+            if isinstance(resource, str) and resource.lstrip().startswith(("{", "[")):
+                resource = io.StringIO(resource)  # literal JSON: deprecated as a str since pandas 2.1
             df = pandas.read_json(resource,**readParams)
         else:
             import dask.dataframe

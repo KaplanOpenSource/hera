@@ -63,7 +63,7 @@ class analysis:
         curdata = curdata.assign(dayonly=curdata[datecolumn].dt.day)\
                          .assign(timeonly=curdata[datecolumn].dt.time)
 
-        tm = lambda x, field: pandas.cut(x[field], [0, 2, 5, 8, 11, 12], labels=['Winter', 'Spring', 'Summer', 'Autumn', 'Winter1']).replace('Winter1', 'Winter')
+        tm = lambda x, field: pandas.cut(x[field], [0, 2, 5, 8, 11, 12], labels=['Winter', 'Spring', 'Summer', 'Autumn', 'Winter'], ordered=False).cat.reorder_categories(['Winter', 'Spring', 'Summer', 'Autumn'], ordered=True)
 
         if isinstance(data,dask.dataframe.DataFrame):
             curdata = curdata.map_partitions(lambda df: df.assign(season=tm(df,monthcolumn)))
