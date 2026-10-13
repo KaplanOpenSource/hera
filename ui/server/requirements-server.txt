@@ -2,7 +2,8 @@ fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
 pydantic>=2.7.0
 argcomplete>=3.1.0
-luigi==3.6.0
+# luigi: see requirements.txt (no release supports 3.14 yet)
+luigi @ git+https://github.com/spotify/luigi@f5feb7a4655ad73ef56f0ab04d7903ab43b63e12
 httpx==0.28.1
 Jinja2==3.1.6
-pytest==7.2.0
+pytest==8.4.2
