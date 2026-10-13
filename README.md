@@ -23,13 +23,13 @@
 ## Getting Started
 
 ### Prerequisites
-*   **OS:** Ubuntu 22.04 LTS (verified)
-*   **Python:** 3.9.13+
+*   **OS:** Ubuntu 26.04 LTS (verified; 24.04 also works)
+*   **Python:** 3.11+ (3.14, the Ubuntu 26.04 system Python, is the reference)
 *   **Docker:** Required for quick install (MongoDB runs in a container)
 
 ### Quick Install (recommended)
 
-The fastest way to get Hera running. Requires Docker and Python 3.9+.
+The fastest way to get Hera running. Requires Docker and Python 3.11+.
 
 1. **Clone the repository:**
    ```bash
@@ -46,8 +46,10 @@ The fastest way to get Hera running. Requires Docker and Python 3.9+.
    - Prompt to create a Python virtual environment at `~/.pyhera/environment` with all dependencies installed
    - Prompt to persist the environment to `~/.bashrc`
    - Prompt to auto-activate the Hera environment when you `cd` into the project directory
-   - Pull and start a MongoDB 5.0 Docker container with preconfigured credentials
+   - Pull and start a MongoDB 9.0 Docker container with preconfigured credentials
    - Create the `~/.pyhera/config.json` configuration file automatically
+
+> **MongoDB 9 and kernel >= 6.19:** MongoDB 9.0.2 refuses to start on Linux kernels 6.19 and newer, which includes Ubuntu 26.04's 7.0 kernel ([SERVER-136848](https://jira.mongodb.org/browse/SERVER-136848)). Until MongoDB ships the fix, use `MONGO_IMAGE=mongo:7.0` on such hosts. A data directory created by an older server must be migrated with dump/restore (issue #1126); MongoDB 9 will not open it in place.
 
    After running, everything is ready to use.
 
@@ -107,7 +109,7 @@ sudo apt install libcairo2-dev pkg-config python3-dev libgirepository1.0-dev lib
 ```bash
 git clone https://github.com/KaplanOpenSource/hera
 cd hera
-python3.9 -m venv heraenv
+python3 -m venv heraenv
 source heraenv/bin/activate
 ```
 
@@ -145,7 +147,7 @@ mkdir -p ~/.pyhera/log/
 
 #### 6. MongoDB setup
 
-Install MongoDB 6.0 following the [official instructions](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/) and ensure it runs on port 27017.
+Install MongoDB 9.0 following the [official instructions](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/) and ensure it runs on port 27017.
 
 Start MongoDB with `mongosh` and create users:
 
