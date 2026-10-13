@@ -80,7 +80,7 @@ flowchart TD
 
     ```bash
     make install-deps       # System packages (libcairo, GDAL, etc.)
-    make install-paraview   # ParaView 5.11.0
+    make install-paraview   # apt python3-paraview, linked into the venv
     make install-freecad    # FreeCad Python3 bindings
     make install-openfoam   # OpenFOAM 10
     make install-deps-all   # All of the above

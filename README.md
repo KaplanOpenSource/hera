@@ -56,7 +56,7 @@ The fastest way to get Hera running. Requires Docker and Python 3.11+.
 3. **Install system dependencies and third-party tools (optional):**
    ```bash
    make install-deps       # System packages (libcairo, GDAL, etc.)
-   make install-paraview   # ParaView 5.11.0
+   make install-paraview   # apt python3-paraview, linked into the venv
    make install-freecad    # FreeCad Python3 bindings
    make install-openfoam   # OpenFOAM 10
    make install-deps-all   # All of the above
@@ -250,10 +250,9 @@ All instructions are for Ubuntu OS.
 
 Paraview may be used to view results in a convenient GUI. Download from [paraview.org](https://www.paraview.org/download/). To prevent conflicts between your Python version and Paraview's Python version, make sure to use Paraview with your Python.
 
-Add Paraview libs to PYTHONPATH:
-```bash
-export PYTHONPATH=/raid/software/ParaView-5.11.0-MPI-Linux-Python3.9-x86_64/lib/python3.9/site-packages/:$PYTHONPATH
-```
+For the Python side (hera's OpenFOAM VTK pipeline), `make install-paraview` installs Ubuntu's
+`python3-paraview` and links it, with the system VTK it was built against, into the active venv.
+The venv must use the system Python (3.14 on Ubuntu 26.04).
 
 ### FreeCad
 

@@ -29,6 +29,16 @@ COPY requirements.txt .
 RUN python -m pip install --no-cache-dir -r requirements.txt && \
     python -m pip install --no-cache-dir --no-build-isolation GDAL=="$(gdal-config --version)"
 
+# ParaView for the OpenFOAM VTK pipeline: same recipe as `make install-paraview`.
+# python3-paraview is built for the system Python against the system VTK, so the
+# venv links those in and drops pip's vtk.
+RUN apt-get update && apt-get install -y --no-install-recommends python3-paraview && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* && \
+    python -m pip uninstall -y vtk && \
+    SP="$(python -c "import sysconfig; print(sysconfig.get_paths()['purelib'])")" && \
+    dpkg -L python3-paraview python3-vtk9 | grep -E '^/usr/lib/python3/dist-packages/[^/]+$' | sort -u | xargs -I{} ln -sf {} "$SP/" && \
+    python -c "import paraview.simple"
+
 # Disable the jupytext lab extension; it is built for JupyterLab 4.4+ and errors on 4.3.
 # RUN mkdir -p "$VIRTUAL_ENV/share/jupyter/lab/settings" && \
 #     printf '{"disabledExtensions": {"jupyterlab-jupytext": true}}\n' \
