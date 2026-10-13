@@ -60,13 +60,21 @@ class TestTheRelativeImportFix:
         assert not hasattr(simulationsUtils, "tounit")
 
     def test_no_module_still_uses_the_wrong_level(self):
-        """Two dots would resolve to the empty hera.simulations.utils again."""
+        """Two dots would resolve to the empty hera.simulations.utils again.
+
+        Resolved per file, not grepped: in a module sitting directly in
+        hera/simulations (e.g. CLI.py, switched to `from ..utils import
+        loadJSON` by #1080) two dots correctly reach hera.utils.
+        """
+        import importlib.util
         import pathlib
 
         offenders = [
             str(path)
             for path in pathlib.Path("hera/simulations").rglob("*.py")
             if "from ..utils import" in path.read_text(errors="replace")
+            and importlib.util.resolve_name("..utils", ".".join(path.parent.parts))
+            == "hera.simulations.utils"
         ]
         assert offenders == []
 
