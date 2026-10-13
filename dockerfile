@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y \
     nano curl git build-essential iputils-ping \
     libcairo2-dev pkg-config libgirepository1.0-dev \
     python3 python3-venv python3-dev \
-    libgdal-dev gdal-bin \
+    libgdal-dev gdal-bin libglu1-mesa \
     nodejs npm \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
