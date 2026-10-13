@@ -2,7 +2,9 @@
 # Usage: make <target>
 
 MONGO_CONTAINER = hera-mongo
-MONGO_IMAGE     = mongo:5.0
+# Override for an existing data dir made by an older server (see issue #1126) or
+# a host kernel >= 6.19 until MongoDB ships the SERVER-136848 fix: MONGO_IMAGE=mongo:7.0
+MONGO_IMAGE     ?= mongo:9.0
 MONGO_DATA      ?= $(HOME)/mongo-db-datadir
 MONGO_INIT      = $(CURDIR)/mongo-init.d
 MONGO_PORT      = 27017
