@@ -23,7 +23,8 @@ export type InitData = {
 // null when the server did not answer at all. Not ready yet carries no data.
 export const fetchInit = async (wantedProjectName?: string): Promise<InitData | null> => {
   const query = wantedProjectName ? `?project=${encodeURIComponent(wantedProjectName)}` : '';
-  const response = await fetch(`${BASEURL}/init${query}`);
+  // no-store: the answer must never come from the browser cache.
+  const response = await fetch(`${BASEURL}/init${query}`, { cache: 'no-store' });
   const contentType = response.headers.get('content-type');
   // Old server (no /init route) answers with the SPA's HTML — treat as no answer.
   if (!response.ok || !contentType?.includes('application/json')) {

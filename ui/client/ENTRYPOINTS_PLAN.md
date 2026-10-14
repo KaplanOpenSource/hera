@@ -1,6 +1,7 @@
 # Named entrypoints to replace every `/exec` call
 
-Status: **proposed**. Only `/init` is built (see `INIT_ENTRYPOINT_PLAN.md`).
+Status: **proposed**, except `/init` (see `INIT_ENTRYPOINT_PLAN.md`) and
+`file.geoJson`, which are built.
 
 Today the client builds python text and posts it to `/exec`: **22 call sites in
 18 files**. That endpoint runs arbitrary code as the server user, and the client
@@ -66,9 +67,9 @@ a project, differing only in where the JSON comes from.
 
 ## Files
 
-| Entrypoint | Parameters | Returns | Replaces |
-|---|---|---|---|
-| `file.geoJson` | `path` | the file as GeoJSON in WGS84 | `GeoJsonPreview` |
+| Entrypoint | Parameters | Returns | Replaces | |
+|---|---|---|---|---|
+| `file.geoJson` | `path` | the file as GeoJSON in WGS84 | `GeoJsonPreview` | built: `GET /geojson?path=` |
 
 ## Already named
 
@@ -83,5 +84,6 @@ the workflow endpoints (`/start_workflow`, `/workflow_status`, `/node-catalog`,
 - Validation moves to the server: every path and project name arrives as a
   parameter and is checked there, instead of being pasted into code.
 - `/exec` can then be a dev-only switch, or go.
+- 21 `/exec` call sites are left.
 - Each entrypoint needs a python test next to it; the client keeps a small test
   that it sent the right name and parameters.
