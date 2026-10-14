@@ -4,9 +4,6 @@ import { BaseEdge, EdgeLabelRenderer, EdgeProps, getBezierPath } from '@xyflow/r
 import { useState } from 'react';
 import { WorkflowEdgeDirectionLabel } from './WorkflowEdgeDirectionLabel';
 
-// How far an end label sits from the edge's end point, in canvas pixels.
-const LABEL_GAP = 34;
-
 export interface WorkflowRequiresEdgeData {
   hovered?: boolean;
   onRemove: () => void;
@@ -40,8 +37,9 @@ export const WorkflowRequiresEdge = ({
       <BaseEdge id={id} path={edgePath} markerEnd={markerEnd} style={style} />
       {showDirection && hovered && (
         <EdgeLabelRenderer>
-          <WorkflowEdgeDirectionLabel text="required by" x={sourceX + LABEL_GAP} y={sourceY - LABEL_GAP} />
-          <WorkflowEdgeDirectionLabel text="depends on" x={targetX - LABEL_GAP} y={targetY - LABEL_GAP} />
+          {/* Centred on the two dots the line runs between. */}
+          <WorkflowEdgeDirectionLabel text="required by" x={sourceX} y={sourceY} />
+          <WorkflowEdgeDirectionLabel text="depends on" x={targetX} y={targetY} />
         </EdgeLabelRenderer>
       )}
       {(hovered || labelHover) && onRemove && (
