@@ -4,29 +4,20 @@ import { useNavigate } from "react-router-dom";
 import { NO_PROJECT, useProjectStore } from "../stores/useProjectStore";
 import { useProjectListStore } from "../stores/useProjectListStore";
 import { useToolkitStore } from "../stores/useToolkitStore";
-import { fetchPython, fetchPythonClean } from "./fetchPython";
-import { ProjectCommands } from "./ProjectCommands";
+import { getJson } from "./entrypoint";
 import { parseToolkits } from "./parseToolkits";
 
 export const fetchProjectsNames = async () => {
-  const { data } = await fetchPython(ProjectCommands.projectNames());
+  const data = await getJson('/project/names', {}, { label: 'project names' });
   if (data) {
     useProjectListStore.getState().setProjectNames(data.projects as ProjectName[])
   }
 }
 
-// silent: use the no-notification fetch (e.g. for the periodic auto-reload).
+// silent: no toasts (e.g. for the periodic auto-reload).
 export const fetchProjectDetails = async (projectName: string, silent = false) => {
-  const run = silent ? fetchPythonClean : fetchPython;
-  const { data } = await run({
-    results: ['project'],
-    label: `project details ${projectName}`,
-    code: `
-from hera.datalayer import All
-docs = All.getDocumentsAsDict('${projectName}', with_id=True)
-project = {"name": '${projectName}', "documents": docs['documents']}
-`,
-  });
+  const data = await getJson('/project/documents', { projectName },
+    { label: `project details ${projectName}`, silent });
   if (data) {
     // Skip if the user switched projects while this fetch was in flight
     const { currProjectName, setCurrentProject } = useProjectStore.getState();
@@ -37,30 +28,17 @@ project = {"name": '${projectName}', "documents": docs['documents']}
 }
 
 export const fetchProjectData = async (projectName: string) => {
-  const { data } = await fetchPython(
-    {
-      results: ['toolkitDocs'],
-      label: 'toolkits',
-      code: `
-from hera import toolkitHome
-toolkitDocs = toolkitHome.getToolkitDocuments()
-`,
-    },
-    {
-      results: ['project'],
-      label: `project ${projectName}`,
-      code: `
-from hera.datalayer import All
-docs = All.getDocumentsAsDict('${projectName}', with_id=True)
-project = {"name": '${projectName}', "documents": docs['documents']}
-`,
-    },
-  );
-  if (data) {
+  const [toolkits, details] = await Promise.all([
+    getJson('/project/toolkits', {}, { label: 'toolkits' }),
+    getJson('/project/documents', { projectName }, { label: `project ${projectName}` }),
+  ]);
+  if (toolkits) {
+    useToolkitStore.getState().setToolkits(parseToolkits(toolkits.toolkitDocs));
+  }
+  if (details) {
     const { currProjectName, setCurrentProject } = useProjectStore.getState();
-    useToolkitStore.getState().setToolkits(parseToolkits(data.toolkitDocs));
     if (currProjectName === projectName) {
-      setCurrentProject(data.project as ProjectEntire);
+      setCurrentProject(details.project as ProjectEntire);
     }
   }
 }

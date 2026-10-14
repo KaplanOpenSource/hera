@@ -2,12 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
-vi.mock('../src/io/fetchPython', () => ({
-  fetchPython: vi.fn(),
-  fetchPythonClean: vi.fn(),
+vi.mock('../src/io/entrypoint', () => ({
+  getJson: vi.fn(),
 }));
 
-import { fetchPython } from '../src/io/fetchPython';
+import { getJson } from '../src/io/entrypoint';
 import { FetchProjects } from '../src/io/FetchProjects';
 import { useProjectStore } from '../src/stores/useProjectStore';
 import { useProjectListStore } from '../src/stores/useProjectListStore';
@@ -21,8 +20,8 @@ const renderFetch = () => {
 };
 
 beforeEach(() => {
-  vi.mocked(fetchPython).mockReset();
-  vi.mocked(fetchPython).mockResolvedValue({ data: null });
+  vi.mocked(getJson).mockReset();
+  vi.mocked(getJson).mockResolvedValue(null);
   useProjectListStore.setState({ projectNames: [{ name: 'Alpha' }, { name: 'Beta' }] });
 });
 
@@ -42,7 +41,7 @@ describe('FetchProjects after startup', () => {
     await waitFor(() => {
       expect(useProjectStore.getState().currProjectName).toBe('Alpha');
     });
-    expect(fetchPython).not.toHaveBeenCalled();
+    expect(getJson).not.toHaveBeenCalled();
   });
 
   it('fetches when the store holds another project', async () => {
@@ -54,9 +53,9 @@ describe('FetchProjects after startup', () => {
     renderFetch();
 
     await waitFor(() => {
-      expect(fetchPython).toHaveBeenCalled();
+      expect(getJson).toHaveBeenCalled();
     });
-    const labels = vi.mocked(fetchPython).mock.calls[0].map(c => c.label);
-    expect(labels).toEqual(['toolkits', 'project Alpha']);
+    const paths = vi.mocked(getJson).mock.calls.map(c => c[0]);
+    expect(paths).toEqual(['/project/toolkits', '/project/documents']);
   });
 });

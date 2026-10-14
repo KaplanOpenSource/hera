@@ -2,9 +2,9 @@ import { Delete } from "@mui/icons-material";
 import { Checkbox, FormControlLabel, FormHelperText, Stack, TextField } from "@mui/material";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { useDialog } from "../../elements/useDialog";
-import { fetchPython } from "../../io/fetchPython";
+import { postJson } from "../../io/entrypoint";
 import { ProjectEntire, ProjectName } from "../../shared/types";
-import { useProjectStore } from "../../stores/useProjectStore";
+import { NO_PROJECT, useProjectStore } from "../../stores/useProjectStore";
 import { useProjectListStore } from "../../stores/useProjectListStore";
 
 interface DeleteProjectValues {
@@ -22,45 +22,22 @@ export const DeleteProjectButton = ({
   const { setProjectNames } = useProjectListStore();
 
   const deleteProject = async (deleteFiles: boolean) => {
-    const { data } = await fetchPython({
-      results: ['projectNames', 'project'],
-      label: `delete project ${currProjectName}`,
-      code: `
-import os, shutil
-from hera.datalayer import All
-from hera.datalayer.project import getProjectList, Project
-
-deleteFiles = ${deleteFiles ? 'True' : 'False'}
-filesDir = os.path.abspath(Project(projectName='${currProjectName}').filesDirectory or '')
-
-docs = All.getDocumentsAsDict('${currProjectName}', with_id=True)['documents']
-docs = sorted(docs, key=lambda d: d['type'] == '${currProjectName}__config__')
-for d in docs:
-    res = d.get('resource')
-    # Only remove on-disk files that live inside the project's files directory.
-    if deleteFiles and filesDir and isinstance(res, str) and res:
-        resAbs = os.path.abspath(res)
-        if (resAbs == filesDir or resAbs.startswith(filesDir + os.sep)) and os.path.exists(resAbs):
-            shutil.rmtree(resAbs) if os.path.isdir(resAbs) else os.remove(resAbs)
-    All.deleteDocumentByID(d['_id']['$oid'])
-if deleteFiles and filesDir and os.path.isdir(filesDir):
-    # Remove the caseConfiguration.json written at project creation, then drop the folder if it is now empty.
-    caseConfig = os.path.join(filesDir, 'caseConfiguration.json')
-    if os.path.exists(caseConfig):
-        os.remove(caseConfig)
-    if not os.listdir(filesDir):
-        os.rmdir(filesDir)
-projectNames = [{"name": proj} for proj in getProjectList() if proj != '${currProjectName}']
-
-docs = All.getDocumentsAsDict(projectNames[0]['name'], with_id=True)
-project = {"name": projectNames[0]['name'], "documents": docs['documents']}
-`,
-    });
-    const details = (data?.project) as ProjectEntire;
-    const names = (data?.projectNames || []) as ProjectName[];
-    setProjectNames(names);
-    setCurrentProject(details);
-    selectProject(details.name);
+    const data = await postJson('/project/delete', {
+      projectName: currProjectName,
+      deleteFiles,
+    }, { label: `delete project ${currProjectName}` });
+    if (!data) {
+      return;
+    }
+    setProjectNames(data.projects as ProjectName[]);
+    const next = data.project as ProjectEntire | null;
+    setCurrentProject(next);
+    // Nothing is left to show when that was the last project.
+    if (next) {
+      selectProject(next.name);
+    } else {
+      selectProject(NO_PROJECT);
+    }
     onDeleted?.();
   }
 

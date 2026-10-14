@@ -10,11 +10,12 @@ import logging
 import traceback
 from typing import Any, Callable, Dict, List, Optional
 
+# The same code the named project routes use, so the two cannot drift apart.
+from project_api.project_api import DEFAULT_PROJECT, ProjectApi
+from project_api.toolkit_documents import toolkit_documents
+
 # Reuse uvicorn's logger so these lines match the rest of the server output.
 logger = logging.getLogger("uvicorn.error")
-
-# Shown first in the project list; the client sorts the rest by name.
-DEFAULT_PROJECT = "defaultProject"
 
 
 def _collect(pieces: Dict[str, Any], problems: Dict[str, str], name: str, read: Callable[[], Any]) -> Any:
@@ -29,30 +30,10 @@ def _collect(pieces: Dict[str, Any], problems: Dict[str, str], name: str, read: 
     return value
 
 
-def _project_names() -> List[Dict[str, str]]:
-    from hera.datalayer.project import getProjectList
-    names = getProjectList()
-    first = [{"name": n} for n in names if n == DEFAULT_PROJECT]
-    rest = [{"name": n} for n in names if n != DEFAULT_PROJECT]
-    rest.sort(key=lambda p: p["name"].lower())
-    return first + rest
-
-
 def _datatypes() -> Dict[str, str]:
     from hera import datalayer
     return {key: value for key, value in vars(datalayer.datatypes).items()
             if not callable(value) and not key.startswith("__") and key[0] == key[0].upper()}
-
-
-def _toolkit_documents() -> List[Dict[str, Any]]:
-    from hera import toolkitHome
-    return toolkitHome.getToolkitDocuments()
-
-
-def _project_documents(projectName: str) -> Dict[str, Any]:
-    from hera.datalayer import All
-    docs = All.getDocumentsAsDict(projectName, with_id=True)
-    return {"name": projectName, "documents": docs["documents"]}
 
 
 def _server_info() -> Dict[str, Any]:
@@ -82,14 +63,14 @@ def collect_init(wanted_project: str = "") -> Dict[str, Any]:
     pieces: Dict[str, Any] = {"ready": True}
     problems: Dict[str, str] = {}
 
-    projects = _collect(pieces, problems, "projects", _project_names)
+    projects = _collect(pieces, problems, "projects", ProjectApi.names)
     _collect(pieces, problems, "datatypes", _datatypes)
-    _collect(pieces, problems, "toolkitDocs", _toolkit_documents)
+    _collect(pieces, problems, "toolkitDocs", toolkit_documents)
     _collect(pieces, problems, "server", _server_info)
 
     chosen = choose_project(projects, wanted_project)
     if chosen is not None:
-        _collect(pieces, problems, "project", lambda: _project_documents(chosen))
+        _collect(pieces, problems, "project", lambda: ProjectApi(chosen).documents())
 
     if problems:
         pieces["problems"] = problems
