@@ -1,16 +1,26 @@
 import { Box, CircularProgress, Typography } from '@mui/material';
 import { ReactNode, useEffect, useState } from 'react';
-import { BASEURL } from '../shared/baseurl';
+import { useNavigate } from 'react-router-dom';
+import { fetchInit } from '../io/fetchInit';
+import { projectPath } from '../shared/projectPath';
 
 const READY_POLL_MS = 1000;
 
-// Spinner until the server warmed hera; polls /ready, then mounts the app.
+// The project name in the URL, read before the router is mounted.
+const urlProjectName = () => {
+  const [, first] = window.location.pathname.split('/');
+  return first ? decodeURIComponent(first) : undefined;
+};
+
+// Spinner until the server warmed hera; polls /init, which answers with
+// everything the UI needs to start, then mounts the app with the data in place.
 export const ServerReadyGate = ({
   children,
 }: {
   children: ReactNode,
 }) => {
   const [ready, setReady] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (ready) {
@@ -21,25 +31,25 @@ export const ServerReadyGate = ({
 
     console.log('[ServerReadyGate] waiting for server to warm up…');
     const poll = async () => {
-      let isReady = false;
+      const wanted = urlProjectName();
+      let data = null;
       try {
-        const r = await fetch(`${BASEURL}/ready`);
-        const contentType = r.headers.get('content-type');
-        // Old server (no /ready route) answers with the SPA's HTML — treat as not ready, keep polling.
-        if (r.ok && contentType?.includes('application/json')) {
-          const data = await r.json();
-          isReady = Boolean(data.ready);
-        }
-        console.log(`[ServerReadyGate] poll: ${r.status}, ready=${isReady}`);
+        data = await fetchInit(wanted);
       } catch (e) {
         // Not answering yet — log and keep polling.
-        console.error('[ServerReadyGate] poll failed:', e);
+        console.error('[ServerReadyGate] init failed:', e);
       }
       if (cancelled) {
         return;
       }
-      if (isReady) {
+      if (data?.ready) {
+        if (data.problems) {
+          console.error('[ServerReadyGate] init problems:', data.problems);
+        }
         console.log('[ServerReadyGate] server ready — mounting app');
+        if (data.project && data.project.name !== wanted) {
+          navigate(projectPath(data.project.name), { replace: true });
+        }
         setReady(true);
       } else {
         timer = setTimeout(poll, READY_POLL_MS);
@@ -51,7 +61,7 @@ export const ServerReadyGate = ({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [ready]);
+  }, [ready, navigate]);
 
   return ready
     ? <>{children}</>

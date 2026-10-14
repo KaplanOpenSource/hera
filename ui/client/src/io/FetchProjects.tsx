@@ -1,11 +1,12 @@
-import { ProjectEntire, ProjectName, Toolkit } from "@shared/types";
-import { useEffect } from "react";
+import { ProjectEntire, ProjectName } from "@shared/types";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { NO_PROJECT, useProjectStore } from "../stores/useProjectStore";
 import { useProjectListStore } from "../stores/useProjectListStore";
 import { useToolkitStore } from "../stores/useToolkitStore";
 import { fetchPython, fetchPythonClean } from "./fetchPython";
 import { ProjectCommands } from "./ProjectCommands";
+import { parseToolkits } from "./parseToolkits";
 
 export const fetchProjectsNames = async () => {
   const { data } = await fetchPython(ProjectCommands.projectNames());
@@ -34,25 +35,6 @@ project = {"name": '${projectName}', "documents": docs['documents']}
     }
   }
 }
-
-const parseToolkits = (toolkitDocs: any[]): Toolkit[] =>
-  toolkitDocs.map((d: any) => {
-    const desc = d.desc;
-    const t = {
-      toolkit: d.toolkit,
-      cls: desc.classpath,
-    } as Toolkit;
-    for (const field of [
-      'description',
-      'source',
-      'type',
-      'repositoryName',
-      'version',
-    ] as const) {
-      if (desc[field]) t[field] = desc[field];
-    }
-    return t;
-  });
 
 export const fetchProjectData = async (projectName: string) => {
   const { data } = await fetchPython(
@@ -97,8 +79,15 @@ export const FetchProjects = ({
   const { projectNames } = useProjectListStore();
   const { currProjectName, selectProject } = useProjectStore();
   const navigate = useNavigate();
+  const firstRun = useRef(true);
 
+  // Startup brought the names; refresh them when the URL project changes, so a
+  // project just added is in the list.
   useEffect(() => {
+    if (firstRun.current) {
+      firstRun.current = false;
+      return;
+    }
     fetchProjectsNames();
   }, [urlProjectName])
 
@@ -122,7 +111,11 @@ export const FetchProjects = ({
     if (currProjectName === NO_PROJECT) {
       selectProject(urlProject ?? projectNames[0].name);
     } else {
-      fetchProjectData(currProjectName);
+      // Skip the fetch when the store already holds this project, e.g. startup
+      // loaded it (see fetchInit).
+      if (useProjectStore.getState().currProject?.name !== currProjectName) {
+        fetchProjectData(currProjectName);
+      }
       const expectedPrefix = '/' + encodeURIComponent(currProjectName);
       if (!location.pathname.startsWith(expectedPrefix)) {
         navigate(expectedPrefix, { replace: true });
@@ -132,4 +125,3 @@ export const FetchProjects = ({
 
   return null;
 }
-

@@ -26,6 +26,7 @@ from api_models import (
 )
 from cors_handler import CorsHandler
 from hera_warmup import HeraWarmup
+from init_data import collect_init
 from jupyter_server_thread import JupyterServerThread, DEFAULT_JUPYTER_PORT
 from node_catalog import get_node_catalog
 from node_params import validate_node_params
@@ -48,7 +49,7 @@ args = parser.parse_args()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Server is up and /ready answers (ready=false) before warming begins.
+    # Server is up and /init answers (ready=false) before warming begins.
     warmup.start()
     yield
 
@@ -99,10 +100,16 @@ def healthz() -> dict:
     return {"status": "ok"}
 
 
-@app.get("/ready")
-def ready() -> dict:
-    # True once hera finished warming; client polls this to hide the spinner.
-    return {"ready": warmup.ready}
+@app.get("/init")
+def init(project: str = "") -> dict:
+    """Everything the UI needs to start, in one call. See ``init_data.collect_init``.
+
+    Answers {"ready": false} while hera is still warming, so the client polls
+    this one endpoint and the answer that says ready is also the data.
+    """
+    if not warmup.ready:
+        return {"ready": False}
+    return jsonable_encoder(collect_init(project))
 
 
 jupyter: JupyterServerThread | None = None
