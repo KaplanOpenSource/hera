@@ -4,6 +4,10 @@ on:
   pull_request:
     branches:
       - master
+  # Long-lived upgrade branches (#1125) run the whole suite on every push, no PR needed.
+  push:
+    branches:
+      - 'upgrade/**'
 
 permissions:
   contents: read
