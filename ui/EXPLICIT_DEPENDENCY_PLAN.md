@@ -20,18 +20,17 @@ Say which end is which, so the arrow is not the only hint.
 - Show them only on hover, like the delete X, so the canvas stays clean.
 - Take the end points from the props the edge already gets.
 
-## 3. A reference also fills `requires` - open
+## 3. A reference also fills `requires` - DONE
 
 A field that references another node's output should add that node to `requires`.
 
-- In `WorkflowCanvasEdits.connect`, after writing the reference, call
-  `onAddRequire(source, target)`.
-- Do the same for the right-click "reference output" command.
-- Skip it when `requires` already has the node.
-- On removing the last reference to that node, drop it from `requires` only if
-  no other field still references it.
-- Open question: should a hand-typed reference do this too? It would need a
-  check when the field value changes.
+- `nodeWithRequire` / `nodeWithRequiresFromText` in `workflowNodeEdits.ts` add
+  the link. The reference and the link go in one write, or the second write
+  would read the node as it was and undo the first.
+- Covered: the output-to-input drag, the right-click "reference output", and a
+  typed or picked `{other.output}` in a field.
+- Add only. Removing a reference leaves `requires` alone, since the link may
+  also have been drawn by hand. Delete it with the edge's X.
 
 ## Tests
 
