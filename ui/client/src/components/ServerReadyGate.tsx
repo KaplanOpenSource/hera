@@ -1,14 +1,14 @@
 import { Box, CircularProgress, Typography } from '@mui/material';
 import { ReactNode, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { fetchInit } from '../io/fetchInit';
 import { projectPath } from '../shared/projectPath';
 
 const READY_POLL_MS = 1000;
 
-// The project name in the URL, read before the router is mounted.
-const urlProjectName = () => {
-  const [, first] = window.location.pathname.split('/');
+// The project name a path names, if it names one.
+const projectFromPath = (pathname: string) => {
+  const [, first] = pathname.split('/');
   return first ? decodeURIComponent(first) : undefined;
 };
 
@@ -21,6 +21,10 @@ export const ServerReadyGate = ({
 }) => {
   const [ready, setReady] = useState(false);
   const navigate = useNavigate();
+  // The router's path, not window.location: under a router that is not the
+  // browser history the window shows none of this, and asking /init for the
+  // wrong project made it answer with another project and navigate to it.
+  const { pathname } = useLocation();
 
   useEffect(() => {
     if (ready) {
@@ -31,7 +35,7 @@ export const ServerReadyGate = ({
 
     console.log('[ServerReadyGate] waiting for server to warm up…');
     const poll = async () => {
-      const wanted = urlProjectName();
+      const wanted = projectFromPath(pathname);
       let data = null;
       try {
         data = await fetchInit(wanted);
@@ -61,7 +65,7 @@ export const ServerReadyGate = ({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [ready, navigate]);
+  }, [ready, navigate, pathname]);
 
   return ready
     ? <>{children}</>

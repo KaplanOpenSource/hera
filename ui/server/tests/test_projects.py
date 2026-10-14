@@ -137,6 +137,11 @@ class TestProjectList:
 
         assert ProjectApi.names() == []
 
+    def test_route_answers_the_list(self, fake_hera, warmed):
+        fake_hera(["Alpha", DEFAULT_PROJECT])
+
+        assert routes.names() == {"projects": [{"name": DEFAULT_PROJECT}, {"name": "Alpha"}]}
+
     def test_exists_only_for_a_project_in_the_list(self, fake_hera):
         fake_hera(["Alpha"])
 
@@ -390,6 +395,17 @@ class TestDeleteProject:
 
         assert raised.value.status_code == 404
 
+    def test_route_says_so_when_the_project_survives_the_delete(self, fake_hera, warmed, monkeypatch):
+        fake_hera(["Alpha"], {"Alpha": []})
+        # A delete that quietly does nothing must not look like a success.
+        monkeypatch.setattr(ProjectApi, "delete", lambda self, deleteFiles=False: None)
+
+        with pytest.raises(HTTPException) as raised:
+            routes.delete(types.SimpleNamespace(projectName="Alpha", deleteFiles=False))
+
+        assert raised.value.status_code == 500
+        assert "still in the project list" in raised.value.detail
+
 
 class TestProjectFiles:
     def test_holds_only_what_is_inside(self, tmp_path):
@@ -448,3 +464,29 @@ class TestProjectFiles:
 
         assert not files.remove_if_empty()
         assert tmp_path.is_dir()
+
+
+# Every route reaches hera, so each one refuses while hera is still warming.
+WARMING_CALLS = {
+    "names": lambda: routes.names(),
+    "documents": lambda: routes.documents("Alpha"),
+    "toolkits": lambda: routes.toolkits(),
+    "create": lambda: routes.create(types.SimpleNamespace(
+        projectName="Alpha", filesDirectory="", loadRepositories=True)),
+    "delete": lambda: routes.delete(types.SimpleNamespace(
+        projectName="Alpha", deleteFiles=False)),
+    "detectNotebooks": lambda: routes.detect(types.SimpleNamespace(
+        projectName="Alpha", filesDirectory="/tmp")),
+}
+
+
+@pytest.mark.parametrize("route", sorted(WARMING_CALLS))
+def test_every_route_says_warming_up(route, fake_hera, monkeypatch):
+    fake_hera(["Alpha"], {"Alpha": []})
+    monkeypatch.setattr(dependencies.warmup, "_ready", False)
+
+    with pytest.raises(HTTPException) as raised:
+        WARMING_CALLS[route]()
+
+    assert raised.value.status_code == 503
+    assert raised.value.detail == "WARMING_UP"

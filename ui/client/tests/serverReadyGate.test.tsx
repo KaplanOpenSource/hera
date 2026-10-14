@@ -14,9 +14,11 @@ vi.mock('react-router-dom', async () => {
 
 const { ServerReadyGate } = await import('../src/components/ServerReadyGate');
 
-const renderGate = () => {
+// The URL is given to the router, not to window.history: the gate reads the
+// router's path, so that is where a test says which project the URL names.
+const renderGate = (path = '/') => {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[path]}>
       <ServerReadyGate><div>app mounted</div></ServerReadyGate>
     </MemoryRouter>
   );
@@ -24,7 +26,6 @@ const renderGate = () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  window.history.replaceState({}, '', '/');
 });
 
 afterEach(() => {
@@ -43,9 +44,8 @@ describe('ServerReadyGate', () => {
 
   it('mounts the app once the server is ready', async () => {
     mockFetchInit.mockResolvedValue({ ready: true, project: { name: 'Alpha', documents: [] } });
-    window.history.replaceState({}, '', '/Alpha');
 
-    renderGate();
+    renderGate('/Alpha');
 
     expect(await screen.findByText('app mounted')).toBeTruthy();
     expect(mockNavigate).not.toHaveBeenCalled();
@@ -53,9 +53,8 @@ describe('ServerReadyGate', () => {
 
   it('passes the URL project name, decoded', async () => {
     mockFetchInit.mockResolvedValue({ ready: true, project: { name: 'My Project', documents: [] } });
-    window.history.replaceState({}, '', '/My%20Project');
 
-    renderGate();
+    renderGate('/My%20Project');
 
     await screen.findByText('app mounted');
     expect(mockFetchInit).toHaveBeenCalledWith('My Project');
@@ -63,9 +62,8 @@ describe('ServerReadyGate', () => {
 
   it('corrects the URL when another project was loaded', async () => {
     mockFetchInit.mockResolvedValue({ ready: true, project: { name: 'Alpha', documents: [] } });
-    window.history.replaceState({}, '', '/NoSuchProject');
 
-    renderGate();
+    renderGate('/NoSuchProject');
 
     await screen.findByText('app mounted');
     expect(mockNavigate).toHaveBeenCalledWith('/Alpha', { replace: true });

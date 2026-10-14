@@ -6,6 +6,8 @@ import * as os from 'os';
 import * as path from 'path';
 
 const PORT_FILE = path.join(os.tmpdir(), 'hera-integ-port');
+// The server's own output, kept so a failing test can be explained afterwards.
+const LOG_FILE = path.join(os.tmpdir(), 'hera-integ-server.log');
 const MONGO_PORT = Number(process.env.HERA_INTEG_MONGO_PORT) || 27018;
 
 // Ask the OS for a port nobody is using. Picking a fixed port is what let an
@@ -86,6 +88,7 @@ export default async function setup() {
 
   // server.py finds the client bundle from __file__ and its own directory goes on
   // sys.path, so neither depends on cwd.
+  const logFd = fs.openSync(LOG_FILE, 'w');
   const proc = spawn('python', [
     path.join(PROJECT_ROOT, 'ui', 'server', 'server.py'),
     '--cors', 'all', '-y', '--jupyter-port', '0',
@@ -93,7 +96,7 @@ export default async function setup() {
   ], {
     cwd: workDir,
     env: { ...process.env, HOME: tmpDir },
-    stdio: 'ignore',
+    stdio: ['ignore', logFd, logFd],
   });
 
   const pid = proc.pid;
@@ -129,6 +132,7 @@ export default async function setup() {
   }
 
   console.log(`[globalSetup] Server ready on port ${serverPort} (mongo ${MONGO_PORT})`);
+  console.log(`[globalSetup] Server log: ${LOG_FILE}`);
   fs.writeFileSync(PORT_FILE, String(serverPort));
 
   return function teardown() {

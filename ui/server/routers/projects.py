@@ -76,6 +76,12 @@ def delete(payload: DeleteProjectPayload) -> dict:
     """Delete the project, and answer with the project list that is left."""
     project = _open_project(payload.projectName)
     project.delete(payload.deleteFiles)
+    # Never answer as if it went when it did not: the client would show a list
+    # with a project in it that the user just deleted.
+    if project.exists():
+        raise HTTPException(
+            status_code=500,
+            detail=f"{payload.projectName} is still in the project list after deleting it")
     remaining = ProjectApi.names()
     nextProject = None
     if remaining:
