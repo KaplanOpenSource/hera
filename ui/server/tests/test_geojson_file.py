@@ -1,5 +1,7 @@
 """Reading GeoJSON files as WGS84, including the ITM files that declare no CRS."""
 import json
+import sys
+import types
 
 import pytest
 
@@ -7,6 +9,18 @@ import dependencies
 import geojson_file
 from fastapi import HTTPException
 from routers import geojson
+
+
+@pytest.fixture(autouse=True)
+def fake_hera_gis(monkeypatch):
+    """The two EPSG codes the reader asks hera for, without installing hera."""
+    utils = types.ModuleType("hera.measurements.GIS.utils")
+    utils.ITM = 2039
+    utils.WGS84 = 4326
+    monkeypatch.setitem(sys.modules, "hera", types.ModuleType("hera"))
+    monkeypatch.setitem(sys.modules, "hera.measurements", types.ModuleType("hera.measurements"))
+    monkeypatch.setitem(sys.modules, "hera.measurements.GIS", types.ModuleType("hera.measurements.GIS"))
+    monkeypatch.setitem(sys.modules, "hera.measurements.GIS.utils", utils)
 
 
 def _write(path, coordinates, crs=None):
