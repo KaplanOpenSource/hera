@@ -2,7 +2,7 @@ import { Connection, Edge } from '@xyflow/react';
 import { WorkflowNode } from '../../shared/types';
 import { clearInputReference, parseDataflowConnection, parseDataflowEdgeId, setInputReference } from './workflowDataflow';
 import { isValidConnection } from './workflowEdges';
-import { nodeWithoutParam, nodeWithReferenceAt } from './workflowNodeEdits';
+import { nodeWithoutParam, nodeWithReferenceAt, nodeWithRequire } from './workflowNodeEdits';
 import { Reference } from './references/Reference';
 
 // What a gesture on the canvas does to the workflow: drawing a line, deleting
@@ -52,14 +52,14 @@ export class WorkflowCanvasEdits {
       this.onAddRequire(connection.source, connection.target);
       return;
     }
-    this.onSetNode(
-      connection.target,
-      setInputReference(
-        this.nodeOf(connection.target),
-        dataflow.paramPath,
-        new Reference(connection.source, dataflow.kind, dataflow.outputName),
-      ),
+    const withReference = setInputReference(
+      this.nodeOf(connection.target),
+      dataflow.paramPath,
+      new Reference(connection.source, dataflow.kind, dataflow.outputName),
     );
+    // One write, with the requires link in it: a second write would read the
+    // node as it was before the reference and undo it.
+    this.onSetNode(connection.target, nodeWithRequire(withReference, connection.source, connection.target));
   }
 
   // Clears the reference a dataflow edge stands for from its target value.
@@ -89,7 +89,8 @@ export class WorkflowCanvasEdits {
 
   // Inserts a reference into a field's value at the right-click caret.
   referenceOutput(nodeName: string, paramPath: string, reference: Reference, caret?: number): void {
-    this.onSetNode(nodeName, nodeWithReferenceAt(this.nodeOf(nodeName), paramPath, reference, caret));
+    const withReference = nodeWithReferenceAt(this.nodeOf(nodeName), paramPath, reference, caret);
+    this.onSetNode(nodeName, nodeWithRequire(withReference, reference.node, nodeName));
   }
 
   private nodeOf(name: string): WorkflowNode {

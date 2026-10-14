@@ -13,11 +13,12 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
-import { fetchPython } from "../../io/fetchPython";
-import { buildDetectNotebooksCode } from "../project/buildDetectNotebooksCode";
+import { postJson } from "../../io/entrypoint";
 import { SimpleTreeView } from "@mui/x-tree-view";
 import { RegisteredRepositories } from "../repo/RegisteredRepositories";
 import { useAppTheme } from "../../theme";
+import { useProjectListStore } from "../../stores/useProjectListStore";
+import { ProjectName } from "../../shared/types";
 
 export const AddProjectButton = ({ }) => {
   // Follow the app theme so the dialog isn't tinted by the dark header it opens from.
@@ -34,43 +35,21 @@ export const AddProjectButton = ({ }) => {
   const doAddProject = async () => {
     if (!trimmedName) return;
 
-    let dirStr = `os.path.join(os.getcwd(), 'projects', '${trimmedName}')`;
-    if (filesDirectory !== '') {
-      dirStr = `'${filesDirectory}'`;
-    }
-
-    const { data } = await fetchPython({
-      results: ['filesDirectory'],
-      label: `create project ${trimmedName}`,
-      code: `
-import os
-from types import SimpleNamespace
-
-from hera.utils.data.CLI import project_create
-from hera.datalayer.project import Project
-
-project_create(SimpleNamespace(
-  projectName='${trimmedName}',
-  directory=${dirStr},
-  loadRepositories=${loadRepositories ? 'True' : 'False'},
-  overwrite=False))
-
-# Creates a config document in MongoDB so the project appears in getProjectList()
-filesDirectory = Project(projectName='${trimmedName}', filesDirectory=${dirStr}).filesDirectory
-`,
-    })
+    // The server creates the project and registers the notebooks already there.
+    const data = await postJson('/project/create', {
+      projectName: trimmedName,
+      filesDirectory,
+      loadRepositories,
+    }, { label: `create project ${trimmedName}` });
     if (!data) {
       return;
     }
 
-    // Now that the project exists, scan its files directory for existing notebooks.
-    await fetchPython({
-      results: [],
-      label: `detect notebooks ${trimmedName}`,
-      code: buildDetectNotebooksCode({ projectName: trimmedName, filesDir: data.filesDirectory as string }),
-    });
-
-    navigate('/' + encodeURIComponent(trimmedName));
+    // The URL stays the only thing that says which project is current, so the
+    // project travels with the navigation: the watcher shows it from there
+    // instead of loading it again. See FetchProjects.
+    useProjectListStore.getState().setProjectNames(data.projects as ProjectName[]);
+    navigate('/' + encodeURIComponent(trimmedName), { state: { project: data.project } });
     setOpen(false);
   }
 

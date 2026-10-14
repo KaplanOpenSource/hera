@@ -8,9 +8,6 @@ import { useProjectListStore } from '../src/stores/useProjectListStore';
 vi.mock('../src/io/FetchProjects', () => ({
   FetchProjects: () => null,
 }));
-vi.mock('../src/stores/useServerConstants', () => ({
-  ServerConstantReader: () => null,
-}));
 vi.mock('../src/components/header/PageTitle', () => ({
   PageTitle: () => <div>PageTitle</div>,
 }));

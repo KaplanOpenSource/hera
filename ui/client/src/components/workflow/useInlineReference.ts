@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
 import { applyInlinePick } from './inlineReferencePick';
-import { nodeWithParamValue } from './workflowNodeEdits';
+import { nodeWithParamValue, nodeWithRequiresFromText } from './workflowNodeEdits';
 import { WorkflowReferences } from './WorkflowReferences';
 
 // The open inline `{…}` reference menu: which field it hangs under, the
@@ -52,7 +52,8 @@ export const useInlineReference = ({
   // Writes a new value into the edited field's parameter and queues the caret to
   // land at `caret` once the controlled input re-renders.
   const commitValue = (nodeName: string, param: string, value: string, caret: number, el: HTMLInputElement) => {
-    onSetNode(nodeName, nodeWithParamValue(nodes[nodeName] ?? {}, param, value));
+    const withValue = nodeWithParamValue(nodes[nodeName] ?? {}, param, value);
+    onSetNode(nodeName, nodeWithRequiresFromText(withValue, nodeName, value, Object.keys(nodes)));
     caretRef.current = { el, pos: caret };
   };
 

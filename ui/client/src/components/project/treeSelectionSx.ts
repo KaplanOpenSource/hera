@@ -11,6 +11,9 @@ export const treeSelectionSx = (theme: Theme) => {
   const selRing = isDark ? '#1e293b' : alpha(theme.palette.primary.main, 0.45);
   const focusRing = isDark ? '#334155' : alpha(theme.palette.primary.main, 0.6);
   return {
+    // Double clicking a row opens it, so don't let it select the row's text.
+    '& .MuiTreeItem-content': { userSelect: 'none' },
+    '& .MuiTreeItem-content input, & .MuiTreeItem-content textarea': { userSelect: 'text' },
     '& .MuiTreeItem-content.Mui-selected': {
       backgroundColor: selBg,
       borderRadius: theme.shape.borderRadius,

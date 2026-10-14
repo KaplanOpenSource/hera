@@ -1,8 +1,9 @@
 import { Autocomplete, Box, InputBase, Stack, TextField, Theme, Typography, useTheme } from '@mui/material';
 import { cyan } from '@mui/material/colors';
-import { Handle, NodeProps, NodeResizer, Position, useUpdateNodeInternals } from '@xyflow/react';
+import { NodeProps, NodeResizer, useUpdateNodeInternals } from '@xyflow/react';
 import { ReactNode, useEffect, useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
+import { normalizeRequires } from '../../shared/workflow';
 import { keyForDetailsViewItem } from '../details/DetailsViewItem';
 import { NodeRunStatus } from './nodeRunStatus';
 import { NodeCatalogEntry, nodeOutputNames, nodeTypeGroup, nodeTypeIssue, paramsFieldDef } from './nodeCatalog';
@@ -11,6 +12,9 @@ import { nodeInputHandleId, nodeOutputHandleId } from './workflowDataflow';
 import { INPUT_PARAMETERS_KEY, WorkflowNodeInputs } from './WorkflowNodeInputs';
 import { WorkflowNodeOutputs } from './WorkflowNodeOutputs';
 import { WorkflowNodeSummary } from './WorkflowNodeSummary';
+import { WorkflowRequiresLine } from './WorkflowRequiresLine';
+import { WorkflowNodeDragGrip } from './WorkflowNodeDragGrip';
+import { RequiresSide, WorkflowRequiresHandle } from './WorkflowRequiresHandle';
 import { useNodeParamsValidation } from './useNodeParamsValidation';
 
 export interface WorkflowFlowNodeData {
@@ -213,9 +217,17 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
       {/* Drag handles to resize the node; shown while it's selected. Size is
           view-only (React Flow's store), not saved with the workflow. */}
       <NodeResizer isVisible={selected} minWidth={260} minHeight={80} />
-      <Handle type="target" id={nodeInputHandleId(name)} position={Position.Left} />
+      <WorkflowRequiresHandle id={nodeInputHandleId(name)} side={RequiresSide.DependsOn} />
+      {/* Outside the editor box on purpose: a grip inside it would be nodrag too. */}
+      <WorkflowNodeDragGrip />
       {!takeSpace && (
-        <WorkflowNodeSummary name={name} type={node.type} paramNames={Object.keys(params)} paramsDef={paramsDef} />
+        <WorkflowNodeSummary
+          name={name}
+          type={node.type}
+          paramNames={Object.keys(params)}
+          paramsDef={paramsDef}
+          requires={normalizeRequires(node.requires)}
+        />
       )}
       {/* The editor. Laid over the summary card while only hovered, so a passing
           pointer leaves the node's measured size, and the nodes below it, alone.
@@ -265,6 +277,9 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
             onChange={(_e, value) => pickType(typeof value === 'string' ? value : value ?? '')}
             renderInput={(inputParams) => <TextField {...inputParams} label="type" fullWidth />}
           />
+          <Box sx={{ mt: 0.5 }}>
+            <WorkflowRequiresLine requires={normalizeRequires(node.requires)} />
+          </Box>
           <Stack spacing={1} sx={{ mt: 1, alignItems: 'stretch' }}>
             <WorkflowNodeInputs
               nodeName={name}
@@ -306,7 +321,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
         </Box>
         </Box>
       )}
-      <Handle type="source" id={nodeOutputHandleId(name)} position={Position.Right} />
+      <WorkflowRequiresHandle id={nodeOutputHandleId(name)} side={RequiresSide.RequiredBy} />
     </Box>
   );
 };

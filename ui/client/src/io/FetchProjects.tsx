@@ -1,31 +1,23 @@
-import { ProjectEntire, ProjectName, Toolkit } from "@shared/types";
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { ProjectEntire, ProjectName } from "@shared/types";
+import { useEffect, useRef } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { NO_PROJECT, useProjectStore } from "../stores/useProjectStore";
 import { useProjectListStore } from "../stores/useProjectListStore";
 import { useToolkitStore } from "../stores/useToolkitStore";
-import { fetchPython, fetchPythonClean } from "./fetchPython";
-import { ProjectCommands } from "./ProjectCommands";
+import { getJson } from "./entrypoint";
+import { parseToolkits } from "./parseToolkits";
 
 export const fetchProjectsNames = async () => {
-  const { data } = await fetchPython(ProjectCommands.projectNames());
+  const data = await getJson('/project/names', {}, { label: 'project names' });
   if (data) {
     useProjectListStore.getState().setProjectNames(data.projects as ProjectName[])
   }
 }
 
-// silent: use the no-notification fetch (e.g. for the periodic auto-reload).
+// silent: no toasts (e.g. for the periodic auto-reload).
 export const fetchProjectDetails = async (projectName: string, silent = false) => {
-  const run = silent ? fetchPythonClean : fetchPython;
-  const { data } = await run({
-    results: ['project'],
-    label: `project details ${projectName}`,
-    code: `
-from hera.datalayer import All
-docs = All.getDocumentsAsDict('${projectName}', with_id=True)
-project = {"name": '${projectName}', "documents": docs['documents']}
-`,
-  });
+  const data = await getJson('/project/documents', { projectName },
+    { label: `project details ${projectName}`, silent });
   if (data) {
     // Skip if the user switched projects while this fetch was in flight
     const { currProjectName, setCurrentProject } = useProjectStore.getState();
@@ -35,50 +27,18 @@ project = {"name": '${projectName}', "documents": docs['documents']}
   }
 }
 
-const parseToolkits = (toolkitDocs: any[]): Toolkit[] =>
-  toolkitDocs.map((d: any) => {
-    const desc = d.desc;
-    const t = {
-      toolkit: d.toolkit,
-      cls: desc.classpath,
-    } as Toolkit;
-    for (const field of [
-      'description',
-      'source',
-      'type',
-      'repositoryName',
-      'version',
-    ] as const) {
-      if (desc[field]) t[field] = desc[field];
-    }
-    return t;
-  });
-
 export const fetchProjectData = async (projectName: string) => {
-  const { data } = await fetchPython(
-    {
-      results: ['toolkitDocs'],
-      label: 'toolkits',
-      code: `
-from hera import toolkitHome
-toolkitDocs = toolkitHome.getToolkitDocuments()
-`,
-    },
-    {
-      results: ['project'],
-      label: `project ${projectName}`,
-      code: `
-from hera.datalayer import All
-docs = All.getDocumentsAsDict('${projectName}', with_id=True)
-project = {"name": '${projectName}', "documents": docs['documents']}
-`,
-    },
-  );
-  if (data) {
+  const [toolkits, details] = await Promise.all([
+    getJson('/project/toolkits', {}, { label: 'toolkits' }),
+    getJson('/project/documents', { projectName }, { label: `project ${projectName}` }),
+  ]);
+  if (toolkits) {
+    useToolkitStore.getState().setToolkits(parseToolkits(toolkits.toolkitDocs));
+  }
+  if (details) {
     const { currProjectName, setCurrentProject } = useProjectStore.getState();
-    useToolkitStore.getState().setToolkits(parseToolkits(data.toolkitDocs));
     if (currProjectName === projectName) {
-      setCurrentProject(data.project as ProjectEntire);
+      setCurrentProject(details.project as ProjectEntire);
     }
   }
 }
@@ -97,8 +57,19 @@ export const FetchProjects = ({
   const { projectNames } = useProjectListStore();
   const { currProjectName, selectProject } = useProjectStore();
   const navigate = useNavigate();
+  // The router's location, not window.location: navigate() changes the window at
+  // once but the route parameter only on the next render, and comparing the two
+  // made the URL look wrong for one render, which undid the navigation.
+  const location = useLocation();
+  const firstRun = useRef(true);
 
+  // Startup brought the names; refresh them when the URL project changes, so a
+  // project just added is in the list.
   useEffect(() => {
+    if (firstRun.current) {
+      firstRun.current = false;
+      return;
+    }
     fetchProjectsNames();
   }, [urlProjectName])
 
@@ -122,14 +93,24 @@ export const FetchProjects = ({
     if (currProjectName === NO_PROJECT) {
       selectProject(urlProject ?? projectNames[0].name);
     } else {
-      fetchProjectData(currProjectName);
+      // Skip the fetch when the store already holds this project, e.g. startup
+      // loaded it (see fetchInit).
+      if (useProjectStore.getState().currProject?.name !== currProjectName) {
+        // A project the navigation brought along (a project just created) is
+        // already the fresh one, so it is shown instead of loaded again.
+        const carried = (location.state as { project?: ProjectEntire } | null)?.project;
+        if (carried?.name === currProjectName) {
+          useProjectStore.getState().setCurrentProject(carried);
+        } else {
+          fetchProjectData(currProjectName);
+        }
+      }
       const expectedPrefix = '/' + encodeURIComponent(currProjectName);
       if (!location.pathname.startsWith(expectedPrefix)) {
         navigate(expectedPrefix, { replace: true });
       }
     }
-  }, [currProjectName, projectNames, urlProjectName, navigate]);
+  }, [currProjectName, projectNames, urlProjectName, location.pathname, navigate]);
 
   return null;
 }
-

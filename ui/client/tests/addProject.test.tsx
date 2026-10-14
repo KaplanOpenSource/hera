@@ -4,12 +4,22 @@ import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockFetchPython = vi.fn();
+// The dialog also lists the registered repositories, which still uses /exec.
 vi.mock('../src/io/fetchPython', () => ({
-  fetchPython: (...args: any[]) => mockFetchPython(...args),
+  fetchPython: vi.fn().mockResolvedValue({ data: null }),
+  fetchPythonClean: vi.fn().mockResolvedValue({ data: null }),
+  WARMING_UP: 'WARMING_UP',
+}));
+
+const mockPostJson = vi.fn();
+vi.mock('../src/io/entrypoint', () => ({
+  postJson: (...args: any[]) => mockPostJson(...args),
+  getJson: vi.fn(),
 }));
 
 const { AddProjectButton } = await import('../src/components/header/AddProjectButton');
+const { useProjectStore } = await import('../src/stores/useProjectStore');
+const { useProjectListStore } = await import('../src/stores/useProjectListStore');
 
 afterEach(() => {
   cleanup();
@@ -17,8 +27,12 @@ afterEach(() => {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // The create call resolves the project's files directory; other calls (repo tree) are harmless.
-  mockFetchPython.mockResolvedValue({ data: { filesDirectory: '/data/existing' }, problem: undefined });
+  useProjectListStore.setState({ projectNames: [{ name: 'Alpha' }] });
+  mockPostJson.mockResolvedValue({
+    projects: [{ name: 'Alpha' }, { name: 'MyProject' }],
+    project: { name: 'MyProject', documents: [] },
+    addedNotebooks: 0,
+  });
 });
 
 const openDialogAndSubmit = async (projectName: string, filesDirectory?: string) => {
@@ -41,35 +55,47 @@ const openDialogAndSubmit = async (projectName: string, filesDirectory?: string)
   });
 };
 
-const callByLabel = (needle: string) =>
-  mockFetchPython.mock.calls.find(c => (c[0].label as string)?.includes(needle))?.[0];
-
-describe('AddProjectButton notebook detection', () => {
-  it('creates the project, then scans it for notebooks in a separate call', async () => {
+describe('AddProjectButton', () => {
+  it('creates the project in one call to project.create', async () => {
     await openDialogAndSubmit('MyProject');
 
     await waitFor(() => {
-      const create = callByLabel('create project MyProject');
-      const detect = callByLabel('detect notebooks MyProject');
-      expect(create).toBeTruthy();
-      expect(detect).toBeTruthy();
-      // The create call returns the resolved files directory...
-      expect(create.results).toContain('filesDirectory');
-      // ...which the detection call scans for notebooks.
-      expect(detect.code).toContain("filesDir = os.path.expanduser('/data/existing')");
-      expect(detect.code).toContain("glob.glob(os.path.join(filesDir, '**', '*.ipynb'), recursive=True)");
-      expect(detect.code).toContain('type="notebook"');
+      expect(mockPostJson).toHaveBeenCalledTimes(1);
+    });
+    const [path, body] = mockPostJson.mock.calls[0];
+    expect(path).toBe('/project/create');
+    expect(body).toEqual({
+      projectName: 'MyProject',
+      filesDirectory: '',
+      loadRepositories: true,
     });
   });
 
-  it('does not scan if project creation fails', async () => {
-    mockFetchPython.mockResolvedValue({ data: undefined, problem: 'boom' });
+  it('sends the files directory the user typed', async () => {
+    await openDialogAndSubmit('MyProject', '/data/existing');
+
+    await waitFor(() => {
+      expect(mockPostJson.mock.calls[0][1].filesDirectory).toBe('/data/existing');
+    });
+  });
+
+  it('puts the new project in the list itself, without waiting for a reload', async () => {
+    await openDialogAndSubmit('MyProject');
+
+    await waitFor(() => {
+      const names = useProjectListStore.getState().projectNames.map(p => p.name);
+      expect(names).toContain('MyProject');
+    });
+  });
+
+  it('keeps the dialog open when creation fails', async () => {
+    mockPostJson.mockResolvedValueOnce(null);
 
     await openDialogAndSubmit('MyProject');
 
     await waitFor(() => {
-      expect(callByLabel('create project MyProject')).toBeTruthy();
+      expect(mockPostJson).toHaveBeenCalledTimes(1);
     });
-    expect(callByLabel('detect notebooks MyProject')).toBeUndefined();
+    expect(screen.queryByRole('dialog')).toBeTruthy();
   });
 });

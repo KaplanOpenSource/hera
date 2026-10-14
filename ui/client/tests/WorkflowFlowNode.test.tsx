@@ -235,6 +235,21 @@ describe('WorkflowFlowNode', () => {
     expect(getComputedStyle(nodeBox()).outline).toBe('');
   });
 
+  it('lists the nodes it requires in the open editor too', () => {
+    renderNode({ type: 't', requires: 'nodeA' });
+    expect(screen.getAllByText('depends on: nodeA').length).toBeGreaterThan(0);
+  });
+
+  it('lists the nodes it requires in the summary', () => {
+    renderNode({ type: 't', requires: ['nodeA', 'nodeB'] }, undefined, false);
+    expect(screen.getByText('depends on: nodeA, nodeB')).toBeDefined();
+  });
+
+  it('shows no requires line when the node requires nothing', () => {
+    renderNode({ type: 't' }, undefined, false);
+    expect(screen.queryByText(/^depends on:/)).toBeNull();
+  });
+
   it('says so in the summary when the node has no type', () => {
     renderNode({ Execution: { input_parameters: {} } }, undefined, false);
     expect(screen.getByText('no type')).toBeDefined();

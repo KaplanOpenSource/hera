@@ -60,3 +60,21 @@ class ValidateNodeParamsResponse(BaseModel):
     # node with no checks of its own).
     ok: bool = True
     message: str = ""
+
+
+class CreateProjectPayload(BaseModel):
+    projectName: str
+    # Empty means the default: <cwd>/projects/<projectName>.
+    filesDirectory: str = ""
+    loadRepositories: bool = True
+
+
+class DeleteProjectPayload(BaseModel):
+    projectName: str
+    # Also remove the files under the project's own files directory.
+    deleteFiles: bool = False
+
+
+class DetectNotebooksPayload(BaseModel):
+    projectName: str
+    filesDirectory: str

@@ -2,6 +2,7 @@ import { Stack, Typography } from '@mui/material';
 import { FieldDef } from '../details/fieldDef';
 import { FieldSourceDot } from '../details/FieldSourceDot';
 import { friendlyParamName } from './friendlyParamName';
+import { WorkflowRequiresLine } from './WorkflowRequiresLine';
 
 // The small card a node shows while the pointer is away from it: its name, its
 // type, and one row per parameter - the same dot and name as the editor, with
@@ -12,11 +13,13 @@ export const WorkflowNodeSummary = ({
   type,
   paramNames,
   paramsDef,
+  requires,
 }: {
   name: string,
   type?: string,
   paramNames: string[],
   paramsDef: FieldDef,
+  requires: string[],
 }) => {
   return (
     <Stack spacing={0.25} sx={{ minWidth: 0 }}>
@@ -26,6 +29,7 @@ export const WorkflowNodeSummary = ({
       <Typography noWrap variant="caption" color={type ? 'text.secondary' : 'warning.main'}>
         {type || 'no type'}
       </Typography>
+      <WorkflowRequiresLine requires={requires} />
       {paramNames.map(param => (
         <Stack key={param} direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
           <FieldSourceDot source={paramsDef.children?.[param]?.source} showUnknown />

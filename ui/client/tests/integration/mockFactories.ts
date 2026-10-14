@@ -20,9 +20,12 @@ export const SHARED_PORT = readSharedPort();
 export const SHARED_SERVER_URL = `http://localhost:${SHARED_PORT}`;
 
 export const createServerConstantsMock = () => {
-  const state = { dataTypes: { STRING: 'string', JSON: 'json', JSON_DICT: 'JSON_DICT' }, readAllConstants: async () => {} };
+  const state = {
+    dataTypes: { STRING: 'string', JSON: 'json', JSON_DICT: 'JSON_DICT' },
+    setDataTypes: () => {},
+  };
   const useServerConstants = Object.assign(() => state, { getState: () => state });
-  return { useServerConstants, ServerConstantReader: () => null };
+  return { useServerConstants };
 };
 
 export const createBaseurlMock = (port: number = SHARED_PORT) => ({
