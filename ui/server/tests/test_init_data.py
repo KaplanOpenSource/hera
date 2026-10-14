@@ -3,8 +3,9 @@ import types
 
 import pytest
 
+import dependencies
 import init_data
-import server
+from routers import startup
 
 
 @pytest.fixture
@@ -127,16 +128,16 @@ def test_broken_project_list_still_answers(fake_hera):
 
 
 def test_route_says_not_ready_while_warming(monkeypatch):
-    monkeypatch.setattr(server.warmup, "_ready", False)
+    monkeypatch.setattr(dependencies.warmup, "_ready", False)
 
-    assert server.init() == {"ready": False}
+    assert startup.init() == {"ready": False}
 
 
 def test_route_returns_the_payload_when_ready(monkeypatch, fake_hera):
     fake_hera(["Alpha"], {"Alpha": []})
-    monkeypatch.setattr(server.warmup, "_ready", True)
+    monkeypatch.setattr(dependencies.warmup, "_ready", True)
 
-    data = server.init("Alpha")
+    data = startup.init("Alpha")
 
     assert data["ready"] is True
     assert data["project"]["name"] == "Alpha"

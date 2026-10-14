@@ -6,9 +6,10 @@ when nothing is reported.
 """
 import pytest
 
+import dependencies
 import node_params
-import server
 from api_models import ValidateNodeParamsPayload
+from routers import nodes
 
 
 class _WithChecks:
@@ -21,7 +22,7 @@ class _WithChecks:
 
 @pytest.fixture
 def warmed(monkeypatch):
-    monkeypatch.setattr(server.warmup, "_ready", True)
+    monkeypatch.setattr(dependencies.warmup, "_ready", True)
 
 
 def test_bad_value_returns_the_node_message(monkeypatch):
@@ -69,8 +70,8 @@ def test_endpoint_passes_type_and_params_through(monkeypatch, warmed):
         seen["params"] = params
         return {"ok": False, "message": "nope"}
 
-    monkeypatch.setattr(server, "validate_node_params", fake_validate)
-    resp = server.node_params_validate(ValidateNodeParamsPayload(type="general.CopyFile", params={"a": 1}))
+    monkeypatch.setattr(nodes, "validate_node_params", fake_validate)
+    resp = nodes.node_params_validate(ValidateNodeParamsPayload(type="general.CopyFile", params={"a": 1}))
     assert seen == {"type": "general.CopyFile", "params": {"a": 1}}
     assert resp.ok is False
     assert resp.message == "nope"
@@ -80,7 +81,7 @@ def test_endpoint_reports_nothing_before_warmup(monkeypatch):
     def fail(node_type, params):
         raise AssertionError("must not validate before hera is warm")
 
-    monkeypatch.setattr(server, "validate_node_params", fail)
-    resp = server.node_params_validate(ValidateNodeParamsPayload(type="general.CopyFile", params={}))
+    monkeypatch.setattr(nodes, "validate_node_params", fail)
+    resp = nodes.node_params_validate(ValidateNodeParamsPayload(type="general.CopyFile", params={}))
     assert resp.ok is True
     assert resp.message == ""
