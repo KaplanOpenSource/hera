@@ -17,8 +17,8 @@ import { postJson } from "../../io/entrypoint";
 import { SimpleTreeView } from "@mui/x-tree-view";
 import { RegisteredRepositories } from "../repo/RegisteredRepositories";
 import { useAppTheme } from "../../theme";
-import { useProjectStore } from "../../stores/useProjectStore";
-import { ProjectEntire } from "../../shared/types";
+import { useProjectListStore } from "../../stores/useProjectListStore";
+import { ProjectName } from "../../shared/types";
 
 export const AddProjectButton = ({ }) => {
   // Follow the app theme so the dialog isn't tinted by the dark header it opens from.
@@ -45,10 +45,11 @@ export const AddProjectButton = ({ }) => {
       return;
     }
 
-    const { selectProject, setCurrentProject } = useProjectStore.getState();
-    selectProject(trimmedName);
-    setCurrentProject(data.project as ProjectEntire);
-    navigate('/' + encodeURIComponent(trimmedName));
+    // The URL stays the only thing that says which project is current, so the
+    // project travels with the navigation: the watcher shows it from there
+    // instead of loading it again. See FetchProjects.
+    useProjectListStore.getState().setProjectNames(data.projects as ProjectName[]);
+    navigate('/' + encodeURIComponent(trimmedName), { state: { project: data.project } });
     setOpen(false);
   }
 

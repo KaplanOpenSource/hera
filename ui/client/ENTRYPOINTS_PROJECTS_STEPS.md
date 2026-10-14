@@ -10,7 +10,7 @@ the project `/exec` calls. Status: **built**.
 | `project.names` | `GET /project/names` | - | `{projects}` |
 | `project.documents` | `GET /project/documents?projectName=` | - | `{project}` |
 | `project.toolkits` | `GET /project/toolkits` | - | `{toolkitDocs}` |
-| `project.create` | `POST /project/create` | `projectName`, `filesDirectory`, `loadRepositories` | `{project, addedNotebooks}` |
+| `project.create` | `POST /project/create` | `projectName`, `filesDirectory`, `loadRepositories` | `{projects, project, addedNotebooks}` |
 | `project.delete` | `POST /project/delete` | `projectName`, `deleteFiles` | `{projects, project}` |
 | `project.detectNotebooks` | `POST /project/detectNotebooks` | `projectName`, `filesDirectory` | `{project, addedNotebooks}` |
 
@@ -49,9 +49,17 @@ The toolkits are a plain function: they are not about a project.
 - `src/io/FetchProjects.tsx` - `fetchProjectsNames`, `fetchProjectDetails` and
   `fetchProjectData` call the entrypoints. Their signatures do not change, so
   their eight callers stay as they are.
-- `AddProjectButton` - one `project.create` call instead of create + detect.
+- `AddProjectButton` - one `project.create` call instead of create + detect, and
+  one call in total: it puts the fresh list in the store, then hands the new
+  project to the watcher as navigation state, so nothing is loaded again. The URL
+  alone still says which project is current.
 - `DeleteProjectButton` - `project.delete`; handles "no projects left".
 - `DetectNotebooksButton` - `project.detectNotebooks`.
+- `FetchProjects` - shows a project that arrived with the navigation instead of
+  loading it, and compares the router's location, not `window.location`.
+  `navigate()` changes the window at once but the route parameter only on the
+  next render, so the old comparison saw a mismatch for one render and undid the
+  navigation, leaving the previous project on screen.
 - Gone: `src/io/ProjectCommands.ts`,
   `src/components/project/buildDetectNotebooksCode.ts`.
 

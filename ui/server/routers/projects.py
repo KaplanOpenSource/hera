@@ -62,7 +62,10 @@ def create(payload: CreateProjectPayload) -> dict:
     project = ProjectApi(projectName)
     filesDirectory = project.create(payload.filesDirectory, payload.loadRepositories)
     addedNotebooks = project.detect_notebooks(filesDirectory)
+    # The list and the project itself, so creating costs one call: the client
+    # shows the new project without loading it again.
     return jsonable_encoder({
+        "projects": ProjectApi.names(),
         "project": project.documents(),
         "addedNotebooks": addedNotebooks,
     })

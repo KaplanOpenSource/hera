@@ -269,8 +269,11 @@ class TestCreateProject:
         answer = routes.create(types.SimpleNamespace(
             projectName=" NewOne ", filesDirectory=str(tmp_path), loadRepositories=True))
 
-        assert answer["project"]["name"] == "NewOne"
         assert answer["addedNotebooks"] == 1
+        # Both, so creating a project costs one call: the list to show it in, and
+        # the project itself so the client need not load it again.
+        assert {p["name"] for p in answer["projects"]} == {"NewOne"}
+        assert answer["project"]["name"] == "NewOne"
 
     def test_route_rejects_a_blank_name(self, fake_hera, warmed):
         fake_hera([])

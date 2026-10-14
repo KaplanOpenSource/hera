@@ -1,6 +1,6 @@
 import { ProjectEntire, ProjectName } from "@shared/types";
 import { useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { NO_PROJECT, useProjectStore } from "../stores/useProjectStore";
 import { useProjectListStore } from "../stores/useProjectListStore";
 import { useToolkitStore } from "../stores/useToolkitStore";
@@ -57,6 +57,10 @@ export const FetchProjects = ({
   const { projectNames } = useProjectListStore();
   const { currProjectName, selectProject } = useProjectStore();
   const navigate = useNavigate();
+  // The router's location, not window.location: navigate() changes the window at
+  // once but the route parameter only on the next render, and comparing the two
+  // made the URL look wrong for one render, which undid the navigation.
+  const location = useLocation();
   const firstRun = useRef(true);
 
   // Startup brought the names; refresh them when the URL project changes, so a
@@ -92,14 +96,21 @@ export const FetchProjects = ({
       // Skip the fetch when the store already holds this project, e.g. startup
       // loaded it (see fetchInit).
       if (useProjectStore.getState().currProject?.name !== currProjectName) {
-        fetchProjectData(currProjectName);
+        // A project the navigation brought along (a project just created) is
+        // already the fresh one, so it is shown instead of loaded again.
+        const carried = (location.state as { project?: ProjectEntire } | null)?.project;
+        if (carried?.name === currProjectName) {
+          useProjectStore.getState().setCurrentProject(carried);
+        } else {
+          fetchProjectData(currProjectName);
+        }
       }
       const expectedPrefix = '/' + encodeURIComponent(currProjectName);
       if (!location.pathname.startsWith(expectedPrefix)) {
         navigate(expectedPrefix, { replace: true });
       }
     }
-  }, [currProjectName, projectNames, urlProjectName, navigate]);
+  }, [currProjectName, projectNames, urlProjectName, location.pathname, navigate]);
 
   return null;
 }

@@ -19,6 +19,7 @@ vi.mock('../src/io/entrypoint', () => ({
 
 const { AddProjectButton } = await import('../src/components/header/AddProjectButton');
 const { useProjectStore } = await import('../src/stores/useProjectStore');
+const { useProjectListStore } = await import('../src/stores/useProjectListStore');
 
 afterEach(() => {
   cleanup();
@@ -26,7 +27,9 @@ afterEach(() => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  useProjectListStore.setState({ projectNames: [{ name: 'Alpha' }] });
   mockPostJson.mockResolvedValue({
+    projects: [{ name: 'Alpha' }, { name: 'MyProject' }],
     project: { name: 'MyProject', documents: [] },
     addedNotebooks: 0,
   });
@@ -76,15 +79,12 @@ describe('AddProjectButton', () => {
     });
   });
 
-  it('shows the project the server answered with', async () => {
-    const project = { name: 'MyProject', documents: [{ _id: { $oid: 'nb' } }] };
-    mockPostJson.mockResolvedValueOnce({ project, addedNotebooks: 1 });
-
+  it('puts the new project in the list itself, without waiting for a reload', async () => {
     await openDialogAndSubmit('MyProject');
 
     await waitFor(() => {
-      expect(useProjectStore.getState().currProjectName).toBe('MyProject');
-      expect(useProjectStore.getState().currProject).toEqual(project);
+      const names = useProjectListStore.getState().projectNames.map(p => p.name);
+      expect(names).toContain('MyProject');
     });
   });
 

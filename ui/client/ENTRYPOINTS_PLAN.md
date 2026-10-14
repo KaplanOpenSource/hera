@@ -33,7 +33,7 @@ Built. The routes and the server files are listed in
 | `project.names` | - | the project list, default project first | `FetchProjects.fetchProjectsNames` |
 | `project.documents` | `projectName` | the project and its documents | `FetchProjects.fetchProjectDetails`, and the second half of `fetchProjectData` |
 | `project.toolkits` | - | the toolkit documents | first half of `fetchProjectData` |
-| `project.create` | `projectName`, `filesDirectory`, `loadRepositories` | the project, notebooks already detected | `AddProjectButton` (both calls) |
+| `project.create` | `projectName`, `filesDirectory`, `loadRepositories` | the project list and the project, notebooks already detected | `AddProjectButton` (both calls) |
 | `project.delete` | `projectName`, `deleteFiles` | the remaining project list and the next project | `DeleteProjectButton` |
 | `project.detectNotebooks` | `projectName`, `filesDirectory` | the project, and how many were added | `DetectNotebooksButton` |
 
