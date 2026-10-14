@@ -36,7 +36,7 @@ export class WorkflowDisplayEdges {
       sourceHandle: nodeOutputHandleId(edge.source),
       targetHandle: nodeInputHandleId(edge.target),
       markerEnd: { type: MarkerType.ArrowClosed },
-      data: this.dataFor(edge.id, () => onRemove(edge.source, edge.target)),
+      data: { ...this.dataFor(edge.id, () => onRemove(edge.source, edge.target)), showDirection: true },
     }));
     return new WorkflowDisplayEdges([...this.edges, ...built], this.hoveredEdge);
   }

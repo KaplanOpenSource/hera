@@ -3,6 +3,7 @@ import { cyan } from '@mui/material/colors';
 import { NodeProps, NodeResizer, useUpdateNodeInternals } from '@xyflow/react';
 import { ReactNode, useEffect, useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
+import { normalizeRequires } from '../../shared/workflow';
 import { keyForDetailsViewItem } from '../details/DetailsViewItem';
 import { NodeRunStatus } from './nodeRunStatus';
 import { NodeCatalogEntry, nodeOutputNames, nodeTypeGroup, nodeTypeIssue, paramsFieldDef } from './nodeCatalog';
@@ -11,6 +12,7 @@ import { nodeInputHandleId, nodeOutputHandleId } from './workflowDataflow';
 import { INPUT_PARAMETERS_KEY, WorkflowNodeInputs } from './WorkflowNodeInputs';
 import { WorkflowNodeOutputs } from './WorkflowNodeOutputs';
 import { WorkflowNodeSummary } from './WorkflowNodeSummary';
+import { WorkflowRequiresLine } from './WorkflowRequiresLine';
 import { RequiresSide, WorkflowRequiresHandle } from './WorkflowRequiresHandle';
 import { useNodeParamsValidation } from './useNodeParamsValidation';
 
@@ -216,7 +218,13 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
       <NodeResizer isVisible={selected} minWidth={260} minHeight={80} />
       <WorkflowRequiresHandle id={nodeInputHandleId(name)} side={RequiresSide.DependsOn} />
       {!takeSpace && (
-        <WorkflowNodeSummary name={name} type={node.type} paramNames={Object.keys(params)} paramsDef={paramsDef} />
+        <WorkflowNodeSummary
+          name={name}
+          type={node.type}
+          paramNames={Object.keys(params)}
+          paramsDef={paramsDef}
+          requires={normalizeRequires(node.requires)}
+        />
       )}
       {/* The editor. Laid over the summary card while only hovered, so a passing
           pointer leaves the node's measured size, and the nodes below it, alone.
@@ -266,6 +274,9 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
             onChange={(_e, value) => pickType(typeof value === 'string' ? value : value ?? '')}
             renderInput={(inputParams) => <TextField {...inputParams} label="type" fullWidth />}
           />
+          <Box sx={{ mt: 0.5 }}>
+            <WorkflowRequiresLine requires={normalizeRequires(node.requires)} />
+          </Box>
           <Stack spacing={1} sx={{ mt: 1, alignItems: 'stretch' }}>
             <WorkflowNodeInputs
               nodeName={name}

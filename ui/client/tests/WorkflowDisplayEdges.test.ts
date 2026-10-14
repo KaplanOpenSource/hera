@@ -22,6 +22,14 @@ describe('WorkflowDisplayEdges', () => {
     expect(edges[0].targetHandle).toBe('B:req-in');
   });
 
+  it('labels the ends of a requires edge only', () => {
+    const edges = WorkflowDisplayEdges.hovering(null)
+      .withRequires([requiresEdge], vi.fn())
+      .withDataflow([dataflowEdge], 'blue', vi.fn(), ['B'])
+      .all();
+    expect(edges.map((edge) => { return edge.data!.showDirection; })).toEqual([true, undefined]);
+  });
+
   it('keeps both kinds, requires first', () => {
     const edges = WorkflowDisplayEdges.hovering(null)
       .withRequires([requiresEdge], vi.fn())
