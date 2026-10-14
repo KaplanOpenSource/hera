@@ -1,6 +1,6 @@
 import { Autocomplete, Box, InputBase, Stack, TextField, Theme, Typography, useTheme } from '@mui/material';
 import { cyan } from '@mui/material/colors';
-import { Handle, NodeProps, NodeResizer, Position, useUpdateNodeInternals } from '@xyflow/react';
+import { NodeProps, NodeResizer, useUpdateNodeInternals } from '@xyflow/react';
 import { ReactNode, useEffect, useState } from 'react';
 import { WorkflowNode } from '../../shared/types';
 import { keyForDetailsViewItem } from '../details/DetailsViewItem';
@@ -11,6 +11,7 @@ import { nodeInputHandleId, nodeOutputHandleId } from './workflowDataflow';
 import { INPUT_PARAMETERS_KEY, WorkflowNodeInputs } from './WorkflowNodeInputs';
 import { WorkflowNodeOutputs } from './WorkflowNodeOutputs';
 import { WorkflowNodeSummary } from './WorkflowNodeSummary';
+import { RequiresSide, WorkflowRequiresHandle } from './WorkflowRequiresHandle';
 import { useNodeParamsValidation } from './useNodeParamsValidation';
 
 export interface WorkflowFlowNodeData {
@@ -213,7 +214,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
       {/* Drag handles to resize the node; shown while it's selected. Size is
           view-only (React Flow's store), not saved with the workflow. */}
       <NodeResizer isVisible={selected} minWidth={260} minHeight={80} />
-      <Handle type="target" id={nodeInputHandleId(name)} position={Position.Left} />
+      <WorkflowRequiresHandle id={nodeInputHandleId(name)} side={RequiresSide.DependsOn} />
       {!takeSpace && (
         <WorkflowNodeSummary name={name} type={node.type} paramNames={Object.keys(params)} paramsDef={paramsDef} />
       )}
@@ -306,7 +307,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
         </Box>
         </Box>
       )}
-      <Handle type="source" id={nodeOutputHandleId(name)} position={Position.Right} />
+      <WorkflowRequiresHandle id={nodeOutputHandleId(name)} side={RequiresSide.RequiredBy} />
     </Box>
   );
 };
