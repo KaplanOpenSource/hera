@@ -13,6 +13,7 @@ import { INPUT_PARAMETERS_KEY, WorkflowNodeInputs } from './WorkflowNodeInputs';
 import { WorkflowNodeOutputs } from './WorkflowNodeOutputs';
 import { WorkflowNodeSummary } from './WorkflowNodeSummary';
 import { WorkflowRequiresLine } from './WorkflowRequiresLine';
+import { WorkflowNodeDragGrip } from './WorkflowNodeDragGrip';
 import { RequiresSide, WorkflowRequiresHandle } from './WorkflowRequiresHandle';
 import { useNodeParamsValidation } from './useNodeParamsValidation';
 
@@ -217,6 +218,8 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
           view-only (React Flow's store), not saved with the workflow. */}
       <NodeResizer isVisible={selected} minWidth={260} minHeight={80} />
       <WorkflowRequiresHandle id={nodeInputHandleId(name)} side={RequiresSide.DependsOn} />
+      {/* Outside the editor box on purpose: a grip inside it would be nodrag too. */}
+      <WorkflowNodeDragGrip />
       {!takeSpace && (
         <WorkflowNodeSummary
           name={name}
