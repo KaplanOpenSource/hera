@@ -26,7 +26,7 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: POSIX :: Linux",
     ],
-    python_requires=">=3.9",
+    python_requires=">=3.11",
     install_requires=[
         "pandas>=1.3",
         "numpy>=1.21",

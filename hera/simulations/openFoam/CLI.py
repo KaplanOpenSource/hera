@@ -487,7 +487,7 @@ def stochasticLagrangian_source_makeEscapedMassFile(args):
         timesteps = numpy.arange(data.time.min(), data.time.max(), float(dt))
         times = pandas.DataFrame({"time": timesteps})
         data = data.set_index("time").join(times.set_index("time"), how="outer").reset_index()
-        data = data.interpolate()
+        data = data.infer_objects().interpolate()
     newstr = "/*--------------------------------*- C++ -*----------------------------------*\n" \
              "| =========                 |                                                 |\n" \
              "| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |\n" \
@@ -498,7 +498,7 @@ def stochasticLagrangian_source_makeEscapedMassFile(args):
              "FoamFile\n{    version     2.0;\n    format      ascii;\n    class       scalarField;\n    object      kinematicCloudPositions;\n}\n" \
              f"// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //\n\n{len(data)}\n(\n"
     for time in timesteps:
-        newstr += f"{float(data.loc[data.time == time].diffMass)}\n"
+        newstr += f"{float(data.loc[data.time == time].diffMass.iloc[0])}\n"
     newstr += ")"
     print("saving in ", os.path.join(case, "constant", massFileName))
     f = open(os.path.join(case, "constant", massFileName), "w")

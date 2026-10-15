@@ -17,16 +17,14 @@ Construction
 ------------
 The extension is built with ``Cls.__new__(Cls)`` and only the attributes the
 methods under test read are set by hand.  This is the established technique
-in this suite for this hierarchy: ``__init__`` opens a
-``dask.distributed.Client()``, and although the unit conftest stubs
-``dask.distributed`` with a MagicMock (so no scheduler actually starts), a
-MagicMock client cannot be asserted against without fabricating results.
-``ext.toolkit`` is therefore a *real* ``OFToolkit`` from
-``unit_toolkit_factory``, so every DB assertion below is an assertion about
-what really landed in mongomock, and ``ext.daskClient`` is a hand-written
-recorder whose ``map`` returns real ``dask.delayed`` objects -- only the
-scheduler is replaced, so ``from_delayed`` builds a genuine dask DataFrame
-and the recorded argument list is the code's own.  ``__init__`` itself is
+in this suite for this hierarchy.  ``ext.toolkit`` is a *real* ``OFToolkit``
+from ``unit_toolkit_factory``, so every DB assertion below is an assertion
+about what really landed in mongomock, and ``ext.daskClient`` is None, as
+``__init__`` leaves it by default.  ``_loadCaseDataViaDask`` builds its graph
+with the module's ``delayed``; the ``delayedSeam`` fixture swaps that name
+for a pass-through recorder that still returns real ``dask.delayed``
+objects, so ``from_delayed`` builds a genuine dask DataFrame and the recorded
+item list is the code's own.  ``__init__`` itself is
 covered separately, with ``Client`` replaced on the module by a hand-written
 stand-in class, so that no scheduler can start even where a real
 ``dask.distributed`` is importable.
@@ -65,9 +63,7 @@ Covered shallowly, with the reason:
     ``getDispersionFlowDocument`` / ``getOriginalFlowDocument`` -- the two
     reachable branches are asserted on the forwarded query; the third is
     B327.
-    ``getMassFromLog``, ``getCaseConcentrationsEulerian``,
-    ``getOriginalFlowFieldExtentAsDict``,
-    ``analysis.calcConcentrationFieldFullMesh``,
+    ``getMassFromLog``, ``getOriginalFlowFieldExtentAsDict``,
     ``analysis.calcDocumentConcentrationPointWise`` and
     ``analysis.getConcentrationField`` -- each dies on a defect pinned
     below, so only the failure and the pre-failure behaviour are asserted.
@@ -82,12 +78,14 @@ Not covered:
 Bugs pinned below (each with a strict xfail for the intended behaviour and a
 passing characterisation of what happens today):
 
-* B324 ``getCaseConcentrationsEulerian`` passes five positional arguments
-  to the four-parameter ``_loadCaseDataViaDask``.
+* B324 (fixed upstream by a4597eb6, #1082) ``getCaseConcentrationsEulerian``
+  passed five positional arguments to the four-parameter
+  ``_loadCaseDataViaDask``.
 * B325 ``getOriginalFlowFieldExtentAsDict`` reads ``zmax`` off the *y*
   column.
-* B326 ``analysis.calcConcentrationFieldFullMesh``'s first statement calls
-  a method that lives on the other class.
+* B326 (fixed upstream by a4597eb6, #1082)
+  ``analysis.calcConcentrationFieldFullMesh``'s first statement called a
+  method that lives on the other class.
 * B327 ``getDispersionFlowDocument`` / ``getOriginalFlowDocument`` build a
   type-error message and never raise it.
 * B328 ``getMassFromLog`` reads ``self._datalayer``, which this class never
@@ -127,27 +125,6 @@ from hera.simulations.openFoam.lagrangian.abstractLagrangianSolver import (
 # Hand-written stand-ins.  Real classes rather than MagicMocks, so that the
 # production code's isinstance() dispatch is genuinely exercised.
 # ---------------------------------------------------------------------------
-
-class _RecordingDaskClient:
-    """Stand-in for ``dask.distributed.Client`` that records ``map`` calls.
-
-    ``map`` returns real ``dask.delayed`` objects, so the caller's
-    ``dask.dataframe.from_delayed`` builds a genuine dask DataFrame; only the
-    distributed scheduler is replaced.
-    """
-
-    def __init__(self):
-        self.mapped = []
-
-    def map(self, fn, items):
-        items = list(items)
-        self.mapped.append(items)
-        return [delayed(fn)(item) for item in items]
-
-    @property
-    def lastMapped(self):
-        return self.mapped[-1]
-
 
 class _StandInWorkflow(workflow_StochasticLagrangianSolver):
     """A real subclass of the workflow class the module dispatches on.
@@ -238,8 +215,28 @@ def ext(toolkit):
     module docstring."""
     obj = Extension.__new__(Extension)
     obj.toolkit = toolkit
-    obj.daskClient = _RecordingDaskClient()
+    obj.daskClient = None
     return obj
+
+
+@pytest.fixture()
+def delayedSeam(monkeypatch):
+    """Record every item ``_loadCaseDataViaDask`` wraps the loader for.
+
+    The module's ``delayed`` is replaced by a pass-through that still returns
+    real ``dask.delayed`` objects, so ``from_delayed`` builds a genuine dask
+    DataFrame; only the item list is observed.
+    """
+    items = []
+
+    def recordingDelayed(fn):
+        def wrap(item):
+            items.append(item)
+            return delayed(fn)(item)
+        return wrap
+
+    monkeypatch.setattr(mod, "delayed", recordingDelayed)
+    return items
 
 
 @pytest.fixture()
@@ -323,8 +320,15 @@ class TestConstructor:
     def test_the_toolkit_is_kept_as_a_back_reference(self, toolkit, clientSeam):
         assert Extension(toolkit).toolkit is toolkit
 
-    def test_exactly_one_dask_client_is_opened(self, toolkit, clientSeam):
+    def test_by_default_no_dask_client_is_opened(self, toolkit, clientSeam):
+        """#1082 made the distributed client opt-in; the default is dask's
+        local scheduler."""
         instance = Extension(toolkit)
+        assert clientSeam == []
+        assert instance.daskClient is None
+
+    def test_asking_for_a_dask_client_opens_exactly_one(self, toolkit, clientSeam):
+        instance = Extension(toolkit, useDaskClient=True)
         assert len(clientSeam) == 1
         assert instance.daskClient is clientSeam[0]
 
@@ -1384,38 +1388,38 @@ def _stubLoader(timeName):
 @pytest.mark.unit
 class TestLoadCaseDataViaDask:
     def test_a_serial_case_maps_the_loader_over_its_own_time_directories(
-            self, ext, tmp_path):
+            self, ext, tmp_path, delayedSeam):
         for name in ("0", "1", "2"):
             (tmp_path / name).mkdir()
         result = ext._loadCaseDataViaDask(str(tmp_path), _stubLoader, None, False)
-        assert ext.daskClient.lastMapped == ["0", "1", "2"]
+        assert delayedSeam == ["0", "1", "2"]
         assert isinstance(result, dask.dataframe.DataFrame)
 
-    def test_a_parallel_case_maps_over_every_processor_time_pair(self, ext, tmp_path):
+    def test_a_parallel_case_maps_over_every_processor_time_pair(self, ext, tmp_path, delayedSeam):
         case = _makeCase(tmp_path / "par", timeDirs=("0", "1"),
                          processors=("processor0", "processor1"))
         ext._loadCaseDataViaDask(case, _stubLoader, None, False)
-        assert sorted(ext.daskClient.lastMapped) == [
+        assert sorted(delayedSeam) == [
             os.path.join("processor0", "0"), os.path.join("processor0", "1"),
             os.path.join("processor1", "0"), os.path.join("processor1", "1"),
         ]
 
     def test_forcing_a_single_processor_reads_the_root_time_directories(
-            self, ext, tmp_path):
+            self, ext, tmp_path, delayedSeam):
         case = _makeCase(tmp_path / "par", timeDirs=("0", "1"),
                          processors=("processor0",))
         os.makedirs(os.path.join(case, "5"))
         ext._loadCaseDataViaDask(case, _stubLoader, None, True)
-        assert ext.daskClient.lastMapped == ["0", "5"]
+        assert delayedSeam == ["0", "5"]
 
-    def test_an_explicit_time_list_is_used_verbatim_in_the_serial_case(self, ext, tmp_path):
+    def test_an_explicit_time_list_is_used_verbatim_in_the_serial_case(self, ext, tmp_path, delayedSeam):
         ext._loadCaseDataViaDask(str(tmp_path), _stubLoader, ["3", "9"], False)
-        assert ext.daskClient.lastMapped == ["3", "9"]
+        assert delayedSeam == ["3", "9"]
 
-    def test_an_explicit_time_list_is_crossed_with_the_processors(self, ext, tmp_path):
+    def test_an_explicit_time_list_is_crossed_with_the_processors(self, ext, tmp_path, delayedSeam):
         case = _makeCase(tmp_path / "par", timeDirs=("0",), processors=("processor0",))
         ext._loadCaseDataViaDask(case, _stubLoader, ["4"], False)
-        assert ext.daskClient.lastMapped == [os.path.join("processor0", "4")]
+        assert delayedSeam == [os.path.join("processor0", "4")]
 
     def test_the_frame_that_comes_back_contains_what_the_loader_produced(
             self, ext, tmp_path):
@@ -1452,15 +1456,16 @@ class TestSaveToCacheParquet:
         assert docs[0].dataFormat == datatypes.PARQUET
         assert docs[0].resource.endswith(os.path.join("MY_CASE", "myCloud.parquet"))
 
-    def test_the_written_data_is_indexed_by_datetime(self, ext):
+    def test_the_written_data_keeps_datetime_as_a_column(self, ext):
+        """#1082 dropped the ``set_index("datetime")`` shuffle; readers such as
+        ``calcConcentrationFieldFullMesh`` now read ``data["datetime"]``."""
         data = dask.dataframe.from_pandas(_particleFrame(times=(0.0, 1.0, 2.0)),
                                           npartitions=1)
         result = ext._saveToCacheParquet(
             data, None, "MY_CASE", "MY_CASE", "kinematicCloud",
             ext.DOCTYPE_LAGRANGIAN_CACHE, datatypes.PARQUET)
         computed = result.compute()
-        assert computed.index.name == "datetime"
-        assert sorted(computed.index) == [0.0, 1.0, 2.0]
+        assert sorted(computed["datetime"]) == [0.0, 1.0, 2.0]
 
     def test_a_warm_document_is_reused_without_registering_another(self, ext, tmp_path):
         ext.toolkit.addCacheDocument(
@@ -1578,16 +1583,16 @@ class TestGetCaseResults:
         assert first["cloudName"] == "myCloud"
 
     def test_the_timesteps_discovered_on_disk_are_the_ones_loaded(
-            self, ext, tmp_path, lagrangianLoaderSeam):
+            self, ext, tmp_path, lagrangianLoaderSeam, delayedSeam):
         case = _makeCase(tmp_path / "case", timeDirs=("0", "1", "2"))
         ext.getCaseResults(case, cache=False)
-        assert ext.daskClient.lastMapped == ["0", "1", "2"]
+        assert delayedSeam == ["0", "1", "2"]
 
     def test_an_explicit_time_list_overrides_discovery(
-            self, ext, tmp_path, lagrangianLoaderSeam):
+            self, ext, tmp_path, lagrangianLoaderSeam, delayedSeam):
         case = _makeCase(tmp_path / "case", timeDirs=("0", "1", "2"))
         ext.getCaseResults(case, timeList=["1"], cache=False)
-        assert ext.daskClient.lastMapped == ["1"]
+        assert delayedSeam == ["1"]
 
     def test_caching_writes_a_parquet_and_registers_a_cache_document(
             self, ext, tmp_path, lagrangianLoaderSeam):
@@ -1818,7 +1823,7 @@ class TestGetOriginalFlowFieldExtentAsDict:
 
 
 # ===========================================================================
-# getCaseConcentrationsEulerian -- B324
+# getCaseConcentrationsEulerian -- B324 fixed upstream by a4597eb6 (#1082)
 # ===========================================================================
 
 @pytest.mark.unit
@@ -1837,27 +1842,11 @@ class TestGetCaseConcentrationsEulerian:
         assert isinstance(result, xarray.Dataset)
         assert "C" in result
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B324: getCaseConcentrationsEulerian calls "
-               "self._loadCaseDataViaDask(finalCasePath, loader, timeList, "
-               "forceSingleProcessor, self.daskClient) -- five positional "
-               "arguments to a method declared as "
-               "_loadCaseDataViaDask(self, casePath, loader, timeList, "
-               "forceSingleProcessor), which reads self.daskClient itself. The "
-               "sibling getCaseResults calls the same helper with four. Every "
-               "cold-cache call raises TypeError. See the consolidated findings "
-               "issue.")
     def test_a_cold_cache_should_read_the_case_from_disk(self, ext, tmp_path):
+        """B324 fixed upstream by a4597eb6 (#1082): the helper now gets its
+        four arguments."""
         case = _makeCase(tmp_path / "case", timeDirs=("0",))
         ext.getCaseConcentrationsEulerian(case, cache=False)
-
-    def test_a_cold_cache_currently_raises_typeerror_on_the_extra_argument(
-            self, ext, tmp_path):
-        """Characterisation of B324."""
-        case = _makeCase(tmp_path / "case", timeDirs=("0",))
-        with pytest.raises(TypeError, match="_loadCaseDataViaDask"):
-            ext.getCaseConcentrationsEulerian(case, cache=False)
 
 
 # ===========================================================================
@@ -2120,33 +2109,19 @@ class TestCreateConcentrationCacheDoc:
 
 
 # ===========================================================================
-# B326: calcConcentrationFieldFullMesh calls the other class's method
+# calcConcentrationFieldFullMesh -- B326 fixed upstream by a4597eb6 (#1082)
 # ===========================================================================
 
 @pytest.mark.unit
 class TestCalcConcentrationFieldFullMesh:
-    def test_the_helper_it_calls_lives_on_the_other_class(self):
-        """Characterisation of B326, at its source."""
-        assert not hasattr(analysis, "_resolveCaseDescriptorName")
-        assert hasattr(Extension, "_resolveCaseDescriptorName")
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B326: calcConcentrationFieldFullMesh's first statement is "
-               "self._resolveCaseDescriptorName(caseDescriptor), but that "
-               "method is defined on "
-               "absractStochasticLagrangianSolver_toolkitExtension, not on "
-               "analysis; every other datalayer call in the same method goes "
-               "through self.datalayer(.toolkit). The method raises "
-               "AttributeError on its first line, so no concentration field "
-               "can ever be computed. See the consolidated findings issue.")
-    def test_it_should_at_least_get_past_resolving_the_case_name(self, ana, tmp_path):
-        ana.calcConcentrationFieldFullMesh("SOME_CASE", dxdydz=1)
-
-    def test_it_currently_raises_on_its_first_statement(self, ana):
-        """Characterisation of B326."""
-        with pytest.raises(AttributeError, match="_resolveCaseDescriptorName"):
-            ana.calcConcentrationFieldFullMesh("SOME_CASE", dxdydz=1)
+    def test_it_should_at_least_get_past_resolving_the_case_name(self, ana):
+        """B326 fixed upstream by a4597eb6 (#1082): the name is resolved via
+        self.datalayer, so the cache document is registered under it before
+        the (absent) case is looked up on disk."""
+        with pytest.raises(FileNotFoundError):
+            ana.calcConcentrationFieldFullMesh("SOME_CASE", dxdydz=1, extents=_EXTENTS)
+        docs = ana.datalayer.toolkit.getCacheDocuments(type=ana.DOCTYPE_CONCENTRATION)
+        assert [doc.desc["caseDescriptorName"] for doc in docs] == ["SOME_CASE"]
 
 
 # ===========================================================================

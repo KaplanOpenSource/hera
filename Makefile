@@ -2,7 +2,9 @@
 # Usage: make <target>
 
 MONGO_CONTAINER = hera-mongo
-MONGO_IMAGE     = mongo:5.0
+# Override for an existing data dir made by an older server (see issue #1126) or
+# a host kernel >= 6.19 until MongoDB ships the SERVER-136848 fix: MONGO_IMAGE=mongo:7.0
+MONGO_IMAGE     ?= mongo:9.0
 MONGO_DATA      ?= $(HOME)/mongo-db-datadir
 MONGO_INIT      = $(CURDIR)/mongo-init.d
 MONGO_PORT      = 27017
@@ -302,21 +304,16 @@ install-deps:
 	@echo "System dependencies installed."
 
 install-paraview:
-	@echo "Installing ParaView..."
-	@if [ -d "$(HOME)/paraview" ]; then \
-		echo "ParaView directory already exists at $(HOME)/paraview, skipping download."; \
-	else \
-		echo "Downloading ParaView 5.11.0..."; \
-		wget -q --show-progress -O /tmp/paraview.tar.gz \
-			"https://www.paraview.org/paraview-downloads/download.php?submit=Download&version=v5.11&type=binary&os=Linux&downloadFile=ParaView-5.11.0-MPI-Linux-Python3.9-x86_64.tar.gz"; \
-		mkdir -p $(HOME)/paraview; \
-		tar -xzf /tmp/paraview.tar.gz -C $(HOME)/paraview --strip-components=1; \
-		rm -f /tmp/paraview.tar.gz; \
-	fi
-	@echo ""
-	@echo "ParaView installed at $(HOME)/paraview"
-	@echo "Add to your environment:"
-	@echo "  export PYTHONPATH=$(HOME)/paraview/lib/python3.9/site-packages:\$$PYTHONPATH"
+	@# pip has no ParaView, and the old binary download was built for Python 3.9.
+	@# Ubuntu's python3-paraview is built for the system Python (3.14 on 26.04) against the
+	@# system VTK, so the active venv (same Python version) links those in and drops pip's vtk.
+	@echo "Installing ParaView from apt and linking it into the active venv..."
+	sudo apt-get update
+	sudo apt-get install -y --no-install-recommends python3-paraview
+	pip uninstall -y vtk || true
+	SP=$$(python -c "import sysconfig; print(sysconfig.get_paths()['purelib'])"); \
+	dpkg -L python3-paraview python3-vtk9 | grep -E '^/usr/lib/python3/dist-packages/[^/]+$$' | sort -u | xargs -I{} ln -sf {} "$$SP/"
+	python -c "import paraview.simple as s; print('ParaView', s.GetParaViewVersion())"
 
 install-freecad:
 	@echo "Installing FreeCad Python3 bindings..."

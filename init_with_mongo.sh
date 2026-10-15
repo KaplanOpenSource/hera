@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/set_hera_environment.sh"
 
 CONTAINER_NAME="hera-mongo"
-MONGO_IMAGE="mongo:5.0"
+MONGO_IMAGE="${MONGO_IMAGE:-mongo:9.0}"   # override: see Makefile
 DATA_DIR="${HOME}/mongo-db-datadir"
 INIT_DIR="${SCRIPT_DIR}/mongo-init.d"
 SYSTEM_USER="$(whoami)"

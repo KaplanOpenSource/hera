@@ -387,8 +387,8 @@ class ActionIndoor(abstractAction):
 			abegin = self.params.get("begin",None) 
 			aend   = self.params.get("end"  ,None) 
 
-		abegin = data[self.policy.datetimename].to_series()[0]  if abegin is None else abegin
-		aend   = data[self.policy.datetimename].to_series()[-1] if aend is None else aend
+		abegin = data[self.policy.datetimename].to_series().iloc[0]  if abegin is None else abegin
+		aend   = data[self.policy.datetimename].to_series().iloc[-1] if aend is None else aend
 
 		actionTimeList = data.datetime.to_series()[data[self.policy.datetimename].to_series().between(abegin,aend)]
 		data[self.policy.finalname] = Cin.where(data[self.policy.datetimename].isin(actionTimeList),Cout)
@@ -478,8 +478,8 @@ class ActionMasks(abstractAction):
 			abegin = self.params.get("begin",None) 
 			aend   = self.params.get("end"  ,None) 
 
-		abegin = data[self.policy.datetimename].to_series()[0]  if abegin is None else abegin
-		aend   = data[self.policy.datetimename].to_series()[-1] if aend is None else aend
+		abegin = data[self.policy.datetimename].to_series().iloc[0]  if abegin is None else abegin
+		aend   = data[self.policy.datetimename].to_series().iloc[-1] if aend is None else aend
 
 		actionTimeList = data.datetime.to_series()[data[self.policy.datetimename].to_series().between(abegin,aend)]
 		data[self.policy.finalname] = data[self.name].where(data[self.policy.datetimename].isin(actionTimeList),Cno_mask)

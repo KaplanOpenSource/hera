@@ -532,7 +532,7 @@ class TestPlotProbContourfBySeason:
     def test_a_supplied_grid_currently_breaks_in_plt_sca(self, seasonal):
         """Characterisation of B300."""
         _, target = plt.subplots(2, 2)
-        with pytest.raises(AttributeError, match="no attribute 'figure'"):
+        with pytest.raises(AttributeError, match="no attribute '(get_)?figure'"):
             seasonal.plotProbContourf_bySeason(self._year(), "WS", ax=target,
                                                colorbar=False)
 

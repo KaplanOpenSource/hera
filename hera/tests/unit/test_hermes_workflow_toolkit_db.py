@@ -23,6 +23,7 @@ Deliberately not covered here:
 """
 import json
 import os
+import sys
 
 import pandas
 import pytest
@@ -151,7 +152,10 @@ class TestGetHermesWorkflowFromJSON:
         with pytest.raises(ValueError, match="noSuchSolver"):
             tk.getHermesWorkflowFromJSON(_workflowJSON(solver="noSuchSolver"))
 
+    # B136 depends on the interpreter: up to 3.11 pydoc.locate("hermes.workflow")
+    # happens to return the workflow class; from 3.12 it returns the module.
     @pytest.mark.xfail(
+        sys.version_info >= (3, 12),
         strict=True,
         reason="B136: a workflow with no 'solver' field should fall back to "
                "the generic hermes workflow class, but the fallback is "
@@ -165,6 +169,7 @@ class TestGetHermesWorkflowFromJSON:
         workflowObject = tk.getHermesWorkflowFromJSON(_workflowJSON(solver=None))
         assert workflowObject.parametersJSON["Parameters"] == {"alpha": 1.0}
 
+    @pytest.mark.skipif(sys.version_info < (3, 12), reason="B136 only manifests on Python 3.12+")
     def test_a_workflow_without_a_solver_currently_raises_a_typeerror(self, tk):
         """Characterisation of B136."""
         with pytest.raises(TypeError, match="not callable"):

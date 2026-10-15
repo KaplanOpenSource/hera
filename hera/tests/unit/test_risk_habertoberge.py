@@ -30,6 +30,9 @@ calls in the module body -- they are documentation of the agents' published
 LD50/probit pairs, not code.  Nothing verifies that the *guess* is a good
 one; that is the human judgement the plot exists to support.
 """
+import contextlib
+import warnings
+
 import numpy
 import pytest
 
@@ -105,6 +108,16 @@ class TestTransform:
         assert EstimateTBProbit(1.5).transform(0.0) == pytest.approx(0.0)
 
 
+@contextlib.contextmanager
+def _tolerating_show():
+    """plotGuess ends in plt.show().  On Agg matplotlib warns "non-interactive"
+    only when a display exists; headless (CI, containers) it stays silent, so
+    the warning is tolerated rather than required."""
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message=".*non-interactive", category=UserWarning)
+        yield
+
+
 @pytest.mark.unit
 class TestPlotGuess:
     """Documented as plotting "the transformed data (which is the correct) vs.
@@ -119,7 +132,7 @@ class TestPlotGuess:
         import matplotlib.pyplot as plt
 
         estimator = EstimateTBProbit(1.5)
-        with pytest.warns(UserWarning, match="non-interactive"):
+        with _tolerating_show():
             returned = estimator.plotGuess(self.NEW_PROBIT, self.E50, self.PROBIT)
         return returned, plt.gca(), estimator
 
@@ -171,7 +184,7 @@ class TestPlotGuess:
 
     def test_the_transformed_ld50_is_printed(self, capsys):
         estimator = EstimateTBProbit(1.5)
-        with pytest.warns(UserWarning):
+        with _tolerating_show():
             estimator.plotGuess(self.NEW_PROBIT, self.E50, self.PROBIT)
 
         printed = capsys.readouterr().out
@@ -181,7 +194,7 @@ class TestPlotGuess:
         """Documented in the module comments: the probit divides by n and the
         geometric standard deviation multiplies by it."""
         estimator = EstimateTBProbit(1.5)
-        with pytest.warns(UserWarning):
+        with _tolerating_show():
             estimator.plotGuess(self.NEW_PROBIT, self.E50, self.PROBIT)
 
         printed = capsys.readouterr().out
@@ -195,7 +208,7 @@ class TestPlotGuess:
         import matplotlib.pyplot as plt
 
         estimator = EstimateTBProbit(1.5)
-        with pytest.warns(UserWarning):
+        with _tolerating_show():
             estimator.plotGuess(self.NEW_PROBIT, self.E50, self.PROBIT)
 
         correct = plt.gca().lines[0]
@@ -209,7 +222,7 @@ class TestPlotGuess:
         import matplotlib.pyplot as plt
 
         estimator = EstimateTBProbit(1.0)
-        with pytest.warns(UserWarning):
+        with _tolerating_show():
             estimator.plotGuess(self.PROBIT, self.E50, self.PROBIT)
 
         correct, guess = plt.gca().lines

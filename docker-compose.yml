@@ -22,7 +22,7 @@ configs:
 
 services:
   mongo:
-    image: mongo:5.0
+    image: ${MONGO_IMAGE:-mongo:9.0}   # override: see Makefile
     # --quiet drops the per-connection open/close log spam from the healthcheck.
     command: ["mongod", "--quiet"]
     volumes:

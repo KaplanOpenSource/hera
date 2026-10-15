@@ -23,13 +23,13 @@
 ## Getting Started
 
 ### Prerequisites
-*   **OS:** Ubuntu 22.04 LTS (verified)
-*   **Python:** 3.9.13+
+*   **OS:** Ubuntu 26.04 LTS (verified; 24.04 also works)
+*   **Python:** 3.11+ (3.14, the Ubuntu 26.04 system Python, is the reference)
 *   **Docker:** Required for quick install (MongoDB runs in a container)
 
 ### Quick Install (recommended)
 
-The fastest way to get Hera running. Requires Docker and Python 3.9+.
+The fastest way to get Hera running. Requires Docker and Python 3.11+.
 
 1. **Clone the repository:**
    ```bash
@@ -46,15 +46,17 @@ The fastest way to get Hera running. Requires Docker and Python 3.9+.
    - Prompt to create a Python virtual environment at `~/.pyhera/environment` with all dependencies installed
    - Prompt to persist the environment to `~/.bashrc`
    - Prompt to auto-activate the Hera environment when you `cd` into the project directory
-   - Pull and start a MongoDB 5.0 Docker container with preconfigured credentials
+   - Pull and start a MongoDB 9.0 Docker container with preconfigured credentials
    - Create the `~/.pyhera/config.json` configuration file automatically
+
+> **MongoDB 9 and kernel >= 6.19:** MongoDB 9.0.2 refuses to start on Linux kernels 6.19 and newer, which includes Ubuntu 26.04's 7.0 kernel ([SERVER-136848](https://jira.mongodb.org/browse/SERVER-136848)). Until MongoDB ships the fix, use `MONGO_IMAGE=mongo:7.0` on such hosts. A data directory created by an older server must be migrated with dump/restore (issue #1126); MongoDB 9 will not open it in place.
 
    After running, everything is ready to use.
 
 3. **Install system dependencies and third-party tools (optional):**
    ```bash
    make install-deps       # System packages (libcairo, GDAL, etc.)
-   make install-paraview   # ParaView 5.11.0
+   make install-paraview   # apt python3-paraview, linked into the venv
    make install-freecad    # FreeCad Python3 bindings
    make install-openfoam   # OpenFOAM 10
    make install-deps-all   # All of the above
@@ -107,7 +109,7 @@ sudo apt install libcairo2-dev pkg-config python3-dev libgirepository1.0-dev lib
 ```bash
 git clone https://github.com/KaplanOpenSource/hera
 cd hera
-python3.9 -m venv heraenv
+python3 -m venv heraenv
 source heraenv/bin/activate
 ```
 
@@ -145,7 +147,7 @@ mkdir -p ~/.pyhera/log/
 
 #### 6. MongoDB setup
 
-Install MongoDB 6.0 following the [official instructions](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/) and ensure it runs on port 27017.
+Install MongoDB 9.0 following the [official instructions](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/) and ensure it runs on port 27017.
 
 Start MongoDB with `mongosh` and create users:
 
@@ -248,10 +250,9 @@ All instructions are for Ubuntu OS.
 
 Paraview may be used to view results in a convenient GUI. Download from [paraview.org](https://www.paraview.org/download/). To prevent conflicts between your Python version and Paraview's Python version, make sure to use Paraview with your Python.
 
-Add Paraview libs to PYTHONPATH:
-```bash
-export PYTHONPATH=/raid/software/ParaView-5.11.0-MPI-Linux-Python3.9-x86_64/lib/python3.9/site-packages/:$PYTHONPATH
-```
+For the Python side (hera's OpenFOAM VTK pipeline), `make install-paraview` installs Ubuntu's
+`python3-paraview` and links it, with the system VTK it was built against, into the active venv.
+The venv must use the system Python (3.14 on Ubuntu 26.04).
 
 ### FreeCad
 

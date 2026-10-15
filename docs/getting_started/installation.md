@@ -8,8 +8,8 @@ This guide walks you through installing Hera and configuring the required servic
 
 | Requirement | Minimum Version | Notes |
 |-------------|----------------|-------|
-| **OS** | Ubuntu 22.04 LTS | Verified with this version |
-| **Python** | 3.9+ | Tested with 3.9, 3.10, 3.11 |
+| **OS** | Ubuntu 26.04 LTS | Verified with this version; 24.04 also works |
+| **Python** | 3.11+ | Tested with 3.11 and 3.14 (the Ubuntu 26.04 system Python) |
 | **Git** | 2.x | For cloning the repository |
 | **pip** | 21+ | For installing Python packages |
 | **Docker** | 20+ | Required for quick install only |
@@ -69,8 +69,10 @@ flowchart TD
     - Prompt to create a Python virtual environment at `~/.pyhera/environment` with all dependencies installed
     - Prompt to persist the environment to `~/.bashrc`
     - Prompt to auto-activate the Hera environment when you `cd` into the project directory
-    - Pull and start a MongoDB 5.0 Docker container with preconfigured credentials
+    - Pull and start a MongoDB 9.0 Docker container with preconfigured credentials
     - Create the `~/.pyhera/config.json` configuration file automatically
+
+> **MongoDB 9 and kernel >= 6.19:** MongoDB 9.0.2 refuses to start on Linux kernels 6.19 and newer, which includes Ubuntu 26.04's 7.0 kernel ([SERVER-136848](https://jira.mongodb.org/browse/SERVER-136848)). Until MongoDB ships the fix, use `MONGO_IMAGE=mongo:7.0` on such hosts. A data directory created by an older server must be migrated with dump/restore (issue #1126); MongoDB 9 will not open it in place.
 
     After running, everything is ready to use.
 
@@ -78,7 +80,7 @@ flowchart TD
 
     ```bash
     make install-deps       # System packages (libcairo, GDAL, etc.)
-    make install-paraview   # ParaView 5.11.0
+    make install-paraview   # apt python3-paraview, linked into the venv
     make install-freecad    # FreeCad Python3 bindings
     make install-openfoam   # OpenFOAM 10
     make install-deps-all   # All of the above
@@ -155,7 +157,7 @@ flowchart TD
     end
 
     subgraph Step5 ["Step 5: MongoDB"]
-        MongoInstall["Install MongoDB 6.0"]
+        MongoInstall["Install MongoDB 9.0"]
         MongoUsers["Create admin +\napplication users"]
         MongoConfig["Create\n~/.pyhera/config.json"]
     end
@@ -196,7 +198,7 @@ git clone https://github.com/KaplanOpenSource/hera
 cd hera
 
 # Create and activate a virtual environment
-python3.9 -m venv heraenv
+python3 -m venv heraenv
 source heraenv/bin/activate
 
 # Install in development mode
@@ -260,7 +262,7 @@ See the [Environment Variables Reference](../configuration/env_vars.md) for comp
 
 ### Step 5: MongoDB Setup
 
-Install MongoDB 6.0 following the [official instructions](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/) and ensure it runs on port 27017.
+Install MongoDB 9.0 following the [official instructions](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/) and ensure it runs on port 27017.
 
 Start MongoDB with `mongosh` and create users:
 

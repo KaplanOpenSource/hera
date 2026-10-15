@@ -275,8 +275,8 @@ class analysis():
             ToxicLoad = ToxicLoad.to_dataframe().reset_index()
             ToxicLoad = ToxicLoad.loc[ToxicLoad.C>=level]
             data = geopandas.geodataframe.GeoDataFrame(ToxicLoad, geometry=geopandas.points_from_xy(ToxicLoad.x, ToxicLoad.y))
-            boundsList.append(data.unary_union.bounds)
-            polygonList.append(data.unary_union.convex_hull)
+            boundsList.append(data.union_all().bounds)
+            polygonList.append(data.union_all().convex_hull)
 
         return geopandas.geodataframe.GeoDataFrame({"tenBergCoefficient":tenbergeCoefficient, "level":levels, "bounds":boundsList, "geometry":polygonList})
 

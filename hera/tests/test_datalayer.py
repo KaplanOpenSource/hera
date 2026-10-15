@@ -45,10 +45,14 @@ def _mongo_is_available():
         cfg = getMongoConfigFromJson()
         host = cfg.get("dbIP", "localhost")
         port = int(cfg.get("port", 27017))
+        # Authenticate the way hera does: from MongoDB 8.1 an unauthenticated
+        # buildInfo/server_info() is refused, which silently skipped these tests.
         client = pymongo.MongoClient(
-            host=host, port=port, serverSelectionTimeoutMS=1000
+            host=host, port=port, serverSelectionTimeoutMS=1000,
+            username=cfg.get("username"), password=cfg.get("password"),
+            authSource="admin",
         )
-        client.server_info()
+        client.admin.command("ping")
         return True
     except Exception:
         return False

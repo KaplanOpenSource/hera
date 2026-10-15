@@ -1003,6 +1003,7 @@ class TestModuleLevelState:
     def test_the_module_defines_wsg84_as_the_shared_epsg_code(self):
         assert topography_module.WSG84 == WSG84
 
+    @pytest.mark.skipif(topography_module._gdal_available, reason="GDAL is installed here")
     def test_gdal_is_absent_in_this_environment(self):
         """Documents why the gdal branches are left untested here."""
         assert topography_module._gdal_available is False

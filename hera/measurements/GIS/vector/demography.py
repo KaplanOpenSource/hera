@@ -266,7 +266,7 @@ class analysis:
                 polys = self.datalayer.buildings.analysis.ConvexPolygons(polydoc)
                 poly = polys.loc[polys.area == polys.area.max()].geometry[0]
             else:
-                poly = polydoc.unary_union
+                poly = polydoc.union_all()
 
         # 📐 Intersect population data with polygon (including topology fix)
         try:
