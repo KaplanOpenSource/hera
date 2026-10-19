@@ -14,6 +14,11 @@
 > with the python in `ui/server/document_api/`. There is no per-document read:
 > `/project/documents` already brings them all, so the store is the only source.
 > See `ENTRYPOINTS_DOCUMENTS_STEPS.md`.
+>
+> The repositories went last: four named routes under `/repository/*`, with the
+> python in `ui/server/repository_api/`. A repository name is only a nickname for
+> a file, so no name crosses the wire: every route takes a path. See
+> `ENTRYPOINTS_REPOSITORIES_STEPS.md`.
 
 ## Named entrypoints (no exec)
 
@@ -31,24 +36,22 @@
 | `POST /document/create` | `AddDocumentButton`, `duplicateDocuments` | yes | yes | `addDocument.test.tsx`, `documentOperations.test.ts`, `treeInteractions.test.tsx`, `integration/documents.integ.test.tsx`, `server/tests/test_documents.py` |
 | `POST /document/update` | `useShownDoc` | yes | yes | `documentOperations.test.ts`, `saveDocument.test.tsx`, `TwoUiSync.test.tsx`, `integration/documents.integ.test.tsx`, `server/tests/test_documents.py` |
 | `POST /document/delete` | `deleteDocuments`, `DeleteDocumentButton`, `DeleteSelectedButton` | yes | yes | `deleteDocumentButton.test.tsx`, `documentOperations.test.ts`, `projectActions.test.tsx`, `treeInteractions.test.tsx`, `integration/documents.integ.test.tsx`, `server/tests/test_documents.py` |
+| `GET /repository/registered` | `useRegisteredRepositories` | yes | no | `registeredRepositories.test.tsx`, `server/tests/test_repositories.py` |
+| `GET /repository/get` | `DetailsViewRepo` | yes | yes | `detailsViewRepo.test.tsx`, `integration/centralRepo.integ.test.tsx`, `server/tests/test_repositories.py` |
+| `GET /repository/jsonsInFolder` | `CentralRepoFolder`, `DetailsViewMergedRepo` | yes | yes | `centralRepoFolder.test.tsx`, `detailsViewRepo.test.tsx`, `integration/centralRepo.integ.test.tsx`, `server/tests/test_repositories.py` |
+| `POST /repository/loadIntoProject` | `RepoTreeAddButton`, `UpdateRepositoriesButton`, `loadRepositoryIntoProject` | yes | no | `repoTreeAddButton.test.tsx`, `updateRepositoriesButton.test.tsx`, `repoTreeInteractions.test.tsx`, `server/tests/test_repositories.py` |
+
+A load answers `added` and `problems` as well as the project: hera skips what it
+cannot load without raising, so the route counts the documents before and after
+and reports the reason. See `ENTRYPOINTS_REPOSITORIES_STEPS.md`.
 
 ## Still on `/exec`
 
-8 call sites in 7 files, all of them repositories.
-
-| # | Function | File | Unit test? | Latency? | Integration? | Test file |
-|---|----------|------|:---:|:---:|:---:|---|
-| 1 | load repo JSON (useEffect) | `src/components/details/DetailsViewRepo.tsx:22` | yes | yes | no | `detailsViewRepo.test.tsx` |
-| 2 | merged repo JSONs | `src/components/details/DetailsViewMergedRepo.tsx:22` | yes | no | no | `detailsViewRepo.test.tsx` |
-| 3 | `addRepo` | `src/components/details/RepoTreeAddButton.tsx:41` | yes | yes | no | `repoTreeAddButton.test.tsx` |
-| 4 | repo JSONs in folder | `src/components/repo/CentralRepoFolder.tsx:23` | yes | no | yes | `centralRepoFolder.test.tsx` |
-| 5 | repo contents | `src/components/repo/RepoContents.tsx:21` | yes | no | no | `repoTreeInteractions.test.tsx` |
-| 6 | `useRegisteredRepositories` | `src/components/repo/useRegisteredRepositories.ts:9` | no | no | no | - |
-| 7 | update repositories | `src/components/repo/UpdateRepositoriesButton.tsx:14` | no | no | no | - |
-| 8 | `loadRepositoryIntoProject` | `src/io/loadRepositoryIntoProject.ts:8` | yes | no | no | `repoTreeInteractions.test.tsx` |
+No call sites. `src/io/fetchPython.ts` is still there, and `entrypoint.ts` imports
+the `WARMING_UP` constant from it; the integration tests use `/exec` to write
+their own files on the server. Retiring the endpoint is its own issue.
 
 ## Gaps
 
-- **#6, #7**: no test at all.
-- **#8**: no latency test and no integration test.
-- **Integration missing for**: the repo views (#1-#3, #5).
+- No integration test for loading a repository into a project (`POST
+  /repository/loadIntoProject`), or for the repository views in the browser.

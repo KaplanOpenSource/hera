@@ -1,7 +1,7 @@
 import { Link, LinkOff } from "@mui/icons-material";
 import { useEffect, useState } from "react";
-import { fetchPython } from "../../io/fetchPython";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
+import { fetchRepository } from "../../io/fetchRepository";
 import { idRepoId, TEMP_REPO_NAME } from "../../shared/idDocId";
 import { RepoTreeDisplay } from "./RepoTreeDisplay";
 
@@ -18,26 +18,9 @@ export const DetailsViewRepo = ({
   useEffect(() => {
     (async () => {
       if (!isTempRepo) {
-        const isFilePath = repoPath.includes('/') || repoPath.endsWith('.json');
-        const { data } = await fetchPython({
-          results: ['jsonData', 'jsonDataResolved'],
-          label: 'repo JSON',
-          code: isFilePath
-            ? `
-import json, os
-from hera.utils.data.toolkit import dataToolkit
-with open('${repoPath}', 'r') as fjson:
-  jsonData = json.load(fjson)
-jsonDataResolved = dataToolkit.resolveDataSourcePaths(jsonData, os.path.dirname('${repoPath}'))
-`
-            : `
-from hera.utils.data.toolkit import dataToolkit
-jsonData = dataToolkit().getRepository('${repoPath}')
-jsonDataResolved = jsonData
-`,
-        });
-        setOrigTree(data?.jsonData ?? undefined);
-        setTree(data?.jsonDataResolved ?? data?.jsonData ?? undefined);
+        const trees = await fetchRepository(repoPath);
+        setOrigTree(trees?.json ?? undefined);
+        setTree(trees?.resolved ?? trees?.json ?? undefined);
       }
     })()
   }, [repoPath])

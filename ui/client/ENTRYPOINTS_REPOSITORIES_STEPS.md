@@ -1,7 +1,7 @@
 # Steps: the repository entrypoints
 
 The **Repositories** part of `ENTRYPOINTS_PLAN.md` (issue #1129). Four named
-entrypoints replace the last `/exec` call sites. Status: **proposed**.
+entrypoints replace the last `/exec` call sites. Status: **done**.
 
 Built the same way as the project and document entrypoints, so read
 `ENTRYPOINTS_PROJECTS_STEPS.md` and `ENTRYPOINTS_DOCUMENTS_STEPS.md` first: same
@@ -52,7 +52,7 @@ Every route reaches hera, so each answers 503 `WARMING_UP` while it warms, like
 `RegisteredRepositories` gives its rows an id made from `datasourceName` today.
 The row holds the whole table row, so it has `resource` too, and its label
 already shows it. The fetchers do not: `DetailsViewRepo` is handed only the tree
-item id, and `RepoTreeWhole` reads the id off the DOM for the double click.
+item id, and `RepoTreeWhole` reads the id off the DOM for its right click menu.
 Neither holds the table, which is why the name has to be guessed apart from a
 path.
 
@@ -60,9 +60,9 @@ So the row id becomes `resource`, and the label keeps showing the name. The id
 is a prefix plus a string, and the central folder rows already put paths in it,
 so nothing else changes. After that every repository row in the tree is a path.
 
-This also fixes a real break: double clicking a central folder row sends its
-file path into `loadRepositoryIntoProject`, which looks it up as a name and does
-not find it.
+This also fixes a real break: loading a central folder row from the right click
+menu sends its file path into `loadRepositoryIntoProject`, which looks it up as
+a name and does not find it.
 
 Temp repository rows are not files and never fetch: `DetailsViewRepo` already
 skips them on `isTempRepo`, and a temp tree is loaded with the JSON form.
@@ -118,6 +118,21 @@ tree comes from:
 Giving both `path` and `repositoryJSON` is a 400. `baseDir` only means something
 with `repositoryJSON`.
 
+### The answer says what it did
+
+hera's loader never raises. A toolkit it cannot build is skipped with an info
+line, a section that fails is logged as an error, and the call returns as if it
+worked. So a load answers three things: the project, `added` (how many documents
+the project gained), and `problems`.
+
+`problems` holds the warnings and errors hera logged while loading
+(`repository_api/load_log.py`). When nothing was added and a tree is at hand,
+every toolkit the tree names is then tried one by one
+(`repository_api/toolkit_check.py`), so the answer can name the toolkit that
+cannot be built and why. The client shows it: nothing added is an error toast
+with the first reason, a partial load is an info toast, and every line goes to
+the console.
+
 `overwrite` comes from the caller: the Add dialog asks the user, the other two
 send `False`, as today.
 
@@ -139,6 +154,8 @@ ui/server/repository_api/repo_json.py        # class RepositoryJson: a tree, loa
 ui/server/repository_api/repo_json_file.py   # class RepoJsonFile: one repository file on disk
 ui/server/repository_api/repo_folder.py      # class RepoFolder: the repository files under a folder
 ui/server/repository_api/repository_table.py # class RepositoryTable: the registered rows
+ui/server/repository_api/load_log.py         # class LoadLog: what hera complained about
+ui/server/repository_api/toolkit_check.py    # class ToolkitCheck: which toolkits can be built
 ui/server/routers/repositories.py            # the four routes
 ```
 
@@ -231,6 +248,11 @@ Register the router in `server.py` next to the document one.
    change. Delete `repoJsonPython.ts`.
 5. `loadRepositoryIntoProject.ts` and its three callers.
 6. Client tests, then the full `TEST_UI.md` checklist.
+
+## Left behind
+
+`src/components/repo/RepoLabel.tsx` was only used by `RepoContents`, so nothing
+imports it now. It is not in the list above, so it stays.
 
 ## Follow-up, not part of this
 

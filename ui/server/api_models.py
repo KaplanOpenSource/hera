@@ -114,3 +114,14 @@ class UpdateDocumentPayload(BaseModel):
 
 class DocumentIdsPayload(BaseModel):
     docIds: List[str]
+
+
+class LoadRepositoryPayload(BaseModel):
+    projectName: str
+    # A repository file to load. Nothing with repositoryJSON.
+    path: str = ""
+    # The tree the user edited in the browser, instead of a file.
+    repositoryJSON: Optional[Dict[str, Any]] = None
+    # What the relative paths in repositoryJSON are against; nothing without it.
+    baseDir: str = ""
+    overwrite: bool = False

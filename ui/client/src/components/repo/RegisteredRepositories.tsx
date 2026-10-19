@@ -26,8 +26,8 @@ export const RegisteredRepositories = ({
         ? <TreeItem itemId="registered-repos/__empty" label="No registered repositories" />
         : repositories.map(r => (
           <TreeItem
-            key={r.datasourceName}
-            itemId={idRepoId(r.datasourceName)}
+            key={r.resource}
+            itemId={idRepoId(r.resource)}
             label={<RenamePathField value={r.resource} />}
           />
         ))

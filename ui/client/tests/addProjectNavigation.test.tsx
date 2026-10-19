@@ -4,10 +4,8 @@ import { BrowserRouter, Route, Routes, useParams } from 'react-router-dom';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-// The dialog also lists the registered repositories, which still uses /exec.
+// entrypoint.ts reads the constant from here, and nothing else does now.
 vi.mock('../src/io/fetchPython', () => ({
-  fetchPython: vi.fn().mockResolvedValue({ data: null }),
-  fetchPythonClean: vi.fn().mockResolvedValue({ data: null }),
   WARMING_UP: 'WARMING_UP',
 }));
 

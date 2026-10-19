@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from args_settings import ArgsSettings, parse_args_settings, set_args_settings
 from dependencies import warmup
 from routers import (cors_info, documents, exec_code, files, geojson, health, jupyter,
-                     nodes, projects, startup, workflow)
+                     nodes, projects, repositories, startup, workflow)
 
 
 @asynccontextmanager
@@ -71,6 +71,7 @@ def create_app(settings: ArgsSettings) -> FastAPI:
     app.include_router(geojson.router)
     app.include_router(projects.router)
     app.include_router(documents.router)
+    app.include_router(repositories.router)
 
     assets_dir = files.FRONTEND_DIST / "assets"
     if assets_dir.exists():

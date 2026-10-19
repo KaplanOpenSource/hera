@@ -4,9 +4,8 @@ import { TreeItem } from "@mui/x-tree-view";
 import { useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { useDialog } from "../../elements/useDialog";
-import { fetchPython } from "../../io/fetchPython";
+import { fetchRepoJsonsInFolder } from "../../io/fetchRepoJsonsInFolder";
 import { CENTRAL_REPO_FOLDER_ID, idRepoId } from "../../shared/idDocId";
-import { LOAD_REPO_JSON_PYTHON } from "../../shared/repoJsonPython";
 
 const DEFAULT_FOLDER = '~/hera/repositories/';
 const STORAGE_KEY = 'hera-central-repo-folder';
@@ -20,22 +19,9 @@ export const CentralRepoFolder = () => {
   const { openDialog, DialogComponent } = useDialog<{ folder: string }>();
 
   const fetchFiles = async (folderPath: string) => {
-    const { data } = await fetchPython({
-      results: ['jsonFiles'],
-      label: 'central repo files',
-      code: `
-import os, glob, json
-${LOAD_REPO_JSON_PYTHON}
-folder = os.path.expanduser('${folderPath}')
-jsonFiles = []
-if os.path.isdir(folder):
-    allFiles = glob.glob(os.path.join(folder, '**', '*.json'), recursive=True)
-    allFiles = [f for f in allFiles if not f.endswith('caseConfiguration.json')]
-    jsonFiles = sorted(f for f in allFiles if loadRepoJson(f) is not None)
-`,
-    });
-    if (data?.jsonFiles) {
-      setFiles(data.jsonFiles);
+    const answer = await fetchRepoJsonsInFolder(folderPath);
+    if (answer) {
+      setFiles(answer.files);
     }
     setLoaded(true);
   };
