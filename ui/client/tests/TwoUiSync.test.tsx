@@ -9,7 +9,7 @@ import { ProjectObj } from '../src/objects/ProjectObj';
 import { useProjectStore } from '../src/stores/useProjectStore';
 import { useServerConstants } from '../src/stores/useServerConstants';
 import { ProjectDocument, ProjectEntire } from '../src/shared/types';
-import * as FetchDocument from '../src/io/FetchDocument';
+import { documentApi } from '../src/api/api';
 
 vi.mock('../src/components/agents/AgentConfigEditor', () => ({
   AgentConfigEditor: () => null,
@@ -60,7 +60,7 @@ describe('Two UI sync', () => {
   let updateDocumentSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    updateDocumentSpy = vi.spyOn(FetchDocument, 'updateDocument');
+    updateDocumentSpy = vi.spyOn(documentApi, 'update');
     useServerConstants.setState({ dataTypes: { JSON: 'json' } });
   });
 

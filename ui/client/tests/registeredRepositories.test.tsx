@@ -4,12 +4,6 @@ import { SimpleTreeView } from '@mui/x-tree-view';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockGetJson = vi.fn();
-vi.mock('../src/io/entrypoint', () => ({
-  getJson: (...args: any[]) => mockGetJson(...args),
-  postJson: vi.fn(),
-}));
-
 vi.mock('../src/components/repo/UpdateRepositoriesButton', () => ({
   UpdateRepositoriesButton: () => null,
 }));
@@ -17,6 +11,7 @@ vi.mock('../src/components/repo/UpdateRepositoriesButton', () => ({
 const { useRegisteredRepositories } = await import('../src/components/repo/useRegisteredRepositories');
 const { RegisteredRepositories } = await import('../src/components/repo/RegisteredRepositories');
 const { idFromRepoDomId } = await import('../src/shared/idDocId');
+const { mockApiCall } = await import('./helpers/mockApiCall');
 
 const REPO = {
   datasourceName: 'YAVNEEL',
@@ -27,7 +22,12 @@ const REPO = {
 };
 
 afterEach(() => { cleanup(); });
-beforeEach(() => { vi.clearAllMocks(); });
+
+let mockGetJson: ReturnType<typeof vi.fn>;
+beforeEach(() => {
+  vi.clearAllMocks();
+  ({ getJson: mockGetJson } = mockApiCall());
+});
 
 describe('useRegisteredRepositories', () => {
   it('asks the registered entrypoint once, with no parameters', async () => {

@@ -4,11 +4,9 @@ import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockPostJson = vi.fn();
-vi.mock('../src/io/entrypoint', () => ({
-  postJson: (...args: any[]) => mockPostJson(...args),
-  getJson: vi.fn(),
-}));
+import { mockApiCall } from './helpers/mockApiCall';
+
+let mockPostJson: ReturnType<typeof vi.fn>;
 
 vi.mock('../src/components/project/RepoTreeWhole', () => ({
   RepoTreeWhole: () => null,
@@ -82,6 +80,8 @@ const click = (name: string) => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  const call = mockApiCall();
+  mockPostJson = call.postJson;
   useProjectStore.setState({
     currProjectName: 'TestProject',
     currProject: { name: 'TestProject', documents } as any,

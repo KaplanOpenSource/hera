@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { validateNodeParams } from '../../io/validateNodeParams';
+import { nodeApi } from '../../api/api';
 import { WorkflowNode } from '../../shared/types';
 
 const VALIDATE_SETTLE_MS = 500;
@@ -18,11 +18,9 @@ export const useNodeParamsValidation = (node: WorkflowNode): string => {
         setChecked({ request, message: '' });
         return;
       }
-      try {
-        const result = await validateNodeParams({ type, params });
+      const result = await nodeApi.validateParams({ type, params });
+      if (result) {
         setChecked({ request, message: result.message });
-      } catch (error) {
-        console.error('node params validation', error);
       }
     }, VALIDATE_SETTLE_MS);
     return () => clearTimeout(timer);

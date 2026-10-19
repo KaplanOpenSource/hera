@@ -3,11 +3,9 @@ import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-libra
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockPostJson = vi.fn();
-vi.mock('../src/io/entrypoint', () => ({
-  postJson: (...args: any[]) => mockPostJson(...args),
-  getJson: vi.fn(),
-}));
+import { mockApiCall } from './helpers/mockApiCall';
+
+let mockPostJson: ReturnType<typeof vi.fn>;
 
 const mockPushInfo = vi.fn();
 vi.mock('../src/io/snackbar', () => ({
@@ -34,6 +32,7 @@ const configDoc = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockPostJson = mockApiCall().postJson;
   useProjectStore.setState({
     currProjectName: 'TestProject',
     currProject: { name: 'TestProject', documents: [configDoc] },

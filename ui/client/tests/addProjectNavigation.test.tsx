@@ -9,12 +9,7 @@ vi.mock('../src/io/fetchPython', () => ({
   WARMING_UP: 'WARMING_UP',
 }));
 
-const mockPostJson = vi.fn();
-const mockGetJson = vi.fn();
-vi.mock('../src/io/entrypoint', () => ({
-  postJson: (...args: any[]) => mockPostJson(...args),
-  getJson: (...args: any[]) => mockGetJson(...args),
-}));
+import { mockApiCall } from './helpers/mockApiCall';
 
 const { AddProjectButton } = await import('../src/components/header/AddProjectButton');
 const { FetchProjects } = await import('../src/io/FetchProjects');
@@ -49,8 +44,12 @@ const renderAt = (path: string) => {
   );
 };
 
+let mockPostJson: ReturnType<typeof vi.fn>;
+let mockGetJson: ReturnType<typeof vi.fn>;
+
 beforeEach(() => {
   vi.clearAllMocks();
+  ({ getJson: mockGetJson, postJson: mockPostJson } = mockApiCall());
   useProjectListStore.setState({ projectNames: [{ name: 'Alpha' }] });
   useProjectStore.setState({ currProjectName: 'Alpha', currProject: OLD_PROJECT, editedDocs: {} });
   mockPostJson.mockResolvedValue({

@@ -7,8 +7,12 @@
 > lives in `ui/server/init_data.py`.
 >
 > The project calls no longer go through `/exec` either: six named routes under
-> `/project/*`, with the python in `ui/server/project_api/`. The client calls them
-> through `src/io/entrypoint.ts`. See `ENTRYPOINTS_PROJECTS_STEPS.md`.
+> `/project/*`, with the python in `ui/server/project_api/`. See
+> `ENTRYPOINTS_PROJECTS_STEPS.md`.
+>
+> Every server call now lives in `src/api/`, one class per route group, all on
+> the `ApiCall` base class. `src/io/entrypoint.ts` is gone. See
+> `API_CLASSES_PLAN.md`.
 >
 > The document calls went the same way: three named routes under `/document/*`,
 > with the python in `ui/server/document_api/`. There is no per-document read:
@@ -24,9 +28,15 @@
 
 | Entrypoint | Caller | Unit test? | Integration? | Test file |
 |---|---|:---:|:---:|---|
-| `GET /init` | `src/io/fetchInit.ts` | yes | no | `fetchInit.test.ts`, `serverReadyGate.test.tsx`, `fetchProjectsAfterInit.test.tsx`, `server/tests/test_init_data.py` |
-| `GET /geojson` | `src/io/fetchGeoJson.ts` | yes | no | `fetchGeoJson.test.ts`, `server/tests/test_geojson_file.py` |
-| `getJson` / `postJson` | `src/io/entrypoint.ts` | yes | no | `entrypoint.test.ts` |
+| `GET /init` | `ServerApi.init`, `src/io/fetchInit.ts` | yes | no | `fetchInit.test.ts`, `serverReadyGate.test.tsx`, `fetchProjectsAfterInit.test.tsx`, `server/tests/test_init_data.py` |
+| `GET /geojson` | `ServerApi.geoJson`, `GeoJsonPreview` | yes | no | `fetchGeoJson.test.ts`, `server/tests/test_geojson_file.py` |
+| `GET /cors` | `ServerApi.cors`, `CorsIndicator` | no | no | none |
+| `POST /jupyter/ensure` | `ServerApi.ensureJupyter`, `DetailsViewNotebook` | no | no | none |
+| `GET /node-catalog` | `NodeApi.catalog`, `useNodeCatalog` | yes | no | `useNodeCatalog.test.ts` |
+| `POST /node-params/validate` | `NodeApi.validateParams`, `useNodeParamsValidation` | yes | no | `nodeParamsValidation.test.tsx` |
+| `POST /start_workflow` | `WorkflowApi.start`, `RunWorkflowButton` | yes | no | `runWorkflow.test.tsx` |
+| `GET /workflow_status/{token}` | `WorkflowApi.poll`, `WorkflowRunPoller` | yes | no | `workflowRunPoller.test.tsx` |
+| `getJson` / `postJson` | `src/api/ApiCall.ts` | yes | no | `ApiCall.test.ts`, `apiPackageIsolation.test.ts` |
 | `GET /project/names` | `fetchProjectsNames` | yes | yes | `FetchProjects.test.ts`, `server/tests/test_projects.py` |
 | `GET /project/documents` | `fetchProjectDetails`, `fetchProjectData` | yes | yes | `FetchProjects.test.ts`, `server/tests/test_projects.py` |
 | `GET /project/toolkits` | `fetchProjectData` | yes | yes | `FetchProjects.test.ts`, `server/tests/test_projects.py` |
@@ -47,9 +57,10 @@ and reports the reason. See `ENTRYPOINTS_REPOSITORIES_STEPS.md`.
 
 ## Still on `/exec`
 
-No call sites. `src/io/fetchPython.ts` is still there, and `entrypoint.ts` imports
-the `WARMING_UP` constant from it; the integration tests use `/exec` to write
-their own files on the server. Retiring the endpoint is its own issue.
+No call sites. `src/io/fetchPython.ts` is still there; `WARMING_UP` now lives in
+`src/shared/constants.ts` and `fetchPython.ts` re-exports it. The integration
+tests use `/exec` to write their own files on the server. Retiring the endpoint
+is its own issue, task 3 of `NEXT_TASKS_PLAN.md`.
 
 ## Gaps
 

@@ -4,11 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockPostJson = vi.fn();
-vi.mock('../src/io/entrypoint', () => ({
-  postJson: (...args: any[]) => mockPostJson(...args),
-  getJson: vi.fn(),
-}));
+import { mockApiCall } from './helpers/mockApiCall';
 
 const { DeleteProjectButton } = await import('../src/components/header/DeleteProjectButton');
 const { useProjectStore, NO_PROJECT } = await import('../src/stores/useProjectStore');
@@ -18,8 +14,11 @@ afterEach(() => {
   cleanup();
 });
 
+let mockPostJson: ReturnType<typeof vi.fn>;
+
 beforeEach(() => {
   vi.clearAllMocks();
+  ({ postJson: mockPostJson } = mockApiCall());
   useProjectStore.setState({
     currProjectName: 'Alpha',
     currProject: { name: 'Alpha', documents: [] },

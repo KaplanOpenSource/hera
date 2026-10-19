@@ -1,20 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, cleanup, render } from '@testing-library/react';
+import { mockApiCall } from './helpers/mockApiCall';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
-
-const mockGetJson = vi.fn();
-const mockPostJson = vi.fn();
-vi.mock('../src/io/entrypoint', () => ({
-  getJson: (...args: any[]) => mockGetJson(...args),
-  postJson: (...args: any[]) => mockPostJson(...args),
-}));
 
 const { useShownDoc } = await import('../src/components/details/useShownDoc');
 const { ProjectObj } = await import('../src/objects/ProjectObj');
 const { useProjectStore } = await import('../src/stores/useProjectStore');
 
 afterEach(() => { cleanup(); });
+
+let mockGetJson: ReturnType<typeof vi.fn>;
+let mockPostJson: ReturnType<typeof vi.fn>;
 
 const doc = (resource: string) => ({
   _id: { $oid: 'doc1' },
@@ -30,6 +27,9 @@ const project = (resource: string) => ({ name: 'P', documents: [doc(resource)] }
 
 beforeEach(() => {
   vi.clearAllMocks();
+  const mocked = mockApiCall();
+  mockGetJson = mocked.getJson;
+  mockPostJson = mocked.postJson;
   useProjectStore.setState({
     currProjectName: 'P',
     currProject: project('old') as any,

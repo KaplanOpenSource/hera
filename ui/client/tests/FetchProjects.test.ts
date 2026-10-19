@@ -3,12 +3,14 @@ import { resolveProjectFromUrl, fetchProjectsNames, fetchProjectDetails, fetchPr
 import { useProjectStore } from '../src/stores/useProjectStore';
 import { useProjectListStore } from '../src/stores/useProjectListStore';
 import { useToolkitStore } from '../src/stores/useToolkitStore';
+import { mockApiCall } from './helpers/mockApiCall';
 
-vi.mock('../src/io/entrypoint', () => ({
-  getJson: vi.fn(),
-}));
+let getJson: ReturnType<typeof vi.fn>;
 
-import { getJson } from '../src/io/entrypoint';
+beforeEach(() => {
+  vi.clearAllMocks();
+  ({ getJson } = mockApiCall());
+});
 
 const projects = [
   { name: 'Alpha' },

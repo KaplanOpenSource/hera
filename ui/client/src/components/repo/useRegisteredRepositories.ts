@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { fetchRegisteredRepositories } from "../../io/fetchRegisteredRepositories";
+import { repositoryApi } from "../../api/api";
 import { Repository } from "../../shared/types";
 
 export const useRegisteredRepositories = () => {
   const [repositories, setRepositories] = useState<Repository[]>([]);
 
   const fetchRepositories = async () => {
-    setRepositories(await fetchRegisteredRepositories());
+    setRepositories(await repositoryApi.registered());
   };
 
   useEffect(() => {

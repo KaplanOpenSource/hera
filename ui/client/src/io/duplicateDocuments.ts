@@ -1,6 +1,7 @@
 import { Collection, ProjectDocument } from "../shared/types";
 import { useProjectStore } from "../stores/useProjectStore";
-import { createDocument, NewDocument } from "./createDocument";
+import { documentApi } from "../api/api";
+import { NewDocument } from "../api/DocumentApi";
 
 // The document's _cls says which collection it lives in, e.g. Metadata.Cache.
 const COLLECTION_OF_CLS: { [cls: string]: Collection } = {
@@ -65,7 +66,7 @@ export const duplicateDocuments = async (docOids: string[]) => {
     if (copyName) {
       taken.push(copyName);
     }
-    const created = await createDocument(copy, `duplicate document ${doc.desc?.datasourceName ?? oid}`);
+    const created = await documentApi.create(copy, `duplicate document ${doc.desc?.datasourceName ?? oid}`);
     if (!created) {
       return false;
     }

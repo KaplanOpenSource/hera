@@ -1,18 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within, cleanup, act } from '@testing-library/react';
+import { mockApiCall } from './helpers/mockApiCall';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
-
-const mockPostJson = vi.fn();
-vi.mock('../src/io/entrypoint', () => ({
-  postJson: (...args: any[]) => mockPostJson(...args),
-  getJson: vi.fn(),
-}));
 
 const { DeleteDocumentButton } = await import('../src/components/details/DeleteDocumentButton');
 const { useProjectStore } = await import('../src/stores/useProjectStore');
 
 afterEach(() => { cleanup(); });
+
+let mockPostJson: ReturnType<typeof vi.fn>;
 
 const document = {
   _id: { $oid: 'doc1' },
@@ -26,6 +23,7 @@ const document = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockPostJson = mockApiCall().postJson;
   useProjectStore.setState({
     currProjectName: 'TestProject',
     currProject: { name: 'TestProject', documents: [document] },

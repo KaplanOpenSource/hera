@@ -4,13 +4,8 @@ import { SimpleTreeView } from '@mui/x-tree-view';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockGetJson = vi.fn();
-vi.mock('../src/io/entrypoint', () => ({
-  getJson: (...args: any[]) => mockGetJson(...args),
-  postJson: vi.fn(),
-}));
-
 import { CentralRepoFolder } from '../src/components/repo/CentralRepoFolder';
+import { mockApiCall } from './helpers/mockApiCall';
 
 const renderInTree = ({
   expanded = false,
@@ -28,8 +23,11 @@ const clickTreeItem = async () => {
   await act(async () => { fireEvent.click(treeItem); });
 };
 
+let mockGetJson: ReturnType<typeof vi.fn>;
+
 beforeEach(() => {
   vi.clearAllMocks();
+  ({ getJson: mockGetJson } = mockApiCall());
   localStorage.clear();
 });
 

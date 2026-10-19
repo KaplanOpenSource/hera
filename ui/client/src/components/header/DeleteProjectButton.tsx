@@ -2,7 +2,7 @@ import { Delete } from "@mui/icons-material";
 import { Checkbox, FormControlLabel, FormHelperText, Stack, TextField } from "@mui/material";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { useDialog } from "../../elements/useDialog";
-import { postJson } from "../../io/entrypoint";
+import { projectApi } from "../../api/api";
 import { ProjectEntire, ProjectName } from "../../shared/types";
 import { NO_PROJECT, useProjectStore } from "../../stores/useProjectStore";
 import { useProjectListStore } from "../../stores/useProjectListStore";
@@ -22,10 +22,7 @@ export const DeleteProjectButton = ({
   const { setProjectNames } = useProjectListStore();
 
   const deleteProject = async (deleteFiles: boolean) => {
-    const data = await postJson('/project/delete', {
-      projectName: currProjectName,
-      deleteFiles,
-    }, { label: `delete project ${currProjectName}` });
+    const data = await projectApi.delete(currProjectName, deleteFiles);
     if (!data) {
       return;
     }

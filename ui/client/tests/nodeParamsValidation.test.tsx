@@ -9,12 +9,10 @@ vi.mock('@xyflow/react', () => ({
   useUpdateNodeInternals: () => () => {},
 }));
 
-const validateNodeParams = vi.fn();
-vi.mock('../src/io/validateNodeParams', () => ({
-  validateNodeParams: (args: any) => validateNodeParams(args),
-}));
-
+import { mockApiCall } from './helpers/mockApiCall';
 import { WorkflowFlowNode } from '../src/components/workflow/WorkflowFlowNode';
+
+let postJson: ReturnType<typeof vi.fn>;
 
 const catalog = [{ type: 'RiskAssessment.calculateThresholds', parameters: [] }];
 
@@ -42,8 +40,9 @@ const settle = async () => {
 
 beforeEach(() => {
   vi.useFakeTimers();
-  validateNodeParams.mockReset();
-  validateNodeParams.mockResolvedValue({ ok: true, message: '' });
+  vi.clearAllMocks();
+  ({ postJson } = mockApiCall());
+  postJson.mockResolvedValue({ ok: true, message: '' });
 });
 
 afterEach(() => {
@@ -53,7 +52,7 @@ afterEach(() => {
 
 describe('node parameter validation', () => {
   it('shows the message Hermes returned for a bad value', async () => {
-    validateNodeParams.mockResolvedValue({
+    postJson.mockResolvedValue({
       ok: false,
       message: "Agent 'NotAnAgent' doesn't exists, choose one of: H2S",
     });
@@ -80,10 +79,10 @@ describe('node parameter validation', () => {
       Execution: { input_parameters: { Agent: 'H2S', Calculator: 'AEGL10min' } },
     });
     await settle();
-    expect(validateNodeParams).toHaveBeenCalledWith(expect.objectContaining({
+    expect(postJson).toHaveBeenCalledWith('/node-params/validate', {
       type: 'RiskAssessment.calculateThresholds',
       params: { Agent: 'H2S', Calculator: 'AEGL10min' },
-    }));
+    }, expect.objectContaining({ label: expect.any(String) }));
   });
 
   it('does not ask before the settle time passes', () => {
@@ -91,7 +90,7 @@ describe('node parameter validation', () => {
       type: 'RiskAssessment.calculateThresholds',
       Execution: { input_parameters: { Agent: 'H2S' } },
     });
-    expect(validateNodeParams).not.toHaveBeenCalled();
+    expect(postJson).not.toHaveBeenCalled();
   });
 
   it('sends one check for a run of edits, with the last value', async () => {
@@ -107,18 +106,18 @@ describe('node parameter validation', () => {
       type: 'RiskAssessment.calculateThresholds',
       Execution: { input_parameters: { Agent: 'H2S' } },
     }));
-    expect(validateNodeParams).not.toHaveBeenCalled();
+    expect(postJson).not.toHaveBeenCalled();
     await settle();
-    expect(validateNodeParams).toHaveBeenCalledTimes(1);
-    expect(validateNodeParams).toHaveBeenLastCalledWith(expect.objectContaining({
+    expect(postJson).toHaveBeenCalledTimes(1);
+    expect(postJson).toHaveBeenLastCalledWith('/node-params/validate', {
       type: 'RiskAssessment.calculateThresholds',
       params: { Agent: 'H2S' },
-    }));
+    }, expect.objectContaining({ label: expect.any(String) }));
   });
 
   it('does not ask for a node with no type', async () => {
     renderNode({ type: '', Execution: { input_parameters: { Agent: 'H2S' } } });
     await settle();
-    expect(validateNodeParams).not.toHaveBeenCalled();
+    expect(postJson).not.toHaveBeenCalled();
   });
 });

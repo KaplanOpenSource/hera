@@ -1,7 +1,7 @@
 import { Link, LinkOff } from "@mui/icons-material";
 import { useEffect, useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
-import { fetchRepository } from "../../io/fetchRepository";
+import { repositoryApi } from "../../api/api";
 import { idRepoId, TEMP_REPO_NAME } from "../../shared/idDocId";
 import { RepoTreeDisplay } from "./RepoTreeDisplay";
 
@@ -18,7 +18,7 @@ export const DetailsViewRepo = ({
   useEffect(() => {
     (async () => {
       if (!isTempRepo) {
-        const trees = await fetchRepository(repoPath);
+        const trees = await repositoryApi.get(repoPath);
         setOrigTree(trees?.json ?? undefined);
         setTree(trees?.resolved ?? trees?.json ?? undefined);
       }

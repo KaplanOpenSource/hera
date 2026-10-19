@@ -1,9 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-
-vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
-
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
+import { mockApiCall } from './helpers/mockApiCall';
 
 const { fetchInit } = await import('../src/io/fetchInit');
 const { useProjectStore, NO_PROJECT } = await import('../src/stores/useProjectStore');
@@ -11,12 +7,6 @@ const { useProjectListStore } = await import('../src/stores/useProjectListStore'
 const { useToolkitStore } = await import('../src/stores/useToolkitStore');
 const { useServerConstants } = await import('../src/stores/useServerConstants');
 const { useServerUserStore } = await import('../src/stores/useServerUserStore');
-
-const jsonAnswer = (data: any) => ({
-  ok: true,
-  headers: { get: () => 'application/json' },
-  json: () => Promise.resolve(data),
-});
 
 const fullAnswer = {
   ready: true,
@@ -27,8 +17,11 @@ const fullAnswer = {
   server: { heraVersion: '9.9.9', username: 'eran', inDocker: true },
 };
 
+let getJson: ReturnType<typeof vi.fn>;
+
 beforeEach(() => {
   vi.clearAllMocks();
+  ({ getJson } = mockApiCall());
   useProjectListStore.setState({ projectNames: [] });
   useToolkitStore.setState({ toolkits: [] });
   useServerConstants.setState({ dataTypes: {} });
@@ -38,11 +31,11 @@ beforeEach(() => {
 
 describe('fetchInit', () => {
   it('fills every store from one call', async () => {
-    mockFetch.mockResolvedValueOnce(jsonAnswer(fullAnswer));
+    getJson.mockResolvedValueOnce(fullAnswer);
 
     const data = await fetchInit('Alpha');
 
-    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(getJson).toHaveBeenCalledTimes(1);
     expect(data?.ready).toBe(true);
     expect(useProjectListStore.getState().projectNames).toEqual([{ name: 'Alpha' }, { name: 'Beta' }]);
     expect(useServerConstants.getState().dataTypes).toEqual({ STRING: 'string' });
@@ -57,23 +50,23 @@ describe('fetchInit', () => {
   });
 
   it('sends the wanted project name', async () => {
-    mockFetch.mockResolvedValueOnce(jsonAnswer(fullAnswer));
+    getJson.mockResolvedValueOnce(fullAnswer);
 
     await fetchInit('My Project');
 
-    expect(mockFetch.mock.calls[0][0]).toBe('http://test/init?project=My%20Project');
+    expect(getJson).toHaveBeenCalledWith('/init', { project: 'My Project' }, { label: 'init' });
   });
 
   it('asks for no project when the URL has none', async () => {
-    mockFetch.mockResolvedValueOnce(jsonAnswer(fullAnswer));
+    getJson.mockResolvedValueOnce(fullAnswer);
 
     await fetchInit(undefined);
 
-    expect(mockFetch.mock.calls[0][0]).toBe('http://test/init');
+    expect(getJson).toHaveBeenCalledWith('/init', {}, { label: 'init' });
   });
 
   it('fills nothing while the server is still warming', async () => {
-    mockFetch.mockResolvedValueOnce(jsonAnswer({ ready: false }));
+    getJson.mockResolvedValueOnce({ ready: false });
 
     const data = await fetchInit('Alpha');
 
@@ -83,12 +76,12 @@ describe('fetchInit', () => {
   });
 
   it('takes the pieces that came and skips the ones that failed', async () => {
-    mockFetch.mockResolvedValueOnce(jsonAnswer({
+    getJson.mockResolvedValueOnce({
       ready: true,
       projects: [{ name: 'Alpha' }],
       project: { name: 'Alpha', documents: [] },
       problems: { toolkitDocs: 'KeyError: classpath' },
-    }));
+    });
 
     const data = await fetchInit('Alpha');
 
@@ -98,11 +91,7 @@ describe('fetchInit', () => {
   });
 
   it('answers null when the server has no init route', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      headers: { get: () => 'text/html' },
-      json: () => Promise.resolve({}),
-    });
+    getJson.mockResolvedValueOnce(null);
 
     expect(await fetchInit('Alpha')).toBeNull();
     expect(useProjectListStore.getState().projectNames).toEqual([]);

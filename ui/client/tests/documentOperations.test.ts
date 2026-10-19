@@ -1,17 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { mockApiCall } from './helpers/mockApiCall';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockPostJson = vi.fn();
-vi.mock('../src/io/entrypoint', () => ({
-  postJson: (...args: any[]) => mockPostJson(...args),
-  getJson: vi.fn(),
-}));
-
-const { updateDocument } = await import('../src/io/FetchDocument');
+const { documentApi } = await import('../src/api/api');
 const { deleteDocuments } = await import('../src/io/deleteDocuments');
 const { duplicateDocuments, freeCopyName } = await import('../src/io/duplicateDocuments');
 const { useProjectStore } = await import('../src/stores/useProjectStore');
+
+let mockPostJson: ReturnType<typeof vi.fn>;
 
 const doc = (oid: string, name: string, extra: any = {}) => ({
   _id: { $oid: oid },
@@ -34,6 +31,7 @@ const setProject = (documents: any[]) => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockPostJson = mockApiCall().postJson;
   setProject([]);
 });
 
@@ -50,7 +48,7 @@ describe('updateDocument', () => {
       project: { name: 'P', documents: [] },
     });
 
-    await updateDocument({ ...stored, resource: 'res2' } as any);
+    await documentApi.update({ ...stored, resource: 'res2' } as any);
 
     expect(mockPostJson.mock.calls[0][0]).toBe('/document/update');
     expect(sent().docId).toBe('doc1');
@@ -62,7 +60,7 @@ describe('updateDocument', () => {
   it('never sends _id, _cls or projectName', async () => {
     mockPostJson.mockResolvedValueOnce({ document: stored, project: { name: 'P', documents: [] } });
 
-    await updateDocument({ ...stored, projectName: 'Changed' } as any);
+    await documentApi.update({ ...stored, projectName: 'Changed' } as any);
 
     expect(sent().fields._id).toBeUndefined();
     expect(sent().fields._cls).toBeUndefined();
@@ -72,7 +70,7 @@ describe('updateDocument', () => {
   it('carries null and booleans as they are', async () => {
     mockPostJson.mockResolvedValueOnce({ document: stored, project: { name: 'P', documents: [] } });
 
-    await updateDocument({
+    await documentApi.update({
       ...stored,
       resource: null,
       desc: { datasourceName: 'x', flag: true, disabled: false },
@@ -87,7 +85,7 @@ describe('updateDocument', () => {
     const saved = { ...stored, resource: 'res2' };
     mockPostJson.mockResolvedValueOnce({ document: saved, project: { name: 'P', documents: [saved] } });
 
-    const answer = await updateDocument(saved as any);
+    const answer = await documentApi.update(saved as any);
 
     expect(answer?.document).toEqual(saved);
     expect(answer?.project.documents).toEqual([saved]);
@@ -96,7 +94,7 @@ describe('updateDocument', () => {
   it('answers null when the call fails', async () => {
     mockPostJson.mockResolvedValueOnce(null);
 
-    expect(await updateDocument(stored as any)).toBeNull();
+    expect(await documentApi.update(stored as any)).toBeNull();
   });
 });
 

@@ -1,6 +1,6 @@
 # API package as classes
 
-Written 2026-10-19. Status: **proposed**.
+Written 2026-10-19. Status: **done**.
 
 This replaces task 2 of `NEXT_TASKS_PLAN.md`. Same goal: one package that
 holds every call to the server and nothing else. The difference is that each
@@ -148,7 +148,7 @@ The six route groups barely touch the same files, so they can run at the same
 time, one agent each. The base has to exist first, and the cleanup has to come
 last.
 
-### Phase 0: the base (serial, one person, no agents)
+### Phase 0: the base (serial, one person, no agents). DONE.
 
 1. `Reporter.ts`, `ApiCall.ts`, `src/io/reporter.ts`, install in `main.tsx`.
 2. `src/api/api.ts` with **all six** instances already listed, and all six
@@ -162,11 +162,14 @@ own class.
 `src/io/entrypoint.ts` stays and still works. Nothing calls the classes yet.
 Commit this. It is the base every agent starts from.
 
-### Phase 1: six agents, in parallel
+### Phase 1: six agents, in parallel. DONE.
 
 Each agent owns one class, its call sites, and its tests. Nothing else. Each
-runs in its own git worktree, so the work cannot collide, and each ends with
-the one relevant test file passing.
+ends with the one relevant test file passing.
+
+Worktrees do not work here, because phase 0 is not committed and a worktree
+starts from HEAD. So the six agents share this working tree, and the file lists
+below are the only thing keeping them apart. They must be exact.
 
 | Agent | Fills | Moves out of `src/io/` | Call sites it owns |
 |---|---|---|---|
@@ -198,11 +201,13 @@ Two files need a word of care:
 - `duplicateDocuments.ts` calls `createDocument`. Both are the document
   agent's, so there is no split.
 
-### Phase 2: fuse (serial)
+### Phase 2: fuse (serial). DONE.
 
-1. Merge the six worktrees in the table's order. Conflicts should be none, or
-   only in `src/shared/types.ts` if two agents removed a type.
-2. Run the import rule test and the greps under "How we know it holds".
+1. Fix the five test files that cover two groups at once, which no single
+   agent could own: `addDocument`, `projectActions`, `repoTreeInteractions`,
+   `treeInteractions`, `urlProjectSwitch`.
+2. Run `tests/apiPackageIsolation.test.ts` and the greps under "How we know it
+   holds".
 3. Pull out any store write an agent left inside a class.
 4. Delete `src/io/entrypoint.ts` and the empty `src/io/fetch*.ts` files.
 5. Move `parseToolkits.ts` to `src/utils/`.
@@ -219,8 +224,8 @@ rows do not depend on each other.
 
 ## How we know it holds
 
-- A test that reads every file in `src/api/` and fails on an import of
-  `react`, `../stores/`, or `../io/`.
+- `tests/apiPackageIsolation.test.ts` reads every file in `src/api/` and fails
+  on an import of `react`, a store, `io/`, or notistack. Written.
 - `grep -rn "fetch(" src | grep -v src/api` answers nothing.
 - The full unit suite passes.
 - `src/api/*Api.ts` files have no `import` of anything but `ApiCall`, shared
@@ -228,10 +233,21 @@ rows do not depend on each other.
 
 ---
 
+## What the fuse step found
+
+- `/project/detectNotebooks` was a seventh project route nobody had listed. It
+  is now `projectApi.detectNotebooks`.
+- `TwoUiSync.test.tsx` spied on the deleted `src/io/FetchDocument`. It now
+  spies on `documentApi.update`. `tsc` did not catch it, only the test run did,
+  which is the reason to run the whole suite at the fuse step.
+- The workflow routes are `/start_workflow` and `/workflow_status/{token}`,
+  not `/workflow/*` as the table guessed.
+
 ## Open question
 
 `DetailsViewNotebook.tsx` also probes the jupyter url with
 `fetch(url, { mode: 'no-cors' })`. That is not a call to our server, and it
 wants the raw response, not JSON. Either give `ServerApi` a small `probe`
 method that answers a boolean, or leave this one `fetch` in the component and
-write the reason in a comment. Decide at step 7.
+write the reason in a comment. Decided: it stays in the component, with a one
+line comment, because it talks to the jupyter server and wants the raw answer.

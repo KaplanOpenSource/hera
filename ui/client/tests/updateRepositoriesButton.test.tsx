@@ -3,12 +3,6 @@ import { render, screen, fireEvent, waitFor, within, cleanup, act } from '@testi
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockPostJson = vi.fn();
-vi.mock('../src/io/entrypoint', () => ({
-  postJson: (...args: any[]) => mockPostJson(...args),
-  getJson: vi.fn(),
-}));
-
 const mockPushError = vi.fn();
 const mockPushInfo = vi.fn();
 vi.mock('../src/io/snackbar', () => ({
@@ -20,11 +14,15 @@ vi.mock('../src/io/snackbar', () => ({
 
 const { UpdateRepositoriesButton } = await import('../src/components/repo/UpdateRepositoriesButton');
 const { useProjectStore } = await import('../src/stores/useProjectStore');
+const { mockApiCall } = await import('./helpers/mockApiCall');
 
 afterEach(() => { cleanup(); });
 
+let mockPostJson: ReturnType<typeof vi.fn>;
+
 beforeEach(() => {
   vi.clearAllMocks();
+  ({ postJson: mockPostJson } = mockApiCall());
   useProjectStore.setState({ currProjectName: 'TestProject', currProject: undefined });
 });
 

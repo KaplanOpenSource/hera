@@ -3,11 +3,9 @@ import { render, screen, fireEvent, waitFor, within, cleanup, act } from '@testi
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockPostJson = vi.fn();
-vi.mock('../src/io/entrypoint', () => ({
-  postJson: (...args: any[]) => mockPostJson(...args),
-  getJson: vi.fn(),
-}));
+import { mockApiCall } from './helpers/mockApiCall';
+
+let mockPostJson: ReturnType<typeof vi.fn>;
 
 // These two rows talk to python on their own, which is not what we test here.
 vi.mock('../src/components/repo/CentralRepoFolder', () => ({
@@ -60,6 +58,8 @@ const answer = async (button: RegExp) => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  const call = mockApiCall();
+  mockPostJson = call.postJson;
   useProjectStore.setState({ currProjectName: 'TestProject' });
 });
 

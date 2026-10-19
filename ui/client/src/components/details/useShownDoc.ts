@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { updateDocument } from '../../io/FetchDocument';
+import { documentApi } from '../../api/api';
 import { DocumentObj } from '../../objects/ProjectObj';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { ProjectDocument, WorkflowDesc } from '../../shared/types';
@@ -32,7 +32,7 @@ export const useShownDoc = (doc: DocumentObj) => {
     if (!editedDoc) {
       return;
     }
-    const saved = await updateDocument(editedDoc);
+    const saved = await documentApi.update(editedDoc);
     if (saved) {
       useProjectStore.getState().setCurrentProject(saved.project);
       // Dropped only now, so the view never falls back to the pre-save document.

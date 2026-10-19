@@ -4,7 +4,7 @@ import { GeoJSON as GeoJSONLayer, MapContainer, TileLayer, useMap } from 'react-
 import L from 'leaflet';
 import type { GeoJSON } from 'geojson';
 import 'leaflet/dist/leaflet.css';
-import { fetchGeoJson } from '../../../io/fetchGeoJson';
+import { serverApi } from '../../../api/api';
 import { InvalidateOnResize } from './InvalidateOnResize';
 import { darkMapControlsSx, TILE_ATTRIBUTION, TILE_URL } from './mapDarkStyles';
 
@@ -43,7 +43,7 @@ export const GeoJsonPreview = ({
   useEffect(() => {
     (async () => {
       setMapState({ geojson: null, bounds: null, hasError: false });
-      const geojson = await fetchGeoJson(path);
+      const geojson = await serverApi.geoJson(path);
       if (geojson) {
         const bounds = L.geoJSON(geojson as any).getBounds();
         if (bounds.isValid()) {

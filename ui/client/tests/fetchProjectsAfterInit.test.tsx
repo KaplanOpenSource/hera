@@ -2,14 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
-vi.mock('../src/io/entrypoint', () => ({
-  getJson: vi.fn(),
-}));
-
-import { getJson } from '../src/io/entrypoint';
+import { mockApiCall } from './helpers/mockApiCall';
 import { FetchProjects } from '../src/io/FetchProjects';
 import { useProjectStore } from '../src/stores/useProjectStore';
 import { useProjectListStore } from '../src/stores/useProjectListStore';
+
+let getJson: ReturnType<typeof vi.fn>;
 
 const renderFetch = () => {
   return render(
@@ -20,7 +18,8 @@ const renderFetch = () => {
 };
 
 beforeEach(() => {
-  vi.mocked(getJson).mockReset();
+  vi.clearAllMocks();
+  ({ getJson } = mockApiCall());
   vi.mocked(getJson).mockResolvedValue(null);
   useProjectListStore.setState({ projectNames: [{ name: 'Alpha' }, { name: 'Beta' }] });
 });

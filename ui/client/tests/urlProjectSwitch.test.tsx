@@ -4,11 +4,9 @@ import { BrowserRouter, Route, Routes, useParams } from 'react-router-dom';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockGetJson = vi.fn();
-vi.mock('../src/io/entrypoint', () => ({
-  getJson: (...args: any[]) => mockGetJson(...args),
-  postJson: vi.fn(),
-}));
+import { mockApiCall } from './helpers/mockApiCall';
+
+let mockGetJson: ReturnType<typeof vi.fn>;
 
 const { FetchProjects } = await import('../src/io/FetchProjects');
 const { useProjectStore, NO_PROJECT } = await import('../src/stores/useProjectStore');
@@ -45,6 +43,8 @@ const startupChose = (project: typeof CHOSEN) => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  const call = mockApiCall();
+  mockGetJson = call.getJson;
   useProjectListStore.setState({ projectNames: [] });
   useProjectStore.setState({ currProjectName: NO_PROJECT, currProject: null, editedDocs: {} });
   mockGetJson.mockImplementation(async (path: string, params: any) => {

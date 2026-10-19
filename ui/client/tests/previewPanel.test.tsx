@@ -6,12 +6,10 @@ vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 // Every way out of the client, so a call by any route would show up here.
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
-const mockGetJson = vi.fn();
-const mockPostJson = vi.fn();
-vi.mock('../src/io/entrypoint', () => ({
-  getJson: (...args: any[]) => mockGetJson(...args),
-  postJson: (...args: any[]) => mockPostJson(...args),
-}));
+import { mockApiCall } from './helpers/mockApiCall';
+
+let mockGetJson: ReturnType<typeof vi.fn>;
+let mockPostJson: ReturnType<typeof vi.fn>;
 
 vi.mock('../src/components/details/ImagePreview', () => ({
   isImageResource: (r: unknown) => typeof r === 'string' && r.endsWith('.png'),
@@ -43,6 +41,9 @@ const doc = (oid: string, resource: string) => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  const call = mockApiCall();
+  mockGetJson = call.getJson;
+  mockPostJson = call.postJson;
   useProjectStore.setState({
     currProjectName: 'P',
     currProject: { name: 'P', documents: [doc('doc1', '/pics/a.png')] as any },

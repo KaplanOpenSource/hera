@@ -2,7 +2,7 @@ import { PlayArrow, Save } from '@mui/icons-material';
 import { Box, CircularProgress, Menu, MenuItem, SxProps, Theme } from '@mui/material';
 import { MouseEvent, useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
-import { startWorkflow } from '../../io/runWorkflow';
+import { workflowApi } from '../../api/api';
 import { pushError } from '../../io/snackbar';
 import { useViewSettingsStore } from '../../stores/useViewSettingsStore';
 import { useWorkflowRunStore, WorkflowRunStatus } from '../../stores/useWorkflowRunStore';
@@ -61,9 +61,11 @@ export const RunWorkflowButton = ({
       // Ensure the sent doc carries the resolved name; the server reads it as
       // desc.workflowName (the doc's own desc may leave it unset, falling back to the doc name).
       const docToRun = { ...doc, desc: { ...doc.desc, workflowName } };
-      const result = await startWorkflow({ projectName, doc: docToRun });
-      if (result.status === 'busy') {
+      const result = await workflowApi.start(projectName, docToRun);
+      if (!result) {
         // A failed start makes no run, so there is no output tab: the snackbar tells it.
+        pushError('run workflow: failed to start');
+      } else if (result.status === 'busy') {
         pushError('run workflow: The server is busy running another workflow. Try again shortly.');
       } else if (result.token) {
         // Hand the run to the store; the poller drives it from here.

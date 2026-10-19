@@ -13,7 +13,7 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
-import { postJson } from "../../io/entrypoint";
+import { projectApi } from "../../api/api";
 import { SimpleTreeView } from "@mui/x-tree-view";
 import { RegisteredRepositories } from "../repo/RegisteredRepositories";
 import { useAppTheme } from "../../theme";
@@ -36,11 +36,7 @@ export const AddProjectButton = ({ }) => {
     if (!trimmedName) return;
 
     // The server creates the project and registers the notebooks already there.
-    const data = await postJson('/project/create', {
-      projectName: trimmedName,
-      filesDirectory,
-      loadRepositories,
-    }, { label: `create project ${trimmedName}` });
+    const data = await projectApi.create(trimmedName, filesDirectory, loadRepositories);
     if (!data) {
       return;
     }

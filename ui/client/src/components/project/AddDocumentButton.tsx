@@ -17,7 +17,8 @@ import { TextProperty } from "../../elements/TextProperty";
 import { useProjectStore } from "../../stores/useProjectStore";
 import { useToolkitStore } from "../../stores/useToolkitStore";
 import { SelectProperty } from "../../elements/SelectProperty";
-import { createDocument, NewDocument } from "../../io/createDocument";
+import { documentApi } from "../../api/api";
+import { NewDocument } from "../../api/DocumentApi";
 
 const METADATA_CLASSES = [
   { name: 'Metadata.Measurements', collection: Collection.Measurements },
@@ -132,7 +133,7 @@ export const AddDocumentButton = ({
   }
 
   const doAddDoc = async () => {
-    const created = await createDocument(newDocument(), `add document ${name}`);
+    const created = await documentApi.create(newDocument(), `add document ${name}`);
     if (!created) {
       return;
     }

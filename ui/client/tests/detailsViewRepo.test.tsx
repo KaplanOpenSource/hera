@@ -3,22 +3,21 @@ import { render, screen, waitFor, cleanup, act } from '@testing-library/react';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockGetJson = vi.fn();
-vi.mock('../src/io/entrypoint', () => ({
-  getJson: (...args: any[]) => mockGetJson(...args),
-  postJson: vi.fn(),
-}));
-
 vi.mock('../src/components/details/RepoTreeAddButton', () => ({
   RepoTreeAddButton: () => null,
 }));
 
 const { DetailsViewRepo } = await import('../src/components/details/DetailsViewRepo');
 const { DetailsViewMergedRepo } = await import('../src/components/details/DetailsViewMergedRepo');
+const { mockApiCall } = await import('./helpers/mockApiCall');
 
 afterEach(() => { cleanup(); });
+
+let mockGetJson: ReturnType<typeof vi.fn>;
+
 beforeEach(() => {
   vi.clearAllMocks();
+  ({ getJson: mockGetJson } = mockApiCall());
   localStorage.clear();
 });
 

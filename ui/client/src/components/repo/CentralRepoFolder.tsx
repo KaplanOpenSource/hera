@@ -4,7 +4,7 @@ import { TreeItem } from "@mui/x-tree-view";
 import { useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { useDialog } from "../../elements/useDialog";
-import { fetchRepoJsonsInFolder } from "../../io/fetchRepoJsonsInFolder";
+import { repositoryApi } from "../../api/api";
 import { CENTRAL_REPO_FOLDER_ID, idRepoId } from "../../shared/idDocId";
 
 const DEFAULT_FOLDER = '~/hera/repositories/';
@@ -19,7 +19,7 @@ export const CentralRepoFolder = () => {
   const { openDialog, DialogComponent } = useDialog<{ folder: string }>();
 
   const fetchFiles = async (folderPath: string) => {
-    const answer = await fetchRepoJsonsInFolder(folderPath);
+    const answer = await repositoryApi.jsonsInFolder(folderPath);
     if (answer) {
       setFiles(answer.files);
     }

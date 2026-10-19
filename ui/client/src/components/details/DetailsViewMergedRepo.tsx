@@ -1,6 +1,6 @@
 import { Typography } from "@mui/material";
 import { useEffect, useState } from "react";
-import { fetchRepoJsonsInFolder } from "../../io/fetchRepoJsonsInFolder";
+import { repositoryApi } from "../../api/api";
 import { RepoJsonMerger } from "./RepoJsonMerger";
 import { RepoTreeDisplay } from "./RepoTreeDisplay";
 
@@ -18,7 +18,7 @@ export const DetailsViewMergedRepo = () => {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const answer = await fetchRepoJsonsInFolder(folder, true);
+      const answer = await repositoryApi.jsonsInFolder(folder, true);
       if (answer) {
         const merger = new RepoJsonMerger(answer.repoJsons);
         setMerged(merger.merged);

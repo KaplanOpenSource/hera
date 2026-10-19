@@ -3,11 +3,9 @@ import { render, screen, fireEvent, waitFor, within, cleanup, act } from '@testi
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockPostJson = vi.fn();
-vi.mock('../src/io/entrypoint', () => ({
-  postJson: (...args: any[]) => mockPostJson(...args),
-  getJson: vi.fn(),
-}));
+import { mockApiCall } from './helpers/mockApiCall';
+
+let mockPostJson: ReturnType<typeof vi.fn>;
 
 const { AddDocumentButton } = await import('../src/components/project/AddDocumentButton');
 const { useProjectStore } = await import('../src/stores/useProjectStore');
@@ -30,6 +28,8 @@ const configDoc = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  const call = mockApiCall();
+  mockPostJson = call.postJson;
   useProjectStore.setState({
     currProjectName: 'TestProject',
     currProject: { name: 'TestProject', documents: [configDoc] },

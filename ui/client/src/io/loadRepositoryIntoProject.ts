@@ -1,6 +1,6 @@
+import { repositoryApi } from "../api/api";
 import { ProjectEntire } from "../shared/types";
 import { useProjectStore } from "../stores/useProjectStore";
-import { postJson } from "./entrypoint";
 import { pushError, pushInfo } from "./snackbar";
 
 type LoadRepositoryBody = {
@@ -34,7 +34,7 @@ const report = (label: string, added: number, problems: string[]) => {
 
 // One call for all three sources. Its answer carries the project, so nothing reloads it.
 const load = async (body: LoadRepositoryBody, label: string) => {
-  const data = await postJson('/repository/loadIntoProject', body, { label });
+  const data = await repositoryApi.loadIntoProject(body, label);
   if (!data) {
     return false;
   }

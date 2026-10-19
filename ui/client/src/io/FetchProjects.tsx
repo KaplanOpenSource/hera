@@ -4,11 +4,11 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { NO_PROJECT, useProjectStore } from "../stores/useProjectStore";
 import { useProjectListStore } from "../stores/useProjectListStore";
 import { useToolkitStore } from "../stores/useToolkitStore";
-import { getJson } from "./entrypoint";
-import { parseToolkits } from "./parseToolkits";
+import { projectApi } from "../api/api";
+import { parseToolkits } from "../utils/parseToolkits";
 
 export const fetchProjectsNames = async () => {
-  const data = await getJson('/project/names', {}, { label: 'project names' });
+  const data = await projectApi.names();
   if (data) {
     useProjectListStore.getState().setProjectNames(data.projects as ProjectName[])
   }
@@ -16,8 +16,7 @@ export const fetchProjectsNames = async () => {
 
 // silent: no toasts (e.g. for the periodic auto-reload).
 export const fetchProjectDetails = async (projectName: string, silent = false) => {
-  const data = await getJson('/project/documents', { projectName },
-    { label: `project details ${projectName}`, silent });
+  const data = await projectApi.documents(projectName, `project details ${projectName}`, silent);
   if (data) {
     // Skip if the user switched projects while this fetch was in flight
     const { currProjectName, setCurrentProject } = useProjectStore.getState();
@@ -29,8 +28,8 @@ export const fetchProjectDetails = async (projectName: string, silent = false) =
 
 export const fetchProjectData = async (projectName: string) => {
   const [toolkits, details] = await Promise.all([
-    getJson('/project/toolkits', {}, { label: 'toolkits' }),
-    getJson('/project/documents', { projectName }, { label: `project ${projectName}` }),
+    projectApi.toolkits(),
+    projectApi.documents(projectName, `project ${projectName}`),
   ]);
   if (toolkits) {
     useToolkitStore.getState().setToolkits(parseToolkits(toolkits.toolkitDocs));
