@@ -45,9 +45,9 @@ Rules:
 - Comments and blank lines in the minimal list are kept out of the answer.
 - Order follows the minimal list, so the file stays readable.
 
-`argcomplete` is in the minimal list but not in `requirements.txt`. It has to
-join `requirements.txt` (it is a real dependency of the CLIs) before the script
-can be strict. Decide that first.
+`argcomplete` is now in `requirements.txt`, so every name in every chosen list
+finds a pin. A test asserts that, per list, so a new name without a pin fails
+the build instead of installing whatever pip likes.
 
 ### Where it is used
 
@@ -63,8 +63,13 @@ RUN python scripts/minimal_requirements.py ... > /tmp/req.txt && \
 With `REQUIREMENTS=requirements.txt` the script is skipped and pip reads the
 full file, so the slow build does not change.
 
-`ui/server/requirements-server.txt` has the same problem on a smaller scale.
-It can go the same way later; it is not part of this.
+`ui/server/requirements-server.txt` and `ui/server/requirements-integ.txt` are
+gone. They were two more lists of the same names, so they merged into
+`requirements-minimal.txt`, which already had all of them but `pytest`. The two
+CI jobs that used them now build the minimal set with the script, like the
+dockerfile does. They install a few packages they do not need, which is the
+price of one list, `pytest` among them. The client tests install no python, so
+there is nothing to do there.
 
 ### Tests
 

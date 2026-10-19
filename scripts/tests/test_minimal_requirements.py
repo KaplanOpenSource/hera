@@ -1,5 +1,6 @@
 """The filter that pins a chosen list of packages from the full requirements."""
 import os
+import re
 import sys
 
 import pytest
@@ -131,3 +132,18 @@ def test_the_full_file_gives_every_pin_in_it(full, tmp_path, capsys):
         "matplotlib==3.9.4",
         "matplotlib-inline==0.1.7",
     ]
+
+
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+class TestTheRepoList:
+    """The chosen list must find all its pins, or a build installs whatever pip likes."""
+
+    def test_every_name_is_pinned_in_requirements(self, capsys):
+        full = os.path.join(REPO, "requirements.txt")
+
+        minimal_requirements(full, os.path.join(REPO, "requirements-minimal.txt"))
+
+        unpinned = [line for line in capsys.readouterr().out.splitlines()
+                    if not re.search(r"[=<>~]", line)]
+        assert unpinned == []

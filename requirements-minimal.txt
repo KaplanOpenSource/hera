@@ -5,6 +5,7 @@ Jinja2
 httpx
 argcomplete
 debugpy
+pytest
 
 mongoengine
 numpy
