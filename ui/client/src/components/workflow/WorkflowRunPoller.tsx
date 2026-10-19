@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { SnackbarKey } from 'notistack';
-import { pollWorkflow } from '../../io/runWorkflow';
+import { workflowApi } from '../../api/api';
 import { dismiss, pushError, pushInfo, pushRunning } from '../../io/snackbar';
 import { useWorkflowRunStore, WorkflowRunStatus } from '../../stores/useWorkflowRunStore';
 
@@ -41,19 +41,15 @@ export const WorkflowRunPoller = () => {
     };
 
     const poll = async () => {
-      let result;
-      try {
-        result = await pollWorkflow(token);
-      } catch (e: any) {
-        if (cancelled) {
-          return;
-        }
-        setRunResult(workflowName, { status: WorkflowRunStatus.Error, error: e?.message ?? String(e), chunks: [] });
-        pushError(`run workflow: ${e?.message ?? e}`);
-        clearRunningSnackbar();
+      const result = await workflowApi.poll(token);
+      if (cancelled) {
         return;
       }
-      if (cancelled) {
+      if (!result) {
+        const message = 'The run status could not be read.';
+        setRunResult(workflowName, { status: WorkflowRunStatus.Error, error: message, chunks: [] });
+        pushError(`run workflow: ${message}`);
+        clearRunningSnackbar();
         return;
       }
       if (result.status === 'running') {

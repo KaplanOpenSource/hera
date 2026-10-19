@@ -3,96 +3,159 @@ import { render, screen, waitFor, cleanup, act } from '@testing-library/react';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockFetchPython = vi.fn();
-vi.mock('../src/io/fetchPython', () => ({
-  fetchPython: (...args: any[]) => mockFetchPython(...args),
-}));
-
 vi.mock('../src/components/details/RepoTreeAddButton', () => ({
   RepoTreeAddButton: () => null,
 }));
 
 const { DetailsViewRepo } = await import('../src/components/details/DetailsViewRepo');
+const { DetailsViewMergedRepo } = await import('../src/components/details/DetailsViewMergedRepo');
+const { mockApiCall } = await import('./helpers/mockApiCall');
 
 afterEach(() => { cleanup(); });
-beforeEach(() => { vi.clearAllMocks(); });
+
+let mockGetJson: ReturnType<typeof vi.fn>;
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  ({ getJson: mockGetJson } = mockApiCall());
+  localStorage.clear();
+});
+
+const REPO_PATH = '/path/to/repo.json';
+
+const answerWith = (json: any, resolved: any = undefined) => {
+  mockGetJson.mockResolvedValueOnce({ json, resolved: resolved ?? json });
+};
 
 describe('DetailsViewRepo', () => {
-  it('calls execPython with repo path on mount', async () => {
-    mockFetchPython.mockResolvedValueOnce({
-      data: { jsonData: { key1: 'value1' } },
-      problem: undefined,
-    });
+  it('asks the repository entrypoint for the path on mount', async () => {
+    answerWith({ key1: 'value1' });
 
     await act(async () => {
-      render(<DetailsViewRepo repoPath="/path/to/repo.json" />);
+      render(<DetailsViewRepo repoPath={REPO_PATH} />);
     });
 
     await waitFor(() => {
-      expect(mockFetchPython).toHaveBeenCalledTimes(1);
-      const code = mockFetchPython.mock.calls[0][0].code;
-      expect(code).toContain("open('/path/to/repo.json'");
+      expect(mockGetJson).toHaveBeenCalledTimes(1);
+    });
+    expect(mockGetJson.mock.calls[0][0]).toBe('/repository/get');
+    expect(mockGetJson.mock.calls[0][1]).toEqual({ path: REPO_PATH });
+  });
+
+  it('asks by path for a registered repository too, with no branch on the name', async () => {
+    answerWith({ key1: 'value1' });
+
+    await act(async () => {
+      render(<DetailsViewRepo repoPath="/repos/meteo.json" />);
+    });
+
+    await waitFor(() => {
+      expect(mockGetJson.mock.calls[0][1]).toEqual({ path: '/repos/meteo.json' });
     });
   });
 
-  it('does not call execPython for temp repos', async () => {
+  it('does not call the server for temp repos', async () => {
     await act(async () => {
       render(<DetailsViewRepo repoPath="/path/*Temp Repository*/repo.json" />);
     });
 
-    expect(mockFetchPython).not.toHaveBeenCalled();
+    expect(mockGetJson).not.toHaveBeenCalled();
   });
 
-  it('handles null json response', async () => {
-    mockFetchPython.mockResolvedValueOnce({
-      data: { jsonData: null },
-      problem: undefined,
-    });
+  it('survives a call that failed', async () => {
+    mockGetJson.mockResolvedValueOnce(null);
 
     await act(async () => {
-      render(<DetailsViewRepo repoPath="/path/to/repo.json" />);
+      render(<DetailsViewRepo repoPath={REPO_PATH} />);
     });
 
     await waitFor(() => {
-      expect(mockFetchPython).toHaveBeenCalledTimes(1);
+      expect(mockGetJson).toHaveBeenCalledTimes(1);
     });
-    // Should not crash
+    expect(screen.getByText('repo.json')).toBeTruthy();
   });
 
-  it('handles delayed response', async () => {
-    let resolveExec!: (v: any) => void;
-    mockFetchPython.mockImplementationOnce(() =>
-      new Promise(r => { resolveExec = r; })
-    );
+  it('handles a delayed answer', async () => {
+    let answer!: (v: any) => void;
+    mockGetJson.mockImplementationOnce(() => new Promise(r => { answer = r; }));
 
     await act(async () => {
-      render(<DetailsViewRepo repoPath="/path/to/repo.json" />);
+      render(<DetailsViewRepo repoPath={REPO_PATH} />);
     });
 
-    expect(mockFetchPython).toHaveBeenCalledTimes(1);
+    expect(mockGetJson).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      resolveExec({ data: { jsonData: { key1: 'value1' } }, problem: undefined });
+      answer({ json: { key1: 'value1' }, resolved: { key1: 'value1' } });
     });
 
-    // After resolution, component renders tree data without crashing
     await waitFor(() => {
       expect(screen.getByText('repo.json')).toBeTruthy();
     });
   });
 
-  it('displays tree keys after loading', async () => {
-    mockFetchPython.mockResolvedValueOnce({
-      data: { jsonData: { myDataSource: { path: '/data/file.csv' } } },
-      problem: undefined,
-    });
+  it('shows the resolved tree, which is what the answer carries', async () => {
+    answerWith(
+      { myDataSource: { resource: 'file.csv' } },
+      { myDataSource: { resource: '/data/file.csv' } },
+    );
 
     await act(async () => {
-      render(<DetailsViewRepo repoPath="/path/to/repo.json" />);
+      render(<DetailsViewRepo repoPath={REPO_PATH} />);
     });
 
     await waitFor(() => {
       expect(screen.getByText('myDataSource')).toBeTruthy();
+    });
+  });
+});
+
+describe('DetailsViewMergedRepo', () => {
+  it('asks the folder entrypoint for the contents', async () => {
+    mockGetJson.mockResolvedValueOnce({ files: [], repoJsons: {} });
+
+    await act(async () => {
+      render(<DetailsViewMergedRepo />);
+    });
+
+    await waitFor(() => {
+      expect(mockGetJson).toHaveBeenCalledTimes(1);
+    });
+    expect(mockGetJson.mock.calls[0][0]).toBe('/repository/jsonsInFolder');
+    expect(mockGetJson.mock.calls[0][1]).toEqual({
+      folder: '~/hera/repositories/',
+      withContents: 'true',
+    });
+  });
+
+  it('merges the files it gets back', async () => {
+    mockGetJson.mockResolvedValueOnce({
+      files: ['/repos/a.json', '/repos/b.json'],
+      repoJsons: {
+        '/repos/a.json': { ToolkitA: { config: {} } },
+        '/repos/b.json': { ToolkitB: { cache: {} } },
+      },
+    });
+
+    await act(async () => {
+      render(<DetailsViewMergedRepo />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('ToolkitA')).toBeTruthy();
+      expect(screen.getByText('ToolkitB')).toBeTruthy();
+    });
+  });
+
+  it('says so when the folder holds no repository', async () => {
+    mockGetJson.mockResolvedValueOnce({ files: [], repoJsons: {} });
+
+    await act(async () => {
+      render(<DetailsViewMergedRepo />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/No valid repository files found/)).toBeTruthy();
     });
   });
 });

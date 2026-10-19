@@ -7,6 +7,13 @@ export enum NodeParameterSource {
   Template = 'template',
 }
 
+// The three collections a document can live in. The server names them alike.
+export enum Collection {
+  Measurements = 'Measurements',
+  Simulations = 'Simulations',
+  Cache = 'Cache',
+}
+
 export interface ProjectName {
   name: string;
 }

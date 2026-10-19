@@ -3,15 +3,9 @@ import { render, screen, fireEvent, waitFor, within, cleanup, act } from '@testi
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockFetchPython = vi.fn();
-vi.mock('../src/io/fetchPython', () => ({
-  fetchPython: (...args: any[]) => mockFetchPython(...args),
-}));
+import { mockApiCall } from './helpers/mockApiCall';
 
-const mockFetchProjectDetails = vi.fn();
-vi.mock('../src/io/FetchProjects', () => ({
-  fetchProjectDetails: (...args: any[]) => mockFetchProjectDetails(...args),
-}));
+let mockPostJson: ReturnType<typeof vi.fn>;
 
 // These two rows talk to python on their own, which is not what we test here.
 vi.mock('../src/components/repo/CentralRepoFolder', () => ({
@@ -19,6 +13,15 @@ vi.mock('../src/components/repo/CentralRepoFolder', () => ({
 }));
 vi.mock('../src/components/repo/RegisteredRepositories', () => ({
   RegisteredRepositories: () => null,
+}));
+
+const mockPushError = vi.fn();
+const mockPushInfo = vi.fn();
+vi.mock('../src/io/snackbar', () => ({
+  pushError: (...args: any[]) => mockPushError(...args),
+  pushInfo: (...args: any[]) => mockPushInfo(...args),
+  pushRunning: vi.fn(),
+  dismiss: vi.fn(),
 }));
 
 const { RepoTreeWhole } = await import('../src/components/project/RepoTreeWhole');
@@ -55,6 +58,8 @@ const answer = async (button: RegExp) => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  const call = mockApiCall();
+  mockPostJson = call.postJson;
   useProjectStore.setState({ currProjectName: 'TestProject' });
 });
 
@@ -63,35 +68,35 @@ afterEach(() => {
 });
 
 describe('repositories tree', () => {
-  it('a double click offers to load the repository into the project', async () => {
-    mockFetchPython.mockResolvedValueOnce({ data: {} });
-    renderRepos();
+  it('a double click opens the repository, so its contents show', async () => {
+    const { onOpenItem } = renderRepos();
 
     await act(async () => {
+      fireEvent.click(repoRow());
       fireEvent.doubleClick(repoRow());
     });
-    await answer(/^yes$/i);
 
-    await waitFor(() => {
-      expect(mockFetchPython).toHaveBeenCalledTimes(1);
-    });
-    expect(mockFetchPython.mock.calls[0][0].code).toContain(`repositoryName='${REPO_PATH}'`);
-    expect(mockFetchProjectDetails).toHaveBeenCalledWith('TestProject');
+    expect(onOpenItem).toHaveBeenCalledWith(`__repo_*_${REPO_PATH}`);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(mockPostJson).not.toHaveBeenCalled();
   });
 
   it('answering no loads nothing', async () => {
     renderRepos();
 
     await act(async () => {
-      fireEvent.doubleClick(repoRow());
+      fireEvent.contextMenu(repoRow());
+    });
+    await act(async () => {
+      fireEvent.click(within(screen.getByRole('menu')).getByText(/into project/i));
     });
     await answer(/^no$/i);
 
-    expect(mockFetchPython).not.toHaveBeenCalled();
+    expect(mockPostJson).not.toHaveBeenCalled();
   });
 
   it('a right click offers the same load, and a cancel', async () => {
-    mockFetchPython.mockResolvedValueOnce({ data: {} });
+    mockPostJson.mockResolvedValueOnce({ project: { name: 'TestProject', documents: [] }, added: 2, problems: [] });
     renderRepos();
 
     await act(async () => {
@@ -105,9 +110,15 @@ describe('repositories tree', () => {
     await answer(/^yes$/i);
 
     await waitFor(() => {
-      expect(mockFetchPython).toHaveBeenCalledTimes(1);
+      expect(mockPostJson).toHaveBeenCalledTimes(1);
     });
-    expect(mockFetchPython.mock.calls[0][0].code).toContain(`repositoryName='${REPO_PATH}'`);
+    expect(mockPostJson.mock.calls[0][0]).toBe('/repository/loadIntoProject');
+    // The row carries its path, so nothing has to guess a name apart from a file.
+    expect(mockPostJson.mock.calls[0][1]).toEqual({
+      projectName: 'TestProject',
+      path: REPO_PATH,
+      overwrite: false,
+    });
   });
 
   it('cancel in the menu does nothing', async () => {
@@ -120,7 +131,26 @@ describe('repositories tree', () => {
       fireEvent.click(within(screen.getByRole('menu')).getByText(/cancel/i));
     });
 
-    expect(mockFetchPython).not.toHaveBeenCalled();
+    expect(mockPostJson).not.toHaveBeenCalled();
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('loading a repository is one call, and stores the project it answers', async () => {
+    const loaded = { name: 'TestProject', documents: [] };
+    mockPostJson.mockResolvedValueOnce({ project: loaded, added: 2, problems: [] });
+    renderRepos();
+
+    await act(async () => {
+      fireEvent.contextMenu(repoRow());
+    });
+    await act(async () => {
+      fireEvent.click(within(screen.getByRole('menu')).getByText(/into project/i));
+    });
+    await answer(/^yes$/i);
+
+    await waitFor(() => {
+      expect(useProjectStore.getState().currProject).toEqual(loaded);
+    });
+    expect(mockPostJson).toHaveBeenCalledTimes(1);
   });
 });

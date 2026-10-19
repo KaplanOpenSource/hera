@@ -1,7 +1,7 @@
 import { FindInPage } from '@mui/icons-material';
 import { Stack } from '@mui/material';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
-import { postJson } from '../../io/entrypoint';
+import { projectApi } from '../../api/api';
 import { pushInfo } from '../../io/snackbar';
 import { ProjectEntire } from '../../shared/types';
 import { useProjectStore } from '../../stores/useProjectStore';
@@ -17,10 +17,7 @@ export const DetectNotebooksButton = ({
 
   const detectNotebooks = async () => {
     const projectName = useProjectStore.getState().currProjectName;
-    const data = await postJson('/project/detectNotebooks', {
-      projectName,
-      filesDirectory: filesDir,
-    }, { label: 'detect notebooks' });
+    const data = await projectApi.detectNotebooks(projectName, filesDir);
     if (!data) {
       return;
     }

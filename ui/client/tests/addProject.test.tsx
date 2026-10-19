@@ -11,11 +11,7 @@ vi.mock('../src/io/fetchPython', () => ({
   WARMING_UP: 'WARMING_UP',
 }));
 
-const mockPostJson = vi.fn();
-vi.mock('../src/io/entrypoint', () => ({
-  postJson: (...args: any[]) => mockPostJson(...args),
-  getJson: vi.fn(),
-}));
+import { mockApiCall } from './helpers/mockApiCall';
 
 const { AddProjectButton } = await import('../src/components/header/AddProjectButton');
 const { useProjectStore } = await import('../src/stores/useProjectStore');
@@ -25,8 +21,11 @@ afterEach(() => {
   cleanup();
 });
 
+let mockPostJson: ReturnType<typeof vi.fn>;
+
 beforeEach(() => {
   vi.clearAllMocks();
+  ({ postJson: mockPostJson } = mockApiCall());
   useProjectListStore.setState({ projectNames: [{ name: 'Alpha' }] });
   mockPostJson.mockResolvedValue({
     projects: [{ name: 'Alpha' }, { name: 'MyProject' }],
