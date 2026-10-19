@@ -96,7 +96,6 @@ export const DetailsViewDocumentContent = ({
         <Divider orientation='vertical' flexItem sx={{ mx: 0.5 }} />
         <DeleteDocumentButton
           document={doc.data}
-          projectName={doc.project.name}
           displayName={doc.isConfig ? doc.project.name + ' config' : doc.name}
           isConfig={doc.isConfig}
         />

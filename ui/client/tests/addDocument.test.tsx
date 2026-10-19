@@ -3,9 +3,10 @@ import { render, screen, fireEvent, waitFor, within, cleanup, act } from '@testi
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockFetchPython = vi.fn();
-vi.mock('../src/io/fetchPython', () => ({
-  fetchPython: (...args: any[]) => mockFetchPython(...args),
+const mockPostJson = vi.fn();
+vi.mock('../src/io/entrypoint', () => ({
+  postJson: (...args: any[]) => mockPostJson(...args),
+  getJson: vi.fn(),
 }));
 
 const { AddDocumentButton } = await import('../src/components/project/AddDocumentButton');
@@ -32,6 +33,7 @@ beforeEach(() => {
   useProjectStore.setState({
     currProjectName: 'TestProject',
     currProject: { name: 'TestProject', documents: [configDoc] },
+    editedDocs: {},
   });
   useProjectListStore.setState({ projectNames: [{ name: 'TestProject' }] });
   useToolkitStore.setState({
@@ -42,97 +44,111 @@ beforeEach(() => {
   });
 });
 
+const answerWith = (documents: any[], addedDocId = 'new1') => {
+  mockPostJson.mockResolvedValueOnce({
+    document: documents[documents.length - 1],
+    project: { name: 'TestProject', documents },
+    addedDocId,
+  });
+};
+
+const madeDoc = (oid: string, desc: any, extra: any = {}) => ({
+  _id: { $oid: oid },
+  desc,
+  type: 'T',
+  _cls: 'Metadata.Measurements',
+  resource: '',
+  dataFormat: 'string',
+  projectName: 'TestProject',
+  ...extra,
+});
+
+const openDialog = async () => {
+  render(<AddDocumentButton />);
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: /add document/i }));
+  });
+  return await screen.findByRole('dialog');
+};
+
+const submit = async (dialog: HTMLElement) => {
+  await act(async () => {
+    fireEvent.click(within(dialog).getByRole('button', { name: /add document/i }));
+  });
+};
+
+const sentBody = () => {
+  return mockPostJson.mock.calls[0][1];
+};
+
 describe('AddDocumentButton', () => {
   it('opens dialog when clicked', async () => {
-    render(<AddDocumentButton />);
-    const btn = screen.getByRole('button', { name: /add document/i });
-    await act(async () => { fireEvent.click(btn); });
-    expect(await screen.findByRole('dialog')).toBeTruthy();
+    expect(await openDialog()).toBeTruthy();
   });
 
-  it('creates a regular document with name and resource', async () => {
-    const updatedProject = {
-      name: 'TestProject',
-      documents: [{ _id: { $oid: 'new1' }, desc: { datasourceName: 'MyDoc' }, type: 'T', _cls: 'M', resource: 'myres', dataFormat: 'string', projectName: 'TestProject' }],
-    };
-    mockFetchPython.mockResolvedValueOnce({ data: { project: updatedProject }, problem: undefined });
+  it('calls document.create with the name, resource and collection', async () => {
+    answerWith([madeDoc('new1', { datasourceName: 'MyDoc' }, { resource: 'myres' })]);
+    const dialog = await openDialog();
 
-    render(<AddDocumentButton />);
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
-    });
-
-    const dialog = await screen.findByRole('dialog');
-    const nameInput = within(dialog).getByRole('textbox', { name: /^name$/i });
-    const resourceInput = within(dialog).getByRole('textbox', { name: /resource/i });
-
-    fireEvent.change(nameInput, { target: { value: 'MyDoc' } });
-    fireEvent.change(resourceInput, { target: { value: 'myres' } });
-
-    await act(async () => {
-      fireEvent.click(within(dialog).getByRole('button', { name: /add document/i }));
-    });
+    fireEvent.change(within(dialog).getByRole('textbox', { name: /^name$/i }), { target: { value: 'MyDoc' } });
+    fireEvent.change(within(dialog).getByRole('textbox', { name: /resource/i }), { target: { value: 'myres' } });
+    await submit(dialog);
 
     await waitFor(() => {
-      expect(mockFetchPython).toHaveBeenCalledTimes(1);
-      const code = mockFetchPython.mock.calls[0][0].code;
-      expect(code).toContain("Measurements_Collection().addDocument(");
-      expect(code).toContain("'TestProject'");
-      expect(code).toContain("resource='myres'");
-      expect(code).toContain('"datasourceName":"MyDoc"');
+      expect(mockPostJson).toHaveBeenCalledTimes(1);
+    });
+    expect(mockPostJson.mock.calls[0][0]).toBe('/document/create');
+    expect(sentBody()).toEqual({
+      projectName: 'TestProject',
+      collection: 'Measurements',
+      resource: 'myres',
+      desc: { datasourceName: 'MyDoc' },
     });
   });
 
   it('creates an agent document with effects resource', async () => {
-    const updatedProject = {
-      name: 'TestProject',
-      documents: [{ _id: { $oid: 'ag1' }, desc: { datasourceName: 'Agent1' }, type: 'ToolkitDataSource', _cls: 'M', resource: { effects: {} }, dataFormat: 'JSON_DICT', projectName: 'TestProject' }],
-    };
-    mockFetchPython.mockResolvedValueOnce({ data: { project: updatedProject }, problem: undefined });
+    answerWith([madeDoc('ag1', { datasourceName: 'Agent1' })]);
+    const dialog = await openDialog();
 
-    render(<AddDocumentButton />);
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
-    });
-
-    const dialog = await screen.findByRole('dialog');
-    const nameInput = within(dialog).getByRole('textbox', { name: /^name$/i });
-    fireEvent.change(nameInput, { target: { value: 'Agent1' } });
-
-    // Select Agent kind
+    fireEvent.change(within(dialog).getByRole('textbox', { name: /^name$/i }), { target: { value: 'Agent1' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Agent' }));
-
-    await act(async () => {
-      fireEvent.click(within(dialog).getByRole('button', { name: /add document/i }));
-    });
+    await submit(dialog);
 
     await waitFor(() => {
-      const code = mockFetchPython.mock.calls[0][0].code;
-      expect(code).toContain('resource={"effects": {}}');
-      expect(code).toContain("type='ToolkitDataSource'");
+      expect(mockPostJson).toHaveBeenCalledTimes(1);
     });
+    expect(sentBody().resource).toEqual({ effects: {} });
+    expect(sentBody().type).toBe('ToolkitDataSource');
+    expect(sentBody().dataFormat).toBe('JSON_dict');
+  });
+
+  it('creates a workflow document with an empty workflow block', async () => {
+    answerWith([madeDoc('wf1', { datasourceName: 'Flow1' })]);
+    const dialog = await openDialog();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Workflow' }));
+    fireEvent.change(within(dialog).getByRole('textbox', { name: /^name$/i }), { target: { value: 'Flow1' } });
+    await submit(dialog);
+
+    await waitFor(() => {
+      expect(mockPostJson).toHaveBeenCalledTimes(1);
+    });
+    expect(sentBody().collection).toBe('Simulations');
+    expect(sentBody().type).toBe('hermesWorkflow');
+    expect(sentBody().resource).toBe('/tmp/testproject/Flow1.json');
+    expect(sentBody().desc.workflowName).toBe('Flow1');
+    expect(sentBody().desc.workflow).toEqual({ workflow: { solver: '', nodeList: [], nodes: {} } });
+    expect(sentBody().desc.parameters).toEqual({});
+    // No file is written for a workflow.
+    expect(sentBody().notebook).toBeUndefined();
   });
 
   it('updates the store after successful creation', async () => {
-    const updatedProject = {
-      name: 'TestProject',
-      documents: [
-        { _id: { $oid: 'n1' }, desc: { datasourceName: 'NewDoc' }, type: 'T', _cls: 'M', resource: '', dataFormat: 'string', projectName: 'TestProject' },
-      ],
-    };
-    mockFetchPython.mockResolvedValueOnce({ data: { project: updatedProject }, problem: undefined });
+    answerWith([madeDoc('n1', { datasourceName: 'NewDoc' })]);
+    const dialog = await openDialog();
 
-    render(<AddDocumentButton />);
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
-    });
-
-    const dialog = await screen.findByRole('dialog');
     fireEvent.change(within(dialog).getByRole('textbox', { name: /^name$/i }), { target: { value: 'NewDoc' } });
-
-    await act(async () => {
-      fireEvent.click(within(dialog).getByRole('button', { name: /add document/i }));
-    });
+    await submit(dialog);
 
     await waitFor(() => {
       const project = useProjectStore.getState().currProject;
@@ -141,59 +157,52 @@ describe('AddDocumentButton', () => {
     });
   });
 
-  it('does not update store on error', async () => {
-    mockFetchPython.mockResolvedValueOnce({ data: undefined, problem: 'exec failed' });
-
-    render(<AddDocumentButton />);
+  it('hands the new document id to the caller', async () => {
+    answerWith([madeDoc('n1', { datasourceName: 'NewDoc' })], 'n1');
+    const onDocumentCreated = vi.fn();
+    render(<AddDocumentButton onDocumentCreated={onDocumentCreated} />);
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /add document/i }));
     });
-
     const dialog = await screen.findByRole('dialog');
-    fireEvent.change(within(dialog).getByRole('textbox', { name: /^name$/i }), { target: { value: 'Fail' } });
 
-    await act(async () => {
-      fireEvent.click(within(dialog).getByRole('button', { name: /add document/i }));
-    });
+    fireEvent.change(within(dialog).getByRole('textbox', { name: /^name$/i }), { target: { value: 'NewDoc' } });
+    await submit(dialog);
 
     await waitFor(() => {
-      expect(mockFetchPython).toHaveBeenCalledTimes(1);
+      expect(onDocumentCreated).toHaveBeenCalledWith('n1');
     });
+  });
 
-    // Store should still only have the config document
+  it('does not update store on error', async () => {
+    mockPostJson.mockResolvedValueOnce(null);
+    const dialog = await openDialog();
+
+    fireEvent.change(within(dialog).getByRole('textbox', { name: /^name$/i }), { target: { value: 'Fail' } });
+    await submit(dialog);
+
+    await waitFor(() => {
+      expect(mockPostJson).toHaveBeenCalledTimes(1);
+    });
     expect(useProjectStore.getState().currProject?.documents).toEqual([configDoc]);
   });
 
-  it('handles delayed execPython response', async () => {
-    let resolveExec!: (v: any) => void;
-    mockFetchPython.mockImplementationOnce(() =>
-      new Promise(r => { resolveExec = r; })
-    );
+  it('handles a delayed answer', async () => {
+    let resolveCall!: (v: any) => void;
+    mockPostJson.mockImplementationOnce(() => new Promise(r => { resolveCall = r; }));
+    const dialog = await openDialog();
 
-    render(<AddDocumentButton />);
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
-    });
-
-    const dialog = await screen.findByRole('dialog');
     fireEvent.change(within(dialog).getByRole('textbox', { name: /^name$/i }), { target: { value: 'Delayed' } });
-
-    await act(async () => {
-      fireEvent.click(within(dialog).getByRole('button', { name: /add document/i }));
-    });
+    await submit(dialog);
 
     await waitFor(() => {
-      expect(mockFetchPython).toHaveBeenCalledTimes(1);
+      expect(mockPostJson).toHaveBeenCalledTimes(1);
     });
-    // Store not yet updated — still only has the config document
     expect(useProjectStore.getState().currProject?.documents).toEqual([configDoc]);
 
-    const updatedProject = {
-      name: 'TestProject',
-      documents: [{ _id: { $oid: 'd1' }, desc: { datasourceName: 'Delayed' }, type: 'T', _cls: 'M', resource: '', dataFormat: 'string', projectName: 'TestProject' }],
-    };
+    const documents = [madeDoc('d1', { datasourceName: 'Delayed' })];
     await act(async () => {
-      resolveExec({ data: { project: updatedProject }, problem: undefined });
+      resolveCall({ document: documents[0], project: { name: 'TestProject', documents }, addedDocId: 'd1' });
     });
 
     await waitFor(() => {
@@ -201,44 +210,25 @@ describe('AddDocumentButton', () => {
     });
   });
 
-  it('creates a notebook document with resource derived from name', async () => {
-    const updatedProject = {
-      name: 'TestProject',
-      documents: [configDoc, { _id: { $oid: 'nb1' }, desc: { datasourceName: 'MyNotebook' }, type: 'notebook', _cls: 'Cache', resource: '/tmp/testproject/notebooks/MyNotebook.ipynb', dataFormat: 'JSON_dict', projectName: 'TestProject' }],
-    };
-    mockFetchPython.mockResolvedValueOnce({ data: { project: updatedProject }, problem: undefined });
+  it('creates a notebook document and asks the server for the file', async () => {
+    answerWith([configDoc, madeDoc('nb1', { datasourceName: 'MyNotebook' })], 'nb1');
+    const dialog = await openDialog();
 
-    render(<AddDocumentButton />);
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
-    });
-
-    const dialog = await screen.findByRole('dialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Notebook' }));
-
-    const nameInput = within(dialog).getByRole('textbox', { name: /^name$/i });
-    fireEvent.change(nameInput, { target: { value: 'MyNotebook' } });
-
-    await act(async () => {
-      fireEvent.click(within(dialog).getByRole('button', { name: /add document/i }));
-    });
+    fireEvent.change(within(dialog).getByRole('textbox', { name: /^name$/i }), { target: { value: 'MyNotebook' } });
+    await submit(dialog);
 
     await waitFor(() => {
-      const code = mockFetchPython.mock.calls[0][0].code;
-      expect(code).toContain('Cache_Collection().addDocument');
-      expect(code).toContain('resource="/tmp/testproject/notebooks/MyNotebook.ipynb"');
-      expect(code).toContain('type="notebook"');
-      expect(code).toContain('if not notebook_path.exists()');
+      expect(mockPostJson).toHaveBeenCalledTimes(1);
     });
+    expect(sentBody().collection).toBe('Cache');
+    expect(sentBody().type).toBe('notebook');
+    expect(sentBody().resource).toBe('/tmp/testproject/notebooks/MyNotebook.ipynb');
+    expect(sentBody().notebook).toEqual({ toolkitNames: [] });
   });
 
   it('shows resource field with auto-generated path when notebook is selected', async () => {
-    render(<AddDocumentButton />);
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
-    });
-
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await openDialog();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Notebook' }));
 
     const nameInput = within(dialog).getByRole('textbox', { name: /^name$/i });
@@ -250,54 +240,36 @@ describe('AddDocumentButton', () => {
   });
 
   it('shows helper text when notebook is selected', async () => {
-    render(<AddDocumentButton />);
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
-    });
-
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await openDialog();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Notebook' }));
 
     expect(within(dialog).getByText(/already exists at this path/i)).toBeTruthy();
   });
 
   it('hides class/toolkit when notebook kind is selected', async () => {
-    render(<AddDocumentButton />);
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /add document/i }));
-    });
-
-    const dialog = await screen.findByRole('dialog');
-    // Regular mode shows the Toolkit autocomplete
+    const dialog = await openDialog();
     expect(within(dialog).queryByRole('combobox', { name: /toolkit/i })).toBeTruthy();
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Notebook' }));
 
-    // Notebook mode hides the Toolkit autocomplete
     expect(within(dialog).queryByRole('combobox', { name: /toolkit/i })).toBeNull();
   });
 
   it('includes toolkit in desc when selected', async () => {
-    mockFetchPython.mockResolvedValueOnce({
-      data: { project: { name: 'TestProject', documents: [] } },
-      problem: undefined,
-    });
-
+    answerWith([madeDoc('n1', { datasourceName: 'WithTK', toolkit: 'LSM' })]);
     render(<AddDocumentButton toolkit={{ toolkit: 'LSM', cls: 'lsm.cls' }} />);
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /add document/i }));
     });
-
     const dialog = await screen.findByRole('dialog');
-    fireEvent.change(within(dialog).getByRole('textbox', { name: /^name$/i }), { target: { value: 'WithTK' } });
 
-    await act(async () => {
-      fireEvent.click(within(dialog).getByRole('button', { name: /add document/i }));
-    });
+    fireEvent.change(within(dialog).getByRole('textbox', { name: /^name$/i }), { target: { value: 'WithTK' } });
+    await submit(dialog);
 
     await waitFor(() => {
-      const code = mockFetchPython.mock.calls[0][0].code;
-      expect(code).toContain('"toolkit":"LSM"');
+      expect(mockPostJson).toHaveBeenCalledTimes(1);
     });
+    expect(sentBody().desc.toolkit).toBe('LSM');
   });
+
 });

@@ -1,47 +1,76 @@
+import { Collection, ProjectDocument } from "../shared/types";
 import { useProjectStore } from "../stores/useProjectStore";
-import { fetchProjectDetails } from "./FetchProjects";
-import { fetchPython } from "./fetchPython";
+import { createDocument, NewDocument } from "./createDocument";
 
-// Copies a document into the same collection, with a free "copy" name.
-const DUPLICATE_HELPER = `
-from hera.datalayer import All
+// The document's _cls says which collection it lives in, e.g. Metadata.Cache.
+const COLLECTION_OF_CLS: { [cls: string]: Collection } = {
+  Measurements: Collection.Measurements,
+  Simulations: Collection.Simulations,
+  Cache: Collection.Cache,
+};
 
-def duplicateDocumentByID(oid):
-    doc = All.getDocumentByID(oid)
-    desc = dict(doc.desc)
-    name = desc.get('datasourceName')
-    if name:
-        taken = [d.desc.get('datasourceName') for d in All.getDocuments(projectName=doc.projectName)]
-        newName = name + ' copy'
-        num = 2
-        while newName in taken:
-            newName = name + ' copy ' + str(num)
-            num += 1
-        desc['datasourceName'] = newName
-    copied = type(doc)(
-        projectName=doc.projectName,
-        resource=doc.resource,
-        dataFormat=doc.dataFormat,
-        type=doc.type,
-        desc=desc,
-    )
-    copied.save()
-`;
+const collectionOfCls = (cls: string) => {
+  return COLLECTION_OF_CLS[cls?.split('.').pop() ?? ''];
+};
 
-// Duplicates the given documents, then reloads the project. Returns false on failure.
-export const duplicateDocuments = async (docOids: string[]) => {
-  const projectName = useProjectStore.getState().currProjectName;
-  const { data } = await fetchPython({
-    results: [],
-    label: `duplicate ${docOids.length} documents`,
-    code: [
-      DUPLICATE_HELPER,
-      ...docOids.map(oid => `duplicateDocumentByID('${oid}')`),
-    ].join('\n'),
-  });
-  if (!data) {
-    return false;
+// The first "<name> copy", "<name> copy 2", ... that no document in the project uses.
+export const freeCopyName = (name: string, taken: string[]) => {
+  let copyName = `${name} copy`;
+  let num = 2;
+  while (taken.includes(copyName)) {
+    copyName = `${name} copy ${num}`;
+    num += 1;
   }
-  await fetchProjectDetails(projectName);
+  return copyName;
+};
+
+const copyOf = (doc: ProjectDocument, taken: string[]): NewDocument | null => {
+  const collection = collectionOfCls(doc._cls);
+  if (!collection) {
+    console.error(`cannot duplicate a ${doc._cls} document`);
+    return null;
+  }
+  const desc = { ...doc.desc };
+  if (desc.datasourceName) {
+    desc.datasourceName = freeCopyName(desc.datasourceName, taken);
+  }
+  return {
+    projectName: doc.projectName,
+    collection,
+    type: doc.type,
+    resource: doc.resource,
+    dataFormat: doc.dataFormat,
+    desc,
+  };
+};
+
+// Copies each document into its own collection, with a free "copy" name. The
+// copies come from the store, so nothing is read back first. Returns false on
+// failure.
+export const duplicateDocuments = async (docOids: string[]) => {
+  const documents = useProjectStore.getState().currProject?.documents ?? [];
+  const taken = documents.map(d => d.desc?.datasourceName).filter(Boolean) as string[];
+  for (const oid of docOids) {
+    const doc = documents.find(d => d._id.$oid === oid);
+    if (!doc) {
+      console.error(`no document ${oid} in the project`);
+      return false;
+    }
+    const copy = copyOf(doc, taken);
+    if (!copy) {
+      return false;
+    }
+    // Each copy's name is taken by the next one, so two copies never collide.
+    const copyName = copy.desc?.datasourceName;
+    if (copyName) {
+      taken.push(copyName);
+    }
+    const created = await createDocument(copy, `duplicate document ${doc.desc?.datasourceName ?? oid}`);
+    if (!created) {
+      return false;
+    }
+    // The last answer is the freshest project, so storing each is harmless.
+    useProjectStore.getState().setCurrentProject(created.project);
+  }
   return true;
 };

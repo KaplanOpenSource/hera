@@ -1,7 +1,7 @@
 # Steps: the document entrypoints
 
 The **Documents** part of `ENTRYPOINTS_PLAN.md` (issue #1129). Three named
-entrypoints replace six `/exec` call sites. Status: **proposed**.
+entrypoints replace six `/exec` call sites. Status: **built**.
 
 Built the same way as the project entrypoints, so read
 `ENTRYPOINTS_PROJECTS_STEPS.md` first: same router shape, same warmup guard,

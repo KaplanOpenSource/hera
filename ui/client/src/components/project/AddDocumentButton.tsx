@@ -10,21 +10,22 @@ import {
   ToggleButton,
   ToggleButtonGroup,
 } from "@mui/material";
-import { DocumentDesc, ProjectEntire, Toolkit } from "../../shared/types";
+import { Collection, DocumentDesc, Toolkit, WorkflowDesc } from "../../shared/types";
 import { useRef, useState } from "react";
 import { ButtonDialog } from "../../elements/ButtonDialog";
 import { TextProperty } from "../../elements/TextProperty";
-import { fetchPython } from "../../io/fetchPython";
 import { useProjectStore } from "../../stores/useProjectStore";
 import { useToolkitStore } from "../../stores/useToolkitStore";
 import { SelectProperty } from "../../elements/SelectProperty";
-import { buildAddDocumentCode } from "./buildAddDocumentCode";
+import { createDocument, NewDocument } from "../../io/createDocument";
 
 const METADATA_CLASSES = [
-  { name: 'Metadata.Measurements', collection: 'Measurements_Collection' },
-  { name: 'Metadata.Simulations', collection: 'Simulations_Collection' },
-  { name: 'Metadata.Cache', collection: 'Cache_Collection' },
+  { name: 'Metadata.Measurements', collection: Collection.Measurements },
+  { name: 'Metadata.Simulations', collection: Collection.Simulations },
+  { name: 'Metadata.Cache', collection: Collection.Cache },
 ] as const;
+
+const JSON_DICT = 'JSON_dict';
 
 type MetadataCls = typeof METADATA_CLASSES[number];
 
@@ -77,33 +78,67 @@ export const AddDocumentButton = ({
   // doesn't land in the process cwd (the repo root when run in Docker).
   const workflowResource = filesDir ? `${filesDir}/${name}.json` : `${name}.json`;
 
-  const doAddDoc = async () => {
+  // The fields each kind writes. Only the notebook asks the server for a file.
+  const newDocument = (): NewDocument => {
     const desc: DocumentDesc = { datasourceName: name };
     if (chosenToolkit) {
       desc.toolkit = chosenToolkit;
     }
-    const { data } = await fetchPython({
-      results: ['project'],
-      label: `add document ${name}`,
-      code: buildAddDocumentCode({
-        kind,
+    if (kind === DocKind.Notebook) {
+      return {
         projectName: currProjectName,
+        collection: Collection.Cache,
+        type: 'notebook',
+        resource: notebookResource,
+        dataFormat: JSON_DICT,
         desc,
-        toolkitNames: useToolkitStore.getState().getProjectToolkitKeys(),
-        notebookResource,
+        notebook: { toolkitNames: useToolkitStore.getState().getProjectToolkitKeys() },
+      };
+    }
+    if (kind === DocKind.Agent) {
+      return {
+        projectName: currProjectName,
         collection: cls.collection,
-        resource: kind === DocKind.Workflow ? workflowResource : resource,
-      }),
-    })
-    if (!data) {
+        type: 'ToolkitDataSource',
+        resource: { effects: {} },
+        dataFormat: JSON_DICT,
+        desc,
+      };
+    }
+    if (kind === DocKind.Workflow) {
+      // A Hermes workflow is a Simulations document holding an (initially empty)
+      // workflow block under desc.workflow; resource is the optional export path.
+      return {
+        projectName: currProjectName,
+        collection: Collection.Simulations,
+        type: 'hermesWorkflow',
+        resource: workflowResource,
+        dataFormat: JSON_DICT,
+        desc: {
+          ...desc,
+          workflowName: name,
+          workflow: { workflow: { solver: '', nodeList: [], nodes: {} } },
+          // The parameters index, kept in sync with the workflow; empty at creation.
+          parameters: {},
+        } as WorkflowDesc,
+      };
+    }
+    return {
+      projectName: currProjectName,
+      collection: cls.collection,
+      resource,
+      desc,
+    };
+  }
+
+  const doAddDoc = async () => {
+    const created = await createDocument(newDocument(), `add document ${name}`);
+    if (!created) {
       return;
     }
-    const existingIds = useProjectStore.getState().getProject()?.documentIds ?? new Set<string>();
-    setCurrentProject(data.project as ProjectEntire);
-    const newIds = useProjectStore.getState().getProject()?.documentIds ?? new Set<string>();
-    const [addedId] = newIds.difference(existingIds);
-    if (addedId) {
-      onDocumentCreated?.(addedId);
+    setCurrentProject(created.project);
+    if (created.addedDocId) {
+      onDocumentCreated?.(created.addedDocId);
     }
   }
 

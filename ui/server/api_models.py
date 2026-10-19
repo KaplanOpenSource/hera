@@ -1,5 +1,6 @@
 """Request/response models for the Hera UI API endpoints."""
 
+from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
@@ -78,3 +79,38 @@ class DeleteProjectPayload(BaseModel):
 class DetectNotebooksPayload(BaseModel):
     projectName: str
     filesDirectory: str
+
+
+class Collection(str, Enum):
+    """The three collections a document can live in."""
+    Measurements = "Measurements"
+    Simulations = "Simulations"
+    Cache = "Cache"
+
+
+class NotebookSpec(BaseModel):
+    # The toolkit lines the notebook's first cell opens with.
+    toolkitNames: List[str] = []
+
+
+class CreateDocumentPayload(BaseModel):
+    projectName: str
+    collection: Collection
+    # The defaults are hera's own addDocument defaults.
+    type: str = ""
+    # A path, or the data itself (an agent's resource is a dict).
+    resource: Any = ""
+    dataFormat: str = "string"
+    desc: Dict[str, Any] = {}
+    # Only for a notebook document: write the .ipynb file if it is not there yet.
+    notebook: Optional[NotebookSpec] = None
+
+
+class UpdateDocumentPayload(BaseModel):
+    docId: str
+    # The document as the editor holds it, minus _id, _cls and projectName.
+    fields: Dict[str, Any] = {}
+
+
+class DocumentIdsPayload(BaseModel):
+    docIds: List[str]

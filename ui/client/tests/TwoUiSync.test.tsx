@@ -10,7 +10,6 @@ import { useProjectStore } from '../src/stores/useProjectStore';
 import { useServerConstants } from '../src/stores/useServerConstants';
 import { ProjectDocument, ProjectEntire } from '../src/shared/types';
 import * as FetchDocument from '../src/io/FetchDocument';
-import * as FetchProjects from '../src/io/FetchProjects';
 
 vi.mock('../src/components/agents/AgentConfigEditor', () => ({
   AgentConfigEditor: () => null,
@@ -50,6 +49,12 @@ const makeProjectData = (resource: string): ProjectEntire => ({
 });
 
 const makeDoc = (resource: string): ProjectDocument => makeProjectData(resource).documents[0];
+
+// What document.update answers: the saved document and the whole project.
+const makeSaved = (resource: string) => ({
+  document: makeDoc(resource),
+  project: makeProjectData(resource),
+});
 
 describe('Two UI sync', () => {
   let updateDocumentSpy: ReturnType<typeof vi.spyOn>;
@@ -113,9 +118,8 @@ describe('Two UI sync', () => {
     const resourceInput = within(ui1.container).getByDisplayValue('old-value');
     fireEvent.change(resourceInput, { target: { value: 'new-value' } });
 
-    updateDocumentSpy.mockResolvedValue(makeDoc('new-value'));
-    // The save pulls the project back into the store; no-op it here.
-    vi.spyOn(FetchProjects, 'fetchProjectDetails').mockResolvedValue(undefined);
+    // The save answers the project too, so nothing is reloaded after it.
+    updateDocumentSpy.mockResolvedValue(makeSaved('new-value'));
 
     const updateWrapper = await waitFor(() =>
       within(ui1.container).getByLabelText('Update Document')

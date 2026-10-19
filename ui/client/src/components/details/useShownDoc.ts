@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { updateDocument } from '../../io/FetchDocument';
-import { fetchProjectDetails } from '../../io/FetchProjects';
 import { DocumentObj } from '../../objects/ProjectObj';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { ProjectDocument, WorkflowDesc } from '../../shared/types';
@@ -27,14 +26,15 @@ export const useShownDoc = (doc: DocumentObj) => {
     }
   };
 
-  // Stores the edits, then reloads the project so every view shows the saved value.
+  // Stores the edits. The save answers the whole project, so every view shows
+  // the saved value without a second call.
   const saveShownDoc = async () => {
     if (!editedDoc) {
       return;
     }
-    const data = await updateDocument(editedDoc, doc.data);
-    if (data) {
-      await fetchProjectDetails(doc.project.name, true);
+    const saved = await updateDocument(editedDoc);
+    if (saved) {
+      useProjectStore.getState().setCurrentProject(saved.project);
       // Dropped only now, so the view never falls back to the pre-save document.
       setEditedDoc(doc.docid, null);
     }

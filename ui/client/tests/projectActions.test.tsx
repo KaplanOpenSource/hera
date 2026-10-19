@@ -3,14 +3,10 @@ import { render, screen, fireEvent, waitFor, within, cleanup, act } from '@testi
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockFetchPython = vi.fn();
-vi.mock('../src/io/fetchPython', () => ({
-  fetchPython: (...args: any[]) => mockFetchPython(...args),
-}));
-
-const mockFetchProjectDetails = vi.fn();
-vi.mock('../src/io/FetchProjects', () => ({
-  fetchProjectDetails: (...args: any[]) => mockFetchProjectDetails(...args),
+const mockPostJson = vi.fn();
+vi.mock('../src/io/entrypoint', () => ({
+  postJson: (...args: any[]) => mockPostJson(...args),
+  getJson: vi.fn(),
 }));
 
 const { DeleteSelectedButton } = await import('../src/components/project/DeleteSelectedButton');
@@ -78,7 +74,7 @@ describe('DeleteSelectedButton', () => {
   });
 
   it('deletes only the selected documents, skipping repos/splits/config', async () => {
-    mockFetchPython.mockResolvedValueOnce({ data: {} });
+    mockPostJson.mockResolvedValueOnce({ project: { name: 'TestProject', documents: [configDoc] } });
     const onDeleted = vi.fn();
     render(
       <DeleteSelectedButton
@@ -93,15 +89,13 @@ describe('DeleteSelectedButton', () => {
     await confirmDelete();
 
     await waitFor(() => {
-      expect(mockFetchPython).toHaveBeenCalledTimes(1);
+      expect(mockPostJson).toHaveBeenCalledTimes(1);
     });
-    const code = mockFetchPython.mock.calls[0][0].code as string;
-    expect(code).toContain("All.deleteDocumentByID('doc1')");
-    expect(code).toContain("All.deleteDocumentByID('doc2')");
-    expect(code).not.toContain('cfg1');
-    expect(code).not.toContain('repoA');
+    expect(mockPostJson.mock.calls[0][0]).toBe('/document/delete');
+    expect(mockPostJson.mock.calls[0][1]).toEqual({ docIds: ['doc1', 'doc2'] });
 
-    expect(mockFetchProjectDetails).toHaveBeenCalledWith('TestProject');
+    // The answer carries the project, so nothing is reloaded after it.
+    expect(useProjectStore.getState().currProject?.documents).toEqual([configDoc]);
     expect(onDeleted).toHaveBeenCalledTimes(1);
   });
 
@@ -117,13 +111,12 @@ describe('DeleteSelectedButton', () => {
       fireEvent.click(within(dialog).getByRole('button', { name: /^no$/i }));
     });
 
-    expect(mockFetchPython).not.toHaveBeenCalled();
-    expect(mockFetchProjectDetails).not.toHaveBeenCalled();
+    expect(mockPostJson).not.toHaveBeenCalled();
     expect(onDeleted).not.toHaveBeenCalled();
   });
 
-  it('does not refresh or notify when the python call fails', async () => {
-    mockFetchPython.mockResolvedValueOnce({ data: undefined });
+  it('does not refresh or notify when the call fails', async () => {
+    mockPostJson.mockResolvedValueOnce(null);
     const onDeleted = vi.fn();
     render(<DeleteSelectedButton selectedIds={[idDocId('doc1')]} onDeleted={onDeleted} />);
 
@@ -133,9 +126,8 @@ describe('DeleteSelectedButton', () => {
     await confirmDelete();
 
     await waitFor(() => {
-      expect(mockFetchPython).toHaveBeenCalledTimes(1);
+      expect(mockPostJson).toHaveBeenCalledTimes(1);
     });
-    expect(mockFetchProjectDetails).not.toHaveBeenCalled();
     expect(onDeleted).not.toHaveBeenCalled();
   });
 });
@@ -152,7 +144,7 @@ describe('ProjectActionsButton', () => {
   });
 
   it('clears the selection after a successful bulk delete', async () => {
-    mockFetchPython.mockResolvedValueOnce({ data: {} });
+    mockPostJson.mockResolvedValueOnce({ project: { name: 'TestProject', documents: [configDoc] } });
     const onSelectDocument = vi.fn();
     render(<ProjectActionsButton selectedIds={[idDocId('doc1')]} onSelectDocument={onSelectDocument} />);
 
