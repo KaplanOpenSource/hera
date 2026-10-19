@@ -41,6 +41,8 @@ Built. The routes and the server files are listed in
 
 ## Documents
 
+Planned in `ENTRYPOINTS_DOCUMENTS_STEPS.md`.
+
 | Entrypoint | Parameters | Returns | Replaces |
 |---|---|---|---|
 | `document.get` | `docId` | the document | `FetchDocument.fetchDocument` |
