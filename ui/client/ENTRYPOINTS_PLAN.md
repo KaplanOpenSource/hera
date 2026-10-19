@@ -1,8 +1,10 @@
 # Named entrypoints to replace every `/exec` call
 
 Status: **proposed**, except `/init` (see `INIT_ENTRYPOINT_PLAN.md`),
-`file.geoJson` and the six project entrypoints (see
-`ENTRYPOINTS_PROJECTS_STEPS.md`), which are built.
+`file.geoJson`, the six project entrypoints (see
+`ENTRYPOINTS_PROJECTS_STEPS.md`) and the document entrypoints (see
+`ENTRYPOINTS_DOCUMENTS_STEPS.md`), which are built. The repositories are next:
+`ENTRYPOINTS_REPOSITORIES_STEPS.md`.
 
 Today the client builds python text and posts it to `/exec`: **22 call sites in
 18 files**. That endpoint runs arbitrary code as the server user, and the client
@@ -61,12 +63,14 @@ string in TypeScript.
 
 ## Repositories
 
+Planned in `ENTRYPOINTS_REPOSITORIES_STEPS.md`.
+
 | Entrypoint | Parameters | Returns | Replaces |
 |---|---|---|---|
 | `repository.registered` | - | the repository table | `useRegisteredRepositories` |
-| `repository.get` | `nameOrPath` | the repository JSON, and the path-resolved copy | `DetailsViewRepo` (both branches), `RepoContents` |
+| `repository.get` | `path` | the repository JSON, and the path-resolved copy | `DetailsViewRepo` (both branches); `RepoContents` is dead code |
 | `repository.jsonsInFolder` | `folder`, `withContents` | the repo JSON files found, names only or with contents | `CentralRepoFolder`, `DetailsViewMergedRepo` |
-| `repository.loadIntoProject` | `projectName`, `repositoryName` or `repositoryJSON`, `overwrite`, `baseDir` | the project | `loadRepositoryIntoProject`, `RepoTreeAddButton`, `UpdateRepositoriesButton` |
+| `repository.loadIntoProject` | `projectName`, `path` or `repositoryJSON`, `overwrite`, `baseDir` | the project | `loadRepositoryIntoProject`, `RepoTreeAddButton`, `UpdateRepositoriesButton` |
 
 `repository.loadIntoProject` covers three callers that all load datasources into
 a project, differing only in where the JSON comes from.
@@ -90,6 +94,6 @@ the workflow endpoints (`/start_workflow`, `/workflow_status`, `/node-catalog`,
 - Validation moves to the server: every path and project name arrives as a
   parameter and is checked there, instead of being pasted into code.
 - `/exec` can then be a dev-only switch, or go.
-- 15 `/exec` call sites are left.
+- 8 `/exec` call sites are left, all of them repositories.
 - Each entrypoint needs a python test next to it; the client keeps a small test
   that it sent the right name and parameters.
