@@ -29,7 +29,7 @@ export const RepoTreeWhole = ({
   onSelectedItemsChange: (event: React.SyntheticEvent | null, ids: string[]) => void,
   expandedItems: string[],
   onExpandedItemsChange: (event: React.SyntheticEvent | null, ids: string[]) => void,
-  // Opens a row that is not a repository (the central folder, a repository field).
+  // Opens a row: a repository shows its contents, the central folder its merged tree.
   onOpenItem: (rawId: string | undefined) => void,
 }) => {
   const [repositories, setRepositories] = useState<string[]>(['hera/doc/jupyter/Developer/Documentation_Repository.json']);
@@ -61,14 +61,9 @@ export const RepoTreeWhole = ({
     return rowId ? idFromRepoDomId(rowId) : undefined;
   };
 
-  // A double click loads a repository, or opens any other row.
-  const handleDoubleClick = async (event: React.MouseEvent) => {
-    const repoName = repoNameOfEvent(event);
-    if (!repoName) {
-      onOpenItem(lastClickedRef.current);
-      return;
-    }
-    await askLoadRepository(repoName);
+  // A double click opens the row; loading into the project is on the right click menu.
+  const handleDoubleClick = () => {
+    onOpenItem(lastClickedRef.current);
   };
 
   const handleContextMenu = (event: React.MouseEvent) => {

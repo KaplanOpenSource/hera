@@ -63,27 +63,27 @@ afterEach(() => {
 });
 
 describe('repositories tree', () => {
-  it('a double click offers to load the repository into the project', async () => {
-    mockFetchPython.mockResolvedValueOnce({ data: {} });
-    renderRepos();
+  it('a double click opens the repository, so its contents show', async () => {
+    const { onOpenItem } = renderRepos();
 
     await act(async () => {
+      fireEvent.click(repoRow());
       fireEvent.doubleClick(repoRow());
     });
-    await answer(/^yes$/i);
 
-    await waitFor(() => {
-      expect(mockFetchPython).toHaveBeenCalledTimes(1);
-    });
-    expect(mockFetchPython.mock.calls[0][0].code).toContain(`repositoryName='${REPO_PATH}'`);
-    expect(mockFetchProjectDetails).toHaveBeenCalledWith('TestProject');
+    expect(onOpenItem).toHaveBeenCalledWith(`__repo_*_${REPO_PATH}`);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(mockFetchPython).not.toHaveBeenCalled();
   });
 
   it('answering no loads nothing', async () => {
     renderRepos();
 
     await act(async () => {
-      fireEvent.doubleClick(repoRow());
+      fireEvent.contextMenu(repoRow());
+    });
+    await act(async () => {
+      fireEvent.click(within(screen.getByRole('menu')).getByText(/into project/i));
     });
     await answer(/^no$/i);
 
