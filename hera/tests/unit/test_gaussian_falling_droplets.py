@@ -547,9 +547,8 @@ class TestFallingParticleDerivative:
         """_fallingParticle line 402 reads `z = numpy.max(z, 0)`.
 
         That second positional argument is `axis`, not a floor, so the
-        intended "never go below the ground" clamp is a no-op.  Recorded
-        here because the line is unreachable while the B12 cascade above
-        stands; numpy.clip / max(z, 0) is what it wanted.
+        intended "never go below the ground" clamp is a no-op;
+        numpy.clip / max(z, 0) is what it wanted.
         """
         assert numpy.max(-5.0, 0) == -5.0
 
