@@ -22,6 +22,7 @@ class DemographyToolkit(toolkit.VectorToolkit):
     _populationTypes = None # A dictionary with the names of the population types.
 
     _buildings = None
+    _shapes = None
     _analysis = None
     _presentation = None
 
@@ -32,7 +33,7 @@ class DemographyToolkit(toolkit.VectorToolkit):
 
     @property
     def shapes(self):
-        """ShapesToolKit : The shapes toolkit instance."""
+        """The shapes toolkit instance, or None when it was not set."""
         return self._shapes
 
     @property
