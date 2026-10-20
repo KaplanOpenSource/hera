@@ -766,7 +766,7 @@ class TestUrbanRoughnessFromLandCover:
 
 @pytest.mark.unit
 class TestUrbanRoughnessOutsideTheBuildings:
-    """B183: cells with no buildings get a land-cover CODE in z0."""
+    """B183: cells with no buildings get the land cover's roughness in z0."""
 
     @pytest.fixture()
     def setup(self, lc, tmp_path, monkeypatch):
@@ -794,29 +794,12 @@ class TestUrbanRoughnessOutsideTheBuildings:
         for field in ("dd", "lambdaF", "lambdaP", "hc", "ll"):
             np.testing.assert_allclose(result[field].values, 0.0)
 
-    def test_z0_is_the_land_cover_class_code(self, setup):
-        """Characterisation of B183."""
+    def test_z0_is_the_roughness_of_the_underlying_class(self, lc, setup):
+        """B183: the class code goes through the roughness handler."""
         grid, result = setup
-        np.testing.assert_allclose(result["z0"].values, grid.landcover.values.astype(float))
+        expected = np.vectorize(lc._handleType1, otypes=[float])(grid.landcover.values)
+        np.testing.assert_allclose(result["z0"].values, expected)
 
-    def test_z0_exceeds_any_physical_roughness_length(self, setup):
-        """Characterisation of B183: class codes run to 16, z0 does not."""
-        _, result = setup
-        assert result["z0"].values.max() > 3.0
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B183: in _getUrbanRoughnessFromLandCover, a grid cell that "
-               "intersects no lambda polygon is filled with "
-               "self.getLandCoverAtPoint(...) -- the IGBP CLASS CODE (0..16) -- "
-               "assigned straight into the z0 field, with no roughness lookup. "
-               "Every other assignment in the same block writes a real z0 "
-               "(lambdas['zz0']). So the rural cells of an urban domain get z0 "
-               "= 12 m or 14 m instead of 0.15 m, an error of two orders of "
-               "magnitude in the field that sets the wind profile. The fix is "
-               "presumably getRoughnessAtPoint / _handleType1 rather than "
-               "getLandCoverAtPoint. See the consolidated findings issue.",
-    )
     def test_z0_outside_the_buildings_is_a_roughness_length(self, setup):
         _, result = setup
         assert result["z0"].values.max() <= 3.0

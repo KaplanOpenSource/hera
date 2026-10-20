@@ -670,7 +670,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
                 lambdas = lambdaGrid.loc[lambdaGrid.geometry.intersects(point.geometry[0])]
 
                 if len(lambdas) == 0:
-                    landcover['z0'].values[i, j] = self.getLandCoverAtPoint(lon, lat, WSG84, dataSourceName)
+                    landcover['z0'].values[i, j] = self.getRoughnessAtPoint(lon, lat, WSG84, dataSourceName)
                     landcover['dd'].values[i, j] = 0
                     landcover['lambdaF'].values[i, j] = 0
                     landcover['lambdaP'].values[i, j] = 0
