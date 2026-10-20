@@ -95,7 +95,9 @@ class spatialInterpolate():
                                       "y": points[columnNames["y"]],
                                       "z": points[columnNames["z"]],
                                       "topography": points[columnNames["topography"]]})
-        return self.interpPandas(points=newPoints, stations=stations, topography=newPoints["topography"],
+        # The topography travels in the "topography" column of newPoints, which
+        # interpPandas picks up through its columnNames mapping.
+        return self.interpPandas(points=newPoints, stations=stations,
                                  dx=dx, dy=dy, C=C, D=D, Hsl=Hsl, b=b)
 
     @staticmethod

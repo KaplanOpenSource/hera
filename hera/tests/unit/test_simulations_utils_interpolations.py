@@ -18,12 +18,11 @@ column correctly today. This bug would resurface if/when pandas is
 upgraded past 2.x with copy-on-write made the default -- worth knowing,
 not worth pinning as a currently-live defect.
 
-B95: ``interpArray`` calls ``self.interpPandas(points=..., stations=...,
-topography=newPoints["topography"], ...)``, but ``interpPandas`` has no
-``topography`` parameter (only a ``columnNames`` dict that happens to
-include a ``"topography"`` mapping). Every call to ``interpArray`` raises
-``TypeError`` before it can even reach the B94 bug it would otherwise
-inherit.
+B95 (fixed): ``interpArray`` called ``self.interpPandas(points=...,
+stations=..., topography=newPoints["topography"], ...)``, but
+``interpPandas`` has no ``topography`` parameter -- only a ``columnNames``
+dict that already maps ``"topography"`` -- so every call raised
+``TypeError``.
 """
 import numpy
 import pandas
@@ -92,30 +91,16 @@ class TestInterpPandas:
         assert result["interpulation"].iloc[0] == pytest.approx(15.0)
 
 @pytest.mark.unit
-class TestInterpArrayIsBroken:
-    """B95: interpArray calls
-    self.interpPandas(points=..., stations=..., topography=..., ...) but
-    interpPandas has no `topography` parameter at all (only a `columnNames`
-    dict that happens to include a "topography" mapping) -- every call to
-    interpArray raises TypeError before it can even inherit B94."""
+class TestInterpArray:
+    """B95: interpArray used to pass topography=... to interpPandas, which
+    has no such parameter -- the topography column reaches interp through
+    the columnNames mapping instead."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B95: interpArray passes topography=... to interpPandas, "
-               "which has no such parameter -- every call raises TypeError. "
-               "See the consolidated findings issue.",
-    )
-    def test_it_should_return_an_interpolated_column(self, si):
+    def test_it_returns_an_interpolated_column(self, si):
         stations = [[0, 0, 0, 10.0], [10, 0, 0, 20.0]]
         points = pandas.DataFrame({"x": [5], "y": [0], "z": [0], "topography": [0]})
-        si.interpArray(points, stations)
-
-    def test_it_currently_raises_on_every_call(self, si):
-        """Characterisation of B95."""
-        stations = [[0, 0, 0, 10.0], [10, 0, 0, 20.0]]
-        points = pandas.DataFrame({"x": [5], "y": [0], "z": [0], "topography": [0]})
-        with pytest.raises(TypeError, match="topography"):
-            si.interpArray(points, stations)
+        result = si.interpArray(points, stations)
+        assert result["interpulation"].iloc[0] == pytest.approx(15.0)
 
 
 @pytest.mark.unit
