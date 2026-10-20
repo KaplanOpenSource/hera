@@ -131,12 +131,6 @@ class TestBibtexFile:
         assert "John Smith." in converted
         assert converted.count("\n") > 2
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B10: _parseBibItems appends the accumulator on every \\bibitem "
-               "line including the first, when it is still empty, so items[0] is "
-               "always an empty bibItem. See the consolidated findings issue.",
-    )
     def test_item_count_matches_the_bibitem_count(self):
         """Two \\bibitem lines must yield two items, not three."""
         parsed = bibtexFile(io.StringIO(self.BIB))

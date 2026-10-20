@@ -196,13 +196,15 @@ class bibtexFile:
         curItem = []
         for line in strList:
             if line.startswith("\\bibitem"):
-                #close current item
-                self._bibItems.append(bibItem(curItem))
+                #close current item (nothing to close before the first one)
+                if len(curItem) > 0:
+                    self._bibItems.append(bibItem(curItem))
                 curItem = [line]
             else:
                 curItem.append(line)
 
-        self._bibItems.append(bibItem(curItem))
+        if len(curItem) > 0:
+            self._bibItems.append(bibItem(curItem))
 
     @property
     def items(self):
