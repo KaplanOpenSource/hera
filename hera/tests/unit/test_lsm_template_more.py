@@ -29,9 +29,6 @@ and a passing characterisation of what actually happens:
   * B275: ``_toNetcdf`` says it converts the dosage "to s/m**3 instead
     of min/m**3" but multiplies by ``(1 s).m_as(min)`` = 1/60, which is
     the seconds-to-minutes factor -- the reverse of the stated conversion.
-  * B280: the same code path joins a never-deduplicated ``onlyStations``
-    back onto the resampled series, so every station's wind record is
-    written once per original observation.
 """
 import os
 import subprocess
@@ -546,21 +543,6 @@ class TestRunWithStations:
         assert lines[:2901] == ["0 0"] * 2901
         return [float(line.split()[0]) for line in lines[2901:]]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B280: after resampling the station series to five-minute "
-               "steps, run() joins `onlyStations` back on (x, y) -- but "
-               "onlyStations was never deduplicated, so it still holds one "
-               "row per original observation per station. The join is "
-               "therefore many-to-many and every resampled record is "
-               "repeated once per original observation: three 10-minute "
-               "observations become 5 interpolated steps written 3 times "
-               "each, 15 records instead of 5. The station wind series the "
-               "solver reads is the interpolated one stuttered N times, so "
-               "it runs N times too long and at the wrong times. "
-               "drop_duplicates on the (x, y) key is what the join needs. "
-               "See the consolidated findings issue.",
-    )
     def test_the_wind_is_resampled_to_five_minute_steps(
         self, template, ifmc, solver, cwd, lsm
     ):
@@ -569,27 +551,13 @@ class TestRunWithStations:
         self._run(template, _stationsFrame(samples=3))
         assert self._windRecords(lsm) == pytest.approx([1.0, 1.5, 2.0, 2.5, 3.0])
 
-    def test_every_resampled_record_is_currently_repeated_once_per_observation(
+    def test_the_record_count_does_not_follow_the_observation_count(
         self, template, ifmc, solver, cwd, lsm
     ):
-        """Characterisation of B280."""
-        self._run(template, _stationsFrame(samples=3))
-        records = self._windRecords(lsm)
-        assert len(records) == 5 * 3
-        assert records == pytest.approx(
-            [value for value in (1.0, 1.5, 2.0, 2.5, 3.0) for _ in range(3)]
-        )
-
-    def test_the_repetition_count_currently_follows_the_observation_count(
-        self, template, ifmc, solver, cwd, lsm
-    ):
-        """Characterisation of B280: two observations, each step twice."""
+        """Two observations span 10 minutes, i.e. three five-minute steps --
+        written once each, not once per original observation."""
         self._run(template, _stationsFrame(samples=2))
-        records = self._windRecords(lsm)
-        assert len(records) == 3 * 2
-        assert records == pytest.approx(
-            [value for value in (1.0, 1.5, 2.0) for _ in range(2)]
-        )
+        assert self._windRecords(lsm) == pytest.approx([1.0, 1.5, 2.0])
 
     def test_stations_without_a_station_column_still_work(
         self, template, ifmc, solver, cwd, lsm

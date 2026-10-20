@@ -235,6 +235,7 @@ class LSMTemplate:
                                                       self.directionColumn])
                 if self.hColumn in onlyStations.columns:
                     onlyStations = onlyStations.drop(columns=self.hColumn)
+                onlyStations = onlyStations.drop_duplicates([self.xColumn, self.yColumn])
 
                 stationsXarray = stations.set_index([self.xColumn, self.yColumn, "datetime"]).drop(columns=self.stationColumn).to_xarray()
                 resampled = stationsXarray.resample(datetime="5Min").interpolate()
