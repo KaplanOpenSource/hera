@@ -126,9 +126,9 @@ class pandasDataEngineDB:
                 Pandas with the data
 
         """
-        trialSet = self.experimentObj.trialSet if trialSet is None else trialSet
+        trialSet = self.experimentObj.defaultTrialSet if trialSet is None else trialSet
 
-        trial = self._experimentObj.experimentSetup.trialSet[trialSet][trialName]
+        trial = self.experimentObj.trialSet[trialSet][trialName]
         startTime = trial.properties['TrialStart'] if startTime is None else startTime
         endTime = trial.properties['TrialEnd'] if endTime is None else endTime
 
@@ -141,7 +141,7 @@ class pandasDataEngineDB:
             raise ValueError(f"There is no data for {deviceType} between the dates {startTime} and {endTime}")
 
         if withMetadata:
-            devicemetadata = self.experimentObj.experimentSetup.trialSet[trialSet][trialName].entitiesTable()
+            devicemetadata = self.experimentObj.trialSet[trialSet][trialName].entitiesTable
             if len(devicemetadata) > 0:
                 data = data.reset_index().merge(devicemetadata, left_on="deviceName", right_on="entityName").set_index(
                     "timestamp")
@@ -300,9 +300,9 @@ class daskDataEngineDB:
                 Pandas with the data
 
         """
-        trialSet = self.experimentObj.trialSet if trialSet is None else trialSet
+        trialSet = self.experimentObj.defaultTrialSet if trialSet is None else trialSet
 
-        trial = self._experimentObj.experimentSetup.trialSet[trialSet][trialName]
+        trial = self.experimentObj.trialSet[trialSet][trialName]
         startTime = trial.properties['TrialStart'] if startTime is None else startTime
         endTime = trial.properties['TrialEnd'] if endTime is None else endTime
 
@@ -315,7 +315,7 @@ class daskDataEngineDB:
             raise ValueError(f"There is no data for {deviceType} between the dates {startTime} and {endTime}")
 
         if withMetadata:
-            devicemetadata = self.experimentObj.experimentSetup.trialSet[trialSet][trialName].entitiesTable()
+            devicemetadata = self.experimentObj.trialSet[trialSet][trialName].entitiesTable
             if len(devicemetadata) > 0:
                 data = data.reset_index().merge(devicemetadata, left_on="deviceName", right_on="entityName").set_index(
                     "timestamp")
@@ -466,9 +466,9 @@ class parquetDataEngineHera(datalayer.Project):
 
         """
         #3logger = get_classMethod_logger(self, "parquetDataEngineHera")
-        trialSet = self.experimentObj.trialSet if trialSet is None else trialSet
+        trialSet = self.experimentObj.defaultTrialSet if trialSet is None else trialSet
 
-        trial = self.experimentObj.experimentSetup.trialSet[trialSet][trialName]
+        trial = self.experimentObj.trialSet[trialSet][trialName]
         startTime = trial.properties['TrialStart'] if startTime is None else startTime
         endTime = trial.properties['TrialEnd'] if endTime is None else endTime
 
@@ -481,7 +481,7 @@ class parquetDataEngineHera(datalayer.Project):
             raise ValueError(f"There is no data for {deviceType} between the dates {startTime} and {endTime}")
 
         if withMetadata:
-            devicemetadata = self.experimentObj.experimentSetup.trialSet[trialSet][trialName].entitiesTable()
+            devicemetadata = self.experimentObj.trialSet[trialSet][trialName].entitiesTable
             if len(devicemetadata) > 0:
                 data = data.reset_index().merge(devicemetadata, left_on="deviceName",
                                                 right_on="entityName").set_index(
