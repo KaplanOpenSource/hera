@@ -21,9 +21,9 @@ The clipped discretisation is exercised through
 ``FixedPointClippedDropletCloud``'s ``_initDropletPosition`` override.
 
 Bugs pinned here:
-  * B272: ``CirclePositionClippedDropletsCloud`` builds the crosswind
-    coordinate of every sub-cloud from ``position[0]`` instead of
-    ``position[1]``, so the ring is centred on (x0, x0) rather than
+  * B272 (fixed): ``CirclePositionClippedDropletsCloud`` built the
+    crosswind coordinate of every sub-cloud from ``position[0]`` instead
+    of ``position[1]``, so the ring was centred on (x0, x0) rather than
     (x0, y0).
   * B273: the same constructor's ``if radius is None`` branch is dead --
     ``tounit(radius, ureg.m)`` has already run on the line above and
@@ -341,38 +341,13 @@ class TestDropletListForTheCircleSource:
         for droplet in self._build().dropletList:
             assert droplet.position[2] == POSITION[2]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B272: CirclePositionClippedDropletsCloud builds each "
-               "sub-cloud position as (position[0] + r*cos, position[0] + "
-               "r*sin, position[2]) -- the crosswind coordinate is taken "
-               "from position[0] instead of position[1]. The ring is "
-               "therefore centred on (x0, x0), so any source whose x and y "
-               "differ is placed somewhere else entirely (here 150 m away "
-               "from the requested centre). Its sibling "
-               "LinePositionDropletsCloud gets this right. See the "
-               "consolidated findings issue.",
-    )
-    def test_every_position_should_sit_on_a_circle_around_the_source(self):
+    def test_every_position_sits_on_a_circle_around_the_source(self):
+        """B272: the crosswind coordinate used to be built from position[0],
+        which centred the ring on (x0, x0) instead of (x0, y0)."""
         x0 = tonumber(POSITION[0], ureg.m)
         y0 = tonumber(POSITION[1], ureg.m)
         for x, y in self._locations(self._build()):
             assert numpy.hypot(x - x0, y - y0) == pytest.approx(10.0)
-
-    def test_the_ring_is_currently_centred_on_the_downwind_coordinate_twice(self):
-        """Characterisation of B272."""
-        x0 = tonumber(POSITION[0], ureg.m)
-        for x, y in self._locations(self._build()):
-            assert numpy.hypot(x - x0, y - x0) == pytest.approx(10.0)
-
-    def test_the_ring_currently_sits_far_from_the_requested_centre(self):
-        """Characterisation of B272: 150 m off for this source."""
-        x0 = tonumber(POSITION[0], ureg.m)
-        y0 = tonumber(POSITION[1], ureg.m)
-        offsets = [
-            numpy.hypot(x - x0, y - y0) for x, y in self._locations(self._build())
-        ]
-        assert min(offsets) > abs(y0 - x0) - 10.0
 
     @pytest.mark.xfail(
         strict=True,

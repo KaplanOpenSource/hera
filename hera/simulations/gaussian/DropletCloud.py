@@ -222,7 +222,7 @@ class CirclePositionClippedDropletsCloud(FixedPointClippedDropletCloud):
             if radius is None:
                 curpos = position
             else:
-                curpos = (position[0]+ radius_m*numpy.cos(deg),position[0]+ radius_m*numpy.sin(deg),position[2])
+                curpos = (position[0]+ radius_m*numpy.cos(deg),position[1]+ radius_m*numpy.sin(deg),position[2])
 
             self._initDropletPosition(mmd, geometricstd, curpos, qCloud, clouds=clouds,meteorologyname=meteorologyname, **kwargs)
 
