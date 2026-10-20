@@ -347,13 +347,15 @@ class LSMToolkit(toolkit.abstractToolkit):
         simList = ""
         if not isinstance(baseParameters, dict):
             logger.error("Slurm preparation can only handle dictionary of parameters to run variations")
+            raise ValueError("Slurm preparation can only handle dictionary of parameters to run variations")
 
         if isinstance(jsonVariations, str):
             logger.info(f"Assuming {jsonVariations} is path to variations file")
             with open(jsonVariations, 'r') as variationsFile:
                 jsonVariations = json.load(variationsFile)
         elif not isinstance(jsonVariations, list):
-            logger.error("Slurm preparation only supports json variation input as path or dict")
+            logger.error("Slurm preparation only supports json variation input as path or list")
+            raise ValueError("Slurm preparation only supports json variation input as path or list")
 
         SIMULATIONS_SCRIPT_DIR_NAME= "simulationsScripts"
         STATIONS_PATH = "stations.parquet"

@@ -10,13 +10,6 @@ lookup tests: building a real one needs netcdf files on disk, and what
 LSMToolkit owns is the query it issues, not the reader.
 ``slurm.prepareSlurmScriptExecution`` is replaced with a recorder so that
 nothing is submitted to a scheduler.
-
-Bugs pinned here, each with an xfail(strict) for the intended behaviour
-and a passing characterisation of what actually happens:
-
-  * B285: the same method logs ``logger.error(...)`` for a non-dict
-    ``baseParameters`` and for an unusable ``jsonVariations`` without
-    returning, so execution runs on into an unrelated failure.
 """
 import json
 import os
@@ -401,20 +394,7 @@ class TestPrepareSlurmLSMExecution:
 class TestPrepareSlurmLSMExecutionInputValidation:
     VARIATIONS = [{"TopoXmax": [100]}]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B285: prepareSlurmLSMExecution reports bad input with "
-               "`logger.error('Slurm preparation can only handle dictionary "
-               "of parameters to run variations')` and then falls straight "
-               "through into JSONVariations(baseParameters, ...), which "
-               "fails on `dict(base)` with 'dictionary update sequence "
-               "element #0 has length 1; 2 is required'. The caller gets an "
-               "opaque pandas/builtins error instead of the diagnostic that "
-               "was written for them; the same shape of mistake is repeated "
-               "for jsonVariations a few lines below. Both need a `return` "
-               "or a raise. See the consolidated findings issue.",
-    )
-    def test_a_non_dict_baseParameters_should_be_refused_clearly(self, lsm):
+    def test_a_non_dict_baseParameters_is_refused_clearly(self, lsm):
         with pytest.raises((ValueError, TypeError), match="dictionary of parameters"):
             lsm.prepareSlurmLSMExecution(
                 baseParameters="notADictionary",
@@ -422,42 +402,14 @@ class TestPrepareSlurmLSMExecutionInputValidation:
                 templateName=TEMPLATE_NAME,
             )
 
-    def test_a_non_dict_baseParameters_currently_fails_deeper_in(self, lsm):
-        """Characterisation of B285."""
-        with pytest.raises(ValueError, match="dictionary update sequence"):
-            lsm.prepareSlurmLSMExecution(
-                baseParameters="notADictionary",
-                jsonVariations=list(self.VARIATIONS),
-                templateName=TEMPLATE_NAME,
-            )
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B285: the jsonVariations check has the same shape -- "
-               "`elif not isinstance(jsonVariations, list): logger.error("
-               "'Slurm preparation only supports json variation input as "
-               "path or dict')` with no return -- so a dict (which the "
-               "message itself invites) falls through into JSONVariations "
-               "and fails on iteration instead. See the consolidated "
-               "findings issue.",
-    )
-    def test_an_unsupported_variations_type_should_be_refused_clearly(self, lsm):
+    def test_an_unsupported_variations_type_is_refused_clearly(self, lsm):
+        """The message names what the isinstance check actually accepts:
+        a path or a list of variation groups, not a dict."""
         with pytest.raises(
-            (ValueError, TypeError), match="only supports json variation input"
+            (ValueError, TypeError), match="only supports json variation input as path or list"
         ):
             lsm.prepareSlurmLSMExecution(
                 baseParameters=dict(TEMPLATE_PARAMS),
                 jsonVariations={"TopoXmax": [100]},
                 templateName=TEMPLATE_NAME,
             )
-
-    def test_an_unsupported_variations_type_currently_fails_deeper_in(self, lsm):
-        """Characterisation of B285: the error message says 'path or
-        dict', yet a dict is exactly what the isinstance check rejects."""
-        with pytest.raises(Exception) as raised:
-            lsm.prepareSlurmLSMExecution(
-                baseParameters=dict(TEMPLATE_PARAMS),
-                jsonVariations={"TopoXmax": [100]},
-                templateName=TEMPLATE_NAME,
-            )
-        assert "only supports json variation input" not in str(raised.value)
