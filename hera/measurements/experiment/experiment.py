@@ -455,7 +455,7 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile, toolkit.abstra
         import pandas as pd
         from hera.measurements.GIS.utils import convertCRS
         pp = convertCRS([[row.Longitude, row.Latitude]], inputCRS=WSG84, outputCRS=ITM)
-        return pd.Series([pp.x[0], pp.y[0]])
+        return pd.Series([pp[0].x, pp[0].y])
 
     def get_devices_image_coordinates(
         self,

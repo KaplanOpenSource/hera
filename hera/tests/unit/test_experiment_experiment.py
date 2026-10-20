@@ -65,12 +65,13 @@ argos / ``presentation.py``, not here.
 
 Bugs pinned here
 ----------------
-* B160: ``_process_row`` does ``pp = convertCRS(...)`` and then reads
-  ``pp.x[0]`` / ``pp.y[0]``, but ``hera.measurements.GIS.utils.convertCRS``
-  returns ``list(gdf.to_crs(...).geometry)`` -- a plain Python list of
-  shapely Points, which has no ``.x``. Every call raises
+* B160 (fixed): ``_process_row`` does ``pp = convertCRS(...)`` and then
+  read ``pp.x[0]`` / ``pp.y[0]``, but
+  ``hera.measurements.GIS.utils.convertCRS`` returns
+  ``list(gdf.to_crs(...).geometry)`` -- a plain Python list of shapely
+  Points, which has no ``.x``. Every call raised
   ``AttributeError: 'list' object has no attribute 'x'``, so the entire
-  ``outputCRS=ITM`` branch of ``get_devices_image_coordinates`` is dead.
+  ``outputCRS=ITM`` branch of ``get_devices_image_coordinates`` was dead.
   The working access is ``pp[0].x`` / ``pp[0].y``.
 * B161: ``get_devices_image_coordinates`` (and ``_process_row``) read
   the columns ``Latitude``/``Longitude``, but argos spreads a
@@ -767,27 +768,22 @@ class TestGetDataFromDateRange:
 
 @pytest.mark.unit
 class TestProcessRow:
-    """B160: convertCRS returns a list, not a GeoSeries."""
+    """B160: convertCRS returns a list of Points, not a GeoSeries."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B160: _process_row reads pp.x[0]/pp.y[0], but "
-               "hera.measurements.GIS.utils.convertCRS returns "
-               "list(gdf.to_crs(...).geometry) -- a plain list of shapely "
-               "Points, which has no .x. The working access is pp[0].x. "
-               "See the consolidated findings issue.",
-    )
-    def test_it_should_return_the_itm_coordinates_of_the_row(self, experiment):
+    def test_convert_crs_returns_a_list_of_points(self):
+        """Why the access is pp[0].x and not pp.x[0]."""
+        from hera.measurements.GIS.utils import convertCRS
+
+        pp = convertCRS([[34.0, 32.0]], inputCRS=WSG84, outputCRS=ITM)
+        assert isinstance(pp, list)
+        assert not hasattr(pp, "x")
+
+    def test_it_returns_the_itm_coordinates_of_the_row(self, experiment):
         row = pandas.Series({"Longitude": 34.0, "Latitude": 32.0})
         converted = experiment._process_row(row)
         assert len(converted) == 2
         assert converted[0] > 100000
-
-    def test_it_currently_raises_an_attribute_error(self, experiment):
-        """Characterisation of B160."""
-        row = pandas.Series({"Longitude": 34.0, "Latitude": 32.0})
-        with pytest.raises(AttributeError, match="'list' object has no attribute 'x'"):
-            experiment._process_row(row)
+        assert converted[1] > 100000
 
 
 @pytest.mark.unit
@@ -843,10 +839,10 @@ class TestGetDevicesImageCoordinatesColumnNames:
                 deviceType="sonic", outputCRS=WSG84,
             )
 
-    def test_the_itm_branch_is_dead_even_with_capitalised_columns(self, coordinateExperiment):
-        """Characterisation of B160, reached through the public method."""
-        with pytest.raises(AttributeError, match="'list' object has no attribute 'x'"):
-            coordinateExperiment.get_devices_image_coordinates(
-                trialSetName="Measurements", trialName="T1",
-                deviceType="sonic", outputCRS=ITM,
-            )
+    def test_the_itm_branch_converts_the_bounding_box(self, coordinateExperiment):
+        """B160, reached through the public method."""
+        bbox = coordinateExperiment.get_devices_image_coordinates(
+            trialSetName="Measurements", trialName="T1",
+            deviceType="sonic", outputCRS=ITM,
+        )
+        assert all(value > 100000 for value in bbox)
