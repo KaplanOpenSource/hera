@@ -450,11 +450,11 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile, toolkit.abstra
 
     def _process_row(self, row):
         """
-        Helper for coordinate conversion of a single row (Longitude, Latitude).
+        Helper for coordinate conversion of a single row (longitude, latitude).
         """
         import pandas as pd
         from hera.measurements.GIS.utils import convertCRS
-        pp = convertCRS([[row.Longitude, row.Latitude]], inputCRS=WSG84, outputCRS=ITM)
+        pp = convertCRS([[row.longitude, row.latitude]], inputCRS=WSG84, outputCRS=ITM)
         return pd.Series([pp[0].x, pp[0].y])
 
     def get_devices_image_coordinates(
@@ -482,8 +482,8 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile, toolkit.abstra
             latitudes = devices_df["ITM_Latitude"]
             longitudes = devices_df["ITM_Longitude"]
         else:
-            latitudes = devices_df["Latitude"]
-            longitudes = devices_df["Longitude"]
+            latitudes = devices_df["latitude"]
+            longitudes = devices_df["longitude"]
 
         min_latitude, max_latitude = min(latitudes), max(latitudes)
         min_longitude, max_longitude = min(longitudes), max(longitudes)

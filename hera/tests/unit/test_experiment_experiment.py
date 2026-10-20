@@ -73,15 +73,15 @@ Bugs pinned here
   ``AttributeError: 'list' object has no attribute 'x'``, so the entire
   ``outputCRS=ITM`` branch of ``get_devices_image_coordinates`` was dead.
   The working access is ``pp[0].x`` / ``pp[0].y``.
-* B161: ``get_devices_image_coordinates`` (and ``_process_row``) read
-  the columns ``Latitude``/``Longitude``, but argos spreads a
+* B161 (fixed): ``get_devices_image_coordinates`` (and ``_process_row``)
+  read the columns ``Latitude``/``Longitude``, but argos spreads a
   device-on-trial ``location`` into **lowercase** ``latitude``/
   ``longitude`` (``fillContained.spread_attributes``), so on any
   experiment whose device positions come from the map -- the normal case,
-  and what every example export in argos does -- the lookup raises
-  ``KeyError: 'Latitude'``. The method only ever works if the devices
-  happen to carry free-text *attributes* literally named ``Latitude`` and
-  ``Longitude``.
+  and what every example export in argos does -- the lookup raised
+  ``KeyError: 'Latitude'``. It used to work only if the devices happened
+  to carry free-text *attributes* literally named ``Latitude`` and
+  ``Longitude``; both now read the lowercase columns argos writes.
 * B162: ``TrialWithdata.getData(withMetadata=True)`` merges the data
   against ``self.entitiesTable`` with ``right_on="entityName"``, but
   ``argos.Trial.entitiesTable`` names that column ``deviceItemName``
@@ -154,8 +154,8 @@ def _experiment_setup(coordinateAttributes=False, withTrials=True, storePerDevic
 
     coordinateAttributes
         also give every device free-text ``Latitude``/``Longitude``
-        attributes, which is the only shape ``get_devices_image_coordinates``
-        can actually read (see B161).
+        attributes, on top of the lowercase pair argos spreads from the
+        device location (see B161).
     withTrials
         when False the trial type carries no ``trials`` key at all, which
         is what a real export looks like for an empty trial type.
@@ -779,7 +779,7 @@ class TestProcessRow:
         assert not hasattr(pp, "x")
 
     def test_it_returns_the_itm_coordinates_of_the_row(self, experiment):
-        row = pandas.Series({"Longitude": 34.0, "Latitude": 32.0})
+        row = pandas.Series({"longitude": 34.0, "latitude": 32.0})
         converted = experiment._process_row(row)
         assert len(converted) == 2
         assert converted[0] > 100000
@@ -788,7 +788,7 @@ class TestProcessRow:
 
 @pytest.mark.unit
 class TestGetDevicesImageCoordinates:
-    def test_it_returns_the_bounding_box_of_capitalised_coordinate_attributes(
+    def test_it_returns_the_bounding_box_of_the_device_coordinates(
             self, coordinateExperiment):
         bbox = coordinateExperiment.get_devices_image_coordinates(
             trialSetName="Measurements", trialName="T1",
@@ -810,34 +810,18 @@ class TestGetDevicesImageCoordinatesColumnNames:
     """B161: the method reads Latitude/Longitude; argos writes latitude/longitude."""
 
     def test_the_trial_entities_table_spells_the_coordinates_in_lower_case(self, experiment):
-        """Characterisation of B161: this is the table the method reads."""
+        """Why the method reads latitude/longitude: this is the table."""
         table = experiment.trialSet["Measurements"]["T1"].entitiesTable
         assert {"latitude", "longitude"}.issubset(table.columns)
         assert "Latitude" not in table.columns
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B161: get_devices_image_coordinates reads the columns "
-               "Latitude/Longitude, but argos spreads a device-on-trial "
-               "location into lowercase latitude/longitude "
-               "(fillContained.spread_attributes), so for map-positioned "
-               "devices -- what every argos example export does -- the "
-               "lookup raises KeyError. See the consolidated findings issue.",
-    )
-    def test_it_should_use_the_device_locations_from_the_map(self, experiment):
+    def test_it_uses_the_device_locations_from_the_map(self, experiment):
+        """No free-text Latitude/Longitude attributes needed any more."""
         bbox = experiment.get_devices_image_coordinates(
             trialSetName="Measurements", trialName="T1",
             deviceType="sonic", outputCRS=WSG84,
         )
         assert bbox == (32.0, 34.0, 32.5, 34.5)
-
-    def test_it_currently_raises_a_key_error_on_the_capitalised_column(self, experiment):
-        """Characterisation of B161."""
-        with pytest.raises(KeyError, match="Latitude"):
-            experiment.get_devices_image_coordinates(
-                trialSetName="Measurements", trialName="T1",
-                deviceType="sonic", outputCRS=WSG84,
-            )
 
     def test_the_itm_branch_converts_the_bounding_box(self, coordinateExperiment):
         """B160, reached through the public method."""
