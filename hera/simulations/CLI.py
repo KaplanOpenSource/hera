@@ -285,6 +285,7 @@ def create_workflow_variations(arguments):
     # print(f"using workflow {workflow_doc_list}")
     if len(workflow_doc_list) == 0:
         logger.error("workflow not found.")
+        return
     wokflow_doc = workflow_doc_list[0]
     base_workflow_json = wokflow_doc.to_mongo().copy()['desc']['workflow']
     base_workflow_name = str(wokflow_doc['desc']['groupName'])

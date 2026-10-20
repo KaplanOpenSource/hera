@@ -22,8 +22,6 @@ Deliberately not tested:
 
 Bugs pinned here (each with an xfail for the intended behaviour plus a
 passing characterisation of what actually happens):
-  * create_workflow_variations logs an error for an unknown workflow and
-    then carries on into IndexError;
   * workflow_compare with the default `--format pandas` plus `--file`
     tries to write a DataFrame object to a text file (TypeError).
 """
@@ -785,14 +783,6 @@ class TestCreateWorkflowVariations:
         create_workflow_variations(_variationArgs(tmp_path))
         assert not (tmp_path / "wf_0.json").exists()
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B134: create_workflow_variations logs 'workflow not found.' "
-               "when the DB returns no document and then immediately does "
-               "workflow_doc_list[0], so an unknown --workflow dies with "
-               "IndexError instead of the error message. "
-               "See the consolidated findings issue.",
-    )
     def test_an_unknown_base_workflow_is_reported_without_crashing(
         self, install_toolkit, tmp_path
     ):
@@ -800,16 +790,7 @@ class TestCreateWorkflowVariations:
         variations.write_text(json.dumps(VARIATION_JSON))
         install_toolkit(_FakeWorkflowToolkit(documents=[]))
         create_workflow_variations(_variationArgs(variations, workflow="nosuchflow"))
-
-    def test_an_unknown_base_workflow_currently_raises_indexerror(
-        self, install_toolkit, tmp_path
-    ):
-        """Characterisation of B134."""
-        variations = tmp_path / "variations.json"
-        variations.write_text(json.dumps(VARIATION_JSON))
-        install_toolkit(_FakeWorkflowToolkit(documents=[]))
-        with pytest.raises(IndexError):
-            create_workflow_variations(_variationArgs(variations, workflow="nosuchflow"))
+        assert not (tmp_path / "wf_0.json").exists()
 
 
 # ---------------------------------------------------------------------------
