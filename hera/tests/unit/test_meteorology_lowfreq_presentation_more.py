@@ -20,38 +20,41 @@ the documented conventions rather than from the implementation:
 * the seasons and their bracket codes come from ``seasonsdict``, so the
   four subplot titles are fixed by the module's own declaration.
 
-Five defects surfaced:
+Five defects surfaced; all five are fixed and the tests below assert the
+corrected behaviour.
 
-* B296: ``Plots._scatterdict`` passes ``size=0.5`` to
+* B296: ``Plots._scatterdict`` passed ``size=0.5`` to
   ``seaborn.scatterplot``.  seaborn's marker-area parameter is ``s``;
-  ``size`` is the name of a *semantic grouping variable*.  A scalar is
-  accepted and silently ignored, so every marker is drawn at matplotlib's
+  ``size`` is the name of a *semantic grouping variable*.  A scalar was
+  accepted and silently ignored, so every marker was drawn at matplotlib's
   default area instead of the requested 0.5 -- and because the stale
-  ``size`` key stays in the dict, an explicit ``s`` from the caller is
+  ``size`` key stayed in the dict, an explicit ``s`` from the caller was
   masked too.
-* B297: ``dateLinePlot`` applies the field-specific ``set_ylabel`` from
-  ``_plotfieldaxfuncdict`` and then unconditionally overwrites it with the
+* B297: ``dateLinePlot`` applied the field-specific ``set_ylabel`` from
+  ``_plotfieldaxfuncdict`` and then unconditionally overwrote it with the
   bare column name.  Its two sibling methods (``plotScatter`` and
-  ``plotProbContourf``) keep the readable label, so the same field is
+  ``plotProbContourf``) keep the readable label, so the same field was
   labelled ``'Wind Speed [m/s]'`` on a scatter plot and ``'WS'`` on a line
-  plot.  A caller-supplied ``set_ylabel`` is discarded the same way.
+  plot.  A caller-supplied ``set_ylabel`` was discarded the same way.  The
+  column name is the fallback now.
 * B298: ``_labelsdict['levels']`` is computed once in ``Plots.__init__``
-  from the *default* ``_contourvalsdict`` and is never rebuilt from the
-  levels actually drawn, so any ``contour_values`` override leaves the
-  clabel levels outside ``CS.levels`` and ``ax.clabel`` raises
+  from the *default* ``_contourvalsdict`` and was never rebuilt from the
+  levels actually drawn, so any ``contour_values`` override left the
+  clabel levels outside ``CS.levels`` and ``ax.clabel`` raised
   ``ValueError``.  ``withLabels`` defaults to ``True``, so passing
-  ``contour_values`` at all is enough to break the call.
+  ``contour_values`` at all was enough to break the call.  The label
+  levels follow the effective contour levels now.
 * B299: in ``plotProbContourf``'s ``y_normalized`` branch, the
-  "Contour levels must be increasing" stability clamp is applied to the
-  contour and contourf levels but *not* to the clabel levels, which are
+  "Contour levels must be increasing" stability clamp reached the
+  contour and contourf levels but *not* the clabel levels, which were
   rebuilt from the un-clamped ``M_hist.max()``.  For a histogram whose
-  maximum falls below ``under_value`` the label levels come out decreasing
-  and are not a subset of the contour levels, so ``ax.clabel`` raises.
+  maximum falls below ``under_value`` the label levels came out decreasing
+  and were not a subset of the contour levels, so ``ax.clabel`` raised.
 * B300: ``plotProbContourf_bySeason`` documents an optional ``ax``, but
   it both indexes ``ax.shape``/``ax[i, j]`` (so it needs a 2x2 array) and
-  hands the same object to ``plt.sca`` (which takes a single Axes).  An
-  array fails in ``plt.sca``, a lone Axes fails on ``.shape``: the
-  parameter cannot be used at all.
+  handed the same object to ``plt.sca`` (which takes a single Axes).  An
+  array failed in ``plt.sca``, so the parameter could not be used at all.
+  That ``plt.sca`` call is gone; a 2x2 grid works.
 """
 import matplotlib.pyplot as plt
 import numpy
@@ -476,31 +479,18 @@ class TestPlotProbContourfBySeason:
         ax = seasonal.plotProbContourf_bySeason(self._year(), "WS", colorbar=False)
         assert len(ax[0, 0].figure.axes) == 4
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B300: plotProbContourf_bySeason documents an optional `ax` "
-               "but needs a 2x2 grid (it indexes ax.shape and "
-               "ax[i, j]) while feeding that same argument to plt.sca, "
-               "which only accepts a single Axes. An array raises "
-               "AttributeError in plt.sca and a lone Axes raises "
-               "AttributeError on .shape, so the parameter cannot be used "
-               "at all. See the consolidated findings issue.",
-    )
-    def test_it_should_draw_into_a_supplied_grid_of_axes(self, seasonal):
+    def test_it_draws_into_a_supplied_grid_of_axes(self, seasonal):
+        """B300: the documented `ax` used to be unusable -- the method needs a
+        2x2 grid (it indexes ax.shape and ax[i, j]) but also fed that same
+        argument to plt.sca, which only accepts a single Axes."""
         _, target = plt.subplots(2, 2)
         ax = seasonal.plotProbContourf_bySeason(self._year(), "WS", ax=target,
                                                 colorbar=False)
         assert ax is target
+        assert target[0, 0].get_title().startswith("Winter")
 
-    def test_a_supplied_grid_currently_breaks_in_plt_sca(self, seasonal):
-        """Characterisation of B300."""
-        _, target = plt.subplots(2, 2)
-        with pytest.raises(AttributeError, match="no attribute '(get_)?figure'"):
-            seasonal.plotProbContourf_bySeason(self._year(), "WS", ax=target,
-                                               colorbar=False)
-
-    def test_a_supplied_single_axes_currently_breaks_on_shape(self, seasonal):
-        """Characterisation of B300."""
+    def test_a_supplied_single_axes_is_still_rejected(self, seasonal):
+        """The method needs four panels; a lone Axes has no .shape."""
         _, target = plt.subplots()
         with pytest.raises(AttributeError, match="shape"):
             seasonal.plotProbContourf_bySeason(self._year(), "WS", ax=target,

@@ -252,8 +252,6 @@ class SeasonalPlots(Plots):
 
         if ax is None:
             fig, ax = plt.subplots(2,2,figsize=figsize)
-        else:
-            plt.sca(ax)
 
         curdata=data.assign(curdate=data.index)
         curdata.curdate = pd.to_datetime(curdata.curdate,utc=True)
