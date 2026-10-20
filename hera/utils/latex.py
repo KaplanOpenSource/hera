@@ -175,6 +175,9 @@ class bibtexFile:
 
         self._bibItems = []
 
+        if len(thefileStr) == 0:
+            raise ValueError(f"The bibliography {thefile} is empty")
+
         self._first_last_Lines = (thefileStr[0],thefileStr[-1])
         self._parseBibItems(thefileStr[1:-1])
 

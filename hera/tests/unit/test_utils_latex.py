@@ -136,12 +136,6 @@ class TestBibtexFile:
         parsed = bibtexFile(io.StringIO(self.BIB))
         assert len(parsed.items) == 2
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B11: an empty file indexes thefileStr[0] and raises IndexError "
-               "instead of reporting an empty bibliography. "
-               "See the consolidated findings issue.",
-    )
     def test_empty_file_reports_clearly(self):
         with pytest.raises(ValueError):
             bibtexFile(io.StringIO(""))
