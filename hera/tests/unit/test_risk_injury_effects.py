@@ -33,12 +33,12 @@ Deliberately not covered here:
   contour code stamps onto its output are its business, so the tests below
   assert row counts and geometry rather than datetime values.
 
-Bugs found while writing this file are pinned below as xfail(strict)/
-characterisation pairs: B122 (``Injury.__str__`` returns None),
-B123 (the "injuries found" list is mangled), B124 (an empty
-``calculator`` mapping does not raise the documented ValueError) and
-B125 (a descriptor-level ``units`` string becomes a Quantity where a
-pint Unit is documented).
+Bugs found while writing this file: B122 (``Injury.__str__`` returned
+None), now fixed, and B123 (the "injuries found" list is mangled), B124
+(an empty ``calculator`` mapping does not raise the documented
+ValueError) and B125 (a descriptor-level ``units`` string becomes a
+Quantity where a pint Unit is documented), still pinned below as
+xfail(strict)/characterisation pairs.
 """
 import json
 
@@ -706,19 +706,7 @@ class TestSerialisation:
         """The point of the dict form: it has to survive json.dumps."""
         assert json.loads(json.dumps(lognormal_injury.toJSON()))["levels"]["Light"]["name"] == "Light"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B122: Injury.__str__ builds json.dumps(self.toJSON(), "
-               "indent=4) but never returns it, so it returns None and "
-               "every str()/print()/f-string on an Injury raises TypeError: "
-               "__str__ returned non-string. (InjuryLevel.__str__ has the "
-               "identical missing return.) See the consolidated findings "
-               "issue.",
-    )
     def test_str_is_the_pretty_printed_json(self, lognormal_injury):
+        """B122, fixed: __str__ built the string but never returned it, so
+        every str()/print()/f-string on an Injury raised TypeError."""
         assert str(lognormal_injury) == json.dumps(lognormal_injury.toJSON(), indent=4)
-
-    def test_str_currently_raises_because_nothing_is_returned(self, lognormal_injury):
-        """Characterisation of B122."""
-        with pytest.raises(TypeError, match="__str__ returned non-string"):
-            str(lognormal_injury)
