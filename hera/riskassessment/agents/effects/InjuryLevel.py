@@ -169,7 +169,7 @@ class InjuryLevel(object):
 
 	def __str__(self):
 		"""Return a JSON string representation of the injury level."""
-		json.dumps(self.toJSON(),indent=4)
+		return json.dumps(self.toJSON(),indent=4)
 
 
 

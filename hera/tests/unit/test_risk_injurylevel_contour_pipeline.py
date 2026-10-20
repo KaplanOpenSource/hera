@@ -21,10 +21,9 @@ of them: a field with a real time dimension of length > 1, one of length
 exactly 1, one where the time survives only as a scalar coordinate (what
 ``.isel(datetime=0)`` leaves behind), and one with no time at all.
 
-B264 is pinned below: ``InjuryLevel.__str__`` never returns.  This is the
-same missing ``return`` as the already-reported B122 on ``Injury.__str__``;
-it is a *separate* method in a separate class, so it needs its own number
-and its own fix.
+B264, fixed below: ``InjuryLevel.__str__`` never returned.  This was the
+same missing ``return`` as the already-reported B122 on ``Injury.__str__``,
+but a *separate* method in a separate class, so it needed its own fix.
 
 Deliberately not covered here:
 
@@ -390,30 +389,12 @@ class TestGetGeopandasImplementations:
 
 @pytest.mark.unit
 class TestInjuryLevelStr:
-    """B264: see the module docstring."""
+    """B264, fixed: see the module docstring."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B264: InjuryLevel.__str__ builds "
-               "json.dumps(self.toJSON(), indent=4) and never returns it, so "
-               "it returns None and every str()/print()/f-string on an "
-               "InjuryLevel raises TypeError: __str__ returned non-string.  "
-               "This is a distinct method from the already-reported B122 "
-               "(Injury.__str__ in agents/effects/Injury.py), which has the "
-               "identical missing return and needs its own fix. "
-               "See the consolidated findings issue.",
-    )
     def test_str_is_the_pretty_printed_json(self, level):
         assert str(level) == json.dumps(level.toJSON(), indent=4)
 
-    def test_str_currently_raises_because_nothing_is_returned(self, level):
-        """Characterisation of B264."""
-        with pytest.raises(TypeError, match="__str__ returned non-string"):
-            str(level)
-
-    def test_the_dictionary_it_meant_to_serialise_is_fine(self, level):
-        """Characterisation of B264: toJSON works, so the defect is purely
-        the missing return."""
+    def test_the_dictionary_it_serialises_is_fine(self, level):
         assert json.loads(json.dumps(level.toJSON()))["name"] == "Severe"
 
     @pytest.mark.parametrize("built", [
@@ -422,8 +403,7 @@ class TestInjuryLevelStr:
         lambda: InjuryLevelExponential("Severe", k=1.0),
         lambda: InjuryLevelLognormal10DoseResponse("Severe", TL_50=10, sigma=0.5),
     ])
-    def test_no_subclass_repairs_it(self, built):
-        """Characterisation of B264: none of the three subclasses overrides
-        __str__, so all of them are unprintable."""
-        with pytest.raises(TypeError, match="__str__ returned non-string"):
-            str(built())
+    def test_every_subclass_inherits_it(self, built):
+        """None of the three subclasses overrides __str__, so the one fix on
+        the base class makes all of them printable."""
+        assert json.loads(str(built()))["name"] == "Severe"
