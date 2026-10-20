@@ -1025,38 +1025,22 @@ class TestBuildFilterQuery:
         mongoQuery = dictToMongoQuery(registered._buildFilterQuery(filter_name="f"))
         assert mongoQuery["simulation__workflowName"] == "flow_0001"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B318: _buildFilterQuery builds `dict(simulation=self."
-               "simulationParams, ...)`, which stores the very same dict "
-               "object rather than a copy, and then writes into it "
-               "(`qry['simulation']['regularMesh'] = regularMesh`).  Building "
-               "a query therefore mutates the object's own simulationParams. "
-               "_updateCacheDB compounds it by writing "
-               "`recordData['simulation']['timeList'] = timeList` into the "
-               "same aliased dict, so after one getData() every later cache "
-               "query silently carries a regularMesh and a timeList "
-               "constraint that was never asked for.  See the consolidated "
-               "findings issue.",
-    )
     def test_building_a_query_leaves_the_simulation_parameters_alone(self, registered):
         registered._buildFilterQuery(filter_name="f", regularMesh=True)
         assert registered.simulationParams == dict(
             workflowName="flow_0001", groupName="flow", workflowParameters={}
         )
 
-    def test_the_regular_mesh_flag_currently_leaks_into_later_queries(self, registered):
-        """Characterisation of B318."""
+    def test_the_regular_mesh_flag_does_not_leak_into_later_queries(self, registered):
         registered._buildFilterQuery(filter_name="f", regularMesh=True)
-        assert registered.simulationParams["regularMesh"] is True
-        leaked = registered._buildFilterQuery(filter_name="f")
-        assert leaked["simulation"]["regularMesh"] is True
+        assert "regularMesh" not in registered._buildFilterQuery(filter_name="f")["simulation"]
 
-    def test_every_query_shares_the_one_simulation_parameters_dict(self, registered):
-        """Characterisation of B318."""
+    def test_every_query_gets_its_own_simulation_parameters_dict(self, registered):
         first = registered._buildFilterQuery(filter_name="a")
         second = registered._buildFilterQuery(filter_name="b")
-        assert first["simulation"] is second["simulation"] is registered.simulationParams
+        assert first["simulation"] == second["simulation"] == registered.simulationParams
+        assert first["simulation"] is not second["simulation"]
+        assert first["simulation"] is not registered.simulationParams
 
 
 # ---------------------------------------------------------------------------

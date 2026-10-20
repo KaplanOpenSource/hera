@@ -544,7 +544,8 @@ class RegisteredVTKPipeLine:
 
     def _buildFilterQuery(self, filter_name, regularMesh=None):
         """Build a database query dict for a specific filter."""
-        qry = dict(simulation=self.simulationParams,
+        # A copy: callers (and _updateCacheDB) write into qry['simulation'].
+        qry = dict(simulation=dict(self.simulationParams),
                    pipeline=self.vtkpipeline.to_json())
 
         if regularMesh is not None:
