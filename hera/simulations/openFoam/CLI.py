@@ -575,10 +575,13 @@ def stochasticLagrangian_postProcess_toVTK(arguments):
 
     logger.info(f"Using project {projectName}")
 
-    if 'outputdir' in arguments:
-        base_outputdir = os.getcwd() if arguments.outputdir is None else arguments.outputdir
+    # --outputDirectory ("the path to save the VTK files", default "VTK") is
+    # the directory the per-case output goes under; a relative value resolves
+    # against the process cwd, as it did when the flag was being ignored.
+    if ('outputDirectory' in arguments) and (arguments.outputDirectory is not None):
+        base_outputdir = os.path.abspath(arguments.outputDirectory)
     else:
-        base_outputdir = os.getcwd()
+        base_outputdir = os.path.abspath("VTK")
 
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
     docList = tk.getWorkflowDocumentFromDB(arguments.dispersionName)
@@ -597,7 +600,7 @@ def stochasticLagrangian_postProcess_toVTK(arguments):
         outputName = doc.desc['workflowName']
         logger.info(f"The name {arguments.dispersionName} found. Use the workflow name {outputName}")
 
-    outputdir = os.path.join(base_outputdir, "VTK", outputName)
+    outputdir = os.path.join(base_outputdir, outputName)
     logger.info(f"Writing values to directory {outputdir}")
     os.makedirs(outputdir, exist_ok=True)
     data = tk.stochasticLagrangian.getCaseResults(caseDescriptor=outputName, withVelocity=True, withMass=True,overwrite=arguments.overwrite,cache=False)

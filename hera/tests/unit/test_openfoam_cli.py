@@ -31,10 +31,6 @@ a passing characterisation of what actually happens):
 
   * B174: the same handler calls `tk.workflowCompare(...)`, a method
     that exists nowhere in hera; the real name is `compareWorkflows`.
-  * B176: `stochasticLagrangian_postProcess_toVTK` reads
-    `arguments.outputdir`, but the parser declares `--outputDirectory`
-    (dest `outputDirectory`).  The flag is silently ignored and the VTK
-    files always land under the process cwd.
   * B177: `stochasticLagrangian_source_makeEscapedMassFile` asks for
     `toolkitHome.OF_LSM`, which is not a ToolkitHome constant
     (AttributeError), and passes the project name positionally into
@@ -1588,41 +1584,22 @@ class TestPostProcessToVTK:
         )
         assert (in_tmp_cwd / "VTK" / "caseOnDisk").is_dir()
 
-    def test_the_attribute_the_handler_actually_reads_does_redirect_the_output(
-        self, install_toolkit, in_tmp_cwd, tmp_path
-    ):
-        """The `outputdir` spelling works -- which is what makes B176 a
-        typo rather than a missing feature."""
-        elsewhere = tmp_path / "elsewhere"
-        toolkit = _FakeOFToolkit(documents=[_FakeDocument()], caseResults="data")
-        install_toolkit(toolkit)
-        arguments = _toParquetArgs()
-        arguments.outputdir = str(elsewhere)
-        stochasticLagrangian_postProcess_toVTK(arguments)
-        assert (elsewhere / "VTK" / "dispersion_0").is_dir()
-
     def test_a_none_output_directory_attribute_falls_back_to_the_cwd(
         self, install_toolkit, in_tmp_cwd
     ):
         toolkit = _FakeOFToolkit(documents=[_FakeDocument()], caseResults="data")
         install_toolkit(toolkit)
         arguments = _toParquetArgs()
-        arguments.outputdir = None
+        arguments.outputDirectory = None
         stochasticLagrangian_postProcess_toVTK(arguments)
         assert (in_tmp_cwd / "VTK" / "dispersion_0").is_dir()
 
 
 @pytest.mark.unit
-class TestPostProcessToVTKIgnoresTheOutputDirectoryFlag:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B176: stochasticLagrangian_postProcess_toVTK reads "
-               "`arguments.outputdir`, but hera/bin/hera-openFoam declares "
-               "the flag as --outputDirectory (dest 'outputDirectory', "
-               "default 'VTK').  The spellings never match, so the branch "
-               "always falls through to os.getcwd() and --outputDirectory "
-               "is silently ignored.  See the consolidated findings issue.",
-    )
+class TestPostProcessToVTKOutputDirectoryFlag:
+    """The parser declares the flag as --outputDirectory (dest
+    'outputDirectory'), so that is the attribute the handler must read."""
+
     def test_the_output_directory_flag_should_be_honoured(
         self, install_toolkit, in_tmp_cwd, tmp_path
     ):
@@ -1632,20 +1609,8 @@ class TestPostProcessToVTKIgnoresTheOutputDirectoryFlag:
         stochasticLagrangian_postProcess_toVTK(
             _toParquetArgs(outputDirectory=str(elsewhere))
         )
-        assert (elsewhere / "VTK" / "dispersion_0").is_dir()
-
-    def test_the_output_currently_always_lands_under_the_working_directory(
-        self, install_toolkit, in_tmp_cwd, tmp_path
-    ):
-        """Characterisation of B176."""
-        elsewhere = tmp_path / "elsewhere"
-        toolkit = _FakeOFToolkit(documents=[_FakeDocument()], caseResults="data")
-        install_toolkit(toolkit)
-        stochasticLagrangian_postProcess_toVTK(
-            _toParquetArgs(outputDirectory=str(elsewhere))
-        )
-        assert not elsewhere.exists()
-        assert (in_tmp_cwd / "VTK" / "dispersion_0").is_dir()
+        assert (elsewhere / "dispersion_0").is_dir()
+        assert not (in_tmp_cwd / "VTK").exists()
 
 
 # ---------------------------------------------------------------------------
