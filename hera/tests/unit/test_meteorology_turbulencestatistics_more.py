@@ -35,40 +35,44 @@ it, by patching ``pandas.read_hdf`` and ``pandas.DataFrame.to_hdf``.
 
 Defects surfaced
 ----------------
-* B303: ``StrucFun`` rejects an unknown ``mode`` with
+All but B305 are fixed; the tests below now assert the corrected behaviour.
+
+* B303 (fixed): ``StrucFun`` rejected an unknown ``mode`` with
   ``raise("mode must be either MeanDir or 3dMeanDir")`` -- raising the
-  *string*, not an exception.  Python replaces it with
+  *string*, not an exception.  Python replaced it with
   ``TypeError: exceptions must derive from BaseException``, so the caller
-  never sees the diagnostic that was written for them.
-* B304: ``StrucFun`` and ``ThirdStrucFun`` guard the ``u_mag`` column
-  with ``if "u_mag" not in self.TemporaryData.columns`` but then write and
-  register ``"u_mag" + title_additions``.  With a non-empty
-  ``title_additions`` the guard inspects a name that is never created, so
-  every repeated call appends another ``["u_mag<additions>", {}]`` to
+  never saw the diagnostic that was written for them.  It raises
+  ``ValueError`` now.
+* B304 (fixed): ``StrucFun`` and ``ThirdStrucFun`` guarded the ``u_mag``
+  column with ``if "u_mag" not in self.TemporaryData.columns`` but then
+  wrote and registered ``"u_mag" + title_additions``.  With a non-empty
+  ``title_additions`` the guard inspected a name that is never created, so
+  every repeated call appended another ``["u_mag<additions>", {}]`` to
   ``_CalculatedParams`` -- and ``AbstractCalculator._compute`` selects
-  ``_TemporaryData`` by that list, so the duplicate propagates into the
-  computed result.
-* B305: the whole structure-function family is dask-only although the
+  ``_TemporaryData`` by that list, so the duplicate propagated into the
+  computed result.  The guard uses the same name as the write now.
+* B305 (open): the whole structure-function family is dask-only although the
   class documents ``rawData`` as "pandas.DataFrame or
   dask.dataframe.DataFrame" and every other method honours that.
   ``StrucFunDir`` calls ``.repartition(freq=...)`` and ``StrucFun``/
   ``ThirdStrucFun`` call ``.compute()``, none of which pandas has, so a
   pandas-backed calculator dies with ``AttributeError``.
-* B306: ``SinglePointStatisticsSpark.fluctuations`` never sets
+* B306 (fixed): ``SinglePointStatisticsSpark.fluctuations`` never set
   ``self.data``, which the base implementation does as its last act.
-  ``getData()`` therefore still answers ``None`` after the override has
+  ``getData()`` therefore still answered ``None`` after the override had
   computed everything -- and its own docstring says ``None`` means "no
   computations have been performed yet".
-* B307: the same override puts ``wind_dir_bar`` into ``_TemporaryData``
-  but -- unlike the base implementation -- leaves it out of
+* B307 (fixed): the same override put ``wind_dir_bar`` into
+  ``_TemporaryData`` but -- unlike the base implementation -- left it out of
   ``_CalculatedParams``.  Since ``compute()`` projects ``_TemporaryData``
-  onto that list, the mean wind direction is silently dropped from the
+  onto that list, the mean wind direction was silently dropped from the
   result.
-* B308: ``InMemoryRawData.to_hdf`` derives both output paths with
+* B308 (fixed): ``InMemoryRawData.to_hdf`` derived both output paths with
   ``path_or_buf.rpartition('.')[0]``.  For a path with no extension that
   prefix is the empty string, so a request to write
-  ``/data/station/rawdata`` writes ``.hdf`` and ``.json`` into the *current
-  working directory* instead of into ``/data/station``.
+  ``/data/station/rawdata`` wrote ``.hdf`` and ``.json`` into the *current
+  working directory* instead of into ``/data/station``.  It uses
+  ``os.path.splitext`` now.
 """
 import json
 import os
@@ -698,37 +702,28 @@ class TestToHdf:
         second.to_hdf(target, "raw")
         assert json.loads((tmp_path / "sonic.json").read_text()) == {"height": 20}
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B308: to_hdf derives both output paths with "
-               "path_or_buf.rpartition('.')[0], which is the empty string "
-               "for a path that has no extension, so a request to write "
-               "<dir>/rawdata writes '.hdf' and '.json' into the current "
-               "working directory instead of into <dir>. See the "
-               "consolidated findings issue.",
-    )
-    def test_an_extensionless_path_should_still_write_beside_the_data(
+    def test_an_extensionless_path_still_writes_beside_the_data(
             self, recorded_hdf_writes, tmp_path, monkeypatch):
+        """B308: both paths came from path_or_buf.rpartition('.')[0], which is
+        the empty string when there is no extension, so <dir>/rawdata wrote
+        '.hdf' and '.json' into the working directory instead of into <dir>."""
         monkeypatch.chdir(tmp_path)
         target = tmp_path / "station"
         target.mkdir()
         data = InMemoryRawData(pandas.DataFrame({"u": [1.0]}))
         data._Attrs = {"height": 10}
         data.to_hdf(str(target / "rawdata"), "raw")
+        assert recorded_hdf_writes[0]["path"] == str(target / "rawdata.hdf")
         assert (target / "rawdata.json").exists()
+        assert not (tmp_path / ".json").exists()
 
-    def test_an_extensionless_path_currently_writes_into_the_working_directory(
-            self, recorded_hdf_writes, tmp_path, monkeypatch):
-        """Characterisation of B308."""
-        monkeypatch.chdir(tmp_path)
-        target = tmp_path / "station"
+    def test_a_dot_in_a_parent_directory_is_not_mistaken_for_an_extension(
+            self, recorded_hdf_writes, tmp_path):
+        target = tmp_path / "station.2020"
         target.mkdir()
         data = InMemoryRawData(pandas.DataFrame({"u": [1.0]}))
-        data._Attrs = {"height": 10}
         data.to_hdf(str(target / "rawdata"), "raw")
-        assert recorded_hdf_writes[0]["path"] == ".hdf"
-        assert (tmp_path / ".json").exists()
-        assert not (target / "rawdata.json").exists()
+        assert recorded_hdf_writes[0]["path"] == str(target / "rawdata.hdf")
 
 
 @pytest.fixture()

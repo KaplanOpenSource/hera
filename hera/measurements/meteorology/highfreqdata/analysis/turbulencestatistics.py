@@ -1535,9 +1535,9 @@ class InMemoryRawData(pandas.DataFrame):
             ``pandas.DataFrame.to_hdf``.
         """
         pandasCopy = self.copy()
-        path_or_buf = '%s%s' % (path_or_buf.rpartition('.')[0], '.hdf')
+        path_or_buf = '%s%s' % (os.path.splitext(path_or_buf)[0], '.hdf')
         pandasCopy.to_hdf(path_or_buf, key, **kwargs)
-        path_or_buf = '%s%s' % (path_or_buf.rpartition('.')[0], '.json')
+        path_or_buf = '%s%s' % (os.path.splitext(path_or_buf)[0], '.json')
         attrsToSave = self._Attrs
 
         if len(self._Attrs) > 0:
