@@ -177,7 +177,7 @@ class TopographyToolkit(VectorToolkit):
         """
 
         if isinstance(regionNameOrData,str):
-            data = self.getDatasourceData(datasourceName=regionNameOrData,**filters)
+            data = self.getDataSourceData(datasourceName=regionNameOrData,**filters)
             if data is None:
                 data = readGeoJSONString(regionNameOrData)
         elif isinstance(regionNameOrData,geopandas.geodataframe.GeoDataFrame):

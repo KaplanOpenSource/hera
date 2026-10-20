@@ -29,10 +29,11 @@ passing characterisation of what actually happens)
 * **B228** (fixed) -- ``geoPandasToSTL`` accepted a ``solidName`` argument and
   then forwarded the hard-coded literal ``"Topography"`` instead of it, so the
   caller's solid name was silently discarded.
-* **B229** -- ``toDEM`` calls ``self.getDatasourceData`` (lower-case ``s``);
-  the toolkit only defines ``getDataSourceData``, so passing a datasource name
-  -- the documented first parameter -- raises ``AttributeError``.  The same
-  typo makes the geoJSON-string fallback on the next line dead code.
+* **B229** (fixed) -- ``toDEM`` called ``self.getDatasourceData`` (lower-case
+  ``s``); the toolkit only defines ``getDataSourceData``, so passing a
+  datasource name -- the documented first parameter -- raised
+  ``AttributeError``, which also made the geoJSON-string fallback on the next
+  line dead code.
 * **B230** -- ``toDEM`` reads ``Nx`` and ``Ny`` from ``grid_x.shape[0]`` /
   ``[1]``, then emits ``rasterized['height'][j, i]`` with ``i`` ranging over
   ``Nx`` and ``j`` over ``Ny`` -- the two subscripts are swapped.  On a
@@ -300,16 +301,8 @@ class TestToDEMInputDispatch:
         with pytest.raises(ValueError, match="regionNameOrData must be"):
             topo.toDEM(Polygon([(0, 0), (1, 0), (1, 1)]))
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B229: toDEM resolves a datasource name through "
-               "self.getDatasourceData (lower-case 's'); the toolkit defines "
-               "only getDataSourceData, so the documented 'region name in the "
-               "DB' input raises AttributeError -- which also makes the "
-               "readGeoJSONString fallback on the next line dead code. "
-               "See the consolidated findings issue.",
-    )
     def test_a_registered_datasource_name_is_resolved(self, topo, contours, tmp_path):
+        """B229."""
         path = tmp_path / "contours.geojson"
         contours.to_file(str(path), driver="GeoJSON")
         topo.addDataSource("CONTOURS", str(path), "geopandas", version=(0, 0, 1), crs=ITM)
@@ -317,16 +310,9 @@ class TestToDEMInputDispatch:
 
         assert topo.toDEM("CONTOURS", dxdy=200).startswith(str(_X0))
 
-    def test_a_string_input_dies_on_the_misspelled_accessor(self, topo):
-        """Characterisation of B229."""
-        with pytest.raises(AttributeError) as excinfo:
-            topo.toDEM("CONTOURS")
-        assert "getDatasourceData" in str(excinfo.value)
-
-    def test_even_a_valid_geojson_string_never_reaches_the_fallback(self, topo, contours):
-        """Characterisation of B229: the fallback branch is dead code."""
-        with pytest.raises(AttributeError):
-            topo.toDEM(contours.to_json())
+    def test_a_geojson_string_reaches_the_fallback(self, topo, contours):
+        """B229: an unknown name falls through to readGeoJSONString."""
+        assert topo.toDEM(contours.to_json(), dxdy=200).startswith(str(_X0))
 
 
 @pytest.mark.unit
