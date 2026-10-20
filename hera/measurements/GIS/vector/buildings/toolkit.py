@@ -147,7 +147,10 @@ class BuildingsToolkit(VectorToolkit):
             newPad = FreeCADDOC.addObject("Part::Extrusion", "building" + str(indx))
             logger.debug("newPad.Base = newSketch")
             newPad.Base = newSketch
-            buildingTopAltitude = wallsheight + nonFlatTopographyShift # the paddign is from the bottom of the buildings, which is nonFlatTopographyShift lower.
+            # On real terrain the sketch was placed nonFlatTopographyShift below the
+            # ground, so the extrusion has to make that up; on flat terrain it sits
+            # on referenceTopography exactly and there is nothing to make up.
+            buildingTopAltitude = wallsheight if flatTerrain else wallsheight + nonFlatTopographyShift
             logger.debug(f"newPad.LengthFwd = {buildingTopAltitude}")
             newPad.LengthFwd = buildingTopAltitude
             logger.debug("newPad.Solid = True")

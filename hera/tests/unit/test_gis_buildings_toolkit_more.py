@@ -46,12 +46,13 @@ passing characterisation of what actually happens)
   datasource in the topography toolkit", and then never passed it to
   ``getPointListElevation``, so the configured default was used no matter what
   the caller asked for.
-* **B237** -- ``buildingsGeopandasToSTLRasterTopography`` lowers each building
-  by ``nonFlatTopographyShift`` and compensates by extruding
+* **B237** (fixed) -- ``buildingsGeopandasToSTLRasterTopography`` lowers each
+  building by ``nonFlatTopographyShift`` and compensates by extruding
   ``height + nonFlatTopographyShift``.  In the ``flatTerrain=True`` branch the
   building is *not* lowered (the placement is ``referenceTopography``
-  exactly), but the extrusion still adds the shift -- so every flat-terrain
-  building comes out ``nonFlatTopographyShift`` metres too tall.
+  exactly), but the extrusion still added the shift -- so every flat-terrain
+  building came out ``nonFlatTopographyShift`` metres too tall.  The extrusion
+  length now follows the branch.
 * **B238** -- the module's guarded import is
   ``try: import FreeCAD; import Part; import Mesh except ImportError``.  When
   FreeCAD is importable but ``Part`` is not (the case here, and the case for
@@ -645,16 +646,8 @@ class TestBuildingsGeopandasToSTLAltitudes:
         for sketch in freecad.documents[0].sketches:
             assert (sketch.Placement.vector.x, sketch.Placement.vector.y) == (0.0, 0.0)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B237: buildingsGeopandasToSTLRasterTopography extrudes "
-               "'wallsheight + nonFlatTopographyShift' unconditionally, but "
-               "the flatTerrain branch places the sketch at "
-               "referenceTopography without lowering it by the shift -- so "
-               "every flat-terrain building is nonFlatTopographyShift metres "
-               "too tall. See the consolidated findings issue.",
-    )
     def test_on_flat_terrain_the_building_top_is_reference_plus_height(self, buildings_toolkit, freecad):
+        """B237."""
         _call(buildings_toolkit, flatTerrain=True, referenceTopography=0.0,
               nonFlatTopographyShift=10)
         document = freecad.documents[0]
@@ -664,27 +657,17 @@ class TestBuildingsGeopandasToSTLAltitudes:
         ]
         assert tops == pytest.approx([10.0, 25.0])
 
-    def test_flat_terrain_buildings_are_too_tall_by_the_shift(self, buildings_toolkit, freecad):
-        """Characterisation of B237."""
-        _call(buildings_toolkit, flatTerrain=True, referenceTopography=0.0,
-              nonFlatTopographyShift=10)
-        document = freecad.documents[0]
-        tops = [
-            sketch.Placement.vector.z + pad.LengthFwd
-            for sketch, pad in zip(document.sketches, document.pads)
-        ]
-        assert tops == pytest.approx([10.0 + 10.0, 25.0 + 10.0])
-
-    def test_the_extrusion_length_ignores_the_terrain_flag_entirely(self, buildings_toolkit, freecad):
-        """Characterisation of B237: identical LengthFwd in both branches."""
+    def test_the_extrusion_length_follows_the_terrain_flag(self, buildings_toolkit, freecad):
+        """B237: only the lowered, real-terrain branch makes up the shift."""
         _call(buildings_toolkit, flatTerrain=True, nonFlatTopographyShift=10)
         flat = [pad.LengthFwd for pad in freecad.documents[0].pads]
         _call(buildings_toolkit, flatTerrain=False, nonFlatTopographyShift=10)
         real = [pad.LengthFwd for pad in freecad.documents[1].pads]
-        assert flat == real == pytest.approx([20.0, 35.0])
+        assert flat == pytest.approx([10.0, 25.0])
+        assert real == pytest.approx([20.0, 35.0])
 
     def test_a_zero_shift_makes_the_two_branches_agree(self, buildings_toolkit, freecad):
-        """Characterisation of B237: nonFlatTopographyShift=0 is the safe case."""
+        """B237: nonFlatTopographyShift=0 was the one case already correct."""
         _call(buildings_toolkit, flatTerrain=True, referenceTopography=0.0,
               nonFlatTopographyShift=0)
         document = freecad.documents[0]
