@@ -49,7 +49,7 @@ class experimentAnalysis:
         trialSetName = self.datalayer.defaultTrialSet if trialSetName is None else trialSetName
         if trialSetName is None:
             raise ValueError("trialSetName is None. Either set default with the getExperiment, or set explicitly here")
-        return self.datalayer.trialSet[trialSetName][trialName].entitiesTable().query("entityType==@entityTypeName")
+        return self.datalayer.trialSet[trialSetName][trialName].entitiesTable.query("deviceTypeName==@entityTypeName")
 
 
     def getTurbulenceStatistics(self,sonicData,samplingWindow,height=1):
@@ -279,9 +279,9 @@ class experimentAnalysis:
         """
         trialSetName =  self.datalayer.defaultTrialSet if  trialSetName is None else trialSetName
 
-        devicemetadata = self.datalayer.trialSet[trialSetName][trialName].entitiesTable()
+        devicemetadata = self.datalayer.trialSet[trialSetName][trialName].entitiesTable
         if len(devicemetadata) > 0:
-            ret = dataset.reset_index().merge(devicemetadata, left_on="deviceName", right_on="entityName").set_index("timestamp")
+            ret = dataset.reset_index().merge(devicemetadata, left_on="deviceName", right_on="deviceItemName").set_index("timestamp")
         else:
             ret=None
 
