@@ -436,7 +436,8 @@ def workflow_list(arguments):
 
     simDocument = wftk.getWorkflowListDocumentFromDB(arguments.group)
     if len(simDocument) == 0:
-        print(f"{arguments.object} is not a simulation, directory, workflow file or a simulation group in project {arguments.projectName} ")
+        print(f"{arguments.group} is not a simulation, directory, workflow file or a simulation group in project {arguments.projectName} ")
+        return
     workflowGroup = simDocument[0].desc[wftk.DESC_GROUPNAME]
 
     listNodes     = arguments.nodes

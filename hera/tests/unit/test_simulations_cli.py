@@ -22,9 +22,6 @@ Deliberately not tested:
 
 Bugs pinned here (each with an xfail for the intended behaviour plus a
 passing characterisation of what actually happens):
-  * workflow_list reads `arguments.object`, an attribute the `list
-    workflows` parser never defines, on the very path that reports "not
-    found" -- and then indexes the empty list anyway;
   * create_workflow_variations logs an error for a missing variation
     JSON / an unknown workflow and then carries on into
     FileNotFoundError / IndexError;
@@ -955,38 +952,19 @@ class TestWorkflowList:
         assert "- dx" in printed and "- dy" in printed
         assert toolkit.call("listWorkflows")[2]["listParameters"] is True
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B132: workflow_list's 'nothing found' branch prints "
-               "arguments.object, which the `list workflows` parser never "
-               "defines (it declares group/projectName/nodes/parameters), "
-               "and then indexes simDocument[0] anyway -- so an unknown "
-               "group dies with AttributeError instead of the message. "
-               "See the consolidated findings issue.",
-    )
     def test_an_unknown_group_is_reported_instead_of_crashing(self, install_toolkit, capsys):
         install_toolkit(_FakeWorkflowToolkit(documents=[]))
         workflow_list(_listArgs(group="nosuchgroup"))
-        assert "is not a simulation" in capsys.readouterr().out
+        printed = capsys.readouterr().out
+        assert "nosuchgroup is not a simulation" in printed
 
-    def test_an_unknown_group_currently_raises_attributeerror_on_arguments_object(
-        self, install_toolkit
-    ):
-        """Characterisation of B132."""
-        install_toolkit(_FakeWorkflowToolkit(documents=[]))
-        with pytest.raises(AttributeError, match="object"):
-            workflow_list(_listArgs(group="nosuchgroup"))
-
-    def test_even_with_an_object_attribute_an_unknown_group_still_raises_indexerror(
-        self, install_toolkit, capsys
-    ):
-        """Characterisation of B132: the missing attribute hides a second
-        fault -- the handler never returns after reporting, so it indexes
-        the empty document list."""
-        install_toolkit(_FakeWorkflowToolkit(documents=[]))
-        with pytest.raises(IndexError):
-            workflow_list(_listArgs(group="nosuchgroup", object="nosuchgroup"))
-        assert "is not a simulation" in capsys.readouterr().out
+    def test_an_unknown_group_stops_before_listing_anything(self, install_toolkit, capsys):
+        """The handler returns after reporting, so it never indexes the
+        empty document list."""
+        toolkit = _FakeWorkflowToolkit(documents=[])
+        install_toolkit(toolkit)
+        workflow_list(_listArgs(group="nosuchgroup"))
+        assert [entry[0] for entry in toolkit.calls] == ["getWorkflowListDocumentFromDB"]
 
 
 # ---------------------------------------------------------------------------
