@@ -555,7 +555,10 @@ class DataHandler_JSON_geopandas(object):
     @staticmethod
     def saveData(resource, fileName,**kwargs):
         """Save a GeoDataFrame to GeoJSON format."""
-        resource.to_json(fileName,**kwargs)
+        # GeoDataFrame.to_json returns the GeoJSON as a string and takes no
+        # file name (its first positional parameter is `na`), so write it here.
+        with open(fileName, "w") as outputFile:
+            outputFile.write(resource.to_json(**kwargs))
         return dict(crs = resource.crs )
 
     @staticmethod
