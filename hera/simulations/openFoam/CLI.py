@@ -15,7 +15,7 @@ def Foam_createEmpty(arguments):
     logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
 
-    if 'projectName' not in arguments:
+    if ('projectName' not in arguments) or (arguments.projectName is None):
         configurationFile = arguments.configurationFile if 'configurationFile' in arguments else "caseConfiguration.json"
         try:
             configuration = loadJSON(configurationFile)
@@ -313,7 +313,7 @@ def stochasticLagrangian_dispersionFlow_list(arguments):
     logger.debug(f"----- Start -----")
     logger.debug(f" makeDispersionFlow with arguments: {arguments}")
 
-    if 'projectName' not in arguments:
+    if ('projectName' not in arguments) or (arguments.projectName is None):
         configurationFile = arguments.configurationFile if 'configurationFile' in arguments else "caseConfiguration.json"
 
         configuration = loadJSON(configurationFile)
@@ -691,7 +691,7 @@ def IC_hydrostaticPressure(arguments):
     logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
 
-    if 'projectName' not in arguments:
+    if ('projectName' not in arguments) or (arguments.projectName is None):
         configurationFile = arguments.configurationFile if 'configurationFile' in arguments else "caseConfiguration.json"
         try:
             configuration = loadJSON(configurationFile)

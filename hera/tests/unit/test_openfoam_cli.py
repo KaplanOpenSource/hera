@@ -29,13 +29,6 @@ Deliberately not tested:
 Bugs pinned here (each with a strict xfail for the intended behaviour plus
 a passing characterisation of what actually happens):
 
-  * B167: `if 'projectName' not in arguments` never fires.  argparse
-    declares `--projectName` with `default=None`, so the attribute always
-    exists and the caseConfiguration.json fallback behind that test is
-    dead code; `projectName=None` is forwarded to getToolkit instead.
-    (`stochasticLagrangian_dispersion_create` in the same file gets this
-    right: `('projectName' in arguments) and (arguments.projectName is not
-    None)`.)
   * B168: `Foam_createEmpty` (and the live `IC_hydrostaticPressure`)
     catch *any* failure to load caseConfiguration.json, report
     "Configuration file ... not found", and overwrite the file with
@@ -555,18 +548,11 @@ class TestFoamCreateEmpty:
 
 
 @pytest.mark.unit
-class TestFoamCreateEmptyProjectNameFallbackIsDead:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B167: Foam_createEmpty guards its caseConfiguration.json "
-               "fallback with `if 'projectName' not in arguments`, but "
-               "hera/bin/hera-openFoam declares --projectName with "
-               "default=None, so the attribute is always present and the "
-               "fallback is unreachable: projectName=None is handed to "
-               "getToolkit instead of being read from the case "
-               "configuration.  The correct idiom is used a few functions "
-               "down in the same file.  See the consolidated findings issue.",
-    )
+class TestFoamCreateEmptyProjectNameFallback:
+    """argparse declares --projectName with default=None, so the
+    caseConfiguration.json fallback has to fire on None as well as on an
+    absent attribute."""
+
     def test_a_none_project_name_should_fall_back_to_the_case_configuration(
         self, install_toolkit, in_tmp_cwd
     ):
@@ -577,16 +563,13 @@ class TestFoamCreateEmptyProjectNameFallbackIsDead:
         Foam_createEmpty(_createEmptyArgs(projectName=None))
         assert asked[0]["kwargs"]["projectName"] == "FROM_CASE_CONFIG"
 
-    def test_a_none_project_name_is_currently_forwarded_verbatim(
-        self, install_toolkit, in_tmp_cwd
-    ):
-        """Characterisation of B167."""
+    def test_an_explicit_project_name_still_wins(self, install_toolkit, in_tmp_cwd):
         (in_tmp_cwd / "caseConfiguration.json").write_text(
             json.dumps({"projectName": "FROM_CASE_CONFIG"})
         )
         asked = install_toolkit(_FakeOFToolkit())
-        Foam_createEmpty(_createEmptyArgs(projectName=None))
-        assert asked[0]["kwargs"]["projectName"] is None
+        Foam_createEmpty(_createEmptyArgs(projectName=PROJECT))
+        assert asked[0]["kwargs"]["projectName"] == PROJECT
 
 
 @pytest.mark.unit
@@ -888,10 +871,9 @@ class TestFoamSolverSimulationsList:
     def test_the_message_for_an_empty_project_reports_the_raw_argument(
         self, install_toolkit, capsys
     ):
-        """Characterisation of B167's knock-on effect: the handler prints
-        `projectName`, which is whatever came off the command line -- so a
-        default --projectName prints the word None rather than the project
-        the toolkit actually resolved."""
+        """The handler prints `projectName`, which is whatever came off the
+        command line -- so a default --projectName prints the word None
+        rather than the project the toolkit actually resolved."""
         install_toolkit(_FakeOFToolkit(projectName="RESOLVED", solverDocuments=[]))
         foam_solver_simulations_list(_listArgs(projectName=None))
         assert f"There are no cases for {SOLVER} in None" in capsys.readouterr().out
@@ -1107,17 +1089,17 @@ class TestDispersionFlowList:
         stochasticLagrangian_dispersionFlow_list(arguments)
         assert asked[0]["kwargs"]["projectName"] == "FROM_CASE_CONFIG"
 
-    def test_a_none_project_name_is_forwarded_verbatim(self, install_toolkit, in_tmp_cwd):
-        """Characterisation of B167 in this handler: the caseConfiguration
-        fallback is guarded by `'projectName' not in arguments`, which the
-        argparse default never satisfies."""
+    def test_a_none_project_name_is_read_from_the_case_configuration_too(
+        self, install_toolkit, in_tmp_cwd
+    ):
+        """The argparse default is None, so the fallback has to fire on it."""
         (in_tmp_cwd / "caseConfiguration.json").write_text(
             json.dumps({"projectName": "FROM_CASE_CONFIG"})
         )
         toolkit = _FakeOFToolkitWithWorkflowCompare(comparison=_groupedComparison())
         asked = install_toolkit(toolkit)
         stochasticLagrangian_dispersionFlow_list(_dispersionFlowListArgs(projectName=None))
-        assert asked[0]["kwargs"]["projectName"] is None
+        assert asked[0]["kwargs"]["projectName"] == "FROM_CASE_CONFIG"
 
 
 @pytest.mark.unit
