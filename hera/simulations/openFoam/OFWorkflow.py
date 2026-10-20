@@ -95,8 +95,8 @@ class abstractWorkflow(hermes.workflow):
 
     @property
     def fvScheme(self):
-        """Return the fvScheme workflow node."""
-        return self['fvScheme']
+        """Return the fvSchemes workflow node."""
+        return self['fvSchemes']
 
     @property
     def fileWriter(self):

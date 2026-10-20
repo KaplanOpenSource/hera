@@ -25,8 +25,7 @@ tests use a document produced by the real workflow toolkit against the
 in-memory datalayer, so ``document.save()`` in the setters is exercised for
 real.
 
-Bugs pinned here: B146
-(``fvScheme`` reads the wrong node name), B147 (``__setitem__`` calls a
+Bugs pinned here: B147 (``__setitem__`` calls a
 misspelt, name-mangled super method), B148 and B149 (``set_blockMesh_blockHeight``
 moves the bottom face instead of the top one, and then derives a zero cell
 count from the vertex it has just overwritten) and B150 (``workflowGroupID``'s
@@ -229,28 +228,14 @@ class TestControlDictAccessor:
 
 @pytest.mark.unit
 class TestFvSchemeAccessor:
-    """B146: the accessor reads a node name that exists nowhere."""
+    """The accessor reads the node name the required-node list demands."""
 
     def test_the_required_node_is_spelt_in_the_plural(self, eulerian):
         """Baseline: the node is present under the validated name."""
         assert eulerian["fvSchemes"].name == "fvSchemes"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B146: abstractWorkflow.fvScheme returns self['fvScheme'], "
-               "singular, while the node is named 'fvSchemes' in "
-               "_requiredNodeList and in every workflow template in the "
-               "repository -- no node named 'fvScheme' exists anywhere. Since "
-               "hermes' __getitem__ answers None for an unknown node, the "
-               "accessor can never return anything but None. "
-               "See the consolidated findings issue.",
-    )
-    def test_the_fvschemes_node_should_be_reachable_through_the_accessor(self, eulerian):
+    def test_the_fvschemes_node_is_reachable_through_the_accessor(self, eulerian):
         assert eulerian.fvScheme.name == "fvSchemes"
-
-    def test_the_fvscheme_accessor_is_currently_always_none(self, eulerian):
-        """Characterisation of B146."""
-        assert eulerian.fvScheme is None
 
 
 # ---------------------------------------------------------------------------
