@@ -38,8 +38,6 @@ Bugs pinned below (each with an xfail for the intended behaviour and a
 passing characterisation of what happens today):
 
 * B194 ``prepareSlurmWorkflowExecution`` cannot take a workflow dict.
-* B196 ``Analysis.getFiltersDocuments``'s not-found guard tests the wrong
-  thing.
 * B197 ``Presentation.toUnstructuredVTK``'s overwrite guard checks a path
   evtk never writes.
 * B198 ``Presentation.toStructuredVTK`` calls a method its analysis layer
@@ -674,26 +672,12 @@ class TestAnalysis:
         of.addCacheDocument(resource="/y", dataFormat="string", type="vtk_filter",
                             desc=dict(simulationName="flow_0000", filterName="f2"))
         monkeypatch.setattr(OFToolkit, "getWorkflowDocumentFromDB",
-                            lambda self, *a, **kw: dict(desc=dict(simulationName="flow_0000")))
+                            lambda self, *a, **kw: [dict(desc=dict(simulationName="flow_0000"))])
         assert len(of.analysis.getFiltersDocuments("flow_0000")) == 2
         assert len(of.analysis.getFiltersDocuments("flow_0000", filterName="f1")) == 1
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B196: getFiltersDocuments guards with `if wrkflow is "
-               "None`, but getWorkflowDocumentFromDB returns a LIST (empty "
-               "when nothing matches), which is never None. The intended "
-               "ValueError naming the missing case is therefore unreachable "
-               "and an unknown simulation dies with TypeError: list indices "
-               "must be integers. See the consolidated findings issue.",
-    )
-    def test_an_unknown_simulation_should_be_reported_as_a_valueerror(self, of):
+    def test_an_unknown_simulation_is_reported_as_a_valueerror(self, of):
         with pytest.raises(ValueError, match="was not found"):
-            of.analysis.getFiltersDocuments("noSuchSimulation")
-
-    def test_an_unknown_simulation_currently_raises_typeerror(self, of):
-        """Characterisation of B196."""
-        with pytest.raises(TypeError, match="list indices"):
             of.analysis.getFiltersDocuments("noSuchSimulation")
 
 

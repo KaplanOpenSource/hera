@@ -1091,11 +1091,11 @@ class Analysis:
         -------
             list of DB documents.
         """
-        wrkflow = self.datalayer.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
-        if wrkflow is None:
+        wrkflowList = self.datalayer.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+        if len(wrkflowList) == 0:
             raise ValueError(
                 f"The case {nameOrWorkflowFileOrJSONOrResource} was not found in the project {self.datalayer.projectName}")
-        simulationName = wrkflow['desc']['simulationName']
+        simulationName = wrkflowList[0]['desc']['simulationName']
 
         qry = dict(simulationName=simulationName)
         if filterName is not None:
