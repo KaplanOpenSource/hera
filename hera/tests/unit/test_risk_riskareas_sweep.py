@@ -25,13 +25,15 @@ that is 6 x 7 = 42 points.  The asymmetry (``maxY`` gets an extra
 ``width``, ``maxX`` does not) is the algorithm's own, and is asserted as
 such.
 
-Two bugs are pinned below.  B263: ``_doCalculation`` calls a method that
-does not exist, so no sweep can complete.  B266: ``_findBoundingBox``
-cannot even size its mesh when the final time step has a single isopleth
-row, which is the normal shape for a single-severity injury.
-``calculate``'s parallel branch is
-therefore only reachable up to the same failure; it is not exercised here
-because ``multiprocessing.Pool`` inside a hermetic unit test would fork the
+Two bugs were found here.  B263, fixed: ``_doCalculation`` called a method
+that does not exist (``datalayer`` instead of ``project``), so no sweep
+could complete.  B266: ``_findBoundingBox`` cannot even size its mesh when
+the final time step has a single isopleth row, which is the normal shape
+for a single-severity injury.  A real (unmocked) projection is still
+blocked one line past B263 by a geometry column reaching ``groupby().sum()``
+-- a separate, later defect, documented with the two xfails below.
+``calculate``'s parallel branch is not exercised here because
+``multiprocessing.Pool`` inside a hermetic unit test would fork the
 mongomock-patched interpreter, and the serial branch already covers the
 same driver logic.
 
@@ -300,7 +302,8 @@ class TestASingleIsoplethRowBreaksTheMesh:
 
 @pytest.mark.unit
 class TestSweepCannotRun:
-    """B263: see the reasons below."""
+    """B263, fixed; a second, later defect still blocks the sweep -- see
+    the reasons below."""
 
     @staticmethod
     def _params():
@@ -309,16 +312,28 @@ class TestSweepCannotRun:
                 "rotate_angle": 0.0,
                 "valueColumn": "effectedtotal_pop"}
 
+    @staticmethod
+    def _noCasualties(monkeypatch, calls=None):
+        """Replace the projection itself, so what is exercised is the sweep
+        driver and its call site rather than the geopandas projection."""
+        def _project(self, demographic, loc, **kwargs):
+            if calls is not None:
+                calls.append((demographic, loc, kwargs))
+            return None
+
+        monkeypatch.setattr(thresholdGeoDataFrame, "project", _project)
+
     REASON = (
-        "B263: riskAreaAlgorithm_Sweep._doCalculation projects the "
-        "isopleths with effectIsopleths.datalayer(demog, releaseLoc, "
-        "mathematical_angle=...), but thresholdGeoDataFrame has no "
-        "'datalayer' attribute -- its projection method is 'project', with "
-        "exactly that signature.  Every release point therefore raises "
-        "AttributeError: 'thresholdGeoDataFrame' object has no attribute "
-        "'datalayer', so riskAreaAlgorithm_Sweep.calculate can never "
-        "complete and the only implemented risk-area algorithm is unusable. "
-        "See the consolidated findings issue."
+        "Not B263 (that one -- _doCalculation calling the non-existent "
+        "effectIsopleths.datalayer(...) instead of .project(...) -- is "
+        "fixed, and the call site is asserted below).  What now fails is "
+        "the next line: projected.groupby([...]).sum() sums a frame that "
+        "still carries its geometry column, which pandas 2.2 / geopandas "
+        "1.1 reject with \"TypeError: agg function failed [how->sum, "
+        "dtype->geometry]\" -- older pandas dropped non-numeric columns "
+        "silently.  Only the numeric columns are read out of that sum, so "
+        "the intent is a numeric-only aggregation, but that is a separate "
+        "defect from B263 and is not fixed here."
     )
 
     @pytest.mark.xfail(strict=True, reason=REASON)
@@ -327,16 +342,29 @@ class TestSweepCannotRun:
 
         assert sorted(result["severity"].unique()) == ["Light", "Severe"]
 
-    def test_one_release_point_currently_raises(self, sweep):
-        """Characterisation of B263."""
-        with pytest.raises(AttributeError, match="no attribute 'datalayer'"):
-            sweep._doCalculation((0.0, 0.0), self._params())
+    def test_the_release_point_is_projected_onto_the_demography(self, sweep, monkeypatch):
+        """B263, fixed: _doCalculation used to call the non-existent
+        effectIsopleths.datalayer(...).  It now calls project(), with the
+        demography, the release location and the rotated angle."""
+        calls = []
+        self._noCasualties(monkeypatch, calls)
+        params = self._params()
 
-    def test_the_projection_method_it_should_be_calling_does_exist(self):
-        """Characterisation of B263: names the intended call site, so the
-        fix is unambiguous."""
-        assert not hasattr(_isopleths(), "datalayer")
-        assert callable(_isopleths().project)
+        sweep._doCalculation((1.0, 2.0), params)
+
+        demographic, loc, kwargs = calls[0]
+        assert demographic is params["demog"]
+        assert loc == (1.0, 2.0)
+        assert kwargs["mathematical_angle"] == 0.0
+
+    def test_a_release_point_that_affects_nobody_reports_zero_per_severity(self, sweep, monkeypatch):
+        self._noCasualties(monkeypatch)
+
+        data = sweep._doCalculation((1.0, 2.0), self._params())[0]
+
+        assert sorted(data["severity"]) == ["Light", "Severe"]
+        assert data["effectedPopulation"].tolist() == [0, 0]
+        assert data["x"].tolist() == [1.0, 1.0]
 
     @pytest.mark.xfail(strict=True, reason=REASON)
     def test_a_serial_sweep_should_return_one_row_per_point_and_severity(self, sweep):
@@ -344,17 +372,18 @@ class TestSweepCannotRun:
 
         assert set(result.columns) >= {"x", "y", "severity", "datetime"}
 
-    def test_a_serial_sweep_currently_raises_on_the_first_point(self, sweep, capsys):
-        """Characterisation of B263: the driver itself is fine -- it reaches
-        the first mesh point and prints its progress before dying."""
-        with pytest.raises(AttributeError, match="no attribute 'datalayer'"):
-            sweep.calculate(_isopleths(), _demography(), mathematical_angle=0.0)
+    def test_a_serial_sweep_walks_every_mesh_point(self, sweep, monkeypatch, capsys):
+        """The driver itself is fine: with the projection replaced, it walks
+        the whole 6 x 7 mesh and reports both severities at every point."""
+        self._noCasualties(monkeypatch)
 
+        result = sweep.calculate(_isopleths(), _demography(), mathematical_angle=0.0)
+
+        assert len(result) == 42 * 2
+        assert set(result.columns) >= {"x", "y", "severity", "datetime"}
         assert "Processing point 0 out of 42" in capsys.readouterr().out
 
-    def test_the_mesh_is_built_before_the_failure(self, sweep, monkeypatch):
-        """Characterisation of B263: _findBoundingBox is reached with the
-        converted angle, which is why it is asserted rather than xfailed."""
+    def test_the_mesh_is_built_with_the_converted_angle(self, sweep, monkeypatch):
         seen = {}
         original = type(sweep)._findBoundingBox
 
@@ -364,8 +393,8 @@ class TestSweepCannotRun:
             return original(self, effectIsopleths, demog, mathematical_angle, **kwargs)
 
         monkeypatch.setattr(type(sweep), "_findBoundingBox", _spy)
-        with pytest.raises(AttributeError):
-            sweep.calculate(_isopleths(), _demography(), mathematical_angle=0.0)
+        self._noCasualties(monkeypatch)
+        sweep.calculate(_isopleths(), _demography(), mathematical_angle=0.0)
 
         assert seen["angle"] == 0.0
         assert seen["kwargs"]["geometryColumn"] == "TotalPolygon"
