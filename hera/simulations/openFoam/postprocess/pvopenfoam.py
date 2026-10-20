@@ -500,7 +500,8 @@ class ParaviewOpenFOAM:
         for filterName, outputFile in filtersDict.items():
             outputPath = os.path.dirname(outputFile)
             logger.debug(f"{filterName} for directory {outputPath}")
-            if not os.path.isdir(outputPath):
+            # An empty dirname means the output is relative to the cwd, which exists.
+            if outputPath and not os.path.isdir(outputPath):
                 logger.debug(f"\t Does not exist. Creating {outputPath}")
                 os.makedirs(outputPath)
 

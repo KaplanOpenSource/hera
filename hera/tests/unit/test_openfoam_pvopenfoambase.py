@@ -51,11 +51,10 @@ because a stand-in would happily fabricate any number asked of it:
 
 Not covered: ``get_data_fields`` (added in #1137, after these tests were written).
 
-Two defects are pinned, each provable by reading the source rather than
-by watching a stand-in: B312 (``_ensureOutputDirs`` calls ``os.makedirs('')``) and B313
-(``_parse_point_set``'s ``squeeze()`` cannot tell one point from no points).
-Each has a strict xfail for the intended behaviour plus passing
-characterisation tests of what actually happens today.
+One defect is pinned, provable by reading the source rather than by
+watching a stand-in: B313 (``_parse_point_set``'s ``squeeze()`` cannot tell
+one point from no points).  It has a strict xfail for the intended
+behaviour plus passing characterisation tests of what happens today.
 """
 import importlib
 import itertools
@@ -960,34 +959,13 @@ class TestEnsureOutputDirs:
 
 @pytest.mark.unit
 class TestEnsureOutputDirsBareFilename:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B312: _ensureOutputDirs does "
-               "outputPath = os.path.dirname(outputFile) and then "
-               "`if not os.path.isdir(outputPath): os.makedirs(outputPath)`. "
-               "For a bare relative output name os.path.dirname returns '', "
-               "os.path.isdir('') is False, and os.makedirs('') raises "
-               "FileNotFoundError -- so the guard admits the one value "
-               "makedirs cannot take. The directory in that case is the cwd, "
-               "which already exists, so the correct behaviour is a no-op. "
-               "See the consolidated findings issue.",
-    )
     def test_an_output_name_relative_to_the_working_directory_needs_no_new_directory(
         self, base, tmp_path, monkeypatch,
     ):
         monkeypatch.chdir(tmp_path)
         base._ensureOutputDirs({"a": "a.parquet"})
 
-    def test_an_output_name_with_no_directory_part_raises_file_not_found(
-        self, base, tmp_path, monkeypatch,
-    ):
-        """Characterisation of B312."""
-        monkeypatch.chdir(tmp_path)
-        with pytest.raises(FileNotFoundError):
-            base._ensureOutputDirs({"a": "a.parquet"})
-
-    def test_prefixing_the_same_name_with_dot_slash_makes_it_work(self, base, tmp_path, monkeypatch):
-        """Characterisation of B312: the workaround."""
+    def test_the_same_name_prefixed_with_dot_slash_behaves_the_same(self, base, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         base._ensureOutputDirs({"a": "./a.parquet"})
         assert tmp_path.is_dir()
