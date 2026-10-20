@@ -373,6 +373,9 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                 else:
                     doc.resource = finalFileName
                     doc.save()
+            else:
+                doc = nonDBMetadataFrame(data=data, type=self.doctype, casePath=self.casePath,
+                                         cloudName=self.cloudName)
         else:
             doc = nonDBMetadataFrame(data=data, type=self.doctype, casePath=self.casePath, cloudName=self.cloudName)
 

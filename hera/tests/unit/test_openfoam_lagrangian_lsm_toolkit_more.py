@@ -42,7 +42,6 @@ passing characterisation of what happens today):
   error message crashes.
 * B203 ``loadData``'s non-parallel branch finds no time steps.
 * B204 ``loadData``'s DB branch treats a QuerySet as a document.
-* B205 ``loadData`` with ONLYFILE_REPLACE returns an unbound name.
 * B206 ``makeSource`` writes the wrong object name into the header.
 * B207 ``createRootCaseMeshLink`` references an undefined name.
 * B208 ``calcConcentrationTimeStepFullMesh`` sets an attribute xarray
@@ -273,9 +272,7 @@ class TestLoadData:
 
     def test_the_parquet_is_named_after_the_cloud(self, lsm, parallelCase, readSeam):
         lsm.cloudName = "myCloud"
-        # The file is written before the method trips over B205.
-        with pytest.raises(UnboundLocalError):
-            lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE)
+        lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE)
         assert os.path.exists(os.path.join(lsm.FilesDirectory, "myCloudData.parquet"))
 
     # -- B202: the saveMode guard -----------------------------------------
@@ -369,21 +366,11 @@ class TestLoadData:
 
     # -- B205: ONLYFILE_REPLACE -------------------------------------------
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B205: with ONLYFILE_REPLACE the parquet is written but no "
-               "document is built -- `doc` is only bound in the DB branches "
-               "and in the else that handles NOSAVE -- so `return doc` "
-               "raises UnboundLocalError after the file has already been "
-               "written. See the consolidated findings issue.",
-    )
-    def test_saving_only_to_a_file_should_return_something(self, lsm, parallelCase, readSeam):
-        assert lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE) is not None
+    def test_saving_only_to_a_file_returns_the_frame_and_writes_it(self, lsm, parallelCase, readSeam):
+        from hera.datalayer import nonDBMetadataFrame
 
-    def test_saving_only_to_a_file_writes_it_and_then_raises(self, lsm, parallelCase, readSeam):
-        """Characterisation of B205."""
-        with pytest.raises(UnboundLocalError, match="doc"):
-            lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE)
+        document = lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE)
+        assert isinstance(document, nonDBMetadataFrame)
         assert os.path.exists(os.path.join(lsm.FilesDirectory, "kinematicCloudData.parquet"))
 
 
