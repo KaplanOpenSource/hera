@@ -42,10 +42,10 @@ passing characterisation of what actually happens)
   ("save to a file and store to the DB as a source, replacing the entry if it
   exists", per the docstring) wrote the file and silently never touched the
   database.  Both modes now take the branch.
-* **B235** -- ``TOOLKIT_SAVEMODE_ONLYFILE`` is documented to "raise exception
-  if file exists" and ``..._REPLACE`` to replace it, but the two are handled
-  identically: nothing checks for an existing file, so ONLYFILE overwrites
-  instead of raising.
+* **B235** (fixed) -- ``TOOLKIT_SAVEMODE_ONLYFILE`` is documented to "raise
+  exception if file exists" and ``..._REPLACE`` to replace it, but the two
+  were handled identically: nothing checked for an existing file, so ONLYFILE
+  overwrote instead of raising.  ONLYFILE now raises ``FileExistsError``.
 
 Deliberately not tested, and why
 --------------------------------
@@ -339,50 +339,29 @@ class TestCreateNewAreaFileOutput:
         )
         assert written["total_pop"].iloc[0] == 15000
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B235: createNewArea documents TOOLKIT_SAVEMODE_ONLYFILE as "
-               "'raise exception if file exists' and ..._REPLACE as 'replace "
-               "the file if it exists', but the two modes share one code path "
-               "that never checks os.path.exists -- so ONLYFILE silently "
-               "overwrites. See the consolidated findings issue.",
-    )
     def test_only_file_refuses_to_clobber_an_existing_file(self, demography, census):
+        """B235."""
         demography.analysis.createNewArea(
             _QUERY, census, saveMode=TOOLKIT_SAVEMODE_ONLYFILE, regionName="myarea.geojson"
         )
-        with pytest.raises((FileExistsError, ValueError)):
+        with pytest.raises(FileExistsError):
             demography.analysis.createNewArea(
                 _QUERY, census, saveMode=TOOLKIT_SAVEMODE_ONLYFILE, regionName="myarea.geojson"
             )
 
-    def test_only_file_overwrites_silently_on_the_second_call(self, demography, census):
-        """Characterisation of B235."""
+    def test_only_file_replace_overwrites_on_the_second_call(self, demography, census):
+        """B235: ..._REPLACE is the mode that is allowed to clobber."""
         smaller = geopandas.GeoDataFrame([_CELLS[0]], crs=ITM)
         demography.analysis.createNewArea(
-            _QUERY, census, saveMode=TOOLKIT_SAVEMODE_ONLYFILE, regionName="myarea.geojson"
+            _QUERY, census, saveMode=TOOLKIT_SAVEMODE_ONLYFILE_REPLACE, regionName="myarea.geojson"
         )
         demography.analysis.createNewArea(
-            _QUERY, smaller, saveMode=TOOLKIT_SAVEMODE_ONLYFILE, regionName="myarea.geojson"
+            _QUERY, smaller, saveMode=TOOLKIT_SAVEMODE_ONLYFILE_REPLACE, regionName="myarea.geojson"
         )
         written = geopandas.read_file(
             os.path.join(demography.filesDirectory, "myarea.geojson")
         )
         assert written["total_pop"].iloc[0] == 1000
-
-    def test_only_file_and_only_file_replace_behave_identically(self, demography, census):
-        """Characterisation of B235: the two modes are indistinguishable."""
-        for mode, name in (
-            (TOOLKIT_SAVEMODE_ONLYFILE, "plain.geojson"),
-            (TOOLKIT_SAVEMODE_ONLYFILE_REPLACE, "replace.geojson"),
-        ):
-            demography.analysis.createNewArea(
-                _QUERY, census, saveMode=mode, regionName=name
-            )
-            demography.analysis.createNewArea(
-                _QUERY, census, saveMode=mode, regionName=name
-            )
-            assert os.path.exists(os.path.join(demography.filesDirectory, name))
 
 
 @pytest.mark.unit

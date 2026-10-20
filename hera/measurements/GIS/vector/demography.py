@@ -298,6 +298,8 @@ class analysis:
         if saveMode != TOOLKIT_SAVEMODE_NOSAVE:
             filename = regionName if "." in regionName else f"{regionName}.shp"
             fullname = os.path.join(self.datalayer.filesDirectory, filename)
+            if saveMode == TOOLKIT_SAVEMODE_ONLYFILE and os.path.exists(fullname):
+                raise FileExistsError(f"saveMode was set to no replace and file {fullname} already exists")
             newData.to_file(fullname)
 
             if saveMode in [TOOLKIT_SAVEMODE_FILEANDDB, TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
