@@ -355,10 +355,7 @@ class presentation:
         lower_left_converted = convertCRS(points=[[extents[0],extents[2]]], inputCRS=inputCRS, outputCRS=outputCRS)[0]
         upper_right_converted = convertCRS(points=[[extents[1],extents[3]]], inputCRS=inputCRS, outputCRS=outputCRS)[0]
 
-        if outputCRS==ITM:
-            extents = [lower_left_converted.x,upper_right_converted.x,lower_left_converted.y,upper_right_converted.y]
-        else:
-            extents = [lower_left_converted.y,upper_right_converted.y,lower_left_converted.x,upper_right_converted.x]
+        extents = [lower_left_converted.x,upper_right_converted.x,lower_left_converted.y,upper_right_converted.y]
 
         if display:
             ax = plt.imshow(image, extent=extents)

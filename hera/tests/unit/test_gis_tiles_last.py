@@ -55,10 +55,10 @@ passing characterisation of today's behaviour):
   ``self.datalayer.getImage(...)``, but no ``getImage`` method exists
   anywhere in hera, so the documented "name of datasource image in DB"
   input always raises AttributeError.
-* B322: ``presentation.plot`` builds the matplotlib extent as
-  ``[minX, maxX, minY, maxY]`` only when ``outputCRS`` is ITM; for every
+* B322 (fixed): ``presentation.plot`` built the matplotlib extent as
+  ``[minX, maxX, minY, maxY]`` only when ``outputCRS`` was ITM; for every
   other CRS -- including its own ``WSG84`` default for ``inputCRS`` -- it
-  emits ``[minY, maxY, minX, maxX]``, so the image is stretched over a
+  emitted ``[minY, maxY, minX, maxX]``, so the image was stretched over a
   transposed box.
 * B323 (fixed): ``_getImageFromTiles`` wrote the squared corner back into
   the ``lrTiles`` list it was handed, mutating the caller's argument.
@@ -559,25 +559,20 @@ class TestPresentationPlotByName:
 class TestPresentationPlotNonItmOutput:
     EXTENTS = [34.7, 35.2, 31.9, 32.3]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B322: presentation.plot orders the matplotlib extent as "
-               "[x_min, x_max, y_min, y_max] only under `if outputCRS==ITM`; "
-               "every other output CRS takes the else branch, which emits "
-               "[y_min, y_max, x_min, x_max]. Plotting in WGS84 therefore "
-               "stretches the image over a transposed box -- latitudes on the "
-               "x axis and longitudes on the y axis. See the consolidated "
-               "findings issue.",
-    )
     def test_a_wgs84_round_trip_keeps_the_extent_it_was_given(self, tiles):
+        """B322."""
         extent = tiles.presentation.plot(
             _image(), extents=self.EXTENTS, inputCRS=WSG84, outputCRS=WSG84
         ).get_extent()
         assert extent == pytest.approx(self.EXTENTS)
 
-    def test_a_wgs84_round_trip_transposes_the_extent_today(self, tiles):
-        """Characterisation of B322."""
+    def test_every_output_crs_uses_the_same_x_then_y_order(self, tiles):
+        """B322: the ITM branch was the only one in x, x, y, y order."""
         extent = tiles.presentation.plot(
-            _image(), extents=self.EXTENTS, inputCRS=WSG84, outputCRS=WSG84
+            _image(), extents=self.EXTENTS, inputCRS=WSG84, outputCRS=ITM
         ).get_extent()
-        assert extent == pytest.approx([31.9, 32.3, 34.7, 35.2])
+        assert extent[0] < extent[1]
+        assert extent[2] < extent[3]
+        # Israeli TM eastings over Israel are ~1.2e5..2.5e5 m, northings ~6e5.
+        assert 1e5 < extent[0] < 3e5
+        assert 5e5 < extent[2] < 8e5
