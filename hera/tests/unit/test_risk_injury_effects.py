@@ -34,11 +34,11 @@ Deliberately not covered here:
   assert row counts and geometry rather than datetime values.
 
 Bugs found while writing this file: B122 (``Injury.__str__`` returned
-None) and B123 (the "injuries found" list was mangled), both now fixed,
-and B124 (an empty ``calculator`` mapping does not raise the documented
-ValueError) and B125 (a descriptor-level ``units`` string becomes a
-Quantity where a pint Unit is documented), still pinned below as
-xfail(strict)/characterisation pairs.
+None), B123 (the "injuries found" list was mangled) and
+B124 (an empty ``calculator`` mapping did not raise the documented
+ValueError), all now fixed, and B125 (a descriptor-level ``units``
+string becomes a Quantity where a pint Unit is documented), still pinned
+below as an xfail(strict)/characterisation pair.
 """
 import json
 
@@ -195,22 +195,11 @@ class TestInjuryFactoryValidation:
         with pytest.raises(ValueError, match="Calculator not defined"):
             injuryfactory.getInjury("inhalation", descriptor)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B124: an empty `calculator` mapping is exactly the "
-               "'Calculator not defined' case the code means to report, but "
-               "the guard only catches KeyError -- taking [0] of the empty "
-               "items() list raises IndexError instead, so callers cannot "
-               "distinguish a malformed descriptor from an internal error. "
-               "See the consolidated findings issue.",
-    )
     def test_an_empty_calculator_mapping_reports_an_undefined_calculator(self):
+        """B124, fixed: the guard caught only KeyError, so taking [0] of the
+        empty items() list raised IndexError and callers could not tell a
+        malformed descriptor from an internal error."""
         with pytest.raises(ValueError, match="Calculator not defined"):
-            injuryfactory.getInjury("inhalation", _threshold_descriptor(calculator={}))
-
-    def test_an_empty_calculator_mapping_currently_raises_indexerror(self):
-        """Characterisation of B124."""
-        with pytest.raises(IndexError, match="list index out of range"):
             injuryfactory.getInjury("inhalation", _threshold_descriptor(calculator={}))
 
     def test_an_unknown_injury_type_is_reported_as_not_implemented(self):

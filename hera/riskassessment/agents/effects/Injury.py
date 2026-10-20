@@ -51,7 +51,7 @@ class InjuryFactory(object):
 		try:
 			calculatorTypeAndParams = cfgJSON["calculator"]
 			calcType,calcParam = [x for x in calculatorTypeAndParams.items()][0]
-		except KeyError: 
+		except (KeyError,IndexError):
 			raise ValueError("Calculator not defined")
 
 		calculatorCLS = pydoc.locate("hera.riskassessment.agents.effects.Calculator.Calculator%s" % calcType)
