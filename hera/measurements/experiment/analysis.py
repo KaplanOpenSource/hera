@@ -290,8 +290,9 @@ class experimentAnalysis:
     def addTrialProperties(self,data,trialName,trialSetName=None):
         """
         Adds the calculated properties of the trial to the data.
-        - FromRelease: seconds from the release.
         - FromStart  : seconds from the start.
+        - FromRelease: seconds from the release. Added only if the trial
+                       has a ReleaseStart property.
         Assume the time column is timestamp.
 
         Parameters
@@ -320,11 +321,12 @@ class experimentAnalysis:
         else:
             tmp = data
 
-        tmp = tmp.assign(fromStart = tmp.timestamp-startTime,
-                         fromRelease=tmp.timestamp-releaseTime)
+        tmp = tmp.assign(fromStart = tmp.timestamp-startTime)
+        tmp = tmp.assign(fromStartSeconds = tmp.fromStart.apply(lambda x: x.total_seconds()))
 
-        tmp = tmp.assign(fromStartSeconds = tmp.fromStart.apply(lambda x: x.total_seconds()),
-                         fromReleaseSeconds=tmp.fromRelease.apply(lambda x: x.total_seconds()))
+        if releaseTime is not None:
+            tmp = tmp.assign(fromRelease=tmp.timestamp-releaseTime)
+            tmp = tmp.assign(fromReleaseSeconds=tmp.fromRelease.apply(lambda x: x.total_seconds()))
 
 
         return tmp

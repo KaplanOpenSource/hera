@@ -89,14 +89,15 @@ Bugs pinned here
   hard-coded a one-minute bin instead of using the ``samplingWindow``
   argument that the cache key and the normalisation both honour. The
   trial start/end now come from the trial's own properties.
-* B217: ``addTrialProperties`` reads
+* B217 (fixed): ``addTrialProperties`` reads
   ``properties.get("ReleaseStart", None)`` -- deliberately tolerating a
-  trial with no release -- and then unconditionally computes
-  ``tmp.timestamp - releaseTime``, which raises ``TypeError:
+  trial with no release -- and then unconditionally computed
+  ``tmp.timestamp - releaseTime``, which raised ``TypeError:
   unsupported operand type(s) for -: 'DatetimeArray' and 'NoneType'``.
   Every trial without a ``ReleaseStart`` property (the ordinary case for
-  a measurement trial) therefore cannot get its ``fromStart`` columns
-  either, although those do not depend on the release at all.
+  a measurement trial) therefore could not get its ``fromStart`` columns
+  either, although those do not depend on the release at all. The
+  release columns are now added only when there is a release.
 """
 import inspect
 import json
@@ -688,29 +689,21 @@ class TestAddTrialProperties:
 
 @pytest.mark.unit
 class TestAddTrialPropertiesWithoutARelease:
-    """B217: the optional release time is subtracted unconditionally."""
+    """B217: the optional release time is only subtracted when it exists."""
 
     def test_a_trial_without_a_release_has_no_releasestart_property(self, experiment):
-        """Characterisation of B217: the value the method fetches is None."""
+        """The value the method fetches is None."""
         properties = experiment.trialSet["Measurements"]["T1"].properties
         assert "TrialStart" in properties
         assert properties.get("ReleaseStart", None) is None
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B217: addTrialProperties fetches ReleaseStart with "
-               ".get(..., None) -- explicitly tolerating a trial with no "
-               "release -- and then computes tmp.timestamp - releaseTime "
-               "unconditionally, so a trial without a ReleaseStart raises "
-               "TypeError and cannot obtain even the fromStart columns, "
-               "which do not depend on the release. "
-               "See the consolidated findings issue.",
-    )
-    def test_it_should_still_add_the_columns_measured_from_the_start(self, analysis):
+    def test_it_still_adds_the_columns_measured_from_the_start(self, analysis):
         result = analysis.addTrialProperties(_deviceFrame(), "T1")
         assert result.fromStartSeconds.iloc[0] == 0
+        assert result.fromStartSeconds.iloc[3] == 180
 
-    def test_it_currently_raises_a_type_error_on_the_none_release_time(self, analysis):
-        """Characterisation of B217."""
-        with pytest.raises(TypeError, match="unsupported operand type"):
-            analysis.addTrialProperties(_deviceFrame(), "T1")
+    def test_the_release_columns_are_omitted(self, analysis):
+        """There is no release to measure from, so no release columns."""
+        result = analysis.addTrialProperties(_deviceFrame(), "T1")
+        assert "fromRelease" not in result.columns
+        assert "fromReleaseSeconds" not in result.columns
