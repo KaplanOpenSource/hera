@@ -107,12 +107,13 @@ Bugs pinned here
   the latitudes (``lower``/``upper``) on y. The text offset compounds it,
   shifting a longitude value by ``(maxy - miny) * textDeltaY`` where
   ``maxy``/``miny`` are latitudes.
-* B225: ``plotDevicesOnImage`` mutates its own mutable default argument --
-  ``scatterkwargs.setdefault("s", 50)`` / ``setdefault("c", "r")`` on a
-  ``scatterkwargs={}`` default -- so after the first call that omits the
-  argument the shared default dict permanently carries ``s``/``c`` for the
-  rest of the process, and a later caller can no longer get an unstyled
-  scatter by omitting it.
+* B225 (fixed): ``plotDevicesOnImage`` mutated its own mutable default
+  argument -- ``scatterkwargs.setdefault("s", 50)`` / ``setdefault("c",
+  "r")`` on a ``scatterkwargs={}`` default -- so after the first call that
+  omitted the argument the shared default dict permanently carried
+  ``s``/``c`` for the rest of the process, and a later caller could no
+  longer get an unstyled scatter by omitting it. It now copies the dict
+  before filling in the defaults.
 * B226: ``plotDeviceTypeFunctionality`` cannot run, because it calls
   ``analysis.getDeviceTypeTransmissionFrequencyOfTrial`` with
   ``normalize=True`` and without ``recalculate=False``, so it always
@@ -575,36 +576,28 @@ class TestPlotDevicesOnImageSwapsTheAxes:
 
 
 @pytest.mark.unit
-class TestPlotDevicesOnImageMutatesItsDefault:
-    """B225: ``setdefault`` on a mutable default argument."""
+class TestPlotDevicesOnImageLeavesItsDefaultAlone:
+    """B225: ``setdefault`` used to run on the mutable default argument."""
 
     def test_the_scatter_keywords_default_to_a_shared_dictionary(self):
-        """Characterisation of B225: the object that gets mutated."""
+        """The object that used to get mutated."""
         parameter = inspect.signature(
             experimentPresentation.plotDevicesOnImage).parameters["scatterkwargs"]
         assert isinstance(parameter.default, dict)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B225: plotDevicesOnImage calls setdefault on its "
-               "scatterkwargs={} default, so a call that omits the argument "
-               "permanently writes s=50 and c='r' into the shared default "
-               "dict and no later caller can obtain an unstyled scatter by "
-               "omitting it. See the consolidated findings issue.",
-    )
-    def test_omitting_the_scatter_keywords_should_leave_the_default_empty(
+    def test_omitting_the_scatter_keywords_leaves_the_default_empty(
             self, containedPresentation):
         containedPresentation.plotDevicesOnImage("Measurements", "T1", "sonic", "map1")
         assert inspect.signature(
             experimentPresentation.plotDevicesOnImage).parameters["scatterkwargs"].default == {}
 
-    def test_omitting_the_scatter_keywords_currently_pollutes_the_default(
+    def test_a_caller_supplied_dictionary_is_not_written_to_either(
             self, containedPresentation):
-        """Characterisation of B225."""
-        containedPresentation.plotDevicesOnImage("Measurements", "T1", "sonic", "map1")
-        assert inspect.signature(
-            experimentPresentation.plotDevicesOnImage
-        ).parameters["scatterkwargs"].default == {"s": 50, "c": "r"}
+        """B225: the defaults go into a copy, not into the caller's dict."""
+        supplied = dict(marker="x")
+        containedPresentation.plotDevicesOnImage(
+            "Measurements", "T1", "sonic", "map1", scatterkwargs=supplied)
+        assert supplied == {"marker": "x"}
 
 
 # ---------------------------------------------------------------------------

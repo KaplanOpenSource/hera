@@ -417,6 +417,7 @@ class experimentPresentation:
             ax
         """
         import matplotlib.pyplot as plt
+        scatterkwargs = dict(scatterkwargs)
         scatterkwargs.setdefault("s",50)
         scatterkwargs.setdefault("c", "r")
         devices_df = self.datalayer.trialSet[trialSetName][trialName].entitiesTable.query("deviceTypeName==@deviceType and mapName==@mapName")
