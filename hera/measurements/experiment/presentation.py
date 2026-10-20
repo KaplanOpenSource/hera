@@ -433,8 +433,10 @@ class experimentPresentation:
         minx = devices_df.longitude.min()
         miny = devices_df.latitude.min()
         for row in devices_df.itertuples():
-            x = row.latitude
-            y = row.longitude
+            # plotImage puts the longitudes on x (left/right) and the
+            # latitudes on y (lower/upper); the markers follow it.
+            x = row.longitude
+            y = row.latitude
             # argos only adds containedIn when some device on the trial
             # declares containment; NaN means this one does not.
             containedIn = getattr(row, "containedIn", None)

@@ -104,12 +104,13 @@ Bugs pinned here
   a single layout -- every device of the type contained in another device
   -- in which the method ran at all. It now aggregates the two coordinate
   columns.
-* B224: ``plotDevicesOnImage`` scatters ``x=row.latitude, y=row.longitude``,
-  transposing the two axes: the image these devices are meant to sit on is
-  drawn by ``plotImage`` with the longitudes (``left``/``right``) on x and
-  the latitudes (``lower``/``upper``) on y. The text offset compounds it,
-  shifting a longitude value by ``(maxy - miny) * textDeltaY`` where
-  ``maxy``/``miny`` are latitudes.
+* B224 (fixed): ``plotDevicesOnImage`` scattered ``x=row.latitude,
+  y=row.longitude``, transposing the two axes: the image these devices are
+  meant to sit on is drawn by ``plotImage`` with the longitudes
+  (``left``/``right``) on x and the latitudes (``lower``/``upper``) on y.
+  The text offset compounded it, shifting a longitude value by
+  ``(maxy - miny) * textDeltaY`` where ``maxy``/``miny`` are latitudes.
+  The markers now follow the image.
 * B225 (fixed): ``plotDevicesOnImage`` mutated its own mutable default
   argument -- ``scatterkwargs.setdefault("s", 50)`` / ``setdefault("c",
   "r")`` on a ``scatterkwargs={}`` default -- so after the first call that
@@ -511,11 +512,11 @@ class TestPlotDevicesOnImageAggregatesTheCoordinates:
 
 
 @pytest.mark.unit
-class TestPlotDevicesOnImageSwapsTheAxes:
-    """B224: x gets the latitude and y gets the longitude."""
+class TestPlotDevicesOnImageFollowsTheImageAxes:
+    """B224: x used to get the latitude and y the longitude."""
 
     def test_the_image_these_devices_sit_on_is_longitude_by_latitude(self, experiment):
-        """Characterisation of B224: the map's own orientation.
+        """The map's own orientation.
 
         ``left``/``right`` bound the same values as the device longitudes
         and ``lower``/``upper`` the latitudes, so x is longitude.
@@ -527,37 +528,22 @@ class TestPlotDevicesOnImageSwapsTheAxes:
         assert metadata["left"] <= table.longitude.min()
         assert metadata["lower"] <= table.latitude.min()
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B224: plotDevicesOnImage scatters x=row.latitude, "
-               "y=row.longitude, transposing the devices with respect to "
-               "the image plotImage draws (x from left/right, i.e. "
-               "longitudes; y from lower/upper, i.e. latitudes). The label "
-               "offset compounds it, shifting a longitude by the latitude "
-               "spread. See the consolidated findings issue.",
-    )
-    def test_the_markers_should_land_at_longitude_by_latitude(self, containedPresentation):
+    def test_the_markers_land_at_longitude_by_latitude(self, containedPresentation):
         _, ax = containedPresentation.plotDevicesOnImage(
             "Measurements", "T1", "sonic", "map1", scatterkwargs=dict())
         offsets = sorted(tuple(c.get_offsets().tolist()[0]) for c in ax.collections)
         assert offsets == [SONIC_1, SONIC_2]
 
-    def test_the_markers_currently_land_transposed(self, containedPresentation):
-        """Characterisation of B224."""
-        _, ax = containedPresentation.plotDevicesOnImage(
-            "Measurements", "T1", "sonic", "map1", scatterkwargs=dict())
-        offsets = sorted(tuple(c.get_offsets().tolist()[0]) for c in ax.collections)
-        assert offsets == [(SONIC_1[1], SONIC_1[0]), (SONIC_2[1], SONIC_2[0])]
-
-    def test_the_label_offset_is_taken_from_the_latitude_spread(self, containedPresentation):
-        """Characterisation of B224: the offset applied to the y (longitude)
-        coordinate is a fraction of the latitude range."""
+    def test_the_label_offset_shifts_the_latitude_by_the_latitude_spread(
+            self, containedPresentation):
+        """B224: the offset used to be applied to a longitude."""
         _, ax = containedPresentation.plotDevicesOnImage(
             "Measurements", "T1", "sonic", "map1", scatterkwargs=dict(),
             textDeltaX=0, textDeltaY=1.0)
         latitudeSpread = SONIC_2[1] - SONIC_1[1]
         label = sorted(text.get_position() for text in ax.texts)[0]
-        assert label[1] == pytest.approx(SONIC_1[0] + latitudeSpread)
+        assert label[0] == pytest.approx(SONIC_1[0])
+        assert label[1] == pytest.approx(SONIC_1[1] + latitudeSpread)
 
 
 @pytest.mark.unit
