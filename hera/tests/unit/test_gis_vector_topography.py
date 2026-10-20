@@ -39,11 +39,11 @@ passing characterisation of what actually happens)
   ``i`` ranging over ``Nx`` and ``j`` over ``Ny`` -- the two subscripts were
   swapped.  On a non-square grid that raised ``IndexError``; on a square one it
   silently transposed the DEM.
-* **B231** -- ``analysis.addHeight`` calls
+* **B231** (fixed) -- ``analysis.addHeight`` called
   ``coordinateHandler.regularizeTimeSteps(...)``, but the module-level
-  ``from hera.simulations.utils import coordinateHandler`` binds the *module*
+  ``from hera.simulations.utils import coordinateHandler`` bound the *module*
   of that name, not the class inside it (``hera/simulations/utils/__init__.py``
-  is empty).  Every call raises ``AttributeError``.
+  is empty), so every call raised ``AttributeError``.
 * **B232** (fixed) -- a second, independent defect further down
   ``addHeight``: the save-mode comparisons read
   ``toolkit.TOOLKIT_SAVEMODE_FILEANDDB`` etc., but the module-level ``toolkit``
@@ -428,16 +428,8 @@ def _ground(n=6):
 
 @pytest.mark.unit
 class TestAddHeight:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B231: addHeight calls coordinateHandler.regularizeTimeSteps, "
-               "but 'from hera.simulations.utils import coordinateHandler' "
-               "binds the submodule of that name -- the class lives inside it "
-               "and hera/simulations/utils/__init__.py is empty -- so the "
-               "call raises AttributeError on the module. See the "
-               "consolidated findings issue.",
-    )
     def test_it_adds_ground_and_height_columns_to_the_mesh(self, topo):
+        """B231."""
         result = topo._analysis.addHeight(
             _mesh(), _ground(), resolution=2,
             saveMode="nosave",
@@ -445,47 +437,23 @@ class TestAddHeight:
         assert "ground" in result.columns
         assert "height" in result.columns
 
-    def test_it_raises_attributeerror_on_the_coordinate_handler_module(self, topo):
-        """Characterisation of B231."""
-        with pytest.raises(AttributeError) as excinfo:
-            topo._analysis.addHeight(_mesh(), _ground(), resolution=2)
-        message = str(excinfo.value)
-        assert "regularizeTimeSteps" in message
-        assert "coordinateHandler" in message
-
-    def test_the_imported_name_is_a_module_not_the_class(self):
-        """Characterisation of B231: the root cause, stated directly."""
-        import types
-
-        assert isinstance(vector_topography_module.coordinateHandler, types.ModuleType)
-        assert not hasattr(vector_topography_module.coordinateHandler, "regularizeTimeSteps")
-        assert hasattr(vector_topography_module.coordinateHandler, "coordinateHandler")
+    def test_the_imported_name_is_the_class_not_the_module(self):
+        """B231: the root cause, stated directly."""
+        assert isinstance(vector_topography_module.coordinateHandler, type)
+        assert hasattr(vector_topography_module.coordinateHandler, "regularizeTimeSteps")
 
 
 @pytest.mark.unit
-class TestAddHeightSaveModeConstants:
-    """B232, reached by neutralising B231 and nothing else."""
+class TestAddHeightSaveModes:
+    """B232: every save mode gets past the constant lookup."""
 
-    # B231 is still open here, so the coordinate handler is substituted.
-
-    @staticmethod
-    def _working_handler(monkeypatch):
-        """Bind the *class* the module meant to import, leaving B232 exposed."""
-        from hera.simulations.utils.coordinateHandler import coordinateHandler
-
-        monkeypatch.setattr(
-            vector_topography_module, "coordinateHandler", coordinateHandler()
-        )
-
-    def test_the_default_save_mode_writes_the_cell_data_parquet(self, topo, monkeypatch):
+    def test_the_default_save_mode_writes_the_cell_data_parquet(self, topo):
         """B232."""
-        self._working_handler(monkeypatch)
         topo._analysis.addHeight(_mesh(), _ground(), resolution=2)
         assert os.path.exists(os.path.join(topo.filesDirectory, "cellData.parquet"))
 
-    def test_the_computed_ground_and_height_are_sound(self, topo, monkeypatch):
+    def test_the_computed_ground_and_height_are_sound(self, topo):
         """B232: ground rises 1 m per metre of x; height is clamped at 0."""
-        self._working_handler(monkeypatch)
         mesh = _mesh()
         topo._analysis.addHeight(mesh, _ground(), resolution=2, saveMode="nosave")
 
@@ -496,30 +464,27 @@ class TestAddHeightSaveModeConstants:
         "saveMode",
         ["nosave", "onlyFile", "onlyFileReplace", "fileAndDB", "anything at all"],
     )
-    def test_every_save_mode_gets_past_the_constant_lookup(self, topo, monkeypatch, saveMode):
+    def test_every_save_mode_gets_past_the_constant_lookup(self, topo, saveMode):
         """B232: the ``if saveMode in [...]`` list literal used to raise for
         every mode, NOSAVE included, so addHeight could never return."""
-        self._working_handler(monkeypatch)
         result = topo._analysis.addHeight(
             _mesh(), _ground(), resolution=2, saveMode=saveMode
         )
         assert "height" in result.columns
 
-    def test_the_height_is_clamped_at_zero_below_the_ground(self, topo, monkeypatch):
+    def test_the_height_is_clamped_at_zero_below_the_ground(self, topo):
         """B232: cells below ground get height 0, not a negative.
 
         Ground rises 1 m per metre of x, so at x=10 the ground is 10 m and a
         cell at z=1 sits 9 m below it.
         """
-        self._working_handler(monkeypatch)
         mesh = pandas.DataFrame({"x": [10.0], "y": [0.0], "z": [1.0]})
         topo._analysis.addHeight(mesh, _ground(), resolution=2, saveMode="nosave")
         assert mesh["ground"].iloc[0] == pytest.approx(10.0, abs=1e-6)
         assert mesh["height"].iloc[0] == 0.0
 
-    def test_the_computed_columns_are_appended_in_order(self, topo, monkeypatch):
+    def test_the_computed_columns_are_appended_in_order(self, topo):
         """B232: 'ground' then 'height', after the input columns."""
-        self._working_handler(monkeypatch)
         mesh = _mesh()
         topo._analysis.addHeight(mesh, _ground(), resolution=2, saveMode="nosave")
         assert list(mesh.columns) == ["x", "y", "z", "ground", "height"]

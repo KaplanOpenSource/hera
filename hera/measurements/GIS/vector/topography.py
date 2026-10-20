@@ -10,7 +10,7 @@ import dask
 from numpy import array, sqrt
 import pandas
 
-from hera.simulations.utils import coordinateHandler
+from hera.simulations.utils.coordinateHandler import coordinateHandler
 from hera.utils.logging import get_classMethod_logger
 
 from hera.toolkit import TOOLKIT_SAVEMODE_ONLYFILE, TOOLKIT_SAVEMODE_ONLYFILE_REPLACE, TOOLKIT_SAVEMODE_FILEANDDB, TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
@@ -258,7 +258,7 @@ class analysis():
         """
         nx = int((groundData[coord1].max()-groundData[coord1].min())/resolution)
         ny = int((groundData[coord2].max() - groundData[coord2].min()) / resolution)
-        xarrayGround = coordinateHandler.regularizeTimeSteps(data=groundData, fieldList=[coord3],coord1=coord1, coord2=coord2, n=(nx,ny), addSurface=False, toPandas=False)[0]
+        xarrayGround = coordinateHandler().regularizeTimeSteps(data=groundData, fieldList=[coord3],coord1=coord1, coord2=coord2, n=(nx,ny), addSurface=False, toPandas=False)[0]
         ground = []
         valuesDict = {}
         for i in range(len(data)):
