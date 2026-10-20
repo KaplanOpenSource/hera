@@ -36,16 +36,15 @@ Deliberately not covered here:
 Bugs found while writing this file: B122 (``Injury.__str__`` returned
 None), B123 (the "injuries found" list was mangled) and
 B124 (an empty ``calculator`` mapping did not raise the documented
-ValueError), all now fixed, and B125 (a descriptor-level ``units``
-string becomes a Quantity where a pint Unit is documented), still pinned
-below as an xfail(strict)/characterisation pair.
+ValueError) and B125 (a descriptor-level ``units`` string became a
+Quantity where a pint Unit is documented) -- all now fixed.
 """
 import json
 
 import numpy
 import pandas
 import pytest
-from pint import Quantity, Unit
+from pint import Unit
 from scipy.stats import norm
 from shapely.geometry import Polygon
 
@@ -302,27 +301,16 @@ class TestDescriptorUnits:
         assert threshold_injury["Severe"].units == ureg.mg / ureg.m**3
         assert isinstance(threshold_injury["Severe"].units, Unit)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B125: Injury.__init__ converts the descriptor's units "
-               "string with ureg(units), which yields a Quantity of "
-               "magnitude 1 rather than the pint.Unit that InjuryLevel.units "
-               "documents and that hera.utils.tounit accepts (Unit or str "
-               "only) -- so a declared unit reaches every level as the wrong "
-               "type and leaks into toJSON as '1.0 milligram / meter ** 3'. "
-               "See the consolidated findings issue.",
-    )
     def test_a_declared_unit_reaches_the_levels_as_a_pint_unit(self):
+        """B125, fixed: the string was converted with ureg(units), which
+        yields a Quantity of magnitude 1 rather than the pint.Unit that
+        InjuryLevel.units documents and that hera.utils.tounit accepts."""
         injury = injuryfactory.getInjury("inhalation", _threshold_descriptor(units="mg/m**3"))
         assert isinstance(injury["Severe"].units, Unit)
 
-    def test_a_declared_unit_currently_arrives_as_a_quantity(self):
-        """Characterisation of B125."""
+    def test_a_declared_unit_serialises_as_the_unit_alone(self):
         injury = injuryfactory.getInjury("inhalation", _threshold_descriptor(units="mg/m**3"))
-        units = injury["Severe"].units
-        assert isinstance(units, Quantity)
-        assert units.magnitude == pytest.approx(1.0)
-        assert injury.toJSON()["levels"]["Severe"]["units"].startswith("1.0 ")
+        assert injury.toJSON()["levels"]["Severe"]["units"] == "milligram / meter ** 3"
 
     def test_the_threshold_value_is_still_converted_to_the_declared_unit(self):
         injury = injuryfactory.getInjury(

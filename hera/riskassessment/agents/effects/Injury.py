@@ -142,7 +142,7 @@ class Injury(object):
 		levelNames = cfgJSON.get("levels")
 
 		if units is not None:
-			units = ureg(units)
+			units = ureg.Unit(units)
 
 		for lvl in levelNames:
 			try:
