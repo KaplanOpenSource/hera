@@ -292,9 +292,11 @@ def create_workflow_variations(arguments):
     
     logger.info("checking variations file")
     if not os.path.exists(variation_json_path):
-        logger.error(f"{variation_json_path} doesn't point to anything.")    
+        logger.error(f"{variation_json_path} doesn't point to anything.")
+        return
     elif not os.path.isfile(variation_json_path):
         logger.error(f"{variation_json_path} must be a file")
+        return
     
     logger.info("Loading variations file")
     with open(variation_json_path) as varitation_json_file:

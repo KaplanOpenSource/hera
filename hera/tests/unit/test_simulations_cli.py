@@ -22,9 +22,8 @@ Deliberately not tested:
 
 Bugs pinned here (each with an xfail for the intended behaviour plus a
 passing characterisation of what actually happens):
-  * create_workflow_variations logs an error for a missing variation
-    JSON / an unknown workflow and then carries on into
-    FileNotFoundError / IndexError;
+  * create_workflow_variations logs an error for an unknown workflow and
+    then carries on into IndexError;
   * workflow_compare with the default `--format pandas` plus `--file`
     tries to write a DataFrame object to a text file (TypeError).
 """
@@ -772,27 +771,19 @@ class TestCreateWorkflowVariations:
         create_workflow_variations(_variationArgs(variations, naming_scheme="name"))
         assert not (tmp_path / "wf_0.json").exists()
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B133: create_workflow_variations only logs an error when the "
-               "variation JSON path does not exist and then falls through to "
-               "open() it, so the command dies with a raw FileNotFoundError "
-               "instead of reporting the bad path. "
-               "See the consolidated findings issue.",
-    )
     def test_a_missing_variation_file_is_reported_without_crashing(
         self, install_toolkit, tmp_path
     ):
         install_toolkit(_variationToolkit(tmp_path))
         create_workflow_variations(_variationArgs(tmp_path / "nosuchfile.json"))
+        assert not (tmp_path / "wf_0.json").exists()
 
-    def test_a_missing_variation_file_currently_raises_filenotfounderror(
+    def test_a_directory_instead_of_a_variation_file_is_reported_too(
         self, install_toolkit, tmp_path
     ):
-        """Characterisation of B133."""
         install_toolkit(_variationToolkit(tmp_path))
-        with pytest.raises(FileNotFoundError):
-            create_workflow_variations(_variationArgs(tmp_path / "nosuchfile.json"))
+        create_workflow_variations(_variationArgs(tmp_path))
+        assert not (tmp_path / "wf_0.json").exists()
 
     @pytest.mark.xfail(
         strict=True,
