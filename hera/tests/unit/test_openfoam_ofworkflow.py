@@ -25,7 +25,7 @@ tests use a document produced by the real workflow toolkit against the
 in-memory datalayer, so ``document.save()`` in the setters is exercised for
 real.
 
-Bugs pinned here: B145 (``controlDict`` reads the wrong node name), B146
+Bugs pinned here: B146
 (``fvScheme`` reads the wrong node name), B147 (``__setitem__`` calls a
 misspelt, name-mangled super method), B148 and B149 (``set_blockMesh_blockHeight``
 moves the bottom face instead of the top one, and then derives a zero cell
@@ -205,42 +205,26 @@ class TestNodeAccessors:
 
 @pytest.mark.unit
 class TestControlDictAccessor:
-    """B145: the accessor and the required-node list disagree on the casing."""
+    """The accessor and the required-node list agree on the casing."""
 
     def test_the_required_node_is_spelt_with_a_lowercase_c(self, eulerian):
         """Baseline: the node really is there under the name the class
-        validates against, so the failure below is about the accessor's key,
-        not about a missing node."""
+        validates against."""
         assert "controlDict" in eulerian.nodes
         assert eulerian["controlDict"].name == "controlDict"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B145: abstractWorkflow.controlDict returns self['ControlDict'] "
-               "(capital C), but _requiredNodeList -- which workflow_Eulerian "
-               "enforces at construction -- names the node 'controlDict', as do "
-               "all the flow templates under hera/doc. hermes' __getitem__ "
-               "answers None for an unknown node instead of raising, so the "
-               "accessor silently yields None on every workflow that has just "
-               "passed the class's own validation. "
-               "See the consolidated findings issue.",
-    )
-    def test_the_control_dict_node_should_be_reachable_through_the_accessor(self, eulerian):
+    def test_the_control_dict_node_is_reachable_through_the_accessor(self, eulerian):
         assert eulerian.controlDict.name == "controlDict"
 
-    def test_the_control_dict_accessor_is_currently_always_none(self, eulerian):
-        """Characterisation of B145."""
-        assert eulerian.controlDict is None
-
-    def test_the_accessor_only_answers_for_a_node_named_with_a_capital_c(
+    def test_the_accessor_does_not_answer_for_a_node_named_with_a_capital_c(
         self, workingDirectory
     ):
-        """Characterisation of B145: the accessor is not broken outright, it
-        reads a name that only the Lagrangian dispersion templates use."""
+        """'ControlDict' is an openFOAM *type* name, never a node name; a
+        workflow that only carries a node so spelt has no controlDict."""
         workflowObject = abstractWorkflow(
             _workflowJSON(extraNodes=["ControlDict"]), WD_path=workingDirectory
         )
-        assert workflowObject.controlDict.name == "ControlDict"
+        assert workflowObject["ControlDict"].name == "ControlDict"
 
 
 @pytest.mark.unit

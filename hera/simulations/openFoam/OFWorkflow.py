@@ -84,8 +84,8 @@ class abstractWorkflow(hermes.workflow):
 
     @property
     def controlDict(self):
-        """Return the ControlDict workflow node."""
-        return self['ControlDict']
+        """Return the controlDict workflow node."""
+        return self['controlDict']
 
     @property
     def fvSolution(self):
