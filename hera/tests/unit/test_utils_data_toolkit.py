@@ -664,7 +664,7 @@ class TestHandleFunction:
     def test_a_dict_value_is_one_call_with_overwrite_appended(self, dtk, tmp_path):
         path = _writeRepository(tmp_path, "inner", {})
         dtk._handle_Function(
-            None, "Function",
+            dtk, "Function",
             {"addRepository": {"repositoryName": "fromFunction", "repositoryPath": path}},
             False, "",
         )
@@ -674,7 +674,7 @@ class TestHandleFunction:
         first = _writeRepository(tmp_path, "first", {})
         second = _writeRepository(tmp_path, "second", {})
         dtk._handle_Function(
-            None, "Function",
+            dtk, "Function",
             {"addRepository": [
                 {"repositoryName": "one", "repositoryPath": first},
                 {"repositoryName": "two", "repositoryPath": second},
@@ -686,7 +686,7 @@ class TestHandleFunction:
     def test_a_non_dict_element_in_the_list_is_skipped(self, dtk, tmp_path):
         path = _writeRepository(tmp_path, "inner", {})
         dtk._handle_Function(
-            None, "Function",
+            dtk, "Function",
             {"addRepository": ["nonsense", {"repositoryName": "ok", "repositoryPath": path}]},
             False, "",
         )
@@ -694,29 +694,18 @@ class TestHandleFunction:
 
     def test_a_scalar_value_raises(self, dtk):
         with pytest.raises(ValueError, match="must be dict"):
-            dtk._handle_Function(None, "Function", {"addRepository": "nonsense"}, False, "")
+            dtk._handle_Function(dtk, "Function", {"addRepository": "nonsense"}, False, "")
 
     def test_an_unknown_function_name_raises_attributeerror(self, dtk):
         with pytest.raises(AttributeError):
-            dtk._handle_Function(None, "Function", {"noSuchMethod": {}}, False, "")
+            dtk._handle_Function(dtk, "Function", {"noSuchMethod": {}}, False, "")
 
 
 @pytest.mark.unit
-class TestHandleFunctionTargetsTheWrongObject:
-    """B156: methods are resolved on the dataToolkit, not on the toolkit."""
+class TestHandleFunctionTargetsTheToolkit:
+    """B156: a Function section sits under a toolkit key, so its calls belong
+    to that toolkit in the target project."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B156: _handle_Function does `getattr(self, itemName)` where "
-               "self is the dataToolkit (bound to the read-only default "
-               "project), not `getattr(toolkit, itemName)`. A Function section "
-               "sits under a toolkit key in the repository JSON, so its calls "
-               "are meant for that toolkit in the target project; instead the "
-               "toolkit argument is unused and only dataToolkit's own methods "
-               "can ever be invoked -- and any of them that touch the config "
-               "blow up because the default project forbids configuration. "
-               "See the consolidated findings issue.",
-    )
     def test_a_function_section_calls_the_method_on_the_target_toolkit(self, dtk, make_target_toolkit):
         dtk.loadAllDatasourcesInRepositoryJSONToProject(
             projectName="FUNCTION_PROJECT_1",
@@ -724,15 +713,13 @@ class TestHandleFunctionTargetsTheWrongObject:
         )
         assert make_target_toolkit("FUNCTION_PROJECT_1").getConfig()["answer"] == 42
 
-    def test_a_function_section_calls_the_method_on_the_datatoolkit(self, dtk, make_target_toolkit):
-        """Characterisation of B156."""
+    def test_nothing_is_written_to_the_default_project(self, dtk, make_target_toolkit):
+        """The dataToolkit itself would refuse the call, which is why it must
+        not be the target."""
         dtk.loadAllDatasourcesInRepositoryJSONToProject(
             projectName="FUNCTION_PROJECT_2",
             repositoryJSON={TARGET_TOOLKIT_NAME: {"Function": {"setConfig": {"answer": 42}}}},
         )
-        # nothing reached the target project ...
-        assert "answer" not in make_target_toolkit("FUNCTION_PROJECT_2").getConfig()
-        # ... because setConfig ran on the default project, which refuses it
         with pytest.raises(ValueError, match="[Dd]efault project"):
             dtk.setConfig(answer=42)
 

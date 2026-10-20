@@ -429,7 +429,7 @@ class dataToolkit(abstractToolkit):
         """
         Handle a Function section by calling named methods on the toolkit.
 
-        Each key in ``docTypeDict`` is a method name on ``self``. The value can be:
+        Each key in ``docTypeDict`` is a method name on ``toolkit``. The value can be:
         - A dict: passed as keyword arguments to a single call.
         - A list of dicts: each dict triggers a separate call.
 
@@ -438,7 +438,7 @@ class dataToolkit(abstractToolkit):
         Parameters
         ----------
         toolkit : abstractToolkit
-            The toolkit instance (unused directly; methods are called on ``self``).
+            The toolkit instance the methods are called on.
         itemName : str
             The section name.
         docTypeDict : dict
@@ -450,7 +450,10 @@ class dataToolkit(abstractToolkit):
         """
         logger = get_classMethod_logger(self, "_handle_GeneralFunction")
         for itemName, itemDesc in docTypeDict.items():
-            retrieveFunc = getattr(self,itemName)
+            # The Function section sits under a toolkit key, so the calls are
+            # meant for that toolkit in the target project -- not for self,
+            # which is bound to the read-only default project.
+            retrieveFunc = getattr(toolkit,itemName)
 
             if isinstance(itemDesc,dict):
                 retrieveFunc(**itemDesc,overwrite=overwrite)
