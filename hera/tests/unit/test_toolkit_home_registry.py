@@ -24,21 +24,14 @@ and the shared ``_toolkits`` dict is never mutated.  ``registerToolkit``
 writes through ``dataToolkit()``, i.e. into ``defaultProject``, which the
 conftest's ``_reset_unit_database`` drops after every test.
 
-Two of the six targeted methods can never succeed, and both fail for the
-same reason -- they call ``registerToolkit`` with keyword names that do not
-exist in its signature.  Pinned below as B259 (``auto_register_and_get``)
-and B260 (``import_toolkits_from_json``).
-
 Deliberately not covered here:
 
 * ``getToolkit`` and ``registerToolkit`` themselves, and the
-  ``setDefaultRepository``/``getDefaultRepository`` pair (with its already
-  reported B21/B22) -- see ``test_toolkit_home.py``.
+  ``setDefaultRepository``/``getDefaultRepository`` pair -- see
+  ``test_toolkit_home.py``.
 * The dynamic-toolkit *loading* branch of ``getToolkit`` (sys.path
   manipulation and ``pydoc.locate`` of an on-disk package): it needs a real
   importable toolkit package on disk, which is an integration concern.
-* ``getRiskAreas``-style end-to-end toolkit instantiation: the importers are
-  exercised up to the point where they hand off, which is where they break.
 """
 import json
 
@@ -611,51 +604,28 @@ class TestAutoRegisterAndGetValidation:
 
 
 @pytest.mark.unit
-class TestAutoRegisterAndGetIsBroken:
-    """B259: see the module docstring."""
+class TestAutoRegisterAndGet:
+    """What the classpath hint registers, and what comes back."""
 
     HINT = {"MyTK": {"Registry": {"classpath": RISK_CLASSPATH}}}
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B259: auto_register_and_get calls "
-               "self.registerToolkit(toolkitclass=..., datasource_name=..., "
-               "params=..., version=..., overwrite=True, repositoryName=...), "
-               "but registerToolkit's signature is "
-               "(toolkit_name, toolkit_path, params, version, overwrite, "
-               "**kwargs).  toolkitclass/datasource_name are absorbed by "
-               "**kwargs while the two required positional parameters go "
-               "unfilled, so the call raises TypeError: registerToolkit() "
-               "missing 2 required positional arguments: 'toolkit_name' and "
-               "'toolkit_path'.  The method can never return a toolkit. "
-               "See the consolidated findings issue.",
-    )
-    def test_it_should_return_an_instance_of_the_hinted_class(self, home):
+    def test_it_returns_an_instance_of_the_hinted_class(self, home):
         from hera.riskassessment.riskToolkit import RiskToolkit
 
         toolkit = home.auto_register_and_get(
             "MyTK", repositoryJSON=self.HINT, repositoryName="repoA")
         assert isinstance(toolkit, RiskToolkit)
 
-    def test_it_currently_raises_a_type_error(self, home):
-        """Characterisation of B259."""
-        with pytest.raises(TypeError, match="missing 2 required positional arguments"):
-            home.auto_register_and_get("MyTK", repositoryJSON=self.HINT,
-                                       repositoryName="repoA")
+    def test_it_registers_under_the_requested_name(self, home):
+        home.auto_register_and_get("MyTK", repositoryJSON=self.HINT,
+                                   repositoryName="repoA")
 
-    def test_nothing_is_registered_before_it_fails(self, home):
-        """Characterisation of B259: registration and instantiation both
-        sit behind the broken call, so the DB is untouched."""
-        with pytest.raises(TypeError):
-            home.auto_register_and_get("MyTK", repositoryJSON=self.HINT,
-                                       repositoryName="repoA")
+        assert [d["toolkit"] for d in home.getToolkitDocuments(name="MyTK")] == ["MyTK"]
 
-        assert home.getToolkitDocuments(name="MyTK") == []
+    def test_explicit_params_and_version_are_accepted(self, home):
+        from hera.riskassessment.riskToolkit import RiskToolkit
 
-    def test_the_same_wall_is_hit_with_explicit_params_and_version(self, home):
-        """Characterisation of B259: none of the caller-supplied arguments
-        change the outcome."""
-        with pytest.raises(TypeError, match="missing 2 required positional arguments"):
-            home.auto_register_and_get("MyTK", repositoryJSON=self.HINT,
-                                       repositoryName="repoA",
-                                       params={"a": 1}, version=(9, 9, 9))
+        toolkit = home.auto_register_and_get("MyTK", repositoryJSON=self.HINT,
+                                             repositoryName="repoA",
+                                             params={"a": 1}, version=(9, 9, 9))
+        assert isinstance(toolkit, RiskToolkit)

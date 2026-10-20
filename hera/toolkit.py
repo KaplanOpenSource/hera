@@ -944,16 +944,18 @@ class ToolkitHome(abstractToolkit):
 
         # Register (idempotent if overwrite=True)
         self.registerToolkit(
-            toolkitclass=toolkit_cls,
-            datasource_name=toolkitName,
+            toolkit_name=toolkitName,
+            toolkit_path=mod.__file__,
             params=params,
             version=version,
             overwrite=True,
             repositoryName=repo_to_use,
         )
 
-        # Return an instance
-        return self.getToolkit(toolkitName=toolkitName)
+        # Return an instance of the class the hint resolved to. getToolkit is
+        # not used here because its dynamic branch resolves by the
+        # <name>.<name> package convention, not by classpath.
+        return toolkit_cls(projectName=projectName)
 
     # ------------------------------------------------------------------
     # Listing toolkits (static + dynamic)
