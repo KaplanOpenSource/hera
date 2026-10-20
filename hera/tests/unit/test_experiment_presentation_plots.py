@@ -63,10 +63,13 @@ Bugs pinned here
   ``KeyError: 'xleft'`` -- after the image itself had been decoded, so the
   method was dead for every experiment. The grid locator read the same
   four keys and is fixed with it.
-* B219: ``plotMap`` reads ``self.trialSet[trialSetName][trialName]``, but
-  ``trialSet`` lives on the datalayer, not on the presentation layer
-  (``self.datalayer.trialSet``), so the first statement raises
-  ``AttributeError``. Three further defects sit behind it: ``ax`` and
+* B219 (partly fixed): ``plotMap`` read
+  ``self.trialSet[trialSetName][trialName]``, but ``trialSet`` lives on
+  the datalayer, not on the presentation layer
+  (``self.datalayer.trialSet``), so the first statement raised
+  ``AttributeError``. That is fixed. The method is still dead -- its own
+  docstring says "NOT COMPLETE!!" -- and the three defects behind it all
+  need a decision about what its signature should be: ``ax`` and
   ``plot_kwargs`` are read although neither is a parameter of the method
   (its only parameters are ``trialSetName`` and ``trialName``),
   ``deviceType`` and ``toolkitDataSource`` are undefined names, and the
@@ -629,15 +632,16 @@ class TestPlotImage:
 
 @pytest.mark.unit
 class TestPlotMap:
-    """B219: the trial sets are read off the wrong object."""
+    """B219: the trial sets come off the datalayer now; the rest of the
+    method is still unwritten."""
 
     def test_the_presentation_layer_has_no_trial_sets_of_its_own(self, presentation):
-        """Characterisation of B219: the attribute the method reads."""
+        """Why the method reads self.datalayer.trialSet."""
         assert not hasattr(presentation, "trialSet")
         assert hasattr(presentation.datalayer, "trialSet")
 
     def test_it_reads_names_that_are_not_its_parameters(self):
-        """Characterisation of B219: ax, plot_kwargs, deviceType and
+        """What is still in the way: ax, plot_kwargs, deviceType and
         toolkitDataSource are all read but never passed or defined."""
         parameters = list(inspect.signature(experimentPresentation.plotMap).parameters)
         assert parameters == ["self", "trialSetName", "trialName"]
@@ -647,20 +651,20 @@ class TestPlotMap:
 
     @pytest.mark.xfail(
         strict=True,
-        reason="B219: plotMap reads self.trialSet, but trialSet lives on the "
-               "datalayer, so the first statement raises AttributeError. "
-               "Behind it: ax/plot_kwargs are read although neither is a "
-               "parameter, deviceType and toolkitDataSource are undefined "
-               "names, and the method returns nothing. "
-               "See the consolidated findings issue.",
+        reason="plotMap is still dead after the B219 fix, and its own "
+               "docstring says NOT COMPLETE: ax and plot_kwargs are read "
+               "although neither is a parameter, deviceType and "
+               "toolkitDataSource are undefined names, and the method "
+               "returns nothing. Completing it is a design decision, not a "
+               "typo fix. See the consolidated findings issue.",
     )
     def test_it_should_plot_the_devices_of_the_trial_on_a_tile_map(self, presentation):
         result = presentation.plotMap("Measurements", "T1")
         assert result is not None
 
-    def test_it_currently_raises_an_attribute_error(self, presentation):
-        """Characterisation of B219."""
-        with pytest.raises(AttributeError, match="trialSet"):
+    def test_it_now_gets_past_the_trial_set_lookup(self, presentation):
+        """B219: this used to be an AttributeError on self.trialSet."""
+        with pytest.raises(NameError, match="ax"):
             presentation.plotMap("Measurements", "T1")
 
 

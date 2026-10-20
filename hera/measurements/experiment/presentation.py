@@ -231,7 +231,7 @@ class experimentPresentation:
 
         """
         import matplotlib.pyplot as plt
-        devices_df = self.trialSet[trialSetName][trialName].entitiesTable
+        devices_df = self.datalayer.trialSet[trialSetName][trialName].entitiesTable
 
         if ax is None:
             plot_kwargs = plot_kwargs or {}
