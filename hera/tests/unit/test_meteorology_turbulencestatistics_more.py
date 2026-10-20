@@ -598,24 +598,13 @@ class TestSparkFluctuations:
         assert len(calculator.TemporaryData) == 1
         assert numpy.allclose(calculator.RawData["u_bar"], raw["u"].mean())
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B306: SinglePointStatisticsSpark.fluctuations never sets "
-               "self.data, which the base implementation does as its last "
-               "act, so getData() still answers None after the override has "
-               "computed everything -- and getData's docstring says None "
-               "means no computation has happened yet. See the consolidated "
-               "findings issue.",
-    )
-    def test_the_computed_frame_should_be_reachable_through_get_data(self):
+    def test_the_computed_frame_is_reachable_through_get_data(self):
+        """B306: the override never set self.data, which the base
+        implementation does as its last act, so getData() answered None --
+        which its docstring defines as "no computation has happened yet"."""
         calculator = _spark(_raw()).fluctuations()
-        assert calculator.getData() is not None
-
-    def test_get_data_currently_stays_empty(self):
-        """Characterisation of B306."""
-        calculator = _spark(_raw()).fluctuations()
-        assert calculator.getData() is None
-        assert "up" in calculator.RawData.columns
+        assert calculator.getData() is calculator.RawData
+        assert "up" in calculator.getData().columns
 
     def test_the_mean_wind_direction_survives_compute(self):
         """B307: the override wrote wind_dir_bar into _TemporaryData but left
