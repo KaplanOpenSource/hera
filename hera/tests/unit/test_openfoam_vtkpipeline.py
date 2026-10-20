@@ -1137,22 +1137,6 @@ class TestFilterCachedTimesteps:
         assert toProcess == ["f"]
         assert docs == {}
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B319: _filterCachedTimesteps rebinds the single `timeList` "
-               "local inside its per-filter loop "
-               "(`timeList = [ts for ts in timeList if ts not in dbTimeList]`) "
-               "and returns that one list for every filter.  A filter whose "
-               "cache is complete therefore empties the timestep list for all "
-               "the *other* filters iterated after it, so a filter with no "
-               "cache at all is appended to filtersToProcess (len(docList)==0) "
-               "and then computed over zero timesteps -- after which "
-               "_updateCacheDB records a cache document claiming an empty "
-               "timeList for an output file that holds nothing.  Two filters "
-               "with disjoint cached times make it order dependent as well: "
-               "whichever is visited first is the one recomputed.  See the "
-               "consolidated findings issue.",
-    )
     def test_a_cached_filter_does_not_steal_the_timesteps_of_an_uncached_one(self, of, registered):
         of.addCacheDocument(
             resource="/somewhere/cached_0.parquet",
@@ -1166,8 +1150,7 @@ class TestFilterCachedTimesteps:
         assert toProcess == ["fresh"]
         assert list(timeList) == [0.0, 10.0]
 
-    def test_the_timestep_list_is_currently_shared_across_filters(self, of, registered):
-        """Characterisation of B319."""
+    def test_a_fully_cached_filter_is_not_recomputed(self, of, registered):
         of.addCacheDocument(
             resource="/somewhere/cached_0.parquet",
             dataFormat="parquet",
@@ -1175,16 +1158,14 @@ class TestFilterCachedTimesteps:
             desc=_cacheDescriptionFor(registered, "cached", False, [0.0, 10.0]),
         )
         timeList, toProcess, _, _ = registered._filterCachedTimesteps(
-            ["cached", "fresh"], [0.0, 10.0], False, "parquet", False
+            ["cached"], [0.0, 10.0], False, "parquet", False
         )
-        assert toProcess == ["fresh"]
+        assert toProcess == []
         assert list(timeList) == []
 
-    def test_which_fully_cached_filter_is_recomputed_depends_on_the_order(self, of, registered):
-        """Characterisation of B319: with two filters cached over disjoint
-        times, each one's subtraction leaves the other's times behind, so the
-        filter visited first is recomputed even though its cache is complete.
-        """
+    def test_two_partly_cached_filters_are_handled_the_same_in_either_order(self, of, registered):
+        """Each filter is missing the other's cached timestep, so both need
+        computing and the answer does not depend on the order they come in."""
         for filterName, cachedTimes in (("a", [0.0]), ("b", [10.0])):
             of.addCacheDocument(
                 resource=f"/somewhere/{filterName}_0.parquet",
@@ -1193,14 +1174,14 @@ class TestFilterCachedTimesteps:
                 desc=_cacheDescriptionFor(registered, filterName, False, cachedTimes),
             )
 
-        _, firstOrder, _, _ = registered._filterCachedTimesteps(
+        firstTimes, firstOrder, _, _ = registered._filterCachedTimesteps(
             ["a", "b"], [0.0, 10.0], False, "parquet", False
         )
-        _, secondOrder, _, _ = registered._filterCachedTimesteps(
+        secondTimes, secondOrder, _, _ = registered._filterCachedTimesteps(
             ["b", "a"], [0.0, 10.0], False, "parquet", False
         )
-        assert firstOrder == ["a"]
-        assert secondOrder == ["b"]
+        assert sorted(firstOrder) == sorted(secondOrder) == ["a", "b"]
+        assert list(firstTimes) == list(secondTimes) == [0.0, 10.0]
 
 
 @pytest.mark.unit
@@ -1746,24 +1727,22 @@ class TestGetData:
         registered.getData(regularMesh=False)
         assert paraviewLog == []
 
-    def test_a_filter_starved_of_timesteps_is_still_recorded_as_cached(self, of, executedPipeline):
-        """Characterisation of B319 as it surfaces through getData: the
-        already-cached filter empties the timestep list, so the brand-new
-        filter requested alongside it is "computed" over zero timesteps and
-        still gets a cache document claiming so.
-        """
+    def test_a_new_filter_alongside_a_cached_one_keeps_its_timesteps(self, of, executedPipeline):
+        """The already-cached filter no longer empties the timestep list, so
+        the brand-new filter requested alongside it is computed over the
+        timesteps that were asked for."""
         registered, calls = executedPipeline
         registered.getData(regularMesh=False)
         registered.getData(regularMesh=False, filter_name=["ExtractBlock.slice", "ghost"])
 
-        assert calls["writeCase"][1]["timeList"] == []
+        assert calls["writeCase"][1]["timeList"] == [0.0, 10.0]
         ghost = [
             doc
             for doc in of.getCacheDocuments(type=TYPE_VTK_FILTER)
             if os.path.basename(doc.resource) == "ghost_0.parquet"
         ]
         assert len(ghost) == 1
-        assert ghost[0].desc["simulation"]["timeList"] == []
+        assert ghost[0].desc["simulation"]["timeList"] == [0.0, 10.0]
 
 
 @pytest.mark.unit

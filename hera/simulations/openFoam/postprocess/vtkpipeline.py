@@ -400,6 +400,7 @@ class RegisteredVTKPipeLine:
         filtersToProcess = []
         filtersOutputFilename = dict()
         DBDocumentsDict = dict()
+        requiredTimes = set()
 
         for fName in requestedFilters:
             qry = self._buildFilterQuery(filter_name=fName, regularMesh=regularMesh)
@@ -411,7 +412,9 @@ class RegisteredVTKPipeLine:
                 cached_filter = docList[0]
                 filtersOutputFilename[fName] = cached_filter.resource
                 dbTimeList = cached_filter['desc']['simulation']['timeList']
-                timeList = [ts for ts in timeList if ts not in dbTimeList]
+                # Per filter: subtracting here must not shorten the list of any
+                # other filter in this loop.
+                filterTimeList = [ts for ts in timeList if ts not in dbTimeList]
                 DBDocumentsDict[fName] = cached_filter
             else:
                 # Cache miss — generate a fresh output file path.
@@ -420,16 +423,20 @@ class RegisteredVTKPipeLine:
                 _ = self.datalayer.getCounterAndAdd(counter_name)
                 outputFilePath = self.getFilterOutputFilePath(fName, filext)
                 filtersOutputFilename[fName] = outputFilePath
+                filterTimeList = [ts for ts in timeList]
 
             # A filter needs computation if: forced overwrite, no cache, or
             # there are timesteps not yet in the cache.
             logger.debug(
                 "Compute the filter if you need to overwrite the results, it is not in the DB, or there are times not in the DB")
-            if overwrite or len(docList) == 0 or len(timeList) > 0:
+            if overwrite or len(docList) == 0 or len(filterTimeList) > 0:
                 logger.debug(f"{fName} added to process because overwrite=True or filter not in DB")
                 filtersToProcess.append(fName)
+                requiredTimes.update(filterTimeList)
 
-        return timeList, filtersToProcess, filtersOutputFilename, DBDocumentsDict
+        # The timesteps any filter that will be computed still needs, in the
+        # order they were requested.
+        return [ts for ts in timeList if ts in requiredTimes], filtersToProcess, filtersOutputFilename, DBDocumentsDict
 
     def _buildAndExecuteParaViewPipeline(self, filtersToProcess, filtersOutputFilename,
                                           timeList, field_names, overwrite, regularMesh, mesh_regions=None):
