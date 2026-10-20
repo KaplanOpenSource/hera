@@ -31,10 +31,6 @@ a passing characterisation of what actually happens):
 
   * B174: the same handler calls `tk.workflowCompare(...)`, a method
     that exists nowhere in hera; the real name is `compareWorkflows`.
-  * B175: `stochasticLagrangian_dispersion_create --overwrite` bypasses
-    the DB lookup of the *flow field* as well as the removal of the case
-    directory, so re-creating a dispersion whose flow field lives in the
-    DB fails with "<name> not found!".
   * B176: `stochasticLagrangian_postProcess_toVTK` reads
     `arguments.outputdir`, but the parser declares `--outputDirectory`
     (dest `outputDirectory`).  The flag is silently ignored and the VTK
@@ -1193,18 +1189,10 @@ class TestDispersionCreate:
 
 
 @pytest.mark.unit
-class TestDispersionCreateOverwriteIgnoresTheDatabase:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B175: stochasticLagrangian_dispersion_create tests "
-               "`if len(doc) == 0 or arguments.overwrite:` before deciding "
-               "how to resolve the dispersion *flow field*, so --overwrite "
-               "-- which is documented as overwriting the dispersion case "
-               "directory -- also discards the DB lookup and insists the "
-               "flow field be a directory on disk.  Recreating a dispersion "
-               "whose flow field lives in the DB therefore fails with "
-               "'<name> not found!'.  See the consolidated findings issue.",
-    )
+class TestDispersionCreateOverwriteAndTheDatabase:
+    """--overwrite governs the dispersion case directory, not how the
+    dispersion flow field is resolved."""
+
     def test_overwrite_should_still_use_a_flow_field_stored_in_the_db(
         self, install_toolkit, in_tmp_cwd
     ):
@@ -1216,12 +1204,10 @@ class TestDispersionCreateOverwriteIgnoresTheDatabase:
         )[2]
         assert kwargs["dispersionFlowDirectory"] == "/data/flow_0"
 
-    def test_overwrite_currently_rejects_a_flow_field_that_is_only_in_the_db(
+    def test_a_flow_field_missing_from_the_db_and_from_disk_is_still_refused(
         self, install_toolkit, in_tmp_cwd
     ):
-        """Characterisation of B175."""
-        toolkit = _FakeOFToolkit(documents=[_FakeDocument(resource="/data/flow_0")])
-        install_toolkit(toolkit)
+        install_toolkit(_FakeOFToolkit(documents=[]))
         with pytest.raises(ValueError, match="myFlow not found"):
             stochasticLagrangian_dispersion_create(_dispersionCreateArgs(overwrite=True))
 
