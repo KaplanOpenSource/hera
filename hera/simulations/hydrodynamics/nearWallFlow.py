@@ -57,7 +57,7 @@ class nearWallFlow:
 
     @property
     def height(self):
-        return self._channelHeight.m_as(ureg.m)
+        return self._channelHeight
 
     @property
     def hydraulicHeight(self):
