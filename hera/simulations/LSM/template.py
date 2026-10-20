@@ -227,12 +227,14 @@ class LSMTemplate:
 
             if stations is not None:
                 stations = stations.rename(columns={self.timeColumn:"datetime"})
+                stations[self.stationColumn] = stations[self.xColumn].astype(str) + stations[self.yColumn].astype(str)
+
+                # the per-station columns, which the resampling below does not
+                # carry, and which are joined back onto the resampled frame.
                 onlyStations = stations.drop(columns=["datetime",self.uColumn,
                                                       self.directionColumn])
                 if self.hColumn in onlyStations.columns:
                     onlyStations = onlyStations.drop(columns=self.hColumn)
-
-                stations[self.stationColumn] = stations[self.xColumn].astype(str) + stations[self.yColumn].astype(str)
 
                 stationsXarray = stations.set_index([self.xColumn, self.yColumn, "datetime"]).drop(columns=self.stationColumn).to_xarray()
                 resampled = stationsXarray.resample(datetime="5Min").interpolate()

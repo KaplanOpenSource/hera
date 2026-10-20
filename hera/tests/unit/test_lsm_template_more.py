@@ -29,9 +29,6 @@ and a passing characterisation of what actually happens:
   * B275: ``_toNetcdf`` says it converts the dosage "to s/m**3 instead
     of min/m**3" but multiplies by ``(1 s).m_as(min)`` = 1/60, which is
     the seconds-to-minutes factor -- the reverse of the stated conversion.
-  * B279: ``run(stations=...)`` computes the station identifier column
-    and then loses it in the xarray resample round-trip, so it only
-    works if the caller happens to have supplied a ``station`` column.
   * B280: the same code path joins a never-deduplicated ``onlyStations``
     back onto the resampled series, so every station's wind record is
     written once per original observation.
@@ -594,46 +591,23 @@ class TestRunWithStations:
             [value for value in (1.0, 1.5, 2.0) for _ in range(2)]
         )
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B279: run() computes the station identifier itself "
-               "(stations[stationColumn] = x.astype(str) + y.astype(str)), "
-               "but then rebuilds the frame from a resampled xarray "
-               "(set_index(...).drop(columns=stationColumn).to_xarray() -> "
-               "to_dataframe().reset_index()), which does not carry that "
-               "column, and joins back only `onlyStations`, computed before "
-               "the identifier existed. The very next line reads "
-               "stations['station'] and raises KeyError. The path works only "
-               "if the caller happens to have supplied a 'station' column of "
-               "their own -- which the docstring never mentions and the "
-               "computed identifier is meant to make unnecessary. See the "
-               "consolidated findings issue.",
-    )
-    def test_stations_without_a_station_column_should_still_work(
+    def test_stations_without_a_station_column_still_work(
         self, template, ifmc, solver, cwd, lsm
     ):
+        """run() computes the station identifier from x and y, so the caller
+        need not supply a 'station' column -- the docstring never asks for one."""
         self._run(template, _stationsFrame(withStationColumn=False))
         assert os.path.isfile(os.path.join(self._saveDir(lsm), "STATIONS"))
 
-    def test_stations_without_a_station_column_currently_raise_keyerror(
-        self, template, ifmc, solver, cwd
-    ):
-        """Characterisation of B279."""
-        with pytest.raises(KeyError, match="station"):
-            self._run(template, _stationsFrame(withStationColumn=False))
-
-    def test_the_computed_identifier_is_currently_discarded(
+    def test_the_computed_identifier_survives_the_resampling(
         self, template, ifmc, solver, cwd, lsm
     ):
-        """Characterisation of B279: with a caller-supplied 'station'
-        column, it is the caller's values that survive, not the x+y
-        identifier the code builds."""
-        stations = _stationsFrame()
-        self._run(template, stations)
-        metDir = os.path.join(self._saveDir(lsm), "tozaot", "Meteorology")
-        # two distinct caller stations -> two files, named AA/AB from the
-        # loop counter, not from the discarded "0.00.0"/"50.060.0" ids
-        assert sorted(os.listdir(metDir)) == ["AA_st.txt", "AB_st.txt"]
+        """The x+y identifier is what groups the records, with or without a
+        caller-supplied column: two distinct coordinates, two station files."""
+        for stations in (_stationsFrame(), _stationsFrame(withStationColumn=False)):
+            self._run(template, stations)
+            metDir = os.path.join(self._saveDir(lsm), "tozaot", "Meteorology")
+            assert sorted(os.listdir(metDir)) == ["AA_st.txt", "AB_st.txt"]
 
     def test_a_canopy_needs_the_station_heights(
         self, template, ifmc, solver, cwd, lsm
