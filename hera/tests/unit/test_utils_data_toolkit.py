@@ -270,19 +270,9 @@ class TestAddRepositoryExtensionHeuristic:
 
 
 @pytest.mark.unit
-class TestAddRepositoryLeavesTheDefaultProjectWritable:
-    """B152: the read-only guard is re-armed only on the success path."""
+class TestAddRepositoryLeavesTheDefaultProjectReadOnly:
+    """B152: the read-only guard has to be re-armed on the failure path too."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B152: addRepository sets _allowWritingToDefaultProject=True, "
-               "calls addDataSource, then sets it back to False. There is no "
-               "try/finally, so when addDataSource raises (a duplicate "
-               "repository name without overwrite=True) the flag stays True "
-               "and the read-only default project accepts arbitrary writes for "
-               "the rest of the instance's life. "
-               "See the consolidated findings issue.",
-    )
     def test_a_failed_registration_still_re_arms_the_guard(self, dtk, tmp_path):
         path = _writeRepository(tmp_path, "repo", {})
         dtk.addRepository("myRepo", path)
@@ -290,18 +280,16 @@ class TestAddRepositoryLeavesTheDefaultProjectWritable:
             dtk.addRepository("myRepo", path)
         assert dtk._allowWritingToDefaultProject is False
 
-    def test_a_failed_registration_disarms_the_guard_permanently(self, dtk, tmp_path):
-        """Characterisation of B152."""
+    def test_a_failed_registration_leaves_the_project_write_protected(self, dtk, tmp_path):
+        """The RuntimeError guard of TestConstruction is still in force."""
         path = _writeRepository(tmp_path, "repo", {})
         dtk.addRepository("myRepo", path)
         with pytest.raises(ValueError):
             dtk.addRepository("myRepo", path)
-        assert dtk._allowWritingToDefaultProject is True
-        # and the guard that raised RuntimeError in TestConstruction is gone
-        document = dtk.addMeasurementsDocument(
-            resource="sneaked-in", dataFormat="string", type="NOT_A_DATASOURCE", desc={}
-        )
-        assert document is not None
+        with pytest.raises(RuntimeError):
+            dtk.addMeasurementsDocument(
+                resource="sneaked-in", dataFormat="string", type="NOT_A_DATASOURCE", desc={}
+            )
 
 
 @pytest.mark.unit

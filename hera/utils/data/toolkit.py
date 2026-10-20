@@ -56,11 +56,13 @@ class dataToolkit(abstractToolkit):
             If True, overwrite an existing repository with the same name.
         """
         self._allowWritingToDefaultProject = True  # allows the addition of datasource to the Default project.
-
-        repositoryPath = repositoryPath if repositoryPath.endswith(".json") else f"{repositoryPath}.json"
-        self.addDataSource(dataSourceName=repositoryName, resource=os.path.abspath(repositoryPath),
-                           dataFormat=self.datatypes.JSON_DICT, overwrite=overwrite)
-        self._allowWritingToDefaultProject = False
+        try:
+            repositoryPath = repositoryPath if repositoryPath.endswith(".json") else f"{repositoryPath}.json"
+            self.addDataSource(dataSourceName=repositoryName, resource=os.path.abspath(repositoryPath),
+                               dataFormat=self.datatypes.JSON_DICT, overwrite=overwrite)
+        finally:
+            # Re-arm the read-only guard even when addDataSource raises.
+            self._allowWritingToDefaultProject = False
 
     def getRepositoryTable(self):
         """
