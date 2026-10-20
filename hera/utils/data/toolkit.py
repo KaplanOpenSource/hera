@@ -57,7 +57,7 @@ class dataToolkit(abstractToolkit):
         """
         self._allowWritingToDefaultProject = True  # allows the addition of datasource to the Default project.
 
-        repositoryPath = f"{repositoryPath}.json" if "json" not in repositoryPath else repositoryPath
+        repositoryPath = repositoryPath if repositoryPath.endswith(".json") else f"{repositoryPath}.json"
         self.addDataSource(dataSourceName=repositoryName, resource=os.path.abspath(repositoryPath),
                            dataFormat=self.datatypes.JSON_DICT, overwrite=overwrite)
         self._allowWritingToDefaultProject = False

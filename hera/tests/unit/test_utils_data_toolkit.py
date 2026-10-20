@@ -249,18 +249,9 @@ class TestAddRepository:
 
 @pytest.mark.unit
 class TestAddRepositoryExtensionHeuristic:
-    """B151: the extension is decided with a substring test on the path."""
+    """B151: the extension has to be decided on the suffix, not on a
+    substring test against the whole path."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B151: addRepository appends '.json' only when the substring "
-               "'json' is absent from the WHOLE path, so a repository living "
-               "under a directory whose name contains 'json' is registered "
-               "with no extension and its resource points at a file that does "
-               "not exist. The test should be on the suffix "
-               "(os.path.splitext / endswith('.json')). "
-               "See the consolidated findings issue.",
-    )
     def test_the_extension_is_appended_regardless_of_the_directory_name(self, dtk, tmp_path):
         directory = tmp_path / "jsonRepositories"
         directory.mkdir()
@@ -268,15 +259,14 @@ class TestAddRepositoryExtensionHeuristic:
         dtk.addRepository("myRepo", str(directory / "repo"))
         assert dtk.getDataSourceDocument("myRepo").resource.endswith("repo.json")
 
-    def test_a_json_in_the_directory_name_suppresses_the_extension(self, dtk, tmp_path):
-        """Characterisation of B151."""
+    def test_a_json_in_the_directory_name_no_longer_suppresses_it(self, dtk, tmp_path):
         directory = tmp_path / "jsonRepositories"
         directory.mkdir()
         _writeRepository(directory, "repo", {})
         dtk.addRepository("myRepo", str(directory / "repo"))
         resource = dtk.getDataSourceDocument("myRepo").resource
-        assert resource == str(directory / "repo")
-        assert not os.path.exists(resource)
+        assert resource == str(directory / "repo.json")
+        assert os.path.exists(resource)
 
 
 @pytest.mark.unit
