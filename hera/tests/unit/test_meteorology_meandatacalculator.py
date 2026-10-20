@@ -212,28 +212,26 @@ class TestStabilityAndAnisotropy:
             "very unstable", "unstable", "neutral/near neutral", "stable", "very stable", "No Stability",
         }
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B71: _eig is defined without `self` "
-               "(`def _eig(series):`), but is invoked as the bound method "
-               "self._eig via DataFrame.apply, which always passes both "
-               "self and the row -- one argument too many for a "
-               "one-parameter function. See the consolidated findings issue.",
-    )
-    def test_anisotropy_eigs_should_add_lambda_columns(self):
+    def test_anisotropy_eigs_adds_lambda_and_lumley_columns(self):
+        """B71: the bound-method call through DataFrame.apply works now."""
         mc = _mean_data_calculator(**_second_moments_row())
         mc.anisotropyEigs()
+        for column in ("lambda_1", "lambda_2", "lambda_3", "x_B", "y_B"):
+            assert column in mc.MeanData.columns
+        assert not mc.MeanData[["lambda_1", "lambda_2", "lambda_3"]].isna().any().any()
 
-    def test_anisotropy_eigs_currently_raises(self):
-        """Characterisation of B71."""
+    def test_the_eigenvalues_come_out_in_descending_order(self):
         mc = _mean_data_calculator(**_second_moments_row())
-        with pytest.raises(TypeError, match="_eig"):
-            mc.anisotropyEigs()
+        mc.anisotropyEigs()
+        row = mc.MeanData.iloc[0]
+        assert row["lambda_1"] >= row["lambda_2"] >= row["lambda_3"]
 
-    def test_anisotropy_cats_fails_the_same_way_since_it_calls_eigs_first(self):
+    def test_anisotropy_cats_classifies_every_row(self):
         mc = _mean_data_calculator(**_second_moments_row())
-        with pytest.raises(TypeError, match="_eig"):
-            mc.anisotropyCats()
+        mc.anisotropyCats()
+        assert mc.MeanData["isotropy_cat"].iloc[0] in {
+            "2-component axisymmetric", "isotropic", "1-component", "non-pure",
+        }
 
 
 @pytest.mark.unit
@@ -276,27 +274,19 @@ class TestSimpleDerivedColumns:
 
 @pytest.mark.unit
 class TestEigDirect:
-    def test_eig_called_directly_on_the_class_computes_eigenvalues(self):
-        """B71 is about the bound-method call through DataFrame.apply;
-        calling the underlying function directly (as it must be called,
-        since it has no `self` parameter) works fine and lets it be
-        exercised on its own."""
-        from hera.measurements.meteorology.highfreqdata.analysis.meandatacalculator import (
-            MeanDataCalculator,
-        )
+    """_eig on its own, called as the bound method it is since B71."""
 
+    def test_eig_computes_the_anisotropy_eigenvalues(self):
+        mc = _mean_data_calculator(**_second_moments_row())
         row = pandas.Series({"uu": 0.5, "vv": 0.3, "ww": 0.1, "uv": 0.05, "uw": 0.02, "vw": 0.01})
-        result = MeanDataCalculator._eig(row)
+        result = mc._eig(row)
         assert set(result.index) == {"lambda_1", "lambda_2", "lambda_3"}
         assert not result.isna().any()
 
     def test_eig_returns_nan_when_the_diagonal_sums_to_zero(self):
-        from hera.measurements.meteorology.highfreqdata.analysis.meandatacalculator import (
-            MeanDataCalculator,
-        )
-
+        mc = _mean_data_calculator(**_second_moments_row())
         row = pandas.Series({"uu": 0.0, "vv": 0.0, "ww": 0.0, "uv": 0.0, "uw": 0.0, "vw": 0.0})
-        result = MeanDataCalculator._eig(row)
+        result = mc._eig(row)
         assert result.isna().all()
 
 

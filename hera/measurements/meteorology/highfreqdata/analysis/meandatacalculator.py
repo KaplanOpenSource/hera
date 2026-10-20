@@ -523,7 +523,7 @@ class MeanDataCalculator:
 
         return ret
 
-    def _eig(series):
+    def _eig(self, series):
         if series["uu"] + series["vv"] + series["ww"] == 0:
             eig_ser = pandas.Series(data=numpy.nan, index=["lambda_1", "lambda_2", "lambda_3"])
         else:
