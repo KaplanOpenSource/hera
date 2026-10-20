@@ -1445,7 +1445,7 @@ class analysis:
         """
         simID = str(dataDocument.id) if simulationID is None else simulationID
 
-        docList = self.datalayer.getCacheDocuments(simID=simID, dxdydz=dxdydz, **metadata)
+        docList = self.datalayer.toolkit.getCacheDocuments(simID=simID, dxdydz=dxdydz, **metadata)
         if len(docList) == 0 or overwrite:
 
             data = dataDocument.getData()
@@ -1458,10 +1458,10 @@ class analysis:
                 desc = dict(simID=simID, dxdydz=dxdydz)
                 desc.update(metadata)
 
-                doc = self.datalayer.addCacheDocument(dataFormat=datatypes.PARQUET,
-                                                      type=self.DOCTYPE_CONCENTRATION_POINTWISE,
-                                                      resource="",
-                                                      desc=desc)
+                doc = self.datalayer.toolkit.addCacheDocument(dataFormat=datatypes.PARQUET,
+                                                              type=self.DOCTYPE_CONCENTRATION_POINTWISE,
+                                                              resource="",
+                                                              desc=desc)
 
                 outputDirectory = os.path.join(self.datalayer.toolkit.filesDirectory, str(doc.id))
                 os.makedirs(outputDirectory, exist_ok=True)
@@ -1734,7 +1734,7 @@ class analysis:
 
         """
         dataID = str(dataDocument.id)
-        docList = self.datalayer.getCacheDocuments(dataID=dataID, type=self.DOCTYPE_CONCENTRATION, **metadata)
+        docList = self.datalayer.toolkit.getCacheDocuments(dataID=dataID, type=self.DOCTYPE_CONCENTRATION, **metadata)
 
         if returnFirst:
             if len(docList) > 0:

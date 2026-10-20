@@ -60,9 +60,6 @@ Covered shallowly, with the reason:
     method that does not exist anywhere in hera (B330), so only the
     argument validation that precedes it and the resulting
     ``AttributeError`` can be observed.
-    ``analysis.calcDocumentConcentrationPointWise`` and
-    ``analysis.getConcentrationField`` -- each dies on a defect pinned
-    below, so only the failure and the pre-failure behaviour are asserted.
 
 Not covered:
     ``analysis.calcConcentrationPointWise`` -- see above.
@@ -80,8 +77,6 @@ passing characterisation of what happens today):
 * B326 (fixed upstream by a4597eb6, #1082)
   ``analysis.calcConcentrationFieldFullMesh``'s first statement called a
   method that lives on the other class.
-* B329 ``analysis.calcDocumentConcentrationPointWise`` /
-  ``analysis.getConcentrationField`` call the cache API on the wrong object.
 * B330 four call sites use ``toolkit.getCaseListDocumentFromDB``, a method
   that does not exist anywhere in hera.
 * B331 ``_checkDBConsistency`` calls ``toolkit.compareWorkflowsObj``; the
@@ -2024,48 +2019,27 @@ class TestCalcConcentrationFieldFullMesh:
 
 
 # ===========================================================================
-# B329: the cache API is called on the extension instead of the toolkit
+# The cache API is reached through the toolkit, not through the extension
 # ===========================================================================
 
 @pytest.mark.unit
-class TestCacheApiIsCalledOnTheWrongObject:
+class TestCacheApiIsCalledOnTheToolkit:
     def test_the_extension_exposes_no_cache_api(self, ext):
-        """Characterisation of B329, at its source."""
+        """The cache API belongs to the Project the toolkit inherits from,
+        so every cache call has to go through self.datalayer.toolkit."""
         assert not hasattr(ext, "getCacheDocuments")
         assert not hasattr(ext, "addCacheDocument")
         assert hasattr(ext.toolkit, "getCacheDocuments")
         assert hasattr(ext.toolkit, "addCacheDocument")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B329: analysis.calcDocumentConcentrationPointWise and "
-               "analysis.getConcentrationField call "
-               "self.datalayer.getCacheDocuments(...) / "
-               "self.datalayer.addCacheDocument(...), but self.datalayer is an "
-               "absractStochasticLagrangianSolver_toolkitExtension, which "
-               "defines neither -- the cache API belongs to the Project the "
-               "toolkit inherits from. The sibling "
-               "calcConcentrationFieldFullMesh in the same class correctly "
-               "writes self.datalayer.toolkit.getCacheDocuments. See the "
-               "consolidated findings issue.")
-    def test_looking_up_a_concentration_field_should_query_the_cache(self, ana):
+    def test_looking_up_a_concentration_field_queries_the_cache(self, ana):
         class _Doc:
             id = "abc123"
 
         assert ana.getConcentrationField(_Doc()) is None
 
-    def test_looking_up_a_concentration_field_currently_raises(self, ana):
-        """Characterisation of B329."""
+    def test_an_empty_cache_yields_an_empty_list_when_not_returning_first(self, ana):
         class _Doc:
             id = "abc123"
 
-        with pytest.raises(AttributeError, match="getCacheDocuments"):
-            ana.getConcentrationField(_Doc())
-
-    def test_the_pointwise_document_calculator_has_the_same_defect(self, ana):
-        """Characterisation of B329, at the second site."""
-        class _Doc:
-            id = "abc123"
-
-        with pytest.raises(AttributeError, match="getCacheDocuments"):
-            ana.calcDocumentConcentrationPointWise(_Doc(), dxdydz=1)
+        assert len(ana.getConcentrationField(_Doc(), returnFirst=False)) == 0
