@@ -299,18 +299,15 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             document of the data.
         """
 
-        if saveMode not in [toolkit.TOOLKIT_SAVEMODE_NOSAVE,
-                            toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
-                            toolkit.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,
-                            toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
-                            toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
-                            ]:
-            optins = ",".join([toolkit.TOOLKIT_SAVEMODE_NOSAVE,
-                               toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
-                               toolkit.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,
-                               toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
-                               toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
-                               ])
+        validSaveModeList = [toolkit.TOOLKIT_SAVEMODE_NOSAVE,
+                             toolkit.TOOLKIT_SAVEMODE_ONLYFILE,
+                             toolkit.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,
+                             toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
+                             toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
+                             ]
+        if saveMode not in validSaveModeList:
+            # TOOLKIT_SAVEMODE_NOSAVE is None, so the names have to be stringified.
+            optins = ",".join([str(mode) for mode in validSaveModeList])
 
             raise ValueError(f"saveMode must be one of [{optins}]. Got {saveMode}")
 

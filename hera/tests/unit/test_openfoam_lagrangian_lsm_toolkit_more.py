@@ -38,8 +38,6 @@ Deliberately not covered:
 Bugs pinned below (each with an xfail for the intended behaviour and a
 passing characterisation of what happens today):
 
-* B202 ``loadData``'s saveMode guard rejects a documented mode and its
-  error message crashes.
 * B203 ``loadData``'s non-parallel branch finds no time steps.
 * B204 ``loadData``'s DB branch treats a QuerySet as a document.
 * B206 ``makeSource`` writes the wrong object name into the header.
@@ -277,32 +275,14 @@ class TestLoadData:
 
     # -- B202: the saveMode guard -----------------------------------------
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B202: an unknown saveMode is meant to raise ValueError "
-               "listing the valid modes, but the message is built with "
-               "','.join(...) over a list that contains "
-               "TOOLKIT_SAVEMODE_NOSAVE, which is None -- so the guard "
-               "itself dies with TypeError before the ValueError is raised. "
-               "The same list omits TOOLKIT_SAVEMODE_ONLYFILE (and repeats "
-               "FILEANDDB twice), so that documented mode is rejected even "
-               "though the body below handles it explicitly. "
-               "See the consolidated findings issue.",
-    )
-    def test_an_unknown_savemode_should_be_reported_as_a_valueerror(self, lsm):
+    def test_an_unknown_savemode_is_reported_as_a_valueerror(self, lsm):
         with pytest.raises(ValueError, match="saveMode must be one of"):
             lsm.loadData(saveMode="noSuchMode")
 
-    def test_an_unknown_savemode_currently_raises_typeerror(self, lsm):
-        """Characterisation of B202."""
-        with pytest.raises(TypeError, match="expected str instance"):
-            lsm.loadData(saveMode="noSuchMode")
-
-    def test_the_onlyfile_mode_is_rejected_by_the_guard(self, lsm, parallelCase, readSeam):
-        """Characterisation of B202: a documented, handled mode is refused
-        because it is missing from the guard's list of valid modes."""
-        with pytest.raises(TypeError, match="expected str instance"):
-            lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_ONLYFILE)
+    def test_the_onlyfile_mode_is_accepted_by_the_guard(self, lsm, parallelCase, readSeam):
+        """A documented mode the body handles explicitly."""
+        lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_ONLYFILE)
+        assert os.path.exists(os.path.join(lsm.FilesDirectory, "kinematicCloudData.parquet"))
 
     # -- B203: the non-parallel branch ------------------------------------
 
