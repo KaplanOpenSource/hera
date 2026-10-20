@@ -510,20 +510,10 @@ class TestHandleDataSource:
 
 
 @pytest.mark.unit
-class TestHandleDataSourcePopsResourceFilePathTooEarly:
-    """B157: the pop happens inside the open() call, before the read."""
+class TestHandleDataSourceResourceFilePath:
+    """B157: a resourceFilePath that cannot be read has to surface as the
+    read failure, not as a missing argument further down."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B157: _handle_DataSource does "
-               "`with open(theItem.pop('resourceFilePath')) as f:` -- the key "
-               "is removed as the arguments are evaluated, so when the file "
-               "cannot be read the `except` logs the real cause and execution "
-               "falls through to addDataSource(**theItem) with neither "
-               "'resource' nor 'resourceFilePath' present. The caller sees "
-               "TypeError: missing 'resource' instead of the FileNotFoundError. "
-               "See the consolidated findings issue.",
-    )
     def test_an_unreadable_resource_file_reports_the_read_failure(self, dtk, make_target_toolkit, tmp_path):
         target = make_target_toolkit("DS_POP_1")
         with pytest.raises(FileNotFoundError):
@@ -534,16 +524,17 @@ class TestHandleDataSourcePopsResourceFilePathTooEarly:
                 False, str(tmp_path),
             )
 
-    def test_an_unreadable_resource_file_surfaces_as_a_missing_argument(self, dtk, make_target_toolkit, tmp_path):
-        """Characterisation of B157."""
-        target = make_target_toolkit("DS_POP_2")
-        with pytest.raises(TypeError, match="resource"):
-            dtk._handle_DataSource(
-                target, "Datasource",
-                {"A": {"isRelativePath": "True",
-                       "item": {"resourceFilePath": "missing.json", "dataFormat": "JSON_dict"}}},
-                False, str(tmp_path),
-            )
+    def test_through_the_loader_the_failure_is_logged_and_skipped(self, dtk, make_target_toolkit, tmp_path):
+        """The loader's own try/except keeps one bad entry from stopping a
+        whole repository."""
+        dtk.loadAllDatasourcesInRepositoryJSONToProject(
+            projectName="DS_POP_2",
+            repositoryJSON={TARGET_TOOLKIT_NAME: {"Datasource": {
+                "A": {"isRelativePath": "True",
+                      "item": {"resourceFilePath": "missing.json", "dataFormat": "JSON_dict"}}}}},
+            basedir=str(tmp_path),
+        )
+        assert make_target_toolkit("DS_POP_2").getDataSourceList() == []
 
 
 # ---------------------------------------------------------------------------

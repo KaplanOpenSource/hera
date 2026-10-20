@@ -332,12 +332,17 @@ class dataToolkit(abstractToolkit):
                     theItem["resourceFilePath"] = os.path.join(basedir, theItem["resourceFilePath"])
                 
                 logger.info("detected dataSource resource specified using file's contents")
+                # Pop before the open: popping inside the call leaves the item
+                # without either key when the read fails, and addDataSource
+                # then hides the real cause behind a missing-argument TypeError.
+                resourceFilePath = theItem.pop("resourceFilePath")
                 try:
-                    with open(theItem.pop("resourceFilePath")) as dataSourceResourceFile:
+                    with open(resourceFilePath) as dataSourceResourceFile:
                         theItem['resource'] = json.load(dataSourceResourceFile)
                         logger.info("extracted resource from file successfully")
                 except Exception as e:
                     logger.error(f"failed reading resource from file, {e}")
+                    raise
             else:
                 # logger.debug(f"Checking if {itemName} resource is a path {isRelativePath}, is it absolute? {isAbsolute}")
                 if isRelativePath=='True' or isRelativePath is True:
