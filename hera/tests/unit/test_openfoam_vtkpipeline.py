@@ -1242,7 +1242,7 @@ class TestClearCache:
             seen.append(kwargs)
             return []
 
-        monkeypatch.setattr(type(registered.datalayer), "deleteSimulationsDocuments", _record)
+        monkeypatch.setattr(type(registered.datalayer), "deleteCacheDocuments", _record)
         registered.clearCache()
         assert [kw["filterName"] for kw in seen] == ["ExtractBlock", "ExtractBlock.slice"]
 
@@ -1250,7 +1250,7 @@ class TestClearCache:
         seen = []
         monkeypatch.setattr(
             type(registered.datalayer),
-            "deleteSimulationsDocuments",
+            "deleteCacheDocuments",
             lambda self, **kwargs: seen.append(kwargs) or [],
         )
         registered.clearCache(filter_name="ExtractBlock.slice")
@@ -1260,7 +1260,7 @@ class TestClearCache:
         seen = []
         monkeypatch.setattr(
             type(registered.datalayer),
-            "deleteSimulationsDocuments",
+            "deleteCacheDocuments",
             lambda self, **kwargs: seen.append(kwargs) or [],
         )
         registered.clearCache(filter_name="f")
@@ -1270,7 +1270,7 @@ class TestClearCache:
         seen = []
         monkeypatch.setattr(
             type(registered.datalayer),
-            "deleteSimulationsDocuments",
+            "deleteCacheDocuments",
             lambda self, **kwargs: seen.append(kwargs) or [],
         )
         registered.clearCache(regularMesh=True, filter_name="f")
@@ -1280,7 +1280,7 @@ class TestClearCache:
         seen = []
         monkeypatch.setattr(
             type(registered.datalayer),
-            "deleteSimulationsDocuments",
+            "deleteCacheDocuments",
             lambda self, **kwargs: seen.append(kwargs) or [],
         )
         registered.clearCache(filter_name="f")
@@ -1294,7 +1294,7 @@ class TestClearCache:
             desc=dict(simulation=dict(workflowName="flow_0001"), pipeline=dict(filters={})),
         )
         monkeypatch.setattr(
-            type(registered.datalayer), "deleteSimulationsDocuments", lambda self, **kwargs: [doc]
+            type(registered.datalayer), "deleteCacheDocuments", lambda self, **kwargs: [doc]
         )
         registered.clearCache(filter_name="f")
         assert not output.exists()
@@ -1309,7 +1309,7 @@ class TestClearCache:
             desc=dict(simulation=dict(workflowName="flow_0001"), pipeline=dict(filters={})),
         )
         monkeypatch.setattr(
-            type(registered.datalayer), "deleteSimulationsDocuments", lambda self, **kwargs: [doc]
+            type(registered.datalayer), "deleteCacheDocuments", lambda self, **kwargs: [doc]
         )
         registered.clearCache(filter_name="f")
         assert not output.exists()
@@ -1320,36 +1320,11 @@ class TestClearCache:
             desc=dict(simulation=dict(workflowName="flow_0001"), pipeline=dict(filters={})),
         )
         monkeypatch.setattr(
-            type(registered.datalayer), "deleteSimulationsDocuments", lambda self, **kwargs: [doc]
+            type(registered.datalayer), "deleteCacheDocuments", lambda self, **kwargs: [doc]
         )
         registered.clearCache(filter_name="f")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B320: clearCache deletes through "
-               "`self.datalayer.deleteSimulationsDocuments(...)` -- the "
-               "Simulations collection -- but the cache it is meant to clear "
-               "is written by _updateCacheDB with `addCacheDocument` and read "
-               "back by _filterCachedTimesteps with `getCacheDocuments`, i.e. "
-               "the Cache collection.  The query it builds is correct (the "
-               "test asserts the same query does match through "
-               "getCacheDocuments); only the collection is wrong, so "
-               "clearCache is a no-op against real pipeline output and leaves "
-               "both the documents and the files on disk.  See the "
-               "consolidated findings issue.",
-    )
     def test_it_removes_the_cache_documents_the_pipeline_itself_wrote(self, of, registered, tmp_path):
-        output = tmp_path / "slice_0.parquet"
-        output.write_text("payload")
-        desc = _cacheDescriptionFor(registered, "ExtractBlock.slice", False, [0.0])
-        of.addCacheDocument(
-            resource=str(output), dataFormat="parquet", type=TYPE_VTK_FILTER, desc=desc
-        )
-        registered.clearCache(regularMesh=False, filter_name="ExtractBlock.slice")
-        assert list(of.getCacheDocuments(type=TYPE_VTK_FILTER)) == []
-
-    def test_the_cache_documents_currently_survive_the_clear(self, of, registered, tmp_path):
-        """Characterisation of B320."""
         output = tmp_path / "slice_0.parquet"
         output.write_text("payload")
         desc = _cacheDescriptionFor(registered, "ExtractBlock.slice", False, [0.0])
@@ -1363,8 +1338,8 @@ class TestClearCache:
 
         registered.clearCache(regularMesh=False, filter_name="ExtractBlock.slice")
 
-        assert len(of.getCacheDocuments(type=TYPE_VTK_FILTER)) == 1
-        assert output.exists()
+        assert list(of.getCacheDocuments(type=TYPE_VTK_FILTER)) == []
+        assert not output.exists()
 
     def test_it_removes_the_output_file_of_a_document_it_wrote_itself(
         self, registered, monkeypatch, tmp_path
@@ -1378,7 +1353,7 @@ class TestClearCache:
         assert "workflowName" not in doc["desc"]
         assert "workflowName" in doc["desc"]["simulation"]
         monkeypatch.setattr(
-            type(registered.datalayer), "deleteSimulationsDocuments", lambda self, **kwargs: [doc]
+            type(registered.datalayer), "deleteCacheDocuments", lambda self, **kwargs: [doc]
         )
         registered.clearCache(filter_name="ExtractBlock.slice")
         assert not output.exists()
