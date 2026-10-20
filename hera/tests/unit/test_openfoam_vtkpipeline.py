@@ -565,45 +565,26 @@ class TestEnforceParam:
 
 @pytest.mark.unit
 class TestVTKFilterFullName:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B316: VTKFilter.fullName binds `fatherName` only inside "
-               "`if filter.father is not None`, then returns it "
-               "unconditionally.  `father` is a class attribute that is None "
-               "and is never assigned anywhere in the module (neither "
-               "__init__, addFilter, addFilterFromObj nor __setitem__ set "
-               "it), so the guard is always false and the property always "
-               "raises UnboundLocalError.  The dead branch is broken too: it "
-               "calls `filter.father.fullName()`, invoking the property's "
-               "string result as if it were a method.  See the consolidated "
-               "findings issue.",
-    )
     def test_a_root_filter_reports_its_own_name_as_its_full_name(self):
         assert VTKFilter("a", "Slice", True, []).fullName == "a"
 
-    def test_full_name_currently_raises_for_every_filter(self):
-        """Characterisation of B316."""
-        f = VTKFilter("a", "Slice", True, [])
-        assert f.father is None
-        with pytest.raises(UnboundLocalError):
-            f.fullName
-
-    def test_the_dead_father_branch_calls_the_property_as_a_method(self, monkeypatch):
-        """Characterisation of B316: even a filter that *does* have a father
-        cannot report a full name, because the branch invokes
-        ``father.fullName()`` -- the property already evaluated to a string.
-        """
-
-        class _StubFather:
-            fullName = "root"
-
+    def test_a_filter_with_a_father_is_reported_under_it(self, monkeypatch):
+        father = VTKFilter("root", "ExtractBlock", True, [])
         child = VTKFilter("child", "Slice", True, [])
-        monkeypatch.setattr(child, "father", _StubFather())
-        with pytest.raises(TypeError, match="not callable"):
-            child.fullName
+        monkeypatch.setattr(child, "father", father)
+        assert child.fullName == "root.child"
+
+    def test_the_path_is_built_all_the_way_up(self, monkeypatch):
+        root = VTKFilter("root", "ExtractBlock", True, [])
+        middle = VTKFilter("middle", "Clip", True, [])
+        leaf = VTKFilter("leaf", "Slice", True, [])
+        monkeypatch.setattr(middle, "father", root)
+        monkeypatch.setattr(leaf, "father", middle)
+        assert leaf.fullName == "root.middle.leaf"
 
     def test_no_code_path_in_the_module_ever_assigns_a_father(self):
-        """Characterisation of B316: the guard cannot become true."""
+        """The attribute has to be set by hand; nothing in the module does it,
+        so every filter built through the public API is its own root."""
         father = VTKFilter("a", "ExtractBlock", True, [])
         child = father.addFilter("b", "CellCenters")
         father.addFilterFromObj(vtkFilter_CellCenters(name="c", write=True))

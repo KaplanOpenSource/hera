@@ -670,9 +670,9 @@ class VTKFilter:
 
         def traverse(filter):
             """Traverse up the filter tree to build the full path."""
-            if filter.father is not None:
-                fatherName = filter.father.fullName()
-            return [fatherName, self.name]
+            if filter.father is None:
+                return [filter.name]
+            return [filter.father.fullName, filter.name]
 
         return ".".join(traverse(self))
 
