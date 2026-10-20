@@ -76,7 +76,9 @@ def urbanLogExponentProfile(cellCenters, lambdaGrid, stations):
             # we want to put the profile only in the lambda matrix cells center
             ret = numpy.nan
         else:
-            if z < hc:
+            if z <= hc:
+                # The canopy top belongs to the exponential branch; both
+                # branches give Uh there, so the choice is a tie-break.
                 ret = Uh*numpy.exp(beta * (z - hc) / ll)
             elif (z > hc) and (z < surfaceLayerHeight):
                 ret =  (Uh * beta / karman) * numpy.log((z - hc + dd) / zz0)

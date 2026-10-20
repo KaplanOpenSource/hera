@@ -29,14 +29,12 @@ relations, and two of them are consequences the code cannot dodge:
 
 Two defects surfaced:
 
-* B244: ``calcU`` tests ``if z < hc`` then ``elif (z > hc) and
-  (z < surfaceLayerHeight)``.  Both are strict, so ``z == hc`` -- the
+* B244 (fixed): ``calcU`` tested ``if z < hc`` then ``elif (z > hc) and
+  (z < surfaceLayerHeight)``.  Both were strict, so ``z == hc`` -- the
   canopy top, the one height where the two profiles are built to agree --
-  falls through to the ``else`` branch, which *overwrites* z with the
-  2000 m surface-layer height.  A cell exactly at roof level is given the
-  wind speed of the top of the boundary layer: 11.10 m/s where the
-  profile is 2.44 m/s, a factor of 4.6, and identical to the value
-  returned for z = 3000 m.
+  fell through to the ``else`` branch, which *overwrites* z with the
+  2000 m surface-layer height, giving a cell at roof level 11.10 m/s where
+  the profile is 2.44 m/s.  The first test is now ``z <= hc``.
 * B245: the interpolation write-back uses chained assignment,
   ``data['Ux'].iloc[i] = ...``.  pandas already emits
   ``FutureWarning: ChainedAssignmentError`` for it, and under
@@ -277,16 +275,6 @@ class TestCanopyProfileValues:
 class TestContinuityAtCanopyTop:
     """B244: see the module docstring."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B244: calcU's two branches are `if z < hc` and `elif (z > hc) "
-               "and (z < surfaceLayerHeight)`, both strict, so z == hc falls "
-               "through to the else branch, which replaces z with the 2000 m "
-               "surface-layer height. The canopy top -- the single height where "
-               "the exponential and logarithmic branches are constructed to "
-               "agree, both giving Uh -- instead returns the wind speed at the "
-               "top of the boundary layer. See the consolidated findings issue.",
-    )
     def test_the_profile_at_canopy_top_is_the_canopy_top_speed(self, profile):
         """d/z0 = exp(kappa/beta) makes the log branch collapse to Uh at
         z = hc, matching the exponential branch there. A cell at roof level
@@ -306,22 +294,16 @@ class TestContinuityAtCanopyTop:
         assert fromBelow == pytest.approx(Uh)
         assert fromAbove == pytest.approx(Uh)
 
-    def test_canopy_top_currently_returns_the_surface_layer_value(self, profile):
-        """Characterisation of B244: z = hc and z = 3000 m come back
-        identical, and both are the 2000 m speed."""
+    def test_canopy_top_is_not_the_surface_layer_value(self, profile):
+        """z = 3000 m still clamps to the 2000 m speed; the canopy top must
+        not share it."""
         centre = _centre(profile)
         atRoof = centre[centre.z == 10.0].Umag.values
         aloft = centre[centre.z == 3000.0].Umag.values
-        assert atRoof == pytest.approx(aloft)
-        assert atRoof == pytest.approx(
-            [_profile(SURFACE_LAYER_HEIGHT)] * len(atRoof)
+        assert aloft == pytest.approx(
+            [_profile(SURFACE_LAYER_HEIGHT)] * len(aloft)
         )
-
-    def test_the_error_at_canopy_top_is_a_factor_of_four_and_a_half(self, profile):
-        """Characterisation of B244, sized."""
-        centre = _centre(profile)
-        atRoof = centre[centre.z == 10.0].Umag.mean()
-        assert atRoof / _uh() == pytest.approx(4.554, rel=1e-3)
+        assert atRoof[0] != pytest.approx(aloft[0])
 
 
 @pytest.mark.unit
