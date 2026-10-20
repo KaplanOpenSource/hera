@@ -254,6 +254,7 @@ def stochasticLagrangian_dispersionFlow_create(arguments):
     except FileExistsError:
         err = f"Flow field {flowName} Already exists. Use --overwrite to recreate"
         logger.error(err)
+        raise ValueError(err)
 
     logger.debug(f"----- End -----")
 

@@ -29,9 +29,6 @@ Deliberately not tested:
 Bugs pinned here (each with a strict xfail for the intended behaviour plus
 a passing characterisation of what actually happens):
 
-  * B169: `stochasticLagrangian_dispersionFlow_create` catches
-    FileExistsError, logs it with `logger.error` and returns normally, so
-    the command exits 0 having created nothing.
   * B170: `stochasticLagrangian_postProcess_toParquet` computes `cache`
     on both branches and then never forwards it to `getCaseResults`, whose
     default is `cache=True` -- the "directory, not in the DB" branch
@@ -965,28 +962,12 @@ class TestDispersionFlowCreate:
 
 
 @pytest.mark.unit
-class TestDispersionFlowCreateSwallowsFileExists:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B169: stochasticLagrangian_dispersionFlow_create catches "
-               "the FileExistsError raised for an existing flow field, "
-               "logs it with logger.error and then returns normally, so "
-               "`hera-openFoam stochasticLagrangian dispersionFlow create` "
-               "exits 0 having created nothing -- indistinguishable from "
-               "success for any script that checks the exit status.  See "
-               "the consolidated findings issue.",
-    )
+class TestDispersionFlowCreateOnAnExistingFlowField:
     def test_an_existing_flow_field_should_fail_the_command(self, install_toolkit):
         toolkit = _FakeOFToolkit(createFlowRaises=FileExistsError("already there"))
         install_toolkit(toolkit)
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError, match="Use --overwrite to recreate"):
             stochasticLagrangian_dispersionFlow_create(_dispersionFlowArgs())
-
-    def test_an_existing_flow_field_currently_returns_quietly(self, install_toolkit):
-        """Characterisation of B169."""
-        toolkit = _FakeOFToolkit(createFlowRaises=FileExistsError("already there"))
-        install_toolkit(toolkit)
-        assert stochasticLagrangian_dispersionFlow_create(_dispersionFlowArgs()) is None
         assert "stochasticLagrangian.createDispersionFlowField" in toolkit.names()
 
     def test_other_failures_are_not_swallowed(self, install_toolkit):
