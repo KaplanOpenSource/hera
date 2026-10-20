@@ -10,6 +10,11 @@ try:
     import Part
     import Mesh
 except ImportError as e:
+    # A partial install must not leave FreeCAD bound on its own: the STL
+    # methods guard on FreeCAD and would otherwise die later on Part/Mesh.
+    FreeCAD = None
+    Part = None
+    Mesh = None
     print("FreeCAD module is not installed in this environment. Cannot convert to STL")
 
 import matplotlib.pyplot as plt

@@ -29,9 +29,8 @@ the nesting the repository loader produces and the one
 ``VectorToolkit.cutRegionFromSource`` reads (see the fixture's own note).
 
 *STL.*  FreeCAD is not installed here.  The conftest stubs the name
-``FreeCAD`` with a MagicMock, but the module's import block is
-``import FreeCAD; import Part; import Mesh`` inside a single ``try`` -- so
-``Part`` and ``Mesh`` are never bound at all (see B238).  The tests therefore
+``FreeCAD`` with a MagicMock, but ``Part`` and ``Mesh`` are missing, so the
+module's import block clears all three to None (see B238).  The tests therefore
 install small *recording* stand-ins for all three over the module globals with
 ``monkeypatch``, and assert on what the production code asks FreeCAD to build:
 how many sketches, at what placement altitude, with what extrusion length, and
@@ -53,13 +52,14 @@ passing characterisation of what actually happens)
   exactly), but the extrusion still added the shift -- so every flat-terrain
   building came out ``nonFlatTopographyShift`` metres too tall.  The extrusion
   length now follows the branch.
-* **B238** -- the module's guarded import is
+* **B238** (fixed) -- the module's guarded import is
   ``try: import FreeCAD; import Part; import Mesh except ImportError``.  When
-  FreeCAD is importable but ``Part`` is not (the case here, and the case for
-  any partial install), ``FreeCAD`` is left bound while ``Part`` and ``Mesh``
-  are not -- so the ``try: FreeCAD.newDocument(...) except: raise ValueError``
-  guard that exists precisely to give a clear "install FreeCAD" message is
-  bypassed, and the method dies much later with a bare ``NameError``.
+  FreeCAD was importable but ``Part`` was not (the case here, and the case for
+  any partial install), ``FreeCAD`` was left bound while ``Part`` and ``Mesh``
+  were not -- so the ``try: FreeCAD.newDocument(...) except: raise ValueError``
+  guard that exists precisely to give a clear "install FreeCAD" message was
+  bypassed and the method died much later with a bare ``NameError``.  The
+  handler now clears all three names.
 
 Deliberately not tested, and why
 --------------------------------
@@ -506,30 +506,16 @@ def _call(toolkit, data=None, **kwargs):
 
 @pytest.mark.unit
 class TestBuildingsGeopandasToSTLModuleImports:
-    def test_freecad_is_bound_but_part_and_mesh_are_not(self):
-        """Characterisation of B238: the guarded import binds only the first name."""
-        assert hasattr(buildings_module, "FreeCAD")
-        assert not hasattr(buildings_module, "Part")
-        assert not hasattr(buildings_module, "Mesh")
+    def test_a_partial_install_leaves_none_of_the_three_bound(self):
+        """B238: FreeCAD is no longer left bound on its own."""
+        assert buildings_module.FreeCAD is None
+        assert buildings_module.Part is None
+        assert buildings_module.Mesh is None
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B238: the module's 'try: import FreeCAD; import Part; import "
-               "Mesh' leaves FreeCAD bound when only Part/Mesh are missing, "
-               "so the method's own 'FreeCAD not found. Install before using "
-               "this function' guard never fires and the failure surfaces "
-               "later as a bare NameError on Part. See the consolidated "
-               "findings issue.",
-    )
     def test_a_partial_freecad_install_is_reported_as_such(self, buildings_toolkit):
+        """B238."""
         with pytest.raises(ValueError, match="FreeCAD not found"):
             _call(buildings_toolkit)
-
-    def test_a_partial_install_dies_on_an_unbound_name_instead(self, buildings_toolkit):
-        """Characterisation of B238."""
-        with pytest.raises(NameError) as excinfo:
-            _call(buildings_toolkit)
-        assert "Part" in str(excinfo.value)
 
 
 @pytest.mark.unit
