@@ -540,7 +540,8 @@ def stochasticLagrangian_postProcess_toParquet(arguments):
 
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
     data = tk.stochasticLagrangian.getCaseResults(caseDescriptor=outputName, withVelocity=True, withMass=True,
-                                                  overwrite=arguments.overwrite, cloudName=arguments.cloudName)
+                                                  overwrite=arguments.overwrite, cloudName=arguments.cloudName,
+                                                  cache=cache)
 
 
 def stochasticLagrangian_postProcess_toVTK(arguments):

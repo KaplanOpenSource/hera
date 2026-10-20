@@ -29,10 +29,6 @@ Deliberately not tested:
 Bugs pinned here (each with a strict xfail for the intended behaviour plus
 a passing characterisation of what actually happens):
 
-  * B170: `stochasticLagrangian_postProcess_toParquet` computes `cache`
-    on both branches and then never forwards it to `getCaseResults`, whose
-    default is `cache=True` -- the "directory, not in the DB" branch
-    explicitly sets `cache = False` and is ignored.
   * B171: `..._postProcess_toParquet` / `..._postProcess_toVTK` leave
     `outputName` unbound when the dispersion name is neither in the DB nor
     a directory on disk, and die with UnboundLocalError instead of the
@@ -1550,18 +1546,8 @@ class TestPostProcessToParquet:
 
 
 @pytest.mark.unit
-class TestPostProcessToParquetDropsTheCacheFlag:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B170: stochasticLagrangian_postProcess_toParquet sets "
-               "`cache = False` for a case found only as a directory and "
-               "`cache = True` for one found in the DB, then calls "
-               "getCaseResults without passing cache at all -- and "
-               "getCaseResults defaults to cache=True.  The directory "
-               "branch's decision not to cache is silently discarded.  See "
-               "the consolidated findings issue.",
-    )
-    def test_the_cache_decision_should_reach_the_toolkit(
+class TestPostProcessToParquetCacheFlag:
+    def test_a_case_found_only_as_a_directory_is_not_cached(
         self, install_toolkit, in_tmp_cwd
     ):
         (in_tmp_cwd / "caseOnDisk").mkdir()
@@ -1572,17 +1558,11 @@ class TestPostProcessToParquetDropsTheCacheFlag:
         )
         assert toolkit.call("stochasticLagrangian.getCaseResults")[2]["cache"] is False
 
-    def test_the_cache_decision_is_currently_computed_and_dropped(
-        self, install_toolkit, in_tmp_cwd
-    ):
-        """Characterisation of B170."""
-        (in_tmp_cwd / "caseOnDisk").mkdir()
-        toolkit = _FakeOFToolkit(documents=[], caseResults="data")
+    def test_a_case_found_in_the_database_is_cached(self, install_toolkit, in_tmp_cwd):
+        toolkit = _FakeOFToolkit(documents=[_FakeDocument()], caseResults="data")
         install_toolkit(toolkit)
-        stochasticLagrangian_postProcess_toParquet(
-            _toParquetArgs(dispersionName="caseOnDisk")
-        )
-        assert "cache" not in toolkit.call("stochasticLagrangian.getCaseResults")[2]
+        stochasticLagrangian_postProcess_toParquet(_toParquetArgs())
+        assert toolkit.call("stochasticLagrangian.getCaseResults")[2]["cache"] is True
 
 
 @pytest.mark.unit
