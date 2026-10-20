@@ -61,9 +61,9 @@ independent duplicates):
   byte leaked back in as a fractional part and every FP2 value came out
   with a spurious offset of up to ``1/factor``.  ``key // 256`` is the
   low byte, in both copies of the reader.
-* B118: the ``key == 65183`` NaN-sentinel branch of
-  ``_newfloatConvert`` stores ``float('nan')`` in the cache but returns
-  ``None`` instead of it, so the first call for that key disagrees with
+* B118 (fixed): the ``key == 65183`` NaN-sentinel branch of
+  ``_newfloatConvert`` stored ``float('nan')`` in the cache but returned
+  ``None`` instead of it, so the first call for that key disagreed with
   every later (cached) call.  This is the same defect already pinned as
   B107 against the highfreqdata copy; it is repeated here verbatim, and
   fixing one file will not fix the other.
@@ -630,19 +630,9 @@ class TestFp2LowByteIsShiftedNotDivided:
 
 
 @pytest.mark.unit
-class TestNanSentinelDoesNotReturnItsOwnCachedValue:
-    """B118: the same defect as B107, duplicated in this module."""
+class TestNanSentinelReturnsItsOwnCachedValue:
+    """B118: the same defect as B107, in this module's copy."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B118: the key == 65183 branch of _newfloatConvert stores "
-               "float('nan') in the cache but returns None instead of it, "
-               "so the first call disagrees with every cached call that "
-               "follows. Identical to B107 in "
-               "meteorology/highfreqdata/parsers/CampbellBinary.py, which "
-               "is an independent copy of this code. See the consolidated "
-               "findings issue.",
-    )
     def test_the_sentinel_converts_to_nan_on_the_first_call_too(self, sonic_file):
         cbi = CampbellBinaryInterface(file=str(sonic_file))
 
@@ -650,19 +640,14 @@ class TestNanSentinelDoesNotReturnItsOwnCachedValue:
 
         assert value is not None and math.isnan(value)
 
-    def test_the_first_call_currently_returns_none(self, sonic_file):
-        """Characterisation of B118."""
+    def test_the_cached_call_agrees_with_the_first_one(self, sonic_file):
+        """The value used to be computed and stored but not handed back,
+        so the second call answered differently."""
         cbi = CampbellBinaryInterface(file=str(sonic_file))
 
-        assert cbi._newfloatConvert(65183) is None
+        first = cbi._newfloatConvert(65183)
 
-    def test_the_cache_holds_nan_all_the_same(self, sonic_file):
-        """Characterisation of B118: the value is computed and stored,
-        just not handed back, so the second call answers differently."""
-        cbi = CampbellBinaryInterface(file=str(sonic_file))
-
-        cbi._newfloatConvert(65183)
-
+        assert math.isnan(first)
         assert math.isnan(cbi._lut[65183])
         assert math.isnan(cbi._newfloatConvert(65183))
 

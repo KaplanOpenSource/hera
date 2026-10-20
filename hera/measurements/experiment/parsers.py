@@ -810,7 +810,7 @@ class CampbellBinaryInterface(object):
 
         Returns
         -------
-        float or None
+        float
             Converted float, or NaN for the sentinel value 65183.
         """
         try:
@@ -818,7 +818,7 @@ class CampbellBinaryInterface(object):
         except:
             if key == 65183:
                 self._lut[key] = float('nan')
-                return
+                return self._lut[key]
             val = self._floatConvert(int(key % 256), key // 256)
             self._lut[key] = val
             return val
