@@ -265,7 +265,7 @@ class LSMTemplate:
         if canopy is not None:
             with open("canopy_properties.txt","w") as newCanopyFile:
                 newCanopyFile.write(canopy)
-            if (topography is not None or stations is not None):
+            if stations is not None:
                 if self.hColumn not in stations.columns:
                     raise KeyError("Height column is missing in the stations dataframe")
                 else:

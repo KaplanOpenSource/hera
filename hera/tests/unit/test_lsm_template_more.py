@@ -29,8 +29,6 @@ and a passing characterisation of what actually happens:
   * B275: ``_toNetcdf`` says it converts the dosage "to s/m**3 instead
     of min/m**3" but multiplies by ``(1 s).m_as(min)`` = 1/60, which is
     the seconds-to-minutes factor -- the reverse of the stated conversion.
-  * B277: ``run(topography=..., canopy=...)`` without ``stations``
-    reaches ``stations.columns`` on None and dies with AttributeError.
   * B278: ``run`` chdir's into the simulation directory with no
     try/finally, so any failure past that point leaves the whole process
     in the simulation directory.
@@ -144,6 +142,16 @@ def solver(monkeypatch):
 
     monkeypatch.setattr(subprocess, "run", _run)
     return record
+
+
+@pytest.fixture()
+def failingSolver(monkeypatch):
+    """Make the ./a.out subprocess raise, to exercise run()'s failure paths."""
+
+    def _run(command, *args, **kwargs):
+        raise RuntimeError("the solver blew up")
+
+    monkeypatch.setattr(subprocess, "run", _run)
 
 
 @pytest.fixture()
@@ -658,28 +666,11 @@ class TestRunCanopyWithoutStations:
         """With neither topography nor stations the height check is skipped."""
         assert self._run(template, canopy="CANOPY DATA") is None
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B277: with a canopy and topography but no stations, run() "
-               "enters `if (topography is not None or stations is not None)` "
-               "and then reads `stations.columns` -- on None. Topography "
-               "alone is enough to enter the branch, so a canopy over "
-               "terrain without station data always dies with "
-               "AttributeError: 'NoneType' object has no attribute "
-               "'columns'. Only the stations arm of that `or` justifies the "
-               "check. See the consolidated findings issue.",
-    )
-    def test_a_canopy_over_topography_should_not_need_stations(
+    def test_a_canopy_over_topography_does_not_need_stations(
         self, template, ifmc, solver, cwd
     ):
+        """Only the stations arm justifies the station-height check."""
         assert self._run(template, topography="TOPO DATA", canopy="CANOPY DATA") is None
-
-    def test_a_canopy_over_topography_currently_raises_attributeerror(
-        self, template, ifmc, solver, cwd
-    ):
-        """Characterisation of B277."""
-        with pytest.raises(AttributeError, match="'NoneType' object has no attribute 'columns'"):
-            self._run(template, topography="TOPO DATA", canopy="CANOPY DATA")
 
     @pytest.mark.xfail(
         strict=True,
@@ -692,19 +683,19 @@ class TestRunCanopyWithoutStations:
                "consolidated findings issue.",
     )
     def test_a_failure_inside_the_run_should_still_restore_the_directory(
-        self, template, ifmc, solver, cwd
+        self, template, ifmc, failingSolver, cwd
     ):
-        with pytest.raises(AttributeError):
-            self._run(template, topography="TOPO DATA", canopy="CANOPY DATA")
+        with pytest.raises(RuntimeError):
+            self._run(template, canopy="CANOPY DATA")
         assert os.getcwd() == str(cwd)
 
     def test_a_failure_inside_the_run_currently_leaves_the_directory_changed(
-        self, template, ifmc, solver, cwd, lsm
+        self, template, ifmc, failingSolver, cwd, lsm
     ):
         """Characterisation of B278."""
         try:
-            with pytest.raises(AttributeError):
-                self._run(template, topography="TOPO DATA", canopy="CANOPY DATA")
+            with pytest.raises(RuntimeError):
+                self._run(template, canopy="CANOPY DATA")
             assert os.getcwd() == os.path.join(
                 os.path.abspath(lsm.filesDirectory), "sim"
             )
