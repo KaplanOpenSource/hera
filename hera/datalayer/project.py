@@ -1055,7 +1055,7 @@ class Project:
 
 
     @staticmethod
-    def getProjectList(cls,user=None):
+    def getProjectList(user=None):
         """
             Return the list with the names of the existing projects .
 
