@@ -414,7 +414,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
                 raise AttributeError(f"Handler function '{handler_name}' not found in LandCoverToolkit.")
 
             # Apply vectorized roughness handler
-            roughness_values = np.vectorize(handlerFunction)(landcover['landcover'])
+            roughness_values = np.vectorize(handlerFunction, otypes=[float])(landcover['landcover'])
             landcover = landcover.assign_coords(z0=(['i', 'j'], roughness_values))
 
         else:

@@ -498,7 +498,8 @@ class TestGetRoughness:
 
 @pytest.mark.unit
 class TestRoughnessDtypeFromTheHandler:
-    """B187: np.vectorize with no otypes infers the dtype from cell (0, 0)."""
+    """B187: np.vectorize now pins otypes=[float], so the dtype no longer
+    depends on which class happens to sit in cell (0, 0)."""
 
     # The five forest classes are the only ones _handleType1 spells as the
     # Python int 1 rather than a float; every other class is a float literal.
@@ -524,40 +525,27 @@ class TestRoughnessDtypeFromTheHandler:
         assert result.z0.dtype.kind == "f"
         np.testing.assert_allclose(result.z0.values, 0.12)
 
-    def test_a_leading_forest_cell_makes_the_whole_field_integer(self, lc, landcover_grid, typed_source):
-        """Characterisation of B187."""
+    def test_a_leading_forest_cell_keeps_the_field_floating_point(self, lc, landcover_grid, typed_source):
+        """B187."""
         grid = self._grid_starting_with(landcover_grid, self.FOREST, self.GRASSLAND)
         result = lc.getRoughnessFromLandcover(grid, dataSourceName=typed_source)
-        assert result.z0.dtype.kind == "i"
+        assert result.z0.dtype.kind == "f"
 
-    def test_the_truncation_zeroes_every_sub_metre_roughness(self, lc, landcover_grid, typed_source):
-        """Characterisation of B187: 0.12 m grassland becomes exactly 0."""
+    def test_sub_metre_roughness_survives_a_leading_forest_cell(self, lc, landcover_grid, typed_source):
+        """B187: grassland stays 0.12 m instead of truncating to 0."""
         grid = self._grid_starting_with(landcover_grid, self.FOREST, self.GRASSLAND)
         result = lc.getRoughnessFromLandcover(grid, dataSourceName=typed_source)
-        assert result.z0.values[0, 0] == 1
-        assert set(np.unique(result.z0.values[result.z0.values != 1])) == {0}
+        assert result.z0.values[0, 0] == pytest.approx(1.0)
+        others = result.z0.values.copy()
+        others[0, 0] = 0.12
+        np.testing.assert_allclose(others, 0.12)
 
-    def test_it_also_zeroes_urban_roughness(self, lc, landcover_grid, typed_source):
-        """Characterisation of B187: urban 0.8 m -> 0, i.e. a smooth city."""
+    def test_urban_roughness_survives_too(self, lc, landcover_grid, typed_source):
+        """B187: urban stays 0.8 m."""
         grid = self._grid_starting_with(landcover_grid, self.FOREST, 13)
         result = lc.getRoughnessFromLandcover(grid, dataSourceName=typed_source)
-        assert result.z0.values[0, 1] == 0
+        assert result.z0.values[0, 1] == pytest.approx(0.8)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B187: getRoughnessFromLandcover computes z0 with "
-               "np.vectorize(handlerFunction) and passes no otypes, so numpy "
-               "infers the output dtype by calling the handler on the FIRST "
-               "element only. _handleType1's table mixes types -- the five "
-               "forest classes (1..5) are the Python int 1, every other class "
-               "is a float -- so whenever grid cell (0, 0) is a forest, numpy "
-               "picks int64 and silently truncates every other cell: "
-               "grassland 0.12 -> 0, urban 0.8 -> 0, water 0.0001 -> 0. A "
-               "zero z0 makes the log wind profile singular. Fixing either the "
-               "table's literals (1 -> 1.0) or the vectorize call "
-               "(otypes=[float]) would do. See the consolidated findings "
-               "issue.",
-    )
     def test_a_leading_forest_cell_does_not_change_the_other_cells(self, lc, landcover_grid, typed_source):
         grid = self._grid_starting_with(landcover_grid, self.FOREST, self.GRASSLAND)
         result = lc.getRoughnessFromLandcover(grid, dataSourceName=typed_source)
