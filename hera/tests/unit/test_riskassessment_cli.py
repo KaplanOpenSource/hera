@@ -1,13 +1,4 @@
-"""riskassessment/CLI.py: createRepository and _check_if_agent.
-
-B109: createRepository always produces an empty repository. It scans
-`os.listdir(arguments.path)`, which yields bare filenames, and passes
-those straight to `_check_if_agent(file_path)` without joining them with
-`arguments.path` -- so `_check_if_agent` tries to open the file relative
-to the current working directory, not the directory being scanned. Unless
-the process happens to already be running with `arguments.path` as its
-cwd, every file lookup fails and DataSource ends up empty.
-"""
+"""riskassessment/CLI.py: createRepository and _check_if_agent."""
 import json
 import os
 
@@ -51,16 +42,7 @@ class _Args:
 
 
 @pytest.mark.unit
-class TestCreateRepositoryIsBroken:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B109: createRepository passes bare os.listdir() filenames "
-               "to _check_if_agent without joining them with "
-               "arguments.path, so the lookup is relative to the process "
-               "cwd instead of the scanned directory -- the DataSource "
-               "dict is always empty unless cwd happens to equal path. "
-               "See the consolidated findings issue.",
-    )
+class TestCreateRepository:
     def test_a_valid_agent_file_should_appear_in_the_repository(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path.parent)  # ensure cwd != tmp_path
         _write_agent(tmp_path / "agent1.json")
@@ -68,18 +50,15 @@ class TestCreateRepositoryIsBroken:
         repo = json.loads((tmp_path / "repo.json").read_text())
         assert "agent1" in repo["RiskAssessment"]["DataSource"]
 
-    def test_it_currently_produces_an_empty_repository(self, tmp_path, monkeypatch):
-        """Characterisation of B109."""
+    def test_a_non_agent_file_is_left_out(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path.parent)
-        _write_agent(tmp_path / "agent1.json")
+        (tmp_path / "plain.json").write_text(json.dumps({"foo": "bar"}))
         createRepository(_Args(str(tmp_path), "repo.json"))
         repo = json.loads((tmp_path / "repo.json").read_text())
         assert repo["RiskAssessment"]["DataSource"] == {}
 
     def test_a_missing_path_defaults_to_the_current_working_directory(self, tmp_path, monkeypatch):
-        """When arguments.path is falsy, it defaults to os.getcwd() -- and
-        then the lookup accidentally works, since listdir() and
-        _check_if_agent() now agree on the same (implicit) directory."""
+        """When arguments.path is falsy, it defaults to os.getcwd()."""
         monkeypatch.chdir(tmp_path)
         _write_agent(tmp_path / "agent1.json")
         args = _Args(path=None, repository_name="repo.json")
