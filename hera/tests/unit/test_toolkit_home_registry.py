@@ -522,8 +522,8 @@ class TestImportToolkitsFromJSONValidation:
 
 
 @pytest.mark.unit
-class TestImportToolkitsFromJSONIsBroken:
-    """B260: see the module docstring."""
+class TestImportToolkitsFromJSONRegisters:
+    """The hand-off to registerToolkit, and what reaches the registry."""
 
     @staticmethod
     def _one_toolkit(tmp_path):
@@ -532,42 +532,20 @@ class TestImportToolkitsFromJSONIsBroken:
             "toolkits": [{"name": "MyTK", "classpath": RISK_CLASSPATH,
                           "version": [1, 2, 3]}]})
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B260: import_toolkits_from_json calls "
-               "self.registerToolkit(toolkitclass=..., repositoryName=..., "
-               "datasource_name=..., params=..., version=..., overwrite=...), "
-               "but registerToolkit's signature is "
-               "(toolkit_name, toolkit_path, params, version, overwrite, "
-               "**kwargs).  None of the three leading keywords match, so "
-               "every entry raises TypeError: registerToolkit() missing 2 "
-               "required positional arguments: 'toolkit_name' and "
-               "'toolkit_path'.  The method can never register anything. "
-               "See the consolidated findings issue.",
-    )
-    def test_a_declared_toolkit_should_be_registered(self, home, tmp_path):
+    def test_a_declared_toolkit_is_registered(self, home, tmp_path):
         assert home.import_toolkits_from_json(
             projectName=UNIT_PROJECT_NAME,
             json_path=self._one_toolkit(tmp_path)) == ["MyTK"]
 
-    def test_it_currently_raises_a_type_error(self, home, tmp_path):
-        """Characterisation of B260."""
-        with pytest.raises(TypeError, match="missing 2 required positional arguments"):
-            home.import_toolkits_from_json(projectName=UNIT_PROJECT_NAME,
-                                           json_path=self._one_toolkit(tmp_path))
+    def test_it_reaches_the_registry(self, home, tmp_path):
+        home.import_toolkits_from_json(projectName=UNIT_PROJECT_NAME,
+                                       json_path=self._one_toolkit(tmp_path))
 
-    def test_nothing_reaches_the_registry(self, home, tmp_path):
-        """Characterisation of B260: the failure is total, not partial."""
-        with pytest.raises(TypeError):
-            home.import_toolkits_from_json(projectName=UNIT_PROJECT_NAME,
-                                           json_path=self._one_toolkit(tmp_path))
+        assert [d["toolkit"] for d in home.getToolkitDocuments(name="MyTK")] == ["MyTK"]
 
-        assert home.getToolkitDocuments(name="MyTK") == []
-
-    def test_the_validation_ahead_of_it_still_runs_first(self, home, tmp_path):
-        """Characterisation of B260's blast radius: the guards before the
-        registerToolkit call are reachable, which is why they are asserted
-        above rather than xfailed."""
+    def test_the_validation_ahead_of_it_runs_first(self, home, tmp_path):
+        """The guards before the registerToolkit call stop a bad entry
+        before anything is written."""
         path = _toolkits_json(tmp_path, {
             "repository": "r",
             "toolkits": [{"name": "MyTK", "classpath": "no.such.Class"}]})

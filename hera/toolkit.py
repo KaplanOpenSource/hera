@@ -1280,6 +1280,7 @@ class ToolkitHome(abstractToolkit):
         Read a JSON file and register all Toolkits it declares into the given project.
         (Uses registerToolkit -> datasource interface.)
         """
+        import inspect
         import json
         from pydoc import locate
 
@@ -1316,12 +1317,12 @@ class ToolkitHome(abstractToolkit):
                 raise ImportError(f"Cannot locate class by classpath: {classpath}")
 
             self.registerToolkit(
-                toolkitclass=tk_class,
-                repositoryName=repo_to_use,
-                datasource_name=name,
+                toolkit_name=name,
+                toolkit_path=inspect.getfile(tk_class),
                 params=params,
                 version=tuple(int(x) for x in version),
                 overwrite=overwrite,
+                repositoryName=repo_to_use,
             )
             registered.append(name)
 
