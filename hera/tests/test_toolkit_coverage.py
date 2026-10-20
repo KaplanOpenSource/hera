@@ -137,9 +137,9 @@ class TestTopographyStatistics:
     def elevation_df(self):
         return pd.DataFrame(
             {
-                "X": [1.0, 2.0, 3.0, 1.0, 2.0, 3.0],
-                "Y": [10.0, 10.0, 10.0, 20.0, 20.0, 20.0],
-                "Elevation": [100.0, 150.0, 200.0, 110.0, 160.0, 210.0],
+                "lon": [1.0, 2.0, 3.0, 1.0, 2.0, 3.0],
+                "lat": [10.0, 10.0, 10.0, 20.0, 20.0, 20.0],
+                "elevation": [100.0, 150.0, 200.0, 110.0, 160.0, 210.0],
             }
         )
 
@@ -172,7 +172,7 @@ class TestTopographyStatistics:
         assert stats["domainmin"] == 100.0
 
     def test_max_location_correct(self, elevation_df):
-        """The max elevation (210) is at X=3, Y=20."""
+        """The max elevation (210) is at lon=3, lat=20."""
         topo_analysis = topographyAnalysis(None)
         stats = topo_analysis.calculateStastics(elevation_df)
         xloc, yloc = stats["domainmaxlocation"]
