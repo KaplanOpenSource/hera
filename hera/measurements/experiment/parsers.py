@@ -364,8 +364,16 @@ class Parser_TOA5(object):
         ----------
         file : str
             Path to the TOA5 file.
+
+        Raises
+        ------
+        NotImplementedError
+            Always. Use
+            hera.measurements.meteorology.highfreqdata.parsers.TOA5.ASCIIParser
+            instead.
         """
-        pass
+        raise NotImplementedError("Parser_TOA5.parse is not implemented. Use "
+                                  "hera.measurements.meteorology.highfreqdata.parsers.TOA5.ASCIIParser")
 
 
 
