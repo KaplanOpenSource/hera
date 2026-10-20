@@ -108,18 +108,16 @@ class bibItem:
                                     if indx == len(word):
                                         break
                                 theword.append(word[beginIndex:indx])
-                        elif  word[indx] == 'DOLLAR SIGN':
-                            # begin command:
+                        elif  word[indx] == '$':
+                            # begin math mode: copy verbatim up to and
+                            # including the closing '$'.
                             beginIndex = indx
                             indx += 1
-                            if indx == len(word):
-                                theword.append("$")
-                            else:
-                                while 'DOLLAR SIGN' in self._getUnicodeName(word[indx]):
-                                    indx += 1
-                                    if indx == len(word):
-                                        break
-                                theword.append(word[beginIndex:indx])
+                            while indx < len(word) and word[indx] != '$':
+                                indx += 1
+                            if indx < len(word):
+                                indx += 1
+                            theword.append(word[beginIndex:indx])
 
 
                         elif 'DIGIT'  in charName:

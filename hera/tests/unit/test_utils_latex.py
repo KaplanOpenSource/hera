@@ -79,18 +79,10 @@ class TestHebrewConversion:
         converted = bibItem(["יוסף כוהן."]).convert()
         assert "יוסף" in converted
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B9: the math-mode branch tests `word[indx] == 'DOLLAR SIGN'`, "
-               "comparing a single character to an 11-character string, so it can "
-               "never fire. '$' falls through to the literal branch and the "
-               "expression is mangled. See the consolidated findings issue.",
-    )
     def test_math_mode_is_preserved(self):
         r"""The class docstring's own example is $4\frac{m}{s}$.
 
-        It currently converts to $$4\$\L{frac}{\L{m}}{\L{s}}$ -- not valid
-        LaTeX. Whatever the Hebrew wrapping does elsewhere, an existing math
+        Whatever the Hebrew wrapping does elsewhere, an existing math
         expression has to come out intact.
         """
         converted = bibItem([r"האם $4\frac{m}{s}$ נכון"]).convert()
