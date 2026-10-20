@@ -13,6 +13,7 @@ pandas   = _LazyModule("pandas")
 pd       = pandas
 xarray   = _LazyModule("xarray")
 xr       = xarray
+dask_dataframe = _LazyModule("dask.dataframe")
 
 
 # ESPG codes
@@ -386,9 +387,11 @@ class stlFactory:
         if isinstance(gpandas, geopandas.GeoDataFrame):
             rasterMap = self.rasterizeGeopandas(gpandas, dxdy=dxdy)
 
-        elif isinstance(gpandas, pandas.DataFrame) or isinstance(gpandas, dask.dataframe.DataFrame):
+        elif isinstance(gpandas, pandas.DataFrame) or isinstance(gpandas, dask_dataframe.DataFrame):
             rasterMap = self.rasterizePandas(gpandas,dxdy=dxdy)
 
+        else:
+            raise TypeError(f"gpandas must be a geopandas.GeoDataFrame, a pandas.DataFrame or a dask.dataframe.DataFrame, got {type(gpandas)}")
 
         return self.rasterToSTL(grid_x=rasterMap['x'],
                                     grid_y=rasterMap['y'],
