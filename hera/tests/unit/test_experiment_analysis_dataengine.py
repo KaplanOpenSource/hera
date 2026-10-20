@@ -10,12 +10,12 @@ Three defects surfaced here:
   ``daskDataEngineDB.DBconfiguration`` were missing a ``return`` statement
   (``self._dbConfiguration`` as a bare expression), so the property always
   returned ``None`` regardless of what was actually configured.
-* B77: ``pandasDataEngineDB.dbConnect`` catches
-  ``except OperationFailure as e:``, but ``OperationFailure`` is never
-  imported in this module. When a real connection attempt fails with any
+* B77 (fixed): ``pandasDataEngineDB.dbConnect`` catches
+  ``except OperationFailure as e:``, but ``OperationFailure`` was never
+  imported in this module. When a real connection attempt failed with any
   other exception, Python's own attempt to match it against
-  ``OperationFailure`` raises ``NameError`` -- which the outer
-  ``except Exception as e: return e`` then silently swallows and returns
+  ``OperationFailure`` raised ``NameError`` -- which the outer
+  ``except Exception as e: return e`` then silently swallowed and returned
   in place of the real connection error.
 
 Note: constructing ``pandasDataEngineDB`` for real calls ``dbConnect()``,
@@ -143,7 +143,7 @@ class TestPandasDataEngineDBConnect:
     """dbConnect() opens a real socket via pymongo.MongoClient; every test
     here monkeypatches it so nothing ever touches the network."""
 
-    def test_dbconnect_should_surface_the_original_exception(self, monkeypatch):
+    def test_dbconnect_surfaces_the_original_exception(self, monkeypatch):
         import hera.measurements.experiment.dataEngine as de_mod
 
         class _FakeClient:
@@ -158,13 +158,13 @@ class TestPandasDataEngineDBConnect:
         result = engine.dbConnect()
         assert isinstance(result, RuntimeError)
 
-    def test_dbconnect_currently_masks_it_with_a_nameerror(self, monkeypatch):
-        """Characterisation of B77."""
+    def test_dbconnect_returns_an_operation_failure_as_is(self, monkeypatch):
+        """B77: the OperationFailure branch is now reachable."""
         import hera.measurements.experiment.dataEngine as de_mod
 
         class _FakeClient:
             def server_info(self):
-                raise RuntimeError("connection refused")
+                raise de_mod.OperationFailure("auth failed")
 
         monkeypatch.setattr(de_mod.pymongo, "MongoClient", lambda uri: _FakeClient())
         engine = pandasDataEngineDB.__new__(pandasDataEngineDB)
@@ -172,5 +172,4 @@ class TestPandasDataEngineDBConnect:
             "username": "u", "password": "p", "ip": "1.2.3.4", "port": "27017",
         }}
         result = engine.dbConnect()
-        assert isinstance(result, RuntimeError)
-
+        assert isinstance(result, de_mod.OperationFailure)
