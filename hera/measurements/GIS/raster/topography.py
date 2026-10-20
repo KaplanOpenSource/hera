@@ -8,6 +8,7 @@ from hera import toolkit
 from hera.measurements.GIS.utils import stlFactory, convertCRS, ITM, WSG84, ED50_ZONE36N, create_xarray
 from hera.utils.logging import get_classMethod_logger
 
+import math
 import numpy
 import rasterio
 import os
@@ -30,6 +31,20 @@ def _open_raster(fheight):
         # rasterio affine: (xres, 0, xmin, 0, -yres, ymax)
         gt = (t.c, t.a, 0.0, t.f, 0.0, t.e)
     return myarray, gt
+
+
+def _srtmTileName(lat, long):
+    """Return the SRTM/HGT tile file name that contains the given point.
+
+    The convention is a hemisphere letter plus the zero-padded index of the
+    tile's south-west corner: N05E007.hgt, S02W003.hgt. The index is the
+    floor of the coordinate, which for negative values is not int().
+    """
+    latIndex = math.floor(lat)
+    longIndex = math.floor(long)
+    latName = f"{'N' if latIndex >= 0 else 'S'}{abs(latIndex):02d}"
+    longName = f"{'E' if longIndex >= 0 else 'W'}{abs(longIndex):03d}"
+    return f"{latName}{longName}.hgt"
 import geopandas
 import numpy as np
 
@@ -121,7 +136,7 @@ class TopographyToolkit(toolkit.abstractToolkit):
         """
         logger = get_classMethod_logger(self,"getPointElevation")
 
-        filename = 'N'+str(int(lat))+'E'+str(int(long)).zfill(3)+'.hgt'
+        filename = _srtmTileName(lat, long)
         logger.info(f"Getting elevation from file {filename}")
 
         if dataSourceName is None:
@@ -175,7 +190,7 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
 
         if isinstance(pointList,geopandas.geoseries.GeoSeries):
-            pointList = pointList.to_frame("point").assign(filename=pointList.apply(lambda row: 'N' + str(int(row.y)) + 'E' + str(int(row.x)).zfill(3) + '.hgt' ),
+            pointList = pointList.to_frame("point").assign(filename=pointList.apply(lambda row: _srtmTileName(row.y, row.x)),
                                                            lon=pointList.x,
                                                            lat=pointList.y,
                                                            elevation=0.0)
@@ -185,12 +200,12 @@ class TopographyToolkit(toolkit.abstractToolkit):
                 error = "GeoDataFrame must contain a field 'point' that contain the points of interest"
                 logger.error(error)
                 raise ValueError(error)
-            pointList = pointList.assign(filename=pointList.apply(lambda row: 'N' + str(int(row.point.y)) + 'E' + str(int(row.point.x)).zfill(3) + '.hgt', axis=1),
+            pointList = pointList.assign(filename=pointList.apply(lambda row: _srtmTileName(row.point.y, row.point.x), axis=1),
                                          lon=pointList.point.x,
                                          lat=pointList.point.y,
                                          elevation=0.0)
         else:
-            pointList = pointList.assign(filename=pointList.apply(lambda x: 'N' + str(int(x.lat)) + 'E' + str(int(x.lon)).zfill(3) + '.hgt' ,axis=1),elevation=0.0)
+            pointList = pointList.assign(filename=pointList.apply(lambda x: _srtmTileName(x.lat, x.lon), axis=1),elevation=0.0)
 
 
         if dataSourceName is None:

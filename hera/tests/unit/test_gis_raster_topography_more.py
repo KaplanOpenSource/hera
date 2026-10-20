@@ -286,7 +286,8 @@ class TestGetPointElevation:
 
 @pytest.mark.unit
 class TestSRTMTileNaming:
-    """B188: the tile name is built without padding or hemisphere letters."""
+    """B188: the tile name follows the SRTM/HGT convention -- a hemisphere
+    letter plus the zero-padded floor of the coordinate."""
 
     @staticmethod
     def _requested_name(topo, srtm, lat, lon):
@@ -298,36 +299,22 @@ class TestSRTMTileNaming:
     def test_the_longitude_is_padded_to_three_digits(self, topo, srtm):
         assert self._requested_name(topo, srtm, 40.5, 7.5).endswith("E007.hgt")
 
-    def test_the_latitude_is_not_padded_at_all(self, topo, srtm):
-        """Characterisation of B188: real SRTM tiles are N05..., not N5...."""
-        assert self._requested_name(topo, srtm, 5.5, 7.5) == "N5E007.hgt"
+    def test_the_latitude_is_padded_to_two_digits(self, topo, srtm):
+        """B188: real SRTM tiles are N05..., not N5...."""
+        assert self._requested_name(topo, srtm, 5.5, 7.5) == "N05E007.hgt"
 
-    def test_a_southern_latitude_becomes_a_negative_n_tile(self, topo, srtm):
-        """Characterisation of B188: no S hemisphere letter."""
-        assert self._requested_name(topo, srtm, -1.5, 7.5) == "N-1E007.hgt"
+    def test_a_southern_latitude_gets_the_s_hemisphere_letter(self, topo, srtm):
+        """B188."""
+        assert self._requested_name(topo, srtm, -1.5, 7.5) == "S02E007.hgt"
 
-    def test_a_western_longitude_becomes_a_negative_e_tile(self, topo, srtm):
-        """Characterisation of B188: no W hemisphere letter."""
-        assert self._requested_name(topo, srtm, 40.5, -2.5) == "N40E-02.hgt"
+    def test_a_western_longitude_gets_the_w_hemisphere_letter(self, topo, srtm):
+        """B188."""
+        assert self._requested_name(topo, srtm, 40.5, -2.5) == "N40W003.hgt"
 
-    def test_it_truncates_towards_zero_rather_than_flooring(self, topo, srtm):
-        """Characterisation of B188: int(-1.5) is -1, but the tile is S02."""
-        assert self._requested_name(topo, srtm, -1.5, 7.5) != "N-2E007.hgt"
+    def test_it_floors_rather_than_truncating_towards_zero(self, topo, srtm):
+        """B188: int(-1.5) is -1, but the tile that contains it is S02."""
+        assert self._requested_name(topo, srtm, -1.5, 7.5) == "S02E007.hgt"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B188: getPointElevation and getPointListElevation build the "
-               "tile name as 'N' + str(int(lat)) + 'E' + str(int(long)).zfill(3). "
-               "The SRTM/HGT convention is two zero-padded latitude digits plus "
-               "a hemisphere letter -- N05E007.hgt, S02W003.hgt -- so every "
-               "latitude below 10 degrees, every southern latitude and every "
-               "western longitude asks for a filename no SRTM archive contains "
-               "('N5E007.hgt', 'N-1E007.hgt', 'N40E-02.hgt'). int() also "
-               "truncates towards zero where the tile index needs a floor, so "
-               "-1.5 must map to S02, not to 1. Israel sits at 29-33N / 34-36E, "
-               "which is why this has never bitten. See the consolidated "
-               "findings issue.",
-    )
     @pytest.mark.parametrize(
         "lat, lon, expected",
         [(5.5, 7.5, "N05E007.hgt"), (-1.5, 7.5, "S02E007.hgt"), (40.5, -2.5, "N40W003.hgt")],
