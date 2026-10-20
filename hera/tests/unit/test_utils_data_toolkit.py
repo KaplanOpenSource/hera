@@ -47,30 +47,28 @@ Covered
 ``loadRepositoryFromPath``, ``exportDocumentsToRepository``,
 ``_resolveDocumentsForExport``, ``_resolveRepositoryPath``.
 
-Bugs pinned here (xfail(strict=True) for the intended behaviour + a passing
-characterisation of what actually happens):
+Bugs fixed here (the tests below now assert the corrected behaviour):
 
-* B151 ``addRepository`` decides the ``.json`` extension with
+* B151 ``addRepository`` decided the ``.json`` extension with
   ``"json" not in repositoryPath`` -- a substring test over the whole path.
-* B152 ``addRepository`` re-arms the default project's read-only guard only
-  on the success path; a raising ``addDataSource`` leaves it disarmed.
-* B153 the ``Cache`` entry of the handler table is a lambda whose third
-  parameter is named ``itemDesc`` while the dispatcher calls every handler with
-  ``docTypeDict=`` -- Cache sections can never load.
-* B154 ``_makeItemPathAbsolute`` coerces ``isRelativePath`` with ``bool()``,
-  so the string ``"False"`` that the sibling handler *requires* is truthy.
-* B159 ``_DocumentHandler`` never removes the ``isRelativePath`` control key
-  from the item, so it is forwarded as a keyword to ``add<Type>Document`` and
-  raises ``TypeError`` -- which is also why B154 is only reachable by calling
-  ``_makeItemPathAbsolute`` directly.
-* B155 ``_DocumentHandler`` guards ``getattr(toolkit, ...)`` with
-  ``if retrieveFunc is None`` -- unreachable, ``getattr`` raises first.
-* B156 ``_handle_Function`` resolves the method name on ``self`` (the
+* B152 ``addRepository`` re-armed the default project's read-only guard only
+  on the success path; a raising ``addDataSource`` left it disarmed.
+* B153 the ``Cache`` entry of the handler table was a lambda whose third
+  parameter was named ``itemDesc`` while the dispatcher calls every handler
+  with ``docTypeDict=`` -- Cache sections could never load.
+* B154 ``_makeItemPathAbsolute`` coerced ``isRelativePath`` with ``bool()``,
+  so the string ``"False"`` that the sibling handler *requires* was truthy.
+* B159 ``_DocumentHandler`` never removed the ``isRelativePath`` control key
+  from the item, so it was forwarded as a keyword to ``add<Type>Document``
+  and raised ``TypeError``.
+* B155 ``_DocumentHandler`` guarded ``getattr(toolkit, ...)`` with
+  ``if retrieveFunc is None`` -- unreachable, ``getattr`` raised first.
+* B156 ``_handle_Function`` resolved the method name on ``self`` (the
   dataToolkit, on the read-only default project) instead of on the toolkit the
   section belongs to.
-* B157 ``_handle_DataSource`` pops ``resourceFilePath`` inside the ``open()``
-  call, so a failed read leaves the item with neither key.
-* B158 ``_resolveDocumentsForExport`` guards ``getDocumentByID`` with
+* B157 ``_handle_DataSource`` popped ``resourceFilePath`` inside the ``open()``
+  call, so a failed read left the item with neither key.
+* B158 ``_resolveDocumentsForExport`` guarded ``getDocumentByID`` with
   ``if doc is None`` -- unreachable, mongoengine raises ``DoesNotExist``.
 
 Deliberately not covered
@@ -752,48 +750,36 @@ class TestMakeItemPathAbsoluteReadsTheStringFlag:
 
 
 @pytest.mark.unit
-class TestDocumentHandlerForwardsTheControlFlagAsData:
-    """B159: the isRelativePath key is never removed from the item."""
+class TestDocumentHandlerDropsTheControlFlag:
+    """B159: isRelativePath is a control flag and has to be removed from the
+    item before it is forwarded to add<Type>Document."""
 
     def _section(self, isRelativePath):
         return {"D": {"item": {"resource": "a/b.parquet", "dataFormat": "parquet",
                                "type": "MY_TYPE", "isRelativePath": isRelativePath}}}
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B159: _DocumentHandler reads isRelativePath out of the item "
-               "(via _makeItemPathAbsolute) but never pops it, then calls "
-               "add<Type>Document(**theItem). add<Type>Document takes only "
-               "resource/dataFormat/type/desc, so any Measurements, "
-               "Simulations or Cache entry that declares isRelativePath dies "
-               "with TypeError -- silently, since the loader logs and "
-               "continues. Note the two handlers also disagree about where "
-               "the flag lives: _handle_DataSource reads it from the wrapper "
-               "next to 'item', _DocumentHandler from inside 'item'. "
-               "See the consolidated findings issue.",
-    )
     def test_an_item_may_declare_isrelativepath(self, dtk, make_target_toolkit, tmp_path):
         target = make_target_toolkit("REL_FLAG_PROJECT_1")
         dtk._DocumentHandler(target, "Measurements", self._section("True"),
                              False, "Measurements", str(tmp_path))
         assert len(target.getMeasurementsDocuments(type="MY_TYPE")) == 1
 
-    def test_declaring_isrelativepath_raises_a_typeerror(self, dtk, make_target_toolkit, tmp_path):
-        """Characterisation of B159."""
+    def test_a_false_flag_keeps_the_resource_as_written(self, dtk, make_target_toolkit, tmp_path):
         target = make_target_toolkit("REL_FLAG_PROJECT_2")
-        with pytest.raises(TypeError, match="isRelativePath"):
-            dtk._DocumentHandler(target, "Measurements", self._section("False"),
-                                 False, "Measurements", str(tmp_path))
+        dtk._DocumentHandler(target, "Measurements", self._section("False"),
+                             False, "Measurements", str(tmp_path))
+        documents = target.getMeasurementsDocuments(type="MY_TYPE")
+        assert [d.resource for d in documents] == ["a/b.parquet"]
 
-    def test_through_the_loader_such_an_item_silently_vanishes(self, dtk, make_target_toolkit, tmp_path):
-        """Characterisation of B159."""
+    def test_through_the_loader_such_an_item_is_loaded(self, dtk, make_target_toolkit, tmp_path):
         dtk.loadAllDatasourcesInRepositoryJSONToProject(
             projectName="REL_FLAG_PROJECT_3",
             repositoryJSON={TARGET_TOOLKIT_NAME: {"Measurements": self._section("True")}},
             basedir=str(tmp_path),
         )
         target = make_target_toolkit("REL_FLAG_PROJECT_3")
-        assert len(target.getMeasurementsDocuments(type="MY_TYPE")) == 0
+        documents = target.getMeasurementsDocuments(type="MY_TYPE")
+        assert [d.resource for d in documents] == [str(tmp_path / "a/b.parquet")]
 
 
 # ---------------------------------------------------------------------------

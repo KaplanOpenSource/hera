@@ -395,6 +395,9 @@ class dataToolkit(abstractToolkit):
         for itemName, itemDesc in docTypeDict.items():
             theItem = itemDesc["item"]
             theItem["resource"] = self._makeItemPathAbsolute(theItem,basedir)
+            # isRelativePath is a control flag for the line above, not a field
+            # of the document; add<Type>Document would reject it.
+            theItem.pop("isRelativePath", None)
 
             logger.debug(f"Checking if the data item {itemName} is already in the project")
             retrieveFuncName = f"get{documentType}Documents"
