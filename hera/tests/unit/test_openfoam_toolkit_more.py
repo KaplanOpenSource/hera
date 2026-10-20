@@ -38,8 +38,6 @@ Bugs pinned below (each with an xfail for the intended behaviour and a
 passing characterisation of what happens today):
 
 * B194 ``prepareSlurmWorkflowExecution`` cannot take a workflow dict.
-* B197 ``Presentation.toUnstructuredVTK``'s overwrite guard checks a path
-  evtk never writes.
 * B198 ``Presentation.toStructuredVTK`` calls a method its analysis layer
   does not have.
 * B199 ``Presentation.loadLagrangianDataParallel`` drops the first
@@ -754,34 +752,23 @@ class TestPresentationToUnstructuredVTK:
                                           xcoord="x", ycoord="y", zcoord="z")
         assert sorted(vtkSeam.lastArgs[4]) == ["mass", "time"]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B197: the overwrite guard tests os.path.exists on the "
-               "extension-less base path it hands to evtk, but evtk writes "
-               "<base>.vtu. The file that exists is therefore never the file "
-               "checked, so the FileExistsError that is supposed to protect "
-               "an existing output (and the os.remove that overwrite=True "
-               "does) can never fire for a real evtk output. "
-               "See the consolidated findings issue.",
-    )
-    def test_an_existing_output_should_be_refused_without_overwrite(self, of, tmp_path, vtkSeam):
+    def test_an_existing_output_is_refused_without_overwrite(self, of, tmp_path, vtkSeam):
         (tmp_path / "particles_0.vtu").write_text("previous run")
-        with pytest.raises(FileExistsError):
-            of.presentation.toUnstructuredVTK(_particleData(), str(tmp_path), "particles")
-
-    def test_an_existing_vtu_is_currently_ignored(self, of, tmp_path, vtkSeam):
-        """Characterisation of B197."""
-        (tmp_path / "particles_0.vtu").write_text("previous run")
-        of.presentation.toUnstructuredVTK(_particleData(), str(tmp_path), "particles")
-        assert len(vtkSeam.calls) == 2
-
-    def test_the_guard_fires_for_the_extensionless_path_it_checks(self, of, tmp_path, vtkSeam):
-        """Characterisation of B197: the guard itself works, on the wrong path."""
-        (tmp_path / "particles_0").write_text("previous run")
         with pytest.raises(FileExistsError, match="overwrite"):
             of.presentation.toUnstructuredVTK(_particleData(), str(tmp_path), "particles")
-        of.presentation.toUnstructuredVTK(_particleData(), str(tmp_path), "particles", overwrite=True)
-        assert not (tmp_path / "particles_0").exists()
+
+    def test_overwrite_removes_the_vtu_evtk_actually_wrote(self, of, tmp_path, vtkSeam):
+        (tmp_path / "particles_0.vtu").write_text("previous run")
+        of.presentation.toUnstructuredVTK(_particleData(), str(tmp_path), "particles",
+                                          overwrite=True)
+        assert not (tmp_path / "particles_0.vtu").exists()
+        assert len(vtkSeam.calls) == 2
+
+    def test_an_extensionless_file_of_the_same_name_is_ignored(self, of, tmp_path, vtkSeam):
+        """evtk writes <base>.vtu, so a bare <base> is not its output."""
+        (tmp_path / "particles_0").write_text("not an evtk output")
+        of.presentation.toUnstructuredVTK(_particleData(), str(tmp_path), "particles")
+        assert len(vtkSeam.calls) == 2
 
 
 @pytest.mark.unit

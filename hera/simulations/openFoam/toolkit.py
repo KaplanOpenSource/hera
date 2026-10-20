@@ -1211,12 +1211,14 @@ class Presentation:
                 y = timeData[ycoord].values
                 z = timeData[zcoord].values
 
-                if os.path.exists(finalfile):
+                # evtk appends the .vtu extension to the base name it is given.
+                writtenFile = f"{finalfile}.vtu"
+                if os.path.exists(writtenFile):
                     logger.debug(f"The file exists, remove it if overwrite is True")
                     if overwrite:
-                        os.remove(finalfile)
+                        os.remove(writtenFile)
                     else:
-                        err = f"File {finalfile} exists. Use --overwrite to overwrite the files with newer version"
+                        err = f"File {writtenFile} exists. Use --overwrite to overwrite the files with newer version"
                         logger.error(err)
                         raise FileExistsError(err)
 
@@ -1232,12 +1234,14 @@ class Presentation:
                 y = timeData[ycoord].values
                 z = timeData[zcoord].values
 
-                if os.path.exists(finalfile):
+                # evtk appends the .vtu extension to the base name it is given.
+                writtenFile = f"{finalfile}.vtu"
+                if os.path.exists(writtenFile):
                     logger.debug(f"The file exists, remove it if overwrite is True")
                     if overwrite:
-                        os.remove(finalfile)
+                        os.remove(writtenFile)
                     else:
-                        err = f"File {finalfile} exists. Use --overwrite to overwrite the files with newer version"
+                        err = f"File {writtenFile} exists. Use --overwrite to overwrite the files with newer version"
                         logger.error(err)
                         raise FileExistsError(err)
 
