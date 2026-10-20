@@ -199,7 +199,7 @@ class abstractToolkit(Project):
             toolkit=self.toolkitName,
             **filters,
         )
-        return [doc['desc']['datasourceName'] for doc in docList]
+        return list(dict.fromkeys(doc['desc']['datasourceName'] for doc in docList))
 
     def getDataSourceMap(self, **filters) -> List[Dict[str, Any]]:
         """
