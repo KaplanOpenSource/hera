@@ -1335,7 +1335,8 @@ class Presentation:
                         (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
                                   key=lambda x: int(x))[1:]
             else:
-                timeList = numpy.atleast_1d(times)
+                # Time steps name directories, so they have to be strings.
+                timeList = [str(x) for x in numpy.atleast_1d(times)]
 
             data = dask.dataframe.from_delayed(
                 [delayed(loader)(os.path.join(processorName, timeName)) for processorName, timeName in
@@ -1349,7 +1350,8 @@ class Presentation:
                         (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
                                   key=lambda x: int(x))
             else:
-                timeList = numpy.atleast_1d(times)
+                # Time steps name directories, so they have to be strings.
+                timeList = [str(x) for x in numpy.atleast_1d(times)]
 
             data = dask.dataframe.from_delayed([delayed(loader)(timeName) for timeName in timeList])
 

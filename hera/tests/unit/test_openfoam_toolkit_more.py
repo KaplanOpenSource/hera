@@ -40,8 +40,6 @@ passing characterisation of what happens today):
 * B194 ``prepareSlurmWorkflowExecution`` cannot take a workflow dict.
 * B198 ``Presentation.toStructuredVTK`` calls a method its analysis layer
   does not have.
-* B200 ``Presentation.loadLagrangianDataParallel`` cannot take numeric
-  time steps.
 """
 import json
 import os
@@ -833,21 +831,7 @@ class TestPresentationLoadLagrangianDataParallel:
         assert {call[0][0] for call in readSeam.calls} == {os.path.join("processor0", "100"),
                                                            os.path.join("processor0", "200")}
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B200: `times` is documented as 'a list of time steps to "
-               "extract' and is pushed through numpy.atleast_1d, which turns "
-               "numbers into numpy.int64 -- but each element is then used as "
-               "a path component in os.path.join, which only accepts str / "
-               "bytes / PathLike. Numeric times (the natural form for a "
-               "time step) therefore always raise TypeError; only strings "
-               "work. See the consolidated findings issue.",
-    )
-    def test_numeric_times_should_be_accepted(self, of, parallelCase, readSeam):
+    def test_numeric_times_are_accepted(self, of, parallelCase, readSeam):
         of.presentation.loadLagrangianDataParallel(str(parallelCase), times=[100, 200]).compute()
-        assert readSeam.calls != []
-
-    def test_numeric_times_currently_raise(self, of, parallelCase, readSeam):
-        """Characterisation of B200."""
-        with pytest.raises(TypeError, match="join"):
-            of.presentation.loadLagrangianDataParallel(str(parallelCase), times=[100, 200])
+        assert {call[0][0] for call in readSeam.calls} == {os.path.join("processor0", "100"),
+                                                           os.path.join("processor0", "200")}
