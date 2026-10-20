@@ -427,11 +427,11 @@ class experimentPresentation:
         else:
             fig = ax.figure
 
-        maxx = devices_df.max().longitude
-        maxy = devices_df.max().latitude
+        maxx = devices_df.longitude.max()
+        maxy = devices_df.latitude.max()
 
-        minx = devices_df.min().longitude
-        miny = devices_df.min().latitude
+        minx = devices_df.longitude.min()
+        miny = devices_df.latitude.min()
         for row in devices_df.itertuples():
             x = row.latitude
             y = row.longitude

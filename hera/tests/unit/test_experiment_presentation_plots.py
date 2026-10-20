@@ -94,15 +94,16 @@ Bugs pinned here
   ``AttributeError: 'Pandas' object has no attribute 'containedIn'``,
   although the method already had a fallback branch meant for exactly
   that case. The column is now read with ``getattr``.
-* B223: ``plotDevicesOnImage`` computes its bounding box as
+* B223 (fixed): ``plotDevicesOnImage`` computed its bounding box as
   ``devices_df.max().longitude`` / ``devices_df.min().latitude`` -- an
   aggregate over the *whole* mixed-dtype frame rather than over the two
-  coordinate columns. As soon as any string column holds a NaN (which is
+  coordinate columns. As soon as any string column held a NaN (which is
   exactly what a mix of contained and uncontained devices produces in
-  ``containedIn``) the aggregate raises ``TypeError: '>=' not supported
-  between instances of 'str' and 'float'``. Together with B222 this leaves
+  ``containedIn``) the aggregate raised ``TypeError: '>=' not supported
+  between instances of 'str' and 'float'``. Together with B222 that left
   a single layout -- every device of the type contained in another device
-  -- in which the method runs at all.
+  -- in which the method ran at all. It now aggregates the two coordinate
+  columns.
 * B224: ``plotDevicesOnImage`` scatters ``x=row.latitude, y=row.longitude``,
   transposing the two axes: the image these devices are meant to sit on is
   drawn by ``plotImage`` with the longitudes (``left``/``right``) on x and
@@ -475,11 +476,11 @@ class TestPlotDevicesOnImageWithoutContainment:
 
 
 @pytest.mark.unit
-class TestPlotDevicesOnImageAggregatesTheWholeFrame:
-    """B223: min/max over every column, not just the coordinates."""
+class TestPlotDevicesOnImageAggregatesTheCoordinates:
+    """B223: min/max over the coordinate columns, not over every column."""
 
     def test_a_mixed_trial_leaves_a_nan_in_a_string_column(self, experimentFactory):
-        """Characterisation of B223: the frame the aggregate is given."""
+        """The frame the aggregate is given."""
         experiment = experimentFactory("mixed")
         table = experiment.trialSet["Measurements"]["T1"].entitiesTable
         sonics = table.query("deviceTypeName=='sonic'")
@@ -488,33 +489,25 @@ class TestPlotDevicesOnImageAggregatesTheWholeFrame:
             sonics.max()
 
     def test_aggregating_only_the_coordinates_works_on_the_same_frame(self, experimentFactory):
-        """Characterisation of B223: what the method actually needs."""
+        """What the method needs, and now does."""
         experiment = experimentFactory("mixed")
         sonics = experiment.trialSet["Measurements"]["T1"].entitiesTable.query(
             "deviceTypeName=='sonic'")
         assert sonics.latitude.max() == pytest.approx(SONIC_2[1])
         assert sonics.longitude.min() == pytest.approx(SONIC_1[0])
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B223: plotDevicesOnImage takes its bounding box from "
-               "devices_df.max()/min() over the whole mixed-dtype frame "
-               "rather than the latitude/longitude columns, so a trial "
-               "mixing contained and uncontained devices (a NaN in the "
-               "containedIn string column) raises TypeError. "
-               "See the consolidated findings issue.",
-    )
-    def test_it_should_plot_a_trial_mixing_contained_and_uncontained_devices(
+    def test_it_plots_a_trial_mixing_contained_and_uncontained_devices(
             self, mixedPresentation):
         _, ax = mixedPresentation.plotDevicesOnImage(
             "Measurements", "T1", "sonic", "map1", scatterkwargs=dict())
         assert len(ax.collections) == 2
 
-    def test_it_currently_raises_a_type_error(self, mixedPresentation):
-        """Characterisation of B223."""
-        with pytest.raises(TypeError, match="'>=' not supported"):
-            mixedPresentation.plotDevicesOnImage(
-                "Measurements", "T1", "sonic", "map1", scatterkwargs=dict())
+    def test_the_uncontained_device_of_a_mixed_trial_keeps_its_own_name(
+            self, mixedPresentation):
+        """The NaN in containedIn takes the deviceItemName branch."""
+        _, ax = mixedPresentation.plotDevicesOnImage(
+            "Measurements", "T1", "sonic", "map1", scatterkwargs=dict())
+        assert len(ax.texts) == 2
 
 
 @pytest.mark.unit
