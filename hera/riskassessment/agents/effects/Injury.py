@@ -279,7 +279,7 @@ class Injury(object):
 							ignored if pandas
 
 		"""
-		return self.calculator.calculate(concentrationField, field, breathingRate=breathingRate, time=time)
+		return self.calculator.calculate(concentrationField, field=field, breathingRate=breathingRate, time=time)
 
 
 	def calculatePointWiseFractionInjured(self,timeConcentration,time="datetime",breathingRate=10*ureg.L / ureg.min,field=None):

@@ -4,14 +4,14 @@ Batch 5 exercised the calculators against xarray only; ``Injury`` also
 supports a plain pandas.DataFrame ("each point is a column, time is the
 index"), which turns out to have three independent problems:
 
-* B62: ``Injury.calculateToxicLoads`` calls
+* B62, fixed: ``Injury.calculateToxicLoads`` called
   ``self.calculator.calculate(concentrationField, field, breathingRate=...,
-  time=...)`` -- passing ``field`` positionally. That matches
+  time=...)`` -- passing ``field`` positionally. That matched
   ``CalculatorTenBerge``/``CalculatorMaxConcentration``, whose second
   positional parameter is ``field``, but not ``CalculatorHaber``, whose
   signature is ``(self, concentrationField, breathingRate=..., time=...,
-  field=None, ...)``. Any ``Injury`` configured with the Haber calculator
-  raises ``TypeError`` the moment it is used.
+  field=None, ...)``, so any ``Injury`` configured with the Haber calculator
+  raised ``TypeError`` the moment it was used. It is passed by keyword now.
 * B36/B63, fixed: all three calculators decided whether to read units from
   ``concentrationField.attrs[field]`` by checking
   ``hasattr(concentrationField, "attrs")`` -- meant to detect an xarray
@@ -126,12 +126,13 @@ class TestInjuryCalculateToxicLoadsOnPandas:
     lookup) before that; the pointwise entry point still runs into the
     recorded B39/B12 cross-registry defect in InjuryLevelThreshold."""
 
-    def test_toxic_loads_via_haber_raises_on_the_positional_mismatch(self):
-        """Characterisation of B62."""
+    def test_toxic_loads_via_haber_work_on_pandas_input(self):
+        """B62, fixed: `field` used to be passed positionally, which landed
+        in CalculatorHaber's `breathingRate` slot."""
         injury = _agent_with_calculator("Haber")
         df = _series_dataframe([0.0, 5.0, 20.0])
-        with pytest.raises(TypeError, match="breathingRate"):
-            injury.calculateToxicLoads(df, time="datetime")
+        toxic = injury.calculateToxicLoads(df, time="datetime")
+        assert toxic["P1"].tolist() == pytest.approx([0.0, 5.0])
 
     def test_toxic_loads_via_tenberge_work_on_pandas_input(self):
         """B36, fixed: the attrs lookup used to run for pandas input too,
