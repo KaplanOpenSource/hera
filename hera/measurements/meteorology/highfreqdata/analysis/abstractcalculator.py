@@ -56,6 +56,7 @@ class AbstractCalculator(object):
         self._TemporaryData = pandas.DataFrame()
         self._CalculatedParams = []
         self._AllCalculatedParams = []
+        self._saveProperties = {'dataFormat': None}
         self._joinmethod = "left"
 
     @property

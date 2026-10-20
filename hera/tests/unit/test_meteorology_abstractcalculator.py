@@ -24,19 +24,6 @@ from hera.measurements.meteorology.highfreqdata.analysis.abstractcalculator impo
 )
 
 
-@pytest.fixture(autouse=True)
-def _reset_shared_save_properties():
-    """B106: _saveProperties is a class-level mutable dict that __init__
-    never copies into the instance, so set_saveProperties on any instance
-    mutates it for every instance (existing or future) that hasn't
-    shadowed it. Reset the shared dict around each test so this file's
-    own tests stay isolated from each other and from any other test
-    module that touches this class."""
-    AbstractCalculator._saveProperties = {"dataFormat": None}
-    yield
-    AbstractCalculator._saveProperties = {"dataFormat": None}
-
-
 @pytest.fixture()
 def calc():
     raw = pandas.DataFrame({"u": [1.0, 2.0, 3.0]})
@@ -76,31 +63,21 @@ class TestSetSaveProperties:
 
 
 @pytest.mark.unit
-class TestSaveSharedAcrossInstancesIsBroken:
-    """B106: `_saveProperties = {'dataFormat': None}` is declared on the
-    class body, and __init__ never assigns a fresh instance-level copy --
-    so every instance shares (and mutates) the exact same dict until one
-    happens to shadow it. set_saveProperties() on one calculator leaks
-    into every other one, including calculators constructed afterwards."""
+class TestSavePropertiesArePerInstance:
+    """B106, fixed: `_saveProperties = {'dataFormat': None}` is still declared
+    on the class body, but __init__ now assigns a fresh instance-level dict,
+    so set_saveProperties() on one calculator no longer leaks into any other
+    one -- existing or constructed afterwards."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B106: _saveProperties is a class-level mutable dict, never "
-               "copied per-instance in __init__, so set_saveProperties on "
-               "one AbstractCalculator mutates the save properties seen by "
-               "every other instance. See the consolidated findings issue.",
-    )
-    def test_a_second_instance_should_be_unaffected_by_the_first(self, calc):
+    def test_a_second_instance_is_unaffected_by_the_first(self, calc):
         calc.set_saveProperties(dataFormat="JSON_pandas")
         other = AbstractCalculator(calc.RawData, calc.metaData)
         assert other._saveProperties["dataFormat"] is None
+        assert other._saveProperties is not calc._saveProperties
 
-    def test_a_second_instance_currently_leaks_the_first_ones_save_format(self, calc):
-        """Characterisation of B106."""
-        calc.set_saveProperties(dataFormat="JSON_pandas")
-        other = AbstractCalculator(calc.RawData, calc.metaData)
-        assert other._saveProperties["dataFormat"] == "JSON_pandas"
-        assert other._saveProperties is calc._saveProperties
+    def test_the_class_level_default_is_never_mutated(self, calc):
+        calc.set_saveProperties(dataFormat="JSON_pandas", path="/tmp/x")
+        assert AbstractCalculator._saveProperties == {"dataFormat": None}
 
 
 @pytest.mark.unit
