@@ -593,7 +593,9 @@ class instantaneousReleaseGasCloud(abstractGasCloud):
 
 
 
-class continuousReleaseGasCloud(abstractGasCloud):
+# A constant release rate makes the continuous concentration the instantaneous
+# dosage, so this class is built on the instantaneous machinery it calls.
+class continuousReleaseGasCloud(instantaneousReleaseGasCloud):
 
     def getConcentration_cont(self, numOfReflections=3, DF=False):
         """
