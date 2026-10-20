@@ -81,8 +81,6 @@ passing characterisation of what happens today):
 * B324 (fixed upstream by a4597eb6, #1082) ``getCaseConcentrationsEulerian``
   passed five positional arguments to the four-parameter
   ``_loadCaseDataViaDask``.
-* B325 ``getOriginalFlowFieldExtentAsDict`` reads ``zmax`` off the *y*
-  column.
 * B326 (fixed upstream by a4597eb6, #1082)
   ``analysis.calcConcentrationFieldFullMesh``'s first statement called a
   method that lives on the other class.
@@ -1751,25 +1749,10 @@ class TestGetOriginalFlowFieldExtentAsDict:
         assert limits["zmin"].magnitude == 1.0
         assert str(limits["xmin"].units) == "meter"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B325: getOriginalFlowFieldExtentAsDict builds zmax from "
-               "lims.Cy.loc['max'] instead of lims.Cz.loc['max']. The other "
-               "five keys all read their own axis (zmin reads Cz), so this is "
-               "a copy-paste slip, and it silently truncates the vertical "
-               "extent of every concentration mesh built from it. See the "
-               "consolidated findings issue.")
-    def test_zmax_should_come_from_the_z_column(self, ext, meshSeam):
+    def test_zmax_comes_from_the_z_column(self, ext, meshSeam):
         meshSeam(ext)
         limits = ext.getOriginalFlowFieldExtentAsDict("SOME_NAME")
         assert limits["zmax"].magnitude == 7.0
-
-    def test_zmax_currently_repeats_ymax(self, ext, meshSeam):
-        """Characterisation of B325."""
-        meshSeam(ext)
-        limits = ext.getOriginalFlowFieldExtentAsDict("SOME_NAME")
-        assert limits["zmax"].magnitude == 3.0
-        assert limits["zmax"] == limits["ymax"]
 
 
 # ===========================================================================

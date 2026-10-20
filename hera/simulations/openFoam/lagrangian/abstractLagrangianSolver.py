@@ -1279,7 +1279,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             ymin = lims.Cy.loc['min']*ureg.m,
             ymax = lims.Cy.loc['max']*ureg.m,
             zmin = lims.Cz.loc['min']*ureg.m,
-            zmax = lims.Cy.loc['max']*ureg.m
+            zmax = lims.Cz.loc['max']*ureg.m
         )
 
 
