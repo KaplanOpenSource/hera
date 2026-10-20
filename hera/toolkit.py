@@ -149,8 +149,7 @@ class abstractToolkit(Project):
 
         See ``Project.addCacheDocument`` for parameter details.
         """
-        if desc is None:
-            desc = {}
+        desc = {} if desc is None else dict(desc)
         if self.toolkitName is not None:
             desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName)
         return super().addCacheDocument(resource, dataFormat, type, desc)
@@ -161,8 +160,7 @@ class abstractToolkit(Project):
 
         See ``Project.addMeasurementsDocument`` for parameter details.
         """
-        if desc is None:
-            desc = {}
+        desc = {} if desc is None else dict(desc)
         if self.toolkitName is not None:
             desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName)
         return super().addMeasurementsDocument(resource, dataFormat, type, desc)
@@ -173,8 +171,7 @@ class abstractToolkit(Project):
 
         See ``Project.addSimulationsDocument`` for parameter details.
         """
-        if desc is None:
-            desc = {}
+        desc = {} if desc is None else dict(desc)
         if self.toolkitName is not None:
             desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName)
         return super().addSimulationsDocument(resource, dataFormat, type, desc, save=save)
