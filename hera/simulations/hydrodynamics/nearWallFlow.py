@@ -99,7 +99,7 @@ class nearWallFlow:
             Return the reynolds based on the Um and hydraulic diameter.
         :return:
         """
-        return ustar*self.hydraulicHeight/self.kinematicViscosity
+        return Um*self.hydraulicHeight/self.kinematicViscosity
 
 
     def __init__(self,Ra,nu):

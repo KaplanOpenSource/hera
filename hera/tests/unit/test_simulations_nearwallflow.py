@@ -109,13 +109,6 @@ class TestBulkReynoldsNumber:
         value = channel.ReynoldsUm(0.3 * ureg.m / ureg.s, 5 * ureg.m / ureg.s)
         assert not hasattr(value, "units") or value.dimensionless
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B35: ReynoldsUm is documented as 'the reynolds based on the Um and "
-               "hydraulic diameter' but its body never reads Um -- it computes "
-               "ustar * hydraulicHeight / nu. Changing Um leaves the answer "
-               "identical. See the consolidated findings issue.",
-    )
     def test_the_bulk_velocity_changes_the_answer(self, channel):
         ustar = 0.3 * ureg.m / ureg.s
         slow = channel.ReynoldsUm(ustar, 1 * ureg.m / ureg.s)
