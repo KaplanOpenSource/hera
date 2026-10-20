@@ -35,12 +35,18 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: KaplanOpenSource/hermes
+          # Pinned: an unpinned checkout follows the default branch, so a push to
+          # KaplanOpenSource/hermes could break hera's CI with no change to hera.
+          ref: 80f0b5d59fba8e0998037192359cbbb9befdded2
           path: _vendor/hermes
 
       - name: Checkout pyargos (internal dependency — provides the `argos` package)
         uses: actions/checkout@v6
         with:
           repository: KaplanOpenSource/pyargos
+          # Pinned: an unpinned checkout follows the default branch, so a push to
+          # KaplanOpenSource/pyargos could break hera's CI with no change to hera.
+          ref: a8c9e76fdf9143c20331e1f3fbca7d6fcc74941d
           path: _vendor/pyargos
 
       - name: Set up Python ${{ matrix.python-version }}
@@ -135,6 +141,9 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: KaplanOpenSource/hermes
+          # Pinned: an unpinned checkout follows the default branch, so a push to
+          # KaplanOpenSource/hermes could break hera's CI with no change to hera.
+          ref: 80f0b5d59fba8e0998037192359cbbb9befdded2
           path: _vendor/hermes
           # token: ${{ secrets.INTERNAL_REPO_PAT }}   # uncomment if private
 
@@ -142,6 +151,9 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: KaplanOpenSource/pyargos
+          # Pinned: an unpinned checkout follows the default branch, so a push to
+          # KaplanOpenSource/pyargos could break hera's CI with no change to hera.
+          ref: a8c9e76fdf9143c20331e1f3fbca7d6fcc74941d
           path: _vendor/pyargos
           # token: ${{ secrets.INTERNAL_REPO_PAT }}   # uncomment if private
 
@@ -304,6 +316,9 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: KaplanOpenSource/hermes
+          # Pinned: an unpinned checkout follows the default branch, so a push to
+          # KaplanOpenSource/hermes could break hera's CI with no change to hera.
+          ref: 80f0b5d59fba8e0998037192359cbbb9befdded2
           path: Hermes
 
       - name: Set up Python 3.14
@@ -352,12 +367,18 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: KaplanOpenSource/hermes
+          # Pinned: an unpinned checkout follows the default branch, so a push to
+          # KaplanOpenSource/hermes could break hera's CI with no change to hera.
+          ref: 80f0b5d59fba8e0998037192359cbbb9befdded2
           path: _vendor/hermes
 
       - name: Checkout pyargos (internal dependency — provides the `argos` package)
         uses: actions/checkout@v6
         with:
           repository: KaplanOpenSource/pyargos
+          # Pinned: an unpinned checkout follows the default branch, so a push to
+          # KaplanOpenSource/pyargos could break hera's CI with no change to hera.
+          ref: a8c9e76fdf9143c20331e1f3fbca7d6fcc74941d
           path: _vendor/pyargos
 
       - name: Set up Python 3.14
