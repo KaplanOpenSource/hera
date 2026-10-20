@@ -623,28 +623,19 @@ class TestCompareWorkflowObj:
         second = tk.getHermesWorkflowFromJSON(_workflowJSON(1.0), name="w2")
         assert tk.compareWorkflowObj([first, second]).empty
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B139: compareWorkflowObj always passes "
-               "changeDotToUnderscore=True, and compareDataframeConfigurations "
-               "combines that with longFormat by calling .replace('.','_') on "
-               "ret.T.columns -- which in long format is the integer row index, "
-               "so every longFormat=True comparison dies with "
-               "AttributeError: 'int' object has no attribute 'replace'. "
-               "See the consolidated findings issue.",
-    )
-    def test_the_long_format_should_give_one_row_per_workflow(self, tk):
+    def test_the_long_format_gives_one_row_per_workflow(self, tk):
         first = tk.getHermesWorkflowFromJSON(_workflowJSON(1.0), name="w1")
         second = tk.getHermesWorkflowFromJSON(_workflowJSON(9.0), name="w2")
         table = tk.compareWorkflowObj([first, second], longFormat=True)
         assert sorted(table["datasetName"]) == ["w1", "w2"]
 
-    def test_the_long_format_currently_raises_an_attributeerror(self, tk):
-        """Characterisation of B139."""
+    def test_the_long_format_rewrites_the_dots_in_the_parameter_column(self, tk):
+        """changeDotToUnderscore is hardcoded on, and in long format the
+        parameter path lives in a column rather than the index."""
         first = tk.getHermesWorkflowFromJSON(_workflowJSON(1.0), name="w1")
         second = tk.getHermesWorkflowFromJSON(_workflowJSON(9.0), name="w2")
-        with pytest.raises(AttributeError, match="'int' object has no attribute 'replace'"):
-            tk.compareWorkflowObj([first, second], longFormat=True)
+        table = tk.compareWorkflowObj([first, second], longFormat=True)
+        assert set(table["parameterNameFullPath"]) == {"Parameters_alpha"}
 
 
 @pytest.mark.unit
