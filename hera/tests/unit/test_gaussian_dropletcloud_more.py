@@ -28,9 +28,10 @@ Bugs pinned here:
   * B273 (fixed): the same constructor's ``if radius is None`` branch was
     dead -- ``tounit(radius, ureg.m)`` had already run on the line above
     and raises TypeError for None.
-  * B274: its ring angles come from ``numpy.linspace(0, 2*pi, n)``,
-    which includes both endpoints, so the 0-degree position is duplicated:
-    n positions occupy n-1 locations and one of them gets a double share.
+  * B274 (fixed): its ring angles came from ``numpy.linspace(0, 2*pi, n)``,
+    which includes both endpoints, so the 0-degree position was
+    duplicated: n positions occupied n-1 locations and one of them got a
+    double share.
 """
 import numpy
 import pandas
@@ -349,28 +350,15 @@ class TestDropletListForTheCircleSource:
         for x, y in self._locations(self._build()):
             assert numpy.hypot(x - x0, y - y0) == pytest.approx(10.0)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B274: the ring angles are numpy.linspace(0, 2*pi, "
-               "circlepositions), which includes both endpoints -- 0 and "
-               "2*pi are the same point. A ring of n positions therefore "
-               "occupies only n-1 distinct locations, and the one at 0 "
-               "receives a double share of the release while the angular "
-               "spacing is 2*pi/(n-1) rather than 2*pi/n. endpoint=False is "
-               "what a closed ring needs. See the consolidated findings "
-               "issue.",
-    )
-    def test_a_ring_of_four_should_occupy_four_distinct_locations(self):
-        assert len(self._locations(self._build(circlepositions=4))) == 4
-
     @pytest.mark.parametrize("circlepositions", [3, 4, 5, 8])
-    def test_a_ring_currently_occupies_one_location_fewer(self, circlepositions):
-        """Characterisation of B274."""
+    def test_a_ring_of_n_occupies_n_distinct_locations(self, circlepositions):
+        """B274: the angles came from numpy.linspace(0, 2*pi, n) including
+        both endpoints, so 0 and 2*pi coincided -- n positions occupied
+        only n-1 locations and the one at 0 got a double share."""
         cloud = self._build(circlepositions=circlepositions)
-        assert len(self._locations(cloud)) == circlepositions - 1
+        assert len(self._locations(cloud)) == circlepositions
 
-    def test_the_duplicated_location_currently_carries_a_double_share(self):
-        """Characterisation of B274."""
+    def test_every_location_carries_the_same_share(self):
         cloud = self._build(circlepositions=4)
         byLocation = {}
         for droplet in cloud.dropletList:
@@ -380,8 +368,8 @@ class TestDropletListForTheCircleSource:
             )
             byLocation[key] = byLocation.get(key, 0.0) + tonumber(droplet.Q, ureg.kg)
         shares = sorted(byLocation.values())
-        assert len(shares) == 3
-        assert shares[-1] == pytest.approx(2 * shares[0])
+        assert len(shares) == 4
+        assert shares == pytest.approx([shares[0]] * 4)
 
     def test_omitting_the_radius_places_every_cloud_at_the_source(self):
         """B273: tounit(radius, ureg.m) used to run before the `radius is

@@ -217,7 +217,7 @@ class CirclePositionClippedDropletsCloud(FixedPointClippedDropletCloud):
         radius_m = None if radius is None else tounit(radius,ureg.m)
 
         qCloud = Q/circlepositions
-        for deg in numpy.linspace(0,2*numpy.pi,circlepositions):
+        for deg in numpy.linspace(0,2*numpy.pi,circlepositions,endpoint=False):  # 2*pi is 0 again
 
             if radius is None:
                 curpos = position
