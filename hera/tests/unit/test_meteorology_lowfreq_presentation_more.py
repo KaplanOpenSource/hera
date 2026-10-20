@@ -410,28 +410,24 @@ class TestPlotProbContourfYNormalized:
         expected = numpy.linspace(0.1, 0.2, 10)[::2]
         assert numpy.allclose(CS.levels, expected)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B299: plotProbContourf's y_normalized stability clamp is "
-               "applied to the contour and contourf levels but not to the "
-               "clabel levels, which are rebuilt from the un-clamped "
-               "M_hist.max(). When the histogram maximum falls below "
-               "under_value the label levels come out decreasing and are "
-               "not a subset of the contour levels, so ax.clabel raises -- "
-               "and withLabels defaults to True. See the consolidated "
-               "findings issue.",
-    )
-    def test_a_low_variance_histogram_should_still_be_labelled(self, daily):
-        daily.plotProbContourf(self._spread_thinly(), "WS",
-                               normalization="y_normalized", colorbar=False)
+    def test_a_low_variance_histogram_is_still_labelled(self, daily):
+        """B299: the stability clamp reached the contour and contourf levels
+        but not the clabel levels, which were rebuilt from the un-clamped
+        M_hist.max(). With the maximum below under_value those came out
+        decreasing and outside CS.levels, so clabel raised -- and withLabels
+        defaults to True."""
+        CS, _, _ = daily.plotProbContourf(self._spread_thinly(), "WS",
+                                          normalization="y_normalized",
+                                          colorbar=False)
+        assert numpy.allclose(CS.levels, numpy.linspace(0.1, 0.2, 10)[::2])
 
-    def test_a_low_variance_histogram_currently_fails_to_label(self, daily):
-        """Characterisation of B299."""
-        with pytest.raises(ValueError, match="don't match available levels"):
-            daily.plotProbContourf(self._spread_thinly(), "WS",
-                                   normalization="y_normalized", colorbar=False)
+    def test_the_label_levels_are_the_clamped_contour_levels(self, daily):
+        CS, _, _ = daily.plotProbContourf(_scattered(), "WS",
+                                          normalization="y_normalized",
+                                          colorbar=False)
+        assert (numpy.diff(CS.levels) > 0).all()
 
-    def test_supplying_the_label_levels_explicitly_works_around_it(self, daily):
+    def test_supplying_the_label_levels_explicitly_still_works(self, daily):
         CS, _, _ = daily.plotProbContourf(self._spread_thinly(), "WS",
                                           normalization="y_normalized",
                                           labels_properties=dict(levels=[0.1]),

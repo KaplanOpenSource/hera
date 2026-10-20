@@ -603,10 +603,6 @@ class DailyPlots(Plots):
         # with, so take them from the effective levels rather than from the
         # defaults _labelsdict was frozen with in __init__.
         labels_props['levels'] = countour_levels
-        if normalization == 'y_normalized':
-            labels_props.update(dict(levels= numpy.linspace(conrourvals_props['under_value'],
-                                                            numpy.ceil(M_hist.max() * 100) / 100,
-                                                            conrourvals_props['contourfnum'])[::conrourvals_props['contourskip']]))
 
         if levels is not None:
             countour_levels = levels
