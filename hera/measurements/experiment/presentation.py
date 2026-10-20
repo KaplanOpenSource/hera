@@ -180,10 +180,10 @@ class experimentPresentation:
         metadata = self.datalayer.getImageMetadata(imageName)
         img = self.datalayer.getImage(imageName)
 
-        plt.imshow(img, extent=[metadata['xleft'],
-                                metadata['xright'],
-                                metadata['ybottom'],
-                                metadata['ytop']]
+        plt.imshow(img, extent=[metadata['left'],
+                                metadata['right'],
+                                metadata['lower'],
+                                metadata['upper']]
                    )
 
         for fnc,values in plt_kwargs.items():
@@ -201,8 +201,8 @@ class experimentPresentation:
             plt.grid(which='major', linestyle='-')
             plt.grid(which='minor', linestyle='--')
 
-            yLocatorSpacing = (metadata['ytop']-metadata['ybottom'])//majorLocator
-            xLocatorSpacing = (metadata['xright'] - metadata['xleft']) // majorLocator
+            yLocatorSpacing = (metadata['upper']-metadata['lower'])//majorLocator
+            xLocatorSpacing = (metadata['right'] - metadata['left']) // majorLocator
 
             locatorSpacing = numpy.min([yLocatorSpacing,xLocatorSpacing])
 

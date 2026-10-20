@@ -47,19 +47,22 @@ Deliberately not covered
 ``plotOrigin``, ``generateLatexTable``, ``_splitName``,
 ``_scatter_height_color`` and ``_get_continuous_cmap`` -- all already
 covered in ``test_experiment_presentation.py``.
-``plotImage``'s ``withGrid`` / ``plt_kwargs`` / ``majorLocator``
-arguments, and ``plotDevicesOnImage``'s never-plotted background image:
-unreachable while B218 stands.
+``plotImage``'s ``plt_kwargs`` / ``majorLocator`` arguments, and
+``plotDevicesOnImage``'s never-plotted background image. ``withGrid`` is
+reachable now that B218 is fixed, but ``(upper - lower) // majorLocator``
+floors to 0 on a map smaller than ``majorLocator`` units and matplotlib
+refuses a zero-step locator -- a separate, unpinned defect.
 
 Bugs pinned here
 ----------------
-* B218: ``plotImage`` builds the ``imshow`` extent from
+* B218 (fixed): ``plotImage`` built the ``imshow`` extent from
   ``metadata['xleft']``, ``['xright']``, ``['ybottom']``, ``['ytop']``,
   but ``argos.Experiment.getImageMetadata`` returns the raw
   ``imageStandalone`` entry, whose bounding-box keys are ``left``,
-  ``right``, ``lower`` and ``upper``. Every call raises
-  ``KeyError: 'xleft'`` -- after the image itself has been decoded, so the
-  method is dead for every experiment.
+  ``right``, ``lower`` and ``upper``. Every call raised
+  ``KeyError: 'xleft'`` -- after the image itself had been decoded, so the
+  method was dead for every experiment. The grid locator read the same
+  four keys and is fixed with it.
 * B219: ``plotMap`` reads ``self.trialSet[trialSetName][trialName]``, but
   ``trialSet`` lives on the datalayer, not on the presentation layer
   (``self.datalayer.trialSet``), so the first statement raises
@@ -610,10 +613,10 @@ class TestPlotDevicesOnImageMutatesItsDefault:
 
 @pytest.mark.unit
 class TestPlotImage:
-    """B218: the extent is built from keys argos does not use."""
+    """B218: the extent is built from the keys argos actually uses."""
 
     def test_the_image_metadata_bounds_the_box_with_left_right_lower_upper(self, experiment):
-        """Characterisation of B218: the dict the method indexes."""
+        """The dict the method indexes."""
         metadata = experiment.getImageMetadata("map1")
         assert sorted(k for k in metadata if k in
                       ("left", "right", "lower", "upper",
@@ -625,31 +628,23 @@ class TestPlotImage:
         image = experiment.getImage("map1")
         assert image.shape[:2] == (4, 4)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B218: plotImage builds the imshow extent from "
-               "metadata['xleft'/'xright'/'ybottom'/'ytop'], but argos's "
-               "getImageMetadata returns the imageStandalone entry, whose "
-               "bounding-box keys are left/right/lower/upper, so every call "
-               "raises KeyError: 'xleft'. "
-               "See the consolidated findings issue.",
-    )
-    def test_it_should_draw_the_image_over_its_geographic_extent(self, presentation):
+    def test_it_draws_the_image_over_its_geographic_extent(self, presentation):
         ax = presentation.plotImage("map1", withGrid=False)
         assert len(ax.images) == 1
-        assert ax.images[0].get_extent() == (MAP_LEFT, MAP_RIGHT, MAP_LOWER, MAP_UPPER)
+        assert list(ax.images[0].get_extent()) == [MAP_LEFT, MAP_RIGHT, MAP_LOWER, MAP_UPPER]
 
-    def test_it_currently_raises_a_key_error(self, presentation):
-        """Characterisation of B218."""
-        with pytest.raises(KeyError, match="xleft"):
-            presentation.plotImage("map1", withGrid=False)
-
-    def test_a_caller_supplied_axes_reaches_the_same_failure(self, presentation):
-        """Characterisation of B218: the ax branch is no better off."""
+    def test_a_caller_supplied_axes_is_drawn_on(self, presentation):
         _, ax = plt.subplots()
-        with pytest.raises(KeyError, match="xleft"):
-            presentation.plotImage("map1", ax=ax, withGrid=False)
-        assert len(ax.images) == 0
+        assert presentation.plotImage("map1", ax=ax, withGrid=False) is ax
+        assert len(ax.images) == 1
+
+    def test_the_grid_locator_reads_the_same_four_keys(self, presentation):
+        """B218: withGrid used the xleft/ytop spelling too, so it now gets
+        as far as the locator -- which, on a map this small, floors its
+        spacing to 0 and is refused by matplotlib. That is a separate
+        defect in the locator arithmetic, not part of B218."""
+        with pytest.raises(ValueError, match="'step' must be positive"):
+            presentation.plotImage("map1", withGrid=True)
 
     def test_an_unknown_image_name_raises_on_the_lookup_instead(self, presentation):
         with pytest.raises(KeyError, match="noSuchMap"):
