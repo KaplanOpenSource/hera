@@ -738,7 +738,8 @@ class CampbellBinaryInterface(object):
             Converted data values.
         """
         retval = list(struct.unpack(self.format, partStream))
-        for i in range(3, len(retval)):
+        # retval[0]/retval[1] are SECONDS/NANOSECONDS; the data starts at [2].
+        for i in range(2, len(retval)):
             if self.rawFormat[i] == 'FP2':
                 retval[i] = self._newfloatConvert(retval[i])
             elif self.rawFormat[i].find("ASCII(") != -1:

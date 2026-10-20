@@ -46,13 +46,14 @@ independent duplicates):
   stamped with raised ``IndexError`` for those records.
   ``pandas.Timedelta(seconds=lastSec)`` is exact, and is what both copies
   of the reader now use.
-* B116: ``_getDataFromStream``'s conversion loop is
+* B116 (fixed): ``_getDataFromStream``'s conversion loop was
   ``for i in range(3, len(retval))``, but ``retval[0]`` and ``retval[1]``
   are the two timestamp fields, so the first *data* field is ``retval[2]``
-  and is skipped.  The first data column of every record is therefore
-  returned unconverted -- a raw FP2 ``uint16`` instead of a float, or raw
-  ``bytes`` instead of a string.  Two identical raw FP2 values decode to
-  two different numbers depending only on which column they sit in.
+  and was skipped.  The first data column of every record came back
+  unconverted -- a raw FP2 ``uint16`` instead of a float, or raw ``bytes``
+  instead of a string -- so two identical raw FP2 values decoded to two
+  different numbers depending only on which column they sat in. The loop
+  now starts at 2, in both copies of the reader.
 * B117: ``_newfloatConvert`` calls
   ``self._floatConvert(int(key % 256), key / 256)``.  ``_floatConvert``
   documents its second argument as the low byte, but ``/`` is true
@@ -538,18 +539,9 @@ class TestRecordTimestampsKeepTheirLastNanosecond:
 
 
 @pytest.mark.unit
-class TestFirstDataColumnIsNeverConverted:
-    """B116: the conversion loop starts one field too late."""
+class TestFirstDataColumnIsConverted:
+    """B116: the conversion loop used to start one field too late."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B116: _getDataFromStream converts retval[3:] but the data "
-               "starts at retval[2] (retval[0]/[1] are SECONDS and "
-               "NANOSECONDS), so the first data field of every record is "
-               "returned unconverted. Two identical raw FP2 values decode "
-               "to two different numbers. See the consolidated findings "
-               "issue.",
-    )
     def test_two_identical_raw_fp2_fields_decode_to_the_same_value(self, fp2_file):
         cbi = CampbellBinaryInterface(file=str(fp2_file))
 
@@ -557,25 +549,23 @@ class TestFirstDataColumnIsNeverConverted:
 
         assert line[0] == line[1]
 
-    def test_the_first_fp2_field_is_still_a_raw_integer(self, fp2_file):
-        """Characterisation of B116: 0x001f comes back as the integer 31
-        rather than the FP2 value 7936 it encodes."""
+    def test_the_first_fp2_field_is_converted_not_a_raw_integer(self, fp2_file):
+        """B116: 0x001f used to come back as the integer 31."""
         cbi = CampbellBinaryInterface(file=str(fp2_file))
 
         _, line = cbi.getRecordByIndex(0)
 
-        assert line[0] == 0x001F
-        assert isinstance(line[0], int)
-        assert line[1] != 0x001F
+        assert line[0] != 0x001F
+        assert line[0] == cbi._newfloatConvert(0x001F)
 
-    def test_the_first_ascii_field_is_still_raw_bytes(self, ascii_file):
-        """Characterisation of B116: the same off-by-one skips the
-        bytes-to-string decode, not just the FP2 conversion."""
+    def test_the_first_ascii_field_is_decoded_too(self, ascii_file):
+        """B116: the same off-by-one skipped the bytes-to-string decode,
+        not just the FP2 conversion."""
         cbi = CampbellBinaryInterface(file=str(ascii_file))
 
         _, line = cbi.getRecordByIndex(0)
 
-        assert line[0] == b"AB\x00\x00"
+        assert line[0] == "AB"
         assert line[1] == "AB"
 
 
