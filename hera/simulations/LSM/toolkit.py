@@ -259,12 +259,13 @@ class LSMToolkit(toolkit.abstractToolkit):
             queryWithParams["simulationName"] = simulationName
 
         docList = self.getSimulationsDocuments(type=LSMTemplate("",self).doctype_simulation, **queryWithParams)
+        logger = get_classMethod_logger(self, "getSimulations")
         retList = []
         for doc in docList:
             try:
                 retList.append(SingleSimulation(doc))
-            except:
-                print(f"Warning: could not find data with the following document: {doc.asDict()}")
+            except Exception:
+                logger.warning(f"could not find data with the following document: {doc.asDict()}", exc_info=True)
 
         return retList
 

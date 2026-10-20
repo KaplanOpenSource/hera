@@ -14,9 +14,6 @@ nothing is submitted to a scheduler.
 Bugs pinned here, each with an xfail(strict) for the intended behaviour
 and a passing characterisation of what actually happens:
 
-  * B282: ``getSimulations`` wraps ``SingleSimulation(doc)`` in a bare
-    ``except:`` that prints a warning and drops the document, so callers
-    silently receive a short list.
   * B284: ``prepareSlurmLSMExecution`` calls
     ``LSMTemplate.prepareParams(desc=None, ...)``, but that parameter is
     named ``template_desc`` -- every call raises TypeError.
@@ -214,36 +211,30 @@ class TestGetSimulationsWithDeclaredUnits:
 
 
 @pytest.mark.unit
-class TestGetSimulationsSwallowsReaderFailures:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B282: getSimulations wraps SingleSimulation(doc) in a "
-               "bare `except:` that prints 'Warning: could not find data "
-               "with the following document: ...' and moves on. A document "
-               "whose data cannot be read is therefore dropped from the "
-               "result without the caller being able to tell, the diagnostic "
-               "goes to stdout instead of the toolkit's logger, and the bare "
-               "except also catches KeyboardInterrupt and SystemExit. See "
-               "the consolidated findings issue.",
-    )
-    def test_an_unreadable_simulation_should_not_vanish_silently(
+class TestGetSimulationsReaderFailures:
+    def test_an_unreadable_simulation_is_skipped_without_printing(
         self, lsm, registerTemplate, registerSimulation, capsys
     ):
-        registerTemplate()
-        registerSimulation("sim1", TopoXmax=100)
-        found = lsm.getSimulations(TopoXmax=100)
-        assert capsys.readouterr().out == ""
-        assert len(found) == 1
-
-    def test_an_unreadable_simulation_is_currently_dropped_with_a_printed_warning(
-        self, lsm, registerTemplate, registerSimulation, capsys
-    ):
-        """Characterisation of B282."""
+        """A document whose data cannot be read is still skipped, but the
+        diagnostic goes to the toolkit's logger, not to stdout."""
         registerTemplate()
         registerSimulation("sim1", TopoXmax=100)
         found = lsm.getSimulations(TopoXmax=100)
         assert found == []
-        assert "could not find data with the following document" in capsys.readouterr().out
+        assert capsys.readouterr().out == ""
+
+    def test_a_keyboard_interrupt_is_not_swallowed(
+        self, lsm, registerTemplate, registerSimulation, monkeypatch
+    ):
+        registerTemplate()
+        registerSimulation("sim1", TopoXmax=100)
+
+        def _interrupt(document):
+            raise KeyboardInterrupt
+
+        monkeypatch.setattr(lsmToolkit_mod, "SingleSimulation", _interrupt)
+        with pytest.raises(KeyboardInterrupt):
+            lsm.getSimulations(TopoXmax=100)
 
 
 # ---------------------------------------------------------------------------
