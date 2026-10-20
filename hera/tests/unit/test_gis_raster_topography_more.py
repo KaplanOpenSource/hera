@@ -338,39 +338,22 @@ class TestSRTMTileNaming:
 
 @pytest.mark.unit
 class TestMissingDefaultSRTM:
-    """B190: the 'datasource is not found' guard cannot fire on a missing key."""
+    """B190: the 'datasource is not found' guard fires on a missing key too."""
 
     def test_the_guard_does_fire_when_the_config_stores_an_explicit_none(self, topo):
         topo.setConfig(defaultSRTM=None)
         with pytest.raises(ValueError, match="datasource is not found"):
             topo.getPointElevation(lat=32.90625, long=35.15625)
 
-    def test_a_missing_config_key_raises_key_error_instead(self, topo):
-        """Characterisation of B190."""
-        with pytest.raises(KeyError, match="defaultSRTM"):
-            topo.getPointElevation(lat=32.90625, long=35.15625)
-
     def test_the_point_list_method_has_the_same_shape_of_guard(self, topo):
-        """Characterisation of B190 at the second call site."""
+        """B190 at the second call site."""
         import pandas as pd
 
-        with pytest.raises(KeyError, match="defaultSRTM"):
+        with pytest.raises(ValueError, match="datasource is not found"):
             topo.getPointListElevation(pd.DataFrame({"lat": [32.90625], "lon": [35.15625]}))
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B190: getPointElevation and getPointListElevation both do "
-               "`dataSourceName = self.getConfig()['defaultSRTM']` and only then "
-               "check `if dataSourceName is None: raise ValueError('The "
-               "datasource is not found!')`. A project that never configured a "
-               "default has no such key, so the bare dict subscript raises "
-               "KeyError('defaultSRTM') first and the deliberate, readable "
-               "ValueError is unreachable except in the odd case of a config "
-               "that stores None explicitly. getConfig().get('defaultSRTM') "
-               "would make the guard do its job. See the consolidated findings "
-               "issue.",
-    )
     def test_a_missing_default_reports_the_intended_error(self, topo):
+        """B190: a project that never configured a default has no such key."""
         with pytest.raises(ValueError, match="datasource is not found"):
             topo.getPointElevation(lat=32.90625, long=35.15625)
 

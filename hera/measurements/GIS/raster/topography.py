@@ -125,7 +125,7 @@ class TopographyToolkit(toolkit.abstractToolkit):
         logger.info(f"Getting elevation from file {filename}")
 
         if dataSourceName is None:
-            dataSourceName = self.getConfig()['defaultSRTM']
+            dataSourceName = self.getConfig().get('defaultSRTM')
 
         if dataSourceName is None:
             raise ValueError(f"The datasource is not found!")
@@ -194,7 +194,7 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
 
         if dataSourceName is None:
-            dataSourceName = self.getConfig()['defaultSRTM']
+            dataSourceName = self.getConfig().get('defaultSRTM')
         logger.info(f"Getting the elevation for the points. Using datasource {dataSourceName}")
 
         if dataSourceName is None:
