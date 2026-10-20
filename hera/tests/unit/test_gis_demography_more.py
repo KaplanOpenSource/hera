@@ -30,13 +30,13 @@ which CRS, and the choropleth it overlays -- rather than on imagery.
 Bugs pinned (each has an xfail(strict) for the intended behaviour plus a
 passing characterisation of what actually happens)
 --------------------------------------------------------------------------
-* **B233** -- ``createNewArea``'s ``TOOLKIT_SAVEMODE_FILEANDDB`` branch reads
-  ``toolkit.TOOLKIT_DATASOURCE_NAME`` / ``toolkit.TOOLKIT_TOOLKITNAME_FIELD``
-  / ``toolkit.TOOLKIT_DATASOURCE_TYPE``.  The module imports ``from hera
-  import toolkit`` on line 9 and then *rebinds the same name* on line 10 with
-  ``from hera.measurements.GIS.vector import toolkit``; the vector toolkit
-  module defines none of those constants, so asking to save to the DB raises
-  ``AttributeError`` after the file has already been written.
+* **B233** (fixed) -- ``createNewArea``'s ``TOOLKIT_SAVEMODE_FILEANDDB``
+  branch read ``toolkit.TOOLKIT_DATASOURCE_NAME`` and friends off the
+  module-level name ``toolkit``, which was rebound to
+  ``hera.measurements.GIS.vector.toolkit``; that module defines none of those
+  constants, so saving to the DB raised ``AttributeError`` after the file had
+  already been written.  The constants are now imported from ``hera.toolkit``
+  by name.
 * **B234** -- the same branch is guarded by ``== TOOLKIT_SAVEMODE_FILEANDDB``
   only, so ``TOOLKIT_SAVEMODE_FILEANDDB_REPLACE`` ("save to a file and store
   to the DB as a source, replacing the entry if it exists", per the
@@ -386,49 +386,28 @@ class TestCreateNewAreaFileOutput:
 
 @pytest.mark.unit
 class TestCreateNewAreaDatabaseOutput:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B233: the TOOLKIT_SAVEMODE_FILEANDDB branch reads "
-               "toolkit.TOOLKIT_DATASOURCE_NAME, but the module-level name "
-               "'toolkit' is rebound on line 10 from hera.toolkit to "
-               "hera.measurements.GIS.vector.toolkit, which defines no such "
-               "constant -- so saving to the DB raises AttributeError after "
-               "the file has already been written. See the consolidated "
-               "findings issue.",
-    )
     def test_saving_to_the_database_returns_the_stored_document(self, demography, census):
+        """B233."""
         doc = demography.analysis.createNewArea(
             _QUERY, census, saveMode=TOOLKIT_SAVEMODE_FILEANDDB, regionName="dbarea.geojson"
         )
         assert doc.resource.endswith("dbarea.geojson")
 
-    def test_saving_to_the_database_raises_on_the_rebound_module(self, demography, census):
-        """Characterisation of B233."""
-        with pytest.raises(AttributeError) as excinfo:
-            demography.analysis.createNewArea(
-                _QUERY, census, saveMode=TOOLKIT_SAVEMODE_FILEANDDB, regionName="dbarea.geojson"
-            )
-        assert "TOOLKIT_DATASOURCE_NAME" in str(excinfo.value)
+    def test_the_stored_document_carries_the_datasource_descriptor(self, demography, census):
+        """B233: the constants come from hera.toolkit, not the rebound module."""
+        demography.analysis.createNewArea(
+            _QUERY, census, saveMode=TOOLKIT_SAVEMODE_FILEANDDB, regionName="dbarea.geojson"
+        )
+        docs = demography.getCacheDocuments(type="ToolkitDataSource")
+        assert len(docs) == 1
+        assert docs[0].desc["datasourceName"] == "dbarea.geojson"
+        assert docs[0].desc["toolkit"] == demography.toolkitName
 
-    def test_the_file_is_written_before_the_database_step_fails(self, demography, census):
-        """Characterisation of B233: the failure leaves an orphan file behind."""
-        with pytest.raises(AttributeError):
-            demography.analysis.createNewArea(
-                _QUERY, census, saveMode=TOOLKIT_SAVEMODE_FILEANDDB, regionName="dbarea.geojson"
-            )
+    def test_the_file_is_written_alongside_the_database_record(self, demography, census):
+        demography.analysis.createNewArea(
+            _QUERY, census, saveMode=TOOLKIT_SAVEMODE_FILEANDDB, regionName="dbarea.geojson"
+        )
         assert os.path.exists(os.path.join(demography.filesDirectory, "dbarea.geojson"))
-
-    def test_the_rebound_module_carries_none_of_the_datasource_constants(self):
-        """Characterisation of B233: the root cause, stated directly."""
-        from hera.measurements.GIS.vector import demography as demography_module
-
-        assert demography_module.toolkit.__name__ == "hera.measurements.GIS.vector.toolkit"
-        for name in (
-            "TOOLKIT_DATASOURCE_NAME",
-            "TOOLKIT_TOOLKITNAME_FIELD",
-            "TOOLKIT_DATASOURCE_TYPE",
-        ):
-            assert not hasattr(demography_module.toolkit, name)
 
     @pytest.mark.xfail(
         strict=True,
