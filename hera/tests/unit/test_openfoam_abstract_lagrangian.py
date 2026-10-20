@@ -60,7 +60,6 @@ Covered shallowly, with the reason:
     method that does not exist anywhere in hera (B330), so only the
     argument validation that precedes it and the resulting
     ``AttributeError`` can be observed.
-    ``getMassFromLog``, ``getOriginalFlowFieldExtentAsDict``,
     ``analysis.calcDocumentConcentrationPointWise`` and
     ``analysis.getConcentrationField`` -- each dies on a defect pinned
     below, so only the failure and the pre-failure behaviour are asserted.
@@ -81,8 +80,6 @@ passing characterisation of what happens today):
 * B326 (fixed upstream by a4597eb6, #1082)
   ``analysis.calcConcentrationFieldFullMesh``'s first statement called a
   method that lives on the other class.
-* B328 ``getMassFromLog`` reads ``self._datalayer``, which this class never
-  defines.
 * B329 ``analysis.calcDocumentConcentrationPointWise`` /
   ``analysis.getConcentrationField`` call the cache API on the wrong object.
 * B330 four call sites use ``toolkit.getCaseListDocumentFromDB``, a method
@@ -1091,7 +1088,7 @@ class TestCreateDispersionCaseDirectoryValidation:
 
 
 # ===========================================================================
-# getMassFromLog -- B328
+# getMassFromLog
 # ===========================================================================
 
 _SOLVER_LOG = "\n".join([
@@ -1115,41 +1112,30 @@ _SOLVER_LOG = "\n".join([
 
 @pytest.mark.unit
 class TestGetMassFromLog:
-    def test_the_attribute_the_parser_reads_is_defined_nowhere_in_the_class(self):
-        """Characterisation of B328, at its source."""
+    def test_the_cloud_name_is_a_parameter_and_not_an_attribute(self):
+        """The extension class holds toolkit/analysis/presentation/daskClient
+        and no cloud name of its own, so the parser takes one, exactly like
+        every other method on the class."""
         assert not hasattr(Extension, "_datalayer")
         assert hasattr(Extension, "toolkit")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B328: getMassFromLog reads self._datalayer.cloudName, but it "
-               "is defined on absractStochasticLagrangianSolver_toolkitExtension, "
-               "whose attributes are toolkit/analysis/presentation/daskClient -- "
-               "no class in the hierarchy defines _datalayer. (The near-identical "
-               "copy on OFLSMToolkit.Analysis does have one; this one is a copy "
-               "that lost its owner.) Every call raises AttributeError before a "
-               "single line of the log is parsed. See the consolidated findings "
-               "issue.")
-    def test_it_should_parse_release_and_parcel_fate_records(self, ext, tmp_path):
+    def test_it_parses_release_and_parcel_fate_records(self, ext, tmp_path):
         logFile = tmp_path / "solver.log"
         logFile.write_text(_SOLVER_LOG)
         frame = ext.getMassFromLog(str(logFile))
         assert sorted(frame["action"].unique()) == ["escape", "release", "stick"]
+        assert set(frame["cloudName"]) == {"kinematicCloud"}
 
-    def test_it_currently_raises_before_reading_any_record(self, ext, tmp_path):
-        """Characterisation of B328."""
-        logFile = tmp_path / "solver.log"
-        logFile.write_text(_SOLVER_LOG)
-        with pytest.raises(AttributeError, match="_datalayer"):
-            ext.getMassFromLog(str(logFile))
-
-    def test_even_a_log_with_no_timestep_block_cannot_be_parsed(self, ext, tmp_path):
-        """Characterisation of B328: the frame it builds at the end reads
-        the same missing attribute, so no input reaches a return."""
+    def test_a_log_with_no_timestep_block_yields_an_empty_frame(self, ext, tmp_path):
         logFile = tmp_path / "empty.log"
         logFile.write_text("Exec   : StochasticLagrangianSolver\na\nb\nEnd\n")
-        with pytest.raises(AttributeError):
-            ext.getMassFromLog(str(logFile))
+        assert len(ext.getMassFromLog(str(logFile))) == 0
+
+    def test_a_different_cloud_name_is_honoured(self, ext, tmp_path):
+        logFile = tmp_path / "other.log"
+        logFile.write_text(_SOLVER_LOG.replace("kinematicCloud", "myCloud"))
+        frame = ext.getMassFromLog(str(logFile), cloudName="myCloud")
+        assert set(frame["cloudName"]) == {"myCloud"}
 
 
 # ===========================================================================

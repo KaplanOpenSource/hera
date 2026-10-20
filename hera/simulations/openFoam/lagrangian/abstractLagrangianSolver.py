@@ -785,7 +785,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             zs.append(z + zdist[i])
         return pandas.DataFrame({"x": xs, "y": ys, "z": zs})
 
-    def getMassFromLog(self, logFile, solver="StochasticLagrangianSolver"):
+    def getMassFromLog(self, logFile, solver="StochasticLagrangianSolver", cloudName="kinematicCloud"):
         """Parse mass and parcel fate information from a solver log file.
 
         The log file has a repeating structure per timestep:
@@ -827,7 +827,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             if "Time" in Lines[count]:
                 time = float(Lines[count].split()[-1])
                 # Scan forward to the cloud name line.
-                while f"{self._datalayer.cloudName}\n" not in Lines[count]:
+                while f"{cloudName}\n" not in Lines[count]:
                     count += 1
                 count += 1
                 # Parse cloud output: each source has release info + parcel fate.
@@ -852,7 +852,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                     count += 1
             count += 1
         return pandas.DataFrame(
-            {"time": times, "cloudName": self._datalayer.cloudName, "name": names, "action": actions,
+            {"time": times, "cloudName": cloudName, "name": names, "action": actions,
              "parcels": parcels,
              "mass": mass})
 
