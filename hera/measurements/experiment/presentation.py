@@ -435,10 +435,13 @@ class experimentPresentation:
         for row in devices_df.itertuples():
             x = row.latitude
             y = row.longitude
-            if isinstance(row.containedIn,float):
+            # argos only adds containedIn when some device on the trial
+            # declares containment; NaN means this one does not.
+            containedIn = getattr(row, "containedIn", None)
+            if containedIn is None or isinstance(containedIn, float):
                 deviceName = row.deviceItemName
             else:
-                deviceName = row.containedIn
+                deviceName = containedIn
 
             ax.scatter(x, y,**scatterkwargs)  # 's' controls size
             ax.text(x+textDeltaX, y + (maxy - miny) * textDeltaY, f"{deviceName}", color='red', fontsize=14, ha='center',

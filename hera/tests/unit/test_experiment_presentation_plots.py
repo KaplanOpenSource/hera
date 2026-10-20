@@ -87,11 +87,13 @@ Bugs pinned here
   ``self.trialSet`` (B219's mistake again) and, behind it,
   ``self.datalayer._process_row`` (dead per B160) and ``row.stationName``,
   a column argos does not produce.
-* B222: ``plotDevicesOnImage`` reads ``row.containedIn`` for every device,
-  but argos's ``fillContained`` only creates that column when at least one
-  device on the trial declares containment. For the ordinary experiment
-  whose devices sit directly on the map the loop raises
-  ``AttributeError: 'Pandas' object has no attribute 'containedIn'``.
+* B222 (fixed): ``plotDevicesOnImage`` read ``row.containedIn`` for every
+  device, but argos's ``fillContained`` only creates that column when at
+  least one device on the trial declares containment. For the ordinary
+  experiment whose devices sit directly on the map the loop raised
+  ``AttributeError: 'Pandas' object has no attribute 'containedIn'``,
+  although the method already had a fallback branch meant for exactly
+  that case. The column is now read with ``getattr``.
 * B223: ``plotDevicesOnImage`` computes its bounding box as
   ``devices_df.max().longitude`` / ``devices_df.min().latitude`` -- an
   aggregate over the *whole* mixed-dtype frame rather than over the two
@@ -452,34 +454,24 @@ class TestPlotDevicesOnImage:
 
 
 @pytest.mark.unit
-class TestPlotDevicesOnImageNeedsContainment:
-    """B222: an optional argos column is read unconditionally."""
+class TestPlotDevicesOnImageWithoutContainment:
+    """B222: an optional argos column used to be read unconditionally."""
 
     def test_an_uncontained_trial_has_no_containedin_column(self, experiment):
-        """Characterisation of B222: the table the loop is given."""
+        """The table the loop is given."""
         table = experiment.trialSet["Measurements"]["T1"].entitiesTable
         assert "deviceItemName" in table.columns
         assert "containedIn" not in table.columns
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B222: plotDevicesOnImage reads row.containedIn for every "
-               "device, but argos's fillContained only adds that column "
-               "when some device on the trial declares containment, so the "
-               "ordinary map-positioned experiment raises AttributeError -- "
-               "even though the method already has a fallback branch meant "
-               "for exactly that case. See the consolidated findings issue.",
-    )
-    def test_it_should_label_uncontained_devices_by_their_own_name(self, presentation):
+    def test_it_labels_uncontained_devices_by_their_own_name(self, presentation):
         _, ax = presentation.plotDevicesOnImage(
             "Measurements", "T1", "sonic", "map1", scatterkwargs=dict())
         assert sorted(text.get_text() for text in ax.texts) == ["sonic 1", "sonic 2"]
 
-    def test_it_currently_raises_an_attribute_error(self, presentation):
-        """Characterisation of B222."""
-        with pytest.raises(AttributeError, match="containedIn"):
-            presentation.plotDevicesOnImage(
-                "Measurements", "T1", "sonic", "map1", scatterkwargs=dict())
+    def test_every_device_still_gets_its_marker(self, presentation):
+        _, ax = presentation.plotDevicesOnImage(
+            "Measurements", "T1", "sonic", "map1", scatterkwargs=dict())
+        assert len(ax.collections) == 2
 
 
 @pytest.mark.unit
