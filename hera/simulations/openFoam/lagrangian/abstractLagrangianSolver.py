@@ -481,9 +481,14 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         flowFieldRef = hermes_dispersionWorkflow.dispersionFlowFieldName
 
         # Try the name first, then the absolute path as fallback.
-        docList = self.toolkit.getCaseListDocumentFromDB(flowFieldRef)
+        # The dispersion flow field is registered as a DOCTYPE_OF_FLOWDISPERSION
+        # document (see _checkAndRegisterDispersionInDB), exactly as the sibling
+        # getDispersionFlowDocument looks it up.
+        docList = self.toolkit.getWorkflowDocumentFromDB(
+            flowFieldRef, doctype=self.toolkit.DOCTYPE_OF_FLOWDISPERSION)
         if len(docList) == 0:
-            docList = self.toolkit.getCaseListDocumentFromDB(os.path.abspath(flowFieldRef))
+            docList = self.toolkit.getWorkflowDocumentFromDB(
+                os.path.abspath(flowFieldRef), doctype=self.toolkit.DOCTYPE_OF_FLOWDISPERSION)
             if len(docList) == 0:
                 raise ValueError(
                     f"Dispersion flow field '{flowFieldRef}' not found in DB. Add it first."
@@ -510,7 +515,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         needDBAdd = False
 
         # Check 1: Does a workflow with the same NAME exist in DB?
-        doc_nameQueryList = self.toolkit.getCaseListDocumentFromDB(workflow.name)
+        doc_nameQueryList = self.toolkit.getWorkflowListDocumentFromDB(workflow.name)
 
         if len(doc_nameQueryList) > 0:
             # Same name found — compare parameters to detect inconsistency.
@@ -590,7 +595,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             )
         elif updateWorkflow:
             # Existing workflow — update parameters in DB.
-            docList = self.toolkit.getCaseListDocumentFromDB(workflow.name)
+            docList = self.toolkit.getWorkflowListDocumentFromDB(workflow.name)
             if len(docList) > 0:
                 doc = docList[0]
                 doc.desc['workflow'] = workflow.json

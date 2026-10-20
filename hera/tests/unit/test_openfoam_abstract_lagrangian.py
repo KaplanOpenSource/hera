@@ -37,8 +37,7 @@ reached mongomock, what was raised):
     ``_copyOrLinkTimestep``, ``_finalizeDispersionInDB``,
     ``createDispersionFlowField`` (the ``useDBSupport=False`` orchestration,
     end to end on a real case tree), ``_resolveDirectoryConflict``,
-    ``_syncDispersionToDB`` (its add branch; its update branch runs into
-    B330), ``createAndLinkDispersionCaseDirectory``,
+    ``_syncDispersionToDB``, ``createAndLinkDispersionCaseDirectory``,
     ``_resolveCaseDescriptorName``, ``_checkCache``,
     ``_locateCaseDirectory``, ``_discoverTimesteps``,
     ``_loadCaseDataViaDask``, ``_saveToCacheParquet``,
@@ -56,10 +55,9 @@ Covered shallowly, with the reason:
     is a single forwarding call, so what is asserted is the arguments that
     crossed the seam and the object that came back, nothing more.
     ``_resolveDispersionFlowField``, ``_checkDBConsistency`` and
-    ``createDispersionCaseDirectory`` -- their first DB statement calls a
-    method that does not exist anywhere in hera (B330), so only the
-    argument validation that precedes it and the resulting
-    ``AttributeError`` can be observed.
+    ``createDispersionCaseDirectory`` -- only the DB lookup and the
+    argument validation that precedes it are observable without a case
+    tree.
 
 Not covered:
     ``analysis.calcConcentrationPointWise`` -- see above.
@@ -77,8 +75,6 @@ passing characterisation of what happens today):
 * B326 (fixed upstream by a4597eb6, #1082)
   ``analysis.calcConcentrationFieldFullMesh``'s first statement called a
   method that lives on the other class.
-* B330 four call sites use ``toolkit.getCaseListDocumentFromDB``, a method
-  that does not exist anywhere in hera.
 * B331 ``_checkDBConsistency`` calls ``toolkit.compareWorkflowsObj``; the
   real name has no ``s``.
 * B332 (fixed upstream by #1137) the module's star-import shadowed the
@@ -968,25 +964,16 @@ class TestCreateAndLinkDispersionCaseDirectory:
 
 
 # ===========================================================================
-# B330: getCaseListDocumentFromDB does not exist
+# The workflow-list lookup goes through getWorkflowListDocumentFromDB
 # ===========================================================================
 
 @pytest.mark.unit
-class TestGetCaseListDocumentFromDBDoesNotExist:
-    def test_the_method_the_module_calls_is_absent_from_the_toolkit(self, ext):
-        """Characterisation of B330, at its source."""
-        assert not hasattr(ext.toolkit, "getCaseListDocumentFromDB")
+class TestWorkflowListLookup:
+    def test_the_method_the_module_calls_exists_on_the_toolkit(self, ext):
         assert hasattr(ext.toolkit, "getWorkflowListDocumentFromDB")
+        assert not hasattr(ext.toolkit, "getCaseListDocumentFromDB")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B330: _resolveDispersionFlowField calls "
-               "self.toolkit.getCaseListDocumentFromDB, a name defined nowhere "
-               "in hera -- the only four occurrences in the repository are the "
-               "call sites in this module. The real name is "
-               "getWorkflowListDocumentFromDB. See the consolidated findings "
-               "issue.")
-    def test_resolving_a_registered_dispersion_flow_field_should_work(self, ext, tmp_path):
+    def test_resolving_a_registered_dispersion_flow_field_works(self, ext, tmp_path):
         ext.toolkit.addSimulationsDocument(
             resource=str(tmp_path / "dff"), dataFormat=datatypes.STRING,
             type=ext.toolkit.DOCTYPE_OF_FLOWDISPERSION,
@@ -994,18 +981,18 @@ class TestGetCaseListDocumentFromDBDoesNotExist:
         name, directory = ext._resolveDispersionFlowField(
             _StandInWorkflow(dispersionFlowFieldName="GROUP_DFF_a"))
         assert name == "GROUP_DFF_a"
+        assert directory == str(tmp_path / "dff")
 
-    def test_resolving_a_dispersion_flow_field_currently_raises(self, ext):
-        """Characterisation of B330."""
-        with pytest.raises(AttributeError, match="getCaseListDocumentFromDB"):
+    def test_an_unregistered_dispersion_flow_field_is_refused(self, ext):
+        with pytest.raises(ValueError, match="not found in DB"):
             ext._resolveDispersionFlowField(
                 _StandInWorkflow(dispersionFlowFieldName="anything"))
 
-    def test_checking_db_consistency_currently_raises(self, ext):
-        """Characterisation of B330, at the second call site."""
-        with pytest.raises(AttributeError, match="getCaseListDocumentFromDB"):
-            ext._checkDBConsistency(_StandInWorkflow(name="GROUP_1"),
-                                    True, False, False)
+    def test_checking_db_consistency_against_an_empty_db_is_a_no_op(self, ext):
+        workflow, updateWorkflow, needDBAdd, inconsistency = ext._checkDBConsistency(
+            _StandInWorkflow(name="GROUP_1"), True, False, False)
+        assert workflow.name == "GROUP_1"
+        assert (updateWorkflow, needDBAdd, inconsistency) == (False, False, None)
 
 
 def _supplyMissingCaseListLookup(ext, monkeypatch):
@@ -1063,7 +1050,7 @@ class TestCompareWorkflowsObjIsMisspelled:
 
 @pytest.mark.unit
 class TestCreateDispersionCaseDirectoryValidation:
-    """Only the argument validation ahead of B330 is observable."""
+    """The argument validation that precedes the DB lookup."""
 
     def test_updatedb_and_exportfromdb_are_mutually_exclusive(self, ext):
         with pytest.raises(ValueError, match="both updateDB and exportFromDB"):
@@ -1075,11 +1062,12 @@ class TestCreateDispersionCaseDirectoryValidation:
             ext.createDispersionCaseDirectory(_StandInWorkflow(name=None),
                                               updateDB=False)
 
-    def test_a_valid_call_still_dies_inside_bzzz_g(self, ext, unit_files_directory):
-        """Characterisation of B330, reached through the public entry point."""
-        with pytest.raises(AttributeError, match="getCaseListDocumentFromDB"):
-            ext.createDispersionCaseDirectory(_StandInWorkflow(name="GROUP_1"),
-                                              updateDB=False)
+    def test_an_unregistered_flow_field_is_refused(self, ext, unit_files_directory):
+        with pytest.raises(ValueError, match="not found in DB"):
+            ext.createDispersionCaseDirectory(
+                _StandInWorkflow(name="GROUP_1",
+                                 dispersionFlowFieldName="NOT_IN_DB"),
+                updateDB=False)
 
 
 # ===========================================================================
