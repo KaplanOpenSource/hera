@@ -640,22 +640,10 @@ class TestDocumentHandlerRejectsUnknownDocumentTypes:
 
 
 @pytest.mark.unit
-class TestCacheSectionIsUnreachable:
-    """B153: the Cache lambda's parameter name does not match the call."""
+class TestCacheSection:
+    """B153: the Cache lambda's parameter name has to match the keyword the
+    dispatcher calls it with."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B153: in the handler table the Measurements/Simulations "
-               "lambdas take (toolkit, itemName, docTypeDict, overwrite, "
-               "basedir) but the Cache lambda takes (toolkit, itemName, "
-               "itemDesc, overwrite, basedir), while the dispatcher always "
-               "calls handler(toolkit=..., itemName=..., docTypeDict=..., "
-               "overwrite=..., basedir=...). The Cache lambda therefore raises "
-               "TypeError (unexpected keyword 'docTypeDict') on every call, and "
-               "the surrounding `except Exception: logger.error` hides it -- a "
-               "Cache section in a repository JSON can never be loaded. "
-               "See the consolidated findings issue.",
-    )
     def test_a_cache_section_adds_a_cache_document(self, dtk, make_target_toolkit):
         dtk.loadAllDatasourcesInRepositoryJSONToProject(
             projectName="CACHE_PROJECT_1",
@@ -663,26 +651,18 @@ class TestCacheSectionIsUnreachable:
         )
         assert len(make_target_toolkit("CACHE_PROJECT_1").getCacheDocuments(type="MY_TYPE")) == 1
 
-    def test_a_cache_section_silently_loads_nothing(self, dtk, make_target_toolkit):
-        """Characterisation of B153."""
-        dtk.loadAllDatasourcesInRepositoryJSONToProject(
-            projectName="CACHE_PROJECT_2",
-            repositoryJSON={TARGET_TOOLKIT_NAME: {"Cache": _documentSection("/c.parquet")}},
-        )
-        assert len(make_target_toolkit("CACHE_PROJECT_2").getCacheDocuments(type="MY_TYPE")) == 0
-
-    def test_the_cache_handler_rejects_the_keyword_the_dispatcher_uses(self, dtk, make_target_toolkit):
-        """Characterisation of B153: the same failure, one layer down,
-        with the swallowing try/except taken out of the picture."""
+    def test_the_cache_handler_accepts_the_keyword_the_dispatcher_uses(self, dtk, make_target_toolkit):
+        """The same path one layer down, with the swallowing try/except taken
+        out of the picture."""
         target = make_target_toolkit("CACHE_PROJECT_3")
 
         # rebuild exactly the lambda the module installs for 'Cache'
-        cacheHandler = (lambda toolkit, itemName, itemDesc, overwrite, basedir:
-                        dtk._DocumentHandler(toolkit, itemName, itemDesc, overwrite, "Cache", basedir))
-        with pytest.raises(TypeError, match="docTypeDict"):
-            cacheHandler(toolkit=target, itemName="Cache",
-                         docTypeDict=_documentSection("/c.parquet"),
-                         overwrite=False, basedir="")
+        cacheHandler = (lambda toolkit, itemName, docTypeDict, overwrite, basedir:
+                        dtk._DocumentHandler(toolkit, itemName, docTypeDict, overwrite, "Cache", basedir))
+        cacheHandler(toolkit=target, itemName="Cache",
+                     docTypeDict=_documentSection("/c.parquet"),
+                     overwrite=False, basedir="")
+        assert len(target.getCacheDocuments(type="MY_TYPE")) == 1
 
 
 # ---------------------------------------------------------------------------

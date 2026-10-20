@@ -221,8 +221,8 @@ class dataToolkit(abstractToolkit):
             Simulations=lambda toolkit, itemName, docTypeDict, overwrite, basedir: self._DocumentHandler(
                 toolkit, itemName, docTypeDict, overwrite, "Simulations", basedir
             ),
-            Cache=lambda toolkit, itemName, itemDesc, overwrite, basedir: self._DocumentHandler(
-                toolkit, itemName, itemDesc, overwrite, "Cache", basedir
+            Cache=lambda toolkit, itemName, docTypeDict, overwrite, basedir: self._DocumentHandler(
+                toolkit, itemName, docTypeDict, overwrite, "Cache", basedir
             ),
             Function=self._handle_Function,
         )
