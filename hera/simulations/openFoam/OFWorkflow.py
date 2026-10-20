@@ -316,11 +316,12 @@ class workflow_Eulerian(abstractWorkflow):
         """
         blockMesh = self.blockMesh
         verticsList=  blockMesh['vertices']
+        # Vertices 4-7 are the top face (OpenFOAM blockMesh convention).
         for i in range(len(verticsList[4:])):
-            verticsList[i][2] = Z
+            verticsList[i+4][2] = Z
 
         minZ = verticsList[0][2]
-        blockMesh["cellCount"][2] = (Z-minZ)/dz
+        blockMesh["cellCount"][2] = int(numpy.ceil((Z-minZ)/dz))
 
 
     def foam_snappyhexmesh_addobject(self,dataOrFile,objectFile):

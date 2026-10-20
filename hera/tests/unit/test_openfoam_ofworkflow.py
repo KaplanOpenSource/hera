@@ -574,8 +574,7 @@ class TestSetBlockMeshBlockBoundaries:
 
 @pytest.mark.unit
 class TestSetBlockMeshBlockHeight:
-    """B148 and B149: raising the block moves the wrong face, and then computes
-    the cell count from the vertex it has just overwritten."""
+    """Raising the block moves the top face and recounts the cells in z."""
 
     @pytest.fixture()
     def raised(self, eulerian):
@@ -585,26 +584,9 @@ class TestSetBlockMeshBlockHeight:
         eulerian.set_blockMesh_blockHeight(Z=100, dz=5)
         return eulerian
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B148: set_blockMesh_blockHeight is meant to lift the top face of "
-               "the block to Z, but it writes "
-               "`for i in range(len(verticsList[4:])): verticsList[i][2] = Z`. "
-               "The slice is only used for its length (4), while the assignment "
-               "indexes i itself -- so vertices 0-3, the *bottom* face, are "
-               "moved to Z and the top face keeps its old height. The block ends "
-               "up inverted. The index should be i+4. "
-               "See the consolidated findings issue.",
-    )
-    def test_raising_the_block_should_move_the_top_face(self, raised):
+    def test_raising_the_block_moves_the_top_face(self, raised):
         assert [vertex[2] for vertex in raised.blockMesh["vertices"]] == [
             0, 0, 0, 0, 100, 100, 100, 100,
-        ]
-
-    def test_raising_the_block_currently_moves_the_bottom_face(self, raised):
-        """Characterisation of B148."""
-        assert [vertex[2] for vertex in raised.blockMesh["vertices"]] == [
-            100, 100, 100, 100, 30, 30, 30, 30,
         ]
 
     def test_the_x_and_y_coordinates_are_left_untouched(self, raised):
@@ -613,22 +595,11 @@ class TestSetBlockMeshBlockHeight:
             [0, 0], [10, 0], [10, 20], [0, 20],
         ]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B149: after moving the vertices, set_blockMesh_blockHeight reads "
-               "minZ = verticsList[0][2] -- but vertex 0 is one of the four it "
-               "has just overwritten with Z (see B148), so minZ == Z and "
-               "cellCount[2] = (Z-minZ)/dz is always exactly 0. A zero cell "
-               "count in z makes the mesh unbuildable. It is also a float, "
-               "unlike the ints set_blockMesh_blockBoundaries writes. "
-               "See the consolidated findings issue.",
-    )
-    def test_raising_the_block_should_recount_the_cells_in_z(self, raised):
+    def test_raising_the_block_recounts_the_cells_in_z(self, raised):
         assert raised.blockMesh["cellCount"][2] == 20
 
-    def test_the_z_cell_count_currently_collapses_to_zero(self, raised):
-        """Characterisation of B149."""
-        assert raised.blockMesh["cellCount"][2] == 0.0
+    def test_the_z_cell_count_is_an_integer_like_the_other_two(self, raised):
+        assert isinstance(raised.blockMesh["cellCount"][2], int)
 
     def test_the_x_and_y_cell_counts_are_left_untouched(self, raised):
         assert raised.blockMesh["cellCount"][:2] == [10, 10]
