@@ -60,9 +60,6 @@ Covered shallowly, with the reason:
     method that does not exist anywhere in hera (B330), so only the
     argument validation that precedes it and the resulting
     ``AttributeError`` can be observed.
-    ``getDispersionFlowDocument`` / ``getOriginalFlowDocument`` -- the two
-    reachable branches are asserted on the forwarded query; the third is
-    B327.
     ``getMassFromLog``, ``getOriginalFlowFieldExtentAsDict``,
     ``analysis.calcDocumentConcentrationPointWise`` and
     ``analysis.getConcentrationField`` -- each dies on a defect pinned
@@ -84,8 +81,6 @@ passing characterisation of what happens today):
 * B326 (fixed upstream by a4597eb6, #1082)
   ``analysis.calcConcentrationFieldFullMesh``'s first statement called a
   method that lives on the other class.
-* B327 ``getDispersionFlowDocument`` / ``getOriginalFlowDocument`` build a
-  type-error message and never raise it.
 * B328 ``getMassFromLog`` reads ``self._datalayer``, which this class never
   defines.
 * B329 ``analysis.calcDocumentConcentrationPointWise`` /
@@ -1649,28 +1644,13 @@ class TestGetOriginalFlowDocument:
 
 
 @pytest.mark.unit
-class TestTypeErrorIsBuiltButNeverRaised:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B327: getDispersionFlowDocument's else branch assigns the "
-               "message to a local named err and never raises it, so execution "
-               "falls through to logger.info(f'... {dffname}') with dffname "
-               "bound in neither of the two taken branches. The caller gets "
-               "UnboundLocalError instead of the TypeError the message "
-               "describes. getOriginalFlowDocument has the identical defect. "
-               "See the consolidated findings issue.")
-    def test_a_bad_type_should_raise_the_error_the_message_describes(self, ext):
-        with pytest.raises(TypeError):
+class TestABadTypeIsRejected:
+    def test_a_bad_type_raises_the_error_the_message_describes(self, ext):
+        with pytest.raises(TypeError, match="must be of type str"):
             ext.getDispersionFlowDocument(17)
 
-    def test_a_bad_type_currently_raises_unboundlocalerror(self, ext):
-        """Characterisation of B327."""
-        with pytest.raises(UnboundLocalError, match="dffname"):
-            ext.getDispersionFlowDocument(17)
-
-    def test_the_original_flow_variant_has_the_same_defect(self, ext):
-        """Characterisation of B327, at the second site."""
-        with pytest.raises(UnboundLocalError, match="dffname"):
+    def test_the_original_flow_variant_rejects_it_too(self, ext):
+        with pytest.raises(TypeError, match="must be of type str"):
             ext.getOriginalFlowDocument(17)
 
 

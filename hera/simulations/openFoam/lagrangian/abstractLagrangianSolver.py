@@ -1204,7 +1204,9 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         elif isinstance(nameOrDispersionWorkflow,workflow_StochasticLagrangianSolver):
             dffname = nameOrDispersionWorkflow.dispersionFlowFieldName
         else:
-            logger.error(f"{nameOrDispersionWorkflow} must be of type str or workflow_StochasticLagrangianSolver, got {type(nameOrDispersionWorkflow)}")
+            err = f"{nameOrDispersionWorkflow} must be of type str or workflow_StochasticLagrangianSolver, got {type(nameOrDispersionWorkflow)}"
+            logger.error(err)
+            raise TypeError(err)
 
         logger.info(f"Trying to retireve the document for {dffname}")
         ret = self.toolkit.getWorkflowDocumentFromDB(dffname, doctype=self.toolkit.DOCTYPE_OF_FLOWDISPERSION)
@@ -1231,7 +1233,9 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         elif isinstance(nameOrDispersionWorkflow,workflow_StochasticLagrangianSolver):
             dffname = nameOrDispersionWorkflow.originalFlowFieldName
         else:
-            logger.error(f"{nameOrDispersionWorkflow} must be of type str or workflow_StochasticLagrangianSolver, got {type(nameOrDispersionWorkflow)}")
+            err = f"{nameOrDispersionWorkflow} must be of type str or workflow_StochasticLagrangianSolver, got {type(nameOrDispersionWorkflow)}"
+            logger.error(err)
+            raise TypeError(err)
 
         ret = self.toolkit.getWorkflowDocumentFromDB(dffname, doctype=self.toolkit.DOCTYPE_WORKFLOW)
         return ret[0] if len(ret) > 0 else None
