@@ -14,9 +14,6 @@ nothing is submitted to a scheduler.
 Bugs pinned here, each with an xfail(strict) for the intended behaviour
 and a passing characterisation of what actually happens:
 
-  * B284: ``prepareSlurmLSMExecution`` calls
-    ``LSMTemplate.prepareParams(desc=None, ...)``, but that parameter is
-    named ``template_desc`` -- every call raises TypeError.
   * B285: the same method logs ``logger.error(...)`` for a non-dict
     ``baseParameters`` and for an unusable ``jsonVariations`` without
     returning, so execution runs on into an unrelated failure.
@@ -27,7 +24,6 @@ import os
 import pytest
 
 import hera.simulations.LSM.toolkit as lsmToolkit_mod
-from hera.simulations.LSM.template import LSMTemplate
 from hera.utils import slurm
 from hera.utils.unitHandler import ureg
 
@@ -355,72 +351,46 @@ class TestPrepareSlurmLSMExecution:
         arguments.update(overrides)
         return lsm.prepareSlurmLSMExecution(**arguments)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B284: prepareSlurmLSMExecution calls "
-               "`LSMTemplate.prepareParams(desc=None, "
-               "paramsToPrepare=jsonConfig)`, but that staticmethod's first "
-               "parameter is named `template_desc`. Every call therefore "
-               "raises TypeError: prepareParams() got an unexpected keyword "
-               "argument 'desc' on the first variation, before a single "
-               "run script is written. The whole Slurm entry point is "
-               "unusable. See the consolidated findings issue.",
-    )
-    def test_it_should_write_one_run_script_per_variation(self, lsm, slurmRecorder):
+    def _scriptsDirectory(self, lsm):
+        return os.path.join(lsm.filesDirectory, "simulationsScripts")
+
+    def test_it_writes_one_run_script_per_variation(self, lsm, slurmRecorder):
         self._prepare(lsm)
-        scriptsDirectory = os.path.join(lsm.filesDirectory, "simulationsScripts")
         assert sorted(
-            name for name in os.listdir(scriptsDirectory) if name.startswith("LSM_")
+            name for name in os.listdir(self._scriptsDirectory(lsm))
+            if name.startswith("LSM_")
         ) == ["LSM_Simulation_0", "LSM_Simulation_1"]
 
-    def test_it_currently_raises_on_the_first_variation(self, lsm, slurmRecorder):
-        """Characterisation of B284."""
-        with pytest.raises(TypeError, match="unexpected keyword argument 'desc'"):
-            self._prepare(lsm)
+    def test_the_case_list_names_every_simulation(self, lsm, slurmRecorder):
+        self._prepare(lsm)
+        with open(os.path.join(self._scriptsDirectory(lsm), "cases.txt")) as cases:
+            assert cases.read().split() == ["LSM_Simulation_0", "LSM_Simulation_1"]
 
-    def test_the_parameter_it_passes_is_not_the_one_declared(self):
-        """Characterisation of B284: `template_desc`, not `desc`."""
-        import inspect
+    def test_the_scheduler_is_handed_the_case_list(self, lsm, slurmRecorder):
+        self._prepare(lsm)
+        assert len(slurmRecorder) == 1
+        assert str(slurmRecorder[0]["jobDirListFilePath"]).endswith("cases.txt")
 
-        parameters = list(
-            inspect.signature(LSMTemplate.prepareParams).parameters
-        )
-        assert parameters == ["template_desc", "paramsToPrepare"]
-
-    def test_nothing_reaches_the_scheduler(self, lsm, slurmRecorder):
-        """Characterisation of B284."""
-        with pytest.raises(TypeError):
-            self._prepare(lsm)
-        assert slurmRecorder == []
-
-    def test_the_scripts_directory_is_created_before_the_failure(
-        self, lsm, slurmRecorder
-    ):
-        """Characterisation of B284: a half-built layout is left behind."""
-        with pytest.raises(TypeError):
-            self._prepare(lsm)
-        assert os.path.isdir(
-            os.path.join(lsm.filesDirectory, "simulationsScripts")
-        )
-
-    def test_stations_are_written_out_before_the_failure(
+    def test_stations_are_written_out_for_the_run_scripts(
         self, lsm, slurmRecorder, tmp_path
     ):
         import pandas
 
         stations = pandas.DataFrame(dict(x=[0.0], y=[0.0], u=[3.0]))
-        with pytest.raises(TypeError):
-            self._prepare(lsm, stations=stations)
+        self._prepare(lsm, stations=stations)
         assert os.path.isfile(
-            os.path.join(lsm.filesDirectory, "simulationsScripts", "stations.parquet")
+            os.path.join(self._scriptsDirectory(lsm), "stations.parquet")
         )
 
     def test_a_variations_file_on_disk_is_read(self, lsm, slurmRecorder, tmp_path):
-        """The str branch is taken before the B284 failure."""
+        """The str branch loads the same variations the list branch takes."""
         path = tmp_path / "variations.json"
         path.write_text(json.dumps(self.VARIATIONS))
-        with pytest.raises(TypeError, match="unexpected keyword argument 'desc'"):
-            self._prepare(lsm, jsonVariations=str(path))
+        self._prepare(lsm, jsonVariations=str(path))
+        assert sorted(
+            name for name in os.listdir(self._scriptsDirectory(lsm))
+            if name.startswith("LSM_")
+        ) == ["LSM_Simulation_0", "LSM_Simulation_1"]
 
     def test_an_unreadable_variations_path_is_refused(self, lsm, slurmRecorder):
         with pytest.raises(FileNotFoundError):

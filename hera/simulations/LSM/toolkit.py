@@ -369,7 +369,7 @@ class LSMToolkit(toolkit.abstractToolkit):
             stations.to_parquet(simulations_scripts_dir / STATIONS_PATH)
         for i, jsonConfig in enumerate(JSONVariations(baseParameters, jsonVariations)):
             jsonConfig = JSONToConfiguration(jsonConfig)
-            jsonConfig = LSMTemplate.prepareParams(desc=None, paramsToPrepare=jsonConfig)
+            jsonConfig = LSMTemplate.prepareParams(template_desc=None, paramsToPrepare=jsonConfig)
             simName = f"LSM_Simulation_{i}"
             simSavePath = simulations_scripts_dir /simName/RUN_SIM_FILE_NAME
 
