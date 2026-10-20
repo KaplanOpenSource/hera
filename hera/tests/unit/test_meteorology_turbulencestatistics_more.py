@@ -617,25 +617,14 @@ class TestSparkFluctuations:
         assert calculator.getData() is None
         assert "up" in calculator.RawData.columns
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B307: the Spark override adds wind_dir_bar to "
-               "_TemporaryData but, unlike the base implementation, leaves "
-               "it out of _CalculatedParams. compute() projects "
-               "_TemporaryData onto that list, so the mean wind direction is "
-               "silently dropped from the result. See the consolidated "
-               "findings issue.",
-    )
-    def test_the_mean_wind_direction_should_survive_compute(self):
-        calculator = _spark(_raw()).fluctuations()
-        assert "wind_dir_bar" in calculator.compute().columns
-
-    def test_the_mean_wind_direction_is_currently_dropped_by_compute(self):
-        """Characterisation of B307."""
+    def test_the_mean_wind_direction_survives_compute(self):
+        """B307: the override wrote wind_dir_bar into _TemporaryData but left
+        it out of _CalculatedParams, which compute() projects onto, so the
+        mean wind direction was silently dropped from the result."""
         calculator = _spark(_raw()).fluctuations()
         assert "wind_dir_bar" in calculator.TemporaryData.columns
-        assert _param_names(calculator) == ["u_bar", "v_bar", "w_bar", "T_bar"]
-        assert "wind_dir_bar" not in calculator.compute().columns
+        assert _param_names(calculator) == ["u_bar", "v_bar", "w_bar", "T_bar", "wind_dir_bar"]
+        assert "wind_dir_bar" in calculator.compute().columns
 
     def test_the_base_implementation_does_register_it(self):
         raw = _raw()

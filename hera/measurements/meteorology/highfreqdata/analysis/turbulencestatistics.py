@@ -1402,7 +1402,7 @@ class SinglePointStatisticsSpark(singlePointTurbulenceStatistics):
             avg['wind_dir_bar'] = avg['wind_dir_bar'].apply(toMeteorologicalAngle)
 
             self._TemporaryData = avg
-            self._CalculatedParams += [['u_bar',{}], ['v_bar',{}], ['w_bar',{}], ['T_bar',{}]]
+            self._CalculatedParams += [['u_bar',{}], ['v_bar',{}], ['w_bar',{}], ['T_bar',{}], ['wind_dir_bar', {}]]
 
             # correcting the first index to be the same as the avg.
             self._RawData = self._RawData.reset_index()
