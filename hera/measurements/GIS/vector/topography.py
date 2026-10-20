@@ -212,7 +212,7 @@ class TopographyToolkit(VectorToolkit):
 
         for i in range(Nx):
             for j in range(Ny):
-                DEMstring += f"{(float(rasterized['height'][j, i]))} "
+                DEMstring += f"{(float(rasterized['height'][i, j]))} "
             DEMstring += "\n"
 
         return DEMstring

@@ -34,11 +34,11 @@ passing characterisation of what actually happens)
   datasource name -- the documented first parameter -- raised
   ``AttributeError``, which also made the geoJSON-string fallback on the next
   line dead code.
-* **B230** -- ``toDEM`` reads ``Nx`` and ``Ny`` from ``grid_x.shape[0]`` /
-  ``[1]``, then emits ``rasterized['height'][j, i]`` with ``i`` ranging over
-  ``Nx`` and ``j`` over ``Ny`` -- the two subscripts are swapped.  On a
-  non-square grid this raises ``IndexError``; on a square one it silently
-  transposes the DEM.
+* **B230** (fixed) -- ``toDEM`` reads ``Nx`` and ``Ny`` from
+  ``grid_x.shape[0]`` / ``[1]`` but emitted ``rasterized['height'][j, i]`` with
+  ``i`` ranging over ``Nx`` and ``j`` over ``Ny`` -- the two subscripts were
+  swapped.  On a non-square grid that raised ``IndexError``; on a square one it
+  silently transposed the DEM.
 * **B231** -- ``analysis.addHeight`` calls
   ``coordinateHandler.regularizeTimeSteps(...)``, but the module-level
   ``from hera.simulations.utils import coordinateHandler`` binds the *module*
@@ -317,7 +317,7 @@ class TestToDEMInputDispatch:
 
 @pytest.mark.unit
 class TestToDEMSquareGrid:
-    """A square grid is the only shape B230 does not turn into an IndexError."""
+    """The square case: Nx == Ny, so the body is unambiguously square."""
 
     @staticmethod
     def _square_contours():
@@ -333,7 +333,7 @@ class TestToDEMSquareGrid:
         assert (ymin, ymax) == (660000.0, 660200.0)
         assert shape.split() == ["2", "2"]
 
-    def test_the_body_has_one_line_per_column_of_the_grid(self, topo):
+    def test_the_body_has_one_line_per_easting_of_the_grid(self, topo):
         dem = topo.toDEM(self._square_contours(), dxdy=200)
         body = [line for line in dem.splitlines()[2:] if line.strip()]
         assert len(body) == 2
@@ -346,12 +346,15 @@ class TestToDEMSquareGrid:
         assert all(min(_HEIGHTS) <= v <= max(_HEIGHTS) for v in values)
 
     def test_the_heights_follow_the_linear_ramp_of_the_contours(self, topo):
-        """0.1 m of height per metre of northing, from the 100/120/140 lines."""
+        """0.1 m of height per metre of northing, from the 100/120/140 lines.
+
+        B230: one line per easting, the northings running along it, so each
+        line walks up the ramp 100 -> 120 and every line is identical.
+        """
         dem = topo.toDEM(self._square_contours(), dxdy=200)
         rows = [line.split() for line in dem.splitlines()[2:] if line.strip()]
-        # y = 660000 -> 100 m ; y = 660200 -> 120 m, for both x columns.
-        assert [float(v) for v in rows[0]] == pytest.approx([100.0, 100.0])
-        assert [float(v) for v in rows[1]] == pytest.approx([120.0, 120.0])
+        assert [float(v) for v in rows[0]] == pytest.approx([100.0, 120.0])
+        assert [float(v) for v in rows[1]] == pytest.approx([100.0, 120.0])
 
 
 @pytest.mark.unit
@@ -362,29 +365,19 @@ class TestToDEMNonSquareGrid:
         return _contours(x0=_X0, x1=_X0 + 800.0,
                          ys=(660000.0, 660200.0, 660400.0))
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B230: toDEM sets Nx=grid_x.shape[0] and Ny=grid_x.shape[1], "
-               "then indexes rasterized['height'][j, i] with i over Nx and j "
-               "over Ny -- the subscripts are swapped, so any grid whose two "
-               "dimensions differ raises IndexError (and a square one is "
-               "silently transposed). See the consolidated findings issue.",
-    )
     def test_a_grid_wider_than_it_is_tall_still_produces_a_dem(self, topo):
+        """B230."""
         dem = topo.toDEM(self._wide_contours(), dxdy=200)
         assert dem.splitlines()[1].split() == ["4", "2"]
 
-    def test_a_non_square_grid_raises_indexerror(self, topo):
-        """Characterisation of B230."""
-        with pytest.raises(IndexError):
-            topo.toDEM(self._wide_contours(), dxdy=200)
-
-    def test_the_header_is_correct_even_though_the_body_cannot_be_written(self, topo):
-        """Characterisation of B230: only the body loop is wrong."""
+    def test_the_body_matches_the_header_shape(self, topo):
+        """B230: Nx lines of Ny values, in the order the header announces."""
         rasterized = topo.stlFactory.rasterizeGeopandas(self._wide_contours(), dxdy=200)
         assert rasterized["x"].shape == (4, 2)
-        with pytest.raises(IndexError):
-            topo.toDEM(self._wide_contours(), dxdy=200)
+        body = [line.split() for line in topo.toDEM(self._wide_contours(), dxdy=200).splitlines()[2:]
+                if line.strip()]
+        assert len(body) == 4
+        assert all(len(line) == 2 for line in body)
 
 
 @pytest.mark.unit
