@@ -12,11 +12,11 @@ test. ``loadData`` turned out to have three real defects around its
   load of a new agent went through the ``if agentDoc is None`` branch,
   which calls ``addDataSource`` unconditionally -- so "no save" still
   saved. The mode is now honoured before the lookup, for both branches.
-* B56: ``TOOLKIT_SAVEMODE_FILEANDDB_REPLACE`` looks up the existing document
-  by the *new* version being loaded, not by name alone. Replacing with a
-  different version therefore never finds the old entry, falls into the
-  "create new" branch, and leaves a duplicate datasource under the same
-  name instead of replacing anything.
+* B56, fixed: ``TOOLKIT_SAVEMODE_FILEANDDB_REPLACE`` looked the existing
+  document up by the *new* version being loaded, not by name alone.
+  Replacing with a different version therefore never found the old entry,
+  fell into the "create new" branch, and left a duplicate datasource under
+  the same name instead of replacing anything.
 * B57: even when the version matches and the replace path is taken, only
   ``desc['version']`` is updated -- the rest of ``desc`` (e.g.
   ``effectParameters``) is left stale while ``resource`` (the raw JSON) is
@@ -100,25 +100,18 @@ class TestLoadData:
         risk.loadData(_desc(), saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE)
         assert risk.listAgentsNames() == ["TestAgent"]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B56: the replace path looks up the existing document with "
-               "getDataSourceDocument(datasourceName=name, version=<the "
-               "NEW version>), so replacing with a different version never "
-               "finds the old entry, falls into the 'create' branch, and "
-               "leaves two datasources named TestAgent instead of one. "
-               "See the consolidated findings issue.",
-    )
     def test_replacing_with_a_different_version_updates_the_single_entry(self, risk):
+        """B56, fixed: the replace path looked the existing document up by
+        the NEW version, never found the old entry, fell into the 'create'
+        branch and left two datasources named TestAgent."""
         risk.loadData(_desc(version=(0, 0, 1)), saveMode=TOOLKIT_SAVEMODE_FILEANDDB)
         risk.loadData(_desc(version=(0, 0, 2)), saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE)
         assert risk.listAgentsNames() == ["TestAgent"]
 
-    def test_replacing_with_a_different_version_currently_duplicates_the_entry(self, risk):
-        """Characterisation of B56."""
+    def test_replacing_with_a_different_version_records_the_new_version(self, risk):
         risk.loadData(_desc(version=(0, 0, 1)), saveMode=TOOLKIT_SAVEMODE_FILEANDDB)
-        risk.loadData(_desc(version=(0, 0, 2)), saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE)
-        assert risk.listAgentsNames() == ["TestAgent", "TestAgent"]
+        doc = risk.loadData(_desc(version=(0, 0, 2)), saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE)
+        assert doc.desc["version"] == [0, 0, 2]
 
     @pytest.mark.xfail(
         strict=True,

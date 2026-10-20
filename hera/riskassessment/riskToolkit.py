@@ -196,7 +196,9 @@ class RiskToolkit(abstractToolkit):
         if saveMode == TOOLKIT_SAVEMODE_NOSAVE:
             return nonDBMetadataFrame(agentDescription)
 
-        agentDoc = self.getDataSourceDocument(datasourceName=name, version=version)
+        # A replace must find the agent whatever version is on record, not only the new one.
+        lookupVersion = None if saveMode == TOOLKIT_SAVEMODE_FILEANDDB_REPLACE else version
+        agentDoc = self.getDataSourceDocument(datasourceName=name, version=lookupVersion)
 
         if agentDoc is None:
             self.addDataSource(name, resource=json.dumps(agentDescription), dataFormat=datatypes.JSON_DICT, **agentDescription)
