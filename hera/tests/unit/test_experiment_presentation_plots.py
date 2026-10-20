@@ -120,13 +120,14 @@ Bugs pinned here
   ``s``/``c`` for the rest of the process, and a later caller could no
   longer get an unstyled scatter by omitting it. It now copies the dict
   before filling in the defaults.
-* B226: ``plotDeviceTypeFunctionality`` cannot run, because it calls
-  ``analysis.getDeviceTypeTransmissionFrequencyOfTrial`` with
-  ``normalize=True`` and without ``recalculate=False``, so it always
-  enters the recompute branch killed by B216 (and would then hit B215's
-  missing ``getOptimalFrequencyHz``). Both are pinned in
-  ``test_experiment_analysis.py``; the tests here record that the
-  presentation entry point inherits their deadness.
+* B226 (half resolved): ``plotDeviceTypeFunctionality`` has no defect of
+  its own -- it calls ``analysis.getDeviceTypeTransmissionFrequencyOfTrial``
+  with ``normalize=True`` and without ``recalculate=False``, so it took
+  both of that method's dead branches. The recompute branch (B216) is
+  fixed, so the call now gets as far as ``normalize=True`` and dies on
+  B215's missing ``getOptimalFrequencyHz``, which is still open and is
+  pinned in ``test_experiment_analysis.py``. The tests here record that
+  the presentation entry point inherits that deadness.
 """
 import inspect
 import json
@@ -785,11 +786,11 @@ class TestPlotDevices:
 
 @pytest.mark.unit
 class TestPlotDeviceTypeFunctionality:
-    """B226: dead because of the analysis defects B216 and B215."""
+    """B226: dead because of the analysis defect B215 (B216 is fixed)."""
 
     def test_it_asks_the_analysis_layer_to_recompute_and_normalise(self):
-        """Characterisation of B226: neither recalculate=False nor
-        normalize=False is ever passed, so both dead branches are taken."""
+        """B226: neither recalculate=False nor normalize=False is ever
+        passed, so the method takes both branches of the analysis call."""
         source = inspect.getsource(experimentPresentation.plotDeviceTypeFunctionality)
         assert "getDeviceTypeTransmissionFrequencyOfTrial" in source
         assert "normalize=True" in source
@@ -798,11 +799,11 @@ class TestPlotDeviceTypeFunctionality:
     @pytest.mark.xfail(
         strict=True,
         reason="B226: plotDeviceTypeFunctionality calls "
-               "getDeviceTypeTransmissionFrequencyOfTrial with normalize=True "
-               "and without recalculate=False, so it always enters the "
-               "recompute branch killed by B216 ('dict' object has no "
-               "attribute 'query') and would then hit B215's missing "
-               "getOptimalFrequencyHz. See the consolidated findings issue.",
+               "getDeviceTypeTransmissionFrequencyOfTrial with "
+               "normalize=True, which still divides by "
+               "getDeviceTypePlannedMessageCount and so hits B215's missing "
+               "getOptimalFrequencyHz. B216, the other branch it used to "
+               "die in, is fixed. See the consolidated findings issue.",
     )
     def test_it_should_return_the_heatmap_axes_and_the_frequency_table(
             self, presentation, deviceData):
@@ -810,10 +811,11 @@ class TestPlotDeviceTypeFunctionality:
         assert sorted(pvt.columns) == ["sonic 1", "sonic 2"]
         assert ax.get_xlabel() == "Device name"
 
-    def test_it_currently_raises_the_attribute_error_of_the_recompute_branch(
+    def test_it_currently_raises_the_attribute_error_of_the_normalisation(
             self, presentation, deviceData):
-        """Characterisation of B226."""
-        with pytest.raises(AttributeError, match="'dict' object has no attribute 'query'"):
+        """Characterisation of B226: the recompute branch now succeeds and
+        the call dies one step later, in B215's normalisation."""
+        with pytest.raises(AttributeError, match="getOptimalFrequencyHz"):
             presentation.plotDeviceTypeFunctionality("sonic", "T1")
 
     def test_without_raw_data_it_fails_even_earlier(self, presentation):
