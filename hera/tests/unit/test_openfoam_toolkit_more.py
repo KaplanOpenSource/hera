@@ -37,8 +37,6 @@ Deliberately not covered:
 Bugs pinned below (each with an xfail for the intended behaviour and a
 passing characterisation of what happens today):
 
-* B193 ``getMeshFromName`` / ``getMeshExtentFromName`` drop
-  ``readParallel`` and ``time``.
 * B194 ``prepareSlurmWorkflowExecution`` cannot take a workflow dict.
 * B195 ``prepareSlurmWorkflowExecution`` demands a variations *dict*,
   which ``JSONVariations`` cannot read.
@@ -392,28 +390,11 @@ class TestGetMeshFromName:
         assert of.getMeshFromName("flow_0000") == "theMesh"
         assert getMesh.lastArgs == (workflowInDB.getData(),)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B193: getMeshFromName takes readParallel and time and "
-               "documents both, but calls self.getMesh(doc.getData()) "
-               "positionally with neither, so both are silently ignored and "
-               "the mesh is always read from time 0 as a parallel case. "
-               "getMeshExtentFromName has the same signature and the same "
-               "hole (its callee getMeshExtent takes no such arguments at "
-               "all). See the consolidated findings issue.",
-    )
-    def test_read_parallel_and_time_should_reach_getmesh(self, of, workflowInDB, monkeypatch):
+    def test_read_parallel_and_time_reach_getmesh(self, of, workflowInDB, monkeypatch):
         getMesh = _Recorder()
         monkeypatch.setattr(OFToolkit, "getMesh", lambda self, *a, **kw: getMesh(*a, **kw))
         of.getMeshFromName("flow_0000", readParallel=False, time=300)
         assert getMesh.lastKwargs == dict(readParallel=False, time=300)
-
-    def test_read_parallel_and_time_are_currently_dropped(self, of, workflowInDB, monkeypatch):
-        """Characterisation of B193."""
-        getMesh = _Recorder()
-        monkeypatch.setattr(OFToolkit, "getMesh", lambda self, *a, **kw: getMesh(*a, **kw))
-        of.getMeshFromName("flow_0000", readParallel=False, time=300)
-        assert getMesh.lastKwargs == {}
 
 
 @pytest.mark.unit
@@ -427,8 +408,9 @@ class TestGetMeshExtentFromName:
         assert of.getMeshExtentFromName("flow_0000") == "theExtent"
         assert getMeshExtent.lastArgs == (workflowInDB.getData(),)
 
-    def test_read_parallel_and_time_are_currently_dropped(self, of, workflowInDB, monkeypatch):
-        """Characterisation of B193, second site."""
+    def test_read_parallel_and_time_are_inert_here(self, of, workflowInDB, monkeypatch):
+        """getMeshExtent reads constant/polyMesh/points, which exists once per
+        case, so it has neither a parallel nor a time dimension to honour."""
         getMeshExtent = _Recorder()
         monkeypatch.setattr(OFToolkit, "getMeshExtent", lambda self, *a, **kw: getMeshExtent(*a, **kw))
         of.getMeshExtentFromName("flow_0000", readParallel=False, time=300)

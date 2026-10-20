@@ -265,7 +265,7 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
         else:
             doc = docList[0]
 
-        return self.getMesh(doc.getData())
+        return self.getMesh(doc.getData(), readParallel=readParallel, time=time)
 
     def getMesh(self, caseDirectory, readParallel=True, time=0):
         """
@@ -354,10 +354,12 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
         The name/dict that defines the item
 
         readParallel: bool
-                If parallel case exists, read it .
+                Ignored. getMeshExtent reads constant/polyMesh/points, which
+                exists once per case; kept for signature compatibility with
+                getMeshFromName.
 
         time : float
-            The time to read the mesh from. (relevant for mesh moving cases).
+            Ignored, for the same reason.
 
         Returns
         -------
