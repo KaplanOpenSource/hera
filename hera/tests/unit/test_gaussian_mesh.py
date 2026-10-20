@@ -101,8 +101,8 @@ class TestIntegrationVariant:
     """GaussianIntegrationToMesh uses erf differences instead of point values.
 
     Its docstring calls itself "more accurate than estimating the gaussian",
-    which invites swapping it in for the base class.  It cannot be swapped in
-    freely -- see B29 at the bottom of this class.
+    which invites swapping it in for the base class, so the tests below check
+    that it accepts everything the base class does.
     """
 
     def test_it_also_conserves_mass(self):
@@ -134,16 +134,6 @@ class TestIntegrationVariant:
         with_units = mesher.gaussianToMesh(one_puff(quantity=1.0 * ureg.kg))
         assert float(plain.sum()) == pytest.approx(float(with_units.sum()))
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B29: the subclass narrows its parent's input. The base kernel "
-               "multiplies by the plain number and converts a unit factor; the "
-               "integration kernel calls unumToPint on the value itself, so a "
-               "plain float becomes dimensionless and .m_as(kg) raises "
-               "DimensionalityError. Code written against the base class breaks "
-               "on the substitution its own docstring invites. "
-               "See the consolidated findings issue.",
-    )
     def test_the_subclass_accepts_a_plain_quantity_like_its_parent(self):
         mesher = GaussianIntegrationToMesh(dxdy=1.0)
         field = mesher.gaussianToMesh(one_puff(quantity=1.0))

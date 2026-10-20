@@ -199,7 +199,7 @@ class GaussianIntegrationToMesh(GaussianToMesh):
 
         fullX, fullY = xarray.broadcast(gaussX, gaussY)
 
-        ret = fullX*fullY*unumToPint(gaussian[QName]).m_as(unumToPint(QUnits))
+        ret = fullX*fullY*gaussian[QName] * (1*ureg.kg).m_as(unumToPint(QUnits))
         if addTo is not None:
             ret = addTo+ ret
         return ret
