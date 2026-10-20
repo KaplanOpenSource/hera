@@ -16,9 +16,8 @@ time ordering, the leading zero frame and the unit scaling are all
 checkable without a simulation.
 
 The template document is built by hand for the same reason
-test_lsm_template.py does: ``LSMToolkit.loadData`` never persists the
-parsed template JSON's own desc (B92), so ``params``/``modelFolder``
-would KeyError on a template registered the normal way.
+test_lsm_template.py does: it keeps LSMTemplate's own logic independent of
+how the toolkit registers a datasource.
 
 Deliberately not covered: the ``to_xarray=True`` tail of ``run`` (the
 netcdf assembly), which needs real OUTD output from a real solver run --

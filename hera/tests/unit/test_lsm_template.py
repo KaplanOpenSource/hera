@@ -4,12 +4,8 @@ input-file templates and subprocess execution -- out of scope for a
 hermetic unit test.
 
 The document is constructed by hand rather than via LSMToolkit.loadData(),
-because loadData carries B92 (already documented in batch27): it never
-persists the parsed template JSON's own desc (params, modelFolder, etc.)
-into the datasource document it registers, so `params`/`modelFolder`
-always KeyError on a template loaded that way. Building the document
-directly here isolates LSMTemplate's own logic from that separate,
-already-pinned defect.
+so that LSMTemplate's own logic is exercised without depending on how the
+toolkit registers a datasource.
 """
 import pytest
 

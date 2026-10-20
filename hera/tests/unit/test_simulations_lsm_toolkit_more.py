@@ -2,11 +2,8 @@
 ``getSimulations``, ``getSimulationsList`` and ``prepareSlurmLSMExecution``.
 
 The datasource documents are registered with ``addDataSource`` directly
-rather than through ``loadData``, because ``loadData`` never persists the
-parsed template JSON's own desc (B92, already pinned in
-test_simulations_lsm_toolkit.py) -- a template registered the normal way
-has no ``params`` and no ``units`` to look up, so it could not exercise
-either lookup here.
+rather than through ``loadData``, so the ``params``/``units`` each lookup
+needs can be stated here instead of coming from a template JSON file.
 
 ``SingleSimulation`` is replaced with a pass-through stand-in for the
 lookup tests: building a real one needs netcdf files on disk, and what

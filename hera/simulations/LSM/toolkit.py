@@ -200,6 +200,12 @@ class LSMToolkit(toolkit.abstractToolkit):
         templateName = desc['name']
         version = kwargs.get("version",None)
 
+        # the description of the datasource is the template JSON itself, with the
+        # caller's kwargs overriding it. 'version' is passed separately.
+        templateDesc = dict(desc)
+        templateDesc.update(kwargs)
+        templateDesc.pop("version", None)
+
         doc = None
         if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB,toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
 
@@ -211,14 +217,14 @@ class LSMToolkit(toolkit.abstractToolkit):
                                    resource=fileNameOrData,
                                    dataFormat=datalayer.datatypes.STRING,
                                    version=version,
-                                   desc=kwargs)
+                                   **templateDesc)
 
             else:
                 if  (saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB):
                     raise ValueError(f"Template {templateName} already exists in the DB")
 
                 doc.resource = fileNameOrData
-                doc.desc = kwargs
+                doc.desc = templateDesc
                 doc.desc['version'] = version
 
         if doc is None:
