@@ -965,7 +965,7 @@ uStarOverWindSpeed
         i = 1
 
         while 'zoL_Sonic%s' % i in self._TemporaryData.columns:
-            if ['zoL_Sonic%s' % i, {'zmd': zmd}] in self._AllCalculatedParams:
+            if ['zoL_Sonic%s' % i, {'zmd': zmd}] in self._CalculatedParams:
                 return self
             i += 1
 

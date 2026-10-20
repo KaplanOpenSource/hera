@@ -172,25 +172,18 @@ class TestMoninObukhovStability:
             ts._TemporaryData["zoL_Sonic1"].dropna(), (2.0 / ts._TemporaryData["L_Sonic"]).dropna()
         )
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B73: the dedup guard reads self._AllCalculatedParams, which "
-               "nothing ever appends to (only _CalculatedParams is "
-               "written), so it never recognises a repeat call and always "
-               "adds another column. See the consolidated findings issue.",
-    )
     def test_calling_zol_sonic_twice_with_the_same_zmd_does_not_duplicate_the_column(self, ts):
+        """B73: the dedup guard used to read _AllCalculatedParams, which this
+        class never writes, so a repeat call always added another column."""
         ts.zoL_Sonic(zmd=2.0)
         ts.zoL_Sonic(zmd=2.0)
         assert "zoL_Sonic2" not in ts._TemporaryData.columns
 
-    def test_calling_zol_sonic_twice_with_the_same_zmd_currently_duplicates_it(self, ts):
-        """Characterisation of B73."""
+    def test_a_repeat_call_registers_the_parameter_only_once(self, ts):
         ts.zoL_Sonic(zmd=2.0)
         ts.zoL_Sonic(zmd=2.0)
-        assert numpy.allclose(
-            ts._TemporaryData["zoL_Sonic1"].dropna(), ts._TemporaryData["zoL_Sonic2"].dropna()
-        )
+        registered = [param for param in ts._CalculatedParams if param[0].startswith("zoL_Sonic")]
+        assert registered == [["zoL_Sonic1", {"zmd": 2.0}]]
 
     def test_calling_zol_sonic_with_a_different_zmd_adds_a_new_column(self, ts):
         ts.zoL_Sonic(zmd=2.0)
