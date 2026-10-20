@@ -391,7 +391,7 @@ class dataToolkit(abstractToolkit):
 
             logger.debug(f"Checking if the data item {itemName} is already in the project")
             retrieveFuncName = f"get{documentType}Documents"
-            retrieveFunc = getattr(toolkit, retrieveFuncName)
+            retrieveFunc = getattr(toolkit, retrieveFuncName, None)
             if retrieveFunc is None:
                 raise ValueError(
                     f"function {retrieveFuncName} not found. Key {documentType} must be : DataSource, Measurement, Cache, or Simulation")

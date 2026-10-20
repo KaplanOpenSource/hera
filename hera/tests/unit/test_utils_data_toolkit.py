@@ -613,28 +613,18 @@ class TestDocumentHandler:
 
 @pytest.mark.unit
 class TestDocumentHandlerRejectsUnknownDocumentTypes:
-    """B155: the `if retrieveFunc is None` guard is unreachable."""
+    """B155: the `if retrieveFunc is None` guard has to be reachable, so the
+    getattr needs a default."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B155: _DocumentHandler does "
-               "`retrieveFunc = getattr(toolkit, f'get{documentType}Documents')` "
-               "and only then checks `if retrieveFunc is None: raise ValueError`. "
-               "getattr without a default raises AttributeError first, so the "
-               "guard is dead code and the helpful ValueError naming the legal "
-               "document types can never be produced. "
-               "See the consolidated findings issue.",
-    )
     def test_an_unknown_document_type_raises_the_documented_valueerror(self, dtk, make_target_toolkit):
         target = make_target_toolkit("DOC_TYPE_1")
         with pytest.raises(ValueError, match="must be"):
             dtk._DocumentHandler(target, "Bogus", _documentSection("/x.parquet"),
                                  False, "Bogus", "")
 
-    def test_an_unknown_document_type_raises_attributeerror_instead(self, dtk, make_target_toolkit):
-        """Characterisation of B155."""
+    def test_the_message_names_the_function_it_looked_for(self, dtk, make_target_toolkit):
         target = make_target_toolkit("DOC_TYPE_2")
-        with pytest.raises(AttributeError, match="getBogusDocuments"):
+        with pytest.raises(ValueError, match="getBogusDocuments"):
             dtk._DocumentHandler(target, "Bogus", _documentSection("/x.parquet"),
                                  False, "Bogus", "")
 
