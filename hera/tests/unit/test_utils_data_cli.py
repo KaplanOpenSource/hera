@@ -40,7 +40,7 @@ Three bugs are pinned here:
 * B180 -- ``update_datasource_default_version`` calls
   ``setDataSourceDefaultVersion`` on a ``Project``, but that method only
   exists on ``abstractToolkit``.
-* B181 -- ``add_toolkit`` reports a non-object ``--params`` JSON as
+* B181 (fixed) -- ``add_toolkit`` reported a non-object ``--params`` JSON as
   invalid JSON, hiding the real reason.
 """
 import json
@@ -1063,29 +1063,16 @@ class TestAddToolkit:
 
         assert "registered successfully" in _messages(records)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B181: add_toolkit validates --params with `raise "
-               "ValueError('Params must be a JSON object.')` inside the same "
-               "try block that catches JSON decoding errors, and the bare "
-               "`except Exception` re-raises everything as 'Invalid JSON "
-               "passed to --params'. A perfectly valid JSON array or scalar "
-               "is therefore reported as malformed JSON, so the user is told "
-               "to fix their quoting instead of to pass an object. See the "
-               "consolidated findings issue.",
-    )
-    def test_valid_json_that_is_not_an_object_should_say_so(self, wired):
+    def test_valid_json_that_is_not_an_object_says_so(self, wired):
         with pytest.raises(ValueError, match="must be a JSON object"):
             CLI.add_toolkit(self._arguments(params="[1, 2]"))
 
-    def test_valid_json_that_is_not_an_object_is_reported_as_invalid_json(self, wired):
-        """Characterisation of B181."""
+    def test_malformed_json_is_still_reported_as_invalid_json(self, wired):
         with pytest.raises(ValueError) as caught:
-            CLI.add_toolkit(self._arguments(params="[1, 2]"))
+            CLI.add_toolkit(self._arguments(params="{not json"))
 
-        assert str(caught.value) == "Invalid JSON passed to --params: [1, 2]"
-        assert isinstance(caught.value.__cause__, ValueError)
-        assert str(caught.value.__cause__) == "Params must be a JSON object."
+        assert str(caught.value) == "Invalid JSON passed to --params: {not json"
+        assert caught.value.__cause__ is not None
 
 
 # ---------------------------------------------------------------------------

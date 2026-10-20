@@ -396,12 +396,13 @@ def add_toolkit(arguments):
     if arguments.params:
         try:
             params_dict = json.loads(arguments.params)
-            if not isinstance(params_dict, dict):
-                raise ValueError("Params must be a JSON object.")
         except Exception as e:
             raise ValueError(
                 f"Invalid JSON passed to --params: {arguments.params}"
             ) from e
+        # Outside the try: valid JSON that is not an object is not a parse error.
+        if not isinstance(params_dict, dict):
+            raise ValueError("Params must be a JSON object.")
     # -------- Call registerToolkit --------
     try:
         tkh = ToolkitHome()
