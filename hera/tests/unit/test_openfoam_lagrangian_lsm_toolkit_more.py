@@ -38,8 +38,6 @@ Deliberately not covered:
 Bugs pinned below (each with an xfail for the intended behaviour and a
 passing characterisation of what happens today):
 
-* B201 ``_extractFile`` / ``_readRecord`` use ``self.logger``, which no
-  toolkit has.
 * B202 ``loadData``'s saveMode guard rejects a documented mode and its
   error message crashes.
 * B203 ``loadData``'s non-parallel branch finds no time steps.
@@ -186,49 +184,36 @@ class TestExtractFile:
         _lagrangianFile(path, ["(0.5 -1.5 2.5)"])
         assert bare._extractFile(str(path), ["U_x", "U_y", "U_z"]).iloc[0].tolist() == [0.5, -1.5, 2.5]
 
-    def test_the_specialised_parser_is_unreachable(self, bare, tmp_path):
-        """Characterisation of B201.
+    def test_a_file_the_csv_reader_rejects_falls_through_to_the_openfoam_parser(
+        self, bare, tmp_path
+    ):
+        """The hand-written parser reads the uniform record off line 18."""
+        path = tmp_path / "notACsv"
+        path.write_text("\n".join([f"// header line {index}" for index in range(17)]
+                                  + ["3{(1 2 3)}", ")", ";", "//"]) + "\n")
+        frame = bare._extractFile(str(path), ["x", "y", "z"])
+        assert frame["x"].tolist() == [1.0, 1.0, 1.0]
+        assert frame["z"].tolist() == [3.0, 3.0, 3.0]
 
-        A file the csv reader rejects is meant to fall through to the
-        hand-written OpenFOAM parser, but the fall-through starts with
-        self.logger.execute(...) -- and no toolkit has a `logger` attribute,
-        so that branch can only ever raise.
-        """
+    def test_the_fall_through_no_longer_raises_for_an_unexpected_layout(
+        self, bare, tmp_path
+    ):
         path = tmp_path / "notACsv"
         _lagrangianFile(path, ["3{(1 2 3)}"])
-        with pytest.raises(AttributeError, match="logger"):
-            bare._extractFile(str(path), ["x", "y", "z"])
+        assert len(bare._extractFile(str(path), ["x", "y", "z"])) == 0
 
 
 @pytest.mark.unit
 class TestReadRecord:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B201: _readRecord ends with self.logger.debug(...) (and "
-               "its except branch starts with one), but neither "
-               "abstractToolkit nor Project defines a `logger` attribute -- "
-               "they all build a local logger with "
-               "get_classMethod_logger(self, ...). Every call therefore ends "
-               "in AttributeError, whether or not the time step holds data, "
-               "which also makes loadData unusable with the real reader. "
-               "See the consolidated findings issue.",
-    )
-    def test_a_time_step_should_be_read_into_a_frame(self, bare, tmp_path):
+    def test_a_time_step_is_read_into_a_frame(self, bare, tmp_path):
         _cloudDirectory(tmp_path)
         frame = bare._readRecord("100", casePath=str(tmp_path))
         assert frame["globalX"].tolist() == [10.0]
         assert frame["time"].tolist() == [100.0]
 
-    def test_reading_a_time_step_currently_raises(self, bare, tmp_path):
-        """Characterisation of B201."""
-        _cloudDirectory(tmp_path)
-        with pytest.raises(AttributeError, match="logger"):
-            bare._readRecord("100", casePath=str(tmp_path))
-
-    def test_an_empty_time_step_also_raises(self, bare, tmp_path):
-        """Characterisation of B201: the except branch logs too."""
-        with pytest.raises(AttributeError, match="logger"):
-            bare._readRecord("100", casePath=str(tmp_path))
+    def test_an_empty_time_step_yields_an_empty_frame(self, bare, tmp_path):
+        frame = bare._readRecord("100", casePath=str(tmp_path))
+        assert len(frame) == 0
 
 
 # ---------------------------------------------------------------------------

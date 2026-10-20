@@ -14,6 +14,7 @@ from hera.simulations.openFoam.toberewritten.utils import getCellDataAndGroundDa
 from hera.simulations.utils import coordinateHandler
 from hera.datalayer import nonDBMetadataFrame
 from hera import toolkit, toolkitHome
+from hera.utils.logging import get_classMethod_logger
 from .sourcesFactoryTool import sourcesFactoryTool
 from itertools import product
 
@@ -118,6 +119,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         -------
             Pandas with the data.
         """
+        logger = get_classMethod_logger(self, "_extractFile")
         skiphead = 20
         skipend = 4
 
@@ -134,7 +136,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                                       converters=cnvrtDict,
                                       names=columnNames)
         except ValueError:
-            self.logger.execute(f"{path} is not a cvs, going to a specialized parser")
+            logger.debug(f"{path} is not a cvs, going to a specialized parser")
             newData = []
 
         if len(newData) == 0:
@@ -187,6 +189,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             columnsDict['U_y'] = []
             columnsDict['U_z'] = []
 
+        logger = get_classMethod_logger(self, "_readRecord")
         newData = pandas.DataFrame(columnsDict, dtype=numpy.float64)
         try:
             newData = self._extractFile(
@@ -234,11 +237,11 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                     newData["mass"] = dataM["mass"]
 
         except:
-            self.logger.debug(f"No data at time {timeName}")
+            logger.debug(f"No data at time {timeName}")
 
         theTime = os.path.split(timeName)[-1]
         newData['time'] = float(theTime)
-        self.logger.debug(f"The output is {newData}")
+        logger.debug(f"The output is {newData}")
         return newData
 
     @property
