@@ -40,8 +40,6 @@ passing characterisation of what happens today):
 * B194 ``prepareSlurmWorkflowExecution`` cannot take a workflow dict.
 * B198 ``Presentation.toStructuredVTK`` calls a method its analysis layer
   does not have.
-* B199 ``Presentation.loadLagrangianDataParallel`` drops the first
-  requested time step.
 * B200 ``Presentation.loadLagrangianDataParallel`` cannot take numeric
   time steps.
 """
@@ -826,29 +824,14 @@ class TestPresentationLoadLagrangianDataParallel:
         assert {call[0][0] for call in readSeam.calls} == {os.path.join("processor0", "100"),
                                                            os.path.join("processor0", "200")}
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B199: the record list is built from timeList[1:], so the "
-               "first time step is always dropped -- including when the "
-               "caller passed `times` explicitly, which the docstring "
-               "describes as 'a list of time steps to extract'. A single "
-               "requested time therefore yields an empty delayed list and "
-               "dask raises 'Must supply at least one delayed object'. "
-               "See the consolidated findings issue.",
-    )
-    def test_an_explicitly_requested_time_should_be_read(self, of, parallelCase, readSeam):
+    def test_an_explicitly_requested_time_is_read(self, of, parallelCase, readSeam):
         of.presentation.loadLagrangianDataParallel(str(parallelCase), times=["100"]).compute()
-        assert [call[0][0] for call in readSeam.calls] == [os.path.join("processor0", "100")]
+        assert {call[0][0] for call in readSeam.calls} == {os.path.join("processor0", "100")}
 
-    def test_a_single_requested_time_currently_leaves_nothing_to_read(self, of, parallelCase, readSeam):
-        """Characterisation of B199."""
-        with pytest.raises(TypeError, match="at least one delayed object"):
-            of.presentation.loadLagrangianDataParallel(str(parallelCase), times=["100"])
-
-    def test_two_requested_times_currently_read_only_the_second(self, of, parallelCase, readSeam):
-        """Characterisation of B199."""
+    def test_every_explicitly_requested_time_is_read(self, of, parallelCase, readSeam):
         of.presentation.loadLagrangianDataParallel(str(parallelCase), times=["100", "200"]).compute()
-        assert {call[0][0] for call in readSeam.calls} == {os.path.join("processor0", "200")}
+        assert {call[0][0] for call in readSeam.calls} == {os.path.join("processor0", "100"),
+                                                           os.path.join("processor0", "200")}
 
     @pytest.mark.xfail(
         strict=True,

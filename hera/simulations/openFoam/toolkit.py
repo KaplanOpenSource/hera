@@ -1328,17 +1328,18 @@ class Presentation:
                 raise ValueError(f"There are no processor* directories in the case {finalCasePath}. Is it parallel?")
 
             if times is None:
+                # [1:] skips the initial time directory, which holds no cloud yet.
                 timeList = sorted([x for x in os.listdir(os.path.join(finalCasePath, processorList[0])) if (
                         os.path.isdir(os.path.join(finalCasePath, processorList[0], x)) and
                         x.isdigit() and
                         (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
-                                  key=lambda x: int(x))
+                                  key=lambda x: int(x))[1:]
             else:
                 timeList = numpy.atleast_1d(times)
 
             data = dask.dataframe.from_delayed(
                 [delayed(loader)(os.path.join(processorName, timeName)) for processorName, timeName in
-                 product(processorList, timeList[1:])])
+                 product(processorList, timeList)])
         else:
 
             if times is None:
