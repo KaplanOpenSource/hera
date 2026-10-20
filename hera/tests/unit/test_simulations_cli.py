@@ -20,10 +20,6 @@ Deliberately not tested:
   * the argparse wiring in hera/bin/hera-workflows, which is a script and
     not importable as a module.
 
-Bugs pinned here (each with an xfail for the intended behaviour plus a
-passing characterisation of what actually happens):
-  * workflow_compare with the default `--format pandas` plus `--file`
-    tries to write a DataFrame object to a text file (TypeError).
 """
 import json
 import sys
@@ -1132,31 +1128,13 @@ class TestWorkflowCompare:
         assert "Could not found any workflows to compare" in capsys.readouterr().out
         assert not (in_tmp_cwd / "out.csv").exists()
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B135: workflow_compare keeps the raw DataFrame as `output` "
-               "for the default --format pandas, then does "
-               "outputFile.write(output) -- so `compare --file x` without an "
-               "explicit --format dies with TypeError and leaves an empty "
-               "file behind. See the consolidated findings issue.",
-    )
     def test_the_pandas_format_can_also_be_written_to_a_file(
         self, install_toolkit, in_tmp_cwd, capsys
     ):
         install_toolkit(_FakeWorkflowToolkit(comparison=_comparison()))
         workflow_compare(_compareArgs(file="out"))
         capsys.readouterr()
-        assert (in_tmp_cwd / "out.txt").read_text() != ""
-
-    def test_the_pandas_format_with_a_file_currently_raises_typeerror(
-        self, install_toolkit, in_tmp_cwd, capsys
-    ):
-        """Characterisation of B135."""
-        install_toolkit(_FakeWorkflowToolkit(comparison=_comparison()))
-        with pytest.raises(TypeError):
-            workflow_compare(_compareArgs(file="out"))
-        capsys.readouterr()
-        assert (in_tmp_cwd / "out.txt").read_text() == ""
+        assert (in_tmp_cwd / "out.txt").read_text() == _comparison().to_string()
 
 
 # ---------------------------------------------------------------------------

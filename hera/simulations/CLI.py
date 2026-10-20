@@ -599,7 +599,7 @@ def workflow_compare(arguments):
 
 
     if arguments.format == "pandas":
-        output = res
+        output = res.to_string()
         ext = "txt"
     elif arguments.format == "latex":
         output = res.to_latex()
