@@ -189,36 +189,18 @@ class TestPlotScatterProperties:
         daily.plotScatter(_frame([1.0], [3.0]), "WS", scatter_properties=dict(color="red"))
         assert daily._scatterdict["color"] == "k"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B296: Plots._scatterdict asks seaborn.scatterplot for "
-               "size=0.5, but seaborn's marker-area parameter is `s` -- "
-               "`size` names a semantic grouping variable, so the scalar is "
-               "accepted and ignored and the markers keep matplotlib's "
-               "default area. See the consolidated findings issue.",
-    )
-    def test_the_markers_should_be_drawn_at_the_requested_half_point_size(self, daily):
+    def test_the_markers_are_drawn_at_the_requested_half_point_size(self, daily):
+        """B296: the key used to be `size`, seaborn's semantic grouping
+        variable, so the scalar was accepted, ignored, and the markers kept
+        matplotlib's default area."""
         ax = daily.plotScatter(_frame([1.0, 2.0], [3.0, 4.0]), "WS")
-        assert ax.collections[0].get_sizes().tolist() == [0.5, 0.5]
-
-    def test_the_markers_currently_keep_the_matplotlib_default_size(self, daily):
-        """Characterisation of B296."""
-        ax = daily.plotScatter(_frame([1.0, 2.0], [3.0, 4.0]), "WS")
-        sizes = ax.collections[0].get_sizes().tolist()
-        assert sizes == [MATPLOTLIB_DEFAULT_MARKER_AREA] * 2
-
-    def test_an_explicit_marker_area_is_masked_by_the_default_size_semantic(self, daily):
-        """Characterisation of B296: `s` loses to the stale `size` key."""
-        ax = daily.plotScatter(_frame([1.0, 2.0], [3.0, 4.0]), "WS",
-                               scatter_properties=dict(s=0.5))
-        assert ax.collections[0].get_sizes().tolist() == [
-            MATPLOTLIB_DEFAULT_MARKER_AREA] * 2
-
-    def test_clearing_the_size_semantic_lets_the_marker_area_through(self, daily):
-        """Characterisation of B296: the fix would be `s` and no `size`."""
-        ax = daily.plotScatter(_frame([1.0, 2.0], [3.0, 4.0]), "WS",
-                               scatter_properties=dict(size=None, s=0.5))
         assert ax.collections[0].get_sizes().tolist() == [0.5]
+
+    def test_an_explicit_marker_area_now_reaches_the_markers(self, daily):
+        ax = daily.plotScatter(_frame([1.0, 2.0], [3.0, 4.0]), "WS",
+                               scatter_properties=dict(s=12.0))
+        assert ax.collections[0].get_sizes().tolist() == [12.0]
+        assert ax.collections[0].get_sizes().tolist() != [MATPLOTLIB_DEFAULT_MARKER_AREA]
 
 
 # ---------------------------------------------------------------------------

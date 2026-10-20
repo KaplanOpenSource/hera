@@ -103,7 +103,7 @@ class Plots(object):
         self._scatterdict=dict(zorder=1,
                                color='k',
                                marker='.',
-                               size=0.5,
+                               s=0.5,
                                edgecolors='k',
                                alpha=0.55,
                                legend=False
