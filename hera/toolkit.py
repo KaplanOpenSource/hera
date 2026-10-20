@@ -1180,22 +1180,10 @@ class ToolkitHome(abstractToolkit):
 
         desc = {"targetProjectName": projectName, "defaultRepository": repositoryName}
 
-        df_arg = {}
-        try:
-            from hera.datalayer import datatypes as _dt
-            dfmt = getattr(_dt, "JSON", None) or getattr(_dt, "json", None) or getattr(
-                _dt, "TEXT", None
-            )
-            if dfmt is not None:
-                df_arg["dataFormat"] = dfmt
-        except Exception:
-            pass
-
         return dt.addMeasurementsDocument(
             type="RepositoryConfig",
             resource=".",
             desc=desc,
-            **df_arg,
         )
 
     def getDefaultRepository(self, *, projectName: str) -> str:

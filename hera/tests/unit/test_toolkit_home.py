@@ -7,7 +7,6 @@ name does, where the repository default lives -- part of the public contract.
 import pytest
 
 from hera import toolkitHome
-from hera.datalayer import datatypes
 
 PROJECT = "UNIT_TEST_PROJECT"
 
@@ -130,21 +129,6 @@ class TestDefaultRepository:
     def test_the_helper_always_works_on_the_default_project(self):
         """The helper is unscoped by design; the callers do the scoping."""
         assert toolkitHome._get_data_toolkit().projectName == toolkitHome.DEFAULTPROJECT
-
-    def test_the_json_format_lookup_is_dead(self):
-        """setDefaultRepository tries three names that do not exist.
-
-        `getattr(datatypes, "JSON") or getattr(datatypes, "json") or
-        getattr(datatypes, "TEXT")` -- the real constants are JSON_DICT,
-        JSON_PANDAS and JSON_GEOPANDAS, so the block never sets a format.
-        Reported as dead code rather than a wrong result: the payload lives in
-        desc, so the format is not load-bearing here.
-        """
-        for name in ("JSON", "json", "TEXT"):
-            assert not hasattr(datatypes, name), (
-                f"datatypes.{name} now exists, so the lookup in "
-                "setDefaultRepository is no longer dead -- revisit it"
-            )
 
     def test_round_trip(self):
         toolkitHome.setDefaultRepository(
