@@ -1475,7 +1475,7 @@ class InMemoryRawData(pandas.DataFrame):
             A new ``InMemoryRawData`` instance containing the combined rows and
             merged attributes.
         """
-        ret = super(InMemoryRawData, self).append(other, ignore_index=ignore_index, verify_integrity=verify_integrity)
+        ret = pandas.concat([self, other], ignore_index=ignore_index, verify_integrity=verify_integrity)
         ret = InMemoryRawData(ret)
         ret._Attrs = other._Attrs
         ret._Attrs.update(self._Attrs)

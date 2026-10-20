@@ -221,14 +221,9 @@ class TestInMemoryRawData:
         data = InMemoryRawData(pandas.DataFrame({"a": [1, 2]}))
         assert data._Attrs == {}
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B72: append() calls super().append(...), but "
-               "pandas.DataFrame.append was removed in pandas 2.0 (this "
-               "environment runs 3.0.2). Every call raises AttributeError. "
-               "See the consolidated findings issue.",
-    )
-    def test_append_should_combine_two_frames_and_merge_attrs(self):
+    def test_append_combines_two_frames_and_merges_attrs(self):
+        """B72: it used to delegate to pandas.DataFrame.append, removed in
+        pandas 2.0, so every call raised AttributeError."""
         first = InMemoryRawData(pandas.DataFrame({"a": [1]}))
         first._Attrs = {"x": 1}
         second = InMemoryRawData(pandas.DataFrame({"a": [2]}))
@@ -236,13 +231,19 @@ class TestInMemoryRawData:
         combined = first.append(second)
         assert list(combined["a"]) == [1, 2]
         assert combined._Attrs == {"x": 1, "y": 2}
+        assert isinstance(combined, InMemoryRawData)
 
-    def test_append_currently_raises(self):
-        """Characterisation of B72."""
-        first = InMemoryRawData(pandas.DataFrame({"a": [1]}))
-        second = InMemoryRawData(pandas.DataFrame({"a": [2]}))
-        with pytest.raises(AttributeError, match="append"):
-            first.append(second)
+    def test_append_with_ignore_index_relabels_the_index(self):
+        first = InMemoryRawData(pandas.DataFrame({"a": [1]}, index=[7]))
+        second = InMemoryRawData(pandas.DataFrame({"a": [2]}, index=[7]))
+        combined = first.append(second, ignore_index=True)
+        assert list(combined.index) == [0, 1]
+
+    def test_append_with_verify_integrity_rejects_a_duplicate_index(self):
+        first = InMemoryRawData(pandas.DataFrame({"a": [1]}, index=[7]))
+        second = InMemoryRawData(pandas.DataFrame({"a": [2]}, index=[7]))
+        with pytest.raises(ValueError):
+            first.append(second, verify_integrity=True)
 
     def test_to_hdf_then_read_hdf_round_trips_the_data_and_attrs(self, tmp_path):
         pytest.importorskip("tables")
