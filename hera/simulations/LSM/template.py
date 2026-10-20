@@ -467,7 +467,7 @@ class LSMTemplate:
         :param id:
         :return:
         """
-        return SingleSimulation(self.getDocumentByID(id))
+        return SingleSimulation(self.Toolkit.getDocumentByID(id))
 
     def getSimulationByName(self,simulationName):
         """
