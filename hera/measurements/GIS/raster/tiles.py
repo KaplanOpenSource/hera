@@ -179,8 +179,9 @@ class TilesToolkit(toolkit.abstractToolkit):
         logger = get_classMethod_logger(self,name="getImageFromTiles")
         logger.info("------- Start")
 
-        height = numpy.abs(ulTiles[1] - lrTiles[1])
-        width = numpy.abs(ulTiles[0] - lrTiles[0])
+        # inclusive counts: a box that falls inside a single tile still needs that tile.
+        height = numpy.abs(ulTiles[1] - lrTiles[1]) + 1
+        width = numpy.abs(ulTiles[0] - lrTiles[0]) + 1
 
         logger.debug(f"The number of tiles in x: {ulTiles[1]}-{lrTiles[1]}={width} and y: {ulTiles[0]}-{lrTiles[0]} {height}.")
 
