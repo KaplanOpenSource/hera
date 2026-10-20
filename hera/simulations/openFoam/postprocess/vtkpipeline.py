@@ -271,7 +271,7 @@ class RegisteredVTKPipeLine:
             docList = self.datalayer.deleteSimulationsDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
             logger.info(f"Found {len(docList)} documents to delete. ")
             for doc in docList:
-                logger.debug(f"Deleting resource {doc['desc']['workflowName']} : {doc['desc']['pipeline']['filters']} ")
+                logger.debug(f"Deleting resource {doc['desc']['simulation']['workflowName']} : {doc['desc']['pipeline']['filters']} ")
                 outputFile = doc['resource']
 
                 if os.path.exists(outputFile):

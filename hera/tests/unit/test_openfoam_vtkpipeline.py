@@ -1291,7 +1291,7 @@ class TestClearCache:
         output.write_text("payload")
         doc = dict(
             resource=str(output),
-            desc=dict(workflowName="flow_0001", pipeline=dict(filters={})),
+            desc=dict(simulation=dict(workflowName="flow_0001"), pipeline=dict(filters={})),
         )
         monkeypatch.setattr(
             type(registered.datalayer), "deleteSimulationsDocuments", lambda self, **kwargs: [doc]
@@ -1306,7 +1306,7 @@ class TestClearCache:
         (output / "inner").mkdir(parents=True)
         doc = dict(
             resource=str(output),
-            desc=dict(workflowName="flow_0001", pipeline=dict(filters={})),
+            desc=dict(simulation=dict(workflowName="flow_0001"), pipeline=dict(filters={})),
         )
         monkeypatch.setattr(
             type(registered.datalayer), "deleteSimulationsDocuments", lambda self, **kwargs: [doc]
@@ -1317,7 +1317,7 @@ class TestClearCache:
     def test_an_already_missing_output_file_is_tolerated(self, registered, monkeypatch, tmp_path):
         doc = dict(
             resource=str(tmp_path / "gone.parquet"),
-            desc=dict(workflowName="flow_0001", pipeline=dict(filters={})),
+            desc=dict(simulation=dict(workflowName="flow_0001"), pipeline=dict(filters={})),
         )
         monkeypatch.setattr(
             type(registered.datalayer), "deleteSimulationsDocuments", lambda self, **kwargs: [doc]
@@ -1366,38 +1366,9 @@ class TestClearCache:
         assert len(of.getCacheDocuments(type=TYPE_VTK_FILTER)) == 1
         assert output.exists()
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B321: clearCache's per-document debug line reads "
-               "`doc['desc']['workflowName']`, but the desc that this very "
-               "class writes (_updateCacheDB -> _buildFilterQuery) nests the "
-               "name as desc['simulation']['workflowName'] and has no "
-               "top-level workflowName at all.  The f-string is built eagerly, "
-               "regardless of log level, so the moment the delete query "
-               "actually matches one of the pipeline's own cache documents the "
-               "loop dies with KeyError before removing anything from disk.  "
-               "Sibling of B101 in toolkit.clearVTKPipelineCache.  See the "
-               "consolidated findings issue.",
-    )
     def test_it_removes_the_output_file_of_a_document_it_wrote_itself(
         self, registered, monkeypatch, tmp_path
     ):
-        output = tmp_path / "slice_0.parquet"
-        output.write_text("payload")
-        doc = dict(
-            resource=str(output),
-            desc=_cacheDescriptionFor(registered, "ExtractBlock.slice", False, [0.0]),
-        )
-        monkeypatch.setattr(
-            type(registered.datalayer), "deleteSimulationsDocuments", lambda self, **kwargs: [doc]
-        )
-        registered.clearCache(filter_name="ExtractBlock.slice")
-        assert not output.exists()
-
-    def test_a_document_written_by_this_class_currently_raises_on_clear(
-        self, registered, monkeypatch, tmp_path
-    ):
-        """Characterisation of B321."""
         output = tmp_path / "slice_0.parquet"
         output.write_text("payload")
         doc = dict(
@@ -1409,9 +1380,8 @@ class TestClearCache:
         monkeypatch.setattr(
             type(registered.datalayer), "deleteSimulationsDocuments", lambda self, **kwargs: [doc]
         )
-        with pytest.raises(KeyError, match="workflowName"):
-            registered.clearCache(filter_name="ExtractBlock.slice")
-        assert output.exists()
+        registered.clearCache(filter_name="ExtractBlock.slice")
+        assert not output.exists()
 
 
 # ---------------------------------------------------------------------------
