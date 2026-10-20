@@ -5,16 +5,11 @@ area fraction (lambda_P), frontal area density (lambda_F) and the
 area-weighted mean building height (h_c) -- the standard BNTL-style urban
 canopy parameters used to drive roughness in dispersion models.
 
-One defect surfaced in ``Blocks.getHc``:
-
-* B79: it guards on ``if self._LambdaP is not None`` -- but ``_LambdaP``
-  (no parentheses) is the *method itself*, a bound method object that is
-  never ``None``. The guard can never take the ``else`` branch, so
-  ``getHc()`` always returns ``self._hc`` (0 until ``_LambdaP()`` has
-  actually run) regardless of whether the calculation happened. It is
-  latent rather than currently harmful -- the one real caller,
-  ``Lambda()``, always calls ``_LambdaP()`` before ``getHc()`` -- but the
-  documented "returns None if lambda_P is not set" contract cannot happen.
+``Blocks.getHc`` simply returns ``self._hc``, which is 0 until
+``_LambdaP()`` has actually run (B79: it used to guard on
+``if self._LambdaP is not None``, a bound method object that is never
+``None``, so the documented "returns None if lambda_P is not set" branch
+was unreachable dead code).
 """
 import geopandas
 import pytest
@@ -129,8 +124,8 @@ class TestLambdaPipeline:
         occupied = result[(result["i0"] == 0) & (result["j0"] == 0)].iloc[0]
         assert occupied["lambdaP"] == 0
 
-    def test_getHc_currently_returns_the_area_weighted_height_never_none(self, blocks, buildings):
-        """Characterisation of B79."""
+    def test_getHc_returns_the_area_weighted_height(self, blocks, buildings):
+        """B79: no unreachable None branch -- it is the stored ``_hc``."""
         block = Blocks(level=0, df=_domain(100), size=100)
         assert block.getHc() == 0
         block._hc = 42.0

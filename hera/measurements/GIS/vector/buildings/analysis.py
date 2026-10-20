@@ -566,17 +566,15 @@ class Blocks(object):
     def getHc(self):
         """Return the average building height for this block.
 
+        It is set by :meth:`_LambdaP`, which must be called first; until then
+        it is 0.
+
         Returns
         -------
-        float or None
-            Average building height, or None if lambda_P is not set.
+        float
+            Average building height.
         """
-        if self._LambdaP is not None:
-
-            return self._hc
-        else:
-
-            return None
+        return self._hc
 
     def Lambda(self, buildings, windDirection):
         """
