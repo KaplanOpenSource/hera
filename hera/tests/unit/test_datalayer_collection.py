@@ -7,24 +7,20 @@ of which emit an ``_id`` field, and ``Project.exportProject``, which is
 built on ``asDict``.  So the shape this method is fed in practice always
 carries an ``_id``.
 
-An earlier batch left this method uncovered, recording the symptom as
-"``.save()`` reports success and a new id, but the document is not found
-immediately after by that id" and flagging it as possibly a mongomock
-quirk (see the docstring of ``test_datalayer_project_export.py``).  It is
-not a mongomock quirk: it is ``mongoengine.Document.from_json``'s
-documented ``created=False`` default, and the tests below pin it as B261.
-``from_json``'s own docstring spells out the rule --
+An earlier batch recorded the symptom as "``.save()`` reports success and a
+new id, but the document is not found immediately after by that id" and
+flagged it as possibly a mongomock quirk (see the docstring of
+``test_datalayer_project_export.py``).  It was not a mongomock quirk: it was
+``mongoengine.Document.from_json``'s ``created=False`` default, whose own
+docstring spells out the rule --
 
     If False and an ID is provided, assume that the object has already been
     persisted (this has an impact on the subsequent call to .save()).
 
--- so a document rebuilt from JSON that contains an ``_id`` is marked as
-already-persisted with an empty change set, and ``.save()`` degenerates to
-an update that matches nothing (when the id is absent from the collection)
-or that changes nothing (when it is present).  Either way no error is
-raised.  The tests separate the two halves: JSON *without* an ``_id`` is
-inserted correctly and is asserted normally; JSON *with* an ``_id`` is
-xfailed strict plus characterised.
+-- so a body carrying an ``_id`` was marked already-persisted with an empty
+change set and ``.save()`` wrote nothing.  ``addDocumentFromJSON`` now passes
+``created=True``.  The tests below cover both halves: JSON without an ``_id``
+and JSON with one.
 
 Deliberately not covered here: the rest of ``AbstractCollection``
 (``getDocuments``, ``addDocument``, ``deleteDocuments``,
@@ -152,12 +148,12 @@ class TestImportingJSONWithoutAnID:
 
 
 # ---------------------------------------------------------------------------
-# The broken half: JSON carrying an _id
+# JSON carrying an _id
 # ---------------------------------------------------------------------------
 
 @pytest.mark.unit
-class TestImportingJSONWithAnIDIsANoOp:
-    """B261: see the module docstring."""
+class TestImportingJSONWithAnID:
+    """See the module docstring: the body is imported under its own _id."""
 
     @staticmethod
     def _exported(unit_project, resource="/data/original.parquet"):
@@ -170,38 +166,14 @@ class TestImportingJSONWithAnIDIsANoOp:
         doc.delete()
         return body
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B261: addDocumentFromJSON calls "
-               "self._metadataCol.from_json(json_data).save(), and "
-               "mongoengine's from_json defaults to created=False, which its "
-               "own docstring defines as 'if an ID is provided, assume that "
-               "the object has already been persisted'.  The rebuilt document "
-               "therefore has _created=False and an empty _changed_fields, so "
-               ".save() issues an update instead of an insert: nothing is "
-               "written and no error is raised.  Since asDict(with_id=True), "
-               "Document.to_json() and Project.exportProject all emit _id, "
-               "re-importing exported documents silently drops every one of "
-               "them.  The fix is from_json(json_data, created=True).  This "
-               "supersedes the 'inconsistent mongomock behavior' note in "
-               "test_datalayer_project_export.py -- the cause is mongoengine, "
-               "not mongomock.  See the consolidated findings issue.",
-    )
     def test_an_exported_document_should_be_reimported(self, collection, unit_project):
         collection.addDocumentFromJSON(self._exported(unit_project))
 
         assert len(_stored(unit_project)) == 1
 
-    def test_nothing_is_inserted_and_nothing_is_raised(self, collection, unit_project):
-        """Characterisation of B261."""
-        collection.addDocumentFromJSON(self._exported(unit_project))
-
-        assert _stored(unit_project) == []
-
-    def test_the_same_body_without_its_id_does_get_inserted(self, collection,
-                                                            unit_project):
-        """Characterisation of B261: this isolates the ``_id`` field as the
-        whole cause -- the body is otherwise byte-identical."""
+    def test_the_same_body_without_its_id_is_inserted_too(self, collection,
+                                                          unit_project):
+        """The ``_id`` field makes no difference to whether the body lands."""
         body = json.loads(self._exported(unit_project))
         assert "_id" in body
         body.pop("_id")
@@ -210,10 +182,9 @@ class TestImportingJSONWithAnIDIsANoOp:
 
         assert len(_stored(unit_project)) == 1
 
-    def test_an_id_that_does_exist_is_not_updated_either(self, collection, unit_project):
-        """Characterisation of B261: the change set is empty as well as the
-        insert being suppressed, so the method cannot even be used to
-        overwrite a live document."""
+    def test_an_id_that_does_exist_is_replaced(self, collection, unit_project):
+        """Re-importing a body whose id is still live overwrites that
+        document rather than silently doing nothing."""
         doc = unit_project.addMeasurementsDocument(
             resource="/data/original.parquet", dataFormat="parquet",
             type="ImportedType", desc={})
@@ -224,14 +195,13 @@ class TestImportingJSONWithAnIDIsANoOp:
 
         remaining = _stored(unit_project)
         assert len(remaining) == 1
-        assert remaining[0]["resource"] == "/data/original.parquet"
+        assert remaining[0]["resource"] == "/data/replacement.parquet"
 
-    def test_mongoengine_confirms_the_created_default(self, collection):
-        """Characterisation of B261's mechanism, so the diagnosis does not
-        rest on the symptom alone: the document comes back already marked as
-        persisted, with no pending changes for .save() to write."""
+    def test_the_rebuilt_document_is_marked_as_new(self, collection):
+        """The mechanism the fix rests on: without created=True mongoengine
+        marks a body carrying an _id as already persisted, with no pending
+        changes for .save() to write."""
         body = json.dumps(_document_body(_id={"$oid": "0" * 24}))
-        rebuilt = collection._metadataCol.from_json(body)
 
-        assert rebuilt._created is False
-        assert rebuilt._get_changed_fields() == []
+        assert collection._metadataCol.from_json(body)._created is False
+        assert collection._metadataCol.from_json(body, created=True)._created is True
