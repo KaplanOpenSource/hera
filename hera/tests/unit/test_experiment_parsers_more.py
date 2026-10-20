@@ -406,7 +406,7 @@ class TestMultipleHeightColumnLayouts:
         )
         cbi = CampbellBinaryInterface(file=str(path))
 
-        assert cbi.columnsIndexes == [[1, 5], [5, 9], [9, 13]]
+        assert cbi.columnsIndexes == [[0, 4], [4, 8], [8, 12]]
 
     def test_three_thermocouple_groups_put_the_humidity_pair_on_the_last_one(
         self, tmp_path
@@ -439,7 +439,7 @@ class TestMultipleHeightColumnLayouts:
         )
         cbi = CampbellBinaryInterface(file=str(path))
 
-        assert cbi.columnsIndexes == [[1, 2], [2, 3], [3, 6]]
+        assert cbi.columnsIndexes == [[0, 1], [1, 2], [2, 5]]
 
 
 @pytest.mark.unit
