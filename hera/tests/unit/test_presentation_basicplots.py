@@ -7,11 +7,10 @@ under the Agg backend the unit conftest installs.
 
 Two defects surfaced:
 
-* B143: ``plotFields`` cannot plot a single field. It always calls
-  ``plt.subplots(1, plotsNum)``, which for ``plotsNum == 1`` returns a
-  bare ``Axes`` rather than an array, and then indexes it as
-  ``axes[i]`` -- ``TypeError: 'Axes' object is not subscriptable``. Only
-  two or more fields work.
+* B143 (FIXED): ``plotFields`` could not plot a single field --
+  ``plt.subplots(1, 1)`` returns a bare ``Axes`` rather than an array, and
+  it was indexed as ``axes[i]``. ``squeeze=False`` now keeps the result an
+  array for every field count.
 * B144: ``plotFields`` accepts an ``axes`` argument and immediately
   discards it -- the very next statement rebinds ``axes`` to the result
   of ``plt.subplots(...)``. A caller handing in prepared axes is silently
@@ -135,25 +134,20 @@ class TestPlotFieldsMultiple:
 
 
 @pytest.mark.unit
-class TestPlotFieldsSingleFieldIsBroken:
-    """B143: see the module docstring."""
+class TestPlotFieldsSingleField:
+    """B143 (fixed): plotFields used to call plt.subplots(1, 1), which
+    returns a bare Axes, and then index it as axes[i]. squeeze=False keeps
+    the result an array, so a single field now plots like any other count."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B143: plotFields calls plt.subplots(1, 1) for a single "
-               "field, which returns a bare Axes, then indexes it as "
-               "axes[i]. See the consolidated findings issue.",
-    )
-    def test_a_single_field_should_plot(self, plotter, frame):
+    def test_a_single_field_plots(self, plotter, frame):
         plotter.plotFields(["u"], frame.index[0], frame.index[-1], plotRaw=True)
+        assert len(plt.gcf().axes) == 1
 
-    def test_a_single_field_currently_raises(self, plotter, frame):
-        """Characterisation of B143."""
-        with pytest.raises(TypeError, match="not subscriptable"):
-            plotter.plotFields(["u"], frame.index[0], frame.index[-1], plotRaw=True)
+    def test_the_single_subplot_carries_the_field(self, plotter, frame):
+        plotter.plotFields(["u"], frame.index[0], frame.index[-1], plotRaw=True)
+        assert list(plt.gcf().axes[0].get_lines()[0].get_ydata()) == list(frame["u"])
 
-    def test_two_fields_are_the_smallest_working_call(self, plotter, frame):
-        """Characterisation of B143: the bug is specific to plotsNum == 1."""
+    def test_two_fields_still_produce_two_subplots(self, plotter, frame):
         plotter.plotFields(["u", "w"], frame.index[0], frame.index[-1], plotRaw=True)
         assert len(plt.gcf().axes) == 2
 

@@ -62,7 +62,11 @@ class PlotFields(object):
         """
         plotsNum = len(fieldNames)
 
-        fig, axes = plt.subplots(1, plotsNum, figsize=[20*plotsNum, 10])
+        # squeeze=False keeps the result a 2-D array even for a single
+        # field; without it plt.subplots returns a bare Axes and the
+        # axes[i] below raises TypeError.
+        fig, axes = plt.subplots(1, plotsNum, figsize=[20*plotsNum, 10], squeeze=False)
+        axes = axes[0]
 
         for i in range(plotsNum):
             self.plotField(fieldName=fieldNames[i],
