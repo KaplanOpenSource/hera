@@ -1009,31 +1009,23 @@ class TestResolveDocumentsForExport:
 
 @pytest.mark.unit
 class TestResolveDocumentsForExportRejectsUnknownIds:
-    """B158: the `if doc is None` guard after getDocumentByID is unreachable."""
+    """B158: getDocumentByID raises DoesNotExist rather than returning None,
+    so the `if doc is None` guard has to catch it."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B158: _resolveDocumentsForExport does "
-               "`doc = proj.getDocumentByID(d)` then "
-               "`if doc is None: raise ValueError('Document id not found ...')`. "
-               "getDocumentByID goes through mongoengine's QuerySet.get(), "
-               "which raises DoesNotExist rather than returning None, so the "
-               "guard is dead code and callers get a mongoengine exception "
-               "instead of the intended ValueError. "
-               "See the consolidated findings issue.",
-    )
     def test_an_unknown_document_id_raises_the_documented_valueerror(self, dtk, patched_datalayer_project):
         project = patched_datalayer_project(projectName="EXPORT_PROJECT_5")
         with pytest.raises(ValueError, match="Document id not found"):
             dtk._resolveDocumentsForExport(project, "0" * 24)
 
-    def test_an_unknown_document_id_raises_doesnotexist(self, dtk, patched_datalayer_project):
-        """Characterisation of B158."""
+    def test_the_mongoengine_exception_does_not_escape(self, dtk, patched_datalayer_project):
         from mongoengine.errors import DoesNotExist
 
         project = patched_datalayer_project(projectName="EXPORT_PROJECT_6")
-        with pytest.raises(DoesNotExist):
-            dtk._resolveDocumentsForExport(project, "0" * 24)
+        with pytest.raises(ValueError):
+            try:
+                dtk._resolveDocumentsForExport(project, "0" * 24)
+            except DoesNotExist:  # pragma: no cover - would be the old behaviour
+                pytest.fail("DoesNotExist escaped _resolveDocumentsForExport")
 
 
 @pytest.mark.unit

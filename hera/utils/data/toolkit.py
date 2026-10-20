@@ -3,6 +3,8 @@ import argparse
 import pathlib
 import os
 
+from mongoengine.errors import DoesNotExist
+
 from hera.utils import loadJSON, dictToMongoQuery
 from hera.utils.logging import get_classMethod_logger
 from hera.toolkit import abstractToolkit, ToolkitHome
@@ -684,7 +686,12 @@ class dataToolkit(abstractToolkit):
         resolved = []
         for d in documents:
             if isinstance(d, str):
-                doc = proj.getDocumentByID(d)
+                # getDocumentByID goes through mongoengine's QuerySet.get(),
+                # which raises DoesNotExist rather than returning None.
+                try:
+                    doc = proj.getDocumentByID(d)
+                except DoesNotExist:
+                    doc = None
                 if doc is None:
                     raise ValueError(f"Document id not found in project: {d}")
                 resolved.append(doc)
