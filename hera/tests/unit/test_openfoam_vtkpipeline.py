@@ -734,28 +734,10 @@ class TestIntegrateVariablesFilter:
         iv = vtkFilter_IntegrateVariables(name="iv", write=True, params=[])
         assert iv.filterType == "IntegrateVariables"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B317: vtkFilter_IntegrateVariables.__init__ takes **kwargs "
-               "and forwards them to VTKFilter.__init__, whose `params` is a "
-               "required positional argument -- but unlike every one of its "
-               "five sibling filter classes (Slice, PlotOverLine, "
-               "CellCenters, DescriptiveStatistics, and ExtractBlock via an "
-               "explicit params=None default) it omits the "
-               "`kwargs.setdefault(\"params\", [])` line, so constructing it "
-               "the same way as its siblings raises TypeError.  See the "
-               "consolidated findings issue.",
-    )
     def test_it_can_be_built_without_an_explicit_parameter_list(self):
         assert vtkFilter_IntegrateVariables(name="iv", write=True).params == []
 
-    def test_it_currently_demands_an_explicit_parameter_list(self):
-        """Characterisation of B317."""
-        with pytest.raises(TypeError, match="params"):
-            vtkFilter_IntegrateVariables(name="iv", write=True)
-
-    def test_the_factory_hides_the_missing_default_by_always_passing_params(self):
-        """Characterisation of B317: new_vtk_pipeline_filter always supplies one."""
+    def test_the_factory_builds_it_with_the_same_empty_default(self):
         assert VTKPipeLine.new_vtk_pipeline_filter(name="iv", filter_type="IntegrateVariables").params == []
 
 

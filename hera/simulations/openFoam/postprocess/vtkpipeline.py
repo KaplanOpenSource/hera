@@ -871,4 +871,5 @@ class vtkFilter_IntegrateVariables(VTKFilter):
 
     def __init__(self, name, write, **kwargs):
         """Initialize an IntegrateVariables filter."""
+        kwargs.setdefault("params",[])
         super().__init__(name=name, filterType="IntegrateVariables", write=write, **kwargs)
