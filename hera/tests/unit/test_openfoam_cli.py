@@ -29,9 +29,6 @@ Deliberately not tested:
 Bugs pinned here (each with a strict xfail for the intended behaviour plus
 a passing characterisation of what actually happens):
 
-  * B173: `stochasticLagrangian_dispersionFlow_list` never assigns
-    `output` in its `--format pandas` branch -- the default -- and then
-    prints it: UnboundLocalError after the groups have been printed.
   * B174: the same handler calls `tk.workflowCompare(...)`, a method
     that exists nowhere in hera; the real name is `compareWorkflows`.
   * B175: `stochasticLagrangian_dispersion_create --overwrite` bypasses
@@ -1042,34 +1039,23 @@ class TestDispersionFlowList:
 
 @pytest.mark.unit
 class TestDispersionFlowListPandasFormat:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B173: the `--format pandas` branch of "
-               "stochasticLagrangian_dispersionFlow_list prints each group "
-               "but never assigns `output`, unlike the other three "
-               "branches.  Execution then falls through to `print(output)` "
-               "and dies with UnboundLocalError -- and pandas is the "
-               "default format, so the subcommand fails whenever it has "
-               "anything to show.  See the consolidated findings issue.",
-    )
     def test_the_default_format_should_list_the_flows_without_crashing(
-        self, install_toolkit
+        self, install_toolkit, capsys
     ):
         toolkit = _FakeOFToolkitWithWorkflowCompare(comparison=_groupedComparison())
         install_toolkit(toolkit)
         stochasticLagrangian_dispersionFlow_list(_dispersionFlowListArgs(format="pandas"))
+        assert "Group name grp" in capsys.readouterr().out
 
-    def test_the_default_format_currently_dies_after_printing_the_groups(
-        self, install_toolkit, capsys
+    def test_the_default_format_can_also_be_written_to_a_file(
+        self, install_toolkit, in_tmp_cwd
     ):
-        """Characterisation of B173."""
         toolkit = _FakeOFToolkitWithWorkflowCompare(comparison=_groupedComparison())
         install_toolkit(toolkit)
-        with pytest.raises(UnboundLocalError, match="output"):
-            stochasticLagrangian_dispersionFlow_list(
-                _dispersionFlowListArgs(format="pandas")
-            )
-        assert "Group name grp" in capsys.readouterr().out
+        stochasticLagrangian_dispersionFlow_list(
+            _dispersionFlowListArgs(format="pandas", file="flows")
+        )
+        assert "Group name grp" in (in_tmp_cwd / "flows.txt").read_text()
 
 
 @pytest.mark.unit

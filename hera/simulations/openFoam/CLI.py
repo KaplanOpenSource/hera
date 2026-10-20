@@ -328,11 +328,16 @@ def stochasticLagrangian_dispersionFlow_list(arguments):
     res = tk.workflowCompare(workflowsType="stochasticLagrangianSolver")
 
     if arguments.format == "pandas":
+        # Rendered into `output` like the other formats, so the common print
+        # and the --file write below both have something to work with.
+        groupSections = []
         for group in res.groupName.unique():
             ttl = f"Group name {group}"
-            print(ttl)
-            print("-" * len(ttl))
-            print(res.query('groupName == @group'))
+            groupSections.append("\n".join([ttl,
+                                             "-" * len(ttl),
+                                             res.query('groupName == @group').to_string()]))
+        output = "\n".join(groupSections)
+        ext = "txt"
 
     elif arguments.format == "latex":
         output = res.to_latex()
