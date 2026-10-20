@@ -25,11 +25,10 @@ tests use a document produced by the real workflow toolkit against the
 in-memory datalayer, so ``document.save()`` in the setters is exercised for
 real.
 
-Bugs pinned here: B147 (``__setitem__`` calls a
-misspelt, name-mangled super method), B148 and B149 (``set_blockMesh_blockHeight``
-moves the bottom face instead of the top one, and then derives a zero cell
-count from the vertex it has just overwritten) and B150 (``workflowGroupID``'s
-setter rejects the integer type its own getter yields).
+Still pinned here: one defect in ``hermes.workflow.__setitem__`` -- it
+replaces the whole ``nodes`` mapping instead of storing the new node under
+its key -- which hera's ``abstractWorkflow.__setitem__`` used to mask
+behind an AttributeError (B147, since fixed).
 
 Deliberately not covered here:
 
@@ -331,30 +330,21 @@ class TestWorkflowGroupWithADocument:
             workflowObject.workflowGroup = ["flow"]
         assert workflowObject.workflowGroup == "flow"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B150: the workflowGroupID getter yields whatever "
-               "addWorkflowToGroup stored, which is an int (the group counter), "
-               "but its setter demands isinstance(value,str) and raises "
-               "ValueError('Group name must be a string' -- the group-name "
-               "message, copy-pasted) for anything else. So the property cannot "
-               "round-trip its own value: `wf.workflowGroupID = "
-               "wf.workflowGroupID` raises, and writing the id back needs a "
-               "string, which then makes the stored type disagree with every "
-               "other document in the group. "
-               "See the consolidated findings issue.",
-    )
-    def test_the_group_id_should_accept_the_type_its_getter_yields(self, documentBacked):
+    def test_the_group_id_accepts_the_type_its_getter_yields(self, documentBacked):
         _, _, workflowObject = documentBacked
         workflowObject.workflowGroupID = workflowObject.workflowGroupID
         assert workflowObject.workflowGroupID == 0
 
-    def test_the_group_id_setter_currently_refuses_an_integer(self, documentBacked):
-        """Characterisation of B150."""
+    def test_the_group_id_setter_accepts_an_integer(self, documentBacked):
         _, _, workflowObject = documentBacked
         assert isinstance(workflowObject.workflowGroupID, int)
-        with pytest.raises(ValueError, match="Group name must be a string"):
-            workflowObject.workflowGroupID = 1
+        workflowObject.workflowGroupID = 1
+        assert workflowObject.workflowGroupID == 1
+
+    def test_the_group_id_setter_still_refuses_an_unrelated_type(self, documentBacked):
+        _, _, workflowObject = documentBacked
+        with pytest.raises(ValueError, match="Group ID must be"):
+            workflowObject.workflowGroupID = ["0007"]
 
 
 # ---------------------------------------------------------------------------

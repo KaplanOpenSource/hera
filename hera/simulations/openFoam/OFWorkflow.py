@@ -75,8 +75,8 @@ class abstractWorkflow(hermes.workflow):
     def workflowGroupID(self, value):
         """Set the workflow group ID and save to the hera document."""
         ret = None
-        if not isinstance(value,str):
-            raise ValueError("Group name must be a string")
+        if not isinstance(value,(int,str)):
+            raise ValueError("Group ID must be an integer or a string")
         if self.workflowHeraDocument:
             self.workflowHeraDocument['desc']['groupID'] = value
             self.workflowHeraDocument.save()
