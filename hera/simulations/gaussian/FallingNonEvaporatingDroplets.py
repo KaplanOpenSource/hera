@@ -339,11 +339,15 @@ class FallingNonEvaporatingDroplets(object):
         return 1
 
     def correctionCloud_Plume(self):
-        Ubar = numpy.mean([self.meteorology.getWindVelocity(z) for z in numpy.arange(0, unumToPint(self.z).m_as(ureg.m))])
+        # numpy cannot build an array out of a list of pint Quantities, so average
+        # the magnitudes and put the unit back on.
+        Ubar = numpy.mean([tonumber(self.meteorology.getWindVelocity(z), ureg.m/ureg.s) for z in numpy.arange(0, unumToPint(self.z).m_as(ureg.m))]) * ureg.m/ureg.s
         return ((1 + (self.beta * self.getTerminalVelocity() / Ubar) ** 2) ** -0.25).magnitude  # taking beta=5
 
     def correctionCloud_Puff(self):
-        Ubar = numpy.mean([self.meteorology.getWindVelocity(z) for z in numpy.arange(0, unumToPint(self.z).m_as(ureg.m))])
+        # numpy cannot build an array out of a list of pint Quantities, so average
+        # the magnitudes and put the unit back on.
+        Ubar = numpy.mean([tonumber(self.meteorology.getWindVelocity(z), ureg.m/ureg.s) for z in numpy.arange(0, unumToPint(self.z).m_as(ureg.m))]) * ureg.m/ureg.s
         return ((1 + (self.beta * self.getTerminalVelocity() / Ubar) ** 2) ** -0.5).magnitude  # taking beta=5
 
 

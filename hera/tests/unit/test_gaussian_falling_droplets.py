@@ -30,10 +30,10 @@ Three further findings came out of exercising those:
   cancels exactly in the Stokes regime (where Cd*Re = 24 is constant) but
   not above it: a 3 mm droplet is reported to fall at 2.83 m/s instead of
   the ~8.2 m/s a 3 mm drop actually falls at.
-* B120 (cloud correction): ``correctionCloud_Plume`` / ``_Puff`` average a
-  *python list of pint Quantities* with ``numpy.mean``, which always
-  raises ValueError. Neither function can ever return a value, and
-  "Plume" is the default, so ``solveToTime`` is unusable too.
+* B120 (cloud correction, fixed): ``correctionCloud_Plume`` / ``_Puff``
+  averaged a *python list of pint Quantities* with ``numpy.mean``, which
+  always raised ValueError. Neither function could ever return a value,
+  and "Plume" is the default, so ``solveToTime`` was unusable too.
 * B12 (fixed) used to cascade into ``_fallingParticle``: ``tounit`` built
   its Quantity in pint's default application registry, so ``u_p - U``
   mixed two registries and raised.  With ``tounit`` on hera's registry the
@@ -472,19 +472,6 @@ class TestCloudSigmaCorrection:
     puff factor is the square of the plume factor and both lie in (0, 1].
     """
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B120: correctionCloud_Plume/_Puff call "
-               "numpy.mean([...]) on a python LIST of pint Quantities "
-               "(one per metre of fall height).  numpy cannot build an "
-               "array from Quantity objects, so both raise "
-               "ValueError('setting an array element with a sequence') "
-               "for every input -- the correction can never be computed, "
-               "and since 'Plume' is the default correctionCloudFunc, "
-               "solveToTime is unusable as well.  numpy.mean over a single "
-               "Quantity array (ureg.Quantity([...], 'm/s')) works, which "
-               "is what was meant. See the consolidated findings issue.",
-    )
     def test_the_puff_correction_is_the_square_of_the_plume_correction(
         self, buildDroplet
     ):
@@ -494,30 +481,18 @@ class TestCloudSigmaCorrection:
         assert 0 < plume < 1
         assert puff == pytest.approx(plume ** 2)
 
-    def test_the_plume_correction_currently_always_raises(self, buildDroplet):
-        """Characterisation of B120."""
-        built = buildDroplet(diameter=1000 * ureg.um, height=100 * ureg.m)
-        with pytest.raises(ValueError, match="setting an array element with a sequence"):
-            built.correctionCloud_Plume()
-
-    def test_the_puff_correction_currently_always_raises(self, buildDroplet):
-        """Characterisation of B120."""
-        built = buildDroplet(diameter=1000 * ureg.um, height=100 * ureg.m)
-        with pytest.raises(ValueError, match="setting an array element with a sequence"):
-            built.correctionCloud_Puff()
-
-    def test_numpy_cannot_average_a_list_of_quantities(self):
-        """Characterisation of B120, isolated from the class.
-
-        The same average over one Quantity array is fine, which is the
-        difference between the code as written and as intended.
+    def test_the_correction_is_computed_against_the_mean_wind(self, buildDroplet):
+        """B120: both corrections averaged a python LIST of pint Quantities
+        with numpy.mean, which cannot build an array from Quantity objects.
+        Averaging the magnitudes and re-attaching m/s is what was meant, and
+        with the uniform profile that mean is simply u10.
         """
-        with pytest.raises(ValueError):
-            numpy.mean([1 * ureg.m / ureg.s, 2 * ureg.m / ureg.s])
-
-        assert numpy.mean(ureg.Quantity([1.0, 2.0], "m/s")).m_as(
-            ureg.m / ureg.s
-        ) == pytest.approx(1.5)
+        built = buildDroplet(
+            diameter=1000 * ureg.um, height=100 * ureg.m, u10=5 * ureg.m / ureg.s
+        )
+        terminal = built.getTerminalVelocity().m_as(ureg.m / ureg.s)
+        expected = (1 + (built.beta * terminal / 5.0) ** 2) ** -0.25
+        assert built.correctionCloud_Plume() == pytest.approx(expected)
 
 
 @pytest.mark.unit
