@@ -39,4 +39,5 @@ class InputForModelsCreator(object):
                 with open(savePath, 'w') as file:
                     file.write(renderedTemplate)
             self._renderedTemplate = renderedTemplate
-        return renderedTemplate
+        # Read off the instance: the local name only exists in the else branch.
+        return self._renderedTemplate
