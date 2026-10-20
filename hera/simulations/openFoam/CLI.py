@@ -190,7 +190,7 @@ def foam_solver_simulations_list(arguments):
         res = wftk.compareWorkflows([groupName], longFormat=arguments.longFormat, transpose=arguments.transpose)
 
         if arguments.format == "pandas":
-            output = res
+            output = res.to_string()
             ext = "txt"
         elif arguments.format == "latex":
             output = res.to_latex()

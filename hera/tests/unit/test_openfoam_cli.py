@@ -29,8 +29,6 @@ Deliberately not tested:
 Bugs pinned here (each with a strict xfail for the intended behaviour plus
 a passing characterisation of what actually happens):
 
-  * B172: `foam_solver_simulations_list --format pandas --file out`
-    tries to write a DataFrame *object* to a text file (TypeError).
   * B173: `stochasticLagrangian_dispersionFlow_list` never assigns
     `output` in its `--format pandas` branch -- the default -- and then
     prints it: UnboundLocalError after the groups have been printed.
@@ -856,15 +854,6 @@ class TestFoamSolverSimulationsList:
 
 @pytest.mark.unit
 class TestFoamSolverSimulationsListPandasToFile:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B172: with the default --format pandas, "
-               "foam_solver_simulations_list sets `output = res` -- the "
-               "DataFrame itself -- and then, if --file was given, calls "
-               "outputFile.write(output) on a text-mode file, which raises "
-               "TypeError.  Every other format converts to a string first. "
-               "See the consolidated findings issue.",
-    )
     def test_the_default_format_should_be_writable_to_a_file(
         self, install_toolkit, in_tmp_cwd
     ):
@@ -872,17 +861,7 @@ class TestFoamSolverSimulationsListPandasToFile:
                                  comparison=_comparison())
         install_toolkit(toolkit)
         foam_solver_simulations_list(_listArgs(format="pandas", file="out"))
-        assert (in_tmp_cwd / "out.txt").exists()
-
-    def test_the_default_format_with_a_file_currently_raises_a_type_error(
-        self, install_toolkit, in_tmp_cwd
-    ):
-        """Characterisation of B172."""
-        toolkit = _FakeOFToolkit(solverDocuments=[_FakeDocument(groupName="grp")],
-                                 comparison=_comparison())
-        install_toolkit(toolkit)
-        with pytest.raises(TypeError):
-            foam_solver_simulations_list(_listArgs(format="pandas", file="out"))
+        assert (in_tmp_cwd / "out.txt").read_text() == _comparison().to_string()
 
 
 # ---------------------------------------------------------------------------
