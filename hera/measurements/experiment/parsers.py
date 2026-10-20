@@ -610,6 +610,12 @@ class CampbellBinaryInterface(object):
         -------
         list of list of int
             Start/end index pairs for slicing record data per height.
+
+        Notes
+        -----
+        The indexes address the *data* fields only, i.e. what
+        ``_getDataFromStream`` returns as ``retval[2:]``, with the two
+        leading SECONDS/NANOSECONDS fields already dropped.
         """
         colheader = self.headers[1].upper()
         Indexes = []
@@ -618,16 +624,16 @@ class CampbellBinaryInterface(object):
             # Raw Sonic Binary data file
             for i in range(3):
                 if colheader.find("U_{}".format(i + 1)) != -1:
-                    Indexes.append([1 + 4 * i, 5 + 4 * i])
+                    Indexes.append([4 * i, 4 + 4 * i])
 
 
         elif colheader.find("TC_T") != -1:
             if colheader.find("TC_T1") != -1:
-                Indexes.append([1, 2])
+                Indexes.append([0, 1])
             else:
                 for i in range(3):
                     if colheader.find("TC_T({})".format(i + 1)) != -1:
-                        Indexes.append([i + 1, i + 2])
+                        Indexes.append([i, i + 1])
 
             Indexes[len(Indexes) - 1][1] += 2
         return Indexes

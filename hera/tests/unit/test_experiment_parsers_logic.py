@@ -8,18 +8,18 @@ tests exercise what the parsers actually do when called).
   (same class names, same bodies), carrying the identical bug already
   pinned there as B82:
 
-  B89: ``Parser_CampbellBinary.getData`` slices each record's data with
+  B89 (fixed here): ``Parser_CampbellBinary.getData`` slices each
+  record's data with
   ``line[cbi.columnsIndexes[i][0] : cbi.columnsIndexes[i][1]]``, but
-  ``columnsIndexes`` is computed as if it indexed into the *raw* record --
+  ``columnsIndexes`` was computed as if it indexed into the *raw* record --
   which starts with two leading timestamp fields (SECONDS, NANOSECONDS).
   ``line`` is ``_getDataFromStream``'s ``retval[2:]``, which has *already*
-  dropped those two fields. The off-by-two slice drops the first data
-  column and returns one column short of what the header declares --
-  pandas then refuses to build the DataFrame. Because this file is an
-  independent copy (not an import) of the other parser, fixing one does
-  not fix the other -- and since the whole module is orphaned (see
-  test_experiment_parsers.py::TestParserModuleIsOrphaned), nothing is
-  currently exercising this path in production either way.
+  dropped those two fields. The off-by-two slice dropped the first data
+  column and returned one column short of what the header declares, and
+  pandas then refused to build the DataFrame. ``_getColumnIndexes`` now
+  addresses the data fields. Because this file is an independent copy
+  (not an import) of the other parser, the meteorology copy keeps its own
+  pin (B82).
 
 * Parser_OldStyleMetaDataParquet:
 
@@ -96,28 +96,20 @@ class TestCampbellBinaryInterfaceStillWorks:
 
 
 @pytest.mark.unit
-class TestParserCampbellBinaryGetDataIsBroken:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B89: same off-by-two columnsIndexes bug as the meteorology "
-               "highfreqdata CampbellBinary parser (B82), duplicated "
-               "independently in this file. See the consolidated findings issue.",
-    )
-    def test_get_pandas_from_file_should_return_all_sonic_columns(self, sonic_file):
+class TestParserCampbellBinaryGetData:
+    def test_get_pandas_from_file_returns_all_sonic_columns(self, sonic_file):
         df = Parser_CampbellBinary().getPandasFromFile(str(sonic_file), fromTime=None, toTime=None)
-        assert list(df.columns[:4]) == ["u", "v", "w", "T"]
+        # concat(sort=True) orders the columns alphabetically
+        assert set(df.columns) == {"T", "u", "v", "w", "height", "station", "instrument"}
+        assert len(df) == 2
+        assert df.u.iloc[0] == pytest.approx(1.0)
 
-    def test_get_pandas_from_file_currently_raises(self, sonic_file):
-        """Characterisation of B89."""
-        with pytest.raises(ValueError, match="columns"):
-            Parser_CampbellBinary().getPandasFromFile(str(sonic_file), fromTime=None, toTime=None)
-
-    def test_get_data_drops_the_first_data_column(self, sonic_file):
-        """Characterisation of B89, one level below the DataFrame
-        construction that raises."""
+    def test_get_data_keeps_every_data_column(self, sonic_file):
+        """B89: the first data column used to be sliced away."""
         ts, cols, values = Parser_CampbellBinary().getData(str(sonic_file), fromTime=None, toTime=None)
         assert cols == [["u", "v", "w", "T"]]
-        assert len(values[10][0]) == 3  # v, w, T -- u is missing
+        assert len(values[10][0]) == 4  # u, v, w, T
+        assert values[10][0][0] == pytest.approx(1.0)
 
 
 def _write_campaign(tmp_path, metadata, station_locations):
