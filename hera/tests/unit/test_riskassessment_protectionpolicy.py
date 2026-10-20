@@ -167,30 +167,20 @@ class TestActionIndoor:
         policy.compute(ds)
         assert policy._actionList[0].hdfkey.startswith("indoorT120min")
 
-    def test_indoor_field_is_always_zero_today(self):
-        """B59: the recurrence never actually writes into Cin.
-
-        ``Cin[curstep].values = ...`` assigns into the DataArray returned by
-        dict-based ``__getitem__``, which is a fresh copy on this xarray
-        version rather than a view -- so every write in the loop is
-        discarded and ``indoor_1`` comes out as all zeros regardless of
-        alpha, dt or the outdoor concentration.
-        """
+    def test_the_indoor_field_starts_at_zero(self):
+        """Cin is seeded with zeros, and only the steps after the first are
+        written by the recurrence."""
         ds = _dataset(n=5, value=10.0)
         policy = ProtectionPolicy().indoor(turnover=2 * ureg.h, **_window(ds))
         data = policy.compute(ds)
-        assert numpy.array_equal(data["indoor_1"].values, numpy.zeros(5))
+        assert data["indoor_1"].values[0] == 0.0
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B59: Cin[curstep].values = ... discards its write because "
-               "dict-indexing (`Cin[{'datetime': I}]`) returns a copy, not "
-               "a view, on this xarray version. The indoor recurrence "
-               "therefore never runs -- indoor_1 is all zeros no matter "
-               "what alpha, dt or the outdoor concentration are. "
-               "See the consolidated findings issue.",
-    )
     def test_compute_builds_a_low_pass_filtered_field_towards_the_outdoor_value(self):
+        """B59, fixed: ``Cin[curstep].values = ...`` assigned into the
+        DataArray returned by dict-based ``__getitem__``, which is a fresh
+        copy rather than a view, so every write in the loop was discarded
+        and indoor_1 came out all zeros whatever alpha, dt or the outdoor
+        concentration were."""
         ds = _dataset(n=5, value=10.0)
         policy = ProtectionPolicy().indoor(turnover=2 * ureg.h, **_window(ds))
         data = policy.compute(ds)

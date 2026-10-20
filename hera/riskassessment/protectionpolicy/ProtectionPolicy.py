@@ -371,7 +371,7 @@ class ActionIndoor(abstractAction):
 			curstep = {self.policy.datetimename : I}
 			prevstep = {self.policy.datetimename : I-1}
 			dt =  (pandas.to_timedelta((data.datetime[curstep] - data.datetime[prevstep]).values)).total_seconds()
-			Cin[curstep].values = ((Cin[prevstep] + alphanum*dt*Cout[curstep])/(1+alphanum*dt)).values
+			Cin[curstep] = (Cin[prevstep] + alphanum*dt*Cout[curstep])/(1+alphanum*dt)
 
 		data[self.name] = Cin
 
