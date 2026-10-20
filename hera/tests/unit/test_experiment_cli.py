@@ -21,11 +21,8 @@ tree.  The argparse wiring in ``hera/bin/hera-experiment`` also stays
 untested: it sits under ``if __name__ == "__main__"`` and cannot be
 imported.
 
-Two bugs are pinned here:
+One bug is pinned here:
 
-* B129 -- ``_create_repository`` writes into ``runtimeExperimentData/``
-  before that directory is created, so ``create_experiment`` always dies
-  with FileNotFoundError.
 * B130 -- ``create_experiment`` writes ``createNodeRedDeviceMap.sh`` into
   the process cwd instead of the experiment directory.
 """
@@ -191,8 +188,8 @@ def projectCLI(monkeypatch):
 def _experimentDirectory(tmp_path, name="myExperiment", withRuntime=True):
     """An experiment directory as create_experiment would have it mid-run.
 
-    ``runtimeExperimentData`` is pre-created because of B129: without it,
-    _create_repository cannot write its configuration file at all.
+    ``runtimeExperimentData`` is pre-created because _create_repository
+    writes its configuration file into that directory.
     """
     path = tmp_path / name
     (path / "code").mkdir(parents=True)
@@ -476,9 +473,10 @@ class TestCreateRepository:
         assert json.loads(config.read_text()) == {"experimentName": "exp"}
 
     def test_it_fails_when_the_runtime_directory_does_not_exist_yet(self, tmp_path):
-        """Characterisation of B129: the repository JSON is written, but the
-        configuration write into the not-yet-created runtimeExperimentData
-        directory raises."""
+        """Its precondition: the repository JSON is written, but the
+        configuration write into a not-yet-created runtimeExperimentData
+        directory raises -- which is why create_experiment calls
+        _make_runtimeExperimentData first."""
         path = _experimentDirectory(tmp_path, "exp", withRuntime=False)
 
         with pytest.raises(FileNotFoundError):
@@ -501,10 +499,10 @@ class TestCreateExperiment:
             setattr(arguments, key, value)
         return arguments
 
-    def test_it_creates_the_code_and_data_directories(self, tmp_path, projectCLI):
+    def test_it_creates_the_code_and_data_directories(self, tmp_path, projectCLI, monkeypatch):
+        monkeypatch.chdir(tmp_path)  # the nodered script write (B130) lands in the cwd
         target = tmp_path / "windTunnel"
-        with pytest.raises(FileNotFoundError):  # B129, pinned below
-            CLI.create_experiment(self._arguments(str(target)))
+        CLI.create_experiment(self._arguments(str(target)))
 
         assert (target / "code").is_dir()
         assert (target / "data").is_dir()
@@ -512,69 +510,47 @@ class TestCreateExperiment:
 
     def test_without_a_path_the_experiment_goes_under_the_current_directory(self, tmp_path, projectCLI, monkeypatch):
         monkeypatch.chdir(tmp_path)
-        with pytest.raises(FileNotFoundError):  # B129
-            CLI.create_experiment(self._arguments(None))
+        CLI.create_experiment(self._arguments(None))
         assert (tmp_path / "windTunnel" / "code").is_dir()
 
-    def test_it_asks_the_project_cli_to_create_a_project_named_after_the_experiment(self, tmp_path, projectCLI):
+    def test_it_asks_the_project_cli_to_create_a_project_named_after_the_experiment(self, tmp_path, projectCLI, monkeypatch):
+        monkeypatch.chdir(tmp_path)  # the nodered script write (B130) lands in the cwd
         target = tmp_path / "windTunnel"
         arguments = self._arguments(str(target))
-        with pytest.raises(FileNotFoundError):  # B129
-            CLI.create_experiment(arguments)
+        CLI.create_experiment(arguments)
 
-        assert projectCLI.names() == ["project_create"]
+        assert projectCLI.names() == ["project_create", "repository_load"]
         assert arguments.projectName == "windTunnel"
         assert arguments.directory == str(target)
         assert arguments.overwrite is True
         assert arguments.loadRepositories is True
 
-    def test_an_existing_class_file_is_not_regenerated(self, tmp_path, projectCLI):
+    def test_an_existing_class_file_is_not_regenerated(self, tmp_path, projectCLI, monkeypatch):
+        monkeypatch.chdir(tmp_path)  # the nodered script write (B130) lands in the cwd
         target = tmp_path / "windTunnel"
         (target / "code").mkdir(parents=True)
         (target / "code" / "windTunnel.py").write_text("# hand written\n")
 
-        with pytest.raises(FileNotFoundError):  # B129
-            CLI.create_experiment(self._arguments(str(target)))
+        CLI.create_experiment(self._arguments(str(target)))
 
         assert (target / "code" / "windTunnel.py").read_text() == "# hand written\n"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B129: create_experiment calls _create_repository before "
-               "_make_runtimeExperimentData, but _create_repository writes "
-               "runtimeExperimentData/Datasources_Configurations.json -- a "
-               "directory only _make_runtimeExperimentData creates. Nothing "
-               "earlier in the flow creates it (createProjectDirectory only "
-               "writes caseConfiguration.json), so `hera-experiment create` "
-               "always aborts with FileNotFoundError, leaving a half-built "
-               "experiment and no loaded repository. See the consolidated "
-               "findings issue.",
-    )
-    def test_creating_an_experiment_should_finish(self, tmp_path, projectCLI):
+    def test_creating_an_experiment_should_finish(self, tmp_path, projectCLI, monkeypatch):
+        monkeypatch.chdir(tmp_path)  # the nodered script write (B130) lands in the cwd
         target = tmp_path / "windTunnel"
         CLI.create_experiment(self._arguments(str(target)))
         assert (target / "windTunnel_repository.json").exists()
+        assert (target / "runtimeExperimentData" / "Datasources_Configurations.json").exists()
 
-    def test_it_currently_aborts_before_loading_the_repository(self, tmp_path, projectCLI):
-        """Characterisation of B129."""
-        target = tmp_path / "windTunnel"
-        with pytest.raises(FileNotFoundError, match="Datasources_Configurations"):
-            CLI.create_experiment(self._arguments(str(target)))
+    # -- the nodered script ------------------------------------------------
 
-        assert projectCLI.names() == ["project_create"]  # repository_load never runs
-        assert not (target / "runtimeExperimentData").exists()
+    def _createFromAnotherDirectory(self, tmp_path, arguments, monkeypatch):
+        """Run create_experiment from a cwd that is not the experiment path.
 
-    # -- the second bug, reachable only past the first ---------------------
-
-    def _createPastTheFirstBug(self, tmp_path, arguments, monkeypatch):
-        """Run create_experiment with runtimeExperimentData pre-created, so
-        B129 does not mask what comes after it.
-
-        The chdir is not cosmetic: past B129 the run reaches the
+        The chdir is not cosmetic: the run reaches the
         createNodeRedDeviceMap.sh write, which lands in the cwd (B130) --
         without it the test litters the repository root.
         """
-        (tmp_path / "windTunnel" / "runtimeExperimentData").mkdir(parents=True)
         cwd = tmp_path / "elsewhere"
         cwd.mkdir(exist_ok=True)
         monkeypatch.chdir(cwd)
@@ -584,7 +560,7 @@ class TestCreateExperiment:
     def test_it_loads_the_generated_repository_into_the_project(self, tmp_path, projectCLI, monkeypatch):
         target = tmp_path / "windTunnel"
         arguments = self._arguments(str(target))
-        self._createPastTheFirstBug(tmp_path, arguments, monkeypatch)
+        self._createFromAnotherDirectory(tmp_path, arguments, monkeypatch)
 
         assert projectCLI.names() == ["project_create", "repository_load"]
         assert arguments.repositoryName == str(target / "windTunnel_repository.json")
@@ -600,14 +576,14 @@ class TestCreateExperiment:
     )
     def test_the_nodered_script_should_land_in_the_experiment_directory(self, tmp_path, projectCLI, monkeypatch):
         target = tmp_path / "windTunnel"
-        self._createPastTheFirstBug(tmp_path, self._arguments(str(target)), monkeypatch)
+        self._createFromAnotherDirectory(tmp_path, self._arguments(str(target)), monkeypatch)
 
         assert (target / "createNodeRedDeviceMap.sh").exists()
 
     def test_the_nodered_script_currently_lands_in_the_current_directory(self, tmp_path, projectCLI, monkeypatch):
         """Characterisation of B130."""
         target = tmp_path / "windTunnel"
-        cwd = self._createPastTheFirstBug(tmp_path, self._arguments(str(target)), monkeypatch)
+        cwd = self._createFromAnotherDirectory(tmp_path, self._arguments(str(target)), monkeypatch)
 
         script = cwd / "createNodeRedDeviceMap.sh"
         assert script.read_text() == "argos-experiment-manager nodered createDeviceMap"

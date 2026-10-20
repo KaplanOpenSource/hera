@@ -154,8 +154,10 @@ def create_experiment(arguments):
     logger.debug(f"Creating a project for local")
     projectCLI.project_create(arguments)
 
-    _create_repository(arguments.zip,experiment_path,arguments.experimentName,arguments.relative)
+    # runtimeExperimentData must exist first: _create_repository writes its
+    # Datasources_Configurations.json into that directory.
     _make_runtimeExperimentData(arguments.zip,experiment_path,arguments.experimentName)
+    _create_repository(arguments.zip,experiment_path,arguments.experimentName,arguments.relative)
 
     logger.debug("Loading the experiment repository to the project")
     arguments.repositoryName = os.path.join(experiment_path,f"{arguments.experimentName}_repository.json")
