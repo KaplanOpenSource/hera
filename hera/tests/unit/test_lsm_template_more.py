@@ -29,9 +29,6 @@ and a passing characterisation of what actually happens:
   * B275: ``_toNetcdf`` says it converts the dosage "to s/m**3 instead
     of min/m**3" but multiplies by ``(1 s).m_as(min)`` = 1/60, which is
     the seconds-to-minutes factor -- the reverse of the stated conversion.
-  * B278: ``run`` chdir's into the simulation directory with no
-    try/finally, so any failure past that point leaves the whole process
-    in the simulation directory.
   * B279: ``run(stations=...)`` computes the station identifier column
     and then loses it in the xarray resample round-trip, so it only
     works if the caller happens to have supplied a ``station`` column.
@@ -672,35 +669,14 @@ class TestRunCanopyWithoutStations:
         """Only the stations arm justifies the station-height check."""
         assert self._run(template, topography="TOPO DATA", canopy="CANOPY DATA") is None
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B278: run() does os.chdir(saveDir) with no try/finally, "
-               "so the restoring os.chdir(cur_dir) is skipped whenever "
-               "anything between them raises. The failure of one simulation "
-               "therefore leaves the whole interpreter parked inside that "
-               "simulation's directory, and every later relative path in "
-               "the session resolves somewhere unexpected. See the "
-               "consolidated findings issue.",
-    )
-    def test_a_failure_inside_the_run_should_still_restore_the_directory(
+    def test_a_failure_inside_the_run_still_restores_the_directory(
         self, template, ifmc, failingSolver, cwd
     ):
+        """A failed simulation must not leave the interpreter parked inside
+        the simulation directory."""
         with pytest.raises(RuntimeError):
             self._run(template, canopy="CANOPY DATA")
         assert os.getcwd() == str(cwd)
-
-    def test_a_failure_inside_the_run_currently_leaves_the_directory_changed(
-        self, template, ifmc, failingSolver, cwd, lsm
-    ):
-        """Characterisation of B278."""
-        try:
-            with pytest.raises(RuntimeError):
-                self._run(template, canopy="CANOPY DATA")
-            assert os.getcwd() == os.path.join(
-                os.path.abspath(lsm.filesDirectory), "sim"
-            )
-        finally:
-            os.chdir(str(cwd))
 
 
 # ---------------------------------------------------------------------------
