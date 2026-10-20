@@ -176,6 +176,8 @@ def buildings_raster_toSTL(arguments):
                                              miny=arguments.miny,
                                              maxx=arguments.maxx,
                                              maxy=arguments.maxy,
+                                             dataSourceName=dataSourceName,
+                                             inputCRS=inputCRS,
                                              withElevation=True)
     fileName = arguments.fileName
 

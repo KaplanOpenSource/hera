@@ -400,15 +400,6 @@ class TestBuildingsRasterToSTL:
         CLI.buildings_raster_toSTL(self._arguments(tmp_path))
         assert home.requests[0]["projectName"] is None
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B128: buildings_raster_toSTL computes dxdy, inputCRS, "
-               "outputCRS and dataSourceName from the arguments and then "
-               "calls getBuildingsFromRectangle with the bounding box and "
-               "withElevation only, so --dataSourceName and --inputCRS are "
-               "silently ignored and the default datasource in WGS84 is "
-               "always used. See the consolidated findings issue.",
-    )
     def test_an_explicit_datasource_and_inputcrs_should_reach_the_toolkit(self, home, tmp_path):
         CLI.buildings_raster_toSTL(
             self._arguments(tmp_path, dataSourceName="BLDG_2020", inputCRS=2039)
@@ -417,13 +408,11 @@ class TestBuildingsRasterToSTL:
         assert kwargs["dataSourceName"] == "BLDG_2020"
         assert kwargs["inputCRS"] == 2039
 
-    def test_it_currently_forwards_only_the_bounding_box(self, home, tmp_path):
-        """Characterisation of B128."""
-        CLI.buildings_raster_toSTL(
-            self._arguments(tmp_path, dataSourceName="BLDG_2020", inputCRS=2039, dxdy=7)
-        )
+    def test_an_omitted_inputcrs_falls_back_to_wsg84(self, home, tmp_path):
+        CLI.buildings_raster_toSTL(self._arguments(tmp_path, inputCRS=None))
         _, kwargs = home.toolkit.call("getBuildingsFromRectangle")
-        assert set(kwargs) == {"minx", "miny", "maxx", "maxy", "withElevation"}
+        assert kwargs["inputCRS"] == 4326
+        assert kwargs["dataSourceName"] is None
 
 
 # ---------------------------------------------------------------------------
