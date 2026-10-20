@@ -190,14 +190,6 @@ class TestDataFrameIndexing:
         coordinates, _ = mesher._defineCoordinates(frame)
         assert len(coordinates) > 0
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B28: _defineCoordinates takes a LABEL from .index[0] and feeds it to "
-               ".iloc, which wants a POSITION. Any frame whose index is not a "
-               "0-based RangeIndex raises IndexError -- which covers anything that "
-               "came out of a groupby, a filter or a concat. "
-               "See the consolidated findings issue.",
-    )
     def test_a_non_zero_based_index_works(self, mesher):
         """A filtered or grouped frame keeps its original labels."""
         frame = pd.DataFrame(
@@ -206,12 +198,6 @@ class TestDataFrameIndexing:
         coordinates, _ = mesher._defineCoordinates(frame)
         assert len(coordinates) > 0
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B28: the same label-versus-position confusion, reached through the "
-               "public entry point after a filter. "
-               "See the consolidated findings issue.",
-    )
     def test_a_filtered_frame_can_be_meshed(self, mesher):
         frame = pd.DataFrame(
             [one_puff(x=0.0), one_puff(x=10.0), one_puff(x=20.0)]
