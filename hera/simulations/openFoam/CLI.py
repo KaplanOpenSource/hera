@@ -17,15 +17,16 @@ def Foam_createEmpty(arguments):
 
     if ('projectName' not in arguments) or (arguments.projectName is None):
         configurationFile = arguments.configurationFile if 'configurationFile' in arguments else "caseConfiguration.json"
-        try:
-            configuration = loadJSON(configurationFile)
-        except:
+        # Only a genuinely missing file is replaced by a stub; a file that
+        # exists but cannot be parsed is reported as-is and left on disk.
+        if not os.path.isfile(configurationFile):
             err = f"Configuration file {configurationFile} not found! creating a basic file"
             with open(configurationFile, 'w') as defaultConfFile:
                 json.dump(dict(projectName=None), defaultConfFile, indent=4)
 
             raise ValueError(err)
 
+        configuration = loadJSON(configurationFile)
         projectName = configuration['projectName']
     else:
         projectName = arguments.projectName
@@ -693,15 +694,16 @@ def IC_hydrostaticPressure(arguments):
 
     if ('projectName' not in arguments) or (arguments.projectName is None):
         configurationFile = arguments.configurationFile if 'configurationFile' in arguments else "caseConfiguration.json"
-        try:
-            configuration = loadJSON(configurationFile)
-        except:
+        # Only a genuinely missing file is replaced by a stub; a file that
+        # exists but cannot be parsed is reported as-is and left on disk.
+        if not os.path.isfile(configurationFile):
             err = f"Configuration file {configurationFile} not found! creating a basic file"
             with open(configurationFile, 'w') as defaultConfFile:
                 json.dump(dict(projectName=None), defaultConfFile, indent=4)
 
             raise ValueError(err)
 
+        configuration = loadJSON(configurationFile)
         projectName = configuration['projectName']
     else:
         projectName = arguments.projectName

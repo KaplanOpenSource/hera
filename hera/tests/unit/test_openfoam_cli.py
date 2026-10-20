@@ -29,11 +29,6 @@ Deliberately not tested:
 Bugs pinned here (each with a strict xfail for the intended behaviour plus
 a passing characterisation of what actually happens):
 
-  * B168: `Foam_createEmpty` (and the live `IC_hydrostaticPressure`)
-    catch *any* failure to load caseConfiguration.json, report
-    "Configuration file ... not found", and overwrite the file with
-    `{"projectName": null}` -- so a caseConfiguration.json that merely has
-    a syntax error is destroyed rather than reported.
   * B169: `stochasticLagrangian_dispersionFlow_create` catches
     FileExistsError, logs it with `logger.error` and returns normally, so
     the command exits 0 having created nothing.
@@ -573,17 +568,10 @@ class TestFoamCreateEmptyProjectNameFallback:
 
 
 @pytest.mark.unit
-class TestFoamCreateEmptyClobbersABrokenConfiguration:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B168: Foam_createEmpty wraps loadJSON in a bare `except:` "
-               "and treats every failure as 'file not found', overwriting "
-               "the existing caseConfiguration.json with "
-               "{'projectName': null}.  A configuration file with a JSON "
-               "syntax error -- or any other read error -- is therefore "
-               "destroyed, and the message misreports why.  See the "
-               "consolidated findings issue.",
-    )
+class TestFoamCreateEmptyBrokenConfiguration:
+    """A caseConfiguration.json that exists but cannot be parsed is
+    reported, not replaced by a stub."""
+
     def test_an_unparsable_configuration_file_should_not_be_overwritten(
         self, install_toolkit, in_tmp_cwd
     ):
@@ -596,17 +584,15 @@ class TestFoamCreateEmptyClobbersABrokenConfiguration:
             Foam_createEmpty(arguments)
         assert "REAL_PROJECT" in configuration.read_text()
 
-    def test_an_unparsable_configuration_file_is_currently_destroyed(
+    def test_a_missing_configuration_file_is_still_stubbed_out_and_reported(
         self, install_toolkit, in_tmp_cwd
     ):
-        """Characterisation of B168."""
-        configuration = in_tmp_cwd / "caseConfiguration.json"
-        configuration.write_text('{"projectName": "REAL_PROJECT",,}')
         arguments = _createEmptyArgs()
         del arguments.projectName
         install_toolkit(_FakeOFToolkit())
         with pytest.raises(ValueError, match="not found"):
             Foam_createEmpty(arguments)
+        configuration = in_tmp_cwd / "caseConfiguration.json"
         assert json.loads(configuration.read_text()) == {"projectName": None}
 
 
