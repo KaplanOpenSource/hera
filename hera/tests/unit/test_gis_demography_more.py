@@ -37,10 +37,11 @@ passing characterisation of what actually happens)
   constants, so saving to the DB raised ``AttributeError`` after the file had
   already been written.  The constants are now imported from ``hera.toolkit``
   by name.
-* **B234** -- the same branch is guarded by ``== TOOLKIT_SAVEMODE_FILEANDDB``
-  only, so ``TOOLKIT_SAVEMODE_FILEANDDB_REPLACE`` ("save to a file and store
-  to the DB as a source, replacing the entry if it exists", per the
-  docstring) writes the file and silently never touches the database.
+* **B234** (fixed) -- the same branch was guarded by ``==
+  TOOLKIT_SAVEMODE_FILEANDDB`` only, so ``TOOLKIT_SAVEMODE_FILEANDDB_REPLACE``
+  ("save to a file and store to the DB as a source, replacing the entry if it
+  exists", per the docstring) wrote the file and silently never touched the
+  database.  Both modes now take the branch.
 * **B235** -- ``TOOLKIT_SAVEMODE_ONLYFILE`` is documented to "raise exception
   if file exists" and ``..._REPLACE`` to replace it, but the two are handled
   identically: nothing checks for an existing file, so ONLYFILE overwrites
@@ -409,33 +410,24 @@ class TestCreateNewAreaDatabaseOutput:
         )
         assert os.path.exists(os.path.join(demography.filesDirectory, "dbarea.geojson"))
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B234: the database branch is guarded by '== "
-               "TOOLKIT_SAVEMODE_FILEANDDB' alone, so "
-               "TOOLKIT_SAVEMODE_FILEANDDB_REPLACE -- documented as 'save to "
-               "a file and store to the DB as a source, replacing the entry "
-               "if it exists' -- writes the file and never reaches the "
-               "database at all. See the consolidated findings issue.",
-    )
     def test_the_replacing_database_mode_also_stores_a_document(self, demography, census):
+        """B234."""
         demography.analysis.createNewArea(
             _QUERY, census,
             saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE, regionName="rep.geojson",
         )
         assert len(demography.getCacheDocuments(type="ToolkitDataSource")) == 1
 
-    def test_the_replacing_database_mode_writes_only_a_file(self, demography, census):
-        """Characterisation of B234."""
+    def test_the_replacing_database_mode_writes_the_file_too(self, demography, census):
+        """B234: the document is returned, not a bare nonDBMetadataFrame."""
         result = demography.analysis.createNewArea(
             _QUERY, census,
             saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE, regionName="rep.geojson",
         )
         from hera.datalayer import nonDBMetadataFrame
 
-        assert isinstance(result, nonDBMetadataFrame)
+        assert not isinstance(result, nonDBMetadataFrame)
         assert os.path.exists(os.path.join(demography.filesDirectory, "rep.geojson"))
-        assert len(demography.getCacheDocuments(type="ToolkitDataSource")) == 0
 
 
 # ==========================================================================

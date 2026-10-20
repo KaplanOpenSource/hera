@@ -300,7 +300,7 @@ class analysis:
             fullname = os.path.join(self.datalayer.filesDirectory, filename)
             newData.to_file(fullname)
 
-            if saveMode == TOOLKIT_SAVEMODE_FILEANDDB:
+            if saveMode in [TOOLKIT_SAVEMODE_FILEANDDB, TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
                 desc = {
                     TOOLKIT_DATASOURCE_NAME: regionName,
                     TOOLKIT_TOOLKITNAME_FIELD: self.datalayer.toolkitName
