@@ -58,11 +58,7 @@ class TestConstruction:
 
 @pytest.mark.unit
 class TestTangledProperties:
-    r"""Two copy-paste errors leave three properties reading each other.
-
-        @heatFlux.setter
-        def heatFlux(self, newheatFlux):
-            self._ustar = newheatFlux     # writes ustar, not heatFlux
+    r"""A copy-paste error still leaves two properties reading each other.
 
         @diameter.setter
         def ustar(self, newdiameter):     # named ustar, so it REPLACES the
@@ -79,11 +75,6 @@ class TestTangledProperties:
         """Because @diameter.setter produced a property named ustar instead."""
         with pytest.raises(AttributeError):
             model.diameter = 7
-
-    def test_assigning_heat_flux_currently_writes_ustar(self, model):
-        model._ustar = 111
-        model.heatFlux = 42
-        assert model._ustar == 42
 
     @pytest.mark.xfail(
         strict=True,
@@ -107,21 +98,10 @@ class TestTangledProperties:
         model.ustar = 5
         assert model._ustar == 5
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B47: the heatFlux setter assigns self._ustar, so heatFlux never "
-               "changes and the friction velocity is silently overwritten. "
-               "See the consolidated findings issue.",
-    )
     def test_assigning_heat_flux_writes_the_heat_flux(self, model):
         model.heatFlux = 42
         assert model._heatFlux == 42
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B47: and it leaves ustar alone. "
-               "See the consolidated findings issue.",
-    )
     def test_assigning_heat_flux_leaves_ustar_alone(self, model):
         model._ustar = 111
         model.heatFlux = 42

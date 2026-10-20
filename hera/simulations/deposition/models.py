@@ -35,7 +35,7 @@ class depositionModels(object):
 
     @heatFlux.setter
     def heatFlux(self,newheatFlux):
-        self._ustar=newheatFlux
+        self._heatFlux=newheatFlux
 
     @property
     def diameter(self):
