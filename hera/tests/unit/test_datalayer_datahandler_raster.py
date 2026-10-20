@@ -26,10 +26,9 @@ excludes ``raise NotImplementedError`` lines from coverage, so these buy no
 coverage -- they are here only so that a future implementation cannot land
 silently without a decision about the contract.
 
-B262 is pinned below: ``zarr_xarray.getData`` can never return.  Because
-``zarr`` is missing, that pin is driven with ``xarray.open_zarr`` stubbed
-out -- the defect is in the line *after* the load, so the stub only removes
-the optional dependency, it does not manufacture the failure.
+``zarr_xarray.getData`` is covered below with ``xarray.open_zarr`` stubbed
+out, since ``zarr`` is missing -- the stub only removes the optional
+dependency, the handler logic under test runs for real.
 
 Deliberately not covered here: the ``string``/``time``/``csv_pandas``/
 ``JSON_*``/``geopandas``/``parquet``/``image``/``pickle``/``dict``/
@@ -269,48 +268,24 @@ class TestZarrWriter:
 
 
 @pytest.mark.unit
-class TestZarrReaderIsBroken:
-    """B262: see the module docstring."""
+class TestZarrReader:
+    """``getData`` must deserialise the attrs off the *loaded dataset*, the
+    way ``DataHandler_netcdf_xarray.getData`` does -- not off the path string
+    it was handed."""
 
     @pytest.fixture()
     def stubbed_open_zarr(self, monkeypatch):
-        """Removes the missing optional dependency, nothing else.
-
-        The defect under test is on the line *after* the load, so what
-        ``open_zarr`` returns is irrelevant: any dataset reaches the same
-        statement.
-        """
+        """Removes the missing optional dependency, nothing else."""
         import xarray
 
         loaded = _dataset()
         monkeypatch.setattr(xarray, "open_zarr", lambda resource, **kwargs: loaded)
         return loaded
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B262: DataHandler_zarr_xarray.getData loads the archive into "
-               "`df` and then writes `resource.attrs = "
-               "JSONToConfiguration(resource.attrs)` -- `resource` is the "
-               "path string it was handed, not the dataset, so it raises "
-               "AttributeError: 'str' object has no attribute 'attrs' before "
-               "returning.  The line should read `df.attrs = "
-               "JSONToConfiguration(df.attrs)`, mirroring the deserialisation "
-               "that DataHandler_netcdf_xarray.getData performs.  No zarr "
-               "resource can be read through the datalayer today. "
-               "See the consolidated findings issue.",
-    )
     def test_it_should_return_the_loaded_dataset(self, stubbed_open_zarr):
         assert DataHandler_zarr_xarray.getData("some/path.zarr") is stubbed_open_zarr
 
-    def test_it_currently_raises_on_the_path_string(self, stubbed_open_zarr):
-        """Characterisation of B262."""
-        with pytest.raises(AttributeError, match="'str' object has no attribute 'attrs'"):
-            DataHandler_zarr_xarray.getData("some/path.zarr")
-
-    def test_the_failure_is_after_the_load_not_before_it(self, monkeypatch):
-        """Characterisation of B262: open_zarr is reached and does return,
-        which is what makes this a plain typo rather than a missing
-        dependency."""
+    def test_the_resource_path_is_handed_to_open_zarr(self, monkeypatch):
         import xarray
 
         calls = []
@@ -320,19 +295,8 @@ class TestZarrReaderIsBroken:
             return _dataset()
 
         monkeypatch.setattr(xarray, "open_zarr", _spy)
-        with pytest.raises(AttributeError):
-            DataHandler_zarr_xarray.getData("some/path.zarr")
+        DataHandler_zarr_xarray.getData("some/path.zarr")
         assert calls == ["some/path.zarr"]
-
-    def test_a_resource_that_does_carry_attrs_gets_past_the_line(self, stubbed_open_zarr):
-        """Characterisation of B262: handing getData a *dataset* instead of
-        a path makes it return, which localises the defect to the operand.
-        No caller in hera does that -- MetadataFrame.getData always passes
-        document.resource."""
-        import xarray
-
-        resource = _dataset()
-        assert isinstance(DataHandler_zarr_xarray.getData(resource), xarray.Dataset)
 
 
 # ---------------------------------------------------------------------------

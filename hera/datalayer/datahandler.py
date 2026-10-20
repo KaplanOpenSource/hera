@@ -468,7 +468,7 @@ class DataHandler_zarr_xarray(object):
         """
         import xarray
         df = xarray.open_zarr(resource, **kwargs)
-        resource.attrs = JSONToConfiguration(resource.attrs)
+        df.attrs = JSONToConfiguration(df.attrs)
         return df
 
 
