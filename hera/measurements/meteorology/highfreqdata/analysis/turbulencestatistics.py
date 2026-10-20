@@ -1257,7 +1257,7 @@ uStarOverWindSpeed
             self.StrucFunDir(tau_range=tau_range, dir1_data=ubar_new, u_dir1="y_hat1", v_dir1="y_hat2", w_dir1="y_hat3",
                              dir2_data = ubar_new, u_dir2="z_hat1", v_dir2="z_hat2", w_dir2="z_hat3",title="23" + title_additions)
         else:
-            raise("mode must be either MeanDir or 3dMeanDir")
+            raise ValueError("mode must be either MeanDir or 3dMeanDir")
 
         if "u_mag" not in self.TemporaryData.columns:
             self._TemporaryData["u_mag" + title_additions] = ((ubar_data[u_bar] ** 2 + ubar_data[v_bar] ** 2 + ubar_data[w_bar] ** 2) ** 0.5).loc[(ubar_data.index >=

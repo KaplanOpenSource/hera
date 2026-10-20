@@ -382,22 +382,11 @@ class TestStrucFunThreeDimensionalBasis:
 
 @pytest.mark.unit
 class TestStrucFunRejectsAnUnknownMode:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B303: StrucFun rejects an unknown mode with "
-               "raise(\"mode must be either MeanDir or 3dMeanDir\") -- it "
-               "raises the string rather than an exception, so Python "
-               "substitutes TypeError('exceptions must derive from "
-               "BaseException') and the diagnostic never reaches the "
-               "caller. See the consolidated findings issue.",
-    )
-    def test_the_error_should_explain_which_modes_exist(self, lazy):
-        with pytest.raises(Exception, match="mode must be either"):
-            lazy.StrucFun(tau_range=[1.0], ubar_data=_mean_wind(), mode="sideways")
-
-    def test_the_error_currently_says_nothing_about_modes(self, lazy):
-        """Characterisation of B303."""
-        with pytest.raises(TypeError, match="must derive from BaseException"):
+    def test_the_error_explains_which_modes_exist(self, lazy):
+        """B303: it used to `raise` the message string itself, so Python
+        substituted TypeError('exceptions must derive from BaseException')
+        and the diagnostic never reached the caller."""
+        with pytest.raises(ValueError, match="mode must be either MeanDir or 3dMeanDir"):
             lazy.StrucFun(tau_range=[1.0], ubar_data=_mean_wind(), mode="sideways")
 
 
