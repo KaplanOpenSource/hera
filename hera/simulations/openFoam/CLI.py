@@ -531,6 +531,10 @@ def stochasticLagrangian_postProcess_toParquet(arguments):
                 f"Found {arguments.dispersionName} as directory. Trying to use it as lagrangian simulation and save it in VTK format")
             outputName = arguments.dispersionName
             cache = False
+        else:
+            err = f"The name {arguments.dispersionName} is neither a stored workflow nor a directory"
+            logger.error(err)
+            raise ValueError(err)
     else:
         doc = docList[0]
         outputName = doc.desc['workflowName']
@@ -577,6 +581,10 @@ def stochasticLagrangian_postProcess_toVTK(arguments):
             logger.info(
                 f"Found {arguments.dispersionName} as directory. Trying to use it as lagrangian simulation and save it in VTK format")
             outputName = arguments.dispersionName
+        else:
+            err = f"The name {arguments.dispersionName} is neither a stored workflow nor a directory"
+            logger.error(err)
+            raise ValueError(err)
     else:
         doc = docList[0]
         outputName = doc.desc['workflowName']

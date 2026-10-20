@@ -29,10 +29,6 @@ Deliberately not tested:
 Bugs pinned here (each with a strict xfail for the intended behaviour plus
 a passing characterisation of what actually happens):
 
-  * B171: `..._postProcess_toParquet` / `..._postProcess_toVTK` leave
-    `outputName` unbound when the dispersion name is neither in the DB nor
-    a directory on disk, and die with UnboundLocalError instead of the
-    error message the surrounding code clearly intends.
   * B172: `foam_solver_simulations_list --format pandas --file out`
     tries to write a DataFrame *object* to a text file (TypeError).
   * B173: `stochasticLagrangian_dispersionFlow_list` never assigns
@@ -1573,36 +1569,14 @@ class TestPostProcessUnknownDispersionName:
          stochasticLagrangian_postProcess_toVTK],
         ids=["toParquet", "toVTK"],
     )
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B171: both postProcess handlers assign outputName only "
-               "inside `if os.path.isdir(...)` (and, in toParquet, `cache` "
-               "with it).  A dispersion name that is neither a stored "
-               "workflow nor a directory leaves the name unbound, so the "
-               "handler raises UnboundLocalError instead of the 'not found' "
-               "error the surrounding log messages clearly intend.  See the "
-               "consolidated findings issue.",
-    )
     def test_an_unknown_dispersion_name_should_be_reported_clearly(
         self, install_toolkit, in_tmp_cwd, handler
     ):
-        install_toolkit(_FakeOFToolkit(documents=[], caseResults="data"))
-        with pytest.raises(ValueError):
+        toolkit = _FakeOFToolkit(documents=[], caseResults="data")
+        install_toolkit(toolkit)
+        with pytest.raises(ValueError, match="neither a stored workflow nor a directory"):
             handler(_toParquetArgs(dispersionName="nowhere"))
-
-    @pytest.mark.parametrize(
-        "handler",
-        [stochasticLagrangian_postProcess_toParquet,
-         stochasticLagrangian_postProcess_toVTK],
-        ids=["toParquet", "toVTK"],
-    )
-    def test_an_unknown_dispersion_name_currently_raises_unboundlocalerror(
-        self, install_toolkit, in_tmp_cwd, handler
-    ):
-        """Characterisation of B171."""
-        install_toolkit(_FakeOFToolkit(documents=[], caseResults="data"))
-        with pytest.raises(UnboundLocalError, match="outputName"):
-            handler(_toParquetArgs(dispersionName="nowhere"))
+        assert "stochasticLagrangian.getCaseResults" not in toolkit.names()
 
 
 # ---------------------------------------------------------------------------
