@@ -239,7 +239,7 @@ class LSMToolkit(toolkit.abstractToolkit):
         """
         template = self.getTemplateByName(unitsTemplateVersion)
 
-        if 'units' in template._document['desc']:
+        if template is not None and 'units' in template._document['desc']:
             for key in template._document['desc']["units"].keys():
                 if key in query.keys():
                     query_item= query[key]

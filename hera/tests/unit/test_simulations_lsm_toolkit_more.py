@@ -14,10 +14,6 @@ nothing is submitted to a scheduler.
 Bugs pinned here, each with an xfail(strict) for the intended behaviour
 and a passing characterisation of what actually happens:
 
-  * B281: ``getSimulations`` dereferences
-    ``getTemplateByName(unitsTemplateVersion)`` without checking for None,
-    so it dies with AttributeError in any project that does not happen to
-    hold a template called "v4-general" (its default).
   * B282: ``getSimulations`` wraps ``SingleSimulation(doc)`` in a bare
     ``except:`` that prints a warning and drops the document, so callers
     silently receive a short list.
@@ -101,37 +97,27 @@ def slurmRecorder(monkeypatch):
 # ---------------------------------------------------------------------------
 
 @pytest.mark.unit
-class TestGetSimulationsNeedsAUnitsTemplate:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B281: getSimulations looks the units template up with "
-               "`template = self.getTemplateByName(unitsTemplateVersion)` "
-               "and immediately reads `template._document['desc']`. "
-               "getTemplateByName is documented to return None when the "
-               "template is absent (and does), so any project that has not "
-               "registered a template literally named 'v4-general' -- the "
-               "default -- cannot list its simulations at all: every call "
-               "raises AttributeError: 'NoneType' object has no attribute "
-               "'_document'. See the consolidated findings issue.",
-    )
-    def test_a_project_without_the_units_template_should_still_list_simulations(
+class TestGetSimulationsWithoutAUnitsTemplate:
+    """getTemplateByName returns None when the template is absent, so a
+    project that never registered one must simply fall back to the path for
+    a template that declares no units."""
+
+    def test_a_project_without_the_units_template_still_lists_simulations(
         self, lsm, registerSimulation, fakeSingleSimulation
     ):
         registerSimulation("sim1", TopoXmax=100)
         assert len(lsm.getSimulations(TopoXmax=100)) == 1
 
-    def test_a_project_without_the_units_template_currently_raises(self, lsm):
-        """Characterisation of B281."""
-        with pytest.raises(AttributeError, match="'NoneType' object has no attribute '_document'"):
-            lsm.getSimulations()
+    def test_an_empty_project_without_the_units_template_lists_nothing(self, lsm):
+        assert lsm.getSimulations() == []
 
-    def test_naming_a_template_that_does_not_exist_raises_the_same_way(
-        self, lsm, registerTemplate
+    def test_naming_a_template_that_does_not_exist_behaves_the_same_way(
+        self, lsm, registerTemplate, registerSimulation, fakeSingleSimulation
     ):
-        """Characterisation of B281: the default name is not the problem."""
         registerTemplate(name=TEMPLATE_NAME)
-        with pytest.raises(AttributeError, match="_document"):
-            lsm.getSimulations(unitsTemplateVersion="noSuchTemplate")
+        registerSimulation("sim1", TopoXmax=100)
+        found = lsm.getSimulations(unitsTemplateVersion="noSuchTemplate", TopoXmax=100)
+        assert [item.document.desc["simulationName"] for item in found] == ["sim1"]
 
 
 @pytest.mark.unit
