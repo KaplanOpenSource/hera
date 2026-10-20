@@ -268,8 +268,9 @@ class TestGetLandCover:
 
 
 @pytest.mark.unit
-class TestGetLandCoverIgnoresTheRasterCRS:
-    """B185: getLandCover never reprojects, unlike getLandCoverAtPoint."""
+class TestGetLandCoverHandlesTheRasterCRS:
+    """B185: getLandCover projects the grid into the raster's CRS, like
+    getLandCoverAtPoint."""
 
     @staticmethod
     def _itm_raster(tmp_path):
@@ -284,26 +285,8 @@ class TestGetLandCoverIgnoresTheRasterCRS:
         array, path = self._itm_raster(tmp_path)
         assert lc.getLandCoverAtPoint(lon=35.001, lat=32.001, dataSourceName=path) == 13
 
-    def test_the_grid_lookup_raises_on_an_itm_raster(self, lc, tmp_path):
-        """Characterisation of B185."""
-        _, path = self._itm_raster(tmp_path)
-        with pytest.raises(IndexError, match="out of bounds for axis 0"):
-            lc.getLandCover(dxdy=100, dataSourceName=path, **_BOX)
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B185: getLandCover indexes the raster with the grid's WGS84 "
-               "degrees directly -- it reads src.transform but never compares "
-               "src.crs to the input CRS, unlike getLandCoverAtPoint, which "
-               "builds a pyproj Transformer when they differ. On a landcover "
-               "raster in any projected CRS (ITM is the project's own second "
-               "constant) degrees-as-metres produce indices in the thousands "
-               "and the call dies with IndexError; a raster whose projected "
-               "extent happened to contain small index values would instead "
-               "return silently wrong classes. See the consolidated findings "
-               "issue.",
-    )
     def test_the_grid_lookup_agrees_with_the_point_lookup_on_an_itm_raster(self, lc, tmp_path):
+        """B185."""
         _, path = self._itm_raster(tmp_path)
         grid = lc.getLandCover(dxdy=100, dataSourceName=path, **_BOX)
         assert set(np.unique(grid.landcover.values)) == {13}

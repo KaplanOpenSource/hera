@@ -251,6 +251,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         if isinstance(dataSourceName, str) and os.path.isfile(dataSourceName):
             with rasterio.open(dataSourceName) as src:
                 img = src.read(1)
+                rasterCRS = src.crs
                 lonUpperLeft, latUpperLeft = src.transform[2], src.transform[5]
                 lonResolution, latResolution = src.transform[0], src.transform[4]
         else:
@@ -259,6 +260,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
                 # dataFormat="string" returns the file path; open with rasterio
                 with rasterio.open(ds) as src:
                     img = src.read(1)
+                    rasterCRS = src.crs
                     lonUpperLeft, latUpperLeft = src.transform[2], src.transform[5]
                     lonResolution, latResolution = src.transform[0], src.transform[4]
             elif hasattr(ds, "GetRasterBand"):
@@ -266,10 +268,12 @@ class LandCoverToolkit(toolkit.abstractToolkit):
                 file_path = ds.GetDescription()
                 with rasterio.open(file_path) as src:
                     img = src.read(1)
+                    rasterCRS = src.crs
                     lonUpperLeft, latUpperLeft = src.transform[2], src.transform[5]
                     lonResolution, latResolution = src.transform[0], src.transform[4]
             else:
                 img = ds.read(1)
+                rasterCRS = ds.crs
                 lonUpperLeft, latUpperLeft = ds.transform[2], ds.transform[5]
                 lonResolution, latResolution = ds.transform[0], ds.transform[4]
 
@@ -283,7 +287,14 @@ class LandCoverToolkit(toolkit.abstractToolkit):
             latResolution=latResolution
         ))
 
-        landcover = vectorizedLandCover(xarray_dataset.lat.values, xarray_dataset.lon.values)
+        # create_xarray always returns the grid's lat/lon in WSG84, so project
+        # them to the raster's own CRS before indexing it (as getLandCoverAtPoint does).
+        lonValues, latValues = xarray_dataset.lon.values, xarray_dataset.lat.values
+        if rasterCRS is not None and rasterCRS.to_epsg() is not None and rasterCRS.to_epsg() != WSG84:
+            transformer = Transformer.from_crs(WSG84, rasterCRS.to_epsg(), always_xy=True)
+            lonValues, latValues = transformer.transform(lonValues, latValues)
+
+        landcover = vectorizedLandCover(latValues, lonValues)
         xarray_dataset = xarray_dataset.assign_coords(landcover=(('i', 'j'), landcover))
         return xarray_dataset
 
