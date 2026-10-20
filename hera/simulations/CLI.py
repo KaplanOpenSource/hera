@@ -120,7 +120,7 @@ def workflow_delete(arguments):
     with open("completeDelete.py","w") as outfile:
         outfile.write("\n".join(completeRemove))
 
-    print("In order to remove all directories from disk type: python completeRemove.py")
+    print("In order to remove all directories from disk type: python completeDelete.py")
 
 def workflow_export(arguments):
     """

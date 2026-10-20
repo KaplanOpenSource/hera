@@ -22,8 +22,6 @@ Deliberately not tested:
 
 Bugs pinned here (each with an xfail for the intended behaviour plus a
 passing characterisation of what actually happens):
-  * workflow_delete tells the user to run a script whose name it never
-    wrote ("completeRemove.py" vs the "completeDelete.py" it writes);
   * workflow_list reads `arguments.object`, an attribute the `list
     workflows` parser never defines, on the very path that reports "not
     found" -- and then indexes the empty list anyway;
@@ -473,31 +471,14 @@ class TestWorkflowDelete:
         workflow_delete(_deleteArgs(Export=True))
         assert (in_tmp_cwd / "completeDelete.py").read_text() == ""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B131: workflow_delete writes its cleanup script to "
-               "'completeDelete.py' but prints 'python completeRemove.py'; "
-               "following the instruction fails with 'No such file'. "
-               "See the consolidated findings issue.",
-    )
     def test_the_script_name_it_prints_is_the_one_it_wrote(
         self, install_toolkit, in_tmp_cwd, capsys
     ):
         install_toolkit(_FakeWorkflowToolkit(documents=[_FakeDocument("wf_0")]))
         workflow_delete(_deleteArgs())
         printed = capsys.readouterr().out
-        assert "completeDelete.py" in printed
-
-    def test_it_currently_points_the_user_at_a_file_that_does_not_exist(
-        self, install_toolkit, in_tmp_cwd, capsys
-    ):
-        """Characterisation of B131."""
-        install_toolkit(_FakeWorkflowToolkit(documents=[_FakeDocument("wf_0")]))
-        workflow_delete(_deleteArgs())
-        printed = capsys.readouterr().out
-        assert "python completeRemove.py" in printed
+        assert "python completeDelete.py" in printed
         assert (in_tmp_cwd / "completeDelete.py").exists()
-        assert not (in_tmp_cwd / "completeRemove.py").exists()
 
 
 # ---------------------------------------------------------------------------
