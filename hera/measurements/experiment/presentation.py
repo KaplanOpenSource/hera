@@ -478,8 +478,8 @@ class experimentPresentation:
         """
         import matplotlib.pyplot as plt
         if ax is None:
-            plot_kwargs = plot_kwargs or {}
-            fig, ax = plt.subplots(1, 1, **plot_kwargs)
+            plotkwargs = plotkwargs or {}
+            fig, ax = plt.subplots(1, 1, **plotkwargs)
         else:
             fig = ax.figure
 

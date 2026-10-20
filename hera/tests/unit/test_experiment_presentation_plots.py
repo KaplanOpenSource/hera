@@ -80,13 +80,15 @@ Bugs pinned here
   property, ``self._entityMarkers`` is never defined on the class, and
   ``FLOOR_PLATFORM``/``FLOOR_CONCOURSE`` are undefined names in the
   module.
-* B221: ``plotDevices`` opens with ``plot_kwargs = plot_kwargs or {}``,
-  reading a local before it is assigned -- the parameter is spelled
-  ``plotkwargs`` -- so with the default ``ax=None`` it raises
-  ``UnboundLocalError``; passing an ``ax`` skips that line only to hit
-  ``self.trialSet`` (B219's mistake again) and, behind it,
-  ``self.datalayer._process_row`` (dead per B160) and ``row.stationName``,
-  a column argos does not produce.
+* B221 (partly fixed): ``plotDevices`` opened with
+  ``plot_kwargs = plot_kwargs or {}``, reading a local before it was
+  assigned -- the parameter is spelled ``plotkwargs`` -- so with the
+  default ``ax=None`` it raised ``UnboundLocalError``. That name is
+  fixed. The method is still dead one statement later on
+  ``self.trialSet`` (B219's mistake again) and, behind that, on
+  ``row.stationName``, a column argos does not produce -- neither of
+  which is pinned as a defect of its own, and the second of which needs
+  a decision about what a device's station is.
 * B222 (fixed): ``plotDevicesOnImage`` read ``row.containedIn`` for every
   device, but argos's ``fillContained`` only creates that column when at
   least one device on the trial declares containment. For the ordinary
@@ -736,45 +738,45 @@ class TestPlotEntityLocationHelpers:
 
 @pytest.mark.unit
 class TestPlotDevices:
-    """B221: a misspelled local, then B219's mistake again."""
+    """B221: the misspelled local is gone; B219's mistake is next."""
 
-    def test_the_keyword_parameter_is_spelled_without_an_underscore(self):
-        """Characterisation of B221: the name the body reads does not exist."""
+    def test_the_body_now_reads_the_parameter_it_was_given(self):
+        """B221: the body used to read an unassigned plot_kwargs."""
         parameters = inspect.signature(experimentPresentation.plotDevices).parameters
         assert "plotkwargs" in parameters
         assert "plot_kwargs" not in parameters
-        assert "plot_kwargs" in inspect.getsource(experimentPresentation.plotDevices)
+        assert "plot_kwargs" not in inspect.getsource(experimentPresentation.plotDevices)
 
     @pytest.mark.xfail(
         strict=True,
-        reason="B221: plotDevices opens with plot_kwargs = plot_kwargs or {} "
-               "while its parameter is spelled plotkwargs, so with the "
-               "default ax=None it raises UnboundLocalError. Behind it: "
-               "self.trialSet (B219's mistake), self.datalayer._process_row "
-               "(dead per B160) and row.stationName, a column argos does not "
-               "produce. See the consolidated findings issue.",
+        reason="plotDevices is still dead one statement after the B221 fix: "
+               "it reads self.trialSet, but trialSet lives on the datalayer "
+               "(B219's mistake again), and behind that it reads "
+               "row.stationName, a column argos does not produce. Neither is "
+               "pinned as a defect of its own and the second needs a product "
+               "decision. See the consolidated findings issue.",
     )
     def test_it_should_plot_the_devices_of_the_trial(self, presentation):
         fig, ax = presentation.plotDevices("Measurements", "T1", "sonic", "map1")
         assert len(ax.collections) == 2
 
-    def test_it_currently_raises_an_unbound_local_error(self, presentation):
-        """Characterisation of B221."""
-        with pytest.raises(UnboundLocalError, match="plot_kwargs"):
+    def test_it_now_gets_as_far_as_the_trial_set_lookup(self, presentation):
+        """B221: this used to be an UnboundLocalError on plot_kwargs."""
+        with pytest.raises(AttributeError, match="trialSet"):
             presentation.plotDevices("Measurements", "T1", "sonic", "map1")
 
-    def test_passing_an_axes_skips_that_line_and_fails_on_the_trial_sets(self, presentation):
-        """Characterisation of B221: the second defect on the same path."""
+    def test_passing_an_axes_reaches_the_same_statement(self, presentation):
         _, ax = plt.subplots()
         with pytest.raises(AttributeError, match="trialSet"):
             presentation.plotDevices("Measurements", "T1", "sonic", "map1", ax=ax)
 
-    def test_the_plot_keywords_argument_cannot_be_used_either(self, presentation):
-        """Characterisation of B221: naming the real parameter does not help,
-        because the body still reads the misspelled local."""
-        with pytest.raises(UnboundLocalError, match="plot_kwargs"):
+    def test_the_plot_keywords_argument_reaches_the_subplot_call(self, presentation):
+        """B221: naming the real parameter now reaches plt.subplots, which
+        is what it is meant to configure."""
+        with pytest.raises(AttributeError, match="trialSet"):
             presentation.plotDevices("Measurements", "T1", "sonic", "map1",
                                      plotkwargs=dict(figsize=(3, 4)))
+        assert plt.gcf().get_size_inches().tolist() == [3.0, 4.0]
 
 
 # ---------------------------------------------------------------------------
