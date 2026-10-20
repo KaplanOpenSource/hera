@@ -34,8 +34,8 @@ Deliberately not covered here:
   assert row counts and geometry rather than datetime values.
 
 Bugs found while writing this file: B122 (``Injury.__str__`` returned
-None), now fixed, and B123 (the "injuries found" list is mangled), B124
-(an empty ``calculator`` mapping does not raise the documented
+None) and B123 (the "injuries found" list was mangled), both now fixed,
+and B124 (an empty ``calculator`` mapping does not raise the documented
 ValueError) and B125 (a descriptor-level ``units`` string becomes a
 Quantity where a pint Unit is documented), still pinned below as
 xfail(strict)/characterisation pairs.
@@ -224,23 +224,12 @@ class TestInjuryFactoryValidation:
         listing = str(raised.value).split("Injuries found:")[1]
         return {name.strip() for name in listing.split(",")}
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B123: the 'Injuries found' list is built by stripping six "
-               "characters off every dir() entry starting with 'Injury', so "
-               "it advertises 'Factory' (from InjuryFactory, not an injury "
-               "at all) and an empty name (from the abstract Injury base), "
-               "while omitting nothing else -- the hint names things the "
-               "caller cannot use. See the consolidated findings issue.",
-    )
     def test_the_hint_lists_exactly_the_implemented_injuries(self):
+        """B123, fixed: the list was built by stripping six characters off
+        every dir() entry starting with 'Injury', so it advertised 'Factory'
+        (from InjuryFactory, not an injury) and an empty name (from the
+        abstract Injury base)."""
         assert self._injuries_found() == {"Lognormal10", "Threshold", "Exponential"}
-
-    def test_the_hint_currently_advertises_the_factory_and_the_base_class(self):
-        """Characterisation of B123."""
-        found = self._injuries_found()
-        assert "Factory" in found
-        assert "" in found
 
     def test_an_unknown_calculator_name_currently_fails_opaquely(self):
         """Robustness note (not pinned as a bug): the injury type gets a

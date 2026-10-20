@@ -61,7 +61,9 @@ class InjuryFactory(object):
 		
 		if injuryCLS is None: 
 			
-			injuryExists  = ",".join([x[6:] for x in dir(pydoc.locate("hera.riskassessment.agents.effects.Injury")) if x.startswith("Injury")])
+			injuryModule  = pydoc.locate("hera.riskassessment.agents.effects.Injury")
+			injuryExists  = ",".join(sorted(name[6:] for name,cls in vars(injuryModule).items()
+											if isinstance(cls,type) and issubclass(cls,Injury) and cls is not Injury))
 
 			raise NotImplementedError("The injury %s is not defined. Injuries found: %s  " % (injuryType,injuryExists))
 
