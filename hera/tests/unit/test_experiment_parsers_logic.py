@@ -23,19 +23,20 @@ tests exercise what the parsers actually do when called).
 
 * Parser_OldStyleMetaDataParquet:
 
-  B90: ``_getLists`` builds ``stationsData`` with
+  B90 (fixed): ``_getLists`` built ``stationsData`` with
   ``pandas.DataFrame.from_dict(descriptionData['stationLocations'])`` --
   the default ``orient="columns"`` treats each station name as a *column*
   and its attribute names (``lat``/``lon``/``station_code``) as the *row
   index*. The rest of the method (``.reset_index().rename(columns=
   {"index": "station_name"})``, then ``stndata['lat'].item()``) only makes
   sense if stations are rows and attributes are columns, i.e.
-  ``orient="index"``. With the current orientation, ``reset_index()``
-  produces a ``station_name`` column containing the strings
-  ``"lat"``/``"lon"``/``"station_code"`` instead of station names, and
-  ``stndata['lat']`` raises ``KeyError`` for any real multi-field station
-  dict. This breaks ``_getLists``/``getExperimentDict``/``parse`` for any
-  campaign with more than a single bare value per station.
+  ``orient="index"``, which is what it now passes. With the old
+  orientation, ``reset_index()`` produced a ``station_name`` column
+  containing the strings ``"lat"``/``"lon"``/``"station_code"`` instead of
+  station names, and ``stndata['lat']`` raised ``KeyError`` for any real
+  multi-field station dict, breaking
+  ``_getLists``/``getExperimentDict``/``parse`` for any campaign with more
+  than a single bare value per station.
 """
 import json
 import struct
@@ -124,9 +125,9 @@ def _write_campaign(tmp_path, metadata, station_locations):
 
 
 @pytest.mark.unit
-class TestParserOldStyleMetaDataParquetGetListsIsBroken:
-    """B90: stationsData is built with the wrong DataFrame.from_dict
-    orientation -- see the module docstring."""
+class TestParserOldStyleMetaDataParquetGetLists:
+    """B90: stationsData is built with stations as rows -- see the module
+    docstring."""
 
     METADATA = {
         "stations": {
@@ -139,29 +140,22 @@ class TestParserOldStyleMetaDataParquetGetListsIsBroken:
     }
     STATION_LOCATIONS = {"STN1": {"lat": 32.1, "lon": 34.8, "station_code": "S1"}}
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B90: DataFrame.from_dict(stationLocations) uses the default "
-               "orient='columns', putting attribute names in the row index "
-               "instead of station names -- stndata['lat'] raises KeyError "
-               "for any real (multi-field) station dict. "
-               "See the consolidated findings issue.",
-    )
-    def test_parse_should_wrap_everything_under_the_campaign_name(self, tmp_path):
+    def test_parse_wraps_everything_under_the_campaign_name(self, tmp_path):
         _write_campaign(tmp_path, self.METADATA, self.STATION_LOCATIONS)
-        Parser_OldStyleMetaDataParquet().parse(str(tmp_path))
+        parsed = Parser_OldStyleMetaDataParquet().parse(str(tmp_path))
+        assert list(parsed.keys()) == ["MyCampaign"]
 
-    def test_parse_currently_raises_a_keyerror_on_lat(self, tmp_path):
-        """Characterisation of B90."""
+    def test_the_station_coordinates_reach_the_asset(self, tmp_path):
+        """B90: the station row is found by name, so lat/lon are readable."""
         _write_campaign(tmp_path, self.METADATA, self.STATION_LOCATIONS)
-        with pytest.raises(KeyError, match="lat"):
-            Parser_OldStyleMetaDataParquet().parse(str(tmp_path))
+        parsed = Parser_OldStyleMetaDataParquet().parse(str(tmp_path))
+        asset = parsed["MyCampaign"]["assets"]["STN1"]
+        assert asset["codeName"] == "S1"
+        assert asset["properties"]["coords"] == [32.1, 34.8]
 
-    def test_it_fails_the_same_way_for_any_station_shape(self, tmp_path):
-        """Characterisation of B90: the wrong orientation means the
-        'station_name' column never actually holds station names, so the
-        query-then-lookup pattern fails regardless of how many attributes
-        each station carries."""
+    def test_a_station_without_lat_still_raises(self, tmp_path):
+        """The orientation is right, but a station that really has no 'lat'
+        attribute still cannot supply one."""
         _write_campaign(tmp_path, self.METADATA, {"STN1": {"only_field": 1}})
         with pytest.raises(KeyError, match="lat"):
             Parser_OldStyleMetaDataParquet().parse(str(tmp_path))

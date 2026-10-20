@@ -108,7 +108,7 @@ class Parser_OldStyleMetaDataParquet():
         devicesList = []
         assetsDict=dict()
 
-        stationsData = pandas.DataFrame.from_dict(descriptionData['stationLocations'])\
+        stationsData = pandas.DataFrame.from_dict(descriptionData['stationLocations'],orient="index")\
             .reset_index()\
             .rename(columns={"index": "station_name"})
 
