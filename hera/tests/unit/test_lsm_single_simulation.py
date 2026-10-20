@@ -1,14 +1,6 @@
 """LSM/singleSimulation.py: SingleSimulation wraps an LSM run's final
 xarray dataset and derives dosage/concentration from it.
 
-B98: ``getConcentrationAtPoint`` -- called exactly as documented, with a
-single scalar x/y/datetime (the "point" the name promises) -- always
-raises ``IndexError``. ``.interp(x=x, y=y, datetime=datetime)`` on a
-fully-specified single point collapses every matching dimension and
-returns a 0-dimensional DataArray; ``.values`` on that is a 0-d numpy
-array (shape ``()``), and indexing it with ``[0]`` raises
-``IndexError: too many indices for array: array is 0-dimensional, but 1
-were indexed``.
 """
 import numpy
 import pandas
@@ -106,18 +98,11 @@ class TestGetConcentration:
 
 
 @pytest.mark.unit
-class TestGetConcentrationAtPointIsBroken:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B98: interp(x=x, y=y, datetime=datetime) on a single fully "
-               "-specified point returns a 0-dimensional DataArray; "
-               ".values[0] on a 0-d array raises IndexError. "
-               "See the consolidated findings issue.",
-    )
-    def test_it_should_return_the_concentration_at_a_point(self, sim, datetime_times):
-        sim.getConcentrationAtPoint(x=0.5, y=0.5, datetime=datetime_times[1])
-
-    def test_it_currently_raises_indexerror(self, sim, datetime_times):
-        """Characterisation of B98."""
-        with pytest.raises(IndexError, match="0-dimensional"):
-            sim.getConcentrationAtPoint(x=0.5, y=0.5, datetime=datetime_times[1])
+class TestGetConcentrationAtPoint:
+    def test_it_returns_the_concentration_at_a_point(self, sim, datetime_times):
+        value = sim.getConcentrationAtPoint(x=0.5, y=0.5, datetime=datetime_times[1])
+        expected = sim.getConcentration()["C"].interp(
+            x=0.5, y=0.5, datetime=datetime_times[1]
+        ).values
+        assert numpy.ndim(value) == 0
+        assert numpy.allclose(value, expected)

@@ -126,7 +126,7 @@ class SingleSimulation(object):
         con: float
             The concentration at the requested point and time
         """
-        return self.getConcentration(Q=Q, time_units=time_units, q_units=q_units)['C'].interp(x=x, y=y, datetime=datetime).values[0]
+        return self.getConcentration(Q=Q, time_units=time_units, q_units=q_units)['C'].interp(x=x, y=y, datetime=datetime).values
 
     # def toVTK(self, data, outputdir, name, fields):
     #     from pyevtk.hl import gridToVTK
