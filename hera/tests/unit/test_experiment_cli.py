@@ -21,10 +21,6 @@ tree.  The argparse wiring in ``hera/bin/hera-experiment`` also stays
 untested: it sits under ``if __name__ == "__main__"`` and cannot be
 imported.
 
-One bug is pinned here:
-
-* B130 -- ``create_experiment`` writes ``createNodeRedDeviceMap.sh`` into
-  the process cwd instead of the experiment directory.
 """
 import json
 import os
@@ -500,7 +496,6 @@ class TestCreateExperiment:
         return arguments
 
     def test_it_creates_the_code_and_data_directories(self, tmp_path, projectCLI, monkeypatch):
-        monkeypatch.chdir(tmp_path)  # the nodered script write (B130) lands in the cwd
         target = tmp_path / "windTunnel"
         CLI.create_experiment(self._arguments(str(target)))
 
@@ -514,7 +509,6 @@ class TestCreateExperiment:
         assert (tmp_path / "windTunnel" / "code").is_dir()
 
     def test_it_asks_the_project_cli_to_create_a_project_named_after_the_experiment(self, tmp_path, projectCLI, monkeypatch):
-        monkeypatch.chdir(tmp_path)  # the nodered script write (B130) lands in the cwd
         target = tmp_path / "windTunnel"
         arguments = self._arguments(str(target))
         CLI.create_experiment(arguments)
@@ -526,7 +520,6 @@ class TestCreateExperiment:
         assert arguments.loadRepositories is True
 
     def test_an_existing_class_file_is_not_regenerated(self, tmp_path, projectCLI, monkeypatch):
-        monkeypatch.chdir(tmp_path)  # the nodered script write (B130) lands in the cwd
         target = tmp_path / "windTunnel"
         (target / "code").mkdir(parents=True)
         (target / "code" / "windTunnel.py").write_text("# hand written\n")
@@ -536,7 +529,6 @@ class TestCreateExperiment:
         assert (target / "code" / "windTunnel.py").read_text() == "# hand written\n"
 
     def test_creating_an_experiment_should_finish(self, tmp_path, projectCLI, monkeypatch):
-        monkeypatch.chdir(tmp_path)  # the nodered script write (B130) lands in the cwd
         target = tmp_path / "windTunnel"
         CLI.create_experiment(self._arguments(str(target)))
         assert (target / "windTunnel_repository.json").exists()
@@ -545,12 +537,8 @@ class TestCreateExperiment:
     # -- the nodered script ------------------------------------------------
 
     def _createFromAnotherDirectory(self, tmp_path, arguments, monkeypatch):
-        """Run create_experiment from a cwd that is not the experiment path.
-
-        The chdir is not cosmetic: the run reaches the
-        createNodeRedDeviceMap.sh write, which lands in the cwd (B130) --
-        without it the test litters the repository root.
-        """
+        """Run create_experiment from a cwd that is not the experiment path,
+        so that anything written with a bare filename is visible."""
         cwd = tmp_path / "elsewhere"
         cwd.mkdir(exist_ok=True)
         monkeypatch.chdir(cwd)
@@ -566,29 +554,14 @@ class TestCreateExperiment:
         assert arguments.repositoryName == str(target / "windTunnel_repository.json")
         assert (target / "windTunnel_repository.json").exists()
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B130: create_experiment writes createNodeRedDeviceMap.sh "
-               "with a bare filename instead of "
-               "os.path.join(experiment_path, ...), so with --path the "
-               "script lands in the process cwd rather than in the new "
-               "experiment directory. See the consolidated findings issue.",
-    )
     def test_the_nodered_script_should_land_in_the_experiment_directory(self, tmp_path, projectCLI, monkeypatch):
-        target = tmp_path / "windTunnel"
-        self._createFromAnotherDirectory(tmp_path, self._arguments(str(target)), monkeypatch)
-
-        assert (target / "createNodeRedDeviceMap.sh").exists()
-
-    def test_the_nodered_script_currently_lands_in_the_current_directory(self, tmp_path, projectCLI, monkeypatch):
-        """Characterisation of B130."""
         target = tmp_path / "windTunnel"
         cwd = self._createFromAnotherDirectory(tmp_path, self._arguments(str(target)), monkeypatch)
 
-        script = cwd / "createNodeRedDeviceMap.sh"
+        script = target / "createNodeRedDeviceMap.sh"
         assert script.read_text() == "argos-experiment-manager nodered createDeviceMap"
         assert os.access(script, os.X_OK)
-        assert not (target / "createNodeRedDeviceMap.sh").exists()
+        assert not (cwd / "createNodeRedDeviceMap.sh").exists()
 
 
 # ---------------------------------------------------------------------------
