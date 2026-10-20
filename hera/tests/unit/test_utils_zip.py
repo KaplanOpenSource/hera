@@ -158,13 +158,6 @@ class TestListJsonFilesInZip:
             "conf.json.bak"
         ]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B6: on UnicodeDecodeError the handler prints and falls through, "
-               "leaving `content` unbound, so the next line raises "
-               "UnboundLocalError instead of skipping the member. "
-               "See the consolidated findings issue.",
-    )
     def test_an_undecodable_json_member_is_skipped(self, tmp_path):
         """The code says 'Binary file, skipped reading content' -- so skip it."""
         target = tmp_path / "bad.zip"

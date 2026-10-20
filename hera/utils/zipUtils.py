@@ -82,6 +82,7 @@ def list_json_files_in_zip(zip_path):
                         content = file.read().decode('utf-8')
                     except UnicodeDecodeError:
                         print("Binary file, skipped reading content.")
+                        continue
 
                 jsonFiles.append(dict(name=file_name,content=loadJSON((content))))
 
