@@ -318,29 +318,21 @@ class TestPlotProbContourf:
             contour_values=dict(under_value=0.0, max_value=0.5, contourfnum=6))
         assert numpy.allclose(CFS.levels, [0.0, 0.1, 0.2, 0.3, 0.4, 0.5])
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B298: _labelsdict['levels'] is frozen in Plots.__init__ "
-               "from the *default* _contourvalsdict and is never rebuilt "
-               "from the effective levels, so any contour_values override "
-               "leaves the clabel levels outside CS.levels and ax.clabel "
-               "raises. withLabels defaults to True, so overriding "
-               "contour_values at all is enough to break the call. See the "
-               "consolidated findings issue.",
-    )
-    def test_overriding_the_contour_values_should_still_label_the_lines(self, daily):
-        daily.plotProbContourf(
+    def test_overriding_the_contour_values_still_labels_the_lines(self, daily):
+        """B298: _labelsdict['levels'] was frozen in Plots.__init__ from the
+        *default* _contourvalsdict and never rebuilt, so any contour_values
+        override left the clabel levels outside CS.levels and clabel raised --
+        and withLabels defaults to True."""
+        CS, _, _ = daily.plotProbContourf(
             _scattered(), "WS",
             contour_values=dict(under_value=0.0, max_value=0.5, contourfnum=6))
+        assert numpy.allclose(CS.levels, [0.0, 0.2, 0.4])
 
-    def test_overriding_the_contour_values_currently_breaks_the_labels(self, daily):
-        """Characterisation of B298."""
-        with pytest.raises(ValueError, match="don't match available levels"):
-            daily.plotProbContourf(
-                _scattered(), "WS",
-                contour_values=dict(under_value=0.0, max_value=0.5, contourfnum=6))
+    def test_the_default_label_levels_are_the_default_line_levels(self, daily):
+        CS, _, _ = daily.plotProbContourf(_scattered(), "WS")
+        assert numpy.allclose(CS.levels, LINE_LEVELS)
 
-    def test_labels_properties_can_repair_the_mismatch(self, daily):
+    def test_labels_properties_still_override_the_levels(self, daily):
         CS, _, _ = daily.plotProbContourf(
             _scattered(), "WS",
             contour_values=dict(under_value=0.0, max_value=0.5, contourfnum=6),

@@ -599,6 +599,10 @@ class DailyPlots(Plots):
         # Read and update levels and labels properties #
 
         labels_props = dict(self._labelsdict)
+        # The label levels must be a subset of the levels the contour is drawn
+        # with, so take them from the effective levels rather than from the
+        # defaults _labelsdict was frozen with in __init__.
+        labels_props['levels'] = countour_levels
         if normalization == 'y_normalized':
             labels_props.update(dict(levels= numpy.linspace(conrourvals_props['under_value'],
                                                             numpy.ceil(M_hist.max() * 100) / 100,
