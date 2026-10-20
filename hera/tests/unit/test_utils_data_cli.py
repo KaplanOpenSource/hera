@@ -34,8 +34,8 @@ values that must appear in it, never character by character.
 
 Three bugs are pinned here:
 
-* B179 -- ``toolkit_register`` calls ``registerToolkit`` with the
-  undefined names ``toolkit_name``/``toolkit_path``, so the command can
+* B179 (fixed) -- ``toolkit_register`` called ``registerToolkit`` with the
+  undefined names ``toolkit_name``/``toolkit_path``, so the command could
   never register anything.
 * B180 -- ``update_datasource_default_version`` calls
   ``setDataSourceDefaultVersion`` on a ``Project``, but that method only
@@ -1522,7 +1522,7 @@ class TestToolkitList:
 
 
 @pytest.mark.unit
-class TestToolkitRegisterIsBroken:
+class TestToolkitRegister:
     LOCATABLE = "hera.utils.data.CLI.load_project_name"
 
     def _arguments(self, **overrides):
@@ -1532,35 +1532,21 @@ class TestToolkitRegisterIsBroken:
             setattr(arguments, key, value)
         return arguments
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B179: toolkit_register calls "
-               "th.registerToolkit(toolkit_name=toolkit_name, "
-               "toolkit_path=toolkit_path, ...) but neither name is ever "
-               "defined -- the handler's own values are called cls_path and "
-               "name. The NameError is swallowed by the bare `except "
-               "Exception`, which prints '[ERROR] name \"toolkit_name\" is "
-               "not defined' and returns 0, so the command silently "
-               "registers nothing and its --version/--repository parsing is "
-               "unreachable. See the consolidated findings issue.",
-    )
-    def test_registering_a_toolkit_should_reach_toolkithome(self, wired):
+    def test_registering_a_toolkit_reaches_toolkithome(self, wired):
         CLI.toolkit_register(self._arguments())
         assert wired.home.kwargs("registerToolkit")["toolkit_name"] == "MyToolkit"
 
-    def test_it_currently_prints_a_nameerror_and_registers_nothing(self, wired, capsys):
-        """Characterisation of B179."""
+    def test_the_classpath_is_forwarded_as_the_toolkit_path(self, wired):
         CLI.toolkit_register(self._arguments())
+        assert wired.home.kwargs("registerToolkit")["toolkit_path"] == self.LOCATABLE
 
-        out = capsys.readouterr().out
-        assert "[ERROR]" in out
-        assert "toolkit_name" in out and "is not defined" in out
-        assert wired.home.names() == []
+    def test_the_parsed_version_is_forwarded(self, wired):
+        CLI.toolkit_register(self._arguments())
+        assert wired.home.kwargs("registerToolkit")["version"] == (1, 2, 3)
 
-    def test_the_module_really_has_no_toolkit_name_global(self):
-        """Characterisation of B179: nothing supplies the missing names."""
-        assert not hasattr(CLI, "toolkit_name")
-        assert not hasattr(CLI, "toolkit_path")
+    def test_a_successful_registration_is_announced(self, wired, capsys):
+        CLI.toolkit_register(self._arguments())
+        assert "Toolkit 'MyToolkit' registered" in capsys.readouterr().out
 
     def test_an_unlocatable_classpath_is_reported_before_the_nameerror(self, wired, capsys):
         CLI.toolkit_register(self._arguments(cls="no.such.module.Class"))
@@ -1574,10 +1560,10 @@ class TestToolkitRegisterIsBroken:
         capsys.readouterr()
         assert wired.home.projectName == "MY_PROJECT"
 
-    def test_a_malformed_version_does_not_raise(self, wired, capsys):
+    def test_a_malformed_version_falls_back_to_the_default(self, wired, capsys):
         """The (0,0,1) fallback keeps a bad --version from surfacing at all."""
         CLI.toolkit_register(self._arguments(version="not,a,version"))
-        assert "[ERROR]" in capsys.readouterr().out
+        assert wired.home.kwargs("registerToolkit")["version"] == (0, 0, 1)
 
 
 @pytest.mark.unit

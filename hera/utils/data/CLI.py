@@ -679,8 +679,8 @@ def toolkit_register(arguments):
 
         # Call registerToolkit
         th.registerToolkit(
-            toolkit_name = toolkit_name,
-            toolkit_path = toolkit_path,
+            toolkit_name = name,
+            toolkit_path = cls_path,
             params = None,
             version = version,
             overwrite = False,
