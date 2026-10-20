@@ -25,11 +25,11 @@ that is 6 x 7 = 42 points.  The asymmetry (``maxY`` gets an extra
 ``width``, ``maxX`` does not) is the algorithm's own, and is asserted as
 such.
 
-Two bugs were found here.  B263, fixed: ``_doCalculation`` called a method
-that does not exist (``datalayer`` instead of ``project``), so no sweep
-could complete.  B266: ``_findBoundingBox`` cannot even size its mesh when
-the final time step has a single isopleth row, which is the normal shape
-for a single-severity injury.  A real (unmocked) projection is still
+Two bugs were found here, both now fixed.  B263: ``_doCalculation`` called
+a method that does not exist (``datalayer`` instead of ``project``), so no
+sweep could complete.  B266: ``_findBoundingBox`` could not even size its
+mesh when the final time step had a single isopleth row, which is the normal
+shape for a single-severity injury.  A real (unmocked) projection is still
 blocked one line past B263 by a geometry column reaching ``groupby().sum()``
 -- a separate, later defect, documented with the two xfails below.
 ``calculate``'s parallel branch is not exercised here because
@@ -236,8 +236,8 @@ class TestFindBoundingBox:
 # ---------------------------------------------------------------------------
 
 @pytest.mark.unit
-class TestASingleIsoplethRowBreaksTheMesh:
-    """B266: see the reasons below."""
+class TestASingleIsoplethRow:
+    """B266, fixed: see the reasons below."""
 
     @staticmethod
     def _single():
@@ -246,21 +246,13 @@ class TestASingleIsoplethRowBreaksTheMesh:
         frame = frame[frame["severity"] == "Light"]
         return thresholdGeoDataFrame(frame, geometry="ThresholdPolygon")
 
-    REASON = (
-        "B266: _findBoundingBox narrows the isopleths to the last time step "
-        "with effectIsopleths.set_index('datetime').loc[maxdatetime].  When "
-        "only one row carries that timestamp, pandas' .loc on a scalar key "
-        "returns a Series rather than a one-row frame, and the next line "
-        "(bounds_effectIsopleths.set_geometry(geometryColumn)) raises "
-        "AttributeError: 'Series' object has no attribute 'set_geometry'.  "
-        "One row per final time step is the normal shape for an injury with a "
-        "single severity level, so the sweep cannot size its mesh for such an "
-        "agent.  Selecting with .loc[[maxdatetime]] (or a boolean mask) keeps "
-        "the frame.  See the consolidated findings issue."
-    )
-
-    @pytest.mark.xfail(strict=True, reason=REASON)
-    def test_a_single_severity_should_still_size_the_mesh(self, sweep):
+    def test_a_single_severity_still_sizes_the_mesh(self, sweep):
+        """B266, fixed: _findBoundingBox narrowed the isopleths to the last
+        time step with .loc[maxdatetime].  When only one row carried that
+        timestamp -- the normal shape for an injury with a single severity
+        level -- pandas returned a Series rather than a one-row frame, and
+        the next line raised AttributeError: 'Series' object has no
+        attribute 'set_geometry'.  .loc[[maxdatetime]] keeps the frame."""
         mesh = sweep._findBoundingBox(self._single(), _demography(),
                                       mathematical_angle=0.0)
 
@@ -268,17 +260,9 @@ class TestASingleIsoplethRowBreaksTheMesh:
                     * len(numpy.arange(EXPECTED_MIN_Y, EXPECTED_MAX_Y, DXDY)))
         assert len(mesh) == expected
 
-    def test_a_single_severity_currently_raises(self, sweep):
-        """Characterisation of B266."""
-        with pytest.raises(AttributeError,
-                           match="'Series' object has no attribute 'set_geometry'"):
-            sweep._findBoundingBox(self._single(), _demography(),
-                                   mathematical_angle=0.0)
-
-    def test_adding_a_second_row_at_the_same_time_step_makes_it_work(self, sweep):
-        """Characterisation of B266: isolates the row count as the trigger.
-        The extra row is a duplicate of the first, so the mesh it produces is
-        the one the single-row case should have produced."""
+    def test_a_second_row_at_the_same_time_step_gives_the_same_mesh(self, sweep):
+        """The row count used to be the trigger.  The extra row is a
+        duplicate of the first, so it must produce the same mesh."""
         doubled = self._single()
         doubled = thresholdGeoDataFrame(
             pandas.concat([doubled, doubled], ignore_index=True),
@@ -290,9 +274,8 @@ class TestASingleIsoplethRowBreaksTheMesh:
                     * len(numpy.arange(EXPECTED_MIN_Y, EXPECTED_MAX_Y, DXDY)))
         assert len(mesh) == expected
 
-    def test_the_scalar_loc_selection_is_what_degrades(self):
-        """Characterisation of B266's mechanism, derived from pandas rather
-        than from hera."""
+    def test_the_scalar_loc_selection_is_what_used_to_degrade(self):
+        """B266's mechanism, derived from pandas rather than from hera."""
         frame = self._single().set_index("datetime")
         stamp = frame.index.max()
 
