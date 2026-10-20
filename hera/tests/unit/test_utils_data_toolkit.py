@@ -766,36 +766,21 @@ class TestMakeItemPathAbsolute:
 
 
 @pytest.mark.unit
-class TestMakeItemPathAbsoluteMisreadsTheStringFlag:
-    """B154: isRelativePath is coerced with bool(), so "False" is truthy."""
+class TestMakeItemPathAbsoluteReadsTheStringFlag:
+    """B154: isRelativePath arrives as the string "True"/"False", which
+    bool() cannot read."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason='B154: _makeItemPathAbsolute does '
-               'bool(theItem.get("isRelativePath", True)). Repository JSON '
-               'carries this flag as the STRING "True"/"False" -- the sibling '
-               '_handle_DataSource asserts exactly that -- and bool("False") '
-               'is True, so a resource explicitly marked as not relative is '
-               'still joined onto basedir. Affects every Measurements / '
-               'Simulations / Cache item, unlike _handle_DataSource which '
-               'compares against the strings correctly. '
-               "See the consolidated findings issue.",
-    )
     def test_the_string_false_leaves_the_resource_untouched(self, dtk):
         item = {"resource": "a/b.parquet", "isRelativePath": "False"}
         assert dtk._makeItemPathAbsolute(item, "/base") == "a/b.parquet"
 
-    def test_the_string_false_is_treated_as_relative(self, dtk):
-        """Characterisation of B154."""
-        item = {"resource": "a/b.parquet", "isRelativePath": "False"}
+    def test_the_string_true_is_treated_as_relative(self, dtk):
+        item = {"resource": "a/b.parquet", "isRelativePath": "True"}
         assert dtk._makeItemPathAbsolute(item, "/base") == "/base/a/b.parquet"
 
-    def test_only_a_direct_call_can_reach_the_misreading(self, dtk):
-        """B154 is only observable through a direct call, because the one
-        caller of _makeItemPathAbsolute cannot pass the flag at all -- see
-        B159."""
+    def test_the_string_and_the_boolean_agree(self, dtk):
         assert dtk._makeItemPathAbsolute({"resource": "x", "isRelativePath": "False"}, "/base") \
-            != dtk._makeItemPathAbsolute({"resource": "x", "isRelativePath": False}, "/base")
+            == dtk._makeItemPathAbsolute({"resource": "x", "isRelativePath": False}, "/base")
 
 
 @pytest.mark.unit

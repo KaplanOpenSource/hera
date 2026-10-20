@@ -484,7 +484,10 @@ class dataToolkit(abstractToolkit):
             The absolute resource path.
         """
         logger = get_classMethod_logger(self, "_makeItemPathAbsolute")
-        isRelativePath = bool(theItem.get("isRelativePath", True))
+        # Repository JSON carries the flag as the string "True"/"False"; bool("False")
+        # would be True, so compare the way the sibling _handle_DataSource does.
+        isRelativePath = theItem.get("isRelativePath", True)
+        isRelativePath = (isRelativePath is True) or (isRelativePath == 'True')
         # logger.debug(f"Checking if {itemName} resource is a path {isRelativePath}, is it absolute? {isAbsolute}")
 
         if isRelativePath:
