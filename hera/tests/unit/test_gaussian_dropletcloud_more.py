@@ -25,9 +25,9 @@ Bugs pinned here:
     crosswind coordinate of every sub-cloud from ``position[0]`` instead
     of ``position[1]``, so the ring was centred on (x0, x0) rather than
     (x0, y0).
-  * B273: the same constructor's ``if radius is None`` branch is dead --
-    ``tounit(radius, ureg.m)`` has already run on the line above and
-    raises TypeError for None.
+  * B273 (fixed): the same constructor's ``if radius is None`` branch was
+    dead -- ``tounit(radius, ureg.m)`` had already run on the line above
+    and raises TypeError for None.
   * B274: its ring angles come from ``numpy.linspace(0, 2*pi, n)``,
     which includes both endpoints, so the 0-degree position is duplicated:
     n positions occupy n-1 locations and one of them gets a double share.
@@ -383,24 +383,13 @@ class TestDropletListForTheCircleSource:
         assert len(shares) == 3
         assert shares[-1] == pytest.approx(2 * shares[0])
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B273: the `if radius is None: curpos = position` branch is "
-               "unreachable -- the line above it already evaluates "
-               "tounit(radius, ureg.m), which raises TypeError('Invalid "
-               "magnitude for Quantity: None') for None. The documented "
-               "'no radius' case cannot be requested. See the consolidated "
-               "findings issue.",
-    )
-    def test_omitting_the_radius_should_place_every_cloud_at_the_source(self):
+    def test_omitting_the_radius_places_every_cloud_at_the_source(self):
+        """B273: tounit(radius, ureg.m) used to run before the `radius is
+        None` test below it, so the documented 'no radius' case raised
+        TypeError instead of being honoured."""
         cloud = self._build(radius=None)
         for droplet in cloud.dropletList:
             assert droplet.position == POSITION
-
-    def test_omitting_the_radius_currently_raises_a_typeerror(self):
-        """Characterisation of B273."""
-        with pytest.raises(TypeError, match="Invalid magnitude"):
-            self._build(radius=None)
 
 
 # ---------------------------------------------------------------------------

@@ -214,7 +214,7 @@ class CirclePositionClippedDropletsCloud(FixedPointClippedDropletCloud):
         self._dropletList = []
 
         self.clippedDiameter = clippedDiameter
-        radius_m = tounit(radius,ureg.m)
+        radius_m = None if radius is None else tounit(radius,ureg.m)
 
         qCloud = Q/circlepositions
         for deg in numpy.linspace(0,2*numpy.pi,circlepositions):
