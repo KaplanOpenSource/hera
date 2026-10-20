@@ -142,6 +142,18 @@ class TestInjuryCalculateToxicLoadsOnPandas:
         toxic = injury.calculateToxicLoads(df, time="datetime")
         assert toxic["P1"].iloc[-1] > 0
 
+    def test_an_explicit_inunits_is_forwarded_to_the_calculator(self):
+        """B63, fixed: the Injury API had no inUnits parameter at all, so a
+        pandas field in any other unit could not be rescued."""
+        injury = _agent_with_calculator("TenBerge", tenbergeCoefficient=1)
+        df = _series_dataframe([10.0, 10.0, 10.0])
+
+        inGrams = injury.calculateToxicLoads(
+            df, time="datetime", inUnits=1 * ureg.g / ureg.m**3)
+        default = injury.calculateToxicLoads(df, time="datetime")
+
+        assert inGrams["P1"].iloc[-1] == pytest.approx(1000 * default["P1"].iloc[-1])
+
     def test_calculate_point_wise_fraction_injured_rejects_non_pandas_input(self):
         injury = _agent_with_calculator("TenBerge", tenbergeCoefficient=1)
         with pytest.raises(ValueError, match="not implemented"):

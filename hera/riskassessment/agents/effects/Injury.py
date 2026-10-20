@@ -256,7 +256,7 @@ class Injury(object):
 		ret = self._postCalculate(retList,time)
 		return thresholdGeoDataFrame(ret)
 
-	def calculateToxicLoads(self,concentrationField,time="datetime",breathingRate=10*ureg.L / ureg.min,field=None):
+	def calculateToxicLoads(self,concentrationField,time="datetime",breathingRate=10*ureg.L / ureg.min,field=None,inUnits=None):
 		"""
 			Calculates the toxic loads of the concetration field.
 
@@ -278,11 +278,16 @@ class Injury(object):
 							If xarray, the name of the field to use.
 							ignored if pandas
 
+					inUnits : pint.Quantity or pint.Unit
+							The units of the concentration. If None, use the
+							units of the calculator's default (mg/m**3 for pandas,
+							the field attributes for xarray).
+
 		"""
-		return self.calculator.calculate(concentrationField, field=field, breathingRate=breathingRate, time=time)
+		return self.calculator.calculate(concentrationField, field=field, breathingRate=breathingRate, time=time, inUnits=inUnits)
 
 
-	def calculatePointWiseFractionInjured(self,timeConcentration,time="datetime",breathingRate=10*ureg.L / ureg.min,field=None):
+	def calculatePointWiseFractionInjured(self,timeConcentration,time="datetime",breathingRate=10*ureg.L / ureg.min,field=None,inUnits=None):
 		"""
 			Calculates the fraction of injury over time in each point.
 
@@ -313,6 +318,9 @@ class Injury(object):
 		    breathingRate : unum, L/min
 		    			The breathing rate of the population.
 
+		    inUnits : pint.Quantity or pint.Unit
+		    			The units of the concentration (default mg/m**3 for pandas).
+
 		    parameters: kwargs.
 		    			Additional parameter to the calculator (for example ten-berge coefficient).
 
@@ -342,7 +350,8 @@ class Injury(object):
 		toxicLoads = self.calculateToxicLoads(concentrationField=timeConcentration,
 											  time=time,
 											  breathingRate=breathingRate,
-											  field=field)
+											  field=field,
+											  inUnits=inUnits)
 		retList = []
 		for lvl in self.levels:
 			data = pandas.DataFrame()
