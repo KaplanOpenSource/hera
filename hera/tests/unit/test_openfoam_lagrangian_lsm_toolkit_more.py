@@ -38,7 +38,6 @@ Deliberately not covered:
 Bugs pinned below (each with an xfail for the intended behaviour and a
 passing characterisation of what happens today):
 
-* B203 ``loadData``'s non-parallel branch finds no time steps.
 * B204 ``loadData``'s DB branch treats a QuerySet as a document.
 * B206 ``makeSource`` writes the wrong object name into the header.
 * B207 ``createRootCaseMeshLink`` references an undefined name.
@@ -286,31 +285,12 @@ class TestLoadData:
 
     # -- B203: the non-parallel branch ------------------------------------
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B203: the single-processor branch filters the case's "
-               "entries with os.path.isdir(x) on the bare name instead of "
-               "os.path.join(finalCasePath, x), so it tests the cwd rather "
-               "than the case. Every time directory fails the test, the "
-               "delayed list comes out empty and dask raises 'Must supply at "
-               "least one delayed object'. Same root cause as B83 in "
-               "openFoam/toolkit.py's getTimeList. "
-               "See the consolidated findings issue.",
-    )
-    def test_a_single_processor_case_should_be_read(self, lsm, tmp_path, readSeam):
+    def test_a_single_processor_case_is_read(self, lsm, tmp_path, readSeam):
         case = tmp_path / "case"
         (case / "100").mkdir(parents=True)
         lsm.casePath = str(case)
         lsm.loadData().getData().compute()
-        assert readSeam.calls != []
-
-    def test_a_single_processor_case_currently_finds_no_time_steps(self, lsm, tmp_path, readSeam):
-        """Characterisation of B203."""
-        case = tmp_path / "case"
-        (case / "100").mkdir(parents=True)
-        lsm.casePath = str(case)
-        with pytest.raises(TypeError, match="at least one delayed object"):
-            lsm.loadData()
+        assert {call[0][0] for call in readSeam.calls} == {"100"}
 
     # -- B204: the DB branch ----------------------------------------------
 

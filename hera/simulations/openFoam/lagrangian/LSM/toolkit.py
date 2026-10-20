@@ -343,7 +343,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         else:
 
             timeList = sorted([x for x in os.listdir(finalCasePath) if (
-                    os.path.isdir(x) and
+                    os.path.isdir(os.path.join(finalCasePath, x)) and
                     x.isdigit() and
                     (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
                               key=lambda x: int(x))
