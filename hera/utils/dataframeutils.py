@@ -82,7 +82,7 @@ def compareDataframeConfigurations(data,datasetName="datasetName",parameterName=
     if isinstance(data,list):
         if len(data) == 0:
             logger.debug("Empty input, returning {}")
-            return pandas.Dataframe({})
+            return pandas.DataFrame({})
         else:
             tmpList = []
             for ditem in data:

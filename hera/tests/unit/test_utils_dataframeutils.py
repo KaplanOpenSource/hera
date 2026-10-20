@@ -121,14 +121,8 @@ class TestErrorHandling:
         with pytest.raises(KeyError, match="must be a list of tuples"):
             compareDataframeConfigurations("neither a list nor a frame")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B4: the empty-input branch calls pandas.Dataframe (lower-case f), "
-               "so the documented 'returning {}' path raises AttributeError. "
-               "See the consolidated findings issue.",
-    )
     def test_empty_input_returns_an_empty_frame(self):
-        """The code logs 'Empty input, returning {}' and then cannot deliver it."""
+        """The code logs 'Empty input, returning {}' -- and delivers it."""
         result = compareDataframeConfigurations([])
         assert isinstance(result, pd.DataFrame)
         assert result.empty
