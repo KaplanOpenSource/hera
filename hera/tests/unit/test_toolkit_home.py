@@ -106,14 +106,12 @@ class TestToolkitNameConstants:
 class TestDefaultRepository:
     """Documented as persisting a repository name FOR A PROJECT.
 
-    Neither half of that works today, and the tests below say which is which:
+    The write lands on defaultProject, which Project guards as read-only
+    (project.py:757), so setDefaultRepository now lifts the guard the same
+    way registerToolkit does.  Still open:
     B21 -- ToolkitHome._get_data_toolkit declares a projectName parameter and
            ignores it, returning dataToolkit(), which always operates on the
            default project.  So the setting is global, not per project.
-    B22 -- because the write therefore lands on defaultProject, which
-           Project guards as read-only (project.py:757), every call raises.
-           registerToolkit sets _allowWritingToDefaultProject before writing
-           (toolkit.py:1271); setDefaultRepository does not.
     """
 
     def test_unset_reads_as_an_empty_string(self):
@@ -153,13 +151,6 @@ class TestDefaultRepository:
                 "setDefaultRepository is no longer dead -- revisit it"
             )
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B22: setDefaultRepository writes through a dataToolkit bound to "
-               "defaultProject and does not set _allowWritingToDefaultProject, so "
-               "it always raises RuntimeError: project defaultProject is "
-               "read-only. See the consolidated findings issue.",
-    )
     def test_round_trip(self):
         toolkitHome.setDefaultRepository(
             projectName=PROJECT, repositoryName="meteo_data_v1"

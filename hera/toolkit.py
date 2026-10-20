@@ -1169,6 +1169,7 @@ class ToolkitHome(abstractToolkit):
             raise ValueError("setDefaultRepository: 'repositoryName' is required")
 
         dt = self._get_data_toolkit(projectName=projectName)
+        dt._allowWritingToDefaultProject = True
 
         # delete previous config if exists (by type)
         if overwrite:
