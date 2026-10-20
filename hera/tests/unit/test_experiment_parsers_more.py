@@ -54,13 +54,13 @@ independent duplicates):
   instead of a string -- so two identical raw FP2 values decoded to two
   different numbers depending only on which column they sat in. The loop
   now starts at 2, in both copies of the reader.
-* B117: ``_newfloatConvert`` calls
+* B117 (fixed): ``_newfloatConvert`` called
   ``self._floatConvert(int(key % 256), key / 256)``.  ``_floatConvert``
   documents its second argument as the low byte, but ``/`` is true
-  division, so the value passed is ``lowbyte + hbyte/256`` -- the high
-  byte leaks back in as a fractional part and every FP2 value comes out
+  division, so the value passed was ``lowbyte + hbyte/256`` -- the high
+  byte leaked back in as a fractional part and every FP2 value came out
   with a spurious offset of up to ``1/factor``.  ``key // 256`` is the
-  low byte.
+  low byte, in both copies of the reader.
 * B118: the ``key == 65183`` NaN-sentinel branch of
   ``_newfloatConvert`` stores ``float('nan')`` in the cache but returns
   ``None`` instead of it, so the first call for that key disagrees with
@@ -605,38 +605,28 @@ class TestFp2ConversionHelpers:
 
 
 @pytest.mark.unit
-class TestFp2LowByteIsDividedInsteadOfShifted:
-    """B117: ``key / 256`` where ``key // 256`` is the low byte."""
+class TestFp2LowByteIsShiftedNotDivided:
+    """B117: ``key // 256`` is the low byte, not ``key / 256``."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B117: _newfloatConvert passes key / 256 as _floatConvert's "
-               "lowbyte, but true division leaves the high byte in as a "
-               "fractional part, so every FP2 value is offset by "
-               "(key mod 256) / 256 / factor. key // 256 is the low byte. "
-               "See the consolidated findings issue.",
-    )
     def test_a_raw_fp2_key_converts_to_the_value_its_two_bytes_encode(self, sonic_file):
         cbi = CampbellBinaryInterface(file=str(sonic_file))
 
         assert cbi._newfloatConvert(0x001F) == cbi._floatConvert(0x1F, 0x00)
 
-    def test_the_high_byte_currently_leaks_into_the_low_byte(self, sonic_file):
-        """Characterisation of B117: 0x001f encodes 7936, but the low
-        byte is passed as 31/256 rather than 0."""
+    def test_the_high_byte_no_longer_leaks_into_the_low_byte(self, sonic_file):
+        """B117: 0x001f encodes 7936; the low byte used to come through as
+        31/256 rather than 0."""
         cbi = CampbellBinaryInterface(file=str(sonic_file))
 
-        assert cbi._newfloatConvert(0x001F) == pytest.approx(7936 + 31 / 256)
+        assert cbi._newfloatConvert(0x001F) == pytest.approx(7936.0)
 
-    def test_the_offset_shrinks_with_the_decimal_locator(self, sonic_file):
-        """Characterisation of B117: the spurious term is divided by the
-        same factor as the value, so it is 1/1000 of a count for a
-        three-decimal reading and a whole count for an integer one."""
+    def test_the_decimal_locator_still_scales_the_value(self, sonic_file):
+        """The spurious term used to be divided by the same factor as the
+        value, so it was a whole count for an integer reading and 1/1000
+        of one for a three-decimal reading."""
         cbi = CampbellBinaryInterface(file=str(sonic_file))
 
-        assert cbi._newfloatConvert(0x0061) == pytest.approx(
-            (1 * 256 + 0x61 / 256) / 1000.0
-        )
+        assert cbi._newfloatConvert(0x0061) == pytest.approx(256 / 1000.0)
 
 
 @pytest.mark.unit
