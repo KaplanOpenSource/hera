@@ -691,13 +691,14 @@ class ToolkitHome(abstractToolkit):
     # Internal helper for repository config (uses generic dataToolkit)
     # ------------------------------------------------------------------
 
-    def _get_data_toolkit(self, projectName: str = None):
+    def _get_data_toolkit(self):
         """
         Helper that returns a dataToolkit instance.
 
         We import dataToolkit lazily here to avoid circular imports
         between hera.toolkit and hera.utils.data.toolkit.
-        dataToolkit itself works on the DEFAULT project internally.
+        dataToolkit always works on the DEFAULT project, so callers that
+        need per-project data must scope it themselves.
         """
         from hera.utils.data.toolkit import dataToolkit
         return dataToolkit()
@@ -1168,16 +1169,16 @@ class ToolkitHome(abstractToolkit):
         if not repositoryName:
             raise ValueError("setDefaultRepository: 'repositoryName' is required")
 
-        dt = self._get_data_toolkit(projectName=projectName)
+        dt = self._get_data_toolkit()
         dt._allowWritingToDefaultProject = True
 
-        # delete previous config if exists (by type)
+        # delete previous config of that project if exists
         if overwrite:
-            old = dt.getMeasurementsDocuments(type="RepositoryConfig")
+            old = dt.getMeasurementsDocuments(type="RepositoryConfig", targetProjectName=projectName)
             for d in old:
                 d.delete()
 
-        desc = {"defaultRepository": repositoryName}
+        desc = {"targetProjectName": projectName, "defaultRepository": repositoryName}
 
         df_arg = {}
         try:
@@ -1204,8 +1205,8 @@ class ToolkitHome(abstractToolkit):
         if not projectName:
             raise ValueError("getDefaultRepository: 'projectName' is required")
 
-        dt = self._get_data_toolkit(projectName=projectName)
-        docs = dt.getMeasurementsDocuments(type="RepositoryConfig")
+        dt = self._get_data_toolkit()
+        docs = dt.getMeasurementsDocuments(type="RepositoryConfig", targetProjectName=projectName)
         if not docs:
             return ""
         return docs[0].desc.get("defaultRepository", "") or ""

@@ -106,12 +106,10 @@ class TestToolkitNameConstants:
 class TestDefaultRepository:
     """Documented as persisting a repository name FOR A PROJECT.
 
-    The write lands on defaultProject, which Project guards as read-only
-    (project.py:757), so setDefaultRepository now lifts the guard the same
-    way registerToolkit does.  Still open:
-    B21 -- ToolkitHome._get_data_toolkit declares a projectName parameter and
-           ignores it, returning dataToolkit(), which always operates on the
-           default project.  So the setting is global, not per project.
+    The config lives in the default project, which Project guards as
+    read-only (project.py:757), so setDefaultRepository lifts the guard the
+    same way registerToolkit does, and tags each document with the project
+    it belongs to so the setting is per project rather than global.
     """
 
     def test_unset_reads_as_an_empty_string(self):
@@ -129,12 +127,9 @@ class TestDefaultRepository:
         with pytest.raises(ValueError, match="'projectName' is required"):
             toolkitHome.getDefaultRepository(projectName="")
 
-    def test_the_helper_ignores_the_project_it_is_given(self):
-        """Characterisation of B21's mechanism, so the cause is unambiguous."""
-        fromProject = toolkitHome._get_data_toolkit(projectName=PROJECT)
-        fromNothing = toolkitHome._get_data_toolkit()
-        assert fromProject.projectName == fromNothing.projectName
-        assert fromProject.projectName == toolkitHome.DEFAULTPROJECT
+    def test_the_helper_always_works_on_the_default_project(self):
+        """The helper is unscoped by design; the callers do the scoping."""
+        assert toolkitHome._get_data_toolkit().projectName == toolkitHome.DEFAULTPROJECT
 
     def test_the_json_format_lookup_is_dead(self):
         """setDefaultRepository tries three names that do not exist.
@@ -157,13 +152,6 @@ class TestDefaultRepository:
         )
         assert toolkitHome.getDefaultRepository(projectName=PROJECT) == "meteo_data_v1"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B21: the setting is not scoped to a project, because "
-               "_get_data_toolkit ignores its projectName argument. Blocked behind "
-               "B22, which makes the write fail first. "
-               "See the consolidated findings issue.",
-    )
     def test_defaults_are_per_project(self):
         toolkitHome.setDefaultRepository(projectName=PROJECT, repositoryName="mine")
         assert toolkitHome.getDefaultRepository(projectName="OTHER_PROJECT") == ""
