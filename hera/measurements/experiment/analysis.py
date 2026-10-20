@@ -174,13 +174,13 @@ class experimentAnalysis:
 
         if len(docList) ==0 or recalculate:
             # calculating the cache and updating it / or writing a new one.
-            data = experimentData.trialSet[trialSetName][trialName].getData(deviceType)
+            trial = experimentData.trialSet[trialSetName][trialName]
+            data = trial.getData(deviceType)
             colCount = data.columns[1]
-            freq = data.groupby('deviceName').resample("1min").count()[colCount].reset_index()
+            freq = data.groupby('deviceName').resample(samplingWindow).count()[colCount].reset_index()
 
             freq = freq.assign(deviceID=freq.deviceName.apply(lambda x: self._splitName(x))).sort_values("deviceID").rename(columns=({colCount:"Frequency"}))
 
-            freq.set_index('timestamp')
             pvt = freq.pivot(index="timestamp", columns="deviceName", values="Frequency")
             if completeDevices:
                 for deviceName in experimentData.entityType[deviceType].keys():
@@ -188,11 +188,11 @@ class experimentAnalysis:
                         pvt[deviceName] = 0
 
             # Filling in time (only if trial has start and end).
-            tstart = experimentData.trialSet[trialSetName].trials.query("trialName == @trialName ")['TrialStart'].iloc[0]
-            tend = experimentData.trialSet[trialSetName].trials.query("trialName == @trialName ")['TrialEnd'].iloc[0]
+            tstart = trial.properties.get('TrialStart', None)
+            tend = trial.properties.get('TrialEnd', None)
 
             if (tend is not None and completeTimeSeries):
-                actualDates = pandas.date_range(tstart, tend, freq="1min")
+                actualDates = pandas.date_range(tstart, tend, freq=samplingWindow)
 
                 missingTimes = actualDates[[x not in pvt.index for x in actualDates]]
                 for tme in missingTimes:

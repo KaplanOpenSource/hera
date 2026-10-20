@@ -74,20 +74,21 @@ Bugs pinned here
   ``getDeviceTypeTransmissionFrequencyOfTrial`` calls it whenever
   ``normalize=True`` -- its default -- the normalised frequency, which is
   what the docstring advertises, can never be produced.
-* B216: the recompute branch of
-  ``getDeviceTypeTransmissionFrequencyOfTrial`` reads
+* B216 (fixed): the recompute branch of
+  ``getDeviceTypeTransmissionFrequencyOfTrial`` read
   ``experimentData.trialSet[trialSetName].trials.query("trialName == @trialName")``,
   but argos's ``TrialSet.trials`` is a **dict** of serialised trials, not
   a table (``TrialSet.trialsTable`` is the DataFrame, and it is indexed
-  by trial name and has no ``trialName`` column either). Every call
-  raises ``AttributeError: 'dict' object has no attribute 'query'``.
-  Since ``recalculate`` defaults to ``True``, the method can only ever
+  by trial name and has no ``trialName`` column either), so every call
+  raised ``AttributeError: 'dict' object has no attribute 'query'``.
+  Since ``recalculate`` defaults to ``True``, the method could only ever
   return anything at all on an explicit ``recalculate=False`` against an
-  already-populated cache -- which nothing can populate. Two further
-  defects sit on the same dead path: ``freq.set_index('timestamp')``
-  discards its result, and the ``groupby(...).resample("1min")`` hard-codes
-  a one-minute bin instead of using the ``samplingWindow`` argument that
-  the cache key and the normalisation both honour.
+  already-populated cache -- which nothing could populate. Two further
+  defects sat on the same dead path: ``freq.set_index('timestamp')``
+  discarded its result, and the ``groupby(...).resample("1min")``
+  hard-coded a one-minute bin instead of using the ``samplingWindow``
+  argument that the cache key and the normalisation both honour. The
+  trial start/end now come from the trial's own properties.
 * B217: ``addTrialProperties`` reads
   ``properties.get("ReleaseStart", None)`` -- deliberately tolerating a
   trial with no release -- and then unconditionally computes
@@ -520,61 +521,63 @@ class TestTransmissionFrequencyFromTheCache:
     def test_a_cache_document_for_another_sampling_window_is_not_a_hit(
             self, analysis, cachedFrequency, deviceData):
         """The window is part of the cache key, so the lookup misses and the
-        (dead, see B216) recompute branch is entered instead."""
+        table is recomputed from the raw data instead."""
         cachedFrequency(samplingWindow="5min")
-        with pytest.raises(AttributeError, match="'dict' object has no attribute 'query'"):
-            analysis.getDeviceTypeTransmissionFrequencyOfTrial(
-                "sonic", "T1", trialSetName="Measurements",
-                normalize=False, recalculate=False)
+        pvt = analysis.getDeviceTypeTransmissionFrequencyOfTrial(
+            "sonic", "T1", trialSetName="Measurements",
+            normalize=False, recalculate=False)
+        assert len(pvt) == 10
 
 
 @pytest.mark.unit
-class TestTransmissionFrequencyRecomputeIsDead:
-    """B216: ``TrialSet.trials`` is a dict, not a table."""
+class TestTransmissionFrequencyRecompute:
+    """B216: the trial start/end come from the trial, not from a query."""
 
     def test_the_trial_set_exposes_its_trials_as_a_dict(self, experiment):
-        """Characterisation of B216: what the method calls .query() on."""
+        """Why the method cannot .query() TrialSet.trials."""
         trialSet = experiment.trialSet["Measurements"]
         assert isinstance(trialSet.trials, dict)
         assert not hasattr(trialSet.trials, "query")
 
     def test_the_trials_table_has_no_trialname_column_either(self, experiment):
-        """Characterisation of B216: the obvious substitute is also wrong --
-        trialsTable is indexed by the trial name."""
+        """The obvious substitute is also wrong -- trialsTable is indexed
+        by the trial name."""
         table = experiment.trialSet["Measurements"].trialsTable
         assert "trialName" not in table.columns
         assert list(table.index) == ["T1"]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B216: the recompute branch reads "
-               "trialSet[trialSetName].trials.query('trialName == @trialName'), "
-               "but argos's TrialSet.trials is a dict of serialised trials "
-               "(trialsTable is the DataFrame, and it carries no trialName "
-               "column), so every recompute raises AttributeError: 'dict' "
-               "object has no attribute 'query'. As recalculate defaults to "
-               "True, no call can ever populate the cache. "
-               "See the consolidated findings issue.",
-    )
-    def test_it_should_compute_the_frequency_table_from_the_raw_data(self, analysis, deviceData):
+    def test_it_computes_the_frequency_table_from_the_raw_data(self, analysis, deviceData):
         pvt = analysis.getDeviceTypeTransmissionFrequencyOfTrial(
             "sonic", "T1", trialSetName="Measurements", normalize=False)
         assert sorted(pvt.columns) == ["sonic 1", "sonic 2"]
+        # one row per minute of the trial window, TrialStart..TrialEnd
+        assert len(pvt) == 10
 
-    def test_it_currently_raises_an_attribute_error(self, analysis, deviceData):
-        """Characterisation of B216."""
-        with pytest.raises(AttributeError, match="'dict' object has no attribute 'query'"):
-            analysis.getDeviceTypeTransmissionFrequencyOfTrial(
-                "sonic", "T1", trialSetName="Measurements", normalize=False)
+    def test_the_recompute_populates_the_cache(self, analysis, deviceData):
+        """B216: nothing could write the cache before, so recalculate=False
+        had nothing to read."""
+        analysis.getDeviceTypeTransmissionFrequencyOfTrial(
+            "sonic", "T1", trialSetName="Measurements", normalize=False)
+        cached = analysis.datalayer.getCacheDocuments(
+            type=analysis.TECHNICALDOC_FREQUENCY, **_cacheKey())
+        assert len(cached) == 1
+        assert sorted(cached[0].getData().columns) == ["sonic 1", "sonic 2"]
 
-    def test_recalculate_is_true_by_default_so_a_cache_hit_is_ignored(
+    def test_the_sampling_window_sets_the_bin_width(self, analysis, deviceData):
+        """B216: the bin used to be hard-coded to one minute."""
+        pvt = analysis.getDeviceTypeTransmissionFrequencyOfTrial(
+            "sonic", "T1", trialSetName="Measurements",
+            samplingWindow="5min", normalize=False)
+        assert len(pvt) == 2
+
+    def test_recalculate_is_true_by_default_so_a_cache_hit_is_refreshed(
             self, analysis, cachedFrequency, deviceData):
-        """Characterisation of B216: even a valid cache entry does not save
-        the caller, because the default recomputes."""
+        """The default recomputes and overwrites the stored table."""
         cachedFrequency()
-        with pytest.raises(AttributeError, match="'dict' object has no attribute 'query'"):
-            analysis.getDeviceTypeTransmissionFrequencyOfTrial(
-                "sonic", "T1", trialSetName="Measurements", normalize=False)
+        pvt = analysis.getDeviceTypeTransmissionFrequencyOfTrial(
+            "sonic", "T1", trialSetName="Measurements", normalize=False)
+        assert len(pvt) == 10
+        assert len(pvt) != len(CACHED_FREQUENCY)
 
     def test_the_recompute_branch_fails_earlier_when_there_is_no_raw_data(self, analysis):
         """Without documents the trial read raises before B216 is reached."""
