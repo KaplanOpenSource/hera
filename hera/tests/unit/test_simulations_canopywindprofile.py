@@ -35,18 +35,21 @@ Two defects surfaced:
   fell through to the ``else`` branch, which *overwrites* z with the
   2000 m surface-layer height, giving a cell at roof level 11.10 m/s where
   the profile is 2.44 m/s.  The first test is now ``z <= hc``.
-* B245: the interpolation write-back uses chained assignment,
-  ``data['Ux'].iloc[i] = ...``.  pandas already emits
+* B245 (fixed): the interpolation write-back used chained assignment,
+  ``data['Ux'].iloc[i] = ...``.  pandas emitted
   ``FutureWarning: ChainedAssignmentError`` for it, and under
-  copy-on-write -- the pandas 3.0 default -- the write silently does
-  nothing: 60 of 80 cells come back NaN, i.e. the whole point of the
-  interpolation step is lost without any error.
+  copy-on-write -- the pandas 3.0 default -- the write silently did
+  nothing: 60 of 80 cells came back NaN, i.e. the whole point of the
+  interpolation step was lost without any error.  The write-back is now a
+  single ``data.iloc[i, col] = ...``.
 
 Not covered: the ``interpolation == 'linear1'`` and ``'Elevation'``
 branches.  ``interpolation`` is a local literal set to ``'linear'`` three
 lines above, so neither branch is reachable (and the 'Elevation' one is
 an admittedly unfinished sketch that only prints).
 """
+import warnings
+
 import numpy
 import pandas
 import pytest
@@ -364,32 +367,23 @@ class TestInterpolationFillsTheGaps:
 class TestChainedAssignmentWriteBack:
     """B245: see the module docstring."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B245: the interpolation results are written back with chained "
-               "assignment, `data['Ux'].iloc[i] = ...`. pandas already warns "
-               "(FutureWarning: ChainedAssignmentError) and under copy-on-write, "
-               "the pandas 3.0 default, the assignment targets a temporary and is "
-               "silently discarded: 60 of the 80 cells come back NaN and the "
-               "interpolation step becomes a no-op with no error raised. "
-               "See the consolidated findings issue.",
-    )
     def test_the_interpolation_survives_copy_on_write(self):
         with pandas.option_context("mode.copy_on_write", True):
             result = _run()
         assert not result.Ux.isna().any()
 
-    def test_under_copy_on_write_only_the_seeded_cells_survive(self):
-        """Characterisation of B245: exactly the 20 cells calcU wrote keep a
-        value; the 60 the interpolation was supposed to fill stay NaN."""
+    def test_every_cell_is_filled_under_copy_on_write(self):
+        """The 20 cells calcU seeds plus the 60 the interpolation fills."""
         with pandas.option_context("mode.copy_on_write", True):
             result = _run()
-        assert result.Ux.isna().sum() == 60
+        assert result.Ux.isna().sum() == 0
         assert len(_centre(result)) == 20
         assert not _centre(result).Umag.isna().any()
 
-    def test_the_write_back_is_flagged_by_pandas_today(self):
-        """Characterisation of B245: it is not a latent style issue, pandas
-        already emits a FutureWarning for every one of the four writes."""
-        with pytest.warns(FutureWarning, match="ChainedAssignmentError"):
+    def test_the_write_back_no_longer_warns(self):
+        """A single .iloc on the frame is not a chained assignment, so pandas
+        has nothing to flag."""
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", FutureWarning)
+            warnings.simplefilter("error", pandas.errors.SettingWithCopyWarning)
             _run()
