@@ -25,19 +25,10 @@ Deliberately not tested:
     not importable as a module.  Where a bug below is about a mismatch
     between handler and parser, the parser side is quoted from that script
     rather than executed;
-  * the first, shadowed definitions of `foam_mesh_blockMesh`,
-    `foam_mesh_setDomainHeight` and `IC_hydrostaticPressure` (CLI.py:259,
-    263, 267).  They are unreachable dead code -- see B166 -- and no
-    test can call them.
 
 Bugs pinned here (each with a strict xfail for the intended behaviour plus
 a passing characterisation of what actually happens):
 
-  * B166: `foam_mesh_blockMesh` and `foam_mesh_setDomainHeight` are each
-    defined twice.  The second definition -- a bare `pass` -- wins, so the
-    `raise NotImplementedError` the author wrote is unreachable and
-    `hera-openFoam <solver> blockMesh setBoundsFromFile ...` silently
-    succeeds while doing nothing.
   * B167: `if 'projectName' not in arguments` never fires.  argparse
     declares `--projectName` with `default=None`, so the attribute always
     exists and the caseConfiguration.json fallback behind that test is
@@ -464,8 +455,8 @@ class TestDispersionFlowWriteEmptyTemplate:
 
 @pytest.mark.unit
 class TestPlaceholderHandlers:
-    """Five handlers whose whole body is `pass`, plus the two that shadow a
-    NotImplementedError (B166)."""
+    """Four handlers whose whole body is `pass`, plus the two that raise
+    NotImplementedError."""
 
     @pytest.mark.parametrize(
         "handler",
@@ -486,32 +477,10 @@ class TestPlaceholderHandlers:
         [foam_mesh_blockMesh, foam_mesh_setDomainHeight],
         ids=["blockMesh", "setDomainHeight"],
     )
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B166: CLI.py defines foam_mesh_blockMesh (line 259) and "
-               "foam_mesh_setDomainHeight (line 263) with a "
-               "`raise NotImplementedError`, then defines both again at "
-               "lines 640 and 654 with a bare `pass`.  The second "
-               "definition wins, so the guard is unreachable and "
-               "`hera-openFoam <solver> blockMesh setBoundsFromFile` -- "
-               "which requires --dx --dy --dz --Z -- exits 0 having done "
-               "nothing.  See the consolidated findings issue.",
-    )
     def test_an_unimplemented_mesh_command_should_say_so(self, handler):
         with pytest.raises(NotImplementedError):
             handler(Namespace(templateName="t", fileName="f", dx=1, dy=1, dz=1,
                               Z=100, projectName=PROJECT, solver=SOLVER))
-
-    @pytest.mark.parametrize(
-        "handler",
-        [foam_mesh_blockMesh, foam_mesh_setDomainHeight],
-        ids=["blockMesh", "setDomainHeight"],
-    )
-    def test_a_mesh_command_currently_succeeds_silently(self, handler):
-        """Characterisation of B166."""
-        assert handler(Namespace(templateName="t", fileName="f", dx=1, dy=1,
-                                 dz=1, Z=100, projectName=PROJECT,
-                                 solver=SOLVER)) is None
 
 
 # ---------------------------------------------------------------------------

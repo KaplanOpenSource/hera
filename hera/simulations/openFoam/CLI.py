@@ -264,10 +264,6 @@ def foam_mesh_setDomainHeight(arguments):
     """Set the domain height in the blockMesh (not yet implemented)."""
     raise NotImplementedError("Not implemented yet, maybe we will use classy blocks")
 
-def IC_hydrostaticPressure(argumets):
-    """Set hydrostatic pressure initial conditions (not yet implemented)."""
-    raise NotImplementedError("Use the openfoam application")
-
 def stochasticLagrangian_dispersionFlow_writeEmptyTemplate(arguments):
     """
         Writes an empty JSON file for the disprsion flow.
@@ -637,33 +633,6 @@ def objects_createVerticesAndBoundary(arguments):
     print(json.dumps(ret, indent=4, sort_keys=True))
 
 ############################################################## Workflow.
-def foam_mesh_blockMesh(arguments):
-    """
-        Adjusts the blockMesh according to the stl file.
-
-    Parameters
-    ----------
-    arguments
-
-    Returns
-    -------
-
-    """
-    pass
-
-def foam_mesh_setDomainHeight(arguments):
-    """
-        Sets the height of the domain and updates the number of cells.
-    Parameters
-    ----------
-    arguments
-
-    Returns
-    -------
-
-    """
-    pass
-
 def foam_snappyhexmesh_addobject(arguments):
     """
         Adding the snappy hex mesh node (if does not exist).
