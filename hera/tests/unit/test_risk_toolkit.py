@@ -7,10 +7,11 @@ out of scope here; it needs LSM/S3 data and belongs with an integration
 test. ``loadData`` turned out to have three real defects around its
 ``saveMode`` argument, found by exercising the documented modes directly:
 
-* B55: ``TOOLKIT_SAVEMODE_NOSAVE`` only has an effect when a matching
-  document already exists (the ``elif`` branch). The very first load of a
-  new agent goes through the ``if agentDoc is None`` branch, which calls
-  ``addDataSource`` unconditionally -- so "no save" still saves.
+* B55, fixed: ``TOOLKIT_SAVEMODE_NOSAVE`` only had an effect when a
+  matching document already existed (the ``elif`` branch). The very first
+  load of a new agent went through the ``if agentDoc is None`` branch,
+  which calls ``addDataSource`` unconditionally -- so "no save" still
+  saved. The mode is now honoured before the lookup, for both branches.
 * B56: ``TOOLKIT_SAVEMODE_FILEANDDB_REPLACE`` looks up the existing document
   by the *new* version being loaded, not by name alone. Replacing with a
   different version therefore never finds the old entry, falls into the
@@ -81,24 +82,18 @@ class TestLoadData:
         with pytest.raises(ValueError, match="must be a file"):
             risk.loadData(12345, saveMode=TOOLKIT_SAVEMODE_FILEANDDB)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B55: saveMode is only consulted in the `elif agentDoc is "
-               "not None` branch. When no matching document exists yet -- "
-               "true for the very first load of any agent -- the `if "
-               "agentDoc is None` branch runs unconditionally and calls "
-               "addDataSource regardless of saveMode, so "
-               "TOOLKIT_SAVEMODE_NOSAVE still persists to the database. "
-               "See the consolidated findings issue.",
-    )
     def test_nosave_does_not_persist_a_new_agent(self, risk):
+        """B55, fixed: saveMode was consulted only in the `elif agentDoc is
+        not None` branch, so the very first load of any agent called
+        addDataSource whatever the mode was."""
         risk.loadData(_desc(), saveMode=TOOLKIT_SAVEMODE_NOSAVE)
         assert risk.listAgentsNames() == []
 
-    def test_nosave_currently_does_persist_a_new_agent(self, risk):
-        """Characterisation of B55, so the defect above is a number, not an adjective."""
-        risk.loadData(_desc(), saveMode=TOOLKIT_SAVEMODE_NOSAVE)
-        assert risk.listAgentsNames() == ["TestAgent"]
+    def test_nosave_does_not_touch_an_existing_agent_either(self, risk):
+        risk.loadData(_desc(), saveMode=TOOLKIT_SAVEMODE_FILEANDDB)
+        risk.loadData(_desc(effectParameters={"tenbergeCoefficient": 2}),
+                      saveMode=TOOLKIT_SAVEMODE_NOSAVE)
+        assert risk.getDataSourceDocument("TestAgent").desc["effectParameters"] == {}
 
     def test_replacing_the_same_name_and_version_updates_in_place(self, risk):
         risk.loadData(_desc(), saveMode=TOOLKIT_SAVEMODE_FILEANDDB)

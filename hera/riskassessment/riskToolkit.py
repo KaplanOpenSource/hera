@@ -193,6 +193,9 @@ class RiskToolkit(abstractToolkit):
         name = agentDescription['name']
         version = agentDescription.get('version',None)
 
+        if saveMode == TOOLKIT_SAVEMODE_NOSAVE:
+            return nonDBMetadataFrame(agentDescription)
+
         agentDoc = self.getDataSourceDocument(datasourceName=name, version=version)
 
         if agentDoc is None:
