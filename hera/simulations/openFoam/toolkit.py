@@ -956,7 +956,7 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
 
         logger.info(f"Found {len(docList)} documents to delete. ")
         for doc in docList:
-            logger.debug(f"Deleting resource {doc['desc']['filterName']} : {doc['desc']['pipeline']['filters']} ")
+            logger.debug(f"Deleting resource {doc['desc']['filterName']} : {doc['desc'].get('pipeline', {}).get('filters')} ")
             outputFile = doc['resource']
 
             if os.path.exists(outputFile):
