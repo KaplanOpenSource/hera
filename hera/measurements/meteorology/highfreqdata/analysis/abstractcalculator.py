@@ -260,7 +260,7 @@ class SaveDataHandler(object):
         dict
             ``{'path': path, 'key': key}``.
         """
-        data.to_HDF(path, key)
+        data.to_hdf(path, key=key)
         return dict(path=path,
                     key=key
                     )

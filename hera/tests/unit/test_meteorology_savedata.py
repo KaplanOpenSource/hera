@@ -1,8 +1,9 @@
 """The data-persistence dispatcher shared by the high-frequency calculators.
 
-B69: ``SaveDataHandler.getSaveData_HDF`` calls ``data.to_HDF(path, key)`` --
-capitalised -- but pandas only has ``to_hdf`` (lowercase). Saving to HDF5
-always raises ``AttributeError``.
+B69, fixed: ``SaveDataHandler.getSaveData_HDF`` used to call
+``data.to_HDF(path, key)`` -- capitalised -- but pandas only has ``to_hdf``
+(lowercase, and ``key`` keyword-only since 2.0), so saving to HDF5 always
+raised ``AttributeError``.
 """
 import pandas
 import pytest
@@ -59,20 +60,19 @@ class TestSaveDataHandlerParquet:
 
 
 @pytest.mark.unit
-class TestSaveDataHandlerHDFIsBroken:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B69: getSaveData_HDF calls data.to_HDF(path, key) -- "
-               "capitalised -- but pandas.DataFrame only defines the "
-               "lowercase to_hdf. Saving to HDF5 always raises "
-               "AttributeError. See the consolidated findings issue.",
-    )
-    def test_hdf_saving_should_write_a_file(self, tmp_path):
+class TestSaveDataHandlerHDF:
+    def test_hdf_saving_writes_a_file_and_returns_path_and_key(self, tmp_path):
+        pytest.importorskip("tables")
         df = pandas.DataFrame({"a": [1, 2]})
-        SaveDataHandler.getSaveData_HDF(df, str(tmp_path / "out.h5"), "k")
+        target = str(tmp_path / "out.h5")
+        result = SaveDataHandler.getSaveData_HDF(df, target, "k")
+        assert result == dict(path=target, key="k")
+        assert (tmp_path / "out.h5").is_file()
+        pandas.testing.assert_frame_equal(pandas.read_hdf(target, key="k"), df)
 
-    def test_hdf_saving_currently_raises(self, tmp_path):
-        """Characterisation of B69."""
-        df = pandas.DataFrame({"a": [1, 2]})
-        with pytest.raises(AttributeError, match="to_HDF"):
-            SaveDataHandler.getSaveData_HDF(df, str(tmp_path / "out.h5"), "k")
+    def test_it_no_longer_calls_the_capitalised_name(self):
+        import inspect
+
+        source = inspect.getsource(SaveDataHandler.getSaveData_HDF)
+        assert "to_HDF" not in source
+        assert "to_hdf" in source
