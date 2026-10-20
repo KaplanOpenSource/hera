@@ -185,10 +185,12 @@ class TestInputValidation:
 
 @pytest.mark.unit
 class TestPandasInput:
-    """The pandas branch is documented in detail and cannot produce a number.
+    """The pandas branch, whose docstring promises "For pandas, we do not
+    assume that the time is equispaced".
 
-    Its docstring even promises "For pandas, we do not assume that the time is
-    equispaced", so it is meant to be a supported path.
+    B37, fixed: the dose came out all NaN because the concentrations kept
+    their DatetimeIndex while the time steps carried the RangeIndex left by
+    reset_index(), so the multiplication aligned on disjoint labels.
     """
 
     @staticmethod
@@ -210,27 +212,17 @@ class TestPandasInput:
         dose = CalculatorHaber().calculate(self._frame(), time="datetime")
         assert not np.isnan(np.asarray(dose["C"])).any()
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B37: even with inUnits supplied, the result is all NaN. "
-               "concentrationField[:-1] keeps the DatetimeIndex while dt_min[1:] "
-               "carries the RangeIndex produced by reset_index(), so the "
-               "multiplication aligns on disjoint indices. "
-               "See the consolidated findings issue.",
-    )
     def test_a_constant_exposure_accumulates_linearly(self):
+        """One dose step per *known* interval, so N samples give N-1 doses.
+
+        The duration of the last sample is unknowable on a non-equispaced
+        index, which is why the pandas branch integrates over the N-1 gaps
+        it does know.  ten Berge with n = 1 is the same law and asserts the
+        same 40.0 on the same input (test_risk_injury_pandas_path.py).
+        """
         dose = CalculatorHaber().calculate(
             self._frame(), time="datetime", inUnits=1 * MG_PER_M3
         )
         assert np.asarray(dose["C"]).tolist() == pytest.approx(
-            [10.0, 20.0, 30.0, 40.0, 50.0]
+            [10.0, 20.0, 30.0, 40.0]
         )
-
-    def test_the_two_indices_really_do_not_overlap(self):
-        """Characterisation of B37's mechanism, so the cause is unambiguous."""
-        frame = self._frame()
-        elapsed = frame.reset_index()["datetime"].diff().apply(lambda x: x.seconds) / 60.0
-
-        assert isinstance(frame[:-1].index, pd.DatetimeIndex)
-        assert not isinstance(elapsed[1:].index, pd.DatetimeIndex)
-        assert np.isnan((frame[:-1]["C"] * elapsed[1:]).to_numpy()).all()

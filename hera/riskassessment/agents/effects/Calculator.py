@@ -106,7 +106,9 @@ class CalculatorHaber(AbstractCalculator):
 			return concentrationField[field].cumsum(dim=time)*concentrationField.dt.m_as(ureg.min)*breathingRatio*CunitConversion
 		elif isinstance(concentrationField,pandas.DataFrame):
 			dt_min = concentrationField.reset_index()[time].diff().apply(lambda x: x.seconds)/60.
-			return (concentrationField[:-1].fillna(0)*dt_min[1:]).cumsum()*breathingRatio * CunitConversion
+			C = concentrationField[:-1].fillna(0)
+			# we have to ignore the index, so we transform one of the vectors to numpy.
+			return (C * dt_min[1:].values.reshape(C.shape[0],1)).cumsum()*breathingRatio * CunitConversion
 		else:
 			raise ValueError("concentrationField is not a pandas.DataFrame or xarray.Dataset")
 

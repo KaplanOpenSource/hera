@@ -23,14 +23,14 @@ index"), which turns out to have three independent problems:
   no ``inUnits`` parameter to forward one through -- so through the
   ``Injury`` API, every pandas call hits this unconditionally, regardless
   of which calculator is configured.
-* B64: past both of those, ``CalculatorHaber.calculate``'s pandas branch
-  computes ``concentrationField[:-1].fillna(0) * dt_min[1:]`` -- a
-  DataFrame multiplied by a Series without ``axis=0``, so pandas aligns the
-  Series' index against the DataFrame's *columns* rather than its rows.
-  With no matching labels the result is an all-NaN frame with the Series'
-  index values as bogus extra columns. ``CalculatorTenBerge``'s equivalent
-  line avoids exactly this by converting the same ``dt_min`` to
-  ``.values.reshape(...)`` before multiplying.
+* B64, fixed: ``CalculatorHaber.calculate``'s pandas branch computed
+  ``concentrationField[:-1].fillna(0) * dt_min[1:]`` -- a DataFrame
+  multiplied by a Series without ``axis=0``, so pandas aligned the Series'
+  index against the DataFrame's *columns* rather than its rows. With no
+  matching labels the result was an all-NaN frame with the Series' index
+  values as bogus extra columns. It now converts ``dt_min`` to
+  ``.values.reshape(...)`` before multiplying, exactly as
+  ``CalculatorTenBerge``'s equivalent line always did.
 """
 import pandas
 import pytest
@@ -66,28 +66,24 @@ def _agent_with_calculator(calculator_name, **calculator_params):
 
 @pytest.mark.unit
 class TestCalculatorHaberOnPandas:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B64: the pandas branch multiplies a DataFrame by a Series "
-               "without axis=0, aligning on columns instead of rows, so the "
-               "cumulative dose comes out all NaN with bogus extra columns. "
-               "See the consolidated findings issue.",
-    )
     def test_a_constant_exposure_accumulates_linearly(self):
+        """Five samples a minute apart span four known intervals, so the
+        dose is 40 -- the same number ten Berge with n = 1 gives below."""
         df = _series_dataframe([10.0, 10.0, 10.0, 10.0, 10.0])
         dose = CalculatorHaber().calculate(
             df, time="datetime", field=None, inUnits=1 * ureg.mg / ureg.m**3
         )
-        assert dose["P1"].iloc[-1] == pytest.approx(30.0)
+        assert dose["P1"].iloc[-1] == pytest.approx(40.0)
 
-    def test_the_result_is_currently_all_nan_with_bogus_extra_columns(self):
-        """Characterisation of B64."""
+    def test_the_input_columns_are_the_only_columns(self):
+        """B64 surfaced as bogus integer columns and an all-NaN frame, from
+        the Series index being aligned against the DataFrame's columns."""
         df = _series_dataframe([10.0, 10.0, 10.0, 10.0, 10.0])
         dose = CalculatorHaber().calculate(
             df, time="datetime", field=None, inUnits=1 * ureg.mg / ureg.m**3
         )
-        assert set(dose.columns) == {"P1", 1, 2, 3, 4}
-        assert dose.isna().all().all()
+        assert set(dose.columns) == {"P1"}
+        assert not dose.isna().any().any()
 
     def test_default_inunits_raises_because_pandas_now_has_attrs_too(self):
         """B63: hasattr(df, 'attrs') is true for pandas.DataFrame since
