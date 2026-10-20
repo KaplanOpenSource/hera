@@ -136,7 +136,10 @@ def tounit(x, theunit):
         if isinstance(theunit, Unum) and unumSupport:
             ret = x * theunit
         else:
-            ret = Quantity(x, theunit)
+            # ureg.Quantity, not the bare pint.Quantity: the result has to
+            # belong to hera's registry so that it can be combined with the
+            # units defined there (dunam, mmH2O).
+            ret = ureg.Quantity(x, theunit)
     return ret
 
 
