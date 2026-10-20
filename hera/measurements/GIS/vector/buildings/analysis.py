@@ -137,7 +137,9 @@ class analysis():
             raise ValueError(err)
 
         desc = {
-                 "bounds" : data.total_bounds,
+                 # a plain list, not the numpy array: an array-valued descriptor
+                 # field makes the cache lookup below raise on its truth value.
+                 "bounds" : list(data.total_bounds),
                  BUILDINGS_LAMBDA_WIND_DIRECTION: windMeteorologicalDirection,
                  BUILDINGS_LAMBDA_RESOLUTION : resolution,
                  "crs":data.crs.to_epsg()

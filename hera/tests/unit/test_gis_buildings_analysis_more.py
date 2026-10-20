@@ -19,27 +19,26 @@ CRS is set explicitly, because the method requires it.
 Bugs pinned (each has an xfail(strict) for the intended behaviour plus a
 passing characterisation of what actually happens)
 --------------------------------------------------------------------------
-* **B242** -- the cache is write-only.  The descriptor includes
+* **B242** (fixed) -- the cache was write-only.  The descriptor included
   ``"bounds": data.total_bounds``, a ``numpy.ndarray``, so the stored document
-  carries an array-valued field; ``getCacheDocuments`` then builds a query
-  term from the same array and comparing it against that field evaluates an
+  carried an array-valued field; ``getCacheDocuments`` then built a query
+  term from the same array and comparing it against that field evaluated an
   array in a boolean context -- *"ValueError: The truth value of an array with
   more than one element is ambiguous"*.  The first call, against an empty
-  collection, has nothing to compare and therefore succeeds; from then on
-  every call with ``saveCache=True`` fails, ``overwrite=True`` included,
-  because the lookup runs before the overwrite check.  Two whole branches --
-  the "return found data in DB" path and the "update old record" save path,
-  along with its documented ``FileNotFoundError`` advice -- are consequently
-  dead code.
+  collection, had nothing to compare and therefore succeeded; from then on
+  every call with ``saveCache=True`` failed, ``overwrite=True`` included,
+  because the lookup runs before the overwrite check.  ``bounds`` is now
+  stored as a plain list, which makes the "return found data in DB" path, the
+  "update old record" save path and its documented ``FileNotFoundError``
+  advice reachable.
 
 Deliberately not tested, and why
 --------------------------------
 * The numeric content of ``lambdaP``/``lambdaF``/``hc`` beyond one
   hand-computed check: owned by ``Blocks``, covered in
   ``test_gis_buildings_analysis.py``.
-* The behaviour of the cache-hit and record-update branches: unreachable
-  while B242 stands, so the tests below assert that they are unreachable
-  rather than asserting on dead code.
+* The numeric content of the cache-hit result beyond its equality with the
+  freshly computed one: the geojson round-trip is geopandas'.
 * ``analysis.__init__``'s config bootstrap: exercised by every fixture in this
   file (it runs on construction) and asserted directly in the first class;
   the rest is left to ``test_gis_buildings_analysis.py``.
@@ -169,7 +168,7 @@ class TestLambdaFromBuildingDataComputation:
 
 @pytest.mark.unit
 class TestLambdaFromBuildingDataCacheWrite:
-    """The first call, against an empty cache -- the only one B242 permits."""
+    """The first call, against an empty cache."""
 
     def test_the_result_is_stored_as_a_cache_document(self, analysis_layer, buildings_toolkit):
         _call(analysis_layer)
@@ -216,69 +215,39 @@ class TestLambdaFromBuildingDataCacheWrite:
 
 @pytest.mark.unit
 class TestLambdaFromBuildingDataCacheRead:
-    """B242: the cache is write-only -- reading it back always raises."""
+    """B242: the cache can be read back, not only written."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B242: the cache descriptor carries \"bounds\": "
-               "data.total_bounds, a numpy.ndarray, so the document is stored "
-               "with an array-valued field.  getCacheDocuments then turns the "
-               "same array into a query term and the comparison against that "
-               "field evaluates an array in a boolean context -- "
-               "'ValueError: The truth value of an array with more than one "
-               "element is ambiguous'.  The lookup on line 147 runs before "
-               "the overwrite check, so once anything at all has been cached "
-               "under type='Lambda_Buildings' EVERY subsequent call fails, "
-               "overwrite=True included.  The cache can be written but never "
-               "read. See the consolidated findings issue.",
-    )
     def test_a_second_identical_call_reuses_the_stored_result(self, analysis_layer):
+        """B242."""
         first = _call(analysis_layer)
         second = _call(analysis_layer)
         assert second["lambdaP"].sum() == pytest.approx(first["lambdaP"].sum())
 
-    def test_a_second_call_raises_on_the_array_valued_cache_key(self, analysis_layer):
-        """Characterisation of B242."""
+    def test_a_second_call_does_not_write_another_document(self, analysis_layer, buildings_toolkit):
+        """B242: the cache hit short-circuits the recomputation."""
         _call(analysis_layer)
-        with pytest.raises(ValueError, match="truth value of an array"):
-            _call(analysis_layer)
+        _call(analysis_layer)
+        assert len(buildings_toolkit.getCacheDocuments(type="Lambda_Buildings")) == 1
 
-    def test_even_a_call_with_a_different_key_is_poisoned(self, analysis_layer):
-        """Characterisation of B242: the query scans every Lambda_Buildings
-        document, so one cached entry breaks lookups for all of them."""
+    def test_a_call_with_a_different_key_is_cached_separately(self, analysis_layer, buildings_toolkit):
+        """B242: one cached entry no longer poisons lookups for the rest."""
         _call(analysis_layer, windMeteorologicalDirection=270)
-        with pytest.raises(ValueError, match="truth value of an array"):
-            _call(analysis_layer, windMeteorologicalDirection=45)
+        _call(analysis_layer, windMeteorologicalDirection=45)
+        assert len(buildings_toolkit.getCacheDocuments(type="Lambda_Buildings")) == 2
 
-    def test_overwrite_does_not_help(self, analysis_layer):
-        """Characterisation of B242: the lookup precedes the overwrite test."""
+    def test_overwrite_recomputes_into_the_existing_record(self, analysis_layer, buildings_toolkit):
+        """B242: the 'update old record' save branch is reachable."""
         _call(analysis_layer)
-        with pytest.raises(ValueError, match="truth value of an array"):
-            _call(analysis_layer, overwrite=True)
+        _call(analysis_layer, overwrite=True)
+        assert len(buildings_toolkit.getCacheDocuments(type="Lambda_Buildings")) == 1
 
-    def test_the_descriptor_field_that_causes_it_is_the_bounds_array(self):
-        """Characterisation of B242: the root cause, stated directly."""
+    def test_the_descriptor_bounds_field_is_a_plain_list(self, analysis_layer, buildings_toolkit):
+        """B242: the root cause, stated directly -- not a numpy.ndarray."""
         assert isinstance(_buildings().total_bounds, numpy.ndarray)
-        assert _buildings().total_bounds.size == 4
-
-    def test_the_same_key_with_bounds_as_a_list_queries_cleanly(self, buildings_toolkit):
-        """Characterisation of B242: nothing else in the key is at fault.
-
-        The identical four descriptor fields round-trip through write and
-        lookup without complaint as soon as ``bounds`` is a plain list, which
-        places the defect exactly at ``total_bounds`` and nowhere else.
-        """
-        data = _buildings()
-        desc = {
-            "bounds": list(data.total_bounds),
-            BUILDINGS_LAMBDA_WIND_DIRECTION: _WIND,
-            BUILDINGS_LAMBDA_RESOLUTION: _RESOLUTION,
-            "crs": data.crs.to_epsg(),
-        }
-        buildings_toolkit.addCacheDocument(
-            resource="", dataFormat="geopandas", type="Lambda_Buildings", desc=desc
-        )
-        assert len(buildings_toolkit.getCacheDocuments(type="Lambda_Buildings", **desc)) == 1
+        _call(analysis_layer)
+        desc = buildings_toolkit.getCacheDocuments(type="Lambda_Buildings")[0].desc
+        assert not isinstance(desc["bounds"], numpy.ndarray)
+        assert len(desc["bounds"]) == 4
 
 
 @pytest.mark.unit
@@ -294,32 +263,23 @@ class TestLambdaFromBuildingDataCacheControl:
         assert buildings_toolkit.getConfig()["analysis_CacheCounter"] == 0
 
     def test_save_cache_false_is_repeatable(self, analysis_layer):
-        """Because it never populates the cache, it never trips B242 either --
-        the only way to call this method more than once today."""
+        """It never populates the cache, so every call recomputes."""
         first = _call(analysis_layer, saveCache=False)
         second = _call(analysis_layer, saveCache=False)
         assert second["lambdaP"].sum() == pytest.approx(first["lambdaP"].sum())
 
-    def test_the_recovery_path_for_a_vanished_cache_file_is_unreachable(self, analysis_layer, buildings_toolkit):
-        """Characterisation of B242: the FileNotFoundError branch is dead code.
-
-        ``LambdaFromBuildingData`` promises a clear "the cached data ... is
-        not found on the disk ... use overwrite=True" error, but reaching it
-        requires a successful cache lookup, which B242 makes impossible: the
-        ValueError arrives first, with no such advice.
-        """
+    def test_the_recovery_path_for_a_vanished_cache_file_is_reachable(self, analysis_layer, buildings_toolkit):
+        """B242: the documented FileNotFoundError advice can now be given."""
         _call(analysis_layer)
         os.remove(buildings_toolkit.getCacheDocuments(type="Lambda_Buildings")[0].resource)
-        with pytest.raises(ValueError, match="truth value of an array"):
+        with pytest.raises(FileNotFoundError, match="overwrite=True"):
             _call(analysis_layer)
 
-    def test_the_update_an_existing_record_path_is_unreachable_too(self, analysis_layer, buildings_toolkit):
-        """Characterisation of B242: the ``len(dataDoc) > 0`` save branch --
-        the one that reuses the stored resource path instead of allocating a
-        new file name -- can never run, so a second document is never
-        written and the counter never advances past its first value."""
+    def test_the_update_an_existing_record_path_reuses_the_file_name(self, analysis_layer, buildings_toolkit):
+        """B242: the ``len(dataDoc) > 0`` save branch reuses the stored
+        resource path instead of allocating a new file name, so the counter
+        does not advance past its first value."""
         _call(analysis_layer)
-        with pytest.raises(ValueError):
-            _call(analysis_layer, overwrite=True)
+        _call(analysis_layer, overwrite=True)
         assert os.listdir(buildings_toolkit.filesDirectory) == ["LambdaGeoJson_0.geojson"]
         assert buildings_toolkit.getConfig()["analysis_CacheCounter"] == 1
