@@ -31,9 +31,6 @@ a passing characterisation of what actually happens):
 
   * B174: the same handler calls `tk.workflowCompare(...)`, a method
     that exists nowhere in hera; the real name is `compareWorkflows`.
-  * B178: `foam_solver_template_buildExecute` and `hermes_buildExecute`
-    turn a missing hermes into `warnings.warn(...)` and then call the name
-    the failed import was supposed to bind: NameError.
 
 Rough edges characterised but not pinned as bugs, because there is no one
 obviously-intended behaviour to xfail against: the live
@@ -1861,33 +1858,8 @@ class TestBuildExecuteWithoutHermes:
         [foam_solver_template_buildExecute, hermes_buildExecute],
         ids=["foam_solver_template_buildExecute", "hermes_buildExecute"],
     )
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B178: both buildExecute handlers wrap the "
-               "`from hermes.utils.workflowAssembly import "
-               "handler_buildExecute` in a try/except ImportError that only "
-               "calls warnings.warn, and then call handler_buildExecute "
-               "anyway -- so a missing hermes surfaces as "
-               "`NameError: name 'handler_buildExecute' is not defined` "
-               "after a warning, instead of the ImportError the comment in "
-               "the source says was replaced.  See the consolidated "
-               "findings issue.",
-    )
     def test_a_missing_hermes_should_be_reported_as_an_import_error(
         self, no_hermes, recorded_workflow_add, handler
     ):
-        with pytest.raises(ImportError):
+        with pytest.raises(ImportError, match="hermes is not installed"):
             handler(_buildExecuteArgs(noDB=True))
-
-    @pytest.mark.parametrize(
-        "handler",
-        [foam_solver_template_buildExecute, hermes_buildExecute],
-        ids=["foam_solver_template_buildExecute", "hermes_buildExecute"],
-    )
-    def test_a_missing_hermes_currently_warns_and_then_raises_a_name_error(
-        self, no_hermes, recorded_workflow_add, handler
-    ):
-        """Characterisation of B178."""
-        with pytest.warns(UserWarning, match="hermes is not installed"):
-            with pytest.raises(NameError, match="handler_buildExecute"):
-                handler(_buildExecuteArgs(noDB=True))

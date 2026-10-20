@@ -2,7 +2,6 @@ import json
 import logging
 import os
 import shutil
-import warnings
 
 
 
@@ -84,8 +83,7 @@ def foam_solver_template_buildExecute(arguments):
     try:
         from hermes.utils.workflowAssembly import handler_buildExecute
     except ImportError:
-        #    raise ImportError("hermes is not installed. please install it to use the hermes workflow toolkit.")
-        warnings.warn("hermes is not installed. some features will not work.")
+        raise ImportError("hermes is not installed. please install it to use the hermes workflow toolkit.")
     logger = logging.getLogger("hera.bin")
     logger.debug(f"----- Start : foam_templates_flow_list-----")
     logger.debug(f" arguments: {arguments}")
@@ -755,8 +753,7 @@ def hermes_buildExecute(arguments):
     try:
         from hermes.utils.workflowAssembly import handler_buildExecute
     except ImportError:
-        #    raise ImportError("hermes is not installed. please install it to use the hermes workflow toolkit.")
-        warnings.warn("hermes is not installed. some features will not work.")
+        raise ImportError("hermes is not installed. please install it to use the hermes workflow toolkit.")
     logger = logging.getLogger("bin.hermes_buildExecute")
     handler_buildExecute(arguments)
 
