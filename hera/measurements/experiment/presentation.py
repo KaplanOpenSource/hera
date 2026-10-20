@@ -277,7 +277,7 @@ class experimentPresentation:
         """
         import matplotlib.pyplot as plt
 
-        data = self.datalayer.experimentSetup.trialSet[trialSet][trialName].entitiesTable(status).query("locationName==@floorName and entityType==@entityTypeName")
+        data = self.datalayer.trialSet[trialSet][trialName].entitiesTable(status).query("locationName==@floorName and entityType==@entityTypeName")
 
         if ax is None:
             fig, ax = plt.subplots(1, 1)
@@ -339,7 +339,7 @@ class experimentPresentation:
             axis
         """
         import matplotlib.pyplot as plt
-        entities = self.datalayer.experimentSetup.trialSet[trialSet][trialName].entitiesTable(status)
+        entities = self.datalayer.trialSet[trialSet][trialName].entitiesTable(status)
         if len(entities) > 0:
             data = entities.query("locationName==@floorName and entityType==@entityTypeName")
         else:

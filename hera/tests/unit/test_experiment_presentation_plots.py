@@ -71,15 +71,20 @@ Bugs pinned here
   (its only parameters are ``trialSetName`` and ``trialName``),
   ``deviceType`` and ``toolkitDataSource`` are undefined names, and the
   method returns nothing at all.
-* B220: ``_plotEntityLocationScatter`` and ``_plotEntityLocationNames``
-  both start from ``self.datalayer.experimentSetup.trialSet[...]``, but
+* B220 (partly fixed): ``_plotEntityLocationScatter`` and
+  ``_plotEntityLocationNames`` both started from
+  ``self.datalayer.experimentSetup.trialSet[...]``, but
   ``experimentSetupWithData`` has no ``experimentSetup`` attribute -- it
   *is* the experiment setup and exposes ``.trialSet`` directly (the same
-  mistake as B165 in ``dataEngine.py``), so both raise ``AttributeError``
-  immediately. Behind that: ``entitiesTable(status)`` calls an argos
-  property, ``self._entityMarkers`` is never defined on the class, and
-  ``FLOOR_PLATFORM``/``FLOOR_CONCOURSE`` are undefined names in the
-  module.
+  mistake as B165 in ``dataEngine.py``), so both raised
+  ``AttributeError`` immediately. That is fixed. Both are still dead on
+  the next statement and beyond, and none of it is pinned as a defect of
+  its own: ``entitiesTable(status)`` calls an argos property with an
+  argument it does not take, the query filters on ``locationName`` and
+  ``entityType`` where a trial's table has ``mapName`` and
+  ``deviceTypeName``, ``self._entityMarkers`` is never defined on the
+  class, and ``FLOOR_PLATFORM``/``FLOOR_CONCOURSE`` are undefined names
+  in the module.
 * B221 (partly fixed): ``plotDevices`` opened with
   ``plot_kwargs = plot_kwargs or {}``, reading a local before it was
   assigned -- the parameter is spelled ``plotkwargs`` -- so with the
@@ -665,19 +670,27 @@ class TestPlotMap:
 
 @pytest.mark.unit
 class TestPlotEntityLocationHelpers:
-    """B220: both start from a datalayer attribute that does not exist."""
+    """B220: the datalayer attribute is fixed; the rest of both helpers
+    is still unwritten."""
 
     def test_the_experiment_is_the_setup_and_has_no_experiment_setup_attribute(self, experiment):
-        """Characterisation of B220: the attribute both methods read."""
+        """Why both methods read .trialSet directly now."""
         assert not hasattr(experiment, "experimentSetup")
         assert hasattr(experiment, "trialSet")
 
+    def test_a_trial_table_has_no_location_name_or_entity_type_column(self, experiment):
+        """The next thing standing in the way: the query's two columns."""
+        table = experiment.trialSet["Measurements"]["T1"].entitiesTable
+        assert {"mapName", "deviceTypeName"}.issubset(table.columns)
+        assert "locationName" not in table.columns
+        assert "entityType" not in table.columns
+
     def test_the_presentation_layer_defines_no_entity_markers(self):
-        """Characterisation of B220: the next attribute the scatter needs."""
+        """The next attribute the scatter needs."""
         assert not hasattr(experimentPresentation, "_entityMarkers")
 
     def test_the_module_defines_no_floor_constants(self):
-        """Characterisation of B220: the names the label branch indexes."""
+        """The names the label branch indexes."""
         import hera.measurements.experiment.presentation as presentationModule
 
         assert not hasattr(presentationModule, "FLOOR_PLATFORM")
@@ -685,13 +698,13 @@ class TestPlotEntityLocationHelpers:
 
     @pytest.mark.xfail(
         strict=True,
-        reason="B220: _plotEntityLocationScatter reads "
-               "self.datalayer.experimentSetup.trialSet[...], but "
-               "experimentSetupWithData has no experimentSetup attribute -- "
-               "it exposes .trialSet directly (the same mistake as B165). "
-               "Behind it: entitiesTable(status) calls an argos property, "
+        reason="_plotEntityLocationScatter is still dead after the B220 "
+               "fix: entitiesTable(status) calls an argos property with an "
+               "argument, the query filters on locationName/entityType "
+               "where a trial's table has mapName/deviceTypeName, "
                "self._entityMarkers is never defined, and FLOOR_PLATFORM / "
-               "FLOOR_CONCOURSE are undefined names. "
+               "FLOOR_CONCOURSE are undefined names. None of those is "
+               "pinned as a defect of its own. "
                "See the consolidated findings issue.",
     )
     def test_the_scatter_should_draw_the_entities_of_the_type(self, presentation):
@@ -699,17 +712,17 @@ class TestPlotEntityLocationHelpers:
             "sonic", "Measurements", "T1", None, "map1")
         assert len(ax.collections) == 1
 
-    def test_the_scatter_currently_raises_an_attribute_error(self, presentation):
-        """Characterisation of B220."""
-        with pytest.raises(AttributeError, match="experimentSetup"):
+    def test_the_scatter_now_gets_as_far_as_the_entities_table(self, presentation):
+        """B220: this used to be an AttributeError on experimentSetup."""
+        with pytest.raises(TypeError, match="'DataFrame' object is not callable"):
             presentation._plotEntityLocationScatter(
                 "sonic", "Measurements", "T1", None, "map1")
 
     @pytest.mark.xfail(
         strict=True,
-        reason="B220: _plotEntityLocationNames reads the same non-existent "
-               "self.datalayer.experimentSetup, so it raises AttributeError "
-               "before it can label anything. "
+        reason="_plotEntityLocationNames is still dead after the B220 fix, "
+               "on the same entitiesTable(status) call and the same two "
+               "missing query columns. "
                "See the consolidated findings issue.",
     )
     def test_the_names_helper_should_label_the_entities(self, presentation):
@@ -718,16 +731,16 @@ class TestPlotEntityLocationHelpers:
             plotNameMode=experimentPresentation.NAMES_LONG, text_kw=dict())
         assert len(ax.texts) == 2
 
-    def test_the_names_helper_currently_raises_an_attribute_error(self, presentation):
-        """Characterisation of B220."""
-        with pytest.raises(AttributeError, match="experimentSetup"):
+    def test_the_names_helper_now_gets_as_far_as_the_entities_table(self, presentation):
+        """B220: this used to be an AttributeError on experimentSetup."""
+        with pytest.raises(TypeError, match="'DataFrame' object is not callable"):
             presentation._plotEntityLocationNames(
                 "sonic", "Measurements", "T1", None, "map1",
                 plotNameMode=experimentPresentation.NAMES_LONG, text_kw=dict())
 
     def test_an_invalid_plot_name_mode_is_never_reached(self, presentation):
-        """Characterisation of B220: the documented ValueError is dead too."""
-        with pytest.raises(AttributeError, match="experimentSetup"):
+        """The documented ValueError is still unreachable."""
+        with pytest.raises(TypeError, match="'DataFrame' object is not callable"):
             presentation._plotEntityLocationNames(
                 "sonic", "Measurements", "T1", None, "map1",
                 plotNameMode="neither short nor long", text_kw=dict())
