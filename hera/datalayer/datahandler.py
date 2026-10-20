@@ -62,11 +62,19 @@ class datatypes:
             return qualname  # No need to show 'builtins' for int, str, etc.
         return f"{module}.{qualname}"
 
+    # The keys are fully qualified class paths. Third-party classes move between
+    # releases (pandas 3 reports 'pandas.DataFrame', dask moved its collection
+    # module), so every class that drifted is listed under all of its known
+    # paths -- otherwise detection silently degrades to the "object" (pickle)
+    # entry instead of the format hera's policy requires.
     typeDatatypeMap = {
         "str": dict(typeName=STRING, ext="txt"),
         "pandas.core.frame.DataFrame": dict(typeName=PARQUET, ext="parquet"),
+        "pandas.DataFrame": dict(typeName=PARQUET, ext="parquet"),
         'pandas.core.series.Series': dict(typeName=JSON_PANDAS, ext="json"),
+        "pandas.Series": dict(typeName=JSON_PANDAS, ext="json"),
         "dask_expr._collection.DataFrame": dict(typeName=PARQUET, ext="parquet"),
+        "dask.dataframe.dask_expr._collection.DataFrame": dict(typeName=PARQUET, ext="parquet"),
         'geopandas.geodataframe.GeoDataFrame': dict(typeName=GEOPANDAS, ext="gpkg"),
         'xarray.core.dataarray.DataArray': dict(typeName=NETCDF_XARRAY, ext="zarr"),
         "dict": dict(typeName=PICKLE, ext="pckle"),

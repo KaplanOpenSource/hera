@@ -13,16 +13,6 @@ FORMAT_CONSTANTS = sorted(
     name for name in dir(datatypes) if name.isupper() and not name.startswith("_")
 )
 
-# The registry keys objects by their fully-qualified class path, which for
-# third-party classes is an internal module path that moves between releases.
-# Where the installed pandas exposes a path the map does not know, detection
-# degrades to pickle -- see B20.  Computed at collection so the expectation is
-# correct in both the pinned CI environment and a drifted local one.
-_PANDAS_KEY_IS_KNOWN = (
-    datatypes.get_obj_or_instance_fullName(pd.DataFrame())
-    in datatypes.typeDatatypeMap
-)
-
 
 @pytest.mark.unit
 class TestFormatRegistry:
@@ -92,26 +82,11 @@ class TestFormatDetection:
     def test_guess_handler_matches_explicit_lookup(self):
         assert datatypes.guessHandler("text") is datatypes.getHandler(datatypes.STRING)
 
-    @pytest.mark.xfail(
-        condition=not _PANDAS_KEY_IS_KNOWN,
-        strict=True,
-        reason="B20: typeDatatypeMap is keyed on third-party internal module paths "
-               "('pandas.core.frame.DataFrame'). pandas 3 reports "
-               "'pandas.DataFrame', which the map does not know, so every "
-               "DataFrame silently degrades to pickle instead of parquet "
-               ", with no error. See the consolidated findings issue.",
-    )
     def test_a_dataframe_is_stored_as_parquet(self):
         """tabular data is parquet, and parquet is preferred over CSV."""
         assert datatypes.getDataFormatName(pd.DataFrame({"a": [1]})) == datatypes.PARQUET
         assert datatypes.getDataFormatExtension(pd.DataFrame({"a": [1]})) == "parquet"
 
-    @pytest.mark.xfail(
-        condition=not _PANDAS_KEY_IS_KNOWN,
-        strict=True,
-        reason="B20: same stale-key problem for Series. "
-               "See the consolidated findings issue.",
-    )
     def test_a_series_is_stored_as_json(self):
         assert datatypes.getDataFormatName(pd.Series([1])) == datatypes.JSON_PANDAS
 
