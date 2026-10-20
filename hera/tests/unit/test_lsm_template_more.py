@@ -29,10 +29,6 @@ and a passing characterisation of what actually happens:
   * B275: ``_toNetcdf`` says it converts the dosage "to s/m**3 instead
     of min/m**3" but multiplies by ``(1 s).m_as(min)`` = 1/60, which is
     the seconds-to-minutes factor -- the reverse of the stated conversion.
-  * B276: ``_getSimulationsList`` joins its desc frames to its params
-    frames with ``itertools.product`` instead of pairing them, so n
-    simulations produce n^2 rows in which one simulation's metadata is
-    stapled to another's parameters.
   * B277: ``run(topography=..., canopy=...)`` without ``stations``
     reaches ``stations.columns`` on None and dies with AttributeError.
   * B278: ``run`` chdir's into the simulation directory with no
@@ -905,46 +901,24 @@ class TestSimulationsListing:
     def test_an_empty_project_gives_no_frames(self, template, lsm):
         assert template()._getSimulationsList() == []
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B276: _getSimulationsList builds one desc frame and one "
-               "params frame per document, then combines them with "
-               "`product(desc_df_list, params_df_list)` instead of pairing "
-               "them. n simulations therefore yield n^2 rows, and every "
-               "off-diagonal row staples one simulation's id, name and "
-               "version onto a different simulation's parameters. "
-               "getSimulationsTable inherits the whole defect, and "
-               "LSMToolkit.getSimulationsList / getTemplatesTable repeat the "
-               "same construction. See the consolidated findings issue.",
-    )
     def test_two_simulations_should_give_two_frames(self, template, lsm):
         self._register(lsm, "sim1", extra=1)
         self._register(lsm, "sim2", extra=2)
         assert len(template()._getSimulationsList()) == 2
 
-    def test_two_simulations_currently_give_four_frames(self, template, lsm):
-        """Characterisation of B276."""
-        self._register(lsm, "sim1", extra=1)
-        self._register(lsm, "sim2", extra=2)
-        assert len(template()._getSimulationsList()) == 2**2
-
-    def test_the_cross_join_currently_mixes_one_run_with_anothers_parameters(
-        self, template, lsm
-    ):
-        """Characterisation of B276."""
+    def test_each_frame_keeps_its_own_runs_parameters(self, template, lsm):
         self._register(lsm, "sim1", extra=1)
         self._register(lsm, "sim2", extra=2)
         pairs = {
             (frame["simulationName"][0], frame["params__extra"][0])
             for frame in template()._getSimulationsList()
         }
-        assert pairs == {("sim1", 1), ("sim1", 2), ("sim2", 1), ("sim2", 2)}
+        assert pairs == {("sim1", 1), ("sim2", 2)}
 
-    def test_three_simulations_currently_give_nine_frames(self, template, lsm):
-        """Characterisation of B276: the growth is quadratic."""
+    def test_the_number_of_frames_grows_linearly(self, template, lsm):
         for index in range(3):
             self._register(lsm, f"sim{index}", extra=index)
-        assert len(template()._getSimulationsList()) == 3**2
+        assert len(template()._getSimulationsList()) == 3
 
 
 @pytest.mark.unit
@@ -992,29 +966,14 @@ class TestSimulationsTable:
         assert len(table) == 1
         assert table["simulationName"].iloc[0] == "other"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B276: getSimulationsTable inherits _getSimulationsList's "
-               "product() cross-join, so a project with n matching "
-               "simulations is reported as n^2 rows with duplicated index "
-               "values and parameters taken from the wrong run. See the "
-               "consolidated findings issue.",
-    )
     def test_two_simulations_should_give_two_rows(self, template, lsm):
         self._register(lsm, "sim1", extra=1)
         self._register(lsm, "sim2", extra=2)
         assert len(template().getSimulationsTable()) == 2
 
-    def test_two_simulations_currently_give_four_rows(self, template, lsm):
-        """Characterisation of B276."""
-        self._register(lsm, "sim1", extra=1)
-        self._register(lsm, "sim2", extra=2)
-        assert len(template().getSimulationsTable()) == 4
-
-    def test_each_id_currently_appears_twice_in_the_index(self, template, lsm):
-        """Characterisation of B276."""
+    def test_each_id_appears_once_in_the_index(self, template, lsm):
         first = self._register(lsm, "sim1", extra=1)
         second = self._register(lsm, "sim2", extra=2)
         index = list(template().getSimulationsTable().index)
-        assert index.count(first.id) == 2
-        assert index.count(second.id) == 2
+        assert index.count(first.id) == 1
+        assert index.count(second.id) == 1

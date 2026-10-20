@@ -1,6 +1,5 @@
 import glob
 import os
-from itertools import product
 
 import numpy
 import pandas
@@ -503,7 +502,7 @@ class LSMTemplate:
         params_df_list = [df.rename(columns=dict([(x,"params__%s"%x) for x in df.columns])) for df in params_df_list]
 
         desc_df_list = [pandas.DataFrame(desc, index=[0]) for desc in descList]
-        df_list = [desc.join(params) for (desc,params) in product(desc_df_list, params_df_list)]
+        df_list = [desc.join(params) for (desc,params) in zip(desc_df_list, params_df_list)]
 
         return df_list
 

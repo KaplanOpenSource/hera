@@ -7,7 +7,6 @@ from hera.utils.jsonutils import JSONToConfiguration, JSONVariations
 from hera.utils.logging.helpers import get_classMethod_logger
 
 from .template import LSMTemplate
-from itertools import product
 from ... import datalayer
 from ... import toolkit
 from .singleSimulation import SingleSimulation
@@ -152,7 +151,7 @@ class LSMToolkit(toolkit.abstractToolkit):
 
             params_df_list = [pandas.DataFrame(desc.pop('params'), index=[0]) for desc in descList]
             desc_df_list = [pandas.DataFrame(desc, index=[0]) for desc in descList]
-            df_list = [desc.join(params) for (desc,params) in product(desc_df_list, params_df_list)]
+            df_list = [desc.join(params) for (desc,params) in zip(desc_df_list, params_df_list)]
             ret = pandas.concat(df_list,ignore_index=True,sort=False)
         else:
             ret = pandas.DataFrame()
@@ -282,7 +281,7 @@ class LSMToolkit(toolkit.abstractToolkit):
         params_df_list = [pandas.DataFrame(desc.pop('params'), index=[0]) for desc in descList]
         params_df_list = [df.rename(columns=dict([(x,"params__%s"%x) for x in df.columns])) for df in params_df_list]
         desc_df_list = [pandas.DataFrame(desc, index=[0]) for desc in descList]
-        df_list = [desc.join(params) for (desc,params) in product(desc_df_list, params_df_list)]
+        df_list = [desc.join(params) for (desc,params) in zip(desc_df_list, params_df_list)]
         new_df_list = []
         for df in df_list:
             id = df['id'][0]

@@ -21,22 +21,12 @@ and a passing characterisation of what actually happens:
   * B282: ``getSimulations`` wraps ``SingleSimulation(doc)`` in a bare
     ``except:`` that prints a warning and drops the document, so callers
     silently receive a short list.
-  * B283: ``getSimulationsList(wideFormat=True)`` reports
-    FileNotFoundError("No simulations.old found") for any project holding
-    more than one matching simulation -- the pivot's "Index contains
-    duplicate entries" ValueError is swallowed by the ``except ValueError``
-    that exists to report emptiness.
   * B284: ``prepareSlurmLSMExecution`` calls
     ``LSMTemplate.prepareParams(desc=None, ...)``, but that parameter is
     named ``template_desc`` -- every call raises TypeError.
   * B285: the same method logs ``logger.error(...)`` for a non-dict
     ``baseParameters`` and for an unusable ``jsonVariations`` without
     returning, so execution runs on into an unrelated failure.
-
-B276 (the ``product()`` cross-join, pinned against
-LSMTemplate._getSimulationsList in test_lsm_template_more.py) is repeated
-verbatim in ``getSimulationsList``; its consequences here are
-characterised rather than re-pinned as a separate finding.
 """
 import json
 import os
@@ -309,20 +299,16 @@ class TestGetSimulationsListLongFormat:
         pairs = dict(zip(table["variable"], table["value"]))
         assert pairs["simulationName"] == "sim2"
 
-    def test_two_simulations_currently_produce_the_cross_join(
+    def test_two_simulations_each_melt_to_their_own_fields(
         self, lsm, registerSimulation
     ):
-        """Characterisation of B276, repeated verbatim in this method:
-        two documents with three fields each melt to 2*2*4 = 16 rows."""
+        """Two documents with four fields each melt to 2*4 = 8 rows."""
         registerSimulation("sim1", TopoXmax=100, extra=1)
         registerSimulation("sim2", TopoXmax=100, extra=2)
         table = lsm.getSimulationsList()
-        assert len(table) == 16
+        assert len(table) == 8
 
-    def test_the_cross_join_currently_mixes_one_run_with_anothers_parameters(
-        self, lsm, registerSimulation
-    ):
-        """Characterisation of B276."""
+    def test_each_run_keeps_its_own_parameters(self, lsm, registerSimulation):
         registerSimulation("sim1", TopoXmax=100, extra=1)
         registerSimulation("sim2", TopoXmax=100, extra=2)
         table = lsm.getSimulationsList()
@@ -330,7 +316,7 @@ class TestGetSimulationsListLongFormat:
         byId = {}
         for identifier, value in zip(extras.index, extras["value"]):
             byId.setdefault(identifier, set()).add(value)
-        assert all(values == {1, 2} for values in byId.values())
+        assert sorted(byId.values(), key=sorted) == [{1}, {2}]
 
 
 @pytest.mark.unit
@@ -348,40 +334,17 @@ class TestGetSimulationsListWideFormat:
         with pytest.raises(FileNotFoundError, match="No simulations.old found"):
             lsm.getSimulationsList(wideFormat=True)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B283: with two or more matching simulations the wide "
-               "format cannot be built at all. The product() cross-join "
-               "(B276) puts each document id into the melted index twice "
-               "with the same 'variable', so pandas.pivot raises "
-               "ValueError('Index contains duplicate entries, cannot "
-               "reshape') -- and that lands in the `except ValueError` "
-               "whose only purpose is to report an empty project, so the "
-               "caller is told FileNotFoundError('No simulations.old "
-               "found') about a project that holds two. See the "
-               "consolidated findings issue.",
-    )
     def test_two_simulations_should_give_two_rows(self, lsm, registerSimulation):
         registerSimulation("sim1", TopoXmax=100, extra=1)
         registerSimulation("sim2", TopoXmax=100, extra=2)
         assert len(lsm.getSimulationsList(wideFormat=True)) == 2
 
-    def test_two_simulations_are_currently_reported_as_none_found(
-        self, lsm, registerSimulation
-    ):
-        """Characterisation of B283."""
+    def test_each_row_carries_its_own_runs_parameters(self, lsm, registerSimulation):
         registerSimulation("sim1", TopoXmax=100, extra=1)
         registerSimulation("sim2", TopoXmax=100, extra=2)
-        with pytest.raises(FileNotFoundError, match="No simulations.old found"):
-            lsm.getSimulationsList(wideFormat=True)
-
-    def test_the_long_format_of_the_same_project_still_returns_data(
-        self, lsm, registerSimulation
-    ):
-        """Characterisation of B283: the data is plainly there."""
-        registerSimulation("sim1", TopoXmax=100, extra=1)
-        registerSimulation("sim2", TopoXmax=100, extra=2)
-        assert len(lsm.getSimulationsList(wideFormat=False)) > 0
+        table = lsm.getSimulationsList(wideFormat=True)
+        pairs = set(zip(table["simulationName"], table["params__extra"]))
+        assert pairs == {("sim1", 1), ("sim2", 2)}
 
 
 # ---------------------------------------------------------------------------
