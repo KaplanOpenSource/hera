@@ -1,15 +1,10 @@
 """simulations/utils/interpolations.py: spatialInterpolate, a
 distance-weighted station interpolator, and two bugs in it.
 
-B93: ``windprofile`` is defined inside the ``spatialInterpolate`` class
-body but its signature has no ``self`` (``def windprofile(z, uref=3,
-...)``). Calling it the normal, intended way -- on an instance
-(``spatialInterpolate().windprofile(24)``) -- silently binds the instance
-itself to ``z`` and shifts every real argument one slot to the right, then
-crashes deep inside the function body with a confusing TypeError. It only
-"works" when called on the class object directly
-(``spatialInterpolate.windprofile(24)``), which defeats the purpose of it
-living inside the class.
+B93 (fixed): ``windprofile`` was defined inside the ``spatialInterpolate``
+class body but its signature had no ``self``, so calling it on an instance
+bound the instance itself to ``z``. It is a ``staticmethod`` now, which is
+what the signature always meant, and both calling forms work.
 
 B94, retracted: an earlier pass found ``interpPandas`` writing each
 interpolated value with ``points["interpulation"][i] = self.interp(...)``
@@ -124,25 +119,11 @@ class TestInterpArrayIsBroken:
 
 
 @pytest.mark.unit
-class TestWindprofileIsBroken:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B93: windprofile is defined with no `self` parameter "
-               "(def windprofile(z, uref=3, ...)), so calling it the "
-               "normal way -- on an instance -- binds the instance itself "
-               "to z and shifts every real argument one slot over. "
-               "See the consolidated findings issue.",
-    )
-    def test_calling_it_on_an_instance_should_compute_a_velocity(self, si):
+class TestWindprofile:
+    def test_calling_it_on_an_instance_computes_a_velocity(self, si):
         assert si.windprofile(24) == pytest.approx(3.0, abs=1e-6)
 
-    def test_calling_it_on_an_instance_currently_raises(self, si):
-        """Characterisation of B93."""
-        with pytest.raises(TypeError):
-            si.windprofile(24)
-
-    def test_it_only_works_when_called_on_the_class_directly(self):
-        """Characterisation of B93: bypassing the instance entirely
-        happens to dodge the missing `self`."""
+    def test_it_also_works_when_called_on_the_class_directly(self):
+        """It is a staticmethod, so both calling forms reach the same code."""
         result = spatialInterpolate.windprofile(24)
         assert result == pytest.approx(3.0, abs=1e-6)

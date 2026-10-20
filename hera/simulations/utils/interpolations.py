@@ -98,6 +98,7 @@ class spatialInterpolate():
         return self.interpPandas(points=newPoints, stations=stations, topography=newPoints["topography"],
                                  dx=dx, dy=dy, C=C, D=D, Hsl=Hsl, b=b)
 
+    @staticmethod
     def windprofile(z, uref=3, href=24, he=24, lambdap=0.3, lambdaf=0.3, beta=0.3):
 
         # This function will return the wind velocity at height z
