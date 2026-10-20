@@ -38,8 +38,6 @@ Bugs pinned below (each with an xfail for the intended behaviour and a
 passing characterisation of what happens today):
 
 * B194 ``prepareSlurmWorkflowExecution`` cannot take a workflow dict.
-* B195 ``prepareSlurmWorkflowExecution`` demands a variations *dict*,
-  which ``JSONVariations`` cannot read.
 * B196 ``Analysis.getFiltersDocuments``'s not-found guard tests the wrong
   thing.
 * B197 ``Presentation.toUnstructuredVTK``'s overwrite guard checks a path
@@ -252,24 +250,14 @@ class TestPrepareSlurmWorkflowExecution:
         with pytest.raises(TypeError, match="not iterable"):
             of.prepareSlurmWorkflowExecution(12345, [{_ALPHA_PATH: [1]}])
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B195: the jsonVariations type check accepts a dict (and "
-               "logs an error for anything else), but hera.utils.jsonutils."
-               "JSONVariations iterates its second argument as a *list of "
-               "variation groups* -- so the accepted dict is iterated as its "
-               "keys and dies with AttributeError deep inside "
-               "JSONvariationItem, while the list form that actually works "
-               "is the one the method complains about. "
-               "See the consolidated findings issue.",
-    )
-    def test_a_variations_dict_should_work(self, of, workflowInDB, slurmSeam):
+    def test_a_variations_dict_is_taken_as_a_single_variation_group(self, of, workflowInDB, slurmSeam):
         of.prepareSlurmWorkflowExecution("flow_0000", {_ALPHA_PATH: [1, 2]})
+        assert open(os.path.join(of.filesDirectory, "cases.txt")).read().split() == ["flow_0000",
+                                                                                    "flow_0001"]
 
-    def test_a_variations_dict_currently_raises(self, of, workflowInDB, slurmSeam):
-        """Characterisation of B195."""
-        with pytest.raises(AttributeError, match="items"):
-            of.prepareSlurmWorkflowExecution("flow_0000", {_ALPHA_PATH: [1, 2]})
+    def test_an_unusable_variations_type_is_refused(self, of, workflowInDB, slurmSeam):
+        with pytest.raises(ValueError, match="path, dict or list"):
+            of.prepareSlurmWorkflowExecution("flow_0000", 12345)
 
 
 # ---------------------------------------------------------------------------

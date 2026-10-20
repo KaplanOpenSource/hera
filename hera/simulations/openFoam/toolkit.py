@@ -176,8 +176,15 @@ class OFToolkit(hermesWorkflowToolkit):
             logger.info(f"Assuming {jsonVariations} is path to variations file")
             with open(jsonVariations, 'r') as variationsFile:
                 jsonVariations = json.load(variationsFile)
-        elif not isinstance(jsonVariations, dict):
-            logger.error("Slurm preparation only supports json variation input as path or dict")
+
+        if isinstance(jsonVariations, dict):
+            # JSONVariations iterates a *list* of variation groups; a bare dict
+            # is a single group.
+            jsonVariations = [jsonVariations]
+        elif not isinstance(jsonVariations, list):
+            err = "Slurm preparation only supports json variation input as path, dict or list"
+            logger.error(err)
+            raise ValueError(err)
 
 
         for jsonConfig in JSONVariations(baseConfiguration, jsonVariations):
