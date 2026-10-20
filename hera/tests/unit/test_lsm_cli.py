@@ -28,10 +28,6 @@ file's scope and is reported separately.)
 Bugs pinned here, each with an xfail(strict) for the intended behaviour
 and a passing characterisation of what actually happens:
 
-  * B267: `_LoggingShim.get_logger(name)` forwards a bare logger-*name*
-    string into hera's `get_logger(instance, name=None)`, which reads its
-    first argument as an *instance*.  Every handler's logger therefore
-    ends up named "builtins.str".
   * B268: `setup_template`'s "a symlink already exists ... pointing to a
     different file" guard is dead code -- both destinations are
     unconditionally `os.unlink`ed earlier in the same function, so a stale
@@ -360,27 +356,19 @@ class TestLoggingShimGetLogger:
     def test_the_module_level_logging_name_is_a_shim_instance(self):
         assert isinstance(CLI.logging, CLI._LoggingShim)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B267: _LoggingShim.get_logger forwards its arguments "
-               "verbatim to hera's get_logger(instance, name=None), but the "
-               "callers in this module pass a logger *name* as the single "
-               "positional argument. hera reads it as an instance and "
-               "returns getClassLogger(type(name)), so every hera-LSM "
-               "handler logs to a logger named 'builtins.str' instead of "
-               "'hera.bin.hera_lsm.load_template'. The shim exists to keep "
-               "name-based calls working, which is exactly what it breaks. "
-               "See the consolidated findings issue.",
-    )
     def test_a_name_based_call_should_produce_a_logger_of_that_name(self):
         CLI._setup()
         logger = CLI.logging.get_logger("hera.bin.hera_lsm.load_template")
         assert logger.name == "hera.bin.hera_lsm.load_template"
 
-    def test_a_name_based_call_currently_produces_a_logger_named_builtins_str(self):
-        """Characterisation of B267."""
-        CLI._setup()
-        assert CLI.logging.get_logger("hera.bin.hera_lsm.load_template").name == "builtins.str"
+    def test_an_instance_based_call_still_reaches_heras_get_logger(self, monkeypatch):
+        calls = []
+        sentinel = object()
+        monkeypatch.setattr(CLI, "_get_logger",
+                            lambda *args, **kwargs: calls.append((args, kwargs)) or sentinel)
+        instance = object()
+        assert CLI._LoggingShim().get_logger(instance) is sentinel
+        assert calls == [((instance,), {})]
 
 
 @pytest.mark.unit

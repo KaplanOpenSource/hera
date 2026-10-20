@@ -31,6 +31,11 @@ def _lazy_setup(func):
 # Compatibility shim so existing 'logging.get_logger(...)' calls still work
 class _LoggingShim:
     def get_logger(self, *a, **kw):
+        # The callers in this module pass a logger *name*, but hera's
+        # get_logger(instance, name=None) reads its first argument as an
+        # instance -- so a bare name is resolved here instead of forwarded.
+        if len(a) == 1 and isinstance(a[0], str) and "name" not in kw:
+            return _stdlib_logging.getLogger(a[0])
         if _get_logger is not None:
             return _get_logger(*a, **kw)
         return _stdlib_logging.getLogger(*a, **kw)
