@@ -964,7 +964,7 @@ class presentation:
         self._plotWithRectangles(ax, plot, rectangles, alpha)
 
         colormap = plt.cm.viridis
-        norm = mcolors.Normalize(vmin=landcover.z0.min().values, vmax=landcover.z0.max().values)
+        norm = mcolors.Normalize(vmin=landcover[field].min().values, vmax=landcover[field].max().values)
 
         # Add color bar to the right of the plot
         cbar = fig.colorbar(cm.ScalarMappable(norm=norm, cmap=colormap), ax=ax, orientation='vertical')

@@ -970,8 +970,9 @@ class TestPresentationPlots:
 
 
 @pytest.mark.unit
-class TestPlotLambdasNormalisesOnZ0:
-    """B186: plotLambdas' colour bar is built from z0, not from `field`."""
+class TestPlotLambdasNormalisesOnTheField:
+    """B186: plotLambdas' colour bar is built from `field`, like its
+    rectangles -- not from z0, which a non-urban landcover does not carry."""
 
     @pytest.fixture()
     def grid_without_z0(self, landcover_grid):
@@ -984,37 +985,26 @@ class TestPlotLambdasNormalisesOnZ0:
         rectangles = lc.presentation._getLambdasRectangles("lambdaF", grid_without_z0)
         assert len(rectangles) == grid_without_z0.size
 
-    def test_plotting_a_lambda_field_without_z0_raises(self, lc, grid_without_z0, axes_image):
-        """Characterisation of B186."""
-        _, image = axes_image
-        with pytest.raises(AttributeError, match="z0"):
-            lc.presentation.plotLambdas("lambdaF", image, grid_without_z0, figsize=(2, 2))
+    def test_plotting_a_lambda_field_without_z0_works(self, lc, grid_without_z0, axes_image):
+        """B186: the non-urban case, which carries no z0 at all."""
+        import matplotlib.pyplot as plt
 
-    def test_the_colour_bar_range_comes_from_z0_not_from_the_field(self, lc, landcover_grid, axes_image):
-        """Characterisation of B186: the bar's limits track z0's values."""
+        _, image = axes_image
+        lc.presentation.plotLambdas("lambdaF", image, grid_without_z0, figsize=(2, 2))
+        assert plt.gcf().axes[1].get_ylim() == pytest.approx((0.05, 0.4))
+
+    def test_the_colour_bar_ignores_z0_when_it_is_present(self, lc, landcover_grid, axes_image):
+        """B186: a z0 with a different range does not move the bar."""
         import matplotlib.pyplot as plt
 
         grid = landcover_grid.assign_coords(
-            lambdaF=(("i", "j"), np.full(landcover_grid.shape, 0.3)),
+            lambdaF=(("i", "j"), np.linspace(0.05, 0.4, landcover_grid.size).reshape(landcover_grid.shape)),
             z0=(("i", "j"), np.linspace(1.0, 5.0, landcover_grid.size).reshape(landcover_grid.shape)),
         )
         _, image = axes_image
         lc.presentation.plotLambdas("lambdaF", image, grid, figsize=(2, 2))
-        colorbar_axes = plt.gcf().axes[1]
-        assert colorbar_axes.get_ylim() == pytest.approx((1.0, 5.0))
+        assert plt.gcf().axes[1].get_ylim() == pytest.approx((0.05, 0.4))
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B186: presentation.plotLambdas colours its rectangles by "
-               "normalising landcover[field] (in _getLambdasRectangles) but "
-               "builds its colour bar by normalising landcover.z0, then labels "
-               "that bar f'{field} Value'. The legend therefore describes the "
-               "wrong variable whenever field and z0 have different ranges, and "
-               "the call fails outright with AttributeError on a landcover that "
-               "carries lambda fields but no z0 -- which is exactly the "
-               "non-urban case. Both norms should use landcover[field]. See the "
-               "consolidated findings issue.",
-    )
     def test_the_colour_bar_range_matches_the_field_being_plotted(self, lc, landcover_grid, axes_image):
         import matplotlib.pyplot as plt
 
