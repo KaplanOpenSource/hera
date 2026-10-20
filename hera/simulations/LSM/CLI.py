@@ -86,20 +86,9 @@ def setup_template(arguments):
     outDir = template.modelFolder
     metDir = os.path.join(outDir,"tozaot","Meteorology")
 
-    try:
-        os.unlink(metDir)
-        logger.info(f"unlinked {metDir} from template")
-    except FileNotFoundError:
-        logger.error(f"file {metDir} not found")
-        pass
-
-    try:
-        os.unlink(os.path.join(outDir,"a.out"))
-        logger.info(f"unlinked {os.path.join(outDir,'a.out')} from template")
-    except FileNotFoundError:
-        logger.error(f"file {os.path.join(outDir,'a.out')} not found")
-        pass
-
+    # Nothing is unlinked up front: the symlink guards below decide what to do
+    # with whatever is already in place, and a missing link is the normal case
+    # on a first setup, not an error.
     os.makedirs(os.path.join(outDir,'tozaot'),exist_ok=True)
     os.makedirs(os.path.join(outDir,'tozaot','machsan'),exist_ok=True)
     logger.info(f"setup directories successfully")

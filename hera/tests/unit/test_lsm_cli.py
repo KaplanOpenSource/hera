@@ -25,19 +25,6 @@ script, not an importable module.  (Worth noting even so: its line 41 is
 `hera-LSM` cannot dispatch any subcommand at all.  That is outside this
 file's scope and is reported separately.)
 
-Bugs pinned here, each with an xfail(strict) for the intended behaviour
-and a passing characterisation of what actually happens:
-
-  * B268: `setup_template`'s "a symlink already exists ... pointing to a
-    different file" guard is dead code -- both destinations are
-    unconditionally `os.unlink`ed earlier in the same function, so a stale
-    link into a different code directory is silently replaced.
-  * B269: the sibling "already exists and isn't a symlink" guard is dead
-    for the same reason; a real directory in that position escapes as a
-    raw `IsADirectoryError` from the earlier `os.unlink`.
-  * B270: a clean, successful first-time setup logs two `logger.error`
-    records ("file ... not found") for the entirely expected absence of
-    the links it is about to create.
 """
 import functools
 import json
@@ -644,8 +631,8 @@ class TestSetupTemplateHappyPath:
 
 
 @pytest.mark.unit
-class TestSetupTemplateGuardsAreDead:
-    """Both symlink destinations are os.unlink'ed before the guards run."""
+class TestSetupTemplateGuards:
+    """What the symlink guards do with something already in place."""
 
     @pytest.fixture()
     def install(self, wiring, modelFolder):
@@ -662,17 +649,6 @@ class TestSetupTemplateGuardsAreDead:
 
         return _install
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B268: setup_template raises 'a symlink already exists at "
-               "... pointing to a different file' only if os.path.exists() "
-               "is true at that point -- but the same function has already "
-               "run os.unlink() on that exact path a few lines earlier, so "
-               "the destination is always gone and the guard is dead code. "
-               "A template still linked against an old code directory is "
-               "silently repointed instead of being reported. See the "
-               "consolidated findings issue.",
-    )
     def test_a_stale_link_to_a_different_code_directory_should_be_reported(
         self, install, codeDir, modelFolder, tmp_path
     ):
@@ -685,33 +661,20 @@ class TestSetupTemplateGuardsAreDead:
         with pytest.raises(Exception, match="pointing to a different file"):
             CLI.setup_template(_setupArguments(codeDir))
 
-    def test_a_stale_link_is_currently_replaced_without_a_word(
-        self, install, codeDir, modelFolder, tmp_path, wiring
+    def test_a_stale_link_is_left_in_place_when_it_is_reported(
+        self, install, codeDir, modelFolder, tmp_path
     ):
-        """Characterisation of B268."""
         install()
         other = tmp_path / "otherCode"
         (other / "LSM").mkdir(parents=True)
         (other / "LSM" / "a.out").write_text("stale\n")
         (modelFolder / "a.out").symlink_to(other / "LSM" / "a.out")
 
-        CLI.setup_template(_setupArguments(codeDir))
+        with pytest.raises(Exception):
+            CLI.setup_template(_setupArguments(codeDir))
 
-        assert os.readlink(modelFolder / "a.out") == str(codeDir / "LSM" / "a.out")
-        assert "pointing to a different file" not in " ".join(
-            wiring.logger.messages()
-        )
+        assert os.readlink(modelFolder / "a.out") == str(other / "LSM" / "a.out")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B269: the sibling guard 'Couldn't create symlink, ... "
-               "already exists and isn't a symlink' is dead for the same "
-               "reason -- os.unlink() runs first. The one thing os.unlink "
-               "cannot remove is a directory, so the case the message "
-               "describes escapes as a bare IsADirectoryError from the "
-               "unlink instead of the intended diagnostic. See the "
-               "consolidated findings issue.",
-    )
     def test_a_directory_in_the_executables_place_should_be_reported(
         self, install, codeDir, modelFolder
     ):
@@ -720,23 +683,13 @@ class TestSetupTemplateGuardsAreDead:
         with pytest.raises(Exception, match="isn't a symlink"):
             CLI.setup_template(_setupArguments(codeDir))
 
-    def test_a_directory_in_the_executables_place_currently_raises_isadirectoryerror(
+    def test_a_plain_file_in_the_executables_place_is_reported_too(
         self, install, codeDir, modelFolder
     ):
-        """Characterisation of B269."""
-        install()
-        (modelFolder / "a.out").mkdir()
-        with pytest.raises(IsADirectoryError):
-            CLI.setup_template(_setupArguments(codeDir))
-
-    def test_a_plain_file_in_the_executables_place_is_silently_removed(
-        self, install, codeDir, modelFolder
-    ):
-        """Characterisation of B269: a regular file unlinks cleanly."""
         install()
         (modelFolder / "a.out").write_text("a stale build\n")
-        CLI.setup_template(_setupArguments(codeDir))
-        assert (modelFolder / "a.out").is_symlink()
+        with pytest.raises(Exception, match="isn't a symlink"):
+            CLI.setup_template(_setupArguments(codeDir))
 
 
 @pytest.mark.unit
@@ -750,22 +703,6 @@ class TestSetupTemplateLogsErrorsOnSuccess:
         )
         return wiring
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B270: the first-ever setup of a template necessarily has "
-               "no tozaot/Meteorology link and no a.out to unlink, yet both "
-               "FileNotFoundError handlers call logger.error('file ... not "
-               "found'). A completely successful run reports two errors, "
-               "which makes the log useless for spotting real ones. See the "
-               "consolidated findings issue.",
-    )
     def test_a_clean_successful_setup_should_log_no_errors(self, install, codeDir):
         CLI.setup_template(_setupArguments(codeDir))
         assert install.logger.messages("error") == []
-
-    def test_a_clean_successful_setup_currently_logs_two_errors(self, install, codeDir):
-        """Characterisation of B270."""
-        CLI.setup_template(_setupArguments(codeDir))
-        errors = install.logger.messages("error")
-        assert len(errors) == 2
-        assert all("not found" in message for message in errors)
