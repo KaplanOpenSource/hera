@@ -414,10 +414,13 @@ class stlFactory:
         ymax = gpandas[yColumn].max()
 
         # 1.2 build the mesh.
-        grid_x, grid_y = numpy.mgrid[(xmin):(xmax):dxdy, (ymin):(ymax):dxdy]
         # 2. Get the points from the geom
         Nx = int(((xmax - xmin) / dxdy))
         Ny = int(((ymax - ymin) / dxdy))
+        # The axes must be built exactly like the grid regularizeTimeSteps
+        # interpolates onto below: a point *count* (complex step), which keeps
+        # the endpoint, and not a step, which drops it and rounds the count up.
+        grid_x, grid_y = numpy.mgrid[(xmin):(xmax):complex(Nx), (ymin):(ymax):complex(Ny)]
         from hera.simulations.utils.coordinateHandler import coordinateHandler
         grid_z2 = coordinateHandler().regularizeTimeSteps(data=gpandas, fieldList=[heightColumn],
                                               coord1=xColumn,
