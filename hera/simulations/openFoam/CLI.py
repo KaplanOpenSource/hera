@@ -481,7 +481,7 @@ def stochasticLagrangian_source_makeEscapedMassFile(args):
     case = os.path.abspath(args.casePath)
     massFileName = f"{args.patch}Mass" if args.massFileName is None else args.massFileName
     dt = args.dt
-    LSMtoolkit = toolkitHome.getToolkit(toolkitHome.OF_LSM, "tmpProject", casePath=case)
+    LSMtoolkit = toolkitHome.getToolkit(toolkitName=toolkitHome.OF_LSM, projectName="tmpProject", casePath=case)
     data = LSMtoolkit.analysis.getMassFromLog(logFile=args.logFile, solver=args.solver)
     data = data.loc[data.filterType == args.patch].loc[data.action == args.action]
     data["diffMass"] = data.mass.diff()

@@ -31,12 +31,6 @@ a passing characterisation of what actually happens):
 
   * B174: the same handler calls `tk.workflowCompare(...)`, a method
     that exists nowhere in hera; the real name is `compareWorkflows`.
-  * B177: `stochasticLagrangian_source_makeEscapedMassFile` asks for
-    `toolkitHome.OF_LSM`, which is not a ToolkitHome constant
-    (AttributeError), and passes the project name positionally into
-    getToolkit's `filesDirectory` slot.  Its subparser
-    (`createReleaseRateFile`) declares none of the seven arguments the
-    handler reads, so the command cannot work at all.
   * B178: `foam_solver_template_buildExecute` and `hermes_buildExecute`
     turn a missing hermes into `warnings.warn(...)` and then call the name
     the failed import was supposed to bind: NameError.
@@ -1315,51 +1309,24 @@ def _massArgs(casePath, **overrides):
 
 @pytest.mark.unit
 class TestSourceMakeEscapedMassFile:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B177: stochasticLagrangian_source_makeEscapedMassFile "
-               "asks for toolkitHome.OF_LSM, which is not a ToolkitHome "
-               "constant (only the internal _toolkits registry has an "
-               "'OF_LSM' key), so the command dies with AttributeError "
-               "before doing anything.  On top of that the project name is "
-               "passed positionally -- getToolkit(toolkitName, "
-               "filesDirectory, **kwargs) -- so 'tmpProject' would land in "
-               "filesDirectory, and the createReleaseRateFile subparser "
-               "declares none of the seven attributes the handler reads. "
-               "See the consolidated findings issue.",
-    )
     def test_the_toolkit_name_constant_the_handler_uses_should_exist(self):
         from hera import toolkitHome
 
         assert hasattr(toolkitHome, "OF_LSM")
 
-    def test_the_handler_currently_dies_on_the_missing_constant(self, tmp_path):
-        """Characterisation of B177."""
-        with pytest.raises(AttributeError, match="OF_LSM"):
-            stochasticLagrangian_source_makeEscapedMassFile(_massArgs(str(tmp_path)))
-
-    def test_the_project_name_is_passed_where_the_files_directory_belongs(
-        self, install_toolkit, monkeypatch, tmp_path
+    def test_the_project_name_reaches_the_project_name_parameter(
+        self, install_toolkit, tmp_path
     ):
-        """Characterisation of B177: with the missing constant supplied,
-        "tmpProject" is consumed by getToolkit's `filesDirectory`
-        parameter."""
-        from hera import toolkitHome
-
-        monkeypatch.setattr(type(toolkitHome), "OF_LSM", "OF_LSM", raising=False)
         (tmp_path / "constant").mkdir()
         asked = install_toolkit(_FakeLSMToolkit(_massLog()))
         stochasticLagrangian_source_makeEscapedMassFile(_massArgs(str(tmp_path)))
         assert asked[0]["toolkitName"] == "OF_LSM"
-        assert asked[0]["filesDirectory"] == "tmpProject"
-        assert "projectName" not in asked[0]["kwargs"]
+        assert asked[0]["filesDirectory"] is None
+        assert asked[0]["kwargs"]["projectName"] == "tmpProject"
 
     def test_the_mass_file_is_written_into_the_constant_directory_of_the_case(
-        self, install_toolkit, monkeypatch, tmp_path
+        self, install_toolkit, tmp_path
     ):
-        from hera import toolkitHome
-
-        monkeypatch.setattr(type(toolkitHome), "OF_LSM", "OF_LSM", raising=False)
         (tmp_path / "constant").mkdir()
         toolkit = _FakeLSMToolkit(_massLog())
         install_toolkit(toolkit)
@@ -1372,11 +1339,8 @@ class TestSourceMakeEscapedMassFile:
         )
 
     def test_an_explicit_mass_file_name_overrides_the_patch_derived_one(
-        self, install_toolkit, monkeypatch, tmp_path, capsys
+        self, install_toolkit, tmp_path, capsys
     ):
-        from hera import toolkitHome
-
-        monkeypatch.setattr(type(toolkitHome), "OF_LSM", "OF_LSM", raising=False)
         (tmp_path / "constant").mkdir()
         install_toolkit(_FakeLSMToolkit(_massLog()))
         stochasticLagrangian_source_makeEscapedMassFile(
@@ -1386,11 +1350,8 @@ class TestSourceMakeEscapedMassFile:
         assert str(tmp_path / "constant" / "customMass") in capsys.readouterr().out
 
     def test_the_record_count_and_the_mass_differences_come_from_the_log(
-        self, install_toolkit, monkeypatch, tmp_path
+        self, install_toolkit, tmp_path
     ):
-        from hera import toolkitHome
-
-        monkeypatch.setattr(type(toolkitHome), "OF_LSM", "OF_LSM", raising=False)
         (tmp_path / "constant").mkdir()
         install_toolkit(_FakeLSMToolkit(_massLog()))
         stochasticLagrangian_source_makeEscapedMassFile(_massArgs(str(tmp_path)))
@@ -1402,11 +1363,8 @@ class TestSourceMakeEscapedMassFile:
         assert [float(value) for value in values[1:]] == [0.0, 10.0, 15.0]
 
     def test_only_the_requested_patch_and_action_are_kept(
-        self, install_toolkit, monkeypatch, tmp_path
+        self, install_toolkit, tmp_path
     ):
-        from hera import toolkitHome
-
-        monkeypatch.setattr(type(toolkitHome), "OF_LSM", "OF_LSM", raising=False)
         (tmp_path / "constant").mkdir()
         data = pandas.concat(
             [
