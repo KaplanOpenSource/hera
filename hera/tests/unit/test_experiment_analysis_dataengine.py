@@ -6,10 +6,10 @@ Three defects surfaced here:
   ``kaijoData``/``kaijoHeight`` -- names that do not exist anywhere in the
   method, which only takes ``sonicData``/``height`` -- so every call raised
   ``NameError`` before it could even reach the toolkit it is trying to call.
-* B76: both ``pandasDataEngineDB.DBconfiguration`` and
-  ``daskDataEngineDB.DBconfiguration`` are missing a ``return`` statement
+* B76 (fixed): both ``pandasDataEngineDB.DBconfiguration`` and
+  ``daskDataEngineDB.DBconfiguration`` were missing a ``return`` statement
   (``self._dbConfiguration`` as a bare expression), so the property always
-  returns ``None`` regardless of what was actually configured.
+  returned ``None`` regardless of what was actually configured.
 * B77: ``pandasDataEngineDB.dbConnect`` catches
   ``except OperationFailure as e:``, but ``OperationFailure`` is never
   imported in this module. When a real connection attempt fails with any
@@ -117,11 +117,12 @@ class TestDaskDataEngineDB:
         }}})
         assert engine.connectionString == "mongodb://u:p@1.2.3.4:27017/"
 
-    def test_db_configuration_should_return_the_stored_dict(self):
+    def test_db_configuration_returns_the_stored_dict(self):
         engine = daskDataEngineDB("proj", {"DB": {"login": {
             "username": "u", "password": "p", "ip": "1.2.3.4", "port": "27017",
         }}})
-        assert engine.DBconfiguration is not None
+        assert engine.DBconfiguration == engine._dbConfiguration
+        assert engine.DBconfiguration["login"]["ip"] == "1.2.3.4"
 
 
 @pytest.mark.unit
@@ -131,11 +132,10 @@ class TestPandasDataEngineDBConstructionValidation:
         with pytest.raises(ValueError, match="DB"):
             pandasDataEngineDB("proj", {})
 
-    def test_db_configuration_should_return_the_stored_dict(self):
+    def test_db_configuration_returns_the_stored_dict(self):
         engine = pandasDataEngineDB.__new__(pandasDataEngineDB)
         engine._dbConfiguration = {"login": {}}
-        assert engine.DBconfiguration is not None
-
+        assert engine.DBconfiguration == {"login": {}}
 
 
 @pytest.mark.unit
