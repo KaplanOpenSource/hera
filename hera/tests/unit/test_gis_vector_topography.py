@@ -44,15 +44,15 @@ passing characterisation of what actually happens)
   ``from hera.simulations.utils import coordinateHandler`` binds the *module*
   of that name, not the class inside it (``hera/simulations/utils/__init__.py``
   is empty).  Every call raises ``AttributeError``.
-* **B232** -- a second, independent defect further down ``addHeight``: the
-  save-mode comparisons read ``toolkit.TOOLKIT_SAVEMODE_FILEANDDB`` etc., but
-  the module-level ``toolkit`` name was rebound by
-  ``from hera.measurements.GIS.vector import toolkit`` to the *vector* toolkit
-  module, which defines no ``TOOLKIT_SAVEMODE_*`` constants.  The list
-  literal is built before the membership test, so *every* save mode fails --
-  ``TOOLKIT_SAVEMODE_NOSAVE`` included -- and ``addHeight`` can never return.
-  Reached in the test by neutralising B231 only (the coordinate handler), so
-  the second fault is pinned independently of the first.
+* **B232** (fixed) -- a second, independent defect further down
+  ``addHeight``: the save-mode comparisons read
+  ``toolkit.TOOLKIT_SAVEMODE_FILEANDDB`` etc., but the module-level ``toolkit``
+  name was rebound by ``from hera.measurements.GIS.vector import toolkit`` to
+  the *vector* toolkit module, which defines no ``TOOLKIT_SAVEMODE_*``
+  constants.  The list literal is built before the membership test, so *every*
+  save mode failed -- ``TOOLKIT_SAVEMODE_NOSAVE`` included -- and ``addHeight``
+  could never return.  The constants are now imported from ``hera.toolkit`` by
+  name.
 
 Deliberately not tested, and why
 --------------------------------
@@ -466,6 +466,8 @@ class TestAddHeight:
 class TestAddHeightSaveModeConstants:
     """B232, reached by neutralising B231 and nothing else."""
 
+    # B231 is still open here, so the coordinate handler is substituted.
+
     @staticmethod
     def _working_handler(monkeypatch):
         """Bind the *class* the module meant to import, leaving B232 exposed."""
@@ -475,52 +477,17 @@ class TestAddHeightSaveModeConstants:
             vector_topography_module, "coordinateHandler", coordinateHandler()
         )
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B232: addHeight compares saveMode against "
-               "toolkit.TOOLKIT_SAVEMODE_FILEANDDB and friends, but the "
-               "module-level name 'toolkit' was rebound by 'from "
-               "hera.measurements.GIS.vector import toolkit' to the vector "
-               "toolkit module, which defines no TOOLKIT_SAVEMODE_* "
-               "constants -- so the save block raises AttributeError. "
-               "See the consolidated findings issue.",
-    )
     def test_the_default_save_mode_writes_the_cell_data_parquet(self, topo, monkeypatch):
+        """B232."""
         self._working_handler(monkeypatch)
         topo._analysis.addHeight(_mesh(), _ground(), resolution=2)
         assert os.path.exists(os.path.join(topo.filesDirectory, "cellData.parquet"))
 
-    def test_the_save_block_raises_attributeerror_on_the_rebound_module(self, topo, monkeypatch):
-        """Characterisation of B232."""
-        self._working_handler(monkeypatch)
-        with pytest.raises(AttributeError) as excinfo:
-            topo._analysis.addHeight(_mesh(), _ground(), resolution=2)
-        assert "TOOLKIT_SAVEMODE_FILEANDDB" in str(excinfo.value)
-
-    def test_the_rebound_toolkit_module_has_none_of_the_save_constants(self):
-        """Characterisation of B232: the root cause, stated directly."""
-        module = vector_topography_module.toolkit
-        assert module.__name__ == "hera.measurements.GIS.vector.toolkit"
-        for name in (
-            "TOOLKIT_SAVEMODE_ONLYFILE",
-            "TOOLKIT_SAVEMODE_ONLYFILE_REPLACE",
-            "TOOLKIT_SAVEMODE_FILEANDDB",
-            "TOOLKIT_SAVEMODE_FILEANDDB_REPLACE",
-        ):
-            assert not hasattr(module, name)
-
-    def test_the_columns_are_computed_before_the_save_block_fails(self, topo, monkeypatch):
-        """Characterisation of B232: the arithmetic itself is sound.
-
-        addHeight mutates the frame it is given, so the ground/height columns
-        it computed survive the AttributeError and can be inspected.  Ground
-        rises 1 m per metre of x, so at x=0 the ground is 0 and at x=10 it is
-        10; height is clamped at 0 from below.
-        """
+    def test_the_computed_ground_and_height_are_sound(self, topo, monkeypatch):
+        """B232: ground rises 1 m per metre of x; height is clamped at 0."""
         self._working_handler(monkeypatch)
         mesh = _mesh()
-        with pytest.raises(AttributeError):
-            topo._analysis.addHeight(mesh, _ground(), resolution=2)
+        topo._analysis.addHeight(mesh, _ground(), resolution=2, saveMode="nosave")
 
         assert list(mesh["ground"]) == pytest.approx([0.0, 0.0, 10.0, 10.0], abs=1e-6)
         assert list(mesh["height"]) == pytest.approx([5.0, 15.0, 0.0, 5.0], abs=1e-6)
@@ -529,38 +496,30 @@ class TestAddHeightSaveModeConstants:
         "saveMode",
         ["nosave", "onlyFile", "onlyFileReplace", "fileAndDB", "anything at all"],
     )
-    def test_no_save_mode_escapes_the_broken_constant_lookup(self, topo, monkeypatch, saveMode):
-        """Characterisation of B232: even NOSAVE fails.
-
-        The fault is in the ``if saveMode in [...]`` *list literal*, which is
-        built before the membership test runs, so no value of ``saveMode`` --
-        not even one meant to skip saving -- can get past it.  addHeight can
-        therefore never return at all.
-        """
+    def test_every_save_mode_gets_past_the_constant_lookup(self, topo, monkeypatch, saveMode):
+        """B232: the ``if saveMode in [...]`` list literal used to raise for
+        every mode, NOSAVE included, so addHeight could never return."""
         self._working_handler(monkeypatch)
-        with pytest.raises(AttributeError, match="TOOLKIT_SAVEMODE_FILEANDDB"):
-            topo._analysis.addHeight(
-                _mesh(), _ground(), resolution=2, saveMode=saveMode
-            )
+        result = topo._analysis.addHeight(
+            _mesh(), _ground(), resolution=2, saveMode=saveMode
+        )
+        assert "height" in result.columns
 
     def test_the_height_is_clamped_at_zero_below_the_ground(self, topo, monkeypatch):
-        """Characterisation of B232: cells below ground get height 0, not a negative.
+        """B232: cells below ground get height 0, not a negative.
 
         Ground rises 1 m per metre of x, so at x=10 the ground is 10 m and a
-        cell at z=1 sits 9 m below it.  The clamp runs before the save block,
-        so the mutated frame still shows the result.
+        cell at z=1 sits 9 m below it.
         """
         self._working_handler(monkeypatch)
         mesh = pandas.DataFrame({"x": [10.0], "y": [0.0], "z": [1.0]})
-        with pytest.raises(AttributeError):
-            topo._analysis.addHeight(mesh, _ground(), resolution=2)
+        topo._analysis.addHeight(mesh, _ground(), resolution=2, saveMode="nosave")
         assert mesh["ground"].iloc[0] == pytest.approx(10.0, abs=1e-6)
         assert mesh["height"].iloc[0] == 0.0
 
     def test_the_computed_columns_are_appended_in_order(self, topo, monkeypatch):
-        """Characterisation of B232: 'ground' then 'height', after the input columns."""
+        """B232: 'ground' then 'height', after the input columns."""
         self._working_handler(monkeypatch)
         mesh = _mesh()
-        with pytest.raises(AttributeError):
-            topo._analysis.addHeight(mesh, _ground(), resolution=2)
+        topo._analysis.addHeight(mesh, _ground(), resolution=2, saveMode="nosave")
         assert list(mesh.columns) == ["x", "y", "z", "ground", "height"]

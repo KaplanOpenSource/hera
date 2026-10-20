@@ -10,11 +10,10 @@ import dask
 from numpy import array, sqrt
 import pandas
 
-from hera.measurements.GIS.vector import toolkit
 from hera.simulations.utils import coordinateHandler
 from hera.utils.logging import get_classMethod_logger
 
-from hera.toolkit import TOOLKIT_SAVEMODE_ONLYFILE
+from hera.toolkit import TOOLKIT_SAVEMODE_ONLYFILE, TOOLKIT_SAVEMODE_ONLYFILE_REPLACE, TOOLKIT_SAVEMODE_FILEANDDB, TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
 from hera.measurements.GIS.vector._io_utils import readGeoJSONString
 from hera.measurements.GIS.vector.toolkit import VectorToolkit
 from hera.measurements.GIS.utils import ITM
@@ -279,26 +278,26 @@ class analysis():
         data["ground"]=ground
         data["height"] = data[coord3] - data["ground"]
         data.loc[data.height < 0, "height"] = 0
-        if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
-                        toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,
-                        toolkit.TOOLKIT_SAVEMODE_ONLYFILE,
-                        toolkit.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE]:
+        if saveMode in [TOOLKIT_SAVEMODE_FILEANDDB,
+                        TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,
+                        TOOLKIT_SAVEMODE_ONLYFILE,
+                        TOOLKIT_SAVEMODE_ONLYFILE_REPLACE]:
 
             file = os.path.join(self.datalayer.filesDirectory, "cellData.parquet") if file is None else file
 
-            if os.path.exists(file) and saveMode in [toolkit.TOOLKIT_SAVEMODE_ONLYFILE,
-                                                     toolkit.TOOLKIT_SAVEMODE_FILEANDDB]:
+            if os.path.exists(file) and saveMode in [TOOLKIT_SAVEMODE_ONLYFILE,
+                                                     TOOLKIT_SAVEMODE_FILEANDDB]:
                 raise FileExistsError(f"The output file {file} exists")
 
             data.to_parquet(file, compression="gzip")
 
 
-            if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,
-                            toolkit.TOOLKIT_SAVEMODE_FILEANDDB]:
+            if saveMode in [TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,
+                            TOOLKIT_SAVEMODE_FILEANDDB]:
 
                 regionDoc = self.datalayer.getCacheDocuments(resource=file, dataFormat="parquet",type="cellData", **dict(resolution=resolution,**kwargs))
 
-                if len(regionDoc) >0 and saveMode== toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
+                if len(regionDoc) >0 and saveMode== TOOLKIT_SAVEMODE_FILEANDDB:
                     raise ValueError(f"{file} already exists in the DB")
                 else:
                     self.datalayer.addCacheDocument(resource=file, dataFormat="parquet",
