@@ -111,7 +111,7 @@ class TopographyToolkit(VectorToolkit):
         -------
 
         """
-        return self.stlFactory.vectorToSTL(gpandas, dxdy=dxdy, solidName="Topography")
+        return self.stlFactory.vectorToSTL(gpandas, dxdy=dxdy, solidName=solidName)
 
     def regionToSTL(self, shapeDataOrName, dxdy, datasourceName, crs=None):
         """

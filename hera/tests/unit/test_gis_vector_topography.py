@@ -26,9 +26,9 @@ passing characterisation of what actually happens)
   ``datasourceDocument`` / ``shape`` / ``inputCRS``).  Every call raises
   ``TypeError`` on the very first statement, so the method is unreachable in
   its entirety -- and with it ``regionToSTL``, whose only job is to call it.
-* **B228** -- ``geoPandasToSTL`` accepts a ``solidName`` argument and then
-  forwards the hard-coded literal ``"Topography"`` instead of it, so the
-  caller's solid name is silently discarded.
+* **B228** (fixed) -- ``geoPandasToSTL`` accepted a ``solidName`` argument and
+  then forwarded the hard-coded literal ``"Topography"`` instead of it, so the
+  caller's solid name was silently discarded.
 * **B229** -- ``toDEM`` calls ``self.getDatasourceData`` (lower-case ``s``);
   the toolkit only defines ``getDataSourceData``, so passing a datasource name
   -- the documented first parameter -- raises ``AttributeError``.  The same
@@ -208,21 +208,15 @@ class TestGeoPandasToSTL:
     def test_the_default_resolution_is_fifty_metres(self, topo, contours):
         assert topo.geoPandasToSTL(contours) == topo.geoPandasToSTL(contours, dxdy=50)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B228: geoPandasToSTL accepts solidName but forwards the literal "
-               "'Topography' to stlFactory.vectorToSTL, so the caller's solid "
-               "name is discarded. See the consolidated findings issue.",
-    )
     def test_the_requested_solid_name_reaches_the_stl(self, topo, contours):
+        """B228."""
         stl = topo.geoPandasToSTL(contours, dxdy=200, solidName="MyHill")
         assert stl.startswith("solid MyHill")
+        assert stl.rstrip().endswith("endsolid MyHill")
 
-    def test_the_solid_name_argument_is_ignored(self, topo, contours):
-        """Characterisation of B228."""
-        stl = topo.geoPandasToSTL(contours, dxdy=200, solidName="MyHill")
+    def test_the_default_solid_name_is_topography(self, topo, contours):
+        stl = topo.geoPandasToSTL(contours, dxdy=200)
         assert stl.startswith("solid Topography")
-        assert "MyHill" not in stl
 
 
 # --------------------------------------------------------------------------
