@@ -51,12 +51,10 @@ because a stand-in would happily fabricate any number asked of it:
 
 Not covered: ``get_data_fields`` (added in #1137, after these tests were written).
 
-Four defects were pinned, each provable by reading the source rather than by
-watching a stand-in: B310 (``__init__``'s ``name`` argument is discarded --
-fixed in #1137, which removed the parameter), B311 (``read_time_steps``'s ``timelist=None`` default is iterated unguarded),
-B312 (``_ensureOutputDirs`` calls ``os.makedirs('')``) and B313
+Two defects are pinned, each provable by reading the source rather than
+by watching a stand-in: B312 (``_ensureOutputDirs`` calls ``os.makedirs('')``) and B313
 (``_parse_point_set``'s ``squeeze()`` cannot tell one point from no points).
-Each open one has a strict xfail for the intended behaviour plus passing
+Each has a strict xfail for the intended behaviour plus passing
 characterisation tests of what actually happens today.
 """
 import importlib
@@ -457,25 +455,11 @@ class TestReadTimeSteps:
 
 
 # ---------------------------------------------------------------------------
-# B311: read_time_steps declares timelist=None but iterates it unguarded
+# read_time_steps(timelist=None) means every timestep the reader knows
 # ---------------------------------------------------------------------------
 
 @pytest.mark.unit
 class TestReadTimeStepsDefaultTimeList:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B311: read_time_steps(datasourcenamedict, timelist=None, ...) "
-               "iterates `for timeslice in timelist:` with no None guard, so "
-               "the declared default is unusable -- it raises TypeError: "
-               "'NoneType' object is not iterable. The same class already "
-               "shows the intended handling in _resolveTimeList "
-               "('self.reader.TimestepValues if timeList is None else "
-               "timeList') and writeCase documents 'None = all available "
-               "from the reader'. Four deprecated aliases (to_pandas, "
-               "to_xarray, to_dataFrame, to_dataArray) forward the same "
-               "None default straight through. See the consolidated "
-               "findings issue.",
-    )
     def test_a_missing_time_list_means_every_timestep_the_reader_knows(self, pv, monkeypatch):
         monkeypatch.setattr(pv.pvsimple, "FindSource", lambda name: FakeProxy())
         monkeypatch.setattr(pv.cls, "_readTimeStep", lambda *a, **k: "x")
@@ -483,19 +467,13 @@ class TestReadTimeStepsDefaultTimeList:
         obj.reader = FakeReader(timesteps=[0.0, 1.0, 2.0])
         assert list(obj.read_time_steps({"a": "/o/a"}, timelist=None)) == [{"a": "x"}] * 3
 
-    def test_a_missing_time_list_raises_a_type_error(self, pv):
-        """Characterisation of B311."""
+    @pytest.mark.parametrize("alias", ["to_pandas", "to_xarray", "to_dataFrame", "to_dataArray"])
+    def test_the_deprecated_read_aliases_inherit_the_same_default(self, pv, alias, monkeypatch):
+        monkeypatch.setattr(pv.pvsimple, "FindSource", lambda name: FakeProxy())
+        monkeypatch.setattr(pv.cls, "_readTimeStep", lambda *a, **k: "x")
         obj = pv.cls(case_path="/c")
         obj.reader = FakeReader(timesteps=[0.0, 1.0])
-        with pytest.raises(TypeError, match="not iterable"):
-            list(obj.read_time_steps({"a": "/o/a"}))
-
-    @pytest.mark.parametrize("alias", ["to_pandas", "to_xarray", "to_dataFrame", "to_dataArray"])
-    def test_the_deprecated_read_aliases_inherit_the_same_type_error(self, pv, alias):
-        """Characterisation of B311."""
-        obj = pv.cls(case_path="/c")
-        with pytest.raises(TypeError, match="not iterable"):
-            list(getattr(obj, alias)({"a": "/o/a"}))
+        assert list(getattr(obj, alias)({"a": "/o/a"})) == [{"a": "x"}] * 2
 
 
 # ---------------------------------------------------------------------------

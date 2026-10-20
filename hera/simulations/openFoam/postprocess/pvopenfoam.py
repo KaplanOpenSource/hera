@@ -180,6 +180,7 @@ class ParaviewOpenFOAM:
                     A map datasourcename -> pandas
         """
         logger = get_classMethod_logger(self, "readTimeSteps")
+        timelist = self._resolveTimeList(timelist, latestTimestamp=False)
         for timeslice in timelist:
             # read the timestep.
             logger.info("\r Reading time step %s" % timeslice)
