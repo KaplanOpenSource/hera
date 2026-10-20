@@ -497,7 +497,7 @@ class TrialSetWithData(argosDataObjects.TrialSet):
 
     def _initTrials(self):
         """Initialize trials from trial set metadata with data engine links."""
-        for trial in self._metadata["trials"]:
+        for trial in self._metadata.get("trials", []):
             self[trial["name"]] = TrialWithdata(
                 trialSet=self,
                 metadata=trial,
@@ -587,7 +587,7 @@ class EntityTypeWithData(argosDataObjects.EntityType):
 
     def _initEntities(self):
         """Initialize entities from entity type metadata with data engine links."""
-        for entity in self._metadata["entities"]:
+        for entity in self._metadata.get("entities", []):
             self[entity["name"]] = EntityWithData(
                 entityType=self,
                 metadata=entity,

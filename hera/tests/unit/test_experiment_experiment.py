@@ -88,16 +88,16 @@ Bugs pinned here
   (``entityName`` exists only on ``Experiment.entitiesTable`` and
   ``EntityType.entitiesTable``), so every metadata-joined trial read
   raised ``KeyError: 'entityName'``.
-* B163: the two overridden initialisers index a metadata key that
-  argos's own versions read defensively:
-  ``TrialSetWithData._initTrials`` uses ``self._metadata["trials"]``
+* B163 (fixed): the two overridden initialisers indexed a metadata key
+  that argos's own versions read defensively:
+  ``TrialSetWithData._initTrials`` used ``self._metadata["trials"]``
   (argos: ``.get('trials', [])``) and
-  ``EntityTypeWithData._initEntities`` uses ``self._metadata["entities"]``
+  ``EntityTypeWithData._initEntities`` used ``self._metadata["entities"]``
   (argos: ``.get('entities', [])``). A v3.0.0 export omits ``trials``
   entirely for a trial type that has none -- argos's own
   ``example_exp/exp_simple`` export does exactly that -- so loading such
-  an experiment through hera raises ``KeyError: 'trials'`` from inside
-  the constructor.
+  an experiment through hera raised ``KeyError: 'trials'`` from inside
+  the constructor. Both now use the same ``.get(..., [])`` as argos.
 * B164: ``EntityTypeWithData.getDataTrial`` forwards
   ``perDevice=StoreDataPerDevice`` but never forwards a ``deviceName``,
   while ``parquetDataEngineHera.getData`` starts its per-device branch
@@ -450,43 +450,16 @@ class TestTrialSetInitialisation:
 
 
 @pytest.mark.unit
-class TestTrialSetInitialisationIsNotDefensive:
-    """B163: ``[...]`` where argos itself uses ``.get(..., [])``."""
+class TestInitialisationIsDefensive:
+    """B163: ``.get(..., [])``, the same as argos itself uses."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B163: TrialSetWithData._initTrials reads "
-               "self._metadata['trials'] while argos's TrialSet._initTrials "
-               "reads self._metadata.get('trials', []). A real v3.0.0 export "
-               "omits the key for a trial type with no trials (see argos's "
-               "own example_exp/exp_simple), so hera cannot load it. "
-               "See the consolidated findings issue.",
-    )
-    def test_a_trial_set_without_trials_should_load_as_an_empty_trial_set(self, experimentFactory):
+    def test_a_trial_set_without_trials_loads_as_an_empty_trial_set(self, experimentFactory):
         exp = experimentFactory(_experiment_setup(withTrials=False))
         assert dict(exp.trialSet["Measurements"]) == {}
 
-    def test_a_trial_set_without_trials_currently_fails_to_load(self, experimentFactory):
-        """Characterisation of B163."""
-        with pytest.raises(KeyError, match="trials"):
-            experimentFactory(_experiment_setup(withTrials=False))
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B163: the same non-defensive indexing in "
-               "EntityTypeWithData._initEntities (self._metadata['entities'] "
-               "against argos's .get('entities', [])), reachable through a "
-               "version-1.0.0 setup, which is passed through unmigrated. "
-               "See the consolidated findings issue.",
-    )
-    def test_an_entity_type_without_entities_should_load_as_an_empty_entity_type(self, experimentFactory):
+    def test_an_entity_type_without_entities_loads_as_an_empty_entity_type(self, experimentFactory):
         exp = experimentFactory(_v1_setup_without_entities())
         assert dict(exp.entityType["sonic"]) == {}
-
-    def test_an_entity_type_without_entities_currently_fails_to_load(self, experimentFactory):
-        """Characterisation of B163, on the entity side."""
-        with pytest.raises(KeyError, match="entities"):
-            experimentFactory(_v1_setup_without_entities())
 
 
 def _v1_setup_without_entities():
