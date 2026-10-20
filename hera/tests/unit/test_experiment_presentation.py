@@ -12,11 +12,11 @@ directory and map tiles, which is integration-shaped and out of scope.
 
 Two defects surfaced:
 
-* B113: ``plotOrigin`` accepts an ``ax`` argument and returns it, but
-  draws with the module-level ``plt.scatter(...)`` instead of
-  ``ax.scatter(...)``. When the caller passes an axes that is not the
-  current one, the marker silently lands on whichever axes matplotlib
-  happens to consider current, and the returned axes stays empty.
+* B113 (fixed): ``plotOrigin`` accepts an ``ax`` argument and returns it,
+  but drew with the module-level ``plt.scatter(...)`` instead of
+  ``ax.scatter(...)``. When the caller passed an axes that was not the
+  current one, the marker silently landed on whichever axes matplotlib
+  happened to consider current, and the returned axes stayed empty.
 * B114: ``generateLatexTable`` calls
   ``self.plotDevices(trialSetName=..., trialName=..., device=...,
   display=False)``, but ``plotDevices``'s signature is
@@ -165,7 +165,7 @@ class TestGetContinuousCmap:
 
 
 @pytest.mark.unit
-class TestPlotOriginIgnoresItsAxes:
+class TestPlotOriginUsesItsAxes:
     """B113: see the module docstring."""
 
     def test_it_returns_the_axes_it_was_given(self, presentation):
@@ -175,25 +175,18 @@ class TestPlotOriginIgnoresItsAxes:
     def test_it_creates_axes_when_given_none(self, presentation):
         assert presentation.plotOrigin() is not None
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B113: plotOrigin draws with plt.scatter instead of "
-               "ax.scatter, so the marker lands on the current axes rather "
-               "than the one passed in. See the consolidated findings issue.",
-    )
-    def test_the_marker_should_land_on_the_axes_that_was_passed_in(self, presentation):
+    def test_the_marker_lands_on_the_axes_that_was_passed_in(self, presentation):
         _, target = plt.subplots()
         plt.subplots()  # a second figure becomes the current axes
         presentation.plotOrigin(ax=target)
         assert len(target.collections) == 1
 
-    def test_the_marker_currently_lands_on_the_current_axes_instead(self, presentation):
-        """Characterisation of B113."""
+    def test_the_current_axes_is_left_alone(self, presentation):
+        """B113: the marker used to land here instead."""
         _, target = plt.subplots()
         _, current = plt.subplots()
         presentation.plotOrigin(ax=target)
-        assert len(target.collections) == 0
-        assert len(current.collections) == 1
+        assert len(current.collections) == 0
 
 
 @pytest.mark.unit

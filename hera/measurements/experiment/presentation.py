@@ -135,7 +135,7 @@ class experimentPresentation:
         if ax is None:
             fig, ax = plt.subplots(1, 1)
 
-        plt.scatter(0, 0, s=s, marker='X', c='xkcd:lavender')
+        ax.scatter(0, 0, s=s, marker='X', c='xkcd:lavender')
 
         return ax
 
