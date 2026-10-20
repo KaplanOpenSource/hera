@@ -155,7 +155,7 @@ class abstractWorkflow(hermes.workflow):
         self.buildAllRun[key] = value['buildAllRun']
         self.fileWriter[key] = value['fileWriter']
 
-        super().__setitem(key=key,value=value)
+        super().__setitem__(key=key,value=value)
 
 ##############################################################################
 ##                          Workflow Eulerian/Lagrangian

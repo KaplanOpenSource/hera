@@ -363,7 +363,7 @@ class TestWorkflowGroupWithADocument:
 
 @pytest.mark.unit
 class TestSetItem:
-    """B147: adding a node through the mapping interface cannot work."""
+    """Adding a node through the mapping interface."""
 
     @staticmethod
     def _newNodeValue():
@@ -375,39 +375,36 @@ class TestSetItem:
 
     @pytest.mark.xfail(
         strict=True,
-        reason="B147: abstractWorkflow.__setitem__ ends with "
-               "super().__setitem(key=key,value=value) -- the trailing "
-               "'__setitem' is a typo for '__setitem__', and because it starts "
-               "with two underscores inside a class body it is name-mangled to "
-               "_abstractWorkflow__setitem, which exists on nothing. Every node "
-               "assignment therefore raises AttributeError: 'super' object has "
-               "no attribute '_abstractWorkflow__setitem'. "
-               "See the consolidated findings issue.",
+        reason="hermes.workflow.__setitem__ ends with "
+               "self.workflowJSON['nodes'] = value['node'] -- it replaces the "
+               "whole nodes mapping with the single node's payload instead of "
+               "storing it under the key. hera's own line was fixed (B147), so "
+               "the assignment now reaches hermes, but the node still does not "
+               "land in workflow.nodes. The remaining defect is in hermes, "
+               "outside this repository.",
     )
     def test_assigning_a_node_should_add_it_to_the_workflow(self, eulerian):
         eulerian["myNewNode"] = self._newNodeValue()
         assert "myNewNode" in eulerian.nodes
 
-    def test_assigning_a_node_currently_raises_an_attributeerror(self, eulerian):
-        """Characterisation of B147."""
-        with pytest.raises(AttributeError, match="_abstractWorkflow__setitem"):
-            eulerian["myNewNode"] = self._newNodeValue()
+    def test_assigning_a_node_no_longer_raises(self, eulerian):
+        eulerian["myNewNode"] = self._newNodeValue()
 
-    def test_the_failed_assignment_has_already_mutated_buildallrun_and_filewriter(
+    def test_the_assignment_records_the_buildallrun_and_filewriter_entries(
         self, eulerian
     ):
-        """Characterisation of B147: the two side effects happen before the
-        failing call, so a caught AttributeError leaves the workflow with an
-        execution entry and a file-writer entry for a node that was never
-        added."""
-        with pytest.raises(AttributeError):
-            eulerian["myNewNode"] = self._newNodeValue()
+        # Held on to before the assignment: the hermes defect pinned above
+        # replaces workflow.nodes, so the accessors stop resolving afterwards.
+        buildAllRun = eulerian.buildAllRun
+        fileWriter = eulerian.fileWriter
 
-        assert eulerian.buildAllRun["myNewNode"] == {
+        eulerian["myNewNode"] = self._newNodeValue()
+
+        assert buildAllRun["myNewNode"] == {
             "name": "myCommand", "couldRunInParallel": False,
         }
-        assert eulerian.fileWriter["myNewNode"] == {"myFile": "content"}
-        assert "myNewNode" not in eulerian.nodes
+        assert fileWriter["myNewNode"] == {"myFile": "content"}
+        assert "myNewNode" in eulerian.nodeList
 
     def test_a_value_without_a_buildallrun_entry_fails_on_that_key_first(self, eulerian):
         with pytest.raises(KeyError, match="buildAllRun"):
