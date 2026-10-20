@@ -697,7 +697,7 @@ class CampbellBinaryInterface(object):
         """
         index = self.headersSize+i*self.recordSize
         lastSec, lastmili, line = self._getDataFromStream(self._binData[index: index+self.recordSize])
-        time = pandas.Timestamp(1990, 1, 1) + pandas.Timedelta(days=lastSec / 86400.0, milliseconds=lastmili)
+        time = pandas.Timestamp(1990, 1, 1) + pandas.Timedelta(seconds=lastSec, milliseconds=lastmili)
         return time, line
 
     def getRecordByTime(self, time):

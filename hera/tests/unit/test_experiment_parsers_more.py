@@ -36,15 +36,16 @@ Bugs pinned here (all in the binary reader, and all present in the
 highfreqdata copy of the same code too, since the two files are
 independent duplicates):
 
-* B115: ``getRecordByIndex`` turns the record's integer SECONDS field
-  into a timestamp with ``pandas.Timedelta(days=lastSec / 86400.0)``.
+* B115 (fixed): ``getRecordByIndex`` turned the record's integer SECONDS
+  field into a timestamp with ``pandas.Timedelta(days=lastSec / 86400.0)``.
   The float division does not round-trip: a record stamped SECONDS=11
-  decodes to ``1990-01-01 00:00:10.999999999``.  77 of the first 600
-  integer second values are affected, so roughly one record in eight is
+  decoded to ``1990-01-01 00:00:10.999999999``.  77 of the first 600
+  integer second values were affected, so roughly one record in eight was
   off by a nanosecond.  ``getRecordIndexByTime`` compares timestamps for
   *exact* equality, so asking for the record at the second it is actually
-  stamped with raises ``IndexError`` for those records.
-  ``pandas.Timedelta(seconds=lastSec)`` is exact.
+  stamped with raised ``IndexError`` for those records.
+  ``pandas.Timedelta(seconds=lastSec)`` is exact, and is what both copies
+  of the reader now use.
 * B116: ``_getDataFromStream``'s conversion loop is
   ``for i in range(3, len(retval))``, but ``retval[0]`` and ``retval[1]``
   are the two timestamp fields, so the first *data* field is ``retval[2]``
@@ -510,60 +511,30 @@ class TestRecordNavigation:
 
 
 @pytest.mark.unit
-class TestRecordTimestampsLoseTheirLastNanosecond:
-    """B115: seconds are converted through a float number of days."""
+class TestRecordTimestampsKeepTheirLastNanosecond:
+    """B115: seconds used to be converted through a float number of days."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B115: getRecordByIndex builds the timestamp with "
-               "pandas.Timedelta(days=lastSec / 86400.0); the float "
-               "division does not round-trip, so a record stamped with "
-               "SECONDS=11 decodes to 1990-01-01 00:00:10.999999999 "
-               "instead of ...:11. pandas.Timedelta(seconds=lastSec) is "
-               "exact. See the consolidated findings issue.",
-    )
     def test_an_integer_seconds_field_decodes_to_that_exact_second(self, sonic_file):
         cbi = CampbellBinaryInterface(file=str(sonic_file))
 
         assert cbi.getRecordByIndex(1)[0] == pandas.Timestamp(1990, 1, 1) + \
             pandas.Timedelta(seconds=11)
 
-    def test_the_eleventh_second_currently_decodes_a_nanosecond_early(self, sonic_file):
-        """Characterisation of B115."""
+    def test_every_record_decodes_to_its_own_whole_second(self, sonic_file):
+        """B115 hit some seconds values and not others -- 11 was one of the
+        bad ones, 10/12/13 were not -- which is what made it hard to see."""
         cbi = CampbellBinaryInterface(file=str(sonic_file))
 
-        assert cbi.getRecordByIndex(1)[0] == pandas.Timestamp(
-            "1990-01-01 00:00:10.999999999"
-        )
-
-    def test_neighbouring_records_are_not_affected(self, sonic_file):
-        """Characterisation of B115: the error depends on the value of
-        the seconds field, so it hits some records and not others -- which
-        is what makes it hard to notice."""
-        cbi = CampbellBinaryInterface(file=str(sonic_file))
-
-        for index, second in ((0, 10), (2, 12), (3, 13)):
+        for index, second in ((0, 10), (1, 11), (2, 12), (3, 13)):
             assert cbi.getRecordByIndex(index)[0] == pandas.Timestamp(1990, 1, 1) + \
                 pandas.Timedelta(seconds=second)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B115: getRecordIndexByTime matches timestamps exactly, so "
-               "a record whose seconds field decoded inexactly cannot be "
-               "found by the time it is actually stamped with. "
-               "See the consolidated findings issue.",
-    )
     def test_a_record_can_be_looked_up_by_its_own_wall_clock_second(self, sonic_file):
+        """getRecordIndexByTime matches exactly, so an inexact decode made
+        the record unfindable by the second it is stamped with."""
         cbi = CampbellBinaryInterface(file=str(sonic_file))
 
         assert cbi.getRecordIndexByTime(pandas.Timestamp("1990-01-01 00:00:11")) == 1
-
-    def test_looking_that_record_up_currently_raises(self, sonic_file):
-        """Characterisation of B115."""
-        cbi = CampbellBinaryInterface(file=str(sonic_file))
-
-        with pytest.raises(IndexError, match="There is no record at"):
-            cbi.getRecordIndexByTime(pandas.Timestamp("1990-01-01 00:00:11"))
 
 
 @pytest.mark.unit
