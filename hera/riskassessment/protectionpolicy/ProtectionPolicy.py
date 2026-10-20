@@ -352,7 +352,7 @@ class ActionIndoor(abstractAction):
 		if "turnover" in kwargs: 
 			self._alpha = (1/kwargs["turnover"]).to(1/ureg.h)
 		elif "alpha" in kwargs: 
-			self._alpha = (kwargs["alpha"]).ureg(1/ureg.h)
+			self._alpha = (kwargs["alpha"]).to(1/ureg.h)
 		else: 
 			raise ValueError("Must supply either alpha or turnover rate to indoor calculation (ID %s) " % self.actionid)
 		
