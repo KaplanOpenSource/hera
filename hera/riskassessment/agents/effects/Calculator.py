@@ -96,7 +96,7 @@ class CalculatorHaber(AbstractCalculator):
 		breathingRate = unumToPint(breathingRate)
 		breathingRatio = (breathingRate/self.injuryBreathingRate).magnitude
 		if inUnits is None:
-			inUnits = concentrationField.attrs[field] if hasattr(concentrationField, "attrs") else 1*(ureg.mg / ureg.m ** 3)
+			inUnits = concentrationField.attrs[field] if isinstance(concentrationField, xarray.Dataset) else 1*(ureg.mg / ureg.m ** 3)
 		if isinstance(inUnits, Unit): # pint by default can't do m_as to a Units type
 			inUnits = 1*inUnits
 
@@ -176,7 +176,7 @@ class CalculatorTenBerge(AbstractCalculator):
 		breathingRate = unumToPint(breathingRate)
 		breathingRatio = (breathingRate/self.injuryBreathingRate).magnitude
 		if inUnits is None:
-			inUnits = concentrationField.attrs[field] if hasattr(concentrationField, "attrs") else 1*(ureg.mg / ureg.m ** 3)
+			inUnits = concentrationField.attrs[field] if isinstance(concentrationField, xarray.Dataset) else 1*(ureg.mg / ureg.m ** 3)
 		if isinstance(inUnits, Unit): # pint by default can't do m_as to a Units type
 			inUnits = 1*inUnits
 		CunitConversion = inUnits.m_as(ureg.mg / ureg.m ** 3)
@@ -247,7 +247,7 @@ class CalculatorMaxConcentration(AbstractCalculator):
 		breathingRate = unumToPint(breathingRate)
 		breathingRatio = (breathingRate/self.injuryBreathingRate).magnitude
 		if inUnits is None:
-			inUnits = concentrationField.attrs[field] if hasattr(concentrationField, "attrs") else 1*(ureg.mg / ureg.m ** 3)
+			inUnits = concentrationField.attrs[field] if isinstance(concentrationField, xarray.Dataset) else 1*(ureg.mg / ureg.m ** 3)
 		if isinstance(inUnits, Unit): # pint by default can't do m_as to a Units type
 			inUnits = 1*inUnits
 		CunitConversion = inUnits.m_as(ureg.mg / ureg.m ** 3)

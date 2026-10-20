@@ -200,17 +200,12 @@ class TestPandasInput:
         frame.index.name = "datetime"
         return frame
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B36: the default-units branch tests hasattr(field, 'attrs'), which "
-               "modern pandas DataFrames satisfy, so it takes the xarray path and "
-               "evaluates df.attrs[None] -> KeyError: None. The documented pandas "
-               "default of mg/m3 is unreachable. "
-               "See the consolidated findings issue.",
-    )
     def test_the_documented_default_units_apply(self):
+        """B36, fixed: the default-units branch used to test
+        hasattr(field, 'attrs'), which modern pandas DataFrames satisfy, so
+        it took the xarray path and evaluated df.attrs[None] -> KeyError."""
         dose = CalculatorHaber().calculate(self._frame(), time="datetime")
-        assert not np.isnan(np.asarray(dose["C"])).any()
+        assert np.asarray(dose["C"]).tolist() == pytest.approx([10.0, 20.0, 30.0, 40.0])
 
     def test_a_constant_exposure_accumulates_linearly(self):
         """One dose step per *known* interval, so N samples give N-1 doses.

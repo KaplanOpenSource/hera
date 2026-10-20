@@ -12,17 +12,18 @@ index"), which turns out to have three independent problems:
   signature is ``(self, concentrationField, breathingRate=..., time=...,
   field=None, ...)``. Any ``Injury`` configured with the Haber calculator
   raises ``TypeError`` the moment it is used.
-* B63: all three calculators decide whether to read units from
+* B36/B63, fixed: all three calculators decided whether to read units from
   ``concentrationField.attrs[field]`` by checking
   ``hasattr(concentrationField, "attrs")`` -- meant to detect an xarray
   object. ``pandas.DataFrame`` has carried an (empty) ``.attrs`` dict since
-  pandas 1.0, so the same branch runs for pandas input too, and
-  ``df.attrs[field]`` raises ``KeyError``. Calling the calculator directly
-  works around it with an explicit ``inUnits=``, but
-  ``Injury.calculateToxicLoads``/``calculatePointWiseFractionInjured`` have
+  pandas 1.0, so the same branch ran for pandas input too and
+  ``df.attrs[field]`` raised ``KeyError``. Calling the calculator directly
+  worked around it with an explicit ``inUnits=``, but
+  ``Injury.calculateToxicLoads``/``calculatePointWiseFractionInjured`` had
   no ``inUnits`` parameter to forward one through -- so through the
-  ``Injury`` API, every pandas call hits this unconditionally, regardless
-  of which calculator is configured.
+  ``Injury`` API every pandas call hit it unconditionally. The branch now
+  tests ``isinstance(concentrationField, xarray.Dataset)``, like the
+  computation below it.
 * B64, fixed: ``CalculatorHaber.calculate``'s pandas branch computed
   ``concentrationField[:-1].fillna(0) * dt_min[1:]`` -- a DataFrame
   multiplied by a Series without ``axis=0``, so pandas aligned the Series'
@@ -85,13 +86,13 @@ class TestCalculatorHaberOnPandas:
         assert set(dose.columns) == {"P1"}
         assert not dose.isna().any().any()
 
-    def test_default_inunits_raises_because_pandas_now_has_attrs_too(self):
-        """B63: hasattr(df, 'attrs') is true for pandas.DataFrame since
-        pandas 1.0, so the xarray-only branch runs and df.attrs[field]
-        raises."""
+    def test_the_documented_default_units_apply(self):
+        """B36, fixed: hasattr(df, 'attrs') is true for pandas.DataFrame
+        since pandas 1.0, so the xarray-only branch used to run for pandas
+        too and df.attrs[field] raised KeyError."""
         df = _series_dataframe([10.0, 10.0])
-        with pytest.raises(KeyError):
-            CalculatorHaber().calculate(df, time="datetime", field=None)
+        dose = CalculatorHaber().calculate(df, time="datetime", field=None)
+        assert dose["P1"].iloc[-1] == pytest.approx(10.0)
 
 
 @pytest.mark.unit
@@ -106,11 +107,11 @@ class TestCalculatorTenBergeOnPandas:
         )
         assert dose["P1"].iloc[-1] == pytest.approx(40.0)
 
-    def test_default_inunits_raises_because_pandas_now_has_attrs_too(self):
-        """B63 again, on TenBerge."""
+    def test_the_documented_default_units_apply(self):
+        """B36 again, on TenBerge."""
         df = _series_dataframe([10.0, 10.0])
-        with pytest.raises(KeyError):
-            CalculatorTenBerge(tenbergeCoefficient=1).calculate(df, field=None, time="datetime")
+        dose = CalculatorTenBerge(tenbergeCoefficient=1).calculate(df, field=None, time="datetime")
+        assert dose["P1"].iloc[-1] == pytest.approx(10.0)
 
     def test_to_json_names_its_type_and_records_n(self):
         j = CalculatorTenBerge(tenbergeCoefficient=2.5).toJSON()
@@ -120,9 +121,10 @@ class TestCalculatorTenBergeOnPandas:
 
 @pytest.mark.unit
 class TestInjuryCalculateToxicLoadsOnPandas:
-    """Neither calculator choice survives the Injury-level API on pandas
-    input: TenBerge hits B63 (no inUnits passthrough), Haber hits B62
-    first (wrong positional slot) and would still hit B63 after that."""
+    """The Injury-level API on pandas input.  Haber used to hit B62 (the
+    wrong positional slot) and both calculators used to hit B36 (the attrs
+    lookup) before that; the pointwise entry point still runs into the
+    recorded B39/B12 cross-registry defect in InjuryLevelThreshold."""
 
     def test_toxic_loads_via_haber_raises_on_the_positional_mismatch(self):
         """Characterisation of B62."""
@@ -131,23 +133,9 @@ class TestInjuryCalculateToxicLoadsOnPandas:
         with pytest.raises(TypeError, match="breathingRate"):
             injury.calculateToxicLoads(df, time="datetime")
 
-    def test_toxic_loads_via_tenberge_raises_on_the_missing_attrs_key(self):
-        """Characterisation of B63: calculateToxicLoads has no inUnits
-        parameter, so there is no way around the attrs lookup at all."""
-        injury = _agent_with_calculator("TenBerge", tenbergeCoefficient=1)
-        df = _series_dataframe([0.0, 5.0, 20.0])
-        with pytest.raises(KeyError):
-            injury.calculateToxicLoads(df, time="datetime")
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B63: Injury.calculateToxicLoads has no inUnits parameter to "
-               "forward to the calculator, so concentrationField.attrs[field] "
-               "is always attempted for pandas input and always raises "
-               "KeyError, regardless of which calculator is configured. "
-               "See the consolidated findings issue.",
-    )
-    def test_toxic_loads_via_tenberge_should_work_on_pandas_input(self):
+    def test_toxic_loads_via_tenberge_work_on_pandas_input(self):
+        """B36, fixed: the attrs lookup used to run for pandas input too,
+        and calculateToxicLoads had no inUnits to route around it."""
         injury = _agent_with_calculator("TenBerge", tenbergeCoefficient=1)
         df = _series_dataframe([0.0, 5.0, 20.0])
         toxic = injury.calculateToxicLoads(df, time="datetime")
@@ -160,7 +148,12 @@ class TestInjuryCalculateToxicLoadsOnPandas:
 
     @pytest.mark.xfail(
         strict=True,
-        reason="B63, same root cause, on the documented pandas entry point.",
+        reason="B39/B12 (recorded, and pinned in test_utils_units.py and "
+               "test_risk_injurylevel.py): the toxic loads now reach "
+               "InjuryLevelThreshold.getPercent as plain numbers, and tounit "
+               "builds those in pint's default registry while the threshold "
+               "lives in hera's, so the comparison raises. "
+               "See the consolidated findings issue.",
     )
     def test_calculate_point_wise_fraction_injured_should_work_on_pandas_input(self):
         injury = _agent_with_calculator("TenBerge", tenbergeCoefficient=1)
@@ -169,17 +162,20 @@ class TestInjuryCalculateToxicLoadsOnPandas:
         assert set(frac["level"]) == {"Severe"}
 
     def test_calculate_point_wise_fraction_injured_currently_raises(self):
-        """Characterisation of B63 on calculatePointWiseFractionInjured."""
+        """Characterisation of B39/B12 on calculatePointWiseFractionInjured:
+        the dose is computed, and only the threshold comparison fails."""
         injury = _agent_with_calculator("TenBerge", tenbergeCoefficient=1)
         df = _series_dataframe([0.0, 5.0, 20.0, 20.0, 20.0])
-        with pytest.raises(KeyError):
+        with pytest.raises(ValueError, match="different registries"):
             injury.calculatePointWiseFractionInjured(df, time="datetime")
 
-    def test_the_deprecated_calculate_warns_before_hitting_the_same_wall(self):
+    def test_the_deprecated_calculate_warns_and_is_xarray_only(self):
+        """calculateRegionOfInjured selects with .sel()/.isel(), so the
+        deprecated entry point is reachable but xarray-only."""
         injury = _agent_with_calculator("TenBerge", tenbergeCoefficient=1)
         df = _series_dataframe([0.0, 5.0, 20.0])
         with pytest.warns(UserWarning, match="obselete"):
-            with pytest.raises(KeyError):
+            with pytest.raises(AttributeError, match="no attribute 'sel'"):
                 injury.calculate(df, field=None, time="datetime")
 
     def test_to_json_nests_levels_and_the_calculator(self):
