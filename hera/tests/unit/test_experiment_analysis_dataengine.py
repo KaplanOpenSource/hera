@@ -2,10 +2,10 @@
 
 Three defects surfaced here:
 
-* B75: ``experimentAnalysis.getTurbulenceStatistics`` references
+* B75 (fixed): ``experimentAnalysis.getTurbulenceStatistics`` referenced
   ``kaijoData``/``kaijoHeight`` -- names that do not exist anywhere in the
-  method, which only takes ``sonicData``/``height``. Every call raises
-  ``NameError`` before it can even reach the toolkit it is trying to call.
+  method, which only takes ``sonicData``/``height`` -- so every call raised
+  ``NameError`` before it could even reach the toolkit it is trying to call.
 * B76: both ``pandasDataEngineDB.DBconfiguration`` and
   ``daskDataEngineDB.DBconfiguration`` are missing a ``return`` statement
   (``self._dbConfiguration`` as a bare expression), so the property always
@@ -36,7 +36,7 @@ from hera.measurements.experiment.dataEngine import (
 
 
 @pytest.mark.unit
-class TestGetTurbulenceStatisticsIsBroken:
+class TestGetTurbulenceStatistics:
     def test_it_should_return_a_turbulence_statistics_object(self):
         from hera.measurements.experiment.analysis import experimentAnalysis
 
@@ -57,14 +57,17 @@ class TestGetTurbulenceStatisticsIsBroken:
         assert result is not None
 
 
-    def test_it_currently_raises_a_nameerror(self):
-        """Characterisation of B75."""
+    def test_it_forwards_its_own_arguments_to_the_toolkit(self):
+        """B75: sonicData/height reach the toolkit, not undefined names."""
         from hera.measurements.experiment.analysis import experimentAnalysis
+
+        seen = {}
 
         class _FakeHighFreqToolkit:
             class analysis:
                 @staticmethod
                 def singlePointTurbulenceStatistics(**kwargs):
+                    seen.update(kwargs)
                     return object()
 
         class _FakeExtension:
@@ -73,10 +76,12 @@ class TestGetTurbulenceStatisticsIsBroken:
         class _FakeDataLayer:
             toolkitExtension = _FakeExtension()
 
+        sonicData = object()
         analysis = experimentAnalysis(_FakeDataLayer())
-
-        analysis.getTurbulenceStatistics(sonicData=object(), samplingWindow="1min", height=2)
-
+        analysis.getTurbulenceStatistics(sonicData=sonicData, samplingWindow="1min", height=2)
+        assert seen["sonicData"] is sonicData
+        assert seen["height"] == 2
+        assert seen["samplingWindow"] == "1min"
 
 
 @pytest.mark.unit
