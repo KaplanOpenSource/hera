@@ -41,11 +41,11 @@ method owns; the mesh kernel itself is not under test.
 Bugs pinned (each has an xfail(strict) for the intended behaviour plus a
 passing characterisation of what actually happens)
 --------------------------------------------------------------------------
-* **B236** -- ``getBuildingHeightFromRasterTopographyToolkit`` takes a
-  ``topographyDataSource`` argument, documents it as "the name of the
-  datasource in the topography toolkit", and then never passes it to
-  ``getPointListElevation``.  The configured default datasource is used no
-  matter what the caller asks for, silently.
+* **B236** (fixed) -- ``getBuildingHeightFromRasterTopographyToolkit`` took a
+  ``topographyDataSource`` argument, documented it as "the name of the
+  datasource in the topography toolkit", and then never passed it to
+  ``getPointListElevation``, so the configured default was used no matter what
+  the caller asked for.
 * **B237** -- ``buildingsGeopandasToSTLRasterTopography`` lowers each building
   by ``nonFlatTopographyShift`` and compensates by extruding
   ``height + nonFlatTopographyShift``.  In the ``flatTerrain=True`` branch the
@@ -239,34 +239,18 @@ class TestGetBuildingHeightFromRasterTopographyToolkit:
         expected = [_expected_elevation(lat, lon) for lat, lon in _CENTROIDS]
         assert list(result["elevation"]) == pytest.approx(expected, rel=1e-3)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B236: getBuildingHeightFromRasterTopographyToolkit accepts "
-               "topographyDataSource, documents it as the datasource to read "
-               "the topography from, and never forwards it to "
-               "getPointListElevation -- the configured default is always "
-               "used. See the consolidated findings issue.",
-    )
     def test_the_requested_topography_datasource_is_used(self, buildings_toolkit, ramp_srtm, flat_srtm):
+        """B236."""
         result = buildings_toolkit.getBuildingHeightFromRasterTopographyToolkit(
             _buildings(), topographyDataSource=flat_srtm
         )
         assert list(result["elevation"]) == pytest.approx([7.0] * len(_CENTROIDS))
 
-    def test_the_topography_datasource_argument_is_ignored(self, buildings_toolkit, ramp_srtm, flat_srtm):
-        """Characterisation of B236: the default wins even when another is named."""
-        result = buildings_toolkit.getBuildingHeightFromRasterTopographyToolkit(
-            _buildings(), topographyDataSource=flat_srtm
-        )
+    def test_omitting_it_falls_back_to_the_configured_default(self, buildings_toolkit, ramp_srtm, flat_srtm):
+        """B236: None still means 'use the topography toolkit's default'."""
+        result = buildings_toolkit.getBuildingHeightFromRasterTopographyToolkit(_buildings())
         expected = [_expected_elevation(lat, lon) for lat, lon in _CENTROIDS]
         assert list(result["elevation"]) == pytest.approx(expected)
-
-    def test_even_a_datasource_that_does_not_exist_is_ignored(self, buildings_toolkit, ramp_srtm):
-        """Characterisation of B236: no validation, no error, no effect."""
-        result = buildings_toolkit.getBuildingHeightFromRasterTopographyToolkit(
-            _buildings(), topographyDataSource="NO_SUCH_DATASOURCE"
-        )
-        assert "elevation" in result.columns
 
     def test_a_missing_default_datasource_is_reported(self, buildings_toolkit, raster_topography):
         """No defaultSRTM configured -> the topography toolkit complains."""

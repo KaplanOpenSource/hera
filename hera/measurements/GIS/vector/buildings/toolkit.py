@@ -61,7 +61,7 @@ class BuildingsToolkit(VectorToolkit):
             geopandas.DataFrame
         """
         topotk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName=self.projectName)
-        elevations = topotk.getPointListElevation(buildingData.centroid.to_crs(WGS84))
+        elevations = topotk.getPointListElevation(buildingData.centroid.to_crs(WGS84), dataSourceName=topographyDataSource)
         return buildingData.join(elevations)
 
     def buildingsGeopandasToSTLRasterTopography(self,
