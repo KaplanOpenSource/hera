@@ -1005,7 +1005,7 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
             isSingle = len(processorList) == 0 or singleProcessor
             if isSingle:
                 timeList = sorted([float(x) for x in os.listdir(case) if (
-                        os.path.isdir(x) and
+                        os.path.isdir(os.path.join(case, x)) and
                         x.isdigit() and
                         (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
                                   key=lambda x: int(x))

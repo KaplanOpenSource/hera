@@ -1,12 +1,4 @@
-"""OFToolkit: the filesystem/parsing helpers that don't need a real solver run.
-
-B83: getTimeList's single-processor branch checks os.path.isdir(x) on the
-bare directory name instead of os.path.join(case, x), so it always tests
-relative to the current working directory rather than the case directory.
-For any case not literally run from inside itself, every candidate fails
-the isdir check and the method returns an empty list -- exactly the branch
-taken by ordinary (non-parallel) cases.
-"""
+"""OFToolkit: the filesystem/parsing helpers that don't need a real solver run."""
 import numpy
 import pytest
 
@@ -81,23 +73,10 @@ class TestGetTimeListSingleProcessorIsBroken:
         toolkit.getWorkflowDocumentFromDB = lambda **kw: []
         return toolkit
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B83: the single-processor branch checks os.path.isdir(x) "
-               "on the bare name, not os.path.join(case, x), so it always "
-               "resolves relative to the cwd instead of the case "
-               "directory. See the consolidated findings issue.",
-    )
-    def test_it_should_list_the_time_step_directories(self, case):
+    def test_it_lists_the_time_step_directories(self, case):
         toolkit = self._toolkit_pointing_at_directory(case)
         result = toolkit.getTimeList(str(case), singleProcessor=True)
         assert result == [0.0, 10.0]
-
-    def test_it_currently_returns_an_empty_list(self, case):
-        """Characterisation of B83."""
-        toolkit = self._toolkit_pointing_at_directory(case)
-        result = toolkit.getTimeList(str(case), singleProcessor=True)
-        assert result == []
 
     def test_a_missing_case_raises(self, tmp_path):
         toolkit = self._toolkit_pointing_at_directory(tmp_path)
