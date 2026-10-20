@@ -94,7 +94,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         self._sourcesFactory = sourcesFactoryTool()
         self._cloudName = cloudName
         self._parallelCase = parallelCase
-        self._topography = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_TOPOGRAPHY,projectName=projectName)
+        self._topography = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_VECTOR_TOPOGRAPHY,projectName=projectName)
         self._analysis = Analysis(self)
 
     def _extractFile(self, path, columnNames, vector=True):

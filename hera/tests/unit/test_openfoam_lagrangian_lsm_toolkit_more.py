@@ -1,16 +1,12 @@
 """openFoam/lagrangian/LSM/toolkit.py: OFLSMToolkit and its Analysis layer,
-beyond the four properties already pinned in
-``test_openfoam_lagrangian_lsm_toolkit.py`` (which also pins B103, the
-constructor that can never run).
+beyond the four properties already covered in
+``test_openfoam_lagrangian_lsm_toolkit.py``.
 
 Two construction routes are used here, both deliberate:
 
-* ``lsm`` -- a real, DB-backed toolkit from ``unit_toolkit_factory``,
-  obtained by patching the missing constant ``ToolkitHome.GIS_TOPOGRAPHY``
-  onto the *class* for the duration of a test, i.e. by simulating the fix
-  for B103. That is the only way to exercise ``__init__``, the topography
-  wiring and everything that talks to the datalayer; B103 itself stays
-  pinned, unpatched, in the sibling file.
+* ``lsm`` -- a real, DB-backed toolkit from ``unit_toolkit_factory``, which
+  exercises ``__init__``, the topography wiring and everything that talks
+  to the datalayer.
 * ``OFLSMToolkit.__new__(OFLSMToolkit)`` -- the technique the sibling file
   introduced -- for the parsers and writers that touch nothing but the
   filesystem, so that no unrelated failure can be blamed on them.
@@ -71,17 +67,8 @@ _EXTENTS = dict(xmin=0, xmax=2, ymin=0, ymax=2, zmin=0, zmax=2)
 
 
 @pytest.fixture()
-def lsm(unit_toolkit_factory, monkeypatch):
-    """A real OF_LSM toolkit, with B103's missing constant supplied.
-
-    The constant is patched onto the ToolkitHome *class* (never onto the
-    toolkitHome instance, which monkeypatch would then "restore" as a
-    permanent instance attribute) and disappears again after the test.
-    """
-    from hera import ToolkitHome, toolkitHome
-
-    monkeypatch.setattr(ToolkitHome, "GIS_TOPOGRAPHY", toolkitHome.GIS_RASTER_TOPOGRAPHY,
-                        raising=False)
+def lsm(unit_toolkit_factory):
+    """A real, DB-backed OF_LSM toolkit."""
     return unit_toolkit_factory("OF_LSM")
 
 
