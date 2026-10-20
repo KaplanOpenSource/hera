@@ -520,7 +520,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         if len(doc_nameQueryList) > 0:
             # Same name found — compare parameters to detect inconsistency.
             doc_similarWorkflow = self.toolkit.getHemresWorkflowFromDocument(doc_nameQueryList[0])
-            res = self.toolkit.compareWorkflowsObj([doc_similarWorkflow, workflow])
+            res = self.toolkit.compareWorkflowObj([doc_similarWorkflow, workflow])
 
             if len(res.columns) == 1:
                 # Identical — no action needed.

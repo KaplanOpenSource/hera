@@ -75,8 +75,6 @@ passing characterisation of what happens today):
 * B326 (fixed upstream by a4597eb6, #1082)
   ``analysis.calcConcentrationFieldFullMesh``'s first statement called a
   method that lives on the other class.
-* B331 ``_checkDBConsistency`` calls ``toolkit.compareWorkflowsObj``; the
-  real name has no ``s``.
 * B332 (fixed upstream by #1137) the module's star-import shadowed the
   builtin ``min`` with the unum minute unit, killing ``_buildTimeMapping``'s
   nearest-timestep selection.
@@ -995,38 +993,23 @@ class TestWorkflowListLookup:
         assert (updateWorkflow, needDBAdd, inconsistency) == (False, False, None)
 
 
-def _supplyMissingCaseListLookup(ext, monkeypatch):
-    """Simulate the fix for B330 so that B331 becomes reachable.
-
-    Both are patched on the toolkit CLASS, never on the instance.
-    """
-    monkeypatch.setattr(
-        type(ext.toolkit), "getCaseListDocumentFromDB",
-        lambda self, name, **query: self.getWorkflowListDocumentFromDB(name, **query),
-        raising=False)
+def _standInWorkflowFromDocument(ext, monkeypatch):
+    """Rebuilding a hermes workflow from a document needs a real workflow
+    JSON, which the stand-in has none of; hand back the stand-in instead."""
     monkeypatch.setattr(
         type(ext.toolkit), "getHemresWorkflowFromDocument",
         lambda self, documentList, **kwargs: _StandInWorkflow(name="GROUP_1"))
 
 
 @pytest.mark.unit
-class TestCompareWorkflowsObjIsMisspelled:
+class TestCompareWorkflowObj:
     def test_only_the_singular_name_exists_on_the_toolkit(self, ext):
-        """Characterisation of B331, at its source."""
         assert not hasattr(ext.toolkit, "compareWorkflowsObj")
         assert hasattr(ext.toolkit, "compareWorkflowObj")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B331: _checkDBConsistency calls "
-               "self.toolkit.compareWorkflowsObj([...]); the method on "
-               "hermesWorkflowToolkit is compareWorkflowObj, without the 's'. "
-               "Even with B330's getCaseListDocumentFromDB supplied, the "
-               "same-name branch cannot run. See the consolidated findings "
-               "issue.")
-    def test_the_same_name_branch_should_compare_the_two_workflows(
+    def test_the_same_name_branch_compares_the_two_workflows(
             self, ext, tmp_path, monkeypatch):
-        _supplyMissingCaseListLookup(ext, monkeypatch)
+        _standInWorkflowFromDocument(ext, monkeypatch)
         ext.toolkit.addSimulationsDocument(
             resource=str(tmp_path / "c"), dataFormat=datatypes.STRING,
             type=ext.toolkit.DOCTYPE_WORKFLOW,
@@ -1034,18 +1017,6 @@ class TestCompareWorkflowsObjIsMisspelled:
         workflow, updateWorkflow, needDBAdd, inconsistency = ext._checkDBConsistency(
             _StandInWorkflow(name="GROUP_1"), True, False, False)
         assert workflow.name == "GROUP_1"
-
-    def test_the_same_name_branch_currently_raises_on_the_misspelling(
-            self, ext, tmp_path, monkeypatch):
-        """Characterisation of B331."""
-        _supplyMissingCaseListLookup(ext, monkeypatch)
-        ext.toolkit.addSimulationsDocument(
-            resource=str(tmp_path / "c"), dataFormat=datatypes.STRING,
-            type=ext.toolkit.DOCTYPE_WORKFLOW,
-            desc=dict(workflowName="GROUP_1", groupName="GROUP"))
-        with pytest.raises(AttributeError, match="compareWorkflowsObj"):
-            ext._checkDBConsistency(_StandInWorkflow(name="GROUP_1"),
-                                    True, False, False)
 
 
 @pytest.mark.unit
