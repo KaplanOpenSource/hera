@@ -37,9 +37,10 @@ Three bugs are pinned here:
 * B179 (fixed) -- ``toolkit_register`` called ``registerToolkit`` with the
   undefined names ``toolkit_name``/``toolkit_path``, so the command could
   never register anything.
-* B180 -- ``update_datasource_default_version`` calls
+* B180 (fixed) -- ``update_datasource_default_version`` called
   ``setDataSourceDefaultVersion`` on a ``Project``, but that method only
-  exists on ``abstractToolkit``.
+  exists on ``abstractToolkit``; it now resolves the toolkit the datasource
+  was registered under and calls it there.
 * B181 (fixed) -- ``add_toolkit`` reported a non-object ``--params`` JSON as
   invalid JSON, hiding the real reason.
 """
@@ -184,7 +185,8 @@ def _makeProjectClass(harness):
 
     It deliberately does NOT define ``setDataSourceDefaultVersion``,
     because the real ``hera.datalayer.Project`` does not either -- see
-    B180 and ``test_the_real_project_class_has_no_...`` below.
+    B180 and ``test_the_real_project_class_has_no_...`` below.  The handler
+    has to reach that method through the toolkit instead.
     """
 
     class _FakeProject(_Recorder):
@@ -1178,10 +1180,23 @@ class TestUpdateDatasourceDefaultVersion:
             setattr(arguments, key, value)
         return arguments
 
-    def test_the_version_string_is_parsed_into_a_tuple_of_ints(self, wired):
+    @pytest.fixture()
+    def registered(self, wired):
+        """One datasource document, plus a toolkit for ToolkitHome to hand back."""
+        wired.measurementsDocuments = [
+            _FakeDocument(desc=dict(toolkit="MeteoLowFreq", datasourceName="YAVNEEL",
+                                    version=(0, 0, 2)))
+        ]
+        wired.loadedToolkit = _Recorder()
+        wired.loadedToolkit.setDataSourceDefaultVersion = (
+            lambda **kwargs: wired.loadedToolkit._record("setDataSourceDefaultVersion", **kwargs)
+        )
+        return wired
+
+    def test_the_version_string_is_parsed_into_a_tuple_of_ints(self, registered):
         arguments = self._arguments(version=" 1 , 2 , 3 ")
-        with pytest.raises(AttributeError):  # B180, pinned below
-            CLI.update_datasource_default_version(arguments)
+        registered.measurementsDocuments[0].desc["version"] = (1, 2, 3)
+        CLI.update_datasource_default_version(arguments)
         assert arguments.version == (1, 2, 3)
 
     def test_a_malformed_version_is_rejected_before_the_project_is_opened(self, wired):
@@ -1189,34 +1204,24 @@ class TestUpdateDatasourceDefaultVersion:
             CLI.update_datasource_default_version(self._arguments(version="zero,one"))
         assert wired.projects == []
 
-    def test_the_project_is_opened_by_name(self, wired):
-        with pytest.raises(AttributeError):  # B180
-            CLI.update_datasource_default_version(self._arguments())
-        assert wired.project.projectName == "VERSIONS"
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B180: update_datasource_default_version builds a "
-               "hera.datalayer.Project and calls "
-               "proj.setDataSourceDefaultVersion(...), but that method is "
-               "defined on hera.toolkit.abstractToolkit, not on Project -- "
-               "Project has no __getattr__ fallback either. So "
-               "`hera-project project version update <proj> <ds> <d,d,d>` "
-               "always dies with AttributeError and no default version can "
-               "ever be set from the CLI. See the consolidated findings issue.",
-    )
-    def test_the_default_version_should_reach_the_project(self, wired):
+    def test_the_project_is_opened_by_name(self, registered):
         CLI.update_datasource_default_version(self._arguments())
-        assert wired.project.kwargs("setDataSourceDefaultVersion") == dict(
+        assert registered.project.projectName == "VERSIONS"
+
+    def test_the_default_version_reaches_the_toolkit_the_datasource_belongs_to(self, registered):
+        CLI.update_datasource_default_version(self._arguments())
+
+        assert registered.home.kwargs("getToolkit") == dict(toolkitName="MeteoLowFreq")
+        assert registered.loadedToolkit.kwargs("setDataSourceDefaultVersion") == dict(
             datasourceName="YAVNEEL", version=(0, 0, 2))
 
-    def test_it_currently_raises_attributeerror(self, wired):
-        """Characterisation of B180."""
-        with pytest.raises(AttributeError, match="setDataSourceDefaultVersion"):
+    def test_an_unregistered_datasource_version_is_reported(self, wired):
+        wired.measurementsDocuments = []
+        with pytest.raises(ValueError, match="No DataSource with name=YAVNEEL"):
             CLI.update_datasource_default_version(self._arguments())
 
     def test_the_real_project_class_has_no_setdatasourcedefaultversion(self):
-        """Characterisation of B180: where the method actually lives."""
+        """B180: why the toolkit, and not the project, is the target."""
         from hera.datalayer import Project
         from hera.toolkit import abstractToolkit
 

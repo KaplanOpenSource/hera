@@ -483,10 +483,25 @@ def update_datasource_default_version(arguments):
     """
     Set the default version for a data source in a project.
     """
+    from ...toolkit import TOOLKIT_DATASOURCE_TYPE
+
     logger = logging.getLogger("hera.bin.update_datasource_version")
     arguments.version = tuple(int(item.strip()) for item in arguments.version.split(','))
     proj = Project(projectName=arguments.projectName)
-    proj.setDataSourceDefaultVersion(datasourceName=arguments.datasource, version=arguments.version)
+
+    # setDataSourceDefaultVersion is defined on abstractToolkit, not on Project,
+    # and it stores the default in the toolkit's own configuration -- so find
+    # the toolkit the datasource was registered under.
+    documents = proj.getMeasurementsDocuments(type=TOOLKIT_DATASOURCE_TYPE,
+                                              datasourceName=arguments.datasource,
+                                              version=arguments.version)
+    if len(documents) == 0:
+        raise ValueError(f"No DataSource with name={arguments.datasource} and "
+                         f"version={arguments.version} in project {arguments.projectName}.")
+
+    toolkitName = documents[0].desc['toolkit']
+    toolkit = ToolkitHome(projectName=arguments.projectName).getToolkit(toolkitName=toolkitName)
+    toolkit.setDataSourceDefaultVersion(datasourceName=arguments.datasource, version=arguments.version)
 
 
 @_lazy_setup
