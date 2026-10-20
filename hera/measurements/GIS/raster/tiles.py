@@ -194,8 +194,9 @@ class TilesToolkit(toolkit.abstractToolkit):
             sqry = height
             sqrx = width
 
-        lrTiles[0] = ulTiles[0] + sqrx
-        lrTiles[1] = ulTiles[1]+ sqry
+        # The exclusive south-east corner of the mosaic, kept local: writing it
+        # back into lrTiles would mutate the caller's list.
+        lrCorner = [ulTiles[0] + sqrx, ulTiles[1] + sqry]
 
         TILESIZE = 256
         finalimg = Image.new('RGB', (TILESIZE * sqrx, TILESIZE * sqry))
@@ -209,8 +210,8 @@ class TilesToolkit(toolkit.abstractToolkit):
             finalimg.paste(img, (i * TILESIZE, j * TILESIZE))
 
         boundULY, boundULX = self.tile2deg(ulTiles[0], ulTiles[1] , zoomLevel)
-        boundLRY, boundLRX = self.tile2deg(lrTiles[0], lrTiles[1], zoomLevel)
-        logger.info(f"Got the image extent (upper left -> lower right): ({ulTiles[0]},{ulTiles[1]})={[boundULY, boundULX]} and ({lrTiles[0]},{lrTiles[1]})={[boundLRY, boundLRX]}")
+        boundLRY, boundLRX = self.tile2deg(lrCorner[0], lrCorner[1], zoomLevel)
+        logger.info(f"Got the image extent (upper left -> lower right): ({ulTiles[0]},{ulTiles[1]})={[boundULY, boundULX]} and ({lrCorner[0]},{lrCorner[1]})={[boundLRY, boundLRX]}")
 
         return finalimg,[boundULX,boundLRX,boundULY,boundLRY]
 

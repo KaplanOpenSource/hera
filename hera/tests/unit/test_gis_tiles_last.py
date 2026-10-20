@@ -60,8 +60,8 @@ passing characterisation of today's behaviour):
   other CRS -- including its own ``WSG84`` default for ``inputCRS`` -- it
   emits ``[minY, maxY, minX, maxX]``, so the image is stretched over a
   transposed box.
-* B323: ``_getImageFromTiles`` writes the squared corner back into the
-  ``lrTiles`` list it was handed, mutating the caller's argument.
+* B323 (fixed): ``_getImageFromTiles`` wrote the squared corner back into
+  the ``lrTiles`` list it was handed, mutating the caller's argument.
 """
 import io
 
@@ -356,27 +356,20 @@ class TestTheRequestedBoxIsFullyCovered:
 
 @pytest.mark.unit
 class TestTheCornerArgumentsAreLeftAlone:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B323: _getImageFromTiles assigns the squared corner back "
-               "into the caller's list (`lrTiles[0] = ulTiles[0] + sqrx`), so "
-               "the argument is mutated in place. A caller that reuses its "
-               "corner list -- to fetch the same box at two zoom levels, say "
-               "-- silently gets a different box the second time. See the "
-               "consolidated findings issue.",
-    )
     def test_the_lower_right_corner_list_survives_the_call(self, tiles, tileServer):
+        """B323."""
         lower_right = [613, 415]
         tiles._getImageFromTiles([610, 414], lower_right, 10, TEMPLATE)
         assert lower_right == [613, 415]
 
-    def test_the_lower_right_corner_is_overwritten_with_the_squared_one(
+    def test_the_same_corners_give_the_same_box_twice(
         self, tiles, tileServer
     ):
-        """Characterisation of B323."""
-        lower_right = [613, 415]
-        tiles._getImageFromTiles([610, 414], lower_right, 10, TEMPLATE)
-        assert lower_right == [614, 418]
+        """B323: a reused corner list used to describe a different box."""
+        upper_left, lower_right = [610, 414], [613, 415]
+        _, first = tiles._getImageFromTiles(upper_left, lower_right, 10, TEMPLATE)
+        _, second = tiles._getImageFromTiles(upper_left, lower_right, 10, TEMPLATE)
+        assert first == pytest.approx(second)
 
 
 # ---------------------------------------------------------------------------
