@@ -51,10 +51,7 @@ because a stand-in would happily fabricate any number asked of it:
 
 Not covered: ``get_data_fields`` (added in #1137, after these tests were written).
 
-One defect is pinned, provable by reading the source rather than by
-watching a stand-in: B313 (``_parse_point_set``'s ``squeeze()`` cannot tell
-one point from no points).  It has a strict xfail for the intended
-behaviour plus passing characterisation tests of what happens today.
+Nothing is pinned here any more.
 """
 import importlib
 import itertools
@@ -607,25 +604,11 @@ class TestParsePointSet:
 
 
 # ---------------------------------------------------------------------------
-# B313: squeeze() cannot tell "no points" from "exactly one point"
+# One point is not the same thing as no points
 # ---------------------------------------------------------------------------
 
 @pytest.mark.unit
 class TestParsePointSetSinglePoint:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B313: _parse_point_set does "
-               "points = numpy.array(pointSet.Points).squeeze() and then "
-               "keeps the x/y/z columns only `if len(points.shape)==2`, with "
-               "the comment 'it means that there are no points'. That "
-               "inference is wrong for a filter with exactly ONE point (e.g. "
-               "ProbeLocation / a one-point PointSource): numpy.squeeze "
-               "drops every length-1 axis, so an (1, 3) point array becomes "
-               "(3,) and the branch silently throws the probe's coordinates "
-               "away, returning a row that carries only `time`. The point "
-               "count is available un-squeezed and is what the guard should "
-               "test. See the consolidated findings issue.",
-    )
     def test_a_filter_with_exactly_one_point_keeps_that_points_coordinates(self, pv):
         obj = pv.cls(case_path="/c")
         pointSet = FakePointSet(vtkarray([[1.0, 2.0, 3.0]]))
@@ -633,27 +616,25 @@ class TestParsePointSetSinglePoint:
         assert list(result.columns) == ["x", "y", "z", "time"]
         assert result.x.tolist() == [1.0]
 
-    def test_a_single_point_filter_comes_back_with_only_a_time_column(self, pv):
-        """Characterisation of B313."""
-        obj = pv.cls(case_path="/c")
-        pointSet = FakePointSet(vtkarray([[1.0, 2.0, 3.0]]))
-        result = obj._parse_point_set(pointSet, 0.0, None, False)
-        assert list(result.columns) == ["time"]
-
-    def test_a_single_point_scalar_field_still_survives_as_a_scalar(self, pv):
-        """Characterisation of B313: the field value is kept, its place is not."""
+    def test_a_single_point_scalar_field_keeps_both_value_and_place(self, pv):
         obj = pv.cls(case_path="/c")
         pointSet = FakePointSet(vtkarray([[1.0, 2.0, 3.0]]), {"T": vtkarray([300.0])})
         result = obj._parse_point_set(pointSet, 0.0, None, False)
         assert result["T"].tolist() == [300.0]
-        assert "x" not in result.columns
+        assert result.x.tolist() == [1.0]
 
-    def test_two_points_are_enough_for_the_coordinates_to_be_kept(self, pv):
-        """Characterisation of B313: the boundary is exactly one point."""
+    def test_two_points_are_handled_the_same_way(self, pv):
         obj = pv.cls(case_path="/c")
         pointSet = FakePointSet(vtkarray([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]))
         result = obj._parse_point_set(pointSet, 0.0, None, False)
         assert list(result.columns) == ["x", "y", "z", "time"]
+
+    def test_a_flat_point_array_is_still_read_as_no_points(self, pv):
+        """An integrate-style result has no point axis at all, only three
+        coordinates' worth of values; that stays a time-only row."""
+        obj = pv.cls(case_path="/c")
+        result = obj._parse_point_set(FakePointSet(vtkarray([1.0, 2.0, 3.0])), 0.0, None, False)
+        assert list(result.columns) == ["time"]
 
 
 # ---------------------------------------------------------------------------
