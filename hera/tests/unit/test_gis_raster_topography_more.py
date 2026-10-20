@@ -483,8 +483,8 @@ class TestGetPointListElevationFromGeometry:
 
 
 @pytest.mark.unit
-class TestGetPointListElevationIgnoresInputCRS:
-    """B189: the inputCRS parameter is accepted and never read."""
+class TestGetPointListElevationHonoursInputCRS:
+    """B189: the inputCRS parameter converts the points to WSG84."""
 
     @staticmethod
     def _wgs_frame():
@@ -507,30 +507,18 @@ class TestGetPointListElevationIgnoresInputCRS:
         )
         assert signature.parameters["inputCRS"].default == WSG84
 
-    def test_passing_it_changes_nothing_for_wgs84_numbers(self, topo, srtm):
-        """Characterisation of B189."""
+    def test_the_default_leaves_wgs84_numbers_alone(self, topo, srtm):
+        """B189: no conversion is attempted when the input already is WSG84."""
         default = topo.getPointListElevation(self._wgs_frame(), srtm)
-        declared = topo.getPointListElevation(self._wgs_frame(), srtm, inputCRS=ITM)
-        np.testing.assert_allclose(declared["elevation"].values, default["elevation"].values)
+        assert default["filename"].iloc[0] == "N32E035.hgt"
 
-    def test_itm_coordinates_are_read_as_degrees_and_ask_for_a_nonsense_tile(self, topo, srtm):
-        """Characterisation of B189: 200 000 m becomes latitude 200000."""
-        with pytest.raises(FileNotFoundError, match=r"N\d{6}E\d{6}\.hgt"):
-            topo.getPointListElevation(self._itm_frame(), srtm, inputCRS=ITM)
+    def test_itm_coordinates_resolve_to_the_right_tile(self, topo, srtm):
+        """B189: metres are no longer read as degrees."""
+        result = topo.getPointListElevation(self._itm_frame(), srtm, inputCRS=ITM)
+        assert result["filename"].iloc[0] == "N32E035.hgt"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B189: getPointListElevation declares inputCRS=WSG84 in its "
-               "signature and then never uses the name -- no reprojection, no "
-               "validation, not even a warning. A caller who hands it ITM "
-               "eastings/northings and says inputCRS=ITM (the project's own "
-               "constant) has the metres read as degrees: the tile name comes "
-               "out as N753355E212021.hgt and the call dies in "
-               "findElevationFile. Either honour the parameter by converting "
-               "through convertPointsCRS, or drop it from the signature. See "
-               "the consolidated findings issue.",
-    )
     def test_the_same_physical_point_gives_the_same_elevation_in_either_crs(self, topo, srtm):
+        """B189."""
         expected = topo.getPointListElevation(self._wgs_frame(), srtm)["elevation"].iloc[0]
         got = topo.getPointListElevation(self._itm_frame(), srtm, inputCRS=ITM)
         assert got["elevation"].iloc[0] == pytest.approx(expected)

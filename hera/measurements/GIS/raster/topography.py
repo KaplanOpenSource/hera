@@ -171,13 +171,19 @@ class TopographyToolkit(toolkit.abstractToolkit):
         """
             Return the elevation of the point list.
 
-            For now we assume that pointList is in WSG84 coordinates.
-
         Parameters
         ----------
-        latList
-        longList
-        dataSourceName
+        pointList : geopandas.GeoSeries, geopandas.GeoDataFrame or pandas.DataFrame
+            The points of interest. A GeoDataFrame must carry a 'point' field;
+            a plain DataFrame must carry 'lat' and 'lon' columns.
+
+        dataSourceName : str
+            The name of the SRTM datasource to read. Defaults to the project's
+            configured 'defaultSRTM'.
+
+        inputCRS : int, default=WSG84
+            The EPSG of the coordinates in pointList. They are converted to
+            WSG84, which is what the SRTM tiles are indexed by.
 
         Returns
         -------
@@ -190,8 +196,7 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
 
         if isinstance(pointList,geopandas.geoseries.GeoSeries):
-            pointList = pointList.to_frame("point").assign(filename=pointList.apply(lambda row: _srtmTileName(row.y, row.x)),
-                                                           lon=pointList.x,
+            pointList = pointList.to_frame("point").assign(lon=pointList.x,
                                                            lat=pointList.y,
                                                            elevation=0.0)
 
@@ -200,12 +205,19 @@ class TopographyToolkit(toolkit.abstractToolkit):
                 error = "GeoDataFrame must contain a field 'point' that contain the points of interest"
                 logger.error(error)
                 raise ValueError(error)
-            pointList = pointList.assign(filename=pointList.apply(lambda row: _srtmTileName(row.point.y, row.point.x), axis=1),
-                                         lon=pointList.point.x,
+            pointList = pointList.assign(lon=pointList.point.x,
                                          lat=pointList.point.y,
                                          elevation=0.0)
         else:
-            pointList = pointList.assign(filename=pointList.apply(lambda x: _srtmTileName(x.lat, x.lon), axis=1),elevation=0.0)
+            pointList = pointList.assign(elevation=0.0)
+
+        if inputCRS != WSG84:
+            logger.debug(f"Converting the points from {inputCRS} to WSG84, the CRS the SRTM tiles are indexed by")
+            convertedPoints = self.convertPointsCRS(pointList[['lon', 'lat']], inputCRS, WSG84, x='lon', y='lat')
+            pointList = pointList.assign(lon=convertedPoints.geometry.x.values,
+                                         lat=convertedPoints.geometry.y.values)
+
+        pointList = pointList.assign(filename=pointList.apply(lambda row: _srtmTileName(row.lat, row.lon), axis=1))
 
 
         if dataSourceName is None:
