@@ -269,30 +269,23 @@ class TestDateLinePlot:
         with pytest.raises(Exception, match="No column 'datetime'"):
             daily.dateLinePlot(pandas.DataFrame({"WS": [1.0]}), "WS", "2020-06-15")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B297: dateLinePlot applies the field-specific set_ylabel "
-               "from _plotfieldaxfuncdict and then unconditionally "
-               "overwrites it with the bare column name, so the same field "
-               "is labelled 'Wind Speed [m/s]' by plotScatter and "
-               "plotProbContourf but 'WS' here. See the consolidated "
-               "findings issue.",
-    )
-    def test_the_value_axis_should_keep_the_readable_field_label(self, daily, two_days):
+    def test_the_value_axis_keeps_the_readable_field_label(self, daily, two_days):
+        """B297: the field-specific set_ylabel was applied and then
+        unconditionally overwritten with the bare column name, so the same
+        field read 'Wind Speed [m/s]' in plotScatter but 'WS' here."""
         ax, _ = daily.dateLinePlot(two_days, "WS", "2020-06-15")
         assert ax.get_ylabel() == "Wind Speed [m/s]"
 
-    def test_the_value_axis_is_currently_labelled_with_the_raw_column_name(self, daily,
-                                                                          two_days):
-        """Characterisation of B297."""
-        ax, _ = daily.dateLinePlot(two_days, "WS", "2020-06-15")
-        assert ax.get_ylabel() == "WS"
-
-    def test_an_explicit_ylabel_is_still_overwritten(self, daily, two_days):
-        """Characterisation of B297: even ax_functions_properties loses."""
+    def test_an_explicit_ylabel_wins(self, daily, two_days):
         ax, _ = daily.dateLinePlot(two_days, "WS", "2020-06-15",
                                    ax_functions_properties=dict(set_ylabel="mine"))
-        assert ax.get_ylabel() == "WS"
+        assert ax.get_ylabel() == "mine"
+
+    def test_a_field_with_no_declared_label_falls_back_to_the_column_name(self, daily):
+        data = _frame([1.0, 6.5], [2.0, 4.0])
+        data = data.rename(columns={"WS": "TD"})
+        ax, _ = daily.dateLinePlot(data, "TD", "2020-06-15")
+        assert ax.get_ylabel() == "TD"
 
 
 # ---------------------------------------------------------------------------

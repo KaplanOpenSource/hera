@@ -452,7 +452,8 @@ class DailyPlots(Plots):
         for func in ax_func_props:
             getattr(ax, func)(ax_func_props[func])
 
-        ax.set_ylabel(f'{plotField}')
+        if 'set_ylabel' not in ax_func_props:
+            ax.set_ylabel(f'{plotField}')
         ax.set_title(f'{plotField} for {date}')
 
         return ax, line
