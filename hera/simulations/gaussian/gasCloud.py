@@ -680,12 +680,16 @@ class Continuous(object):
 
 
     def _convolve(self,data,axis,FullKernel):
-        # convolve.
-        return (data*FullKernel[FullKernel.shape[0]-data.shape[0]:,:,:]).sum(axis=axis)*self.dt
+        # convolve. `axis` is the window axis: xarray's rolling reducer hands it
+        # over last, and pads the oldest slots of a partial window with NaN --
+        # exactly the weights the kernel alignment below drops anyway.
+        data = numpy.moveaxis(numpy.nan_to_num(data),axis,0)
+        return (data*FullKernel[FullKernel.shape[0]-data.shape[0]:,:,:]).sum(axis=0)*self.dt
 
     def calc(self,data):
-        # build the kernel.
-        FullKernel = numpy.tile(self.Timekernel,[1,data.x.size,data.y.size,data.z.size])
+        # build the kernel. The window is the leading axis; the second axis
+        # broadcasts it over the time steps the reducer is handed at once.
+        FullKernel = numpy.tile(self.Timekernel,[1,data.x.size,data.y.size,data.z.size])[:,numpy.newaxis]
         return data.rolling(datetime=self.kernelsize,min_periods=1).reduce(self._convolve,FullKernel=FullKernel)
 
 
