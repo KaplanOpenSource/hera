@@ -17,10 +17,10 @@ test. ``loadData`` turned out to have three real defects around its
   Replacing with a different version therefore never found the old entry,
   fell into the "create new" branch, and left a duplicate datasource under
   the same name instead of replacing anything.
-* B57: even when the version matches and the replace path is taken, only
-  ``desc['version']`` is updated -- the rest of ``desc`` (e.g.
-  ``effectParameters``) is left stale while ``resource`` (the raw JSON) is
-  fully overwritit, so the document's metadata and payload diverge.
+* B57, fixed: when the replace path was taken, only ``desc['version']``
+  was updated -- the rest of ``desc`` (e.g. ``effectParameters``) was left
+  stale while ``resource`` (the raw JSON) was overwritten in full, so the
+  document's metadata and payload diverged.
 """
 import pytest
 
@@ -113,15 +113,10 @@ class TestLoadData:
         doc = risk.loadData(_desc(version=(0, 0, 2)), saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE)
         assert doc.desc["version"] == [0, 0, 2]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B57: the replace path only assigns agentDoc.desc['version'] "
-               "before saving -- the rest of desc (e.g. effectParameters) "
-               "is never refreshed, even though `resource` (the raw JSON) "
-               "is fully overwritten with the new description. "
-               "See the consolidated findings issue.",
-    )
     def test_replacing_with_the_same_version_refreshes_the_metadata(self, risk):
+        """B57, fixed: the replace path assigned only desc['version'], so
+        the rest of desc went stale while `resource` (the raw JSON) was
+        overwritten in full."""
         risk.loadData(_desc(), saveMode=TOOLKIT_SAVEMODE_FILEANDDB)
         doc = risk.loadData(
             _desc(effectParameters={"tenbergeCoefficient": 2}),

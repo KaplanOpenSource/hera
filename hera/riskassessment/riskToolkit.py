@@ -207,7 +207,7 @@ class RiskToolkit(abstractToolkit):
             raise ValueError(f"Agent {name} version {agentDoc.desc.get('version',None)} in the database.")
         else:
             agentDoc.resource = json.dumps(agentDescription)
-            agentDoc.desc['version']  = version
+            agentDoc.desc.update(agentDescription)
             agentDoc.save()
         return nonDBMetadataFrame(agentDescription) if agentDoc is None else agentDoc
 
