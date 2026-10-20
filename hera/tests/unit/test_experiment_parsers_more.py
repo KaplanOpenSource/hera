@@ -23,10 +23,9 @@ TOA5 stub (B44) and the fact that the module is orphaned;
   branches of ``_getFormat``, and the multi-height branches of
   ``_getColumnNames`` / ``_getColumnIndexes`` / ``heights``.
 * ``Parser_OldStyleMetaDataParquet.getExperimentDict`` / ``_getLists`` --
-  reached only through a raising ``parse`` in the existing file.  They are
-  exercised here on the one station-locations orientation the code does
-  accept (attribute-major: ``{"lat": {station: value}, ...}``), which is
-  the flip side of B90.
+  exercised here on the station-major station-locations shape
+  (``{station: {"lat": value, ...}, ...}``) that a real campaign
+  description carries, which is what B90 made readable.
 
 Fixtures are hand-built TOB1 files (five ASCII header lines, then packed
 binary records), following ``test_meteorology_campbellbinary.py``; no real
@@ -732,13 +731,11 @@ CAMPAIGN_METADATA = {
     }
 }
 
-# The only orientation _getLists can consume: attribute-major, so that
-# DataFrame.from_dict's default orient="columns" puts the station names in
-# the index and the attribute names in the columns.  See B90.
+# Station-major, the shape a real campaign description carries and the one
+# _getLists consumes now that it passes orient="index".  See B90.
 STATION_LOCATIONS = {
-    "lat": {"STN1": 32.1, "STN2": 32.2},
-    "lon": {"STN1": 34.8, "STN2": 34.9},
-    "station_code": {"STN1": "S1", "STN2": "S2"},
+    "STN1": {"lat": 32.1, "lon": 34.8, "station_code": "S1"},
+    "STN2": {"lat": 32.2, "lon": 34.9, "station_code": "S2"},
 }
 
 
