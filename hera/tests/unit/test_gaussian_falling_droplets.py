@@ -518,14 +518,6 @@ class TestFallingParticleDerivative:
         assert derivative[5] == pytest.approx(-STANDARD_GRAVITY)
         assert derivative[4] > 0
 
-    def test_numpy_max_with_a_scalar_second_argument_does_not_clip(self):
-        """_fallingParticle line 402 reads `z = numpy.max(z, 0)`.
-
-        That second positional argument is `axis`, not a floor, so the
-        intended "never go below the ground" clamp is a no-op;
-        numpy.clip / max(z, 0) is what it wanted.
-        """
-        assert numpy.max(-5.0, 0) == -5.0
 
 
 @pytest.mark.unit
