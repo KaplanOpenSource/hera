@@ -16,12 +16,9 @@ distribution (the geometric bin edges, the mass in each bin, the
 normalisation for the clipped variants), never read back out of the
 implementation.
 
-``FixedPointClippedDropletCloud`` stays unreachable even with the stand-in
-in place: B100 (already pinned in test_gaussian_dropletcloud.py) makes its
-constructor dispatch to its own ``_initDropletPosition`` override before
-assigning ``self.clippedDiameter``.  Its clipped discretisation is
-therefore exercised through ``CirclePositionClippedDropletsCloud``, which
-sets ``clippedDiameter`` first and inherits the same override.
+The clipped discretisation is exercised through
+``CirclePositionClippedDropletsCloud``, which shares
+``FixedPointClippedDropletCloud``'s ``_initDropletPosition`` override.
 
 Bugs pinned here:
   * B272: ``CirclePositionClippedDropletsCloud`` builds the crosswind
@@ -246,12 +243,9 @@ class TestDropletListForTheLineSource:
 
 @pytest.mark.unit
 class TestDropletListForTheClippedSpectrum:
-    """The clipped discretisation is only reachable through the circle
-    subclass: FixedPointClippedDropletCloud cannot be constructed at all
-    (B100, already pinned in test_gaussian_dropletcloud.py -- it dispatches
-    to its own _initDropletPosition override before assigning
-    self.clippedDiameter), while CirclePositionClippedDropletsCloud sets
-    clippedDiameter first and inherits the same override."""
+    """The clipped discretisation, exercised through the circle subclass,
+    which inherits FixedPointClippedDropletCloud's _initDropletPosition
+    override."""
 
     CLIP = 300 * ureg.um
     CLOUDS = 4

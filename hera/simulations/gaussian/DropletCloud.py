@@ -145,6 +145,10 @@ class FixedPointClippedDropletCloud(FixedPositionDropletsCloud):
 
     def __init__(self,mmd,geometricstd,position,Q,clippedDiameter,clouds=30, meteorologyname="StandardMeteorolgyConstant",**kwargs):
 
+        # must precede super().__init__: it dispatches to the
+        # _initDropletPosition override below, which reads clippedDiameter.
+        self.clippedDiameter = clippedDiameter
+
         super().__init__(mmd=mmd,
                          geometricstd=geometricstd,
                          position=position,
@@ -152,8 +156,6 @@ class FixedPointClippedDropletCloud(FixedPositionDropletsCloud):
                          clouds=clouds,
                          meteorologyname=meteorologyname
                          )
-
-        self.clippedDiameter = clippedDiameter
 
 
     def _initDropletPosition(self, mmd, geometricstd, position, Q, clouds=30, meteorologyname="StandardMeteorolgyConstant", **kwargs):
