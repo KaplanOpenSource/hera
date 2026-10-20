@@ -53,7 +53,7 @@ class GaussianToMesh(object):
 
     def __init__(self,dxdy = None):
         self.sigmaXName = "sigmaXCorrected"
-        self.sigmaYName = "sigmaXCorrected"
+        self.sigmaYName = "sigmaYCorrected"
         self.QName      = "QName"	
         self._dxdy      = dxdy
     def _defineCoordinates(self,gaussians):
