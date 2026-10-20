@@ -288,14 +288,14 @@ class LSMToolkit(toolkit.abstractToolkit):
             new_df = df.copy().drop(columns=['id']).melt()
             new_df.index = [id]*len(new_df)
             new_df_list.append(new_df)
-        try:
-            df = pandas.concat(new_df_list)
-            if wideFormat:
-                return df.pivot(columns='variable', values='value')
-            else:
-                return df
-        except ValueError:
+        if len(new_df_list) == 0:
             raise FileNotFoundError('No simulations.old found')
+
+        df = pandas.concat(new_df_list)
+        if wideFormat:
+            return df.pivot(columns='variable', values='value')
+        else:
+            return df
         
 
     def prepareSlurmLSMExecution(self,baseParameters,

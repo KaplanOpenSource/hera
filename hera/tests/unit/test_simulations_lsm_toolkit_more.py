@@ -334,6 +334,20 @@ class TestGetSimulationsListWideFormat:
         with pytest.raises(FileNotFoundError, match="No simulations.old found"):
             lsm.getSimulationsList(wideFormat=True)
 
+    def test_a_pivot_failure_is_not_reported_as_a_missing_file(
+        self, lsm, registerSimulation, monkeypatch
+    ):
+        """Only emptiness may become FileNotFoundError; a reshape failure on
+        a project that does hold simulations must surface as itself."""
+        registerSimulation("sim1", TopoXmax=100)
+
+        def boom(*args, **kwargs):
+            raise ValueError("Index contains duplicate entries, cannot reshape")
+
+        monkeypatch.setattr(lsmToolkit_mod.pandas.DataFrame, "pivot", boom)
+        with pytest.raises(ValueError, match="cannot reshape"):
+            lsm.getSimulationsList(wideFormat=True)
+
     def test_two_simulations_should_give_two_rows(self, lsm, registerSimulation):
         registerSimulation("sim1", TopoXmax=100, extra=1)
         registerSimulation("sim2", TopoXmax=100, extra=2)
