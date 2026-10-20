@@ -1259,7 +1259,7 @@ uStarOverWindSpeed
         else:
             raise ValueError("mode must be either MeanDir or 3dMeanDir")
 
-        if "u_mag" not in self.TemporaryData.columns:
+        if "u_mag" + title_additions not in self.TemporaryData.columns:
             self._TemporaryData["u_mag" + title_additions] = ((ubar_data[u_bar] ** 2 + ubar_data[v_bar] ** 2 + ubar_data[w_bar] ** 2) ** 0.5).loc[(ubar_data.index >=
                                     self.metaData["start"]) & (ubar_data.index < self.metaData["end"])]
             self._TemporaryData["u_mag" + title_additions] = self._TemporaryData["u_mag" + title_additions].ffill()
@@ -1342,7 +1342,7 @@ uStarOverWindSpeed
                                                         .resample(self.SamplingWindow).mean()
                 self._CalculatedParams.append([col_names[tau],{}])
 
-        if "u_mag" not in self.TemporaryData.columns:
+        if "u_mag" + title_additions not in self.TemporaryData.columns:
             self._TemporaryData["u_mag" + title_additions] = dir_data["u_mag"]
             self._TemporaryData["u_mag" + title_additions] = self._TemporaryData["u_mag" + title_additions].ffill()
             self._CalculatedParams.append(["u_mag" + title_additions,{}])

@@ -400,33 +400,26 @@ class TestUMagGuard:
         lazy.StrucFun(tau_range=[1.0], ubar_data=ubar)
         assert _param_names(lazy).count("u_mag") == 1
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B304: StrucFun guards the magnitude column with "
-               "`if \"u_mag\" not in self.TemporaryData.columns` but writes "
-               "and registers `\"u_mag\" + title_additions`, so with a "
-               "non-empty title_additions the guard inspects a name that is "
-               "never created and every repeated call appends another "
-               "duplicate entry to _CalculatedParams. See the consolidated "
-               "findings issue.",
-    )
-    def test_with_title_additions_the_magnitude_should_also_be_registered_once(
+    def test_with_title_additions_the_magnitude_is_also_registered_once(
             self, lazy, monkeypatch):
+        """B304: the guard used to inspect the bare "u_mag" while the write
+        and the registration both used "u_mag" + title_additions, so every
+        repeat call appended another entry for a column that already existed."""
         _record_delegations(monkeypatch)
         ubar = _mean_wind()
         lazy.StrucFun(tau_range=[1.0], ubar_data=ubar, title_additions="X")
         lazy.StrucFun(tau_range=[1.0], ubar_data=ubar, title_additions="X")
         assert _param_names(lazy).count("u_magX") == 1
+        assert list(lazy.TemporaryData.columns).count("u_magX") == 1
 
-    def test_with_title_additions_it_is_currently_registered_twice(self, lazy,
-                                                                   monkeypatch):
-        """Characterisation of B304."""
+    def test_two_different_title_additions_each_get_their_own_magnitude(
+            self, lazy, monkeypatch):
         _record_delegations(monkeypatch)
         ubar = _mean_wind()
         lazy.StrucFun(tau_range=[1.0], ubar_data=ubar, title_additions="X")
-        lazy.StrucFun(tau_range=[1.0], ubar_data=ubar, title_additions="X")
-        assert _param_names(lazy).count("u_magX") == 2
-        assert list(lazy.TemporaryData.columns).count("u_magX") == 1
+        lazy.StrucFun(tau_range=[1.0], ubar_data=ubar, title_additions="Y")
+        assert _param_names(lazy).count("u_magX") == 1
+        assert _param_names(lazy).count("u_magY") == 1
 
 
 # ---------------------------------------------------------------------------
