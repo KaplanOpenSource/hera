@@ -301,7 +301,7 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
         logger = get_classMethod_logger(self, "getMesh")
         logger.info(f"Start. case {caseDirectory}. Current directory is : {os.getcwd()}.")
 
-        casePointer = "" if caseDirectory == os.getcwd() else f"-case {caseDirectory}"
+        casePointer = [] if caseDirectory == os.getcwd() else ["-case", caseDirectory]
 
         useParallel = False
         if readParallel:
@@ -325,9 +325,10 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
             foam_cmd = ["foamJob"]
             if useParallel:
                 foam_cmd.append("-parallel")
-            foam_cmd.extend([str(casePointer), "-wait", "postProcess", "-func", "writeCellCentres", "-time", str(time)])
+            foam_cmd.extend(casePointer)
+            foam_cmd.extend(["-wait", "postProcess", "-func", "writeCellCentres", "-time", str(time)])
             subprocess.run(foam_cmd, check=False)
-            logger.debug(f"done: foamJob {parallelExec} -wait postProcess -func writeCellCentres {casePointer} -time {time}")
+            logger.debug(f"done: {' '.join(foam_cmd)}")
             if not os.path.exists(checkPath):
                 logger.error("Error running the writeCellCentres. Executing writeCellCentres failed. Are you sure that the openFOAM environment is set?"\
                              "try to load the enviroment and then rerun (in jupyter, you need to restart the server)")

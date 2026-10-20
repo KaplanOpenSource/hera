@@ -37,7 +37,6 @@ Deliberately not covered:
 Bugs pinned below (each with an xfail for the intended behaviour and a
 passing characterisation of what happens today):
 
-* B192 ``getMesh`` builds a broken ``foamJob`` argv.
 * B193 ``getMeshFromName`` / ``getMeshExtentFromName`` drop
   ``readParallel`` and ``time``.
 * B194 ``prepareSlurmWorkflowExecution`` cannot take a workflow dict.
@@ -363,33 +362,19 @@ class TestGetMesh:
         assert runSeam.lastArgs[0][0] == "foamJob"
         assert runSeam.lastKwargs == dict(check=False)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B192: getMesh passes `f'-case {caseDirectory}'` as ONE "
-               "element of the argv list handed to subprocess.run, instead "
-               "of the two elements '-case' and the directory. Since the "
-               "call uses a list (no shell), foamJob receives a single "
-               "argument '-case /path' that it cannot parse -- and when the "
-               "case IS the cwd it receives an empty-string argument "
-               "instead. See the consolidated findings issue.",
-    )
-    def test_the_case_option_should_be_two_argv_elements(self, of, tmp_path, runSeam):
+    def test_the_case_option_is_two_argv_elements(self, of, tmp_path, runSeam):
         with pytest.raises(RuntimeError):
             of.getMesh(str(tmp_path))
-        assert "-case" in runSeam.lastArgs[0]
+        argv = runSeam.lastArgs[0]
+        assert argv[argv.index("-case") + 1] == str(tmp_path)
 
-    def test_the_case_option_is_currently_one_joined_argv_element(self, of, tmp_path, runSeam):
-        """Characterisation of B192."""
-        with pytest.raises(RuntimeError):
-            of.getMesh(str(tmp_path))
-        assert f"-case {tmp_path}" in runSeam.lastArgs[0]
-
-    def test_a_case_that_is_the_cwd_passes_an_empty_argument(self, of, tmp_path, runSeam, monkeypatch):
-        """Characterisation of B192, second symptom."""
+    def test_a_case_that_is_the_cwd_passes_no_case_option_at_all(self, of, tmp_path, runSeam, monkeypatch):
         monkeypatch.chdir(tmp_path)
         with pytest.raises(RuntimeError):
             of.getMesh(str(tmp_path))
-        assert "" in runSeam.lastArgs[0]
+        argv = runSeam.lastArgs[0]
+        assert "-case" not in argv
+        assert "" not in argv
 
 
 # ---------------------------------------------------------------------------
