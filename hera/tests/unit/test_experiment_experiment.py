@@ -82,12 +82,12 @@ Bugs pinned here
   ``KeyError: 'Latitude'``. It used to work only if the devices happened
   to carry free-text *attributes* literally named ``Latitude`` and
   ``Longitude``; both now read the lowercase columns argos writes.
-* B162: ``TrialWithdata.getData(withMetadata=True)`` merges the data
-  against ``self.entitiesTable`` with ``right_on="entityName"``, but
+* B162 (fixed): ``TrialWithdata.getData(withMetadata=True)`` merged the
+  data against ``self.entitiesTable`` with ``right_on="entityName"``, but
   ``argos.Trial.entitiesTable`` names that column ``deviceItemName``
   (``entityName`` exists only on ``Experiment.entitiesTable`` and
-  ``EntityType.entitiesTable``). Every metadata-joined trial read raises
-  ``KeyError: 'entityName'``.
+  ``EntityType.entitiesTable``), so every metadata-joined trial read
+  raised ``KeyError: 'entityName'``.
 * B163: the two overridden initialisers index a metadata key that
   argos's own versions read defensively:
   ``TrialSetWithData._initTrials`` uses ``self._metadata["trials"]``
@@ -595,32 +595,20 @@ class TestTrialGetData:
 
 @pytest.mark.unit
 class TestTrialGetDataWithMetadata:
-    """B162: the merge key does not exist in argos's trial entities table."""
+    """B162: the merge key argos uses in a trial's entities table."""
 
     def test_the_trial_entities_table_has_no_entity_name_column(self, experiment):
-        """Characterisation of B162: this is the table the merge is given."""
+        """Why the merge joins on deviceItemName: this is the table."""
         table = experiment.trialSet["Measurements"]["T1"].entitiesTable
         assert "deviceItemName" in table.columns
         assert "entityName" not in table.columns
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B162: TrialWithdata.getData merges on "
-               "right_on='entityName', but argos's Trial.entitiesTable "
-               "names the device column deviceItemName -- entityName exists "
-               "only on Experiment.entitiesTable and "
-               "EntityType.entitiesTable. See the consolidated findings issue.",
-    )
-    def test_it_should_join_the_trial_device_metadata_onto_the_data(self, experiment, deviceData):
+    def test_it_joins_the_trial_device_metadata_onto_the_data(self, experiment, deviceData):
         data = experiment.trialSet["Measurements"]["T1"].getData(
             deviceType="sonic", withMetadata=True)
         assert "height" in data.columns
-
-    def test_it_currently_raises_a_key_error_on_the_merge_column(self, experiment, deviceData):
-        """Characterisation of B162."""
-        with pytest.raises(KeyError, match="entityName"):
-            experiment.trialSet["Measurements"]["T1"].getData(
-                deviceType="sonic", withMetadata=True)
+        assert set(data.deviceItemName) == {"sonic_1", "sonic_2"}
+        assert data.index.name == "timestamp"
 
 
 @pytest.mark.unit

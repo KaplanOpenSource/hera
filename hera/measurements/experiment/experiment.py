@@ -552,7 +552,7 @@ class TrialWithdata(argosDataObjects.Trial):
                     .merge(
                         devicemetadata,
                         left_on="deviceName",
-                        right_on="entityName",
+                        right_on="deviceItemName",
                     )
                     .set_index("timestamp")
                 )
