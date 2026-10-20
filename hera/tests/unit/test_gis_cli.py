@@ -509,26 +509,11 @@ class TestGetLandcover:
         assert home.requests == [dict(toolkitName=_FakeToolkitHome.GIS_LANDCOVER,
                                       projectName="LANDCOVER_PROJECT")]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B127: get_landocver reads the wind direction from the "
-               "misspelled attribute `arguments.windDirectionis` instead of "
-               "`arguments.windDirection`, so passing --windDirection -- "
-               "mandatory for the isBuilding=True roughness case -- raises "
-               "AttributeError before the toolkit is ever called. See the "
-               "consolidated findings issue.",
-    )
     def test_a_wind_direction_should_reach_the_roughness_calculation(self, home, tmp_path):
         CLI.get_landocver(_landcoverArguments(tmp_path, isBuilding=True,
                                               windDirection="270", resolution="10"))
         assert home.toolkit.call("getRoughness")[2]["windMeteorologicalDirection"] == \
             pytest.approx(270.0)
-
-    def test_supplying_a_wind_direction_currently_raises_attributeerror(self, home, tmp_path):
-        """Characterisation of B127."""
-        with pytest.raises(AttributeError, match="windDirectionis"):
-            CLI.get_landocver(_landcoverArguments(tmp_path, windDirection="270"))
-        assert home.toolkit.calls == []
 
     def test_omitting_the_wind_direction_keeps_the_command_working(self, home, tmp_path):
         CLI.get_landocver(_landcoverArguments(tmp_path, windDirection=None))
