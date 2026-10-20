@@ -76,10 +76,10 @@ class MeanDataCalculator:
 
         self._Karman = 0.4
 
-        if type(TurbCalcOrData) == pandas:
+        if isinstance(TurbCalcOrData, pandas.DataFrame):
             self.metaData = deepcopy(metadata)
             self.MeanData = TurbCalcOrData.copy()
-        elif type(TurbCalcOrData) == dask:
+        elif isinstance(TurbCalcOrData, dask.dataframe.DataFrame):
             self.metaData = deepcopy(metadata)
             self.MeanData = TurbCalcOrData[self.metaData["start"]:self.metaData["end"]].compute()
         elif type(TurbCalcOrData) == singlePointTurbulenceStatistics:
@@ -90,9 +90,9 @@ class MeanDataCalculator:
         else:
             raise ValueError("TurbCalcOrData must be either a singlePointTurbulenceStatistics instance or a pandas/dask dataframe")
 
-        if type(AverageCalcOrData) == pandas:
+        if isinstance(AverageCalcOrData, pandas.DataFrame):
             AverageData = AverageCalcOrData
-        elif type(AverageCalcOrData) == dask:
+        elif isinstance(AverageCalcOrData, dask.dataframe.DataFrame):
             AverageData = AverageCalcOrData[self.metaData["start"]:self.metaData["end"]].compute()
         elif type(AverageCalcOrData) == AveragingCalculator:
             AverageData = AverageCalcOrData.compute(mode=compute_mode_AverageCalc)

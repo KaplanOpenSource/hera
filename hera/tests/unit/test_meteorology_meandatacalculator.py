@@ -1,26 +1,25 @@
 """MeanDataCalculator: the fluent second-moment statistics chain, and
 AveragingCalculator's windowed means.
 
-Two defects surfaced while probing construction:
+Two defects surfaced while probing construction, both since fixed:
 
-* B70: ``__init__`` dispatches on ``type(TurbCalcOrData) == pandas`` and
+* B70: ``__init__`` dispatched on ``type(TurbCalcOrData) == pandas`` and
   ``type(TurbCalcOrData) == dask`` -- comparing the argument's type to the
   *module objects* ``pandas``/``dask`` themselves, which no object's type
   is ever equal to. Both branches (and the matching ones for
-  ``AverageCalcOrData``) can never match, so passing a plain
+  ``AverageCalcOrData``) could never match, so passing a plain
   ``pandas.DataFrame`` or ``dask.DataFrame`` directly -- both explicitly
-  documented and type-hinted as accepted -- always raises ``ValueError``.
-  Only a ``singlePointTurbulenceStatistics``/``AveragingCalculator``
-  instance (or ``None``, for ``AverageCalcOrData``) actually works.
+  documented and type-hinted as accepted -- always raised ``ValueError``.
+  They are ``isinstance`` checks now.
 * B71: ``anisotropyEigs`` calls ``self.MeanData.apply(self._eig, axis=1)``,
-  but ``_eig`` is defined as ``def _eig(series):`` -- missing ``self`` --
-  so the bound-method call always passes two arguments into a
-  one-parameter function and raises ``TypeError``. ``anisotropyCats``
-  calls ``anisotropyEigs`` first, so it fails the same way.
+  but ``_eig`` was defined as ``def _eig(series):`` -- missing ``self`` --
+  so the bound-method call passed two arguments into a one-parameter
+  function and raised ``TypeError``. ``anisotropyCats`` calls
+  ``anisotropyEigs`` first, so it failed the same way.
 
-Because of B70, the tests below build ``MeanDataCalculator.MeanData``
-directly via ``__new__`` rather than going through the real constructor --
-the same technique batch 10 used for evaporationModels (B50).
+Most tests below still build ``MeanDataCalculator.MeanData`` directly via
+``__new__`` rather than going through the real constructor, so that a single
+synthetic row can drive the whole fluent chain.
 """
 import numpy
 import pandas
@@ -48,30 +47,44 @@ def _second_moments_row():
     )
 
 
+def _dated_second_moments():
+    frame = pandas.DataFrame(_second_moments_row())
+    frame.index = pandas.date_range("2020-01-01", periods=len(frame), freq="30min")
+    return frame
+
+
 @pytest.mark.unit
-class TestConstructionRejectsPlainDataFrames:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B70: type(x) == pandas compares against the pandas MODULE, "
-               "which no DataFrame's type ever equals, so this documented "
-               "input path can never succeed. See the consolidated "
-               "findings issue.",
-    )
-    def test_a_plain_pandas_dataframe_should_be_accepted(self):
-        MeanDataCalculator(pandas.DataFrame(_second_moments_row()), start="2020", end="2021")
+class TestConstructionAcceptsPlainDataFrames:
+    def test_a_plain_pandas_dataframe_is_accepted(self):
+        """B70: the documented pandas input path works."""
+        frame = _dated_second_moments()
+        mc = MeanDataCalculator(frame, start="2020-01-01", end="2020-01-02")
+        assert list(mc.MeanData.columns) == list(frame.columns)
+        assert len(mc.MeanData) == len(frame)
 
-    def test_a_plain_pandas_dataframe_currently_raises(self):
-        """Characterisation of B70."""
-        with pytest.raises(ValueError, match="singlePointTurbulenceStatistics"):
-            MeanDataCalculator(pandas.DataFrame(_second_moments_row()), start="2020", end="2021")
+    def test_the_frame_is_copied_not_aliased(self):
+        frame = _dated_second_moments()
+        mc = MeanDataCalculator(frame, start="2020-01-01", end="2020-01-02")
+        mc.MeanData["uu"] = 99.0
+        assert frame["uu"].iloc[0] == 0.5
 
-    def test_an_unrecognised_average_calc_or_data_raises(self):
-        """The AverageCalcOrData branch has the same bug (type(x) == pandas
-        never matches), reachable independently of TurbCalcOrData: passing
-        {} matches none of pandas/dask/AveragingCalculator/None."""
+    def test_a_plain_pandas_dataframe_is_accepted_as_the_average_data(self):
+        """B70: the AverageCalcOrData branch had the same defect."""
+        frame = _dated_second_moments()
+        average = pandas.DataFrame({"T_bar": [20.0]}, index=frame.index)
+        mc = MeanDataCalculator(frame, AverageCalcOrData=average,
+                                start="2020-01-01", end="2020-01-02")
+        assert mc.MeanData["T_bar"].iloc[0] == pytest.approx(20.0)
+
+    def test_an_unrecognised_average_calc_or_data_still_raises(self):
+        """{} matches none of pandas/dask/AveragingCalculator/None."""
         turb_calc = _real_turb_calc()
         with pytest.raises(ValueError, match="pandas/dask dataframe"):
             MeanDataCalculator(turb_calc, AverageCalcOrData={}, start="2020-01-01", end="2020-01-02")
+
+    def test_an_unrecognised_turb_calc_or_data_still_raises(self):
+        with pytest.raises(ValueError, match="singlePointTurbulenceStatistics"):
+            MeanDataCalculator({}, start="2020-01-01", end="2020-01-02")
 
 
 def _real_turb_calc():
@@ -287,12 +300,20 @@ class TestEigDirect:
         assert result.isna().all()
 
 
+def _dated_mean_data_calculator(**columns):
+    """A calculator whose metaData carries the start/end the constructor needs,
+    so the non-inplace branches can rebuild a MeanDataCalculator from it."""
+    mc = _mean_data_calculator(**columns)
+    mc.MeanData.index = pandas.date_range("2020-01-01", periods=len(mc.MeanData), freq="30min")
+    mc.metaData = dict(start="2020-01-01", end="2020-01-02")
+    return mc
+
+
 @pytest.mark.unit
-class TestThresholdsAndFilterDatesInplace:
-    """Non-inplace mode hits B70 (same as the constructor bug documented
-    above): it builds a fresh MeanDataCalculator from the filtered plain
-    DataFrame, and that path can never succeed. inplace=True mutates the
-    existing instance instead and sidesteps the constructor entirely."""
+class TestThresholdsAndFilterDates:
+    """Non-inplace mode used to hit B70: it builds a fresh MeanDataCalculator
+    from the filtered plain DataFrame, which the broken type checks rejected.
+    Both modes work now."""
 
     def test_thresholds_inplace_filters_and_returns_self(self):
         mc = _mean_data_calculator(u_bar=[2.0, 3.0], v_bar=[1.0, 0.5])
@@ -300,11 +321,12 @@ class TestThresholdsAndFilterDatesInplace:
         assert result is mc
         assert mc.MeanData["u_bar"].tolist() == [3.0]
 
-    def test_thresholds_not_inplace_currently_raises(self):
-        """Characterisation of B70 resurfacing in thresholds()."""
-        mc = _mean_data_calculator(u_bar=[2.0, 3.0], v_bar=[1.0, 0.5])
-        with pytest.raises(ValueError, match="singlePointTurbulenceStatistics"):
-            mc.thresholds([("u_bar", "gt", 2.5)])
+    def test_thresholds_not_inplace_returns_a_new_calculator(self):
+        mc = _dated_mean_data_calculator(u_bar=[2.0, 3.0], v_bar=[1.0, 0.5])
+        result = mc.thresholds([("u_bar", "gt", 2.5)])
+        assert result is not mc
+        assert result.MeanData["u_bar"].tolist() == [3.0]
+        assert mc.MeanData["u_bar"].tolist() == [2.0, 3.0]
 
     def test_filterdates_inplace_narrows_to_the_interval(self):
         mc = _mean_data_calculator(u_bar=[2.0, 3.0], v_bar=[1.0, 0.5])
@@ -313,12 +335,12 @@ class TestThresholdsAndFilterDatesInplace:
         assert result is mc
         assert len(mc.MeanData) == 1
 
-    def test_filterdates_not_inplace_currently_raises(self):
-        """Characterisation of B70 resurfacing in filterDates()."""
-        mc = _mean_data_calculator(u_bar=[2.0, 3.0], v_bar=[1.0, 0.5])
-        mc.MeanData.index = pandas.date_range("2020-01-01", periods=2, freq="30min")
-        with pytest.raises(ValueError, match="singlePointTurbulenceStatistics"):
-            mc.filterDates(start=mc.MeanData.index[0], end=mc.MeanData.index[1])
+    def test_filterdates_not_inplace_returns_a_new_calculator(self):
+        mc = _dated_mean_data_calculator(u_bar=[2.0, 3.0], v_bar=[1.0, 0.5])
+        result = mc.filterDates(start=mc.MeanData.index[0], end=mc.MeanData.index[1])
+        assert result is not mc
+        assert len(result.MeanData) == 1
+        assert len(mc.MeanData) == 2
 
 
 @pytest.mark.unit
