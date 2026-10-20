@@ -8,8 +8,7 @@ Covered: ``_setup``, ``_lazy_setup`` (and its ``wrapper``),
 
 Every handler is exercised against a fake toolkitHome injected over the
 module global that ``_setup`` would otherwise fill in (with ``_setup``
-itself stubbed out, which is also what makes the handler tests survive
-B126 below), so the tests assert on the CLI plumbing -- which toolkit was
+itself stubbed out), so the tests assert on the CLI plumbing -- which toolkit was
 asked for, which arguments were forwarded, what was printed, what landed
 on disk -- and never touch the GIS algorithms, GDAL or a database.  One
 test checks the real ``toolkitHome`` still exposes the four constants the
@@ -20,14 +19,6 @@ landcover xarray (both belong to the toolkits, which have their own unit
 tests), and the argparse wiring in ``hera/bin/hera-GIS``, which lives under
 ``if __name__ == "__main__"`` and cannot be imported.
 
-Three bugs are pinned here:
-
-* B126 -- ``_setup`` imports ``WSG84``/``ITM`` from ``hera.utils``, which
-  does not define them, so every hera-GIS command dies with ImportError.
-* B127 -- ``get_landocver`` misspells ``windDirection`` as
-  ``windDirectionis``.
-* B128 -- ``buildings_raster_toSTL`` computes ``dxdy``/``inputCRS``/
-  ``outputCRS``/``dataSourceName`` and then forwards none of them.
 """
 from argparse import Namespace
 
@@ -179,8 +170,7 @@ def uninitialized(monkeypatch):
 @pytest.mark.unit
 class TestSetup:
     def test_it_binds_pandas_and_the_toolkit_home(self, uninitialized):
-        with pytest.raises(ImportError):  # B126, pinned below
-            CLI._setup()
+        CLI._setup()
         assert CLI.pd is pandas
         assert hasattr(CLI.toolkitHome, "getToolkit")
         assert CLI._initialized is True
@@ -200,31 +190,14 @@ class TestSetup:
         CLI._setup()
         assert CLI.pd == "sentinel"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B126: _setup does `from hera.utils import WSG84, ITM`, but "
-               "those constants live in hera.measurements.GIS.utils and are "
-               "not re-exported by hera.utils (whose lazy __getattr__ only "
-               "searches unitHandler/jsonutils/query/matplotlibCountour/"
-               "angle/zipUtils). _setup therefore raises ImportError, and "
-               "since every command is wrapped in @_lazy_setup the whole "
-               "hera-GIS CLI is dead on the first call. See the consolidated "
-               "findings issue.",
-    )
     def test_it_should_bind_the_crs_constants(self, uninitialized):
         CLI._setup()
         assert CLI.WSG84 == 4326
         assert CLI.ITM == 2039
 
-    def test_it_currently_raises_importerror_for_the_crs_constants(self, uninitialized):
-        """Characterisation of B126."""
-        with pytest.raises(ImportError, match="WSG84"):
-            CLI._setup()
-        assert CLI.WSG84 is None
-        assert CLI.ITM is None
-
-    def test_the_crs_constants_really_live_in_the_gis_utils_module(self):
-        """Characterisation of B126: where the import should have pointed."""
+    def test_the_crs_constants_live_in_the_gis_utils_module(self):
+        """Where the import has to point: hera.utils does not re-export
+        them, so importing from there is an ImportError."""
         from hera.measurements.GIS.utils import ITM, WSG84
 
         assert (WSG84, ITM) == (4326, 2039)
@@ -233,33 +206,15 @@ class TestSetup:
 
 
 @pytest.mark.unit
-class TestEveryCommandIsDeadOnArrival:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B126: the @_lazy_setup bootstrap raises ImportError on "
-               "hera.utils' missing WSG84, so no hera-GIS command can run. "
-               "See the consolidated findings issue.",
-    )
+class TestEveryCommandBootstraps:
     def test_listing_the_datasources_should_work(self, uninitialized):
         CLI.topography_raster_list(Namespace(projectName=None))
 
-    def test_the_first_call_raises_importerror(self, uninitialized):
-        """Characterisation of B126."""
-        with pytest.raises(ImportError, match="WSG84"):
-            CLI.topography_raster_list(Namespace(projectName=None))
-
-    def test_the_bootstrap_marks_itself_done_even_though_it_failed(self, uninitialized):
-        """Characterisation of B126: _setup sets _initialized = True before
-        it performs the imports, so the failure is never retried -- the
-        second call returns silently with WSG84/ITM still unbound, which
-        turns a loud ImportError into a silent wrong-value hazard."""
-        with pytest.raises(ImportError):
-            CLI.topography_raster_list(Namespace(projectName=None))
-
-        CLI._setup()  # no exception this time
+    def test_the_bootstrap_leaves_the_constants_bound(self, uninitialized):
+        CLI.topography_raster_list(Namespace(projectName=None))
 
         assert CLI._initialized is True
-        assert CLI.WSG84 is None and CLI.ITM is None
+        assert (CLI.WSG84, CLI.ITM) == (4326, 2039)
 
 
 @pytest.mark.unit
