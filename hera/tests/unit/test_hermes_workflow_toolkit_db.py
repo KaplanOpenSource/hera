@@ -798,23 +798,21 @@ class TestFindAvailableName:
         newID, name = tk.findAvailableName("brandNew")
         assert name == tk.getworkFlowName("brandNew", newID)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B141: findAvailableName draws from the counter "
-               "'simulations_<group>', while addWorkflowToGroup draws from the "
-               "counter '<group>'. The two never agree, so the 'available' name "
-               "it returns can be -- and for a group populated the normal way "
-               "always is -- the name of a workflow that already exists. "
-               "See the consolidated findings issue.",
-    )
-    def test_the_available_name_should_not_already_be_taken(self, tk, twoWorkflowsInGroup):
+    def test_the_available_name_is_not_already_taken(self, tk, twoWorkflowsInGroup):
+        """B141: it used to draw from the counter 'simulations_<group>' while
+        addWorkflowToGroup drew from '<group>', so the two never agreed."""
         _, name = tk.findAvailableName("flow")
         assert tk.getWorkflowDocumentByName(name) is None
 
-    def test_the_available_name_currently_collides_with_an_existing_workflow(
+    def test_it_continues_the_numbering_the_group_already_has(
         self, tk, twoWorkflowsInGroup
     ):
-        """Characterisation of B141."""
-        newID, name = tk.findAvailableName("flow")
-        assert (newID, name) == (0, "flow_0000")
-        assert tk.getWorkflowDocumentByName("flow_0000") is not None
+        assert tk.findAvailableName("flow") == (2, "flow_0002")
+
+    def test_the_next_added_workflow_takes_the_name_after_it(
+        self, tk, twoWorkflowsInGroup
+    ):
+        """The two share one counter, so reserving a name advances it."""
+        tk.findAvailableName("flow")
+        doc = tk.addWorkflowToGroup(_workflowJSON(7.0), "flow")
+        assert doc.desc["workflowName"] == "flow_0003"

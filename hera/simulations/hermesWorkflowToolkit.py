@@ -573,7 +573,7 @@ class hermesWorkflowToolkit(abstractToolkit):
             The new ID,
             The name.
         """
-        newID = self.getCounterAndAdd(f"simulations_{simulationGroup}")
+        newID = self.getCounterAndAdd(simulationGroup)
         return newID, self.getworkFlowName(simulationGroup, newID)
 
     @staticmethod
