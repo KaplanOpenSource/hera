@@ -1,7 +1,7 @@
 import pandas
 import matplotlib
 import matplotlib.pyplot as plt
-import seaborn as sns; sns.set()
+import seaborn as sns
 import numpy as np
 
 
