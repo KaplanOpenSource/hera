@@ -38,11 +38,12 @@ Three defects surfaced:
   a rain-only station, which the shipped ``wind_stations.json`` list does
   contain -- raises ``UnboundLocalError``.  Worse, when only one of the
   two is missing the loop silently reuses the *previous station's* value.
-* B258: the retry loop assigns ``data`` before the subscript that
+* B258, fixed: the retry loop assigned ``data`` before the subscript that
   validates it, so an error payload -- from a rejected token, say --
-  survives all 20 attempts, passes the ``if data:`` guard that exists to
-  skip unreachable stations, and is then dereferenced outside the try,
-  raising ``KeyError: 'data'`` instead of skipping the station.
+  survived all 20 attempts, passed the ``if data:`` guard that exists to
+  skip unreachable stations, and was then dereferenced outside the try,
+  raising ``KeyError: 'data'`` instead of skipping the station.  The
+  payload is bound to ``data`` only once it has been validated.
 """
 import json
 
@@ -246,37 +247,29 @@ class TestGetWindSpeedDirectionWithNoUsableStations:
 
 @pytest.mark.unit
 class TestGetWindSpeedDirectionWithAnErrorPayload:
-    """B258: an error response from the API is not skipped.
+    """B258: an error response from the API used not to be skipped.
 
-    The retry loop assigns ``data = json.loads(...)`` and only then reads
+    The retry loop assigned ``data = json.loads(...)`` and only then read
     ``data['data'][0]['datetime']``.  For an error payload -- ``{"errorMessage":
     "unauthorized"}`` from a rejected token -- the parse succeeds and the
-    subscript fails, so after 20 rejected attempts ``data`` is still the error
+    subscript fails, so after 20 rejected attempts ``data`` was still the error
     dict.  It is truthy, so the ``if data:`` guard that exists to skip
-    unreachable stations lets it through, and the very next line dereferences
+    unreachable stations let it through, and the very next line dereferenced
     ``data['data']`` outside the try, raising ``KeyError: 'data'``.
     """
 
     UNAUTHORIZED = {"errorMessage": "unauthorized"}
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B258: the retry loop assigns `data` before the subscript that "
-               "validates it, so a response it rejected 20 times still passes the "
-               "`if data:` guard; the error payload is then dereferenced outside "
-               "the try/except and raises KeyError: 'data'. A rejected IMS token "
-               "crashes the call instead of yielding no stations. "
-               "See the consolidated findings issue.",
-    )
     def test_an_error_payload_is_treated_as_no_data(self, tk, monkeypatch):
         _fixedResponse(monkeypatch, self.UNAUTHORIZED)
         assert tk._getWindSpeedDirection([_station()], TOKEN) == []
 
-    def test_an_error_payload_currently_raises_keyerror(self, tk, monkeypatch):
-        """Characterisation of B258."""
-        _fixedResponse(monkeypatch, self.UNAUTHORIZED)
-        with pytest.raises(KeyError, match="data"):
-            tk._getWindSpeedDirection([_station()], TOKEN)
+    def test_a_good_payload_still_gets_through(self, tk, monkeypatch):
+        """B258's boundary: the validated payload is still bound to `data`."""
+        _fixedResponse(monkeypatch, _reading())
+        assert tk._getWindSpeedDirection([_station()], TOKEN) == [
+            [32.0, 35.0, 375, [5.0, 270.0]]
+        ]
 
     def test_an_unreachable_station_is_skipped_by_contrast(self, tk, monkeypatch):
         """Characterisation of B258's boundary: when the request itself

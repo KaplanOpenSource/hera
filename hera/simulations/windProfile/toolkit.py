@@ -143,8 +143,9 @@ class WindProfileToolkit(toolkit.abstractToolkit):
                 try:
                     url = f'https://api.ims.gov.il/v1/envista/stations/{station_id}/data/latest'
                     response = requests.request('GET', url, headers=headers)
-                    data = json.loads(response.text.encode('utf8'))
-                    datetime_str = data['data'][0]['datetime']
+                    payload = json.loads(response.text.encode('utf8'))
+                    datetime_str = payload['data'][0]['datetime']
+                    data = payload
                     break
                 except Exception:
                     trials += 1
