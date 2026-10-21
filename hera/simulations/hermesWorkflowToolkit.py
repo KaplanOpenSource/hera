@@ -497,7 +497,9 @@ class hermesWorkflowToolkit(abstractToolkit):
             for simulationItem in nameOrWorkflowFileOrJSONOrResource:
                 docList += self.getWorkflowDocumentFromDB(simulationItem)
         else:
-            docList = self.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+            # list(...) because getWorkflowDocumentFromDB returns a mongoengine
+            # QuerySet, and every caller treats the result as a list.
+            docList = list(self.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource))
 
         return docList
 

@@ -520,26 +520,21 @@ class TestGetHermesWorkflowFromDB:
     def test_nothing_found_gives_none(self, tk, twoWorkflowsInGroup):
         assert tk.getHermesWorkflowFromDB(["flow_9999"]) is None
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B138: for a non-list identifier getWorkflowListDocumentFromDB "
-               "returns the mongoengine QuerySet from getWorkflowDocumentFromDB "
-               "unchanged, and getHemresWorkflowFromDocument then tests "
-               "isinstance(documentList, list) -- false for a QuerySet -- so it "
-               "wraps the whole QuerySet in a one-element list and reads .desc "
-               "off it: AttributeError. Only the list-input path works. "
-               "See the consolidated findings issue.",
-    )
-    def test_a_plain_workflow_name_should_also_yield_a_workflow(self, tk, twoWorkflowsInGroup):
+    def test_a_plain_workflow_name_also_yields_a_workflow(self, tk, twoWorkflowsInGroup):
+        """B138: the non-list branch used to hand back the mongoengine
+        QuerySet itself, which getHemresWorkflowFromDocument then wrapped in
+        a one-element list and read .desc off."""
         workflowObject = tk.getHermesWorkflowFromDB("flow_0001")
         assert workflowObject.parametersJSON["Parameters"] == {"alpha": 9.0}
 
-    def test_a_plain_workflow_name_currently_raises_an_attributeerror(
+    def test_a_plain_group_name_returns_every_workflow_of_the_group(
         self, tk, twoWorkflowsInGroup
     ):
-        """Characterisation of B138."""
-        with pytest.raises(AttributeError, match="QuerySet"):
-            tk.getHermesWorkflowFromDB("flow_0001")
+        workflowObjects = tk.getHermesWorkflowFromDB("flow", returnFirst=False)
+        assert sorted(w.name for w in workflowObjects) == ["flow_0000", "flow_0001"]
+
+    def test_a_plain_name_that_matches_nothing_gives_none(self, tk, twoWorkflowsInGroup):
+        assert tk.getHermesWorkflowFromDB("flow_9999") is None
 
 
 # ---------------------------------------------------------------------------
