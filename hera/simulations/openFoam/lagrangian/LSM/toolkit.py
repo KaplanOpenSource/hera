@@ -415,7 +415,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                  "|    \\/     M anipulation  |                                                 |\n" \
                  "\\*---------------------------------------------------------------------------*/\n" \
                  "FoamFile\n{    version     2.0;\n    format      ascii;\n    class       vectorField;\n" \
-                 "    object      kinematicCloudPositions;\n}\n" \
+                 f"    object      {fileName};\n}}\n" \
                  "// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //\n\n" \
             f"{nParticles}\n(\n"
         source = self.sourcesFactory.makeSource(x=x, y=y, z=z, nParticles=nParticles, type=type, **kwargs)

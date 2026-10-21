@@ -39,7 +39,7 @@ Bugs pinned below (each with an xfail for the intended behaviour and a
 passing characterisation of what happens today):
 
 * B204 (fixed) ``loadData``'s DB branch treated a QuerySet as a document.
-* B206 ``makeSource`` writes the wrong object name into the header.
+* B206 (fixed) ``makeSource`` wrote the wrong object name into the header.
 * B207 ``createRootCaseMeshLink`` references an undefined name.
 * B208 ``calcConcentrationTimeStepFullMesh`` sets an attribute xarray
   refuses.
@@ -373,22 +373,14 @@ class TestMakeSource:
         with pytest.raises(ValueError, match="The type must be"):
             bare.makeSource(x=0, y=0, z=0, nParticles=1, type="noSuchGeometry")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B206: the FoamFile header is a single hard-coded string "
-               "whose `object` entry is always kinematicCloudPositions, even "
-               "when fileName says otherwise -- so a source written under any "
-               "other name declares the wrong object to OpenFOAM. "
-               "See the consolidated findings issue.",
-    )
-    def test_the_header_should_name_the_file_it_is_in(self, bare, case):
+    def test_the_header_names_the_file_it_is_in(self, bare, case):
         bare.makeSource(x=0, y=0, z=0, nParticles=1, fileName="mySource")
         assert "object      mySource;" in (case / "constant" / "mySource").read_text()
 
-    def test_the_header_currently_always_names_the_kinematic_cloud(self, bare, case):
-        """Characterisation of B206."""
-        bare.makeSource(x=0, y=0, z=0, nParticles=1, fileName="mySource")
-        assert "object      kinematicCloudPositions;" in (case / "constant" / "mySource").read_text()
+    def test_the_default_file_name_keeps_the_kinematic_cloud_header(self, bare, case):
+        bare.makeSource(x=0, y=0, z=0, nParticles=1)
+        header = (case / "constant" / "kinematicCloudPositions").read_text()
+        assert "object      kinematicCloudPositions;" in header
 
 
 # ---------------------------------------------------------------------------
