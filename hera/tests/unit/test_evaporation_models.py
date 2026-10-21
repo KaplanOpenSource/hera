@@ -43,14 +43,13 @@ AGENT = {
 
 @pytest.fixture()
 def models():
-    """Built around the broken constructor (B50).
+    """Assembled field by field rather than through the constructor.
 
-    evaporationModels.__init__ calls RiskToolkit.getAgent(agent) on the CLASS,
-    but getAgent is an instance method (self, nameOrDesc, version=None), so the
-    agent lands in `self` and nameOrDesc is missing.  The class cannot be
-    constructed at all.  Every correlation in it is nonetheless a pure function
-    of the fields, so the object is assembled directly here and the constructor
-    is pinned separately in TestConstruction.
+    Every correlation in the class is a pure function of these fields, so
+    building the object directly keeps the tests off the database and off
+    the `molecularVolume` fallback (AGENT's value is a bare number, which
+    the constructor cannot convert, so it would silently switch the model
+    to EPA).  The constructor itself is covered in TestConstruction.
     """
     from hera.riskassessment.agents.Agents import Agent
 
@@ -82,7 +81,7 @@ class TestConstruction:
         assert models.molecularDiffusionModel == "EPA"
 
     def test_getagent_is_an_instance_method(self):
-        """Characterisation of B50's mechanism."""
+        """B50's mechanism: __init__ used to call it on the class."""
         import inspect
 
         from hera.riskassessment import RiskToolkit
@@ -91,17 +90,15 @@ class TestConstruction:
         assert parameters[0] == "self"
         assert "nameOrDesc" in parameters
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B50: __init__ calls RiskToolkit.getAgent(agent) on the class, but "
-               "getAgent is an instance method (self, nameOrDesc, version=None). "
-               "The agent is bound to self and nameOrDesc is missing, so every "
-               "construction raises TypeError -- the class cannot be instantiated "
-               "at all. Undetected until now because the module was unimportable "
-               "(B31). See the consolidated findings issue.",
-    )
-    def test_the_class_can_be_constructed(self):
-        assert evaporationModels(AGENT) is not None
+    def test_the_class_can_be_constructed(self, unit_project):
+        assert (
+            evaporationModels(AGENT, projectName=unit_project.projectName)
+            is not None
+        )
+
+    def test_the_descriptor_becomes_the_agent(self, unit_project):
+        built = evaporationModels(AGENT, projectName=unit_project.projectName)
+        assert built.agent.effectNames == ["inhalation"]
 
 
 @pytest.mark.unit

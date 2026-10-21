@@ -13,6 +13,7 @@ class evaporationModels(object):
     _dinamicViscocityModel = None
     _molecularDiffusionModel = None
     _evaporationModel = None
+    _riskToolkit = None
 
     @property
     def agent(self):
@@ -66,9 +67,10 @@ class evaporationModels(object):
     def Vagent(self):
         return self._Vagent
 
-    def __init__(self,agent, evaporationModel="US",dinamicViscocityModel="powerLaw",molecularDiffusionModel="FSG"):
+    def __init__(self,agent, evaporationModel="US",dinamicViscocityModel="powerLaw",molecularDiffusionModel="FSG",projectName="evaporation"):
 
-        self._agent=RiskToolkit.getAgent(agent)
+        self._riskToolkit = RiskToolkit(projectName=projectName)
+        self._agent=self._riskToolkit.getAgent(agent)
         self._Mair = 28.967
         self._Vair = 20.1
         self._molecularDiffusionModel = molecularDiffusionModel
