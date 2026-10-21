@@ -197,9 +197,9 @@ class TestListHermesSolverTemplates:
 @pytest.mark.unit
 class TestComponentFilteredTemplateLookups:
     """getHermesFlowTemplate / getHermesNodeTemplate / listHermesNodesTemplates
-    all filter on the datasource's ``component`` field -- and all pass the
-    filter as ``desc__component``, which the datalayer prefixes with ``desc``
-    a second time. See B137."""
+    all filter on the datasource's ``component`` field.  B137: they used to
+    pass the filter as ``desc__component``, which the datalayer prefixed
+    with ``desc`` a second time, so none of them ever matched."""
 
     def test_the_component_field_is_queryable_when_it_is_not_double_prefixed(
         self, tk, templateDatasources
@@ -210,50 +210,34 @@ class TestComponentFilteredTemplateLookups:
         assert len(tk.getDataSourceDocumentsList(component="Flow")) == 1
         assert len(tk.getDataSourceDocumentsList(component="Node")) == 1
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B137: the component filter is passed as desc__component=..., "
-               "but collection.getDocuments feeds every extra kwarg through "
-               "dictToMongoQuery(prefix='desc'), producing the query field "
-               "desc__desc__component -- which matches nothing. So "
-               "getHermesFlowTemplate always returns None. "
-               "See the consolidated findings issue.",
-    )
-    def test_a_registered_flow_template_should_be_retrievable(self, tk, templateDatasources):
+    def test_a_registered_flow_template_is_retrievable(self, tk, templateDatasources):
         assert tk.getHermesFlowTemplate("myFlowTemplate") == {"template": True}
 
-    def test_a_registered_flow_template_is_currently_never_found(self, tk, templateDatasources):
-        """Characterisation of B137."""
-        assert tk.getHermesFlowTemplate("myFlowTemplate") is None
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B137: getHermesNodeTemplate filters on desc__component, which "
-               "the datalayer re-prefixes into desc__desc__component and so "
-               "matches nothing. See the consolidated findings issue.",
-    )
-    def test_a_registered_node_template_should_be_retrievable(self, tk, templateDatasources):
+    def test_a_registered_node_template_is_retrievable(self, tk, templateDatasources):
         assert tk.getHermesNodeTemplate("myNodeTemplate") == {"template": True}
 
-    def test_a_registered_node_template_is_currently_never_found(self, tk, templateDatasources):
-        """Characterisation of B137."""
-        assert tk.getHermesNodeTemplate("myNodeTemplate") is None
+    def test_a_flow_template_is_not_served_as_a_node_template(
+        self, tk, templateDatasources
+    ):
+        """The component filter does filter, now that it reaches the query."""
+        assert tk.getHermesNodeTemplate("myFlowTemplate") is None
+        assert tk.getHermesFlowTemplate("myNodeTemplate") is None
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B137: listHermesNodesTemplates filters on desc__component, "
-               "re-prefixed into desc__desc__component, so the listing is "
-               "always empty. (Its body would then fail a second time: it "
-               "reads doc.desc['desc'], a nesting addDataSource never "
-               "creates.) See the consolidated findings issue.",
-    )
-    def test_a_registered_node_template_should_appear_in_the_node_listing(
+    def test_a_registered_node_template_appears_in_the_node_listing(
         self, tk, templateDatasources
     ):
         assert "myNodeTemplate" in list(tk.listHermesNodesTemplates().index)
 
-    def test_the_node_listing_is_currently_always_empty(self, tk, templateDatasources):
-        """Characterisation of B137."""
+    def test_the_node_listing_holds_only_node_components(
+        self, tk, templateDatasources
+    ):
+        """B137's second half: the body read doc.desc['desc'], a nesting
+        addDataSource never creates, which the empty listing hid."""
+        listing = tk.listHermesNodesTemplates()
+        assert list(listing.index) == ["myNodeTemplate"]
+        assert set(listing["component"]) == {"Node"}
+
+    def test_a_project_with_no_node_templates_gives_an_empty_frame(self, tk):
         assert tk.listHermesNodesTemplates().empty
 
 

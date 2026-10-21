@@ -157,7 +157,7 @@ class hermesWorkflowToolkit(abstractToolkit):
         -------
 
         """
-        return self.getDataSourceData(hermesFlowName, desc__component="Flow")
+        return self.getDataSourceData(hermesFlowName, component="Flow")
 
     def listHermesNodesTemplates(self) -> pandas.DataFrame:
         """
@@ -173,8 +173,8 @@ class hermesWorkflowToolkit(abstractToolkit):
 
         """
         retList = []
-        for doc in self.getDataSourceDocumentsList(desc__component="Node"):
-            data = dict(doc.desc['desc'])
+        for doc in self.getDataSourceDocumentsList(component="Node"):
+            data = dict(doc.desc)
             data['nodeName'] = doc.desc['datasourceName']
             retList.append(data)
 
@@ -194,7 +194,7 @@ class hermesWorkflowToolkit(abstractToolkit):
         -------
 
         """
-        return self.getDataSourceData(hermesNodeName, desc__component="Node")
+        return self.getDataSourceData(hermesNodeName, component="Node")
 
     def getHemresWorkflowFromDocument(self, documentList, returnFirst=True)->hermes.workflow|list[hermes.workflow]:
         """
