@@ -911,7 +911,7 @@ class hermesWorkflowToolkit(abstractToolkit):
                     logger.error(err)
             else:
                 groupworkflowList = [hermes.workflow(simulationDoc['desc']['workflow'], WD_path=self.FilesDirectory,
-                                              name=simulationDoc.desc[self.DESC_WORKFLOWNAME], resource=simulationDoc['resource']) for simulationDoc in
+                                              name=simulationDoc.desc[self.DESC_WORKFLOWNAME], Resource_path=simulationDoc['resource']) for simulationDoc in
                                      simulationList]
                 workflowList += groupworkflowList
 
@@ -942,7 +942,7 @@ class hermesWorkflowToolkit(abstractToolkit):
         """
         simulationList = self.getWorkflowDocumentsInGroup(groupName=workflowGroup)
         workflowList = [hermes.workflow(simulationDoc['desc']['workflow'], WD_path=self.FilesDirectory,
-                                 name=simulationDoc.desc[self.DESC_WORKFLOWNAME], resource=simulationDoc['resource']) for simulationDoc in simulationList]
+                                 name=simulationDoc.desc[self.DESC_WORKFLOWNAME], Resource_path=simulationDoc['resource']) for simulationDoc in simulationList]
         if len(workflowList) == 0:
             ret = None
         else:

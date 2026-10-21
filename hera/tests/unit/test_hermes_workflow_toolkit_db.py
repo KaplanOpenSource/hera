@@ -654,26 +654,13 @@ class TestCompareWorkflows:
         with pytest.raises(ValueError, match="No objects to concatenate"):
             tk.compareWorkflows(["noSuchWorkflow"])
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B140: every DB-backed comparison rebuilds the hermes objects "
-               "with workflow(..., resource=simulationDoc['resource']), but "
-               "hermes.workflow.__init__ takes Resource_path, not resource -- so "
-               "compareWorkflows, compareWorkflowInGroup and workflowTable all "
-               "raise TypeError: unexpected keyword argument 'resource' as soon "
-               "as a matching document exists. "
-               "See the consolidated findings issue.",
-    )
-    def test_a_group_name_should_compare_the_workflows_stored_in_that_group(
+    def test_a_group_name_compares_the_workflows_stored_in_that_group(
         self, tk, twoWorkflowsInGroup
     ):
+        """B140: the rebuild used to pass resource= where hermes.workflow
+        takes Resource_path."""
         table = tk.compareWorkflows("flow")
         assert sorted(table.columns) == ["flow_0000", "flow_0001"]
-
-    def test_a_group_name_currently_raises_a_typeerror(self, tk, twoWorkflowsInGroup):
-        """Characterisation of B140."""
-        with pytest.raises(TypeError, match="unexpected keyword argument 'resource'"):
-            tk.compareWorkflows("flow")
 
 
 @pytest.mark.unit
@@ -684,27 +671,13 @@ class TestCompareWorkflowInGroupAndWorkflowTable:
     def test_an_empty_group_gives_the_same_answer_through_workflowtable(self, tk):
         assert tk.workflowTable("noSuchGroup") is None
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B140: compareWorkflowInGroup rebuilds each stored workflow "
-               "with workflow(..., resource=...) while hermes.workflow.__init__ "
-               "expects Resource_path, so any non-empty group raises TypeError. "
-               "See the consolidated findings issue.",
-    )
-    def test_a_populated_group_should_be_comparable(self, tk, twoWorkflowsInGroup):
+    def test_a_populated_group_is_comparable(self, tk, twoWorkflowsInGroup):
         table = tk.compareWorkflowInGroup("flow")
         assert sorted(table.index) == ["flow_0000", "flow_0001"]
 
-    def test_a_populated_group_currently_raises_a_typeerror(self, tk, twoWorkflowsInGroup):
-        """Characterisation of B140."""
-        with pytest.raises(TypeError, match="unexpected keyword argument 'resource'"):
-            tk.compareWorkflowInGroup("flow")
-
-    def test_workflowtable_inherits_the_same_failure(self, tk, twoWorkflowsInGroup):
-        """Characterisation of B140: workflowTable is a thin delegation to
-        compareWorkflowInGroup, so it cannot behave any better."""
-        with pytest.raises(TypeError, match="unexpected keyword argument 'resource'"):
-            tk.workflowTable("flow")
+    def test_workflowtable_gives_the_same_table(self, tk, twoWorkflowsInGroup):
+        """workflowTable is a thin delegation to compareWorkflowInGroup."""
+        assert sorted(tk.workflowTable("flow").index) == ["flow_0000", "flow_0001"]
 
 
 # ---------------------------------------------------------------------------
