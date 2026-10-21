@@ -717,16 +717,25 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         :param parallel:
         :return:
         """
+        logger = get_classMethod_logger(self, "createRootCaseMeshLink")
         for fl in glob.glob(os.path.join(rootCase, "processor*")):
-            print(fl)
-            fullpath = os.path.join(os.path.abspath(fl), lastTS)
-
+            logger.info(f"Processing {fl}")
             proc = os.path.split(fl)[-1]
-            destination = os.path.join(os.path.abspath(proc), "3600")
-            os.makedirs(os.path.dirname(destination), exist_ok=True)
-            if os.path.exists(destination):
-                shutil.rmtree(destination)
-            shutil.copytree(fullpath, destination)
+
+            # The time step to copy is the last one the root case was run to.
+            timeList = sorted([timeName for timeName in os.listdir(fl) if
+                               timeName.isdigit() and os.path.isdir(os.path.join(fl, timeName))], key=int)
+            if len(timeList) == 0:
+                logger.info(f"There are no time steps in {fl}, linking the mesh only")
+            else:
+                lastTS = timeList[-1]
+                fullpath = os.path.join(os.path.abspath(fl), lastTS)
+
+                destination = os.path.join(os.path.abspath(proc), lastTS)
+                os.makedirs(os.path.dirname(destination), exist_ok=True)
+                if os.path.exists(destination):
+                    shutil.rmtree(destination)
+                shutil.copytree(fullpath, destination)
 
             fullpath = os.path.abspath(os.path.join(fl, "constant", "polyMesh"))
             destination = os.path.join(os.path.abspath(proc), "constant", "polyMesh")

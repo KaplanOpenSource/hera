@@ -40,7 +40,7 @@ passing characterisation of what happens today):
 
 * B204 (fixed) ``loadData``'s DB branch treated a QuerySet as a document.
 * B206 (fixed) ``makeSource`` wrote the wrong object name into the header.
-* B207 ``createRootCaseMeshLink`` references an undefined name.
+* B207 (fixed) ``createRootCaseMeshLink`` referenced an undefined name.
 * B208 ``calcConcentrationTimeStepFullMesh`` sets an attribute xarray
   refuses.
 * B209 ``calcDocumentConcentrationPointWise`` never returns.
@@ -560,23 +560,38 @@ class TestMakeUstarFromCache:
 
 @pytest.mark.unit
 class TestCreateRootCaseMeshLink:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B207: the body reads `lastTS`, a name that is never "
-               "defined anywhere in the module (and hard-codes '3600' as "
-               "the destination time step), so the method raises NameError "
-               "for any root case that has at least one processor "
-               "directory. See the consolidated findings issue.",
-    )
-    def test_it_should_link_the_mesh_of_every_processor(self, bare, tmp_path):
-        (tmp_path / "processor0" / "constant" / "polyMesh").mkdir(parents=True)
-        bare.createRootCaseMeshLink(str(tmp_path))
+    @pytest.fixture()
+    def runDirectory(self, tmp_path, monkeypatch):
+        """The method writes the new case relative to the working directory."""
+        directory = tmp_path / "run"
+        directory.mkdir()
+        monkeypatch.chdir(directory)
+        return directory
 
-    def test_it_currently_raises_nameerror(self, bare, tmp_path):
-        """Characterisation of B207."""
-        (tmp_path / "processor0").mkdir()
-        with pytest.raises(NameError, match="lastTS"):
-            bare.createRootCaseMeshLink(str(tmp_path))
+    def test_it_links_the_mesh_of_every_processor(self, bare, tmp_path, runDirectory):
+        rootCase = tmp_path / "rootCase"
+        (rootCase / "processor0" / "constant" / "polyMesh").mkdir(parents=True)
+        bare.createRootCaseMeshLink(str(rootCase))
+        meshLink = runDirectory / "processor0" / "constant" / "polyMesh"
+        assert meshLink.is_symlink()
+        assert os.path.realpath(meshLink) == os.path.realpath(rootCase / "processor0" / "constant" / "polyMesh")
+
+    def test_the_last_time_step_is_copied_under_its_own_name(self, bare, tmp_path, runDirectory):
+        rootCase = tmp_path / "rootCase"
+        (rootCase / "processor0" / "constant" / "polyMesh").mkdir(parents=True)
+        for timeName in ["100", "900", "200"]:
+            (rootCase / "processor0" / timeName).mkdir()
+        (rootCase / "processor0" / "900" / "U").write_text("the last time step")
+        bare.createRootCaseMeshLink(str(rootCase))
+        assert (runDirectory / "processor0" / "900" / "U").read_text() == "the last time step"
+        assert not (runDirectory / "processor0" / "200").exists()
+
+    def test_a_processor_without_time_steps_still_gets_its_mesh_link(self, bare, tmp_path,
+                                                                    runDirectory):
+        rootCase = tmp_path / "rootCase"
+        (rootCase / "processor0" / "constant" / "polyMesh").mkdir(parents=True)
+        bare.createRootCaseMeshLink(str(rootCase))
+        assert sorted(os.listdir(runDirectory / "processor0")) == ["constant"]
 
     def test_a_root_case_without_processors_does_nothing(self, bare, tmp_path):
         assert bare.createRootCaseMeshLink(str(tmp_path)) is None
