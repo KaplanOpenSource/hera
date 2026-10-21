@@ -152,6 +152,9 @@ nav:
       - Testing:
           - Getting Started: testing/getting_started.md
           - Test Flow: testing/flow.md
+          - Unit Test Layer (pending merge): testing/unit_tests.md
+          - Batch History (pending merge): testing/batch_history.md
+          - Defect Register (pending merge): testing/defect_register.md
       - API Reference:
           - Overview: developer_guide/api/index.md
           - Core: developer_guide/api/core.md
