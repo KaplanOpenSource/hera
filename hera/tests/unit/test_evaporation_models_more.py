@@ -2,8 +2,8 @@
 
 ``test_evaporation_models.py`` covers the two diffusion correlations, the
 air-viscosity power law, the dimensionless groups, the flux dispatch and
-the broken constructor (B50/B51).  What it never touches is the agent
-plumbing those correlations read their molecular data from:
+the constructor (B50/B51).  What it never touches is the agent plumbing
+those correlations read their molecular data from:
 
 * ``evaporationModels.agent`` (property and setter)
 * ``evaporationModels.Magent``  -- molecular weight, g/mol
@@ -20,19 +20,15 @@ without any reference to the implementation.
 
 One defect surfaced:
 
-* B256: the ``agent`` setter calls ``RiskToolkit.getAgent(newAgent)``
+* B256, fixed: the ``agent`` setter called ``RiskToolkit.getAgent(newAgent)``
   on the class, but ``getAgent`` is an instance method
-  ``(self, nameOrDesc, version=None)``.  The new agent is bound to
-  ``self`` and ``nameOrDesc`` is left missing, so assigning an agent
-  always raises TypeError.  Same shape as B50 in ``__init__``, a
-  different code site -- and unlike B50 it is not masked by anything
-  else, so it is the only reason ``agent`` cannot be re-pointed on an
-  object that was assembled by hand.
-
-Not covered: the ``__init__`` fallback that switches the diffusion model
-to EPA when the agent has no molecular volume.  It sits after the
-``RiskToolkit.getAgent`` call that B50 makes fatal, so it is unreachable
-until B50 is fixed.
+  ``(self, nameOrDesc, version=None)``, so the new agent was bound to
+  ``self``, ``nameOrDesc`` was left missing and every assignment raised
+  TypeError.  Same shape as B50 in ``__init__``, a different code site.
+  It now goes through the toolkit the constructor builds -- so an object
+  assembled by hand, as the helper below does, has to be given one.  The
+  class also declared ``agent`` twice; the first, setter-less getter was
+  dead code and is gone.
 """
 import numpy as np
 import pytest
@@ -66,7 +62,8 @@ def _agentDescriptor(molecularWeight="100 g/mol"):
 
 
 def _build(molecularWeight="100 g/mol", molarVolume=80.0, diffusionModel="FSG"):
-    """Assemble the object field by field: B50 makes __init__ unusable."""
+    """Assemble the object field by field, which keeps these tests off the
+    database and off the constructor's molecularVolume fallback."""
     from hera.riskassessment.agents.Agents import Agent
 
     built = evaporationModels.__new__(evaporationModels)
@@ -93,43 +90,29 @@ class TestAgentProperty:
     def test_the_agent_carries_its_physical_properties(self, models):
         assert models.agent.physicalproperties is not None
 
-    def test_the_surviving_agent_property_is_the_one_with_a_setter(self):
-        """The class body defines `agent` twice -- a bare getter near the top
-        and a getter/setter pair further down.  The second definition wins,
-        so the property that survives has an fset."""
-        surviving = evaporationModels.__dict__["agent"]
-        assert surviving.fget is not None
-        assert surviving.fset is not None
+    def test_the_agent_property_has_a_getter_and_a_setter(self):
+        agentProperty = evaporationModels.__dict__["agent"]
+        assert agentProperty.fget is not None
+        assert agentProperty.fset is not None
 
-    def test_the_first_agent_property_is_dead_code(self):
-        """Characterisation: two identical `def agent` getters are declared,
-        and only the later one is reachable."""
+    def test_the_agent_property_is_declared_once(self):
+        """B256: the class body used to define `agent` twice -- a bare getter
+        near the top that the later getter/setter pair shadowed."""
         import inspect
 
         source = inspect.getsource(evaporationModels)
-        assert source.count("def agent(self):") == 2
+        assert source.count("def agent(self):") == 1
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B256: the agent setter calls RiskToolkit.getAgent(newAgent) on "
-               "the class, but getAgent is an instance method "
-               "(self, nameOrDesc, version=None). newAgent binds to self and "
-               "nameOrDesc is missing, so every assignment raises TypeError -- the "
-               "agent of an existing model can never be changed. Same shape as B50 "
-               "in __init__, a separate code site. "
-               "See the consolidated findings issue.",
-    )
-    def test_the_agent_can_be_reassigned(self, models):
+    def test_the_agent_can_be_reassigned(self, models, unit_project):
+        """A hand-assembled object has no toolkit, so it is given one."""
+        from hera.riskassessment import RiskToolkit
+
+        models._riskToolkit = RiskToolkit(projectName=unit_project.projectName)
         models.agent = _agentDescriptor("50 g/mol")
         assert models.Magent == pytest.approx(50.0)
 
-    def test_assigning_an_agent_currently_raises(self, models):
-        """Characterisation of B256."""
-        with pytest.raises(TypeError, match="nameOrDesc"):
-            models.agent = _agentDescriptor("50 g/mol")
-
-    def test_the_setter_reaches_an_unbound_instance_method(self):
-        """Characterisation of B256's mechanism."""
+    def test_the_setter_goes_through_the_toolkit_instance(self):
+        """B256's mechanism: getAgent needs an instance, not the class."""
         import inspect
 
         from hera.riskassessment import RiskToolkit
@@ -137,7 +120,7 @@ class TestAgentProperty:
         parameters = list(inspect.signature(RiskToolkit.getAgent).parameters)
         assert parameters[:2] == ["self", "nameOrDesc"]
         setterSource = inspect.getsource(evaporationModels)
-        assert "self._agent = RiskToolkit.getAgent(newAgent)" in setterSource
+        assert "self._agent = self._riskToolkit.getAgent(newAgent)" in setterSource
 
 
 @pytest.mark.unit

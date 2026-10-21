@@ -16,10 +16,6 @@ class evaporationModels(object):
     _riskToolkit = None
 
     @property
-    def agent(self):
-        return self._agent
-
-    @property
     def dinamicViscocityModel(self):
         return self._dinamicViscocityModel
 
@@ -49,7 +45,7 @@ class evaporationModels(object):
 
     @agent.setter
     def agent(self,newAgent):
-        self._agent = RiskToolkit.getAgent(newAgent)
+        self._agent = self._riskToolkit.getAgent(newAgent)
 
     @property
     def Mair(self):
