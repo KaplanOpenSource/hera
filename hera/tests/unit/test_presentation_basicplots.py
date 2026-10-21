@@ -11,11 +11,11 @@ Two defects surfaced:
   ``plt.subplots(1, 1)`` returns a bare ``Axes`` rather than an array, and
   it was indexed as ``axes[i]``. ``squeeze=False`` now keeps the result an
   array for every field count.
-* B144: ``plotFields`` accepts an ``axes`` argument and immediately
-  discards it -- the very next statement rebinds ``axes`` to the result
-  of ``plt.subplots(...)``. A caller handing in prepared axes is silently
-  ignored and gets a brand-new figure instead. (Same family as B113 in
-  the experiment presentation layer.)
+* B144 (FIXED): ``plotFields`` accepted an ``axes`` argument and
+  immediately discarded it -- the next statement rebound ``axes`` to the
+  result of ``plt.subplots(...)``, so a caller handing in prepared axes
+  was silently ignored and got a brand-new figure instead. It now makes
+  its own figure only when no axes were supplied.
 """
 import matplotlib.pyplot as plt
 import numpy
@@ -153,39 +153,27 @@ class TestPlotFieldsSingleField:
 
 
 @pytest.mark.unit
-class TestPlotFieldsIgnoresItsAxes:
+class TestPlotFieldsUsesTheAxesItIsGiven:
     """B144: see the module docstring."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B144: plotFields rebinds its `axes` parameter to the "
-               "result of plt.subplots on the very next line, so caller "
-               "supplied axes are silently discarded. See the "
-               "consolidated findings issue.",
-    )
-    def test_the_axes_that_were_passed_in_should_be_used(self, plotter, frame):
+    def test_the_axes_that_were_passed_in_are_used(self, plotter, frame):
         fig, axes = plt.subplots(1, 2)
         plotter.plotFields(
             ["u", "w"], frame.index[0], frame.index[-1], axes=axes, plotRaw=True,
         )
         assert len(axes[0].get_lines()) == 1
+        assert len(axes[1].get_lines()) == 1
 
-    def test_the_axes_that_were_passed_in_are_currently_left_empty(self, plotter, frame):
-        """Characterisation of B144."""
-        fig, axes = plt.subplots(1, 2)
-        plotter.plotFields(
-            ["u", "w"], frame.index[0], frame.index[-1], axes=axes, plotRaw=True,
-        )
-        assert axes[0].get_lines() == []
-        assert axes[1].get_lines() == []
-
-    def test_a_brand_new_figure_is_created_instead(self, plotter, frame):
-        """Characterisation of B144."""
+    def test_no_new_figure_is_created(self, plotter, frame):
         first = plt.subplots(1, 2)[0]
         plotter.plotFields(
             ["u", "w"], frame.index[0], frame.index[-1], axes=first.axes, plotRaw=True,
         )
-        assert plt.gcf() is not first
+        assert plt.gcf() is first
+
+    def test_a_figure_is_still_made_when_no_axes_are_supplied(self, plotter, frame):
+        plotter.plotFields(["u", "w"], frame.index[0], frame.index[-1], plotRaw=True)
+        assert len(plt.gcf().axes) == 2
 
 
 @pytest.mark.unit
