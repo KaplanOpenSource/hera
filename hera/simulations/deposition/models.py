@@ -84,7 +84,13 @@ class depositionModels(object):
         self._ustar = ustar
         self._density = density
         self._temperature = tonumber(tounit(temperature, ureg.K), ureg.K)
-        self._surface = surface if type(surface)==dict else p.getCacheDocuments(type="surface",surface=surface)[0].asDict()["desc"]
+        if type(surface)==dict:
+            self._surface = surface
+        else:
+            surfaceDocumentList = p.getCacheDocuments(type="surface",surface=surface)
+            if len(surfaceDocumentList)==0:
+                raise ValueError(f"The surface {surface} is not registered in project {projectName}. Register it as a cache document of type 'surface', or pass the surface as a dict.")
+            self._surface = surfaceDocumentList[0].asDict()["desc"]
         self._diameter = tonumber(tounit(diameter, ureg.m), ureg.m)
         self._heatFlux = tonumber(tounit(heatFlux, ureg.W/ureg.m**2), ureg.W/ureg.m**2)
 

@@ -23,11 +23,12 @@ calculation actually saw.
 
 Three defects surfaced:
 
-* B254: ``surface`` given as a name runs
-  ``p.getCacheDocuments(type="surface", surface=surface)[0]``.  Nothing
-  checks the list, so an unregistered surface name raises
-  ``IndexError: list index out of range`` -- which names neither the
-  surface nor the collection it was looked for in.
+* B254, fixed: ``surface`` given as a name ran
+  ``p.getCacheDocuments(type="surface", surface=surface)[0]`` with
+  nothing checking the list, so an unregistered surface name raised
+  ``IndexError: list index out of range`` -- naming neither the surface
+  nor the collection it was looked for in.  It now raises a ``ValueError``
+  that names both.
 * B255: ``depositionRate_Petroff`` starts with
   ``dpm = 0.000001*dp``, a micron-to-metre conversion, but ``dp`` comes
   from ``self.diameter``, which the constructor has already normalised to
@@ -115,34 +116,26 @@ class TestSurfaceLookedUpByName:
         """The `type(surface)==dict` test short-circuits the lookup."""
         assert make(surface=DESERT).surface is DESERT
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B254: an unregistered surface name indexes the query result "
-               "with [0] and no emptiness check, so it raises IndexError('list "
-               "index out of range') instead of an error naming the surface that "
-               "could not be found. See the consolidated findings issue.",
-    )
     def test_an_unknown_surface_name_is_reported_clearly(self, unit_project):
         with pytest.raises(ValueError, match="NoSuchSurface"):
             depositionModels(
                 projectName=unit_project.projectName, surface="NoSuchSurface"
             )
 
-    def test_an_unknown_surface_name_currently_raises_indexerror(self, unit_project):
-        """Characterisation of B254."""
-        with pytest.raises(IndexError, match="list index out of range"):
+    def test_the_error_names_the_project_it_looked_in(self, unit_project):
+        with pytest.raises(ValueError, match=unit_project.projectName):
             depositionModels(
                 projectName=unit_project.projectName, surface="NoSuchSurface"
             )
 
     def test_a_surface_registered_under_another_type_is_not_found(self, unit_project):
-        """Characterisation of B254: the query is narrowed by type, so a
-        near-miss fails the same silent way."""
+        """The query is narrowed by type, so a near-miss is reported the
+        same way as a complete miss."""
         unit_project.addCacheDocument(
             resource="", dataFormat="string", type="NotASurface",
             desc=dict(surface="Sand", zrough=0.002),
         )
-        with pytest.raises(IndexError):
+        with pytest.raises(ValueError, match="Sand"):
             depositionModels(projectName=unit_project.projectName, surface="Sand")
 
 
