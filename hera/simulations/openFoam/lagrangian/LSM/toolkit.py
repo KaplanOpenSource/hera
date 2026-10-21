@@ -611,16 +611,18 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         OpenFOAM vectors are stored as ``(u v w)`` — strip parentheses
         and compute |U| = sqrt(u² + v² + w²).
         """
+        # Only the nCells value lines are read: the boundary section below them has
+        # lines of more than three tokens, which the three column parser cannot take.
         Ufield = pandas.read_csv(
             os.path.join(self.casePath, str(time), "U"),
-            skiprows=cellStart, skipfooter=0,
+            skiprows=cellStart, nrows=nCells, skipfooter=0,
             engine='python', header=None,
             sep=r'\s+', names=['u', 'v', 'w']
         )
         # Strip leading '(' from u and trailing ')' from w.
         Ufield['u'] = Ufield['u'].str[1:]
         Ufield['w'] = Ufield['w'].str[:-1]
-        Ufield = Ufield.head(nCells).astype(float)
+        Ufield = Ufield.astype(float)
         Ufield["U"] = numpy.sqrt(Ufield['u'] ** 2 + Ufield['v'] ** 2 + Ufield['w'] ** 2)
         return cellData.join(Ufield)
 

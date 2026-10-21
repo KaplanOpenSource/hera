@@ -45,8 +45,8 @@ passing characterisation of what happens today):
   xarray refuses.
 * B209 (fixed) ``calcDocumentConcentrationPointWise`` never returned.
 * B210 (fixed) ``getConcentrationField(returnFirst=False)`` indexed an empty list.
-* B211 ``_extractVelocityField`` cannot read a field file with a real
-  boundary section.
+* B211 (fixed) ``_extractVelocityField`` could not read a field file with
+  a real boundary section.
 """
 import glob
 import os
@@ -445,8 +445,7 @@ class TestFieldFileHelpers:
 class TestExtractVelocityField:
     @pytest.fixture()
     def case(self, bare, tmp_path):
-        """A case whose boundary section has at most three tokens per line --
-        the only shape the reader survives (see B211 below)."""
+        """A case with a minimal boundary section."""
         case = tmp_path / "case"
         (case / "50").mkdir(parents=True)
         _writeVectorField(case / "50" / "U", boundary=("    ground", "    {", "    }"))
@@ -466,19 +465,7 @@ class TestExtractVelocityField:
         cellData = pandas.DataFrame(dict(x=[0.0, 1.0], y=[0.0, 0.0], height=[1.0, 1.5]))
         assert len(bare._extractVelocityField(cellData, cellStart, 2, 50)) == 2
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B211: the U field is read with pandas.read_csv over the "
-               "WHOLE file (skipfooter=0, no nrows) into exactly three "
-               "columns, and only trimmed to nCells afterwards with "
-               ".head(nCells). Any line below the values that has more than "
-               "three whitespace-separated tokens -- i.e. an ordinary "
-               "boundary entry such as 'value uniform (0 0 0);' -- makes "
-               "pandas raise ParserError, so the reader cannot handle a "
-               "real OpenFOAM field file. nrows=nCells would be the fix. "
-               "See the consolidated findings issue.",
-    )
-    def test_a_realistic_boundary_section_should_be_tolerated(self, bare, tmp_path):
+    def test_a_realistic_boundary_section_is_tolerated(self, bare, tmp_path):
         case = tmp_path / "realistic"
         (case / "50").mkdir(parents=True)
         _writeVectorField(case / "50" / "U",
@@ -489,20 +476,6 @@ class TestExtractVelocityField:
         cellData = pandas.DataFrame(dict(x=[0.0, 1.0, 2.0], y=[0.0, 0.0, 0.0],
                                          height=[1.0, 1.5, 2.0]))
         assert bare._extractVelocityField(cellData, cellStart, nCells, 50)["U"].tolist() == [1.0, 2.0, 3.0]
-
-    def test_a_realistic_boundary_section_currently_raises(self, bare, tmp_path):
-        """Characterisation of B211."""
-        case = tmp_path / "realistic"
-        (case / "50").mkdir(parents=True)
-        _writeVectorField(case / "50" / "U",
-                          boundary=("    inlet", "    {", "        type fixedValue;",
-                                    "        value uniform (0 0 0);", "    }"))
-        bare._casePath = str(case)
-        _, cellStart, nCells = OFLSMToolkit._parseOFFieldHeader(str(case / "50" / "U"))
-        cellData = pandas.DataFrame(dict(x=[0.0, 1.0, 2.0], y=[0.0, 0.0, 0.0],
-                                         height=[1.0, 1.5, 2.0]))
-        with pytest.raises(pandas.errors.ParserError, match="Expected 3 fields"):
-            bare._extractVelocityField(cellData, cellStart, nCells, 50)
 
 
 # ---------------------------------------------------------------------------
