@@ -6,8 +6,8 @@ a fractional index along the matching WRF dimension, so that xarray's
 ``interp`` can be pointed at it.  On a WRF grid the projected coordinate
 varies along *both* horizontal dimensions, so each index ``i`` of
 ``west_east`` covers a *range* of longitudes; the function scans for the
-index whose range brackets the request and then interpolates linearly
-between that column's mean and the next one's:
+index whose mean the request sits at or past and then interpolates
+linearly between that column's mean and the next one's:
 
     find_i(request) = i + (request - mean(XLONG_i)) / (mean(XLONG_i+1) - mean(XLONG_i))
 
@@ -18,12 +18,15 @@ must return is arithmetic rather than guesswork.
 
 Four defects surfaced:
 
-* B246: ``delta`` and ``request_delta`` are assigned only inside the
-  matching branch, and the ``return`` statement uses them unconditionally.
-  A request that falls between two columns' extents -- which on a tilted
-  grid is most of the domain, since each column covers only its own
-  spread -- exits the loop with the names unbound and raises
-  ``UnboundLocalError`` instead of an index or a clear error.
+* B246, fixed: ``delta`` and ``request_delta`` were assigned only inside
+  the matching branch while the ``return`` statement used them
+  unconditionally, and the branch tested the request against one column's
+  *extent*.  A request falling between two columns' extents -- which on a
+  tilted grid is most of the domain, since each column covers only its own
+  spread -- exited the loop with the names unbound and raised
+  ``UnboundLocalError``.  The bracket is now taken between consecutive
+  column means, which do tile the axis, and a request outside the
+  dimension altogether raises a ``ValueError`` that says so.
 * B247: the scan reads ``i + 1`` without a bounds check, so a request
   inside the *last* column of the dimension raises ``IndexError: index 4
   is out of bounds for axis 2 with size 4``.  The last row/column of every
@@ -162,32 +165,24 @@ class TestFindIndex:
 class TestFindIndexBetweenColumns:
     """B246: see the module docstring."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B246: find_i assigns delta and request_delta only inside the "
-               "branch that matched, but returns `i + request_delta / delta` "
-               "unconditionally. A request that lands between two columns' "
-               "extents -- 34.07, between column 0's [34.00, 34.04] and column "
-               "1's [34.10, 34.14] -- falls off the end of the loop with both "
-               "names unbound and raises UnboundLocalError. On a tilted WRF grid "
-               "most of the domain is in such a gap. "
-               "See the consolidated findings issue.",
-    )
     def test_a_request_inside_the_domain_resolves_to_an_index(self, datalayer, grid):
         """34.07 lies well inside the domain's longitude span
         [34.00, 34.34], so it has to map to some index."""
         index = datalayer.find_i(34.07, grid, "west_east", "XLONG")
         assert 0.0 <= index <= NI - 1
 
-    def test_a_request_between_columns_currently_raises(self, datalayer, grid):
-        """Characterisation of B246."""
-        with pytest.raises(UnboundLocalError, match="request_delta"):
-            datalayer.find_i(34.07, grid, "west_east", "XLONG")
+    def test_a_request_between_columns_interpolates_from_the_lower_mean(
+        self, datalayer, grid
+    ):
+        """34.07 is half a column spacing past column 0's mean of 34.02."""
+        assert datalayer.find_i(34.07, grid, "west_east", "XLONG") == pytest.approx(
+            0.5
+        )
 
-    def test_a_request_outside_the_domain_raises_the_same_way(self, datalayer, grid):
-        """Characterisation of B246: an out-of-domain request is not
-        reported as such either, it takes the same unbound-name path."""
-        with pytest.raises(UnboundLocalError):
+    def test_a_request_outside_the_domain_is_reported_as_such(self, datalayer, grid):
+        """B246: an out-of-domain request used to take the same unbound-name
+        path as a gap; it now names the coordinate and the dimension."""
+        with pytest.raises(ValueError, match="outside the west_east dimension"):
             datalayer.find_i(-120.0, grid, "west_east", "XLONG")
 
     def test_the_columns_really_do_leave_gaps(self, grid):

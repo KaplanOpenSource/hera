@@ -33,15 +33,26 @@ class wrfDatalayer():
 
         """
 
-        for i in range(len(xdata.__getattr__(dimension))):
-            compare_dict = {dimension: i}
-            compare_dictplus = {dimension: i + 1}
-            if request > float(xdata.isel(Time=0, bottom_top=0, **compare_dict).__getattr__(coordinate).min()) - 0.01 and\
-               request < float(xdata.isel(Time=0, bottom_top=0, **compare_dict).__getattr__(coordinate).max()) + 0.01:
-                delta = float(xdata.isel(Time=0, bottom_top=0, **compare_dictplus).__getattr__(coordinate).mean()) - \
-                        float(xdata.isel(Time=0, bottom_top=0, **compare_dict).__getattr__(coordinate).mean())
-                request_delta = request - float(xdata.isel(Time=0, bottom_top=0, **compare_dict).__getattr__(coordinate).mean())
-                break
+        dimension_length = len(xdata.__getattr__(dimension))
+
+        def coordinate_at(index):
+            return xdata.isel(Time=0, bottom_top=0, **{dimension: index}).__getattr__(coordinate)
+
+        if request < float(coordinate_at(0).min()) - 0.01 or \
+           request > float(coordinate_at(dimension_length - 1).max()) + 0.01:
+            raise ValueError(f"The requested {coordinate} {request} is outside the {dimension} dimension of the data.")
+
+        # On a tilted grid the columns do not tile the axis, so a request can
+        # fall in the gap between two of them. The bracket is therefore taken
+        # between consecutive column means: i is the last index whose mean does
+        # not exceed the request.
+        i = 0
+        for index in range(dimension_length):
+            if float(coordinate_at(index).mean()) <= request:
+                i = index
+
+        delta = float(coordinate_at(i + 1).mean()) - float(coordinate_at(i).mean())
+        request_delta = request - float(coordinate_at(i).mean())
 
         return i + request_delta / delta
 
