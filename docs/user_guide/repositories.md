@@ -9,7 +9,7 @@ A **Repository** is a JSON file that describes a collection of data sources and 
 Without repositories, setting up a project requires manually adding each data source:
 
 ```python
-topo.addDataSource("Israel_DEM", resource="/data/srtm/dem.hgt", dataFormat="HDF")
+topo.addDataSource("SRTMGL1", resource="/data/srtm", dataFormat="string")   # directory of .hgt tiles
 lc.addDataSource("LandCover_2021", resource="/data/modis/lc.tif", dataFormat="geotiff")
 meteo.addDataSource("YAVNEEL", resource="/data/meteo/yavneel.parquet", dataFormat="parquet")
 # ... repeat for every data source
@@ -32,9 +32,9 @@ hera-project project create WindStudy
 
 Repositories are managed by a special toolkit called `dataToolkit`. It runs on the **default project** — a shared, user-level space that exists independently of your work projects.
 
-When you register a repository with `hera-project repository add`, the path to the JSON file is stored as a data source in the default project. This means:
+When you register a repository with `hera-project repository add`, the absolute path to the JSON file is stored as a data source (format `JSON_dict`) in the default project, under the file's base name (`gis_data.json` → `gis_data`). This means:
 
-- Repositories are **per-user** — each user has their own registry of repositories
+- Repositories are **per database connection** — by default the connection named after your OS user, so each user has their own registry of repositories
 - Repositories persist across sessions — they survive until you remove them
 - When you create a new project with the CLI, **all registered repositories are automatically loaded** into it
 
@@ -57,8 +57,8 @@ hera-project repository remove gis_data
 If you created a project before registering a repository, you can load it manually:
 
 ```bash
-# Load a specific repository into a project
-hera-project repository load gis_data WindStudy
+# Load a specific repository file into a project (takes the JSON file path, not the registered name)
+hera-project repository load /data/repos/gis_data.json WindStudy
 
 # Load ALL registered repositories into a project
 hera-project project updateRepositories --projectName WindStudy --overwrite
@@ -73,7 +73,9 @@ A repository JSON maps **toolkit names** to sections of data. Each toolkit can h
 - **Config** — key-value settings applied to the toolkit's project config
 - **DataSource** — named, versioned data sources (the most common section)
 - **Measurements** / **Simulations** / **Cache** — raw documents added to the project
-- **Function** — calls to named functions with parameters
+- **Function** — calls to named `dataToolkit` methods with parameters
+
+Section names are matched case-insensitively after title-casing (`DataSource` and `Datasource` both work). An unknown section name raises `ValueError`; a toolkit name that `ToolkitHome.getToolkit()` cannot resolve is skipped.
 
 ### Basic example
 
@@ -87,8 +89,8 @@ A repository JSON maps **toolkit names** to sections of data. Each toolkit can h
             "SRTMGL1": {
                 "isRelativePath": "True",
                 "item": {
-                    "resource": "data/srtm/srtmgl1.hgt",
-                    "dataFormat": "HDF"
+                    "resource": "data/srtm",
+                    "dataFormat": "string"
                 }
             }
         }
@@ -123,14 +125,20 @@ A repository JSON maps **toolkit names** to sections of data. Each toolkit can h
 | **Measurements** | Adds raw measurement documents | Sensor data, GIS files |
 | **Simulations** | Adds simulation result documents | CFD output, model results |
 | **Cache** | Adds cached/derived data documents | Pre-computed statistics |
-| **Function** | Calls a named function with parameters | Custom loading logic |
+| **Function** | Calls a named `dataToolkit` method; the value is a dict of keyword arguments or a list of such dicts, and `overwrite` is added to each call | Custom loading logic |
+
+A **DataSource** item is passed to `toolkit.addDataSource(**item)`: `resource`, `dataFormat`, optional `version` (e.g. `[1, 0, 0]`, default `[0, 0, 1]`), and any other keys are stored in the document's `desc` (a `"desc"` key is stored as a nested `desc.desc` dictionary). Instead of `resource` you can give `resourceFilePath`: the path of a JSON file whose contents become the resource.
+
+A **Measurements** / **Simulations** / **Cache** item is passed to `add<Type>Document(**item)`: `resource`, `dataFormat`, `type`, `desc`.
 
 ### The `isRelativePath` flag
 
-Each data item has an `isRelativePath` flag:
+Each **DataSource** entry has an `isRelativePath` flag next to `item`. It is required (`"True"`/`"False"` or a boolean; anything else fails the section):
 
 - `"True"` — the `resource` path is relative to the **repository JSON file's directory**. Hera resolves it to an absolute path when loading.
-- `"False"` — the `resource` is an absolute path or URL, used as-is.
+- `"False"` — the `resource` is an absolute path, URL or inline value (e.g. a dict), used as-is.
+
+For **Measurements** / **Simulations** / **Cache** entries the flag is not used: the `resource` is always joined to the repository directory, so a relative path is resolved and an absolute path stays absolute. Do not put `isRelativePath` inside `item` there; it would be passed to `add<Type>Document` and fail.
 
 This makes repositories portable — you can move the repository JSON and its data together, and relative paths still work.
 
@@ -140,13 +148,14 @@ This makes repositories portable — you can move the repository JSON and its da
 
 When you load a repository into a project, Hera does the following for each toolkit section:
 
-1. **Resolves the toolkit** — finds the toolkit class via `ToolkitHome.getToolkit()`
-2. **Processes each section** in order:
+1. **Resolves the toolkit** — finds the toolkit via `ToolkitHome.getToolkit()` (static or dynamic); unknown toolkits are skipped
+2. **Processes each section** in order, resolving relative paths against the repository file's directory:
    - **Config** → calls `toolkit.setConfig(**values)`
-   - **DataSource** → calls `toolkit.addDataSource(name, resource, dataFormat)` for each item
-   - **Measurements/Simulations/Cache** → calls the corresponding `addDocument` method
-   - **Function** → calls the named method with the provided parameters
-3. **Resolves paths** — converts relative paths to absolute using the repository file's directory
+   - **DataSource** → calls `toolkit.addDataSource(dataSourceName=name, **item)` for each item. An existing data source with the same name is kept unless `overwrite` is set
+   - **Measurements/Simulations/Cache** → queries for a matching document and calls the corresponding `add<Type>Document` if there is none (with `overwrite`, updates the existing document)
+   - **Function** → calls the named `dataToolkit` method with the provided parameters
+
+An error inside a section is logged and that section is skipped; loading continues with the next section.
 
 ---
 
@@ -162,11 +171,13 @@ A data source is **not a special object** — it's a regular measurement documen
     "resource": "/data/meteo/yavneel.parquet",
     "dataFormat": "parquet",
     "desc": {
-        "toolkit": "lowFreqToolKit",
+        "toolkit": "lowFreqMeteorology",
         "datasourceName": "YAVNEEL",
         "version": [1, 0, 0],
-        "station": "YAVNEEL",
-        "location": "Galilee"
+        "desc": {
+            "station": "YAVNEEL",
+            "location": "Galilee"
+        }
     }
 }
 ```
@@ -176,7 +187,7 @@ Key fields set by the toolkit:
 | Field | Value | Purpose |
 |-------|-------|---------|
 | `type` | `"ToolkitDataSource"` | Marks this as a data source (not a regular document) |
-| `desc.toolkit` | The toolkit name | Associates the data source with its toolkit |
+| `desc.toolkit` | The toolkit's internal `toolkitName` (e.g. `lowFreqMeteorology` for `MeteoLowFreq`) | Associates the data source with its toolkit |
 | `desc.datasourceName` | The data source name | Used for lookup by name |
 | `desc.version` | Version tuple as list | Versioning support |
 
@@ -189,7 +200,7 @@ data = meteo.getDataSourceData("YAVNEEL")
 # Direct query (what the toolkit does internally):
 docs = proj.getMeasurementsDocuments(
     type="ToolkitDataSource",
-    toolkit="lowFreqToolKit",
+    toolkit=meteo.toolkitName,     # "lowFreqMeteorology"
     datasourceName="YAVNEEL"
 )
 data = docs[0].getData()
@@ -212,7 +223,7 @@ hera-project repository add /data/repos/risk_agents.json
 hera-project project create WindStudy
 ```
 
-If two repositories define a data source with the same name for the same toolkit, the last one loaded wins (unless `--overwrite` is not set, in which case the existing one is kept).
+If two repositories define a data source with the same name for the same toolkit, the first one loaded is kept and the later one is skipped with an error in the log. With `--overwrite`, the last one loaded wins.
 
 ---
 
@@ -267,6 +278,23 @@ hera-project repository add /data/repos/risk_agents.json
 make populate
 # Both WindStudy and CoastalSim now have risk agent data sources
 ```
+
+---
+
+## Exporting documents to a repository
+
+The reverse direction is also supported: `repository export` writes documents of a project into a repository JSON file under a given toolkit key, and registers the file (unless `--no-register`):
+
+```bash
+# Export ALL documents of the project under the "MeteoLowFreq" key
+hera-project repository export meteo_data_v1 --toolkitName MeteoLowFreq --projectName WindStudy
+
+# Export only selected documents (repeat --documentId), merging into an existing file
+hera-project repository export /data/repos/meteo_data.json --toolkitName MeteoLowFreq \
+    --projectName WindStudy --documentId 64f... --documentId 650...
+```
+
+`repositoryName` is a registered repository name or a path to a `.json` file (an unregistered bare name creates `<name>.json` in the current directory). Without `--projectName` the documents come from the default project. Options: `--idStrategy contentHash|objectId` (how duplicates are identified, default `contentHash`), `--mode add|override` (merge, or merge and then deduplicate the whole file; default `add`) and `--overwrite` (replace existing entries on identity match). The Python equivalent is `dataToolkit().exportDocumentsToRepository(toolkitName=..., repositoryName=..., projectName=..., documents=...)`.
 
 ---
 

@@ -1,6 +1,6 @@
 # Utilities API
 
-Logging, unit handling, and data utility functions.
+Logging, unit handling, JSON, angle conversion, query helpers, and the data (repository) toolkit.
 
 ## Logging
 
@@ -19,6 +19,22 @@ Logging, unit handling, and data utility functions.
 ## JSON Utilities
 
 ::: hera.utils.jsonutils
+    options:
+      show_source: true
+      members_order: source
+
+## Angle Conversion
+
+`toMeteorologicalAngle`, `toMathematicalAngle`, `toAzimuthAngle`.
+
+::: hera.utils.angle
+    options:
+      show_source: true
+      members_order: source
+
+## Query Helpers
+
+::: hera.utils.query
     options:
       show_source: true
       members_order: source

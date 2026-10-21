@@ -20,6 +20,13 @@ Toolkits for running and managing computational simulations.
       show_source: true
       members_order: source
 
+### OFLSMToolkit (OpenFOAM Lagrangian)
+
+::: hera.simulations.openFoam.lagrangian.LSM.toolkit.OFLSMToolkit
+    options:
+      show_source: true
+      members_order: source
+
 ## Wind Profile
 
 ### WindProfileToolkit
