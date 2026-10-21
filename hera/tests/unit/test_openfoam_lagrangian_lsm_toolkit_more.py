@@ -41,13 +41,14 @@ passing characterisation of what happens today):
 * B204 (fixed) ``loadData``'s DB branch treated a QuerySet as a document.
 * B206 (fixed) ``makeSource`` wrote the wrong object name into the header.
 * B207 (fixed) ``createRootCaseMeshLink`` referenced an undefined name.
-* B208 ``calcConcentrationTimeStepFullMesh`` sets an attribute xarray
-  refuses.
+* B208 (fixed) ``calcConcentrationTimeStepFullMesh`` set an attribute
+  xarray refuses.
 * B209 ``calcDocumentConcentrationPointWise`` never returns.
 * B210 ``getConcentrationField(returnFirst=False)`` indexes an empty list.
 * B211 ``_extractVelocityField`` cannot read a field file with a real
   boundary section.
 """
+import glob
 import os
 import shutil
 
@@ -649,17 +650,16 @@ class TestToUnstructuredVTK:
 
 @pytest.mark.unit
 class TestToStructuredVTK:
-    def test_it_currently_cannot_run(self, bare, tmp_path, monkeypatch):
-        """Characterisation of B208, from its caller.
-
-        toStructuredVTK is blocked by the same DataArray attribute
-        assignment as calcConcentrationTimeStepFullMesh.
-        """
-        monkeypatch.setattr(lsmModule, "structuredToVTK", _Recorder())
+    def test_one_structured_grid_is_written_per_time_step(self, bare, tmp_path, monkeypatch):
+        """B208 blocked this through calcConcentrationTimeStepFullMesh."""
+        vtkSeam = _Recorder()
+        monkeypatch.setattr(lsmModule, "structuredToVTK", vtkSeam)
         bare._analysis = Analysis(bare)
-        with pytest.raises(AttributeError, match="filterType"):
-            bare.toStructuredVTK(_particleData(), str(tmp_path), "concentration",
-                                 extents=_EXTENTS, dxdydz=1)
+        bare.toStructuredVTK(_particleData(), str(tmp_path), "concentration",
+                             extents=_EXTENTS, dxdydz=1)
+        assert [call[0][0] for call in vtkSeam.calls] == [str(tmp_path / "concentration_1"),
+                                                          str(tmp_path / "concentration_2")]
+        assert list(vtkSeam.calls[0][1]["pointData"]) == ["C_kg_m3"]
 
 
 # ---------------------------------------------------------------------------
@@ -688,38 +688,21 @@ class TestAnalysisConcentration:
                                      globalZ=[0.5, 0.5], mass=[1.0, 2.0]))
         assert sorted(analysis.calcConcentrationPointWise(data, dxdydz=1.0)["C"].tolist()) == [1.0, 2.0]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B208: calcConcentrationTimeStepFullMesh does "
-               "`fulldata.filterType = 'C'` on an xarray DataArray, which "
-               "refuses attribute assignment (it must go through .attrs, as "
-               "the units are set two lines later). Every call raises "
-               "AttributeError, which also takes down "
-               "calcConcentrationFieldFullMesh and both toStructuredVTK "
-               "implementations. See the consolidated findings issue.",
-    )
-    def test_a_time_step_should_be_embedded_in_the_full_mesh(self, analysis):
+    def test_a_time_step_is_embedded_in_the_full_mesh(self, analysis):
         data = pandas.DataFrame(dict(time=[1.0], globalX=[0.5], globalY=[0.5], globalZ=[0.5],
                                      mass=[1.0]))
         field = analysis.calcConcentrationTimeStepFullMesh(data, extents=_EXTENTS, dxdydz=1.0)
         assert field.attrs["units"] == "1*kg/m**3"
+        assert sorted(field.dims) == ["time", "xI", "yI", "zI"]
+        assert field.sel(xI=0, yI=0, zI=0).values.tolist() == [1.0]
 
-    def test_a_time_step_currently_raises(self, analysis):
-        """Characterisation of B208."""
-        data = pandas.DataFrame(dict(time=[1.0], globalX=[0.5], globalY=[0.5], globalZ=[0.5],
-                                     mass=[1.0]))
-        with pytest.raises(AttributeError, match="filterType"):
-            analysis.calcConcentrationTimeStepFullMesh(data, extents=_EXTENTS, dxdydz=1.0)
-
-    def test_the_full_mesh_field_registers_its_cache_document_before_failing(self, analysis,
-                                                                            unit_project):
-        """Characterisation of B208, from calcConcentrationFieldFullMesh.
-
-        The cache document (and its Concentrations*.nc resource) is written
-        first, so a failed run leaves a document behind pointing at files
-        that were never produced. Behind this failure sits a second latent
-        typo: the transpose asks for a dimension called "time " (trailing
-        space).
+    def test_the_full_mesh_field_writes_its_netcdf_and_registers_a_cache_document(self, analysis,
+                                                                                  unit_project):
+        """B208 took this down too: the cache document (and its
+        Concentrations*.nc resource) is registered before the field is
+        computed, so a failure left a document pointing at files that were
+        never written. Behind that failure sat a second typo: the transpose
+        asked for a dimension called "time " (trailing space).
         """
         import dask.dataframe
 
@@ -732,12 +715,13 @@ class TestAnalysisConcentration:
             def getData(self):
                 return dask.dataframe.from_pandas(data, npartitions=1)
 
-        with pytest.raises(AttributeError, match="filterType"):
-            analysis.calcConcentrationFieldFullMesh(Document(), extents=_EXTENTS, dxdydz=1.0)
+        document = analysis.calcConcentrationFieldFullMesh(Document(), extents=_EXTENTS, dxdydz=1.0)
         cached = unit_project.getCacheDocuments(type=Analysis.DOCTYPE_CONCENTRATION)
         assert len(cached) == 1
         assert cached[0].desc["dataID"] == "deadbeef"
         assert cached[0].resource.endswith("Concentrations*.nc")
+        assert document.id == cached[0].id
+        assert glob.glob(cached[0].resource)
 
 
 @pytest.mark.unit

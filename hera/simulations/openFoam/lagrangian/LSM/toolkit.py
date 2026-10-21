@@ -833,7 +833,9 @@ class OFLSMToolkit(toolkit.abstractToolkit):
 
             X, Y, Z = numpy.meshgrid(fulldata.xI, fulldata.yI, fulldata.zI)
 
-            C = numpy.ascontiguousarray(fulldata.transpose("yI", "xI", "zI").values)
+            # calcConcentrationTimeStepFullMesh returns the single time step as a dimension
+            # of its own; the grid written here is the 3D mesh of that one step.
+            C = numpy.ascontiguousarray(fulldata.isel(time=0).transpose("yI", "xI", "zI").values)
 
             data = dict(C_kg_m3=C)  # 1kg/m**3=160000ppm
             structuredToVTK(finalFile, X, Y, Z, pointData=data)
@@ -1007,7 +1009,6 @@ class Analysis:
         dH = dxdydz ** 3
 
         fulldata = xarray.DataArray(coords=dict(xI=x_full, yI=y_full, zI=z_full), dims=['xI', 'yI', 'zI']).fillna(0)
-        fulldata.filterType = "C"
 
         C = timeData.assign(xI=dxdydz * (timeData[xfield] // dxdydz), yI=dxdydz * (timeData[yfield] // dxdydz),
                             zI=dxdydz * (timeData[zfield] // dxdydz)).groupby(["xI", "yI", "zI", "time"])[
@@ -1110,7 +1111,7 @@ class Analysis:
 
                 outFile_Final = os.path.join(self.datalayer.filesDirectory, str(xryDoc.id),
                                              f"Concentrations{partitionID}.nc")
-                pxry.transpose("yI", "xI", "zI", "time ").to_dataset(name="C").to_netcdf(outFile_Final)
+                pxry.transpose("yI", "xI", "zI", "time").to_dataset(name="C").to_netcdf(outFile_Final)
 
         else:
             xryDoc = docList[0]
