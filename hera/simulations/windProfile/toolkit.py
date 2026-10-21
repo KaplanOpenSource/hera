@@ -161,6 +161,8 @@ class WindProfileToolkit(toolkit.abstractToolkit):
                     stations_datetimes.append(datetime_str)
 
         datetime_objects = [datetime.fromisoformat(dt) for dt in stations_datetimes]
+        if not datetime_objects:
+            return []
         max_datetime = max(datetime_objects)
         threshold = timedelta(minutes=15)
         filtered_stations = [

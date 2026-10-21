@@ -26,12 +26,12 @@ Three defects surfaced:
   ``dxdy=30`` the roughness was computed for a wind from 30 degrees, and
   the ``resolution`` argument the caller meant to set was left at None.
   It is passed by keyword now.
-* B251: ``_getWindSpeedDirection`` ends with
+* B251, fixed: ``_getWindSpeedDirection`` ended with
   ``max(datetime_objects)`` over a list that is only appended to for
-  stations that returned usable data.  When none does -- every station
-  offline, a bad token, or every reading out of range -- the call raises
+  stations that returned usable data.  When none did -- every station
+  offline, a bad token, or every reading out of range -- the call raised
   ``ValueError: max() iterable argument is empty`` instead of returning
-  an empty list.
+  the empty list its own filtering implies.
 * B252: ``ws`` and ``wd`` are bound only inside
   ``for channel in data['data'][0]['channels']``, and are then read
   unconditionally.  A station that reports data but no WS/WD channel --
@@ -231,39 +231,17 @@ class TestGetWindSpeedDirection:
 class TestGetWindSpeedDirectionWithNoUsableStations:
     """B251: see the module docstring."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B251: _getWindSpeedDirection ends with max(datetime_objects) "
-               "over a list appended to only for stations that returned usable "
-               "data. If none does -- everything offline, a rejected token, or "
-               "every reading out of range -- it raises ValueError('max() "
-               "iterable argument is empty') rather than returning the empty "
-               "list its filtering implies. See the consolidated findings issue.",
-    )
     def test_an_empty_station_list_returns_no_stations(self, tk):
         assert tk._getWindSpeedDirection([], TOKEN) == []
 
-    def test_an_empty_station_list_currently_raises(self, tk):
-        """Characterisation of B251 in its simplest form: no HTTP needed."""
-        with pytest.raises(ValueError, match="max"):
-            tk._getWindSpeedDirection([], TOKEN)
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B251: the same max() over an empty list when every station "
-               "answers but every reading is out of range. "
-               "See the consolidated findings issue.",
-    )
     def test_all_readings_rejected_returns_no_stations(self, tk, monkeypatch):
         _fixedResponse(monkeypatch, _reading(ws=25.0))
         assert tk._getWindSpeedDirection([_station()], TOKEN) == []
 
-    def test_all_readings_rejected_currently_raises(self, tk, monkeypatch):
-        """Characterisation of B251: two stations answer, both readings are
-        out of range, and the empty list reaches max()."""
+    def test_several_stations_all_rejected_return_no_stations(self, tk, monkeypatch):
+        """B251: the empty list used to reach max() and raise."""
         _fixedResponse(monkeypatch, _reading(ws=25.0))
-        with pytest.raises(ValueError, match="max\\(\\) (iterable argument is empty|arg is an empty sequence)"):
-            tk._getWindSpeedDirection([_station(1), _station(2)], TOKEN)
+        assert tk._getWindSpeedDirection([_station(1), _station(2)], TOKEN) == []
 
 
 @pytest.mark.unit
@@ -309,8 +287,7 @@ class TestGetWindSpeedDirectionWithAnErrorPayload:
             raise RuntimeError("connection reset")
 
         monkeypatch.setattr(requests, "request", _request)
-        with pytest.raises(ValueError, match="max"):
-            tk._getWindSpeedDirection([_station()], TOKEN)
+        assert tk._getWindSpeedDirection([_station()], TOKEN) == []
 
 
 @pytest.mark.unit
