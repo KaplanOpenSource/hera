@@ -117,4 +117,4 @@ class evaporationModels(object):
         Sc = self.Schmidt(temperature=temperature)
         Km = 0.664*(Re**(-0.5))*(Sc**(-2/3))*velocity if Re<=20000 else 0.0366*(Re**(-0.2))*(Sc**(-2/3))*velocity
         R = 8.205 * 10 ** (-5) # gas constant
-        return Km*self.Magent*self.agent.physicalproperties.vaporPressure(temperature)/(temperature * R)
+        return Km*self.Magent*self.agent.physicalproperties.vaporPressure(temperature*ureg.K)/(temperature * R)
