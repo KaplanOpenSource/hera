@@ -17,13 +17,16 @@ Two defects surfaced:
   ``ax.scatter(...)``. When the caller passed an axes that was not the
   current one, the marker silently landed on whichever axes matplotlib
   happened to consider current, and the returned axes stayed empty.
-* B114: ``generateLatexTable`` calls
+* B114 (fixed): ``generateLatexTable`` called
   ``self.plotDevices(trialSetName=..., trialName=..., device=...,
   display=False)``, but ``plotDevices``'s signature is
   ``(trialSetName, trialName, deviceType, mapName, ax=None,
   plotkwargs=None)`` -- there is no ``device`` or ``display`` parameter
-  and ``mapName`` is mandatory. Every call raises ``TypeError`` before
-  producing anything, so the whole LaTeX export path is dead.
+  and ``mapName`` is mandatory, so every call raised ``TypeError`` before
+  producing anything. The call now matches the signature. The export path
+  is still dead, but one step further down and for a different reason:
+  ``plotDevices`` itself reads ``plot_kwargs`` where its parameter is
+  named ``plotkwargs`` (B221), which is fixed elsewhere.
 """
 import matplotlib.pyplot as plt
 import pandas
@@ -190,24 +193,40 @@ class TestPlotOriginUsesItsAxes:
 
 
 @pytest.mark.unit
-class TestGenerateLatexTableIsDead:
+class TestGenerateLatexTable:
     """B114: see the module docstring."""
+
+    def test_the_plotdevices_call_matches_its_signature(self, presentation):
+        """B114: `device=` and `display=` do not exist on plotDevices, and
+        `mapName` is mandatory. Read off the source rather than run, because
+        the call itself still dies inside plotDevices (B221)."""
+        import inspect
+        import re
+
+        source = inspect.getsource(type(presentation).generateLatexTable)
+        call = re.search(r"self\.plotDevices\((.*?)\)\n", source, re.S).group(1)
+        passed = set(re.findall(r"(\w+)\s*=", call))
+        accepted = set(
+            inspect.signature(type(presentation).plotDevices).parameters
+        )
+        assert passed <= accepted
+        assert {"deviceType", "mapName"} <= passed
 
     @pytest.mark.xfail(
         strict=True,
-        reason="B114: generateLatexTable calls plotDevices with `device=` "
-               "and `display=`, neither of which exists in its signature "
-               "(the real parameters are deviceType and a mandatory "
-               "mapName), so it always raises TypeError. See the "
-               "consolidated findings issue.",
+        reason="B221: plotDevices reads `plot_kwargs` where its parameter is "
+               "named `plotkwargs`, so it raises UnboundLocalError before it "
+               "draws anything and the LaTeX export still cannot complete. "
+               "B114, the wrong keyword names at this call site, is fixed. "
+               "See the consolidated findings issue.",
     )
     def test_it_should_write_a_tex_document(self, presentation, tmp_path):
         presentation.generateLatexTable("{{ trialSets }}", str(tmp_path / "out"))
         assert (tmp_path / "out" / "latex_document.tex").is_file()
 
-    def test_it_currently_raises_typeerror_on_the_plotdevices_call(self, presentation, tmp_path):
-        """Characterisation of B114."""
-        with pytest.raises(TypeError, match="device"):
+    def test_it_now_fails_inside_plotdevices_instead(self, presentation, tmp_path):
+        """Characterisation of what is left: B221, not B114."""
+        with pytest.raises(UnboundLocalError, match="plot_kwargs"):
             presentation.generateLatexTable("{{ trialSets }}", str(tmp_path / "out"))
 
     def test_plotdevices_really_has_no_device_or_display_parameter(self):

@@ -679,7 +679,8 @@ class experimentPresentation:
                 trial_dict['devices'] = []
                 for device_name in devices_df['deviceTypeName'].unique():
                     device_dict = {}
-                    fig , _ = self.plotDevices(trialSetName=trialSet['name'], trialName=trial['name'], device=device_name, display=False)
+                    # mapName is required by plotDevices' signature but unused by its body.
+                    fig , _ = self.plotDevices(trialSetName=trialSet['name'], trialName=trial['name'], deviceType=device_name, mapName=None)
                     image_path = os.path.join(folder_path,f"{device_name}.png")
                     fig.savefig(image_path)
                     device_dict['device_name'] = device_name
