@@ -51,7 +51,10 @@ class wrfDatalayer():
             if float(coordinate_at(index).mean()) <= request:
                 i = index
 
-        delta = float(coordinate_at(i + 1).mean()) - float(coordinate_at(i).mean())
+        # The last index has no i + 1 to difference against, so the spacing is
+        # read from the pair that ends at it.
+        reference = i if i < dimension_length - 1 else i - 1
+        delta = float(coordinate_at(reference + 1).mean()) - float(coordinate_at(reference).mean())
         request_delta = request - float(coordinate_at(i).mean())
 
         return i + request_delta / delta

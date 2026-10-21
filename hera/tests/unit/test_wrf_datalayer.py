@@ -27,10 +27,11 @@ Four defects surfaced:
   ``UnboundLocalError``.  The bracket is now taken between consecutive
   column means, which do tile the axis, and a request outside the
   dimension altogether raises a ``ValueError`` that says so.
-* B247: the scan reads ``i + 1`` without a bounds check, so a request
-  inside the *last* column of the dimension raises ``IndexError: index 4
-  is out of bounds for axis 2 with size 4``.  The last row/column of every
-  WRF domain is therefore unaddressable.
+* B247, fixed: the scan read ``i + 1`` without a bounds check, so a
+  request inside the *last* column of the dimension raised ``IndexError:
+  index 4 is out of bounds for axis 2 with size 4`` -- the last row and
+  column of every WRF domain were unaddressable.  The spacing for the last
+  index is now read from the pair that ends at it.
 * B248, fixed: ``import geopandas`` was commented out at the top of the
   module, but ``getPandas`` calls ``geopandas.GeoDataFrame`` and
   ``geopandas.points_from_xy`` in three places.  Passing an ITM
@@ -197,23 +198,17 @@ class TestFindIndexBetweenColumns:
 class TestFindIndexAtTheLastColumn:
     """B247: see the module docstring."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B247: the scan evaluates isel(<dimension>=i+1) to form delta "
-               "without checking the bound, so a request inside the last column "
-               "of the dimension raises IndexError ('index 4 is out of bounds for "
-               "axis 2 with size 4'). The last row and column of every WRF domain "
-               "is unaddressable. See the consolidated findings issue.",
-    )
     def test_the_last_column_is_addressable(self, datalayer, grid):
         """34.32 is the mean of the last column, squarely inside the domain."""
         index = datalayer.find_i(34.32, grid, "west_east", "XLONG")
         assert index == pytest.approx(NI - 1)
 
-    def test_the_last_column_currently_raises_indexerror(self, datalayer, grid):
-        """Characterisation of B247."""
-        with pytest.raises(IndexError, match="out of bounds"):
-            datalayer.find_i(34.32, grid, "west_east", "XLONG")
+    def test_the_last_column_keeps_the_dimension_spacing(self, datalayer, grid):
+        """B247: the spacing for the last index comes from the pair before
+        it, so a request past its mean still advances by the same step."""
+        assert datalayer.find_i(34.33, grid, "west_east", "XLONG") == pytest.approx(
+            NI - 1 + 0.1
+        )
 
     def test_the_request_really_is_inside_the_last_column(self, grid):
         """The premise: 34.32 is bracketed by the last column's own extents."""
