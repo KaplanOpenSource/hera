@@ -115,7 +115,7 @@ class WindProfileToolkit(toolkit.abstractToolkit):
     def _getStationsInRegion(self,minlon,minlat,maxlon,maxlat,inputCRS):
         min_pp = convertCRS(points=[[minlon, minlat]], inputCRS=inputCRS, outputCRS=ITM)[0]
         max_pp = convertCRS(points=[[maxlon, maxlat]], inputCRS=inputCRS, outputCRS=ITM)[0]
-        with open('wind_stations.json', 'r') as json_file:
+        with open(f'{os.path.dirname(os.path.abspath(__file__))}/wind_stations.json', 'r') as json_file:
             wind_stations = json.load(json_file)
         stations_in_region = []
         for station in wind_stations:
