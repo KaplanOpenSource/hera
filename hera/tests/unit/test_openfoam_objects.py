@@ -162,22 +162,24 @@ class TestEmptyFieldConstruction:
 
 @pytest.mark.unit
 class TestPandasToFoamFormat:
-    """B52: this method cannot be called successfully in any way.
+    """B52 (fixed): this method could not be called successfully in any way.
 
         @staticmethod
         def pandasToFoamFormat(self, data):
             ...
             D = data if self.componentNames is None else data[self.componentNames]
 
-    It is decorated @staticmethod but declared with `self`, so the ordinary
-    call passes the DataFrame as `self` and leaves `data` missing.  Supplying
-    an instance explicitly gets further and then fails too, because
+    It was decorated @staticmethod but declared with `self`, so the ordinary
+    call passed the DataFrame as `self` and left `data` missing.  Supplying an
+    instance explicitly got further and then failed too, because
     componentNames is an OFField attribute -- OFObjectHome does not have one.
+    It is now a genuine staticmethod taking the component names as an optional
+    argument.
     """
 
     FRAME = pd.DataFrame({"a": [1.0, 2.0, 3.0]})
 
-    def test_the_decorator_and_the_signature_disagree(self):
+    def test_the_decorator_and_the_signature_agree(self):
         import inspect
 
         assert isinstance(
@@ -186,27 +188,20 @@ class TestPandasToFoamFormat:
         parameters = list(
             inspect.signature(OFObjectHome.pandasToFoamFormat).parameters
         )
-        assert parameters[0] == "self"
+        assert parameters == ["data", "componentNames"]
 
-    def test_the_attribute_it_needs_is_on_a_different_class(self, home):
-        assert not hasattr(home, "componentNames")
+    def test_calling_it_on_an_instance_works(self, home):
+        assert home.pandasToFoamFormat(self.FRAME).startswith("3\n(\n")
 
-    def test_calling_it_normally_raises(self, home):
-        with pytest.raises(TypeError, match="missing 1 required positional argument"):
-            home.pandasToFoamFormat(self.FRAME)
+    def test_calling_it_on_the_class_works(self):
+        assert OFObjectHome.pandasToFoamFormat(self.FRAME).startswith("3\n(\n")
 
-    def test_passing_an_instance_explicitly_also_raises(self, home):
-        with pytest.raises(AttributeError, match="componentNames"):
-            OFObjectHome.pandasToFoamFormat(home, self.FRAME)
+    def test_the_component_names_select_the_columns(self, home):
+        frame = pd.DataFrame({"Ux": [1.0], "Uy": [2.0], "Uz": [3.0], "ignored": [9.0]})
+        formatted = home.pandasToFoamFormat(frame, componentNames=["Ux", "Uy", "Uz"])
+        assert "(1.0 2.0 3.0)" in formatted
+        assert "9.0" not in formatted
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B52: pandasToFoamFormat is decorated @staticmethod but declared "
-               "with `self`, and its body reads self.componentNames -- an OFField "
-               "attribute that OFObjectHome does not have. Neither call form "
-               "works, so the method has never run. "
-               "See the consolidated findings issue.",
-    )
     def test_it_produces_the_openfoam_list_format(self, home):
         """Documented output:  <count>\\n(\\n<values>\\n);\\n"""
         formatted = home.pandasToFoamFormat(self.FRAME)
