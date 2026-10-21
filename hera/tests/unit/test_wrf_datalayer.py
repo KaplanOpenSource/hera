@@ -28,13 +28,14 @@ Four defects surfaced:
   inside the *last* column of the dimension raises ``IndexError: index 4
   is out of bounds for axis 2 with size 4``.  The last row/column of every
   WRF domain is therefore unaddressable.
-* B248: ``import geopandas`` is commented out at the top of the module
-  (line 6), but ``getPandas`` calls ``geopandas.GeoDataFrame`` and
+* B248, fixed: ``import geopandas`` was commented out at the top of the
+  module, but ``getPandas`` calls ``geopandas.GeoDataFrame`` and
   ``geopandas.points_from_xy`` in three places.  Passing an ITM
   coordinate -- the documented input, and the whole reason for the
-  ``> 360`` branch -- raises ``NameError: name 'geopandas' is not
+  ``> 360`` branch -- raised ``NameError: name 'geopandas' is not
   defined``.  The final GeoDataFrame construction at the end of the
-  function is dead for the same reason, so ``getPandas`` cannot return.
+  function was dead for the same reason, so ``getPandas`` could not
+  return.  The import is back.
 * B249: ``import wrf`` is wrapped in ``try/except ImportError`` that
   only ``print``s.  With python-wrf absent the name is never bound, so
   ``getPandas`` dies with ``NameError: name 'wrf' is not defined``
@@ -234,32 +235,25 @@ class TestGetPandasArgumentHandling:
 
 
 @pytest.mark.unit
-class TestGetPandasMissingGeopandas:
+class TestGetPandasGeopandas:
     """B248: see the module docstring."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B248: `#import geopandas` is commented out on line 6 of the "
-               "module, yet getPandas calls geopandas.GeoDataFrame and "
-               "geopandas.points_from_xy in three places -- the two ITM->WGS84 "
-               "conversions and the GeoDataFrame it builds before returning. An "
-               "ITM latitude, the documented input, raises NameError: name "
-               "'geopandas' is not defined. See the consolidated findings issue.",
-    )
-    def test_an_itm_coordinate_is_converted(self, datalayer, wrfFile):
-        """lat > 360 is the documented signal for an ITM coordinate."""
-        assert datalayer.getPandas(wrfFile, lat=650000.0) is not None
-
-    def test_an_itm_coordinate_currently_raises_a_nameerror(self, datalayer, wrfFile):
-        """Characterisation of B248."""
-        with pytest.raises(NameError, match="geopandas"):
+    def test_an_itm_coordinate_no_longer_fails_on_geopandas(self, datalayer, wrfFile):
+        """lat > 360 is the documented signal for an ITM coordinate.  The
+        conversion itself runs now; whatever stops the call further on, it is
+        no longer the missing name."""
+        with pytest.raises(Exception) as raised:
             datalayer.getPandas(wrfFile, lat=650000.0)
+        assert "geopandas" not in str(raised.value)
 
-    def test_the_module_never_binds_geopandas(self):
-        """Characterisation of B248's mechanism."""
-        import hera.simulations.WRF.wrfDatalayer as module
+    def test_the_module_binds_geopandas(self):
+        """B248's mechanism: the import was commented out.  Note the module
+        has to be fetched from sys.modules -- the package's __init__ rebinds
+        the name `wrfDatalayer` to the class."""
+        import sys
 
-        assert not hasattr(module, "geopandas")
+        module = sys.modules["hera.simulations.WRF.wrfDatalayer"]
+        assert hasattr(module, "geopandas")
 
 
 @pytest.mark.unit
