@@ -358,16 +358,18 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             data.to_parquet(finalFileName, compression="GZIP")
 
             if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB, toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
-                doc = self.getSimulationsDocuments(type=self.doctype, casePath=self.casePath, cloudName=self.cloudName)
+                # getSimulationsDocuments returns a (possibly empty) list, never None.
+                docList = self.getSimulationsDocuments(type=self.doctype, casePath=self.casePath, cloudName=self.cloudName)
 
-                if doc is not None and saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
+                if len(docList) > 0 and saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
                     raise FileExistsError(f"Data already in the DB. save mode is set to no replace")
-                elif doc is None:
-                    self.addSimulationsDocument(resource=finalFileName,
-                                                dataFormat=toolkit.datatypes.PARQUET,
-                                                type=self.doctype,
-                                                desc=dict(casePath=self.casePath, cloudName=self.cloudName, **kwargs))
+                elif len(docList) == 0:
+                    doc = self.addSimulationsDocument(resource=finalFileName,
+                                                      dataFormat=toolkit.datatypes.PARQUET,
+                                                      type=self.doctype,
+                                                      desc=dict(casePath=self.casePath, cloudName=self.cloudName, **kwargs))
                 else:
+                    doc = docList[0]
                     doc.resource = finalFileName
                     doc.save()
             else:

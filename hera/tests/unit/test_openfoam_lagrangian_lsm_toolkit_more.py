@@ -38,7 +38,7 @@ Deliberately not covered:
 Bugs pinned below (each with an xfail for the intended behaviour and a
 passing characterisation of what happens today):
 
-* B204 ``loadData``'s DB branch treats a QuerySet as a document.
+* B204 (fixed) ``loadData``'s DB branch treated a QuerySet as a document.
 * B206 ``makeSource`` writes the wrong object name into the header.
 * B207 ``createRootCaseMeshLink`` references an undefined name.
 * B208 ``calcConcentrationTimeStepFullMesh`` sets an attribute xarray
@@ -49,6 +49,7 @@ passing characterisation of what happens today):
   boundary section.
 """
 import os
+import shutil
 
 import pandas
 import pytest
@@ -294,35 +295,29 @@ class TestLoadData:
 
     # -- B204: the DB branch ----------------------------------------------
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B204: the FILEANDDB branch does `doc = "
-               "self.getSimulationsDocuments(...)`, which returns a QuerySet "
-               "-- never None -- and then tests `if doc is not None`. So the "
-               "'already in the DB' error fires even for the very first "
-               "save, the `elif doc is None` branch that would call "
-               "addSimulationsDocument is dead code, and no LSMRuns document "
-               "is ever registered. FILEANDDB_REPLACE reaches the else "
-               "branch instead and dies on QuerySet.resource/save. "
-               "See the consolidated findings issue.",
-    )
     def test_saving_to_the_db_should_register_a_document(self, lsm, parallelCase, readSeam):
         lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_FILEANDDB)
         assert len(lsm.getSimulationsDocuments(type="LSMRuns")) == 1
 
-    def test_saving_to_the_db_currently_claims_the_data_is_already_there(self, lsm, parallelCase,
-                                                                        readSeam):
-        """Characterisation of B204."""
+    def test_saving_to_the_db_returns_the_document_it_registered(self, lsm, parallelCase, readSeam):
+        document = lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_FILEANDDB)
+        assert document.resource == os.path.join(lsm.FilesDirectory, "kinematicCloudData.parquet")
+
+    def test_an_existing_db_entry_is_refused_without_replace(self, lsm, parallelCase, readSeam):
+        """The parquet guard fires first, so the DB guard is only reachable
+        once the file it points at is gone."""
+        lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE)
+        shutil.rmtree(os.path.join(lsm.FilesDirectory, "kinematicCloudData.parquet"))
         with pytest.raises(FileExistsError, match="already in the DB"):
             lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_FILEANDDB)
-        assert len(lsm.getSimulationsDocuments(type="LSMRuns")) == 0
-        # The parquet was written before the DB step, so the data is on disk.
-        assert os.path.exists(os.path.join(lsm.FilesDirectory, "kinematicCloudData.parquet"))
 
-    def test_replacing_in_the_db_currently_dies_on_the_queryset(self, lsm, parallelCase, readSeam):
-        """Characterisation of B204."""
-        with pytest.raises(AttributeError, match="QuerySet"):
-            lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE)
+    def test_replacing_in_the_db_updates_the_single_document(self, lsm, parallelCase, readSeam):
+        lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE)
+        lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE)
+        documentList = lsm.getSimulationsDocuments(type="LSMRuns")
+        assert len(documentList) == 1
+        assert documentList[0].resource == os.path.join(lsm.FilesDirectory,
+                                                        "kinematicCloudData.parquet")
 
     # -- B205: ONLYFILE_REPLACE -------------------------------------------
 
