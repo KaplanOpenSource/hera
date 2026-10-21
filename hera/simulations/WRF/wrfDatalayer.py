@@ -2,7 +2,13 @@ import numpy
 try:
     import wrf
 except ImportError:
-    print("You must install python-wrf to use this package ")
+    class _wrfNotInstalled:
+        """Keeps the module importable without python-wrf, and reports the
+        missing dependency at the first use instead of a bare NameError."""
+        def __getattr__(self, name):
+            raise ImportError("You must install python-wrf to use this package")
+
+    wrf = _wrfNotInstalled()
 
 import pandas
 import geopandas

@@ -40,10 +40,12 @@ Four defects surfaced:
   defined``.  The final GeoDataFrame construction at the end of the
   function was dead for the same reason, so ``getPandas`` could not
   return.  The import is back.
-* B249: ``import wrf`` is wrapped in ``try/except ImportError`` that
-  only ``print``s.  With python-wrf absent the name is never bound, so
-  ``getPandas`` dies with ``NameError: name 'wrf' is not defined``
-  half-way through instead of the ``ImportError`` the message promises.
+* B249, fixed: ``import wrf`` was wrapped in a ``try/except ImportError``
+  that only ``print``ed.  With python-wrf absent the name was never bound,
+  so ``getPandas`` died with ``NameError: name 'wrf' is not defined``
+  half-way through instead of the ``ImportError`` the message promised.
+  The name is now bound to a stand-in whose every attribute raises that
+  ImportError, so the first ``wrf.`` reference says what is missing.
 
 Not covered: ``getPandas``'s successful path.  It needs python-wrf
 (``wrf.getvar``), which is not installed in this environment and is not
@@ -247,41 +249,25 @@ class TestGetPandasGeopandas:
 
 
 @pytest.mark.unit
-class TestGetPandasMissingWrf:
+class TestGetPandasWithoutWrf:
     """B249: see the module docstring."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B249: the module catches ImportError for `import wrf` and only "
-               "prints 'You must install python-wrf to use this package', leaving "
-               "the name unbound. getPandas then runs a long way in -- opening the "
-               "file, resolving the horizontal indices -- before dying on "
-               "`wrf.getvar(data, 'ter')` with NameError: name 'wrf' is not "
-               "defined, which names neither the package nor the remedy. "
-               "See the consolidated findings issue.",
-    )
     def test_a_missing_dependency_is_reported_as_such(self, datalayer, wrfFile):
+        if _wrfInstalled():
+            pytest.skip("python-wrf is installed here, so nothing is missing")
         with pytest.raises(ImportError, match="python-wrf"):
             datalayer.getPandas(wrfFile, lat=32.12)
 
-    def test_it_currently_raises_a_bare_nameerror(self, datalayer, wrfFile):
-        """Characterisation of B249, and proof the horizontal index lookup
-        upstream of it succeeded."""
-        pytest.importorskip(
-            "netCDF4", reason="getPandas opens the file with netCDF4.Dataset"
-        )
-        if _wrfInstalled():
-            pytest.skip("python-wrf is installed here, so the name is bound")
-        with pytest.raises(NameError, match="wrf"):
-            datalayer.getPandas(wrfFile, lat=32.12)
+    def test_the_module_binds_wrf_even_when_it_is_absent(self):
+        """B249's mechanism: the except branch only printed, leaving the
+        name unbound for every later reference."""
+        import sys
 
-    def test_the_module_never_binds_wrf(self):
-        """Characterisation of B249's mechanism."""
-        import hera.simulations.WRF.wrfDatalayer as module
-
-        if _wrfInstalled():
-            pytest.skip("python-wrf is installed here, so the name is bound")
-        assert not hasattr(module, "wrf")
+        module = sys.modules["hera.simulations.WRF.wrfDatalayer"]
+        assert hasattr(module, "wrf")
+        if not _wrfInstalled():
+            with pytest.raises(ImportError, match="python-wrf"):
+                module.wrf.getvar
 
     def test_the_documented_happy_path_needs_python_wrf(self, datalayer, wrfFile):
         """Skipped unless python-wrf is present; it is not installed here and
