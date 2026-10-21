@@ -608,7 +608,7 @@ class hermesWorkflowToolkit(abstractToolkit):
         """
         if "_" in workflow_name:
             split_name = workflow_name.split("_")
-            return "".join(split_name[:-1]), split_name[-1]
+            return "_".join(split_name[:-1]), split_name[-1]
         return workflow_name, None
 
     @staticmethod
