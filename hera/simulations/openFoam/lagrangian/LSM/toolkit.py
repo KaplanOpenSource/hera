@@ -959,10 +959,11 @@ class Analysis:
                 finalFileName = doc.resource
 
             C.to_parquet(finalFileName, compression="GZIP")
-            ret = doc
 
+        else:
+            doc = docList[0]
 
-
+        return doc
 
     def calcConcentrationTimeStepFullMesh(self, timeData, extents, dxdydz, xfield="globalX", yfield="globalY",
                                           zfield="globalZ"):

@@ -43,7 +43,7 @@ passing characterisation of what happens today):
 * B207 (fixed) ``createRootCaseMeshLink`` referenced an undefined name.
 * B208 (fixed) ``calcConcentrationTimeStepFullMesh`` set an attribute
   xarray refuses.
-* B209 ``calcDocumentConcentrationPointWise`` never returns.
+* B209 (fixed) ``calcDocumentConcentrationPointWise`` never returned.
 * B210 ``getConcentrationField(returnFirst=False)`` indexes an empty list.
 * B211 ``_extractVelocityField`` cannot read a field file with a real
   boundary section.
@@ -777,22 +777,16 @@ class TestAnalysisCalcDocumentConcentrationPointWise:
                                                     overwrite=True)
         assert len(unit_project.getCacheDocuments(type=Analysis.DOCTYPE_CONCENTRATION_POINTWISE)) == 1
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B209: the method documents ':return: Document' and its "
-               "last statement is `ret = doc`, but there is no return "
-               "statement at all -- so it always answers None and the caller "
-               "cannot reach the document (or the parquet) it just built. "
-               "See the consolidated findings issue.",
-    )
-    def test_it_should_return_the_cache_document(self, analysis, document):
-        assert analysis.calcDocumentConcentrationPointWise(document, dxdydz=1.0,
-                                                           saveAsDask=True) is not None
+    def test_it_returns_the_cache_document(self, analysis, document, unit_project):
+        returned = analysis.calcDocumentConcentrationPointWise(document, dxdydz=1.0,
+                                                               saveAsDask=True)
+        cached = unit_project.getCacheDocuments(type=Analysis.DOCTYPE_CONCENTRATION_POINTWISE)
+        assert returned.id == cached[0].id
 
-    def test_it_currently_returns_none(self, analysis, document):
-        """Characterisation of B209."""
+    def test_a_cached_result_returns_the_document_it_found(self, analysis, document):
+        first = analysis.calcDocumentConcentrationPointWise(document, dxdydz=1.0, saveAsDask=True)
         assert analysis.calcDocumentConcentrationPointWise(document, dxdydz=1.0,
-                                                           saveAsDask=True) is None
+                                                           saveAsDask=True).id == first.id
 
 
 @pytest.mark.unit
