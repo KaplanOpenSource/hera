@@ -44,7 +44,7 @@ passing characterisation of what happens today):
 * B208 (fixed) ``calcConcentrationTimeStepFullMesh`` set an attribute
   xarray refuses.
 * B209 (fixed) ``calcDocumentConcentrationPointWise`` never returned.
-* B210 ``getConcentrationField(returnFirst=False)`` indexes an empty list.
+* B210 (fixed) ``getConcentrationField(returnFirst=False)`` indexed an empty list.
 * B211 ``_extractVelocityField`` cannot read a field file with a real
   boundary section.
 """
@@ -818,21 +818,17 @@ class TestAnalysisGetConcentrationField:
         assert analysis.getConcentrationField(document, dxdydz=1.0) is not None
         assert analysis.getConcentrationField(document, dxdydz=99.0) is None
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B210: returnFirst=False is documented as 'returns a list "
-               "(might be empty)', but the else branch returns "
-               "docList[0].getData(usePandas=True) -- the data of the first "
-               "document rather than a list, and an IndexError when nothing "
-               "matched. See the consolidated findings issue.",
-    )
-    def test_return_first_false_should_give_a_list(self, analysis, document):
-        assert analysis.getConcentrationField(document, returnFirst=False) == []
+    def test_return_first_false_gives_an_empty_list_when_nothing_matched(self, analysis, document):
+        assert list(analysis.getConcentrationField(document, returnFirst=False)) == []
 
-    def test_return_first_false_currently_raises_on_an_empty_result(self, analysis, document):
-        """Characterisation of B210."""
-        with pytest.raises(IndexError):
-            analysis.getConcentrationField(document, returnFirst=False)
+    def test_return_first_false_gives_every_matching_document(self, analysis, document,
+                                                              unit_project):
+        for dxdydz in [1.0, 2.0]:
+            unit_project.addCacheDocument(resource="/x", dataFormat="string",
+                                          type=Analysis.DOCTYPE_CONCENTRATION,
+                                          desc=dict(dataID="deadbeef", dxdydz=dxdydz))
+        documentList = analysis.getConcentrationField(document, returnFirst=False)
+        assert sorted(doc.desc["dxdydz"] for doc in documentList) == [1.0, 2.0]
 
 
 @pytest.mark.unit

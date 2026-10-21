@@ -1151,7 +1151,7 @@ class Analysis:
                 data =  None
 
         else:
-            data = docList[0].getData(usePandas=True)
+            data = docList
 
         return data
 
