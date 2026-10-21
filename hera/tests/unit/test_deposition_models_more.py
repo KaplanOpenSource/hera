@@ -1,7 +1,7 @@
 """Dry deposition: the two paths the earlier deposition files leave alone.
 
 ``test_deposition_models.py`` covers construction with a dict surface, the
-tangled ``ustar``/``diameter``/``heatFlux`` properties (B46-B49) and the
+``ustar``/``diameter``/``heatFlux`` properties (B46-B49) and the
 dispatch; ``test_deposition_models_canopy.py`` covers the
 ``obstacleShape`` branch and its nested PhiM/PsiM.  What neither reaches
 is:
@@ -15,11 +15,9 @@ is:
   ``Qsol`` and the nested ``PhiH`` that only the *non*-obstacle path
   exercises.
 
-Because of B46 the surviving ``ustar`` property returns ``_diameter``, so
-``diameter`` is what the model uses as friction velocity; the tests pass
-``diameter=0.3`` where a realistic u* is wanted, exactly as the canopy
-file does, and read ``model.ustar`` when they need the value the
-calculation actually saw.
+The tests pass ``ustar=0.3``, a realistic friction velocity, exactly as
+the canopy file does, and read ``model.ustar`` when they need the value
+the calculation saw.
 
 Three defects surfaced:
 
@@ -67,7 +65,7 @@ def make(unit_project):
 
     def _make(**kwargs):
         kwargs.setdefault("surface", DESERT)
-        kwargs.setdefault("diameter", 0.3)
+        kwargs.setdefault("ustar", 0.3)
         return depositionModels(projectName=unit_project.projectName, **kwargs)
 
     return _make
@@ -87,7 +85,7 @@ class TestSurfaceLookedUpByName:
         the Cache collection's `surface` field."""
         _registerSurface(unit_project, "Sand", zrough=0.002)
         built = depositionModels(
-            projectName=unit_project.projectName, surface="Sand", diameter=0.3
+            projectName=unit_project.projectName, surface="Sand", ustar=0.3
         )
         assert built.surface["zrough"] == pytest.approx(0.002)
 
@@ -95,7 +93,7 @@ class TestSurfaceLookedUpByName:
         """asDict()["desc"] is handed over as-is, so extra fields survive."""
         _registerSurface(unit_project, "Sand", zrough=0.002, hcanop=0.5)
         built = depositionModels(
-            projectName=unit_project.projectName, surface="Sand", diameter=0.3
+            projectName=unit_project.projectName, surface="Sand", ustar=0.3
         )
         assert built.surface["hcanop"] == pytest.approx(0.5)
         assert built.surface["surface"] == "Sand"
@@ -107,10 +105,10 @@ class TestSurfaceLookedUpByName:
             unit_project, "Meadow", zrough=0.1, hcanop=10.0, displacementHeight=6.0
         )
         byName = depositionModels(
-            projectName=unit_project.projectName, surface="Meadow", diameter=0.3
+            projectName=unit_project.projectName, surface="Meadow", ustar=0.3
         ).depositionRate()
         byDict = depositionModels(
-            projectName=unit_project.projectName, surface=GRASSLAND, diameter=0.3
+            projectName=unit_project.projectName, surface=GRASSLAND, ustar=0.3
         ).depositionRate()
         assert byName == pytest.approx(byDict)
 

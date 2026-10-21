@@ -2,17 +2,14 @@
 deposition model, plus the property accessors themselves.
 
 `test_deposition_models.py` (an earlier batch) already covers
-construction, the tangled `ustar`/`diameter`/`heatFlux` properties
-(B46-B49) and the dispatch, but only ever exercises the bare-ground path
--- so the nested `PhiM`/`PsiM` stability functions, which live inside the
+construction, the `ustar`/`diameter`/`heatFlux` properties (B46-B49) and
+the dispatch, but only ever exercises the bare-ground path -- so the
+nested `PhiM`/`PsiM` stability functions, which live inside the
 `obstacleShape is not None` branch, were never reached. This file drives
 that branch with a leaf canopy.
 
-Note the tests deliberately pass `diameter=0.3`: because of B46 the
-surviving `ustar` property returns `_diameter`, so the diameter is what
-the model actually uses as friction velocity. Setting it to a realistic
-u* keeps the canopy arithmetic inside the stability range PhiM/PsiM
-accept, and is the only way to steer that value from outside.
+The tests pass `ustar=0.3`, a realistic friction velocity, which keeps
+the canopy arithmetic inside the stability range PhiM/PsiM accept.
 """
 import pytest
 
@@ -32,7 +29,7 @@ def make(unit_project):
 
     def _make(**kwargs):
         kwargs.setdefault("surface", DESERT)
-        kwargs.setdefault("diameter", 0.3)
+        kwargs.setdefault("ustar", 0.3)
         return depositionModels(projectName=unit_project.projectName, **kwargs)
 
     return _make
@@ -46,15 +43,16 @@ class TestPropertyAccessors:
         assert model.depositionModel == "SomethingElse"
 
     def test_reading_ustar_goes_through_the_property(self, make):
-        """B46: the accessor resolves to the diameter getter, so this is
-        also the value the model computes with."""
-        assert make(diameter=0.25).ustar == pytest.approx(0.25)
+        """B46: the accessor is the friction velocity, which is also the
+        value the model computes with."""
+        assert make(ustar=0.25).ustar == pytest.approx(0.25)
 
     def test_writing_ustar_goes_through_the_property(self, make):
-        """B46: the write lands on `_diameter`."""
-        model = make(diameter=0.25)
+        """B46: the write lands on `_ustar`, leaving the diameter alone."""
+        model = make(ustar=0.25, diameter=2e-6)
         model.ustar = 0.4
-        assert model.diameter == pytest.approx(0.4)
+        assert model.ustar == pytest.approx(0.4)
+        assert model.diameter == pytest.approx(2e-6)
 
 
 @pytest.mark.unit

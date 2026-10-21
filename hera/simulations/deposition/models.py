@@ -42,7 +42,7 @@ class depositionModels(object):
         return self._diameter
 
     @diameter.setter
-    def ustar(self,newdiameter):
+    def diameter(self,newdiameter):
         self._diameter=newdiameter
 
     @property
