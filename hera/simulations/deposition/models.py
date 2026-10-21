@@ -128,7 +128,7 @@ class depositionModels(object):
                 raise KeyError("PhiH is out of stability range!")
             return ret
 
-        dpm = 0.000001*dp
+        dpm = dp   # already in metres, see the constructor
         cu = 1+2*lpm/dpm*(1.257+0.4*numpy.exp(-1.1*dpm/(2*lpm))) # Cunningham slip factor
         Db = (cu*kb*Tpe)/(3*numpy.pi*muA*dpm)# Brownian diffusivity
         Sc = nuA/Db # Schmidt number
@@ -174,7 +174,7 @@ class depositionModels(object):
 
             eb = {"leaf": (xb * 0.664 * (nuA / Db) ** (-2 / 3) * (Uh * ObstacleSize / nuA) ** (-0.5)),
                   "needle":(xb * 0.467 * (nuA / Db) ** (-2 / 3) * (Uh * ObstacleSize / nuA) ** (-0.5))}
-            ein = {"leaf": (xin*kx/2*dp*0.000001/ObstacleSize*(2+numpy.log(4*ObstacleSize/(dp*0.000001))))}
+            ein = {"leaf": (xin*kx/2*dpm/ObstacleSize*(2+numpy.log(4*ObstacleSize/dpm)))}
             eim = {"leaf": (xim*kx/(1+0.47*ObstacleSize/(trel*Uh))**2)}
             eit = {"leaf": xit*0.14}
             Qveg = hcanop/lm*lai*(Uh/ustar*eb[obstacleShape]+ein[obstacleShape]+eim[obstacleShape]+eit[obstacleShape])

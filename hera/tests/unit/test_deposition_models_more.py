@@ -29,15 +29,17 @@ Three defects surfaced:
   ``IndexError: list index out of range`` -- naming neither the surface
   nor the collection it was looked for in.  It now raises a ``ValueError``
   that names both.
-* B255: ``depositionRate_Petroff`` starts with
+* B255, fixed: ``depositionRate_Petroff`` started with
   ``dpm = 0.000001*dp``, a micron-to-metre conversion, but ``dp`` comes
   from ``self.diameter``, which the constructor has already normalised to
   metres (``tonumber(tounit(diameter, ureg.m), ureg.m)``).  Every other
   constant in the block is SI (mean free path 6.7e-8 m, viscosity
-  1.89e-5 Pa s), so the model evaluates a 1 micron particle as a 1
-  picometre one: the ground deposition efficiency ``vds/u*`` comes out at
-  8.5e4 instead of order 1e-5, i.e. the deposition velocity exceeds the
-  friction velocity by five orders of magnitude.
+  1.89e-5 Pa s), so the model evaluated a 1 micron particle as a 1
+  picometre one: the ground deposition efficiency ``vds/u*`` came out at
+  8.5e4 instead of order 1e-5, i.e. the deposition velocity exceeded the
+  friction velocity by five orders of magnitude.  The same double
+  conversion sat on ``dp*0.000001`` in the leaf-interception term, and
+  both now use the metres the constructor stored.
 * B257: the Boltzmann constant in the same block is written
   ``kb = 1.83E-23``.  Its value is 1.380649e-23 J/K -- the digits are
   transposed -- so the Brownian diffusivity is 33% too large wherever
@@ -155,33 +157,17 @@ class TestGroundDepositionEfficiency:
         Qsol to 0 and vds collapses to u* egb."""
         model = make(diameter=1e-6)
         efficiency = model.depositionRate() / model.ustar
-        assert efficiency == pytest.approx(85142.1, rel=1e-4)
+        assert efficiency == pytest.approx(9.7707e-6, rel=1e-4)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B255: depositionRate_Petroff computes dpm = 0.000001*dp, a "
-               "micron-to-metre conversion, but dp is self.diameter, which the "
-               "constructor already normalised to metres. The surrounding "
-               "constants are SI (mean free path 6.7e-8 m, dynamic viscosity "
-               "1.89e-5 Pa s), so a 1 micron particle is evaluated as a 1 "
-               "picometre one, deep in the free-molecule regime. The Brownian "
-               "ground efficiency vds/u* comes out at 8.5e4; being an efficiency "
-               "it cannot exceed 1, and for a 1 micron particle it should be of "
-               "order 1e-5. See the consolidated findings issue.",
-    )
     def test_a_deposition_velocity_cannot_exceed_the_friction_velocity(self, make):
         """vds = u* egb/(1 + Qsol) with egb a dimensionless ground transfer
         efficiency, so vds <= u* for every particle."""
         model = make(diameter=1e-6)
         assert model.depositionRate() <= model.ustar
 
-    def test_the_efficiency_currently_exceeds_one_by_five_orders(self, make):
-        """Characterisation of B255."""
-        model = make(diameter=1e-6)
-        assert model.depositionRate() / model.ustar > 1e4
-
-    def test_the_conversion_is_applied_to_an_already_converted_diameter(self, make):
-        """Characterisation of B255's mechanism, read off both sites."""
+    def test_the_diameter_reaches_the_model_in_metres_exactly_once(self, make):
+        """B255's mechanism, read off both sites: the constructor converts
+        to metres, so the rate must not convert again."""
         import inspect
 
         constructor = inspect.getsource(depositionModels.__init__)
@@ -189,7 +175,8 @@ class TestGroundDepositionEfficiency:
             constructor
         )
         rate = inspect.getsource(depositionModels.depositionRate_Petroff)
-        assert "dpm = 0.000001*dp" in rate
+        assert "0.000001*dp" not in rate
+        assert "dp*0.000001" not in rate
         assert make(diameter=1 * ureg.micrometer)._diameter == pytest.approx(1e-6)
 
     def test_brownian_deposition_weakens_as_the_particle_grows(self, make):
