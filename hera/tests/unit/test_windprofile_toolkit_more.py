@@ -32,12 +32,14 @@ Three defects surfaced:
   offline, a bad token, or every reading out of range -- the call raised
   ``ValueError: max() iterable argument is empty`` instead of returning
   the empty list its own filtering implies.
-* B252: ``ws`` and ``wd`` are bound only inside
-  ``for channel in data['data'][0]['channels']``, and are then read
+* B252, fixed: ``ws`` and ``wd`` were bound only inside
+  ``for channel in data['data'][0]['channels']``, and were then read
   unconditionally.  A station that reports data but no WS/WD channel --
   a rain-only station, which the shipped ``wind_stations.json`` list does
-  contain -- raises ``UnboundLocalError``.  Worse, when only one of the
-  two is missing the loop silently reuses the *previous station's* value.
+  contain -- raised ``UnboundLocalError``, and when only one of the two
+  was missing the loop silently reused the *previous station's* value.
+  Both are reset per station and the station is skipped unless both
+  arrived.
 * B258, fixed: the retry loop assigned ``data`` before the subscript that
   validates it, so an error payload -- from a rejected token, say --
   survived all 20 attempts, passed the ``if data:`` guard that exists to
@@ -289,31 +291,10 @@ class TestGetWindSpeedDirectionWithMissingChannels:
 
     RAIN_ONLY = _reading(channels=[{"name": "Rain", "value": 0.0}])
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B252: ws and wd are bound only inside the channel loop and "
-               "then read unconditionally, so a station that answers with no "
-               "WS/WD channel raises UnboundLocalError. The shipped "
-               "wind_stations.json does list stations whose monitor set is not "
-               "guaranteed to include both. See the consolidated findings issue.",
-    )
     def test_a_station_without_wind_channels_is_skipped(self, tk, monkeypatch):
         _fixedResponse(monkeypatch, self.RAIN_ONLY)
         assert tk._getWindSpeedDirection([_station()], TOKEN) == []
 
-    def test_a_station_without_wind_channels_currently_raises(self, tk, monkeypatch):
-        """Characterisation of B252."""
-        _fixedResponse(monkeypatch, self.RAIN_ONLY)
-        with pytest.raises(UnboundLocalError, match="ws"):
-            tk._getWindSpeedDirection([_station()], TOKEN)
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B252, the silent half: because ws/wd survive between loop "
-               "iterations, a station missing only one of the two channels is "
-               "recorded with the PREVIOUS station's value for it instead of "
-               "being skipped. See the consolidated findings issue.",
-    )
     def test_a_station_missing_one_channel_does_not_inherit_the_previous_one(
         self, tk, monkeypatch
     ):
@@ -325,18 +306,14 @@ class TestGetWindSpeedDirectionWithMissingChannels:
         result = tk._getWindSpeedDirection([_station(1), _station(2)], TOKEN)
         assert [row[3] for row in result] == [[5.0, 270.0]]
 
-    def test_a_station_missing_one_channel_currently_inherits_it(
-        self, tk, monkeypatch
-    ):
-        """Characterisation of B252's silent half: station 2 reports no
-        direction and is recorded with station 1's 270 degrees."""
+    def test_a_station_missing_only_the_speed_is_skipped_too(self, tk, monkeypatch):
         _responseSequence(
             monkeypatch,
             [_reading(ws=5.0, wd=270.0),
-             _reading(channels=[{"name": "WS", "value": 7.0}])],
+             _reading(channels=[{"name": "WD", "value": 90.0}])],
         )
         result = tk._getWindSpeedDirection([_station(1), _station(2)], TOKEN)
-        assert [row[3] for row in result] == [[5.0, 270.0], [7.0, 270.0]]
+        assert [row[3] for row in result] == [[5.0, 270.0]]
 
 
 @pytest.mark.unit

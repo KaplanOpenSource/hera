@@ -151,13 +151,15 @@ class WindProfileToolkit(toolkit.abstractToolkit):
                     trials += 1
                     # print(f"Trial {trials} for Station {station_id}")
             if data:
+                ws = None
+                wd = None
                 for channel in data['data'][0]['channels']:
                     if channel['name'] == 'WS':
                         ws = channel['value']
                     if channel['name'] == 'WD':
                         wd = channel['value']
 
-                if abs(ws) < 20 and abs(wd) <= 360:
+                if ws is not None and wd is not None and abs(ws) < 20 and abs(wd) <= 360:
                     stations_with_data.append([lat, lon, height, [ws, wd]])
                     stations_datetimes.append(datetime_str)
 
