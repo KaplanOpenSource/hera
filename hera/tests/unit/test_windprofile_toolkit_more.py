@@ -18,13 +18,14 @@ up, so an unpatched call would also be slow.
 
 Three defects surfaced:
 
-* B250: ``getSpatialWind`` calls
+* B250, fixed: ``getSpatialWind`` called
   ``landcover_tk.getRoughnessFromLandcover(xarray, dxdy)``, but that
   method's signature is ``(self, landcover,
   windMeteorologicalDirection=None, resolution=None, ...)``.  The grid
-  resolution is therefore passed as a *wind direction*: with the default
-  ``dxdy=30`` the roughness is computed for a wind from 30 degrees, and
-  the ``resolution`` argument the caller meant to set is left at None.
+  resolution was therefore passed as a *wind direction*: with the default
+  ``dxdy=30`` the roughness was computed for a wind from 30 degrees, and
+  the ``resolution`` argument the caller meant to set was left at None.
+  It is passed by keyword now.
 * B251: ``_getWindSpeedDirection`` ends with
   ``max(datetime_objects)`` over a list that is only appended to for
   stations that returned usable data.  When none does -- every station
@@ -450,7 +451,7 @@ class TestGetSpatialWind:
 
 
 @pytest.mark.unit
-class TestGetSpatialWindPassesResolutionAsADirection:
+class TestGetSpatialWindPassesTheResolution:
     """B250: see the module docstring."""
 
     @pytest.fixture()
@@ -479,25 +480,14 @@ class TestGetSpatialWindPassesResolutionAsADirection:
         )
         return seen
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B250: getSpatialWind calls getRoughnessFromLandcover(xarray, "
-               "dxdy), but that method's second parameter is "
-               "windMeteorologicalDirection and its third is resolution. The grid "
-               "spacing is therefore consumed as a wind direction -- 30 degrees "
-               "for the default dxdy=30 -- and the resolution it was meant to set "
-               "stays None. See the consolidated findings issue.",
-    )
     def test_the_resolution_is_passed_as_the_resolution(self, tk, wired):
         tk.getSpatialWind(32.0, 35.0, 33.0, 36.0, TOKEN, dxdy=50)
         assert wired["resolution"] == 50
         assert wired["windMeteorologicalDirection"] is None
 
-    def test_the_resolution_currently_arrives_as_a_wind_direction(self, tk, wired):
-        """Characterisation of B250."""
-        tk.getSpatialWind(32.0, 35.0, 33.0, 36.0, TOKEN, dxdy=50)
-        assert wired["windMeteorologicalDirection"] == 50
-        assert wired["resolution"] is None
+    def test_the_default_resolution_reaches_it_too(self, tk, wired):
+        tk.getSpatialWind(32.0, 35.0, 33.0, 36.0, TOKEN)
+        assert wired["resolution"] == 30
 
     def test_the_signature_it_calls_into(self):
         """Characterisation of B250's mechanism, so the diagnosis does not

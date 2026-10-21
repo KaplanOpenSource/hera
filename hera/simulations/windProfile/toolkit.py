@@ -105,7 +105,7 @@ class WindProfileToolkit(toolkit.abstractToolkit):
     def getSpatialWind(self,minlat,minlon,maxlat,maxlon,IMS_TOKEN,dxdy=30,inputCRS=WSG84,landcover_DataSource=None):
         landcover_tk = toolkitHome.getToolkit(toolkitHome.GIS_LANDCOVER,projectName=self.projectName)
         xarray = landcover_tk.getLandCover(minlat,minlon,maxlat,maxlon, dxdy,inputCRS=inputCRS,dataSourceName=landcover_DataSource)
-        xarray = landcover_tk.getRoughnessFromLandcover(xarray,dxdy)       #For now is simple - only with dictionary
+        xarray = landcover_tk.getRoughnessFromLandcover(xarray,resolution=dxdy)       #For now is simple - only with dictionary
         with open(f'{os.path.dirname(os.path.abspath(__file__))}/wind_stations.json', 'r') as json_file:
             wind_stations = json.load(json_file)
         stations = [station for station in wind_stations]
