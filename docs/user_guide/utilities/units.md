@@ -35,7 +35,7 @@ print(speed_kmh)  # 18.0 kilometer / hour
 
 # Convert to base (MKS) units
 area_m2 = area.to_base_units()
-print(area_m2)  # 10000.0 meter ** 2
+print(area_m2)  # 10000 meter ** 2
 ```
 
 ## Extracting the Numeric Value
@@ -50,7 +50,7 @@ print(value)  # 5.0
 print(type(value))  # <class 'float'>
 ```
 
-This works transparently with both pint `Quantity` objects and legacy unum objects, as well as plain numbers (which pass through unchanged).
+This works transparently with both pint `Quantity` objects and legacy unum objects, as well as plain numbers (which pass through unchanged). The return value is the magnitude, so it is a float only if the magnitude is a float (a NumPy array stays an array).
 
 ## Converting with `tounit`
 
@@ -67,6 +67,8 @@ print(q)  # 100 meter
 q2 = tounit(speed, ureg.km / ureg.hour)
 print(q2)  # 18.0 kilometer / hour
 ```
+
+The target unit can also be a string (`tounit(speed, "km/hour")`). `tounum` is an alias of `tounit`.
 
 ## Using Units with Toolkits
 
@@ -98,3 +100,6 @@ For the full details on saving and loading configurations with units — includi
 |------|-----------|-------------|
 | `dunam` | 1000 m^2 | Land area (common in Israel) |
 | `mmH2O` | atm / 10197.162129779 | Water column pressure |
+
+!!! warning "`celsius` and `K` are unum objects when unum is installed"
+    `hera.utils.unitHandler` also exports `celsius` and `K`. They are pint units (`ureg.degC`, `ureg.kelvin`) only when `unum` is **not** installed; with `unum` installed (it is pinned in `requirements.txt`) they are replaced by the unum units for legacy code. In new code use `ureg.degC` and `ureg.kelvin` directly.

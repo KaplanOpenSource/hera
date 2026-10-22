@@ -7,6 +7,7 @@ export const RenameField = ({
   defaultEditing = false,
   labelMinWidth = undefined,
   valueForView = undefined,
+  keepViewWidth = false,
 }: {
   value: string,
   setValue?: (newVal: string) => void,
@@ -14,6 +15,8 @@ export const RenameField = ({
   labelMinWidth?: string,
   // What to render in view mode instead of `value` (editing still uses `value`).
   valueForView?: ReactNode,
+  // Keeps the view label at its full width instead of letting it be cut short.
+  keepViewWidth?: boolean,
 }) => {
   const [editing, setEditing] = useState(defaultEditing);
   const [internalValue, setInternalValue] = useState(value);
@@ -45,16 +48,25 @@ export const RenameField = ({
     setEditing(false);
   };
 
+  const viewBoxSx: { [key: string]: string | number } = {
+    display: 'flex',
+    minWidth: 0,
+    overflow: 'hidden',
+    cursor: 'default',
+  };
+  if (setValue) {
+    viewBoxSx.cursor = 'text';
+  }
+  if (keepViewWidth) {
+    viewBoxSx.flexShrink = 0;
+    viewBoxSx.overflow = 'visible';
+  }
+
   const viewLabel = valueForView !== undefined
     ? (
       <Box
         onClick={() => setValue && setEditing(true)}
-        sx={{
-          display: 'flex',
-          minWidth: 0,
-          overflow: 'hidden',
-          cursor: setValue ? 'text' : 'default',
-        }}
+        sx={viewBoxSx}
       >
         {valueForView}
       </Box>

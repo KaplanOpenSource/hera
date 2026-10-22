@@ -1,0 +1,7 @@
+[tool.ruff]
+# Enable the pep8-naming rule set (N) along with standard Pyflakes (F) and pycodestyle (E, W)
+select = ["W", "F", "N"]
+
+[tool.ruff.lint.pep8-naming]
+# If you have specific acronyms you want to allow in PascalCase (e.g., HTTPClient instead of HttpClient)
+ignore-names = []

@@ -4,14 +4,14 @@ import { MemoryRouter } from 'react-router-dom';
 import type { ProjectDocument } from '../../src/shared/types';
 import App from '../../src/App';
 import { NO_PROJECT, useProjectStore } from '../../src/stores/useProjectStore';
+import { useProjectListStore } from '../../src/stores/useProjectListStore';
 
 export const resetStore = () => {
   useProjectStore.setState({
-    projectNames: [],
     currProjectName: NO_PROJECT,
     currProject: null,
-    toolkits: [],
   });
+  useProjectListStore.setState({ projectNames: [] });
 };
 
 /** Render the full app at a given path. */
@@ -52,7 +52,7 @@ export const createProjectViaUI = async (projectName: string) => {
   });
 
   await waitFor(() => {
-    const names = useProjectStore.getState().projectNames;
+    const names = useProjectListStore.getState().projectNames;
     expect(names.some(p => p.name === projectName)).toBe(true);
   }, { timeout: 15000 });
 

@@ -1,8 +1,7 @@
 import { Delete } from '@mui/icons-material';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { useConfirm } from '../../elements/useConfirm';
-import { fetchProjectDetails } from '../../io/FetchProjects';
-import { fetchPython } from '../../io/fetchPython';
+import { deleteDocuments } from '../../io/deleteDocuments';
 import { ProjectDocument } from '../../shared/types';
 
 // Deletes a single document from the document interface. The project's open tab
@@ -10,31 +9,14 @@ import { ProjectDocument } from '../../shared/types';
 // (see LayoutModel.closeMissingDocuments).
 export const DeleteDocumentButton = ({
   document,
-  projectName,
   displayName,
   isConfig,
 }: {
   document: ProjectDocument,
-  projectName: string,
   displayName: string,
   isConfig: boolean,
 }) => {
   const { confirmOpen, ConfirmDialog } = useConfirm();
-
-  const deleteDocument = async () => {
-    const { data } = await fetchPython({
-      results: [],
-      label: `delete document ${displayName}`,
-      code: `
-from hera.datalayer import All
-All.deleteDocumentByID('${document?._id.$oid}')
-`,
-    });
-    if (!data) {
-      return;
-    }
-    await fetchProjectDetails(projectName);
-  };
 
   return (
     <ButtonTooltip
@@ -42,7 +24,7 @@ All.deleteDocumentByID('${document?._id.$oid}')
       disabled={isConfig}
       onClick={async () => {
         if ((await confirmOpen({ title: `Are you sure you want to delete ${displayName}?` })).confirmed) {
-          deleteDocument();
+          deleteDocuments([document._id.$oid]);
         }
       }}
     >

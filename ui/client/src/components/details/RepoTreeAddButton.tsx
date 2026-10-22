@@ -2,8 +2,7 @@ import { DriveFolderUpload } from "@mui/icons-material";
 import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { useDialog } from "../../elements/useDialog";
-import { fetchPython } from "../../io/fetchPython";
-import { ProjectEntire } from "../../shared/types";
+import { loadRepositoryJsonIntoProject } from "../../io/loadRepositoryIntoProject";
 import { useProjectStore } from "../../stores/useProjectStore";
 
 const filterTree = (obj: any, hidden: Set<string>, prefix: string[] = []): any => {
@@ -32,35 +31,15 @@ export const RepoTreeAddButton = ({
   };
 
   const { openDialog, DialogComponent } = useDialog<AddRepoArgs>();
-  const { currProject, setCurrentProject } = useProjectStore();
+  const { currProject } = useProjectStore();
 
   const baseDir = currProject?.documents.find(x => x.type === currProject.name + '__config__')?.desc.filesDirectory || '';
 
   const addRepo = async (params: AddRepoArgs) => {
+    // filterTree is about what the user hid in the browser, so it stays here.
     const visibleTree = hiddenPaths?.size ? filterTree(tree, hiddenPaths) : tree;
-    const { data } = await fetchPython({
-      results: ['project'],
-      label: 'add repository',
-      code: `
-import logging
-import os
-from hera.datalayer import All
-from hera.utils.data.toolkit import dataToolkit
-logger = logging.getLogger("hera.bin.repository_load")
-dtk = dataToolkit()
-dtk.loadAllDatasourcesInRepositoryJSONToProject(projectName='${currProject?.name}',
-                                                repositoryJSON=${JSON.stringify(visibleTree)},
-                                                basedir=os.path.abspath('${baseDir}'),
-                                                overwrite=${params.overwrite ? 'True' : 'False'})
-docs = All.getDocumentsAsDict('${currProject?.name}', with_id=True)
-project = {"name": '${currProject?.name}', "documents": docs['documents']}
-`,
-    });
-    if (data) {
-      setCurrentProject(data.project as ProjectEntire);
-    }
+    await loadRepositoryJsonIntoProject(visibleTree, baseDir, params.overwrite);
   }
-
 
   return (
     <ButtonTooltip

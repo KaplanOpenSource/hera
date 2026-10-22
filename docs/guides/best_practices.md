@@ -166,7 +166,7 @@ repositories/
 df = toolkit.getDataSourceData("LARGE_DATASET")  # Not materialized yet
 
 # Process in chunks
-for partition in df.repartition(partition_size="100MB"):
+for partition in df.repartition(partition_size="100MB").partitions:
     result = process_partition(partition.compute())
     save_result(result)
 ```
@@ -180,7 +180,7 @@ result = df.head(1000)
 
 # Good: Only load what you need
 df = toolkit.getDataSourceData("LARGE")
-result = df.head(1000).compute()  # Only loads first 1000 rows
+result = df.head(1000)  # dask's head() computes only the first partition and returns pandas
 ```
 
 ### MongoDB Query Optimization
@@ -207,7 +207,7 @@ my_docs = [d for d in all_docs if d.desc.get("toolkit") == "MeteoLowFreq"]
 
 # Good: Use toolkit's filtered method
 toolkit = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName="MY_PROJECT")
-docs = toolkit.getDataSourceDocuments()  # Already filtered
+docs = toolkit.getDataSourceDocumentsList()  # Already filtered by type and toolkit name
 ```
 
 ### Caching Strategies
@@ -281,12 +281,12 @@ ds = xr.Dataset.from_dataframe(data)
 **Save in optimal format:**
 
 ```python
-# Auto-detect and save
+# Auto-detect the format, write the file under <filesDirectory>/cache/ and add the document
 proj.saveData(
     name="processed_results",
     data=result_dataframe,
     desc={"processed": "2024-11-20"},
-    kind="Measurements",
+    kind="Measurements",   # "Measurements", "Simulations" or "Cache" (calls add<kind>Document)
     type="ProcessedData"
 )
 # Automatically chooses parquet for DataFrame
@@ -347,11 +347,11 @@ class MyPresentation:
         return ax
 ```
 
-### Registering Custom Toolkits
+### Registering New Toolkits
 
-**Option 1: Static registration** (built-in toolkits)
+**Option 1: Static registration** (only for toolkits that ship inside Hera)
 
-Edit `hera/toolkit.py`:
+Edit `hera/toolkit.py` (do not do this for external toolkits — use dynamic registration):
 
 ```python
 self._toolkits["MyCustomToolkit"] = {
@@ -366,14 +366,15 @@ self._toolkits["MyCustomToolkit"] = {
 ```python
 from hera import toolkitHome
 
+# /path/to/toolkits/MyCustomToolkit/MyCustomToolkit.py must define class MyCustomToolkit
 toolkitHome.registerToolkit(
-    toolkitclass="my_package.MyCustomToolkit",
-    datasource_name="MyCustomToolkit",
-    projectName="MY_PROJECT",
-    repositoryName="defaultRepo",
-    version=[0, 0, 1]
+    toolkit_name="MyCustomToolkit",
+    toolkit_path="/path/to/toolkits/MyCustomToolkit",
+    version=(0, 0, 1),
 )
 ```
+
+CLI equivalent: `hera-project addToolkit MyCustomToolkit /path/to/toolkits/MyCustomToolkit`.
 
 ---
 
@@ -407,7 +408,7 @@ class TestMyCustomToolkit:
 
 - **Use session-scoped fixtures** — Share project across tests
 - **Load test data via repository** — Use `test_repository.json` pattern
-- **Compare with expected outputs** — Use `compare_outputs()` helper
+- **Compare with expected outputs** — Use the `compare_outputs()` helper from `hera/tests/conftest.py`
 - **Clean up in teardown** — Project cleanup is automatic
 
 See [Testing Flow](../testing/flow.md) for complete details.
@@ -441,7 +442,7 @@ result = df.head(100)  # Only uses 100 rows
 **Solution:**
 ```python
 df = toolkit.getDataSourceData("HUGE")
-result = df.head(100).compute()  # Only loads 100 rows
+result = df.head(100)  # dask's head() computes only what it needs and returns pandas
 ```
 
 ### Pitfall 3: Not Using Relative Paths in Repositories

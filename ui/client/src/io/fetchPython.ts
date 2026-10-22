@@ -1,4 +1,5 @@
 import { BASEURL } from '../shared/baseurl';
+import { WARMING_UP } from '../shared/constants';
 import { ExecRequest, ExecResponse } from '../shared/types';
 import { pushRunning, pushError, dismiss } from './snackbar';
 
@@ -10,8 +11,7 @@ export type PythonCommand = {
 
 const SHORT_ERROR_MAX = 120;
 
-// /exec returns this while hera warms up — wait and retry, don't toast.
-export const WARMING_UP = 'WARMING_UP';
+export { WARMING_UP };
 
 const shortenError = (error: string) => {
   const firstLine = error.split('\n')[0];

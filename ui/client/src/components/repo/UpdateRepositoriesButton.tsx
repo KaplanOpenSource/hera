@@ -1,26 +1,15 @@
 import { Sync } from "@mui/icons-material";
 import { useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
-import { fetchPython } from "../../io/fetchPython";
-import { fetchProjectDetails } from "../../io/FetchProjects";
-import { useProjectStore } from "../../stores/useProjectStore";
+import { loadAllRepositoriesIntoProject } from "../../io/loadRepositoryIntoProject";
 
 export const UpdateRepositoriesButton = () => {
   const [loading, setLoading] = useState(false);
-  const { currProjectName } = useProjectStore();
 
   const handleClick = async () => {
     setLoading(true);
-    await fetchPython({
-      results: [],
-      label: 'update repositories',
-      code: `
-from types import SimpleNamespace
-from hera.utils.data.CLI import update
-update(SimpleNamespace(projectName='${currProjectName}', overwrite=False))
-`,
-    });
-    await fetchProjectDetails(currProjectName);
+    // The answer brings the project along, so there is nothing to reload after it.
+    await loadAllRepositoriesIntoProject();
     setLoading(false);
   };
 

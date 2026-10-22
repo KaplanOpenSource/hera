@@ -23,7 +23,9 @@ export default defineConfig({
     setupFiles: ['./tests/setup.ts'],
     // Cap worker processes: the default is one per CPU (20 here), each a full
     // Node+jsdom fork, which exhausts memory on a loaded machine and hangs it.
-    maxWorkers: 4,
+    // Two still runs the suite in well under a minute and leaves the machine
+    // usable while it runs.
+    maxWorkers: 2,
     minWorkers: 1,
   }
 });

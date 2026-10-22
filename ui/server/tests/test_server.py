@@ -3,46 +3,47 @@ import time
 
 import pytest
 
-import server
+import dependencies
 from api_models import ExecPayload, RunWorkflowPayload
+from routers import cors_info, exec_code, health, workflow
 
 
 @pytest.fixture
 def warmed(monkeypatch):
     # exec_code returns WARMING_UP until the off-thread hera warmup finishes. There is
     # no real hera in tests, so mark warmup ready to exercise the exec path itself.
-    monkeypatch.setattr(server.warmup, "_ready", True)
+    monkeypatch.setattr(dependencies.warmup, "_ready", True)
 
 
 def test_healthz():
-    assert server.healthz() == {"status": "ok"}
+    assert health.healthz() == {"status": "ok"}
 
 
 def test_cors_info_shape():
-    info = server.cors_info()
+    info = cors_info.cors_info()
     assert "origins" in info
 
 
 def test_exec_returns_result_value(warmed):
-    resp = server.exec_code(ExecPayload(code="result = 1 + 2"))
+    resp = exec_code.exec_code(ExecPayload(code="result = 1 + 2"))
     assert resp.problem is None
     assert resp.data == 3
 
 
 def test_exec_without_result_is_none(warmed):
-    resp = server.exec_code(ExecPayload(code="x = 5"))
+    resp = exec_code.exec_code(ExecPayload(code="x = 5"))
     assert resp.problem is None
     assert resp.data is None
 
 
 def test_exec_returns_jsonable_structure(warmed):
-    resp = server.exec_code(ExecPayload(code="result = {'a': [1, 2], 'b': 'x'}"))
+    resp = exec_code.exec_code(ExecPayload(code="result = {'a': [1, 2], 'b': 'x'}"))
     assert resp.problem is None
     assert resp.data == {"a": [1, 2], "b": "x"}
 
 
 def test_exec_reports_errors(warmed):
-    resp = server.exec_code(ExecPayload(code="raise ValueError('boom')"))
+    resp = exec_code.exec_code(ExecPayload(code="raise ValueError('boom')"))
     assert resp.data is None
     assert "ValueError" in resp.problem.error
     assert "boom" in resp.problem.error
@@ -56,10 +57,10 @@ def test_start_workflow_delegates_to_runner_start(monkeypatch):
         calls["args"] = (project_name, doc)
         return {"token": "t1"}
 
-    monkeypatch.setattr(server.workflow_runner, "start", fake_start)
+    monkeypatch.setattr(dependencies.workflow_runner, "start", fake_start)
 
     doc = {"desc": {"workflow": {"solver": "s"}, "workflowName": "W"}, "resource": "/tmp/W.json"}
-    resp = server.start_workflow(RunWorkflowPayload(projectName="P", doc=doc))
+    resp = workflow.start_workflow(RunWorkflowPayload(projectName="P", doc=doc))
 
     assert calls["args"] == ("P", doc)
     assert resp.token == "t1"
@@ -67,11 +68,11 @@ def test_start_workflow_delegates_to_runner_start(monkeypatch):
 
 def test_workflow_status_delegates_to_runner_poll(monkeypatch):
     monkeypatch.setattr(
-        server.workflow_runner, "poll",
+        dependencies.workflow_runner, "poll",
         lambda token: {"status": "done", "error": "", "chunks": [{"name": "__between__", "text": "log"}]},
     )
 
-    resp = server.workflow_status("t1")
+    resp = workflow.workflow_status("t1")
 
     assert resp.status == "done"
     assert resp.chunks[0].text == "log"
@@ -87,24 +88,24 @@ def test_run_workflow_endpoint_through_real_runner(install_fake_hera, tmp_path):
     install_fake_hera(str(tmp_path), on_execute)
 
     hello_doc = {"desc": {"workflow": {"solver": "s"}, "workflowName": "hello"}, "resource": str(tmp_path / "hello.json")}
-    start = server.start_workflow(RunWorkflowPayload(projectName="P", doc=hello_doc))
+    start = workflow.start_workflow(RunWorkflowPayload(projectName="P", doc=hello_doc))
     assert start.token
 
     deadline = time.time() + 10.0
-    resp = server.workflow_status(start.token)
+    resp = workflow.workflow_status(start.token)
     while resp.status == "running" and time.time() < deadline:
         time.sleep(0.01)
-        resp = server.workflow_status(start.token)
+        resp = workflow.workflow_status(start.token)
 
     assert resp.status == "done"
     assert "workflow hello done" in "".join(chunk.text for chunk in resp.chunks)
 
 
 def test_truncate_for_log_keeps_short_values():
-    assert server._truncate_for_log("hi") == "'hi'"
+    assert exec_code._truncate_for_log("hi") == "'hi'"
 
 
 def test_truncate_for_log_cuts_long_values():
-    truncated = server._truncate_for_log("x" * 1000)
+    truncated = exec_code._truncate_for_log("x" * 1000)
     assert "truncated" in truncated
     assert len(truncated) < 1000

@@ -8,6 +8,7 @@ vi.mock('../../src/stores/useServerConstants', async () => (await import('./mock
 vi.mock('../../src/io/snackbar', async () => (await import('./mockFactories')).createSnackbarMock());
 
 import { useProjectStore } from '../../src/stores/useProjectStore';
+import { useProjectListStore } from '../../src/stores/useProjectListStore';
 
 describe('Delete Project UI integration', () => {
   beforeAll(async () => {
@@ -23,7 +24,7 @@ describe('Delete Project UI integration', () => {
     renderApp('/ProjectToDelete');
 
     await waitFor(() => {
-      const names = useProjectStore.getState().projectNames.map(p => p.name);
+      const names = useProjectListStore.getState().projectNames.map(p => p.name);
       expect(names).toContain('ProjectToKeep');
       expect(names).toContain('ProjectToDelete');
     }, { timeout: 15000 });
@@ -49,7 +50,7 @@ describe('Delete Project UI integration', () => {
     await act(async () => { fireEvent.click(yesBtn); });
 
     await waitFor(() => {
-      const names = useProjectStore.getState().projectNames.map(p => p.name);
+      const names = useProjectListStore.getState().projectNames.map(p => p.name);
       expect(names).not.toContain('ProjectToDelete');
       expect(names).toContain('ProjectToKeep');
     }, { timeout: 15000 });
@@ -66,7 +67,7 @@ describe('Delete Project UI integration', () => {
     renderApp('/ProjectToKeep');
 
     await waitFor(() => {
-      const names = useProjectStore.getState().projectNames.map(p => p.name);
+      const names = useProjectListStore.getState().projectNames.map(p => p.name);
       expect(names).toContain('ProjectToKeep');
       expect(names).not.toContain('ProjectToDelete');
     }, { timeout: 15000 });

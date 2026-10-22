@@ -1,30 +1,46 @@
-import numpy
-import os
 import glob
-import subprocess
-import dask
-import pandas
-import shutil
 import json
-from evtk import hl as evtk_hl
-import dask.dataframe as dask_dataframe
-from itertools import chain
-from itertools import product
+import os
+import shutil
+import subprocess
 from collections.abc import Iterable
+from itertools import chain, product
+
+import dask
+import dask.dataframe as dask_dataframe
+import numpy
+import pandas
 from dask.delayed import delayed
-from hera.utils import dictToMongoQuery, slurm
-from hera.simulations.openFoam.OFWorkflow import workflow_Eulerian
-from hera.simulations.openFoam.preprocessOFObjects import OFObjectHome
+from evtk import hl as evtk_hl
+
 from hera.simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
-from hera.simulations.openFoam.postProcess.VTKPipeline import VTKPipeLine
-from hera.simulations.openFoam.lagrangian.StochasticLagrangianSolver import StochasticLagrangianSolver_toolkitExtension
-from hera.utils.jsonutils import loadJSON,JSONVariations
+from hera.simulations.openFoam import (
+    CASETYPE_DECOMPOSED,
+    CASETYPE_RECONSTRUCTED,
+    FIELDTYPE_SCALAR,
+    FIELDTYPE_TENSOR,
+    FIELDTYPE_VECTOR,
+    FLOWTYPE_COMPRESSIBLE,
+    FLOWTYPE_DISPERSION,
+    FLOWTYPE_INCOMPRESSIBLE,
+    TYPE_VTK_FILTER,
+)
+from hera.simulations.openFoam.eulerian.buoyantReactingFoam import (
+    buoyantReactingFoam_toolkitExtension,
+)
+from hera.simulations.openFoam.lagrangian.abstractLagrangianSolver import (
+    readLagrangianRecord,
+)
+from hera.simulations.openFoam.lagrangian.StochasticLagrangianSolver import (
+    StochasticLagrangianSolver_toolkitExtension,
+)
+from hera.simulations.openFoam.OFWorkflow import workflow_Eulerian
+from hera.simulations.openFoam.postprocess.vtkpipeline import VTKPipeLine
+from hera.simulations.openFoam.preprocessOFObjects import OFObjectHome
+from hera.utils import dictToMongoQuery, slurm
+from hera.utils.jsonutils import JSONVariations, loadJSON
 from hera.utils.logging import get_classMethod_logger
-from hera.simulations.openFoam.eulerian.buoyantReactingFoam import buoyantReactingFoam_toolkitExtension
-from hera.simulations.openFoam  import TYPE_VTK_FILTER
-from hera.simulations.openFoam  import FLOWTYPE_DISPERSION, FIELDTYPE_SCALAR, FIELDTYPE_TENSOR, \
-    FIELDTYPE_VECTOR, CASETYPE_DECOMPOSED, CASETYPE_RECONSTRUCTED,FLOWTYPE_COMPRESSIBLE, FLOWTYPE_INCOMPRESSIBLE
-from hera.simulations.openFoam.lagrangian.abstractLagrangianSolver import readLagrangianRecord
+
 
 class OFToolkit(hermesWorkflowToolkit):
     """
@@ -68,6 +84,13 @@ class OFToolkit(hermesWorkflowToolkit):
         self.stochasticLagrangian = StochasticLagrangianSolver_toolkitExtension(self)
         self.buoyantReactingFoam  = buoyantReactingFoam_toolkitExtension(self)
 
+    @property
+    def analysis(self):
+        return self._analysis
+
+    @property
+    def presentation(self):
+        return self._presentation
 
     def runOFSimulation(self,nameOrWorkflowFileOrJSONOrResource,
                         scheduler="local", schedulerHost=None,

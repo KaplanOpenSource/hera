@@ -49,7 +49,7 @@ __all__ = [
     "Unum", "unumSupport",
     "tonumber", "tounit", "tounum",
     # jsonutils
-    "compareJSONS", "ConfigurationToJSON", "JSONToConfiguration",
+    "compareJSONS", "diffJSONS", "ConfigurationToJSON", "JSONToConfiguration",
     "stripConfigurationUnits", "loadJSON",
     "processJSONToPandas", "convertJSONtoPandas",
     "setJSONPath", "JSONVariations", "JSONvariationItem",

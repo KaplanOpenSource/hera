@@ -4,9 +4,9 @@ import { GeoJSON as GeoJSONLayer, MapContainer, TileLayer, useMap } from 'react-
 import L from 'leaflet';
 import type { GeoJSON } from 'geojson';
 import 'leaflet/dist/leaflet.css';
-import { fetchPython } from '../../../io/fetchPython';
+import { serverApi } from '../../../api/api';
 import { InvalidateOnResize } from './InvalidateOnResize';
-import { darkMapControlsSx, DARK_TILE_URL, LIGHT_TILE_URL } from './mapDarkStyles';
+import { darkMapControlsSx, TILE_ATTRIBUTION, TILE_URL } from './mapDarkStyles';
 
 const GEOJSON_EXTENSIONS = /\.(geojson|geo\.json)$/i;
 
@@ -32,27 +32,6 @@ const FitBounds = ({
   return null;
 };
 
-const loadGeoJson = async (path: string): Promise<GeoJSON | null> => {
-  const { data } = await fetchPython({
-    results: ['geojson_data'],
-    label: 'load GeoJSON',
-    code: `
-import geopandas as gpd
-import json
-gdf = gpd.read_file('${path}')
-if gdf.crs and not gdf.crs.is_geographic:
-    gdf = gdf.to_crs(epsg=4326)
-else:
-    bounds = gdf.total_bounds
-    if abs(bounds[0]) > 360 or abs(bounds[1]) > 360:
-        gdf = gdf.set_crs(epsg=2039, allow_override=True)
-        gdf = gdf.to_crs(epsg=4326)
-geojson_data = json.loads(gdf.to_json())
-`,
-  });
-  return data?.geojson_data ?? null;
-};
-
 export const GeoJsonPreview = ({
   path,
 }: {
@@ -64,7 +43,7 @@ export const GeoJsonPreview = ({
   useEffect(() => {
     (async () => {
       setMapState({ geojson: null, bounds: null, hasError: false });
-      const geojson = await loadGeoJson(path);
+      const geojson = await serverApi.geoJson(path);
       if (geojson) {
         const bounds = L.geoJSON(geojson as any).getBounds();
         if (bounds.isValid()) {
@@ -90,7 +69,7 @@ export const GeoJsonPreview = ({
           zoom={8}
           style={{ height: '100%', width: '100%' }}
         >
-          <TileLayer url={dark ? DARK_TILE_URL : LIGHT_TILE_URL} />
+          <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} />
           <GeoJSONLayer data={mapState.geojson as any} />
           <FitBounds bounds={mapState.bounds} />
           <InvalidateOnResize />

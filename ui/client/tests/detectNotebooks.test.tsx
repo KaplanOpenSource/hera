@@ -3,10 +3,9 @@ import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-libra
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockFetchPython = vi.fn();
-vi.mock('../src/io/fetchPython', () => ({
-  fetchPython: (...args: any[]) => mockFetchPython(...args),
-}));
+import { mockApiCall } from './helpers/mockApiCall';
+
+let mockPostJson: ReturnType<typeof vi.fn>;
 
 const mockPushInfo = vi.fn();
 vi.mock('../src/io/snackbar', () => ({
@@ -15,6 +14,7 @@ vi.mock('../src/io/snackbar', () => ({
 
 const { DetectNotebooksButton } = await import('../src/components/project/DetectNotebooksButton');
 const { useProjectStore } = await import('../src/stores/useProjectStore');
+const { useProjectListStore } = await import('../src/stores/useProjectListStore');
 
 afterEach(() => {
   cleanup();
@@ -32,47 +32,48 @@ const configDoc = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockPostJson = mockApiCall().postJson;
   useProjectStore.setState({
-    projectNames: [{ name: 'TestProject' }],
     currProjectName: 'TestProject',
     currProject: { name: 'TestProject', documents: [configDoc] },
   });
+  useProjectListStore.setState({ projectNames: [{ name: 'TestProject' }] });
 });
 
+const clickDetect = async () => {
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: /detect notebooks/i }));
+  });
+};
+
 describe('DetectNotebooksButton', () => {
-  it('scans the files directory for .ipynb files and skips checkpoints', async () => {
-    mockFetchPython.mockResolvedValueOnce({
-      data: { project: { name: 'TestProject', documents: [configDoc] }, addedCount: 0 },
-      problem: undefined,
+  it('sends the project and its files directory to project.detectNotebooks', async () => {
+    mockPostJson.mockResolvedValueOnce({
+      project: { name: 'TestProject', documents: [configDoc] },
+      addedNotebooks: 0,
     });
 
     render(<DetectNotebooksButton />);
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /detect notebooks/i }));
-    });
+    await clickDetect();
 
     await waitFor(() => {
-      expect(mockFetchPython).toHaveBeenCalledTimes(1);
-      const code = mockFetchPython.mock.calls[0][0].code;
-      expect(code).toContain("glob.glob(os.path.join(filesDir, '**', '*.ipynb'), recursive=True)");
-      expect(code).toContain(".ipynb_checkpoints");
-      expect(code).toContain('type="notebook"');
-      expect(code).toContain("'TestProject'");
+      expect(mockPostJson).toHaveBeenCalledTimes(1);
     });
+    const [path, body] = mockPostJson.mock.calls[0];
+    expect(path).toBe('/project/detectNotebooks');
+    expect(body).toEqual({ projectName: 'TestProject', filesDirectory: '/tmp/testproject' });
   });
 
   it('updates the store and reports the count when notebooks are found', async () => {
     const newNotebook = { _id: { $oid: 'nb1' }, desc: { datasourceName: 'Found' }, type: 'notebook', _cls: 'Cache', resource: '/tmp/testproject/Found.ipynb', dataFormat: 'JSON_dict', projectName: 'TestProject' };
-    mockFetchPython.mockResolvedValueOnce({
-      data: { project: { name: 'TestProject', documents: [configDoc, newNotebook] }, addedCount: 1 },
-      problem: undefined,
+    mockPostJson.mockResolvedValueOnce({
+      project: { name: 'TestProject', documents: [configDoc, newNotebook] },
+      addedNotebooks: 1,
     });
 
     const onDetected = vi.fn();
     render(<DetectNotebooksButton onDetected={onDetected} />);
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /detect notebooks/i }));
-    });
+    await clickDetect();
 
     await waitFor(() => {
       expect(useProjectStore.getState().currProject?.documents).toHaveLength(2);
@@ -82,31 +83,27 @@ describe('DetectNotebooksButton', () => {
   });
 
   it('reports when no new notebooks are found', async () => {
-    mockFetchPython.mockResolvedValueOnce({
-      data: { project: { name: 'TestProject', documents: [configDoc] }, addedCount: 0 },
-      problem: undefined,
+    mockPostJson.mockResolvedValueOnce({
+      project: { name: 'TestProject', documents: [configDoc] },
+      addedNotebooks: 0,
     });
 
     render(<DetectNotebooksButton />);
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /detect notebooks/i }));
-    });
+    await clickDetect();
 
     await waitFor(() => {
       expect(mockPushInfo).toHaveBeenCalledWith('No new notebooks found');
     });
   });
 
-  it('does not update the store on error', async () => {
-    mockFetchPython.mockResolvedValueOnce({ data: undefined, problem: 'exec failed' });
+  it('does not update the store when the call failed', async () => {
+    mockPostJson.mockResolvedValueOnce(null);
 
     render(<DetectNotebooksButton />);
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /detect notebooks/i }));
-    });
+    await clickDetect();
 
     await waitFor(() => {
-      expect(mockFetchPython).toHaveBeenCalledTimes(1);
+      expect(mockPostJson).toHaveBeenCalledTimes(1);
     });
     expect(useProjectStore.getState().currProject?.documents).toEqual([configDoc]);
     expect(mockPushInfo).not.toHaveBeenCalled();
