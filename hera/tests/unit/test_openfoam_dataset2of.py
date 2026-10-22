@@ -25,6 +25,7 @@ paths that are currently exposed in the script").
 """
 import logging
 import os
+import pathlib
 import re
 
 import numpy
@@ -654,7 +655,7 @@ def test_datasetToSetFieldsDict_aSingleCellAxisNeedsAnExtent():
 
 @pytest.mark.unit
 def test_theModuleExposesNoPathsAndNoHardCodedProjection():
-    source = open(datasetToOF.__file__).read()
+    source = pathlib.Path(datasetToOF.__file__).read_text()
     code = "\n".join(line for line in source.split("\n") if not line.strip().startswith(("#", "*", '"')))
 
     assert re.search(r"['\"]/(data|home|mnt|opt)\b", code) is None, "an absolute path leaked into the module"

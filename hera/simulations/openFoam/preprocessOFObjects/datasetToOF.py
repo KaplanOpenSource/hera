@@ -123,6 +123,37 @@ def _getTransformer(inputCRS, outputCRS):
     return Transformer.from_crs(f"EPSG:{int(inputCRS)}", f"EPSG:{int(outputCRS)}", always_xy=True)
 
 
+def _transformXY(transformer, x, y):
+    """Project (x, y) with *transformer*, keeping the shape of the input.
+
+    ``Transformer.transform`` first tries a fast path that converts its
+    arguments to scalars.  A one-element array goes down that path, and on
+    NumPy < 2 the conversion is a DeprecationWarning instead of the TypeError
+    that makes pyproj fall back to the array path -- so a single point is
+    passed as floats here to keep that path out of the way.
+
+    Parameters
+    ----------
+    transformer : pyproj.Transformer
+        The transformer, as returned by :func:`_getTransformer`.
+    x, y : array_like
+        The coordinates to project.
+
+    Returns
+    -------
+    (numpy.ndarray, numpy.ndarray)
+        The projected coordinates, shaped like the input.
+    """
+    x = numpy.asarray(x, dtype=float)
+    y = numpy.asarray(y, dtype=float)
+    if x.size == 1 and y.size == 1:
+        outX, outY = transformer.transform(float(x.reshape(-1)[0]), float(y.reshape(-1)[0]))
+    else:
+        outX, outY = transformer.transform(x, y)
+    return (numpy.asarray(outX, dtype=float).reshape(x.shape),
+            numpy.asarray(outY, dtype=float).reshape(y.shape))
+
+
 # ---------------------------------------------------------------------------
 #  Reading the geometry of a case
 # ---------------------------------------------------------------------------
@@ -485,7 +516,7 @@ def interpolateDatasetToPoints(dataset,
     # The case is in a projected CRS (metres); the dataset is usually in
     # lon/lat. always_xy=True keeps 'x' the easting/longitude throughout.
     transformer = _getTransformer(caseCRS, datasetCRS)
-    pointX, pointY = transformer.transform(pointArray[:, 0], pointArray[:, 1])
+    pointX, pointY = _transformXY(transformer, pointArray[:, 0], pointArray[:, 1])
     pointZ = pointArray[:, 2]
 
     variableNames = _fieldMapVariables(fieldMap)
@@ -825,9 +856,7 @@ def datasetToSetFieldsDict(dataset,
     horizontalDimensions = grid["dimensions"]
 
     transformer = _getTransformer(datasetCRS, caseCRS)
-    caseX, caseY = transformer.transform(grid["x"], grid["y"])
-    caseX = numpy.asarray(caseX, dtype=float)
-    caseY = numpy.asarray(caseY, dtype=float)
+    caseX, caseY = _transformXY(transformer, grid["x"], grid["y"])
 
     dimensionOrder = [verticalCoordinate] + horizontalDimensions
     nLevels = int(dataset.sizes[verticalCoordinate])
