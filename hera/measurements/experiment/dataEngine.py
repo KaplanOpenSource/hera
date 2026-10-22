@@ -1,9 +1,11 @@
 import json
-import pymongo
+
 import pandas
+import pymongo
+import pymongo.errors
+
 from ... import datalayer
 from ...utils.logging import get_classMethod_logger
-
 
 PARQUETHERA = 'parquetDataEngingHera'
 PANDASDB = 'pandasDataEngineDB'
@@ -63,7 +65,7 @@ class pandasDataEngineDB:
             self._mongo_client = pymongo.MongoClient(f"mongodb://{self._dbConfiguration['login']['username']}:{self._dbConfiguration['login']['password']}@{self._dbConfiguration['login']['ip']}:{self._dbConfiguration['login']['port']}/")
             try:
                 self._mongo_client.server_info()
-            except OperationFailure as e:
+            except pymongo.errors.OperationFailure as e:
                 return e
         except Exception as e:
             return e
