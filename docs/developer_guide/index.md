@@ -34,5 +34,7 @@ This section is for developers working on or extending the Hera platform. It cov
 
 ## Reference
 
+- **[Coding Guidelines](CODING_GUIDELINES.md)** — Naming conventions and style rules for the Hera codebase (snake_case, exceptions, linting).
+
 - **[Repository Schema](../reference/repository_schema.md)** - Detailed schema documentation for the data repository
 - **[Environment Variables](../configuration/env_vars.md)** - Complete reference of all environment variables

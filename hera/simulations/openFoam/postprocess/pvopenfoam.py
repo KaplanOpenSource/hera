@@ -1,44 +1,43 @@
-
-from itertools import product
-import json
-import pandas
-import numpy
-import dask.dataframe as dd
 import glob
-import shutil
 import os
+import shutil
+from itertools import product
+
+import dask.dataframe as dd
+import numpy
+import pandas
 import xarray
-import tqdm
-from hera.simulations.openFoam import CASETYPE_DECOMPOSED
-from hera import get_classMethod_logger
-from deprecated import deprecated
 from dask.diagnostics import ProgressBar
+from deprecated import deprecated
+
+from hera import get_classMethod_logger
+from hera.simulations.openFoam import CASETYPE_DECOMPOSED
 
 #### import the simple module from the paraview
 try:
-    import vtkmodules.numpy_interface.dataset_adapter as dsa
-    from vtkmodules.vtkCommonDataModel import vtkMultiBlockDataSet
     import paraview.simple as pvsimple
+    import vtkmodules.numpy_interface.dataset_adapter as dsa
     from paraview import servermanager
+
     #### disable automatic camera reset on 'Show'
-    from paraview.servermanager import Proxy
-    from paraview.servermanager import ProxyProperty
+    from paraview.servermanager import Proxy, ProxyProperty
+    from vtkmodules.vtkCommonDataModel import vtkMultiBlockDataSet
 
     pvsimple._DisableFirstRenderCameraReset()
 except ImportError:
     print("paraview module is not Found!. VTK pipeline wont work")
 
-class paraviewOpenFOAM:
+class ParaviewOpenFOAM:
     """
         A class to extract openFOAM file format
         using VTK filters and write as parquet or netcdf files.
     """
 
-    _componentsNames = None  # names of components for reading.
+    _components_names = None  # names of components for reading.
 
-    def __init__(self, casePath,caseType=CASETYPE_DECOMPOSED, servername=None,name="mainreader"):
+    def __init__(self, case_path,case_type=CASETYPE_DECOMPOSED, servername=None):
         """
-            Initializes the paraviewOpenFOAM class.
+            Initializes the ParaviewOpenFOAM class.
 
             Supports single case or decomposed case and
             works with paraview server if initializes.
@@ -46,13 +45,10 @@ class paraviewOpenFOAM:
         Parameters
         -----------
 
-        casePath: str
+        case_path: str
                     A full path to the case directory.
 
-        outputPath : str
-                    The path to save the results in
-
-        CaseType:  str
+        case_type:  str
                 Either 'Decomposed Case' for parallel cases or 'Reconstructed Case'
                 for single processor cases.
 
@@ -63,20 +59,19 @@ class paraviewOpenFOAM:
                 The connection string is printed when the server is initialized.
 
         """
-        logger = get_classMethod_logger(self,"__init__")
         if servername is not None:
             pvsimple.Connect(servername)
 
-        self._componentsNames = {}
+        self._components_names = {}
 
-        self.casePath = casePath
-        self.caseType = caseType
+        self.casePath = case_path
+        self.caseType = case_type
 
         # Array shape length 1 - scalar.
         #					 2 - vector.
         #					 3 - tensor.
         # the dict holds their names.
-        self._componentsNames = {(): "",
+        self._components_names = {(): "",
                                  (0,): "_x",
                                  (1,): "_y",
                                  (2,): "_z",
@@ -89,8 +84,12 @@ class paraviewOpenFOAM:
                                  (2, 0): "_zx",
                                  (2, 1): "_zy",
                                  (2, 2): "_zz"}
+        # The reader is the root of the ParaView pipeline graph.
+        self.reader_name = "reader"
+        self.reader = self.initialize_reader(reader_name=self.reader_name)
 
-    def initializeReader(self, readerName="reader"):
+
+    def initialize_reader(self, reader_name="reader"):
         """
             Constructs a reader and register it in the vtk pipeline.
 
@@ -117,19 +116,47 @@ class paraviewOpenFOAM:
         :return:
                 the reader
         """
-        reader = pvsimple.OpenFOAMReader(FileName="%s/tmp.foam" % self.casePath, CaseType=self.caseType,guiName=readerName)
+        reader = pvsimple.OpenFOAMReader(FileName="%s/tmp.foam" % self.casePath, CaseType=self.caseType,guiName=reader_name)
         reader.MeshRegions.SelectAll()
-        possibleRegions = list(reader.MeshRegions)
-        reader.MeshRegions = possibleRegions
+        possible_regions = list(reader.MeshRegions)
+        reader.MeshRegions = possible_regions
         reader.UpdatePipeline()
 
         # setting the local variable.
         self.reader = reader
-        self.readerName  = readerName
+        self.reader_name  = reader_name
 
         return reader
 
-    def readTimeSteps(self, datasourcenamedict, timelist=None, fieldnames=None, regularMesh=False):
+    @staticmethod
+    def debug_proxy_data(logger, proxy: Proxy, nested=True, depth = 0):
+        """Use to make sure all filter data is set correctly(right before execution)
+
+        Parameters
+        ----------
+            proxy (Proxy): every paraview object with data is a proxy and so is the paraview filter
+            nested (bool, optional): should the debug log go into each sub object(hence creating a tree). Defaults to True.
+            depth (int, optional): the starting depth in the print(mostly internal use). Defaults to 0.
+        """
+        for prop_name in proxy.ListProperties():
+            prop = proxy.GetProperty(prop_name)
+            tree_sign = '├' if prop_name != proxy.ListProperties()[-1] else '╰'
+            print_prefix = f"{'.│'*depth} {f'{tree_sign}─' if depth != 0 else ''}"
+            if isinstance(prop,ProxyProperty):
+                prop_data = prop.GetData()
+                if isinstance(prop_data,Proxy):
+                    logger.debug(f"{print_prefix}{prop_name} -> Proxy of type {prop} with {len(proxy.ListProperties())} properties")
+                    if nested:
+                        depth += 1
+                        ParaviewOpenFOAM.debug_proxy_data(logger, prop_data, depth=depth)
+                        depth -= 1
+                else:
+                    logger.debug(f"{print_prefix}{prop_name} -> {prop_data}")
+            else:
+                logger.debug(f"{print_prefix}{prop_name} -> {prop}")
+
+
+    def read_time_steps(self, datasourcenamedict, timelist=None, fieldnames=None, regular_mesh=False):
         """
             reads a list of datasource lists to a dictionary
 
@@ -152,95 +179,104 @@ class paraviewOpenFOAM:
         For each time step.
                     A map datasourcename -> pandas
         """
-        def debug_proxy_data(proxy: Proxy, nested=True, depth = 0):
-            """Use to make sure all filter data is set correctly(right before execution)
-
-            Parameters
-            ----------
-                proxy (Proxy): every paraview object with data is a proxy and so is the paraview filter
-                nested (bool, optional): should the debug log go into each sub object(hence creating a tree). Defaults to True.
-                depth (int, optional): the starting depth in the print(mostly internal use). Defaults to 0.
-            """
-            for prop_name in proxy.ListProperties():
-                prop = proxy.GetProperty(prop_name)
-                tree_sign = '├' if prop_name != proxy.ListProperties()[-1] else '╰'
-                print_prefix = f"{'.│'*depth} {f'{tree_sign}─' if depth != 0 else ''}"
-                if isinstance(prop,ProxyProperty):
-                    prop_data = prop.GetData()
-                    if isinstance(prop_data,Proxy):
-                        logger.debug(f"{print_prefix}{prop_name} -> Proxy of type {prop} with {len(proxy.ListProperties())} properties")
-                        if nested:
-                            depth += 1
-                            debug_proxy_data(prop_data, depth=depth)
-                            depth -= 1
-                    else:
-                        logger.debug(f"{print_prefix}{prop_name} -> {prop_data}")
-                else:
-                    logger.debug(f"{print_prefix}{prop_name} -> {prop}")
-        
         logger = get_classMethod_logger(self, "readTimeSteps")
         for timeslice in timelist:
             # read the timestep.
             logger.info("\r Reading time step %s" % timeslice)
             ret = {}
-            for filterName,_ in datasourcenamedict.items():
-                datasource = pvsimple.FindSource(filterName)
-                logger.debug(f"Reading source {filterName}")
+            for filter_name,_ in datasourcenamedict.items():
+                datasource = pvsimple.FindSource(filter_name)
+                logger.debug(f"Reading source {filter_name}")
                 assert isinstance(datasource, Proxy)
                 logger.debug("Calculating filter with the following parameters:")
-                debug_proxy_data(datasource)
-                rt = self._readTimeStep(datasource, timeslice, fieldnames, regularMesh)
+                self.debug_proxy_data(logger, datasource)
+                rt = self._readTimeStep(datasource, timeslice, fieldnames, regular_mesh)
                 if rt is not None:
-                    ret[filterName] = rt
+                    ret[filter_name] = rt
             yield ret
 
-    def _parsePointSet(self, pointSet, timeslice, fieldnames, regularMesh):
+    def get_data_fields(self, fieldnames: list[str], timelist: list[int] | None = None,
+                        regular_mesh: bool = False) -> pandas.DataFrame | xarray.Dataset:
+        """Convenience wrapper that returns only the requested *fieldnames*.
+
+        Parameters
+        ----------
+        fieldnames: list[str]
+            List of VTK field names to extract.
+        timelist: list[int] | None, optional
+            Specific timesteps to read; ``None`` reads all available timesteps.
+        regularMesh: bool, optional
+            If ``True`` the method returns xarray Datasets; otherwise pandas DataFrames.
+
+        Returns
+        -------
+        pandas.DataFrame | xarray.Dataset
+            Reader fields as either xarray or pandas based on regularMesh
+        """
+        timesteps_res = [x for x in self.read_time_steps({self.reader_name: self.reader},
+                                            timelist=timelist,
+                                            fieldnames=fieldnames,
+                                            regular_mesh=regular_mesh)]
+        res = pandas.concat(timesteps_res) if not regular_mesh else xarray.concat(timesteps_res, dim="time")
+        return res
+
+    def _parse_point_set(self, point_set, timeslice, fieldnames, regular_mesh):
         """Parse a VTK point set into a pandas DataFrame or xarray Dataset."""
-        logger = get_classMethod_logger(self, "_parsePointSet")
-        if isinstance(pointSet.Points, dsa.VTKNoneArray):
+        logger = get_classMethod_logger(self, "_parse_point_set")
+        if isinstance(point_set.Points, dsa.VTKNoneArray):
             logger.debug("No data exists for filter... return with None")
             return None
-        elif isinstance(pointSet.Points, dsa.VTKArray):
-            points = numpy.array(pointSet.Points).squeeze()
+        elif isinstance(point_set.Points, dsa.VTKArray):
+            points = numpy.array(point_set.Points).squeeze()
         else:
-            points = numpy.concatenate([numpy.array(x) for x in pointSet.Points.GetArrays()]).squeeze()
+            points = numpy.concatenate([numpy.array(x) for x in point_set.Points.GetArrays()]).squeeze()
 
-        logger.debug(f"Filter has {points.shape[0]} points. Building basic dataFrame. ")
+        dims = ", ".join(f"{i}: {shape}" for i, shape in enumerate(points.shape))
+        if len(points.shape) == 0:
+            logger.debug("Filter has empty shape")
+        elif len(points.shape) == 1:
+            logger.debug(f"Filter has {points.shape[0]} points. Building basic dataFrame.")
+        else:
+            logger.debug(f"Filter has shape {dims}.")
+
 
         # For filters like integrate, the len points.shape==1, and therefore [:,0] will break the code.
         # However, it means that there are no points, and therefore we will skip it.
         if len(points.shape)==2:
             # create index
+            logger.debug("creating dataframe from filter with 2 dimensional output")
             curstep = pandas.DataFrame()
             curstep['x'] = points[:, 0]
             curstep['y'] = points[:, 1]
             curstep['z'] = points[:, 2]
+            logger.debug(f"-----------------\ncurstep looks like: {curstep}\nand\n{timeslice}\n-------------")
             curstep['time'] = timeslice
+
             curstep = curstep.assign(x=curstep.x.round(7), y=curstep.y.round(7), z=curstep.z.round(7),
                                      time=curstep.time.round(7))
         else:
             curstep = pandas.DataFrame([dict(time=timeslice)])
 
-        fieldlist = pointSet.PointData.keys() if fieldnames is None else fieldnames
+        fieldlist = point_set.PointData.keys() if fieldnames is None else fieldnames
         for field in fieldlist:
-            if isinstance(pointSet.PointData[field], dsa.VTKNoneArray):
+            if isinstance(point_set.PointData[field], dsa.VTKNoneArray):
                 continue
-            elif isinstance(pointSet.PointData[field], dsa.VTKArray):
-                arry = numpy.array(pointSet.PointData[field]).squeeze()
+            elif isinstance(point_set.PointData[field], dsa.VTKArray):
+                arry = numpy.array(point_set.PointData[field]).squeeze()
             else:
-                arry = numpy.concatenate([numpy.array(x) for x in pointSet.PointData[field].GetArrays() if not isinstance(x,dsa.VTKNoneArray)]).squeeze()
+                arry = numpy.concatenate([numpy.array(x) for x in point_set.PointData[field].GetArrays() if not isinstance(x,dsa.VTKNoneArray)]).squeeze()
 
             # Array shape length 0 - Integration - a scalar that is not a field.
             #                    1 - scalar.
             #					 2 - vector.
             #					 3 - tensor.
             # the dict holds their names.
-            TypeIndex = len(arry.shape) - 1
-            if TypeIndex >=0:
-                for indxiter in product(*([range(3)] * TypeIndex)):
-                    L = tuple([slice(None, None, None)] + list(indxiter))
+            type_index = len(arry.shape) - 1
+            if type_index >=0:
+                for index_iter in product(*([range(3)] * type_index)):
+                    tensor_index = tuple([slice(None, None, None)] + list(index_iter))
                     try:
-                        curstep["%s%s" % (field, self._componentsNames[indxiter])] = arry[L]
+                        curstep["%s%s" % (field, self._components_names[index_iter])] = arry[tensor_index]
                     except ValueError:
                         logger.warning("Field %s is problematic... ommiting" % field)
             else:
@@ -249,19 +285,22 @@ class paraviewOpenFOAM:
                 curstep[field] = val
 
         if 'x' in curstep:
-            curstep = curstep.set_index(['time', 'x', 'y', 'z']).to_xarray() if regularMesh else curstep
+            curstep = curstep.set_index(['time', 'x', 'y', 'z']).to_xarray() if regular_mesh else curstep
         else:
-            curstep = curstep.set_index(['time']).to_xarray() if regularMesh else curstep
-        
+            curstep = curstep.set_index(['time']).to_xarray() if regular_mesh else curstep
+
         return curstep
 
     def _parseMultiBlockDataSet(self, multiBlock, timeslice, fieldnames, regularMesh):
         """Parse a VTK multi-block dataset, preserving block names."""
+        logger = get_classMethod_logger(self, "_parseMultiBlockDataSet")
+
         num_blocks = multiBlock.GetNumberOfBlocks()
+        logger.debug(f"multi block dataset contains {num_blocks} blocks")
         final_data = []
         if num_blocks == 0:
             return final_data
-        
+
         # name doesn't matter and list doesn't have to be used
         elif num_blocks == 1:
             return self._parseVTKData(multiBlock.GetBlock(0), timeslice, fieldnames, regularMesh)
@@ -305,6 +344,8 @@ class paraviewOpenFOAM:
                 blockName = blockMetaData.Get(blockMetaDataNameKey)
         return blockName
 
+
+
     def _parseVTKData(self, data, timeslice, fieldnames, regularMesh):
         """Recursively going over the vtk data and generating a final dataframe trying to keep the block name
 
@@ -322,13 +363,15 @@ class paraviewOpenFOAM:
         """
         logger = get_classMethod_logger(self, "_parseVTKWrappedData")
         logger.debug(f"Parsing VTK raw data of type {type(data)}")
-        
+
         # composite data needs to be parsed as ktk objects to retain the block names
         data = dsa.WrapDataObject(data) if not isinstance(data, vtkMultiBlockDataSet) else data
         # make sure we bring back composite data to their vtkMultiBlockDataSet structure 
-        data = data.VTKObject if isinstance(data, dsa.CompositeDataSet) else data
+        if isinstance(data, dsa.CompositeDataSet):
+            logger.debug(f"{data} is dsa.CompositeDataSet, taking its VTKObject")
+            data = data.VTKObject
         logger.debug(f"Normalized raw data to type {type(data)}")
-        
+
         # instead of using the wrapped data we iterate over it to get the name of the blocks
         # required when block data has similar structure and the name is required to associate the values
         if isinstance(data, vtkMultiBlockDataSet):
@@ -338,7 +381,7 @@ class paraviewOpenFOAM:
             logger.info("Parsing point data")
             #  the cases we encountered with dsa.PolyData just needed the PointSet data
             # hence JUST FOR NOW they all get funneled to _pointSetParser
-            return self._parsePointSet(data, timeslice, fieldnames, regularMesh)
+            return self._parse_point_set(data, timeslice, fieldnames, regularMesh)
         elif isinstance(data, dsa.Table):
             logger.info("Parsing table data")
             return self._parseTable(data, timeslice, regularMesh)
@@ -356,9 +399,9 @@ class paraviewOpenFOAM:
 
     def _readTimeStep(self, datasource, timeslice, fieldnames=None, regularMesh=False):
         """Fetch and parse data from a VTK source at a given time slice."""
-        # read the timestep.
-        logger = get_classMethod_logger(self, "_readTimeStep")
 
+
+        # compute the pipeline for the specific timestep (paraview works lazily)
         datasource.UpdatePipeline(timeslice)
         # parview works as a server always so we must request the data from the datasource using servermanager.Fetch
         # pre and post processing algorithms may be applied by secifying arg1(pre) and arg2(post) and client port with idx
@@ -485,9 +528,9 @@ class paraviewOpenFOAM:
         blockID = 0
         tempList = []
 
-        for filtersData in tqdm.tqdm(self.readTimeSteps(
+        for filtersData in self.read_time_steps(
                 datasourcenamedict=filtersDict, timelist=readTimesList,
-                fieldnames=fieldnames, regularMesh=regularMesh)):
+                fieldnames=fieldnames, regular_mesh=regularMesh): # tqdm.tqdm():
             tempList.append(filtersData)
             logger.debug(f"Current dataFrames in memory  {len(tempList)}")
             # Flush the block to disk once it reaches the target size.
@@ -516,14 +559,13 @@ class paraviewOpenFOAM:
         """
         logger = get_classMethod_logger(self, "_mergeToFinalOutput")
         logger.debug(f"Saving all data to {outputFile}: {tmpFiles}")
-
         with ProgressBar():
             if regularMesh:
-                self._mergeZarr(outputFile, tmpFiles, append)
+                self._merge_zarr(outputFile, tmpFiles, append)
             else:
-                self._mergeParquet(outputFile, tmpFiles, append)
+                self._merge_parquet(outputFile, tmpFiles, append)
 
-    def _mergeZarr(self, outputFile, tmpFiles, append):
+    def _merge_zarr(self, outputFile, tmpFiles, append):
         """Concatenate temporary zarr blocks, optionally appending old data."""
         lazy_ds = xarray.open_mfdataset(tmpFiles, chunks='auto', engine="zarr")
         # If appending, include previously saved data so nothing is lost.
@@ -536,16 +578,19 @@ class paraviewOpenFOAM:
             # somethimes this works and sometimes the other. not clear yet when...
             lazy_ds.chunk("auto").to_zarr(f"{outputFile}.final", mode='w')
 
-    def _mergeParquet(self, outputFile, tmpFiles, append):
+    def _merge_parquet(self, output_file:str, tmp_files:list[str], append_to_output:bool):
         """Concatenate temporary parquet blocks, repartition to ~100 MB, index by time."""
-        newDataList = [dd.read_parquet(fileName) for fileName in tmpFiles]
+        _ = get_classMethod_logger(self, "_mergeParquet")
+        new_data_list = [dd.read_parquet(fileName) for fileName in tmp_files]
         # If appending, include the previously saved parquet data.
-        if append and os.path.exists(outputFile):
-            newDataList.append(dd.read_parquet(outputFile))
-        dd.concat(newDataList).repartition(partition_size="100MB") \
-            .reset_index() \
-            .set_index("time") \
-            .to_parquet(f"{outputFile}.final")
+        if append_to_output and os.path.exists(output_file):
+            new_data_list.append(dd.read_parquet(output_file))
+        res = dd.concat(new_data_list)
+        # a = a.repartition(partition_size="100MB")
+        res = res.reset_index()
+        res = res.set_index("time")
+
+        res.to_parquet(f"{output_file}.final")
 
     def _atomicReplace(self, outputFile):
         """Atomically swap the '.final' staging file into the target output path.
@@ -609,22 +654,22 @@ class paraviewOpenFOAM:
     @deprecated(reason="Old Name, use readTimeSteps with regularMesh=False")
     def to_pandas(self, datasourcenamelist, timelist=None, fieldnames=None):
         """Read time steps as pandas DataFrames (deprecated)."""
-        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regularMesh=False)
+        return self.read_time_steps(datasourcenamelist, timelist, fieldnames, regular_mesh=False)
 
     @deprecated(reason="Old Name, use readTimeSteps with regularMesh=True")
     def to_xarray(self, datasourcenamelist, timelist=None, fieldnames=None):
         """Read time steps as xarray Datasets (deprecated)."""
-        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regularMesh=True)
+        return self.read_time_steps(datasourcenamelist, timelist, fieldnames, regular_mesh=True)
 
     @deprecated(reason="Old Name, use readTimeSteps with regularMesh=False")
     def to_dataFrame(self, datasourcenamelist, timelist=None, fieldnames=None):
         """Read time steps as pandas DataFrames (deprecated)."""
-        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regularMesh=False)
+        return self.read_time_steps(datasourcenamelist, timelist, fieldnames, regular_mesh=False)
 
     @deprecated(reason="Old Name, use readTimeSteps with regularMesh=True")
     def to_dataArray(self, datasourcenamelist, timelist=None, fieldnames=None):
         """Read time steps as xarray DataArrays (deprecated)."""
-        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regularMesh=True)
+        return self.read_time_steps(datasourcenamelist, timelist, fieldnames, regular_mesh=True)
 
     @deprecated(reason="Use writeCase instead")
     def write_parquet(self, datasourcenamelist, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False,
