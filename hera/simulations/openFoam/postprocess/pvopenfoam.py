@@ -129,7 +129,7 @@ class ParaviewOpenFOAM:
         return reader
 
     @staticmethod
-    def debug_proxy_data(logger, proxy: Proxy, nested=True, depth = 0):
+    def debug_proxy_data(logger, proxy, nested=True, depth = 0):
         """Use to make sure all filter data is set correctly(right before execution)
 
         Parameters
