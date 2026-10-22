@@ -238,7 +238,7 @@ def workflow_sync_to_db(arguments):
         else:
             import pandas
 
-            from ..utils import diffJSONS, loadJSON
+            from ..utils import compareJSONS, diffJSONS, loadJSON
             localWorkflow = wftk.getHermesWorkflowFromJSON(loadJSON(outfileName),name="Local", resource=outfileName)
             simName = sim.name
             sim.name = "DB"
@@ -369,7 +369,7 @@ def batch_delete_workflows(arguments):
 
 
 def _confirm_project_name(arguments, logger):
-    from ..utils import loadJSON
+    from hera.utils import loadJSON
     if arguments.projectName is None:
         logger.debug(
             "projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
@@ -491,7 +491,7 @@ def workflowNodes_list(arguments):
     if os.path.exists(arguments.workflowName) and not os.path.isdir(arguments.workflowName):
             from hermes import workflow
 
-            from ..utils import loadJSON
+            from hera.utils import loadJSON
             json = loadJSON(arguments.workflowName)
             hermesObject = workflow(json, Resource_path=arguments.workflowName)
     else:
@@ -540,7 +540,7 @@ def workflowNodes_listParameters(arguments):
     if os.path.isfile(arguments.workflowName):
             from hermes import workflow
 
-            from ..utils import loadJSON
+            from hera.utils import loadJSON
             json = loadJSON(arguments.workflowName)
             hermesObject = workflow(json, Resource_path=arguments.workflowName)
     else:
@@ -607,7 +607,7 @@ def workflow_compare(arguments):
         output = res.to_csv()
         ext = "csv"
     else:
-        from ..utils import loadJSON
+        from hera.utils import loadJSON
         output = json.dumps(loadJSON(res.to_json()),indent=4)
         ext = "json"
 

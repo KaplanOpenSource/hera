@@ -1,5 +1,5 @@
-from ...datalayer import project
-from ..utils import tonumber, tounit
+from hera.datalayer import project
+from hera.utils import tonumber, tounit
 from hera.utils.unitHandler import ureg, unumToPint
 import numpy
 
