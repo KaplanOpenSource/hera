@@ -277,6 +277,7 @@ class RegisteredVTKPipeLine:
                 if os.path.exists(outputFile):
                     if os.path.isfile(outputFile):
                         os.remove(outputFile)
+                    else:
                         shutil.rmtree(outputFile)
 
     def getData(self, regularMesh, filter_name=None, time_list=None, latestTime=False, fieldNames=None, overwrite=False, mesh_region=None):
