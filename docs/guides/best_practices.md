@@ -347,7 +347,7 @@ class MyPresentation:
         return ax
 ```
 
-### Registering Custom Toolkits
+### Registering New Toolkits
 
 **Option 1: Static registration** (only for toolkits that ship inside Hera)
 
