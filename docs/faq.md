@@ -92,7 +92,7 @@ Use **Measurements** for:
 
 ### How do I query documents across all collections?
 
-Query each collection separately:
+Use `getAllDocuments()` to query the Measurements, Simulations and Cache collections together, or query each collection separately:
 
 ```python
 proj = Project(projectName="MY_PROJECT")
@@ -105,9 +105,10 @@ sims = proj.getSimulationsDocuments(type="MySimulationType")
 
 # Query cache
 cache = proj.getCacheDocuments(type="MyCacheType")
-```
 
-There's no cross-collection query — the `_cls` discriminator enforces separation.
+# All three collections at once
+everything = proj.getAllDocuments(type="MyType")
+```
 
 ---
 
@@ -117,21 +118,25 @@ There's no cross-collection query — the `_cls` discriminator enforces separati
 
 **Option 1: Register dynamically (runtime)**
 
+The toolkit directory must contain a module named after the toolkit that defines a class of the same name (`<toolkit_name>.<toolkit_name>`, e.g. `/path/to/toolkits/MyCustomToolkit/MyCustomToolkit.py` with `class MyCustomToolkit`), and the name must not shadow an importable module.
+
 ```python
 from hera import toolkitHome
 
 toolkitHome.registerToolkit(
-    toolkitclass="my_package.MyCustomToolkit",
-    datasource_name="MyCustomToolkit",
-    projectName="MY_PROJECT",
-    repositoryName="defaultRepo",
-    version=[0, 0, 1]
+    toolkit_name="MyCustomToolkit",
+    toolkit_path="/path/to/toolkits/MyCustomToolkit",
+    version=(0, 0, 1),
+    overwrite=False,
 )
+tk = toolkitHome.getToolkit("MyCustomToolkit", projectName="MY_PROJECT")
 ```
 
-**Option 2: Add to static registry**
+The registration is stored in the default project, so it is visible from every project. The CLI equivalent is `hera-project addToolkit MyCustomToolkit /path/to/toolkits/MyCustomToolkit`.
 
-Edit `hera/toolkit.py` and add to the `_toolkits` dict in `ToolkitHome.__init__()`:
+**Option 2: Add to static registry (built-in toolkits only)**
+
+For toolkits that ship inside Hera itself, edit `hera/toolkit.py` and add to the `_toolkits` dict in `ToolkitHome.__init__()` (do not do this for external toolkits — use Option 1):
 
 ```python
 self._toolkits["MyCustomToolkit"] = {
@@ -141,15 +146,15 @@ self._toolkits["MyCustomToolkit"] = {
 }
 ```
 
-**Option 3: Via repository JSON**
+**Option 3: Auto-register from a classpath hint**
 
-Include a `Registry` section with classpath hints (see [Repository Schema](reference/repository_schema.md)).
+`toolkitHome.auto_register_and_get(toolkitName, repositoryJSON=..., repositoryName=..., params=..., version=...)` registers the toolkit if it is missing and returns an instance. Note that a repository JSON alone does **not** register toolkits: keys that `getToolkit()` cannot resolve are skipped (see [Repository Schema](reference/repository_schema.md)).
 
 ---
 
-### Why does `getToolkit()` return None?
+### Why does `getToolkit()` fail?
 
-Possible causes:
+`getToolkit()` never returns `None`: it raises `ValueError("Toolkit '<name>' not found in static registry, ToolkitDataSource, or experiment toolkit ...")` or an `ImportError` when the class cannot be imported. Possible causes:
 
 1. **Toolkit name misspelled** — Names are case-sensitive
 2. **Toolkit not registered** — Check `toolkitHome.getToolkitTable(projectName)`
@@ -165,8 +170,8 @@ from hera import toolkitHome
 table = toolkitHome.getToolkitTable("MY_PROJECT")
 print(table)
 
-# Check if toolkit exists
-if "MeteoLowFreq" in table.index:
+# Check if toolkit exists (columns: toolkit, cls, source, type, repositoryName, version)
+if "MeteoLowFreq" in table["toolkit"].values:
     print("Toolkit found")
 else:
     print("Toolkit not registered")
@@ -208,9 +213,7 @@ risk = toolkitHome.getToolkit(toolkitHome.RISKASSESSMENT, projectName="MY_PROJEC
                     "resource": "data/YAVNEEL.parquet",
                     "dataFormat": "parquet",
                     "version": [0, 0, 1],
-                    "desc": {
-                        "stationName": "YAVNEEL"
-                    }
+                    "stationName": "YAVNEEL"
                 }
             }
         }
@@ -218,17 +221,17 @@ risk = toolkitHome.getToolkit(toolkitHome.RISKASSESSMENT, projectName="MY_PROJEC
 }
 ```
 
-2. **Save as `repository.json`**
+2. **Save as `myRepo.json`** (the repository is registered under the file's base name)
 3. **Register it:**
 
 ```bash
-hera-project repository add myRepo /path/to/repository.json
+hera-project repository add /path/to/myRepo.json   # registered as "myRepo"
 ```
 
 4. **Load into a project:**
 
 ```bash
-hera-project repository load myRepo MY_PROJECT
+hera-project repository load /path/to/myRepo.json MY_PROJECT
 ```
 
 See [Repository Examples](examples/repository_examples.md) for complete examples.
@@ -321,9 +324,9 @@ for doc in docs:
 The system uses this priority:
 
 1. **Default version** (if set via `setDataSourceDefaultVersion()`)
-2. **Highest version** (if multiple versions exist, picks the one with the highest tuple)
+2. **Highest version** (if multiple versions exist, picks the one with the highest tuple and saves it as the default in the project config)
 3. **Single version** (if only one version exists, uses it)
-4. **None** (if no datasource found)
+4. **None** (`getDataSourceData()` returns `None` if no datasource is found)
 
 ---
 
@@ -338,11 +341,11 @@ Use **dask** for lazy loading:
 df = toolkit.getDataSourceData("LARGE_DATASET")  # Returns dask DataFrame
 
 # Materialize only when needed
-df_small = df.head(1000).compute()  # Only loads first 1000 rows
+df_small = df.head(1000)  # dask's head() computes only the first partition, returns pandas
 
 # Process in chunks
-for chunk in df.repartition(partition_size="100MB"):
-    result = process_chunk(chunk.compute())
+for part in df.repartition(partition_size="100MB").partitions:
+    result = process_chunk(part.compute())
 ```
 
 See [Best Practices: Performance](guides/best_practices.md#performance) for more tips.
@@ -354,7 +357,7 @@ See [Best Practices: Performance](guides/best_practices.md#performance) for more
 - **Use specific filters** — Narrow down queries with `type`, `toolkit`, etc.
 - **Index frequently queried fields** — MongoDB automatically indexes `projectName` and `_cls`
 - **Limit result sets** — Use `getDataSourceList()` instead of loading all documents
-- **Cache config** — Project config is cached after first access
+- **Avoid repeated `getConfig()` calls in loops** — each call reads the config document from MongoDB
 
 ---
 
@@ -368,7 +371,7 @@ For detailed troubleshooting, see the [Troubleshooting Guide](troubleshooting.md
 
 - **`IOError: config file doesn't exist`** → Create `~/.pyhera/config.json`
 - **`ConnectionRefusedError`** → Start MongoDB
-- **`getToolkit() returns None`** → Check toolkit name spelling, verify registration
+- **`ValueError: Toolkit '...' not found`** → Check toolkit name spelling, verify registration
 - **`getDataSourceData() returns None`** → Verify datasource name, check if repository was loaded
 
 ---

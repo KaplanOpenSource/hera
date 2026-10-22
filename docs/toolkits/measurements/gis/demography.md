@@ -2,7 +2,9 @@
 
 **Toolkit name:** `GIS_Demography`
 
-Population data analysis from census shapefiles.
+**Class:** `hera.measurements.GIS.vector.demography.DemographyToolkit` (internal toolkit name `Demography`)
+
+Population data analysis from census shapefiles. On creation the toolkit also opens the `GIS_Buildings` toolkit of the same project (available as `demo.buildings`), which `createNewArea` uses for convex hulls.
 
 **Data source format:**
 
@@ -12,25 +14,37 @@ Population data analysis from census shapefiles.
 | Geometry type | `Polygon` (census areas / statistical zones) |
 | Required columns | `geometry`, `total_pop` (total population) |
 | Optional columns | `age_0_14` (children), `age_15_19` (youth), `age_20_29` (young adults), `age_30_64` (adults), `age_65_up` (elderly) |
-| CRS | Any (toolkit handles transformation; internally uses ITM EPSG:2039) |
+| CRS | Any, but it must be set on the data. Query polygons must be in the same CRS as the data; areas are computed after reprojecting to ITM (EPSG:2039). |
 
-The toolkit maps display names to column names: `"All"` → `total_pop`, `"Children"` → `age_0_14`, etc.
+The toolkit maps display names to column names (`demo.populationTypes`): `"All"` → `total_pop`, `"Children"` → `age_0_14`, `"Youth"` → `age_15_19`, `"YoungAdults"` → `age_20_29`, `"Adults"` → `age_30_64`, `"Elderly"` → `age_65_up`.
 
 ```python
+from hera import toolkitHome
+
 demo = toolkitHome.getToolkit(toolkitHome.GIS_DEMOGRAPHY, projectName="MY_PROJECT")
 
-# Calculate population within a polygon
+# Register a census shapefile as a datasource (dataFormat "geopandas")
+demo.loadData("census_2020", "/data/census/population.shp")
+
+# Calculate population within a shapely polygon.
+# Returns a GeoDataFrame of the intersected census polygons with an 'areaFraction'
+# column and each population column scaled by that fraction.
 pop = demo.analysis.calculatePopulationInPolygon(
     shapelyPolygon=my_area,
-    dataSourceOrData="census_2020"
+    dataSourceOrData="census_2020",   # datasource name, file path, GeoJSON string or GeoDataFrame
+    populationTypes=None,             # None = all population types; or e.g. "All" / ["Children", "Elderly"]
 )
+total = pop["total_pop"].sum()
 
-# Create a new area GeoDataFrame
-area_gdf = demo.analysis.createNewArea(
-    shapeNameOrData=my_area,
+# Create a single-polygon area whose population is the sum of all intersecting census polygons
+area = demo.analysis.createNewArea(
+    shapeNameOrData=my_area,          # shapely polygon or GeoDataFrame (convex hull taken when convex=True)
     dataSourceOrData="census_2020"
 )
+area_gdf = area.getData()
 ```
+
+`createNewArea` can also save the result with `saveMode` (`TOOLKIT_SAVEMODE_ONLYFILE`, `TOOLKIT_SAVEMODE_ONLYFILE_REPLACE`, `TOOLKIT_SAVEMODE_FILEANDDB`, ... from `hera.toolkit`) and `regionName`; with `TOOLKIT_SAVEMODE_FILEANDDB` it returns the new DB document instead of a data wrapper. Passing a shape *name* (string) as `shapeNameOrData` is not supported in master (it depends on a shapes toolkit that is not wired up).
 
 ## Presentation layer
 
@@ -52,7 +66,7 @@ from hera.utils.unitHandler import ureg
 | `plotArea(area)` | Custom area with population annotation | `annotate`, `contextData` |
 | `plotPopulationOnMap(data, tiles)` | Population overlaid on tile server map | `density`, `density_units`, `alpha`, `zoomlevel` |
 
-All methods support: `ax`, `figsize`, `cmap`, `vmin`/`vmax`, `alpha`, `edgecolor`, `linewidth`, `colorbar`, `title`, `xlim`/`ylim`, `inputCRS`, `outputCRS`.
+Most methods accept `ax`, `figsize`, `cmap`, `vmin`/`vmax`, `alpha`, `edgecolor`, `linewidth`, `colorbar`, `colorbar_label`, `title`, `xlim`/`ylim`, `inputCRS`, `outputCRS` (default ITM). Exceptions: `plotPopulationByType` accepts only `populationTypes`, `figsize`, `ncols`, `cmap`, `alpha`, `edgecolor`, `linewidth`, `inputCRS`, `outputCRS` and returns a `Figure`; `plotArea` has no colormap arguments (`areaColor`, `contextColor` instead); `plotPopulationOnMap` has no `xlim`/`ylim`. `inputCRS` declares the CRS of the data (it is set, not transformed); `outputCRS` is the CRS the data is reprojected to for plotting.
 
 **Plot population density** (people per area unit):
 
@@ -147,6 +161,11 @@ ax = demo.presentation.plotArea(
 
 **Overlay population on a tile server map:**
 
+!!! warning "Known issue in master"
+    `plotPopulationOnMap` fetches the tile image with `outputCRS=ITM` but then calls
+    `tiles.presentation.plot(...)` with the default `inputCRS=WSG84`, so the background image
+    extent is mis-converted (`demography.py`, `plotPopulationOnMap`). The population layer itself is correct.
+
 ```python
 tiles = toolkitHome.getToolkit(toolkitHome.GIS_TILES, projectName="MY_PROJECT")
 
@@ -180,4 +199,4 @@ ax = demo.presentation.plotPopulationOnMap(
 | `ITM` | 2039 | Israeli Transverse Mercator (meters) — default for plotting |
 | `WSG84` | 4326 | WGS84 (degrees lat/lon) |
 
-For the full API, see the [API Reference](../../developer_guide/api/measurements.md).
+For the full API, see the [API Reference](../../../developer_guide/api/measurements.md).

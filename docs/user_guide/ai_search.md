@@ -8,7 +8,7 @@ The entire pipeline runs locally — no data is sent to external services.
 
 ## How it works
 
-When enabled, a floating search button appears on every documentation page. Click it to open a search panel where you can type questions in plain English. The system:
+When enabled, a floating "Ask AI" button appears on every documentation page. Click it to open a search panel where you can type questions in plain English. The system:
 
 1. Searches the indexed docs and docstrings for relevant content (via Qdrant vector search)
 2. Fetches full text from Cassandra (source of truth)
@@ -27,7 +27,16 @@ make rag-setup
 make rag-docs-serve
 ```
 
-This starts all services, downloads the LLM model, builds the index, starts the API, and serves the docs with the search widget enabled.
+`make rag-setup` installs the `rag` extra, starts all services, downloads the LLM model and builds the index (clean rebuild). `make rag-docs-serve` then starts the API in the background and serves the docs with `RAG_ENABLED=true` — which the settings ignore (see the note below); export `RAG_RAG_ENABLED=true` yourself.
+
+!!! warning "The widget needs the MkDocs plugin registered"
+    The widget is injected by the `hera_rag_search` MkDocs plugin (`hera.utils.rag.serve:HeraMkDocsPlugin`, registered as an entry point in `setup.py`). The repository's `mkdocs.yml` does not list it under `plugins:` at the moment, so to see the widget add it yourself:
+
+    ```yaml
+    plugins:
+      - search
+      - hera_rag_search
+    ```
 
 For step-by-step control, follow the three phases below.
 
@@ -71,11 +80,14 @@ make rag-ollama-up       # LLM server
 make rag-ollama-pull
 ```
 
-This downloads the default model (`llama3`, ~4 GB). To use a different model:
+This downloads the default model (`llama3`, ~4 GB) into the `hera-ollama` container. To use a different model, pull it and point Hera at it with `RAG_OLLAMA_MODEL` (the Makefile variable `OLLAMA_MODEL` only controls what is pulled):
 
 ```bash
 OLLAMA_MODEL=mistral make rag-ollama-pull
+export RAG_OLLAMA_MODEL=mistral
 ```
+
+If you already run Ollama natively on the host, use `make rag-services-up-native` (Qdrant + Cassandra only) and set `RAG_OLLAMA_BASE_URL` to your Ollama instance.
 
 ### Verify services are running
 
@@ -97,7 +109,7 @@ Override with environment variables: `QDRANT_DATA`, `CASS_DATA`, `OLLAMA_DATA`.
 
 ### Configuration
 
-All RAG settings use the `RAG_` prefix and can be set in a `.env` file (see `.env.example`):
+All RAG settings (`hera/utils/rag/config.py`) use the `RAG_` prefix and can be set as environment variables or in a `.env` file in the directory you run from (see `.env.example`):
 
 ```bash
 # .env (in project root)
@@ -111,6 +123,25 @@ RAG_EMBED_MODEL=BAAI/bge-small-en-v1.5
 RAG_TOP_K=5
 RAG_CHUNK_SIZE=1000
 ```
+
+Other settings and their defaults:
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `RAG_RAG_ENABLED` | `false` | Inject the docs widget (MkDocs plugin) |
+| `RAG_RAG_API_URL` | `http://localhost:8765` | API URL the widget calls |
+| `RAG_API_HOST` / `RAG_API_PORT` | `0.0.0.0` / `8765` | Where `hera-rag-search serve` listens (all interfaces by default) |
+| `RAG_OLLAMA_TIMEOUT` | `120` | Ollama request timeout (seconds) |
+| `RAG_CHUNK_OVERLAP` | `150` | Overlap of the sliding window for long sections |
+| `RAG_MIN_CHUNK_CHARS` | `80` | Chunks shorter than this are skipped |
+| `RAG_CASSANDRA_KEYSPACE` | `hera_rag` | Cassandra keyspace (created automatically) |
+| `RAG_QDRANT_COLLECTION` | `hera_docs` | Qdrant collection (created automatically) |
+| `RAG_EMBED_DIM` | `384` | Embedding size; must match `RAG_EMBED_MODEL` |
+| `RAG_MODELS_CACHE_DIR` | `~/.pyhera/rag_models` | Local cache for the embedding model |
+| `RAG_OFFLINE_MODE` | `false` | Never download; the embedding model must already be cached |
+
+!!! note "Doubled prefix"
+    pydantic-settings prepends `RAG_` to each field name, and these two fields are named `rag_enabled` / `rag_api_url` (`hera/utils/rag/config.py:55-58`), so the variables are `RAG_RAG_ENABLED` and `RAG_RAG_API_URL`. Plain `RAG_ENABLED` (used by the `rag-docs-*` Makefile targets) has no effect.
 
 ---
 
@@ -140,33 +171,35 @@ hera-rag-search index --docs docs --code hera
 
 | Content type | Source | Chunking strategy |
 |-------------|--------|------------------|
-| **Markdown docs** | `docs/**/*.md` | Split by headings (H1/H2/H3), sliding window for long sections |
+| **Markdown docs** | `docs/**/*.md`, `docs/**/*.mdx` | Split by headings (H1/H2/H3), sliding window (`RAG_CHUNK_SIZE`, `RAG_CHUNK_OVERLAP`) for long sections |
 | **Python docstrings** | `hera/**/*.py` | One chunk per module/class/function docstring (AST-parsed) |
 | **Jupyter notebooks** | `docs/**/*.ipynb` | One chunk per cell |
 
-Small chunks (< 80 characters) are automatically skipped.
+Small chunks (< `RAG_MIN_CHUNK_CHARS`, default 80 characters) are automatically skipped.
 
 ### Index output
 
 After indexing, you'll see a summary like:
 
 ```
-Indexed: 450 doc chunks, 380 docstrings, 25 notebook cells
-Total: 855 chunks in Qdrant + Cassandra
+Done.  Markdown: 450  Docstrings: 380  Notebooks: 25  Total: 855
 ```
 
 ### Rebuild options
 
 ```bash
-# Incremental: only index new/changed files
-make rag-index
-
-# Full rebuild: wipe everything and re-index
+# Full rebuild: wipe everything and re-index (hera-rag-search index --clean)
 make rag-reindex
+
+# Index without wiping (use on an empty index)
+make rag-index
 
 # Docs only (skip Python docstrings)
 make rag-index-docs
 ```
+
+!!! warning "`rag-index` is not incremental"
+    `hera-rag-search index` without `--clean` re-indexes every file and stores each chunk under a new random ID, so running it on an existing index duplicates all chunks. Use `make rag-reindex` (or `--clean`) to refresh the index; per-file updates are done by the watcher below.
 
 ### Auto re-index on file changes
 
@@ -174,7 +207,7 @@ make rag-index-docs
 make rag-watch
 ```
 
-This watches `docs/` and `hera/` for changes and automatically re-indexes modified files (debounced at 2 seconds).
+This watches `docs/` (`hera-rag-search watch --root docs`) for changes to `.md`, `.mdx`, `.py` and `.ipynb` files and re-indexes each modified file (debounced at 2 seconds); deleted files have their chunks removed. Changes under `hera/` are not watched.
 
 ---
 
@@ -199,12 +232,12 @@ curl http://localhost:8765/health
 make rag-docs-serve
 ```
 
-This starts both the RAG API and MkDocs with the search widget enabled. The floating "Ask AI" button appears in the bottom-right corner of every page.
+This starts both the RAG API and MkDocs (export `RAG_RAG_ENABLED=true` first; the target's own `RAG_ENABLED=true` is ignored). Once the `hera_rag_search` plugin is listed in `mkdocs.yml` (see the warning above), the floating "Ask AI" button appears in the bottom-right corner of every page.
 
 To enable manually:
 
 ```bash
-RAG_ENABLED=true mkdocs serve
+RAG_RAG_ENABLED=true mkdocs serve
 ```
 
 ### Use from the command line
@@ -220,8 +253,14 @@ hera-rag-search search "demography API" --raw
 hera-rag-search search "addDataSource" --type docstring
 hera-rag-search search "project lifecycle" --type markdown
 
-# Filter by source path
+# Filter by source path prefix (applied to the listed chunks, not to the LLM answer)
 hera-rag-search search "LSM" --source toolkits/
+
+# Number of chunks (default 5)
+hera-rag-search search "LSM" --top-k 10
+
+# Pre-download the embedding model for offline use (RAG_OFFLINE_MODE=true)
+hera-rag-search download-models
 ```
 
 ### Use from Python
@@ -260,7 +299,12 @@ curl -N "http://localhost:8765/stream?q=How+does+the+LSM+toolkit+work"
 curl -X POST http://localhost:8765/search \
   -H "Content-Type: application/json" \
   -d '{"query": "How do I create a project?", "no_llm": true}'
+
+# Same via GET (k = number of chunks)
+curl "http://localhost:8765/search?q=create+project&k=5&no_llm=true"
 ```
+
+All search endpoints accept an optional `chunk_type` (`markdown`, `docstring`, `notebook`). The API also has `POST /ingest` (body `{"docs_root": ..., "code_root": ..., "clean": false}`, builds the index) and `DELETE /source` (body `{"source": "<relative path>"}`, removes a file's chunks).
 
 API docs are available at `http://localhost:8765/docs` (OpenAPI/Swagger).
 
@@ -270,7 +314,7 @@ API docs are available at `http://localhost:8765/docs` (OpenAPI/Swagger).
 make rag-serve-watch
 ```
 
-This starts the API server and watches for file changes simultaneously.
+This starts the API server and watches `docs/` for file changes simultaneously (`hera-rag-search serve --with-watcher --watch-root docs`).
 
 ---
 
@@ -285,23 +329,32 @@ Cassandra can take 30–60 seconds to become ready after the container starts. T
 The default `llama3` model is ~4 GB. Use a smaller model for faster setup:
 
 ```bash
+OLLAMA_MODEL=phi3 make rag-ollama-pull
 export RAG_OLLAMA_MODEL=phi3
-make rag-ollama-pull
 ```
 
 ### Port conflicts
 
-If ports 6333, 9042, or 11434 are already in use, either stop the conflicting service or change the RAG ports in `.env`:
+If ports 6333, 9042, or 11434 are already in use, either stop the conflicting service or move the containers and tell Hera the new ports. The host ports of the containers are Makefile variables, and the client side is configured in `.env`:
 
 ```bash
+make rag-qdrant-up QDRANT_PORT=16333
+make rag-cassandra-up CASS_PORT=19042
+make rag-ollama-up OLLAMA_PORT=21434
+```
+
+```bash
+# .env
 RAG_QDRANT_PORT=16333
 RAG_CASSANDRA_PORT=19042
 RAG_OLLAMA_BASE_URL=http://localhost:21434
 ```
 
+If the Ollama clash is with a native Ollama install, use `make rag-services-up-native` instead.
+
 ### Embedding model download
 
-The sentence-transformers model (`BAAI/bge-small-en-v1.5`, ~130 MB) downloads automatically on first use. Subsequent runs use the cached version.
+The sentence-transformers model (`BAAI/bge-small-en-v1.5`, ~130 MB) downloads automatically on first use and is saved under `~/.pyhera/rag_models/` (`RAG_MODELS_CACHE_DIR`). Subsequent runs use the cached copy. To prepare an offline machine, run `make rag-download-models` (or `hera-rag-search download-models`) while online, then set `RAG_OFFLINE_MODE=true`.
 
 ### Re-indexing after documentation changes
 
@@ -327,7 +380,7 @@ make rag-clean
 
 ## Disabling AI search
 
-Set `RAG_ENABLED=false` (the default) or simply don't start the RAG server. The docs site works normally without it — the widget only appears when both `RAG_ENABLED=true` and the RAG API is accessible.
+Leave `RAG_RAG_ENABLED` unset or `false` (the default). The docs site works normally without it. With `RAG_RAG_ENABLED=true` the widget is injected regardless of whether the RAG API is running; if the API is down, questions fail with "Error connecting to RAG server."
 
 ---
 
@@ -336,10 +389,15 @@ Set `RAG_ENABLED=false` (the default) or simply don't start the RAG server. The 
 | Target | Purpose |
 |--------|---------|
 | `make rag-setup` | Full setup: install + services + model + index |
+| `make install-rag` | Same as `rag-setup` |
+| `make rag-install` | `pip install -e .[rag]` |
 | `make rag-services-up` | Start Qdrant + Cassandra + Ollama |
+| `make rag-services-up-native` | Start Qdrant + Cassandra only (use host Ollama) |
+| `make rag-qdrant-up` / `rag-cassandra-up` / `rag-ollama-up` | Start a single service (matching `-down` targets stop it) |
 | `make rag-services-down` | Stop all services |
 | `make rag-services-status` | Show service status |
-| `make rag-ollama-pull` | Download LLM model |
+| `make rag-ollama-pull` | Download LLM model (`OLLAMA_MODEL`, default `llama3`) |
+| `make rag-download-models` | Cache the embedding model for offline use |
 | `make rag-index` | Build search index |
 | `make rag-reindex` | Wipe and rebuild index |
 | `make rag-index-docs` | Index docs only (skip docstrings) |

@@ -10,8 +10,8 @@ Welcome to the Hera User Guide. This section covers everything you need to insta
 2. **[Key Concepts](concepts.md)** - Understand the data lake, Toolkits, Data Sources, and Repositories
 3. **[Projects](projects.md)** - Project lifecycle, configuration, counters, and data methods
 4. **[Working with Data](working_with_data.md)** - Adding data, data formats, querying, data sources
-3. **[CLI Reference](../cli/reference.md)** - Command-line tools for managing projects and toolkits
-4. **[Troubleshooting](../troubleshooting.md)** - Common issues and solutions
+5. **[CLI Reference](../cli/reference.md)** - Command-line tools for managing projects and toolkits
+6. **[Troubleshooting](../troubleshooting.md)** - Common issues and solutions
 
 ## Using Hera
 
@@ -22,6 +22,8 @@ Welcome to the Hera User Guide. This section covers everything you need to insta
 - **[Workflows](../examples/workflows.md)** - Step-by-step guides for common data processing tasks
 - **[Repository Examples](../examples/repository_examples.md)** - Practical examples of working with repositories
 - **[Best Practices](../guides/best_practices.md)** - Recommended patterns for working with Hera
+- **[Utilities](utilities/index.md)** - Units, angles, JSON, logging, filtering, Slurm and other `hera.utils` helpers
+- **[AI Search](ai_search.md)** - Semantic search over the docs and code (optional `rag` extra)
 
 ## Quick Reference
 
