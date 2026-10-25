@@ -179,7 +179,7 @@ class StandardMeteorolgyConstant_powerLaw:
         return (3.25 * self.ustar) ** 2.
 
     def getAirTemperature(self, height):
-        """
+        r"""
             Return the air temperature.
 
             The air temperature drops at 6.5C/km
@@ -188,11 +188,11 @@ class StandardMeteorolgyConstant_powerLaw:
                 default unit m
         :return:
             air temperature at C.
-        r"""
+        """
         return self._temperature - 6.5e-3 * tonumber(height, ureg.m) * ureg.K
 
     def getAirDensity(self, height):
-        """
+        r"""
             Calculate the air density
 
             \begin{equation}
@@ -207,7 +207,7 @@ class StandardMeteorolgyConstant_powerLaw:
                default m
         :return:
                air density in kg/m**3
-        r"""
+        """
         P = unumToPint(self.getAirPressure(height)).m_as(ureg.mmHg)
         T = unumToPint(self.getAirTemperature(height)).m_as(ureg.degC)
 
@@ -215,7 +215,7 @@ class StandardMeteorolgyConstant_powerLaw:
         return density.to(ureg.kg / ureg.m ** 3)
 
     def getAirDynamicViscosity(self, height):
-        """
+        r"""
             Calculate the dynamic viscosity
 
             \begin{equation}
@@ -231,20 +231,20 @@ class StandardMeteorolgyConstant_powerLaw:
         return (1e-6 * (170.27 + 0.911409 * T - 0.00786742 * T ** 2) * ureg.dyne * ureg.s / ureg.cm ** 2).to(ureg.dyne * ureg.s / ureg.m ** 2)
 
     def _setPvalues(self):
-        """
+        r"""
             Return the p-values (exponent coefficient of the wind profile).
             Taken from Irwin JS "A theoretical variation of the wind profile power-law exponent as a function of surface roughness and stability" 1984.
 
         :return:
             The coefficient (dimensionless).
-        r"""
+        """
         if (self.z0 is None or self.stability is None):
             return
         pstab = self._pvalues[self.stability]
         self._wind_p = numpy.interp(unumToPint(self.z0).m_as(ureg.m), pstab.index, pstab)
 
     def getWindVelocity(self, height):
-        """
+        r"""
             Return the wind velocity defined as:
             \begin{equation}
                     u(z) = u_{x [m]}\cdot \left(\frac{height [m]}{x [m]}\right)^{pconst}
@@ -256,7 +256,7 @@ class StandardMeteorolgyConstant_powerLaw:
                 default units [m]
         :return:
             The wind velocity at the requested height.
-        r"""
+        """
         height = tonumber(height, ureg.m)
         refHeight = tonumber(self.refHeight, ureg.m)
         height = numpy.min([numpy.max([height, 0]), 300])
@@ -274,7 +274,7 @@ class StandardMeteorolgyConstant_powerLaw:
 class StandardMeteorolgyConstant_log(StandardMeteorolgyConstant_powerLaw):
 
     def getWindVelocity(self, height):
-        """
+        r"""
             Return the wind velocity defined as:
             \begin{equation}
                     u(z) = u_{x [m]}\cdot log(\frac{height [m]}{z_0 [m]}\right)

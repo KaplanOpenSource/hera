@@ -215,8 +215,7 @@ def workflow_sync_to_db(arguments):
 
     """
     from hera import toolkitHome
-
-    from ..simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
+    from hera.simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
 
     logger = logging.getLogger("hera.bin.hera_workflows.sync_to_db")
     logger.info(" -- Starting: syncing workflows --")
@@ -238,7 +237,7 @@ def workflow_sync_to_db(arguments):
         else:
             import pandas
 
-            from ..utils import diffJSONS, loadJSON
+            from hera.utils import diffJSONS, loadJSON
             localWorkflow = wftk.getHermesWorkflowFromJSON(loadJSON(outfileName),name="Local", resource=outfileName)
             simName = sim.name
             sim.name = "DB"
@@ -247,7 +246,7 @@ def workflow_sync_to_db(arguments):
             title = sorround_with_char(f"Simulation {simName}", 64)
             if not arguments.quiet:
                 print(title)
-            
+
             if not arguments.quiet:
                 print("Disk and DB parameters are identical" if not res else f"Found Changes:\n{pandas.DataFrame(res)}")
             if res or arguments.force:
@@ -267,8 +266,7 @@ def create_workflow_variations(arguments):
 
     """
     from hera import toolkitHome
-
-    from ..simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
+    from hera.simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
 
     logger = logging.getLogger("hera.bin.hera_workflows.create_workflow_variations")
     logger.info(" -- Starting: creating workflow variation --")
@@ -339,8 +337,7 @@ def batch_delete_workflows(arguments):
 
     """
     from hera import toolkitHome
-
-    from ..simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
+    from hera.simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
 
     logger = logging.getLogger("hera.bin.hera_workflows.batch_delete_workflows")
     logger.info(" -- Starting: batch delete workflows --")
@@ -352,7 +349,7 @@ def batch_delete_workflows(arguments):
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=project_name)
     assert isinstance(wftk, hermesWorkflowToolkit)
-    
+
     workflow_to_exclude = None
     if workflow_name:
         workflow_doc_list = wftk.getWorkflowListDocumentFromDB(workflow_name)
@@ -369,7 +366,7 @@ def batch_delete_workflows(arguments):
 
 
 def _confirm_project_name(arguments, logger):
-    from ..utils import loadJSON
+    from hera.utils import loadJSON
     if arguments.projectName is None:
         logger.debug(
             "projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
@@ -491,7 +488,7 @@ def workflowNodes_list(arguments):
     if os.path.exists(arguments.workflowName) and not os.path.isdir(arguments.workflowName):
             from hermes import workflow
 
-            from ..utils import loadJSON
+            from hera.utils import loadJSON
             json = loadJSON(arguments.workflowName)
             hermesObject = workflow(json, Resource_path=arguments.workflowName)
     else:
@@ -540,7 +537,7 @@ def workflowNodes_listParameters(arguments):
     if os.path.isfile(arguments.workflowName):
             from hermes import workflow
 
-            from ..utils import loadJSON
+            from hera.utils import loadJSON
             json = loadJSON(arguments.workflowName)
             hermesObject = workflow(json, Resource_path=arguments.workflowName)
     else:
@@ -607,7 +604,7 @@ def workflow_compare(arguments):
         output = res.to_csv()
         ext = "csv"
     else:
-        from ..utils import loadJSON
+        from hera.utils import loadJSON
         output = json.dumps(loadJSON(res.to_json()),indent=4)
         ext = "json"
 

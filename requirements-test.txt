@@ -1,0 +1,13 @@
+# Test-only dependencies.
+#
+# Deliberately NOT in requirements.txt: production installs must stay
+# byte-identical.  CI installs both files; developers install this one
+# only when they want to run the unit layer or measure coverage.
+#
+# mongomock 4.3.0 is the version the seam in hera/tests/unit/_seam.py was
+# verified against.  Note that mongoengine removed the `mongomock://` URI
+# scheme, so the seam uses `mongo_client_class=` instead — that keyword
+# works on both the pinned (0.29.1) and the currently installed (0.29.3)
+# mongoengine, which is why it was chosen.
+pytest-cov==5.0.0
+mongomock==4.3.0
