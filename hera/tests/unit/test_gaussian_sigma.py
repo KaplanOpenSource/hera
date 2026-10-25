@@ -215,7 +215,7 @@ class TestInputHandling:
         assert len(result["sigmaY"]) == 2
 
     def test_a_length_in_kilometres_is_converted(self, sigma):
-        """CLAUDE.md requires pint for dimensional values; 0.1 km is 100 m."""
+        """Requires pint for dimensional values; 0.1 km is 100 m."""
         from_km = sigma.getSigma(0.1 * ureg.km, "D", units=False)["sigmaY"][0]
         from_m = sigma.getSigma(100.0, "D", units=False)["sigmaY"][0]
         assert from_km == pytest.approx(from_m)

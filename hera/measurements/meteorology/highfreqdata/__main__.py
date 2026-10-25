@@ -3,10 +3,6 @@
 Run it, do not import it:
 
     python -m hera.measurements.meteorology.highfreqdata <path-to.parquet>
-
-The path used to be a module-level constant pointing at one developer's home
-directory, so importing this module raised FileNotFoundError on every other
-machine.  CLAUDE.md forbids absolute paths for exactly that reason.
 """
 import sys
 

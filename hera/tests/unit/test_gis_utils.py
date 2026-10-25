@@ -1,9 +1,9 @@
 """GIS coordinate handling.
 
-CLAUDE.md requires the named constants rather than raw EPSG integers, and
-explicit conversion rather than assumed CRS.  The assertions below use
-independently known coordinates: Tel Aviv sits near 34.78E 32.08N in WGS84,
-and the Israeli Transverse Mercator grid puts it near easting 178000,
+require named constants rather than raw EPSG integers, and explicit 
+conversion rather than assumed CRS.  The assertions below use independently
+known coordinates: Tel Aviv sits near 34.78E 32.08N in WGS84, and
+the Israeli Transverse Mercator grid puts it near easting 178000,
 northing 663000.
 """
 import pytest
