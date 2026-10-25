@@ -1,21 +1,8 @@
 import { Tooltip, Typography } from '@mui/material';
-import { fetchPythonClean } from '../../io/fetchPython';
-import { useEffect, useState } from 'react';
+import { useServerUserStore } from '../../stores/useServerUserStore';
 
 export const UserIndicator = () => {
-  const [username, setUsername] = useState<string | null>(null);
-  const [inDocker, setInDocker] = useState(false);
-
-  useEffect(() => {
-    (async () => {
-      const response = await fetchPythonClean({
-        results: ['username', 'inDocker'],
-        code: "import getpass, os; username = getpass.getuser(); inDocker = os.path.exists('/.dockerenv')",
-      });
-      if (response.data?.username) setUsername(response.data.username);
-      setInDocker(Boolean(response.data?.inDocker));
-    })();
-  }, []);
+  const { username, inDocker } = useServerUserStore();
 
   return username && (
     <Tooltip title="User that started the server">

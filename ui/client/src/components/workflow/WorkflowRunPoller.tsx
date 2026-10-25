@@ -1,11 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { SnackbarKey } from 'notistack';
-import { pollWorkflow } from '../../io/runWorkflow';
+import { workflowApi } from '../../api/api';
 import { dismiss, pushError, pushInfo, pushRunning } from '../../io/snackbar';
 import { useWorkflowRunStore, WorkflowRunStatus } from '../../stores/useWorkflowRunStore';
 
 // How often to poll a running workflow for its status.
-const POLL_MS = 500;
+export const POLL_MS = 500;
 
 // Mounted once (in App). Watches the workflow-run store for a running run and
 // polls it until it finishes, writing the result back to the store so every run
@@ -15,7 +15,7 @@ const POLL_MS = 500;
 export const WorkflowRunPoller = () => {
   const runs = useWorkflowRunStore((state) => { return state.runs; });
   const setRunResult = useWorkflowRunStore((state) => { return state.setRunResult; });
-  const setRunOutput = useWorkflowRunStore((state) => { return state.setRunOutput; });
+  const setRunChunks = useWorkflowRunStore((state) => { return state.setRunChunks; });
 
   const runningEntry = Object.entries(runs).find(([, run]) => {
     return run.status === WorkflowRunStatus.Running;
@@ -41,38 +41,35 @@ export const WorkflowRunPoller = () => {
     };
 
     const poll = async () => {
-      let result;
-      try {
-        result = await pollWorkflow(token);
-      } catch (e: any) {
-        if (cancelled) {
-          return;
-        }
-        setRunResult(workflowName, { status: WorkflowRunStatus.Error, output: '', error: e?.message ?? String(e) });
-        pushError(`run workflow: ${e?.message ?? e}`);
-        clearRunningSnackbar();
-        return;
-      }
+      const result = await workflowApi.poll(token);
       if (cancelled) {
         return;
       }
+      if (!result) {
+        const message = 'The run status could not be read.';
+        setRunResult(workflowName, { status: WorkflowRunStatus.Error, error: message, chunks: [] });
+        pushError(`run workflow: ${message}`);
+        clearRunningSnackbar();
+        return;
+      }
       if (result.status === 'running') {
-        // Show the output as it grows, without ending the run.
-        setRunOutput(workflowName, result.output ?? '');
+        // Show the chunks as they grow, without ending the run.
+        setRunChunks(workflowName, result.chunks ?? []);
         timer = setTimeout(poll, POLL_MS);
       } else if (result.status === 'done') {
-        setRunResult(workflowName, { status: WorkflowRunStatus.Done, output: result.output ?? '', error: '' });
+        setRunResult(workflowName, { status: WorkflowRunStatus.Done, error: '', chunks: result.chunks ?? [] });
         pushInfo(`Workflow "${workflowName}" finished`);
         clearRunningSnackbar();
       } else if (result.status === 'error') {
         const message = result.error || 'Workflow failed';
-        setRunResult(workflowName, { status: WorkflowRunStatus.Error, output: '', error: message });
+        // Keep the output that led to the failure so the log stays with the error.
+        setRunResult(workflowName, { status: WorkflowRunStatus.Error, error: message, chunks: result.chunks ?? [] });
         pushError(`run workflow: ${message}`);
         clearRunningSnackbar();
       } else {
         // not_found: the server restarted or a newer run overwrote the slot.
         const message = 'The run was lost (the server may have restarted).';
-        setRunResult(workflowName, { status: WorkflowRunStatus.Error, output: '', error: message });
+        setRunResult(workflowName, { status: WorkflowRunStatus.Error, error: message, chunks: [] });
         pushError(`run workflow: ${message}`);
         clearRunningSnackbar();
       }
@@ -84,7 +81,7 @@ export const WorkflowRunPoller = () => {
       clearTimeout(timer);
       clearRunningSnackbar();
     };
-  }, [token, workflowName, setRunResult, setRunOutput]);
+  }, [token, workflowName, setRunResult, setRunChunks]);
 
   return null;
 };

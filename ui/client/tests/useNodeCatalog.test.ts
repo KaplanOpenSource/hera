@@ -2,56 +2,43 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { createElement } from 'react';
 import { render, waitFor } from '@testing-library/react';
 import { useNodeCatalog, NodeCatalogReader } from '../src/components/workflow/useNodeCatalog';
+import { mockApiCall } from './helpers/mockApiCall';
 
-// The store fetches the /node-catalog REST endpoint, so stub global fetch — never
-// hit the real network.
+let getJson: ReturnType<typeof vi.fn>;
+
 afterEach(() => {
-  vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
 // The store is a module singleton; reset it so each test starts empty.
 beforeEach(() => {
+  vi.clearAllMocks();
+  ({ getJson } = mockApiCall());
   useNodeCatalog.setState({ catalog: [] });
 });
 
 describe('useNodeCatalog store', () => {
   it('loadCatalog fetches the catalog and stores it', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => [{ type: 'a.B', parameters: [] }],
-    });
-    vi.stubGlobal('fetch', fetchMock);
+    getJson.mockResolvedValue([{ type: 'a.B', parameters: [] }]);
 
     await useNodeCatalog.getState().loadCatalog();
 
     expect(useNodeCatalog.getState().catalog).toHaveLength(1);
     expect(useNodeCatalog.getState().catalog[0].type).toBe('a.B');
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(getJson).toHaveBeenCalledTimes(1);
   });
 
   it('does not refetch once the catalog is loaded', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => [{ type: 'a.B', parameters: [] }],
-    });
-    vi.stubGlobal('fetch', fetchMock);
+    getJson.mockResolvedValue([{ type: 'a.B', parameters: [] }]);
 
     await useNodeCatalog.getState().loadCatalog();
     await useNodeCatalog.getState().loadCatalog();
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(getJson).toHaveBeenCalledTimes(1);
   });
 
-  it('leaves the catalog empty when the response is not ok', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 500,
-      statusText: 'err',
-      json: async () => ({ error: 'boom' }),
-    });
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.stubGlobal('fetch', fetchMock);
+  it('leaves the catalog empty when the call fails', async () => {
+    getJson.mockResolvedValue(null);
 
     await useNodeCatalog.getState().loadCatalog();
 
@@ -59,15 +46,11 @@ describe('useNodeCatalog store', () => {
   });
 
   it('NodeCatalogReader triggers the fetch once on mount', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => [{ type: 'a.B', parameters: [] }],
-    });
-    vi.stubGlobal('fetch', fetchMock);
+    getJson.mockResolvedValue([{ type: 'a.B', parameters: [] }]);
 
     render(createElement(NodeCatalogReader));
 
     await waitFor(() => expect(useNodeCatalog.getState().catalog).toHaveLength(1));
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(getJson).toHaveBeenCalledTimes(1);
   });
 });

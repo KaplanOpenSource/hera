@@ -1,6 +1,8 @@
 # MeteoHighFreq
 
-**Toolkit name:** `MeteoHighFreq`
+**Toolkit constant:** `toolkitHome.METEOROLOGY_HIGHFREQ` (`"MeteoHighFreq"`)
+**Toolkit name in the database:** `highFreqMeteorology`
+**Implementation:** `hera.measurements.meteorology.highfreqdata.toolkit.HighFreqToolKit`
 
 High-frequency (10–20 Hz) sonic anemometer and TRH sensor data for turbulence analysis. Provides a calculator-based analysis pipeline: parse raw binary/ASCII data, compute turbulence statistics, derive mean-field quantities (friction velocity, TKE, Monin-Obukhov length, stability classification, anisotropy), and chain calculations fluently.
 
@@ -24,11 +26,12 @@ result = turb.compute()
 
 # Build mean-field statistics with method chaining
 mdc = hf.analysis.MeanDataCalculator(TurbCalcOrData=turb)
-mdc.horizontalSpeed().sigma().Ustar().TKE().MOLength().StabilityMOLength()
+mdc.horizontalSpeed().sigma().Ustar().TKE()
+# MOLength()/StabilityMOLength() also need TRH mean temperature — see "Mean data calculator"
 mean_data = mdc.compute()
 ```
 
-For the full API, see the [API Reference](../../developer_guide/api/measurements.md). For implementation details, see the [Developer Guide](../../developer_guide/measurements/meteorology.md).
+For the full API, see the [API Reference](../../../developer_guide/api/measurements.md). For implementation details, see the [Developer Guide](../../../developer_guide/measurements/meteorology.md).
 
 ---
 
@@ -65,7 +68,7 @@ df = sonic.compute()
 
 ## Loading raw data
 
-The toolkit provides two ways to ingest raw sensor files (Campbell binary TOB1 or TOA5 ASCII). Both automatically detect the file format, normalise column names to lowercase, set a proper `DatetimeIndex`, and convert values to float.
+The toolkit provides two ways to ingest raw sensor files (Campbell binary TOB1 or TOA5 ASCII). Both automatically detect the file format, rename the sonic columns `U`/`V`/`W` to `u`/`v`/`w` (and `TcT` to `TC_T`), set a `DatetimeIndex` named `Time`, convert values to float, and drop every other column (`RECORD`, `height`, `station`, `instrument` are moved into the metadata dict).
 
 ### `loadData` — parse, save, and register (recommended)
 
@@ -114,7 +117,7 @@ hf.loadData("sonic_10m", "/raw_data/2024_03_16.dat",
 - **overwrite=True**: replaces the file and document
 - Both ``True``: raises ``ValueError`` (mutually exclusive)
 
-New data sources get a unique filename via the project counter (e.g. ``sonic_10m_0.parquet``).
+New data sources get a unique filename via the project counter `highfreq_<name>` (e.g. ``sonic_10m_0.parquet``). `loadData` returns one document, or a list of documents for multi-device files.
 
 For multi-device files (TOA5 with multiple sonics), device names are appended automatically:
 
@@ -144,7 +147,8 @@ print(df.head())
 
 print(parser_meta)
 # {'station': 'CR3000_1', 'instrument': 'CSAT3', 'height': 10, 'deviceType': 'sonic'}
-# (extracted from file headers — use this to decide what metadata to pass to loadData)
+# deviceType is always set ('sonic' or 'TRH'); station/instrument/height only when the
+# parser output had those columns. TOA5 results also carry 'deviceName' (e.g. 'Raw_Sonic_1').
 
 # Pass directly to analysis:
 turb = hf.analysis.singlePointTurbulenceStatistics(sonicData=df, ...)
@@ -202,12 +206,18 @@ turb = hf.analysis.singlePointTurbulenceStatistics(
 )
 ```
 
+`start` and `end` are stored as metadata only — the turbulence calculator does **not**
+trim the raw data to them. They are applied later by `MeanDataCalculator`, which keeps
+rows in `[start, end)`. Slice the DataFrame yourself if you want to limit the raw data.
+`inmemory` is accepted but unused.
+
 ### Step 2: Compute fluctuations and second moments
 
 ```python
 # Fluctuations: u', v', w', T', wind direction
 turb.fluctuations()
-# Adds columns: u_bar, v_bar, w_bar, T_bar, wind_dir_bar, up, vp, wp, Tp
+# Result columns: u_bar, v_bar, w_bar, T_bar, wind_dir_bar
+# (the raw data also gains up, vp, wp, Tp, wind_dir, wind_dir_p)
 
 # Standard deviations
 turb.sigma()
@@ -262,9 +272,14 @@ turb.StabilityMOLength_Sonic()
 # Adds: StabilityMOLength_Sonic (categorical: very unstable → very stable)
 
 # Structure functions (dissipation rate estimation)
+# Adds D11_<tau>s / D111_<tau>s and u_mag columns
 turb.StrucFun(tau_range=[1, 2, 5, 10])
 turb.ThirdStrucFun(tau_range=[1, 2, 5, 10])
 ```
+
+Also available: `wTKE()`, `zoL_Sonic(zmd)`, `zOverL_Sonic()` (uses the effective height
+`height + buildingHeight - 0.7 * averagedHeight`), `Lminus1_masked_Sonic()` and
+`StrucFunDir(...)`.
 
 ### Step 3: Execute and retrieve
 
@@ -283,6 +298,15 @@ print(result.columns.tolist())
 ## Mean data calculator
 
 The `MeanDataCalculator` builds on the turbulence calculator output to derive higher-level mean-field statistics. All methods return `self` for **fluent chaining**.
+
+On construction it calls `secondMoments().compute(mode=compute_mode_turb)` on the turbulence
+calculator, joins the averaging-calculator output if given, and keeps only rows in
+`[start, end)` from the calculator metadata.
+
+!!! warning "Known issue in master"
+    Passing a pandas/dask DataFrame as `TurbCalcOrData` or `AverageCalcOrData` raises
+    `ValueError`: the type check compares against the `pandas`/`dask` *modules*
+    (`meandatacalculator.py`, `__init__`). Pass calculator objects.
 
 ```python
 # Create from a turbulence calculator
@@ -317,7 +341,7 @@ mdc.horizontalSpeed()       # horizontal_speed_bar = hypot(u_bar, v_bar)
 mdc.sigma()                 # sigmaU, sigmaV, sigmaW
 mdc.sigmaAligned()          # sigmaU_aligned, sigmaV_aligned (rotated to wind direction)
 mdc.sigmaH()                # horizontal std dev
-mdc.Ustar()                 # friction velocity
+mdc.Ustar()                 # friction velocity = (uw² + vw²)^0.25
 ```
 
 **Dimensionless ratios:**
@@ -351,8 +375,10 @@ mdc.Ruw()             # Correlation coefficient uw / sqrt(uu * ww)
 **Stability:**
 
 ```python
-mdc.MOLength()              # Monin-Obukhov length L
-mdc.effectivez()            # Effective height z_eff = h + H - 0.7 * H_avg
+mdc.MOLength()              # Monin-Obukhov length L — uses TC_T_bar, so it needs an
+                            # AverageCalcOrData built from TRH data
+mdc.effectivez()            # z_eff = height + buildingHeight - 0.7 * averagedHeight,
+                            # stored in mdc.metaData['effectivez'] (not a column)
 mdc.zOverL()                # Dimensionless stability z/L
 mdc.StabilityMOLength()     # Classify: very unstable → very stable
 ```
@@ -367,19 +393,23 @@ mdc.anisotropyCats()   # Classify: isotropic, 2-component axisymmetric, 1-compon
 **Dissipation rate:**
 
 ```python
-mdc.StrucFun_eps(tau_range=[1, 2, 5, 10], rmin=0, rmax=10)
-mdc.ThirdStrucFun_eps(tau_range=[1, 2, 5, 10], rmin=0, rmax=10)
+# Needs the D11_<tau>s / D111_<tau>s and u_mag columns from turb.StrucFun / turb.ThirdStrucFun
+mdc.StrucFun_eps(tau_range=[1, 2, 5, 10], rmin=0, rmax=10)       # adds eps_D11
+mdc.ThirdStrucFun_eps(tau_range=[1, 2, 5, 10], rmin=0, rmax=10)  # adds eps_D111
 ```
 
 **Filtering:**
 
 ```python
-# Apply threshold filters
-mdc.thresholds([("horizontal_speed_bar", "gt", 1.0), ("sigmaW", "lt", 5.0)])
+# Apply threshold filters (lt, lte, gt, gte, abs_lt, abs_lte, abs_gt, abs_gte, eq, neq)
+mdc.thresholds([("horizontal_speed_bar", "gt", 1.0), ("sigmaW", "lt", 5.0)], inplace=True)
 
-# Filter by date range
-mdc.filterDates(start="2024-03-15 09:00", end="2024-03-15 11:00")
+# REMOVE the rows inside [start, end) — filterDates keeps what is outside the interval
+mdc.filterDates(start="2024-03-15 09:00", end="2024-03-15 11:00", inplace=True)
 ```
+
+Use `inplace=True`: with the default `inplace=False` both methods try to build a new
+`MeanDataCalculator` from a DataFrame, which hits the known issue above.
 
 ### Retrieve final result
 
@@ -411,7 +441,7 @@ result = avg.compute()
 
 ## Compute modes
 
-The calculators support different database interaction modes when calling `compute()`:
+The turbulence and averaging calculators accept a `mode` in `compute()`:
 
 | Mode | Description |
 |------|-------------|
@@ -420,11 +450,13 @@ The calculators support different database interaction modes when calling `compu
 | `'from_db_and_not_save'` | Check DB first; compute if missing, don't save |
 | `'not_from_db_and_save'` | Compute locally and save to cache |
 
-```python
-# Save results to the project cache for later retrieval
-turb.set_saveProperties(dataFormat="parquet", path="/path/to/output")
-result = turb.compute(mode='not_from_db_and_save')
-```
+!!! warning "Only the default mode works in master"
+    The DB modes reference `datalayer.Cache` on the `hera.datalayer.collection` module
+    (`abstractcalculator.py`), which has no `Cache` attribute, so they raise
+    `AttributeError`. The `*_save` modes also need `set_saveProperties(dataFormat=..., ...)`
+    first, and the `parquet` saver calls dask's `repartition(partition_size=...)` on a pandas
+    result. Use the default `'not_from_db_and_not_save'` and save the returned DataFrame
+    yourself.
 
 ---
 
@@ -440,6 +472,7 @@ hf = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_HIGHFREQ, projectName="WindS
 
 # Load sonic data
 sonic = hf.getDataSourceData("sonic_10m").compute()
+trh = hf.getDataSourceData("trh_10m").compute()   # TC_T, TRH, RH — needed for MOLength
 
 # Define analysis window
 start = "2024-03-15 08:00"
@@ -455,8 +488,15 @@ turb = hf.analysis.singlePointTurbulenceStatistics(
 turb.fluctuations().secondMoments().sigma().Ustar().TKE()
 turb_result = turb.compute()
 
+avg = hf.analysis.AveragingCalculator(
+    deviceNameOrData=trh,
+    samplingWindow="30min",
+    start=start, end=end,
+    height=10, buildingHeight=0, averagedHeight=0,
+)
+
 # Step 2: Mean-field statistics with chaining
-mdc = hf.analysis.MeanDataCalculator(TurbCalcOrData=turb)
+mdc = hf.analysis.MeanDataCalculator(TurbCalcOrData=turb, AverageCalcOrData=avg)
 mdc.horizontalSpeed().hour().timeWithinDay()
 mdc.sigmaHOverUstar().sigmaWOverUstar()
 mdc.MOLength().StabilityMOLength()
@@ -472,6 +512,7 @@ print(mean_data[["horizontal_speed_bar", "Ustar", "TKE", "L", "StabilityMOLength
 # 2024-03-15 09:00:00               5.1      0.42    2.10   -250.1   neutral/near neutral
 
 # Step 4: Filter and analyse
-stable = mdc.thresholds([("StabilityMOLength", "eq", "stable")])
-print(f"Stable periods: {len(stable.compute())} out of {len(mean_data)}")
+n_total = len(mean_data)
+mdc.thresholds([("StabilityMOLength", "eq", "stable")], inplace=True)
+print(f"Stable periods: {len(mdc.compute())} out of {n_total}")
 ```

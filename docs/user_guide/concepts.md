@@ -96,7 +96,7 @@ Think of toolkits as **portals**: each one is focused on a specific data type an
 from hera import toolkitHome
 
 # The meteorology toolkit knows how to work with weather station data
-# Tip: if you created the project with `hera-project project create`, you can omit projectName
+# Tip: if the current directory has a caseConfiguration.json (written by `hera-project project create`), you can omit projectName
 meteo = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName="WindStudy")
 
 # It manages named, versioned datasets
@@ -104,10 +104,10 @@ df = meteo.getDataSourceData("station_haifa")
 
 # It provides domain-specific analysis
 enriched = meteo.analysis.addDatesColumns(df, datecolumn="datetime")
-hourly = meteo.analysis.calcHourlyDist(enriched, field="wind_speed")
+hourly = meteo.analysis.calcHourlyDist(enriched, Field="wind_speed")
 
 # And domain-specific visualization
-meteo.presentation.seasonalPlots.plotSeasonalHourly(enriched, field="wind_speed")
+meteo.presentation.seasonalPlots.plotProbContourf_bySeason(enriched, plotField="wind_speed")
 ```
 
 Without a toolkit, you'd query the raw project and handle all the data loading, processing, and plotting yourself. With a toolkit, the domain knowledge is built in:
@@ -116,7 +116,7 @@ Without a toolkit, you'd query the raw project and handle all the data loading, 
 |------------------------------|-------------|
 | `proj.getMeasurementsDocuments(type="WeatherStation", station="A")` | `meteo.getDataSourceData("station_haifa")` |
 | Manual pandas processing | `meteo.analysis.addDatesColumns(df, ...)` |
-| Manual matplotlib plotting | `meteo.presentation.dailyPlots.plotScatter(df, ...)` |
+| Manual matplotlib plotting | `meteo.presentation.dailyPlots.plotScatter(df, plotField=...)` |
 | You manage versions manually | `meteo.getDataSourceData("station_haifa", version=(1,0,0))` |
 
 Each toolkit adds three things on top of the Project data layer:
@@ -135,13 +135,15 @@ Hera ships with built-in toolkits for several domains:
 
 | Domain | Toolkits | What they do |
 |--------|----------|-------------|
-| **GIS** | Topography, Buildings, LandCover, Demography | Elevation data, building footprints, land classification, population |
+| **GIS** | Topography (raster and vector), Buildings, LandCover, Demography, Tiles | Elevation data, building footprints, land classification, population, map tiles |
 | **Meteorology** | MeteoLowFreq, MeteoHighFreq | Weather station data (hourly and high-frequency) |
-| **Simulations** | OpenFOAM, LSM, Gaussian, WindProfile | CFD, dispersion modeling, wind profiles |
+| **Simulations** | OpenFOAM, OF_LSM, hermesWorkflows, LSM, GaussianDispersion, WindProfile, machine_deep_learning | CFD, workflows, dispersion modeling, wind profiles, ML models |
 | **Risk** | RiskAssessment | Agent-based hazard and casualty modeling |
-| **Data** | experiment, dataToolkit | Experiment workflows, repository management |
+| **Data** | experiment | Experiment workflows |
 
-You can also register your own custom toolkits. See the [Toolkit Catalog](../toolkits/overview.md) for detailed documentation of each toolkit.
+Repository management is handled by `dataToolkit` (`hera.utils.data.toolkit`), which you use directly rather than through `toolkitHome.getToolkit`.
+
+Use the `toolkitHome.*` constants (for example `toolkitHome.GIS_RASTER_TOPOGRAPHY`, `toolkitHome.METEOROLOGY_LOWFREQ`) rather than typing the name strings, and `toolkitHome.getToolkitTable()` to list everything that is available. You can also register your own custom toolkits. See the [Toolkit Catalog](../toolkits/overview.md) for detailed documentation of each toolkit.
 
 ---
 
@@ -157,6 +159,8 @@ Each data source has:
 - **Data format** — how to read the resource (parquet, netcdf, string, etc.)
 
 ```python
+topo = toolkitHome.getToolkit(toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName="WindStudy")
+
 # List data sources for a toolkit
 topo.getDataSourceList()
 # ['Israel_DEM', 'SRTM_30m']
@@ -176,7 +180,7 @@ topo.getDataSourceTable()
 Multiple versions of the same data source can coexist. When you request data without specifying a version, Hera returns:
 
 1. The **default version** — if one is stored in the project config
-2. The **latest version** — otherwise (highest version number), which is then automatically saved as the default for stable subsequent calls
+2. The **latest version** — otherwise (highest version number). It is **not** saved as the default; call `setDataSourceDefaultVersion` when you need a stable default
 
 ```python
 # Set a default version
@@ -190,11 +194,11 @@ topo.setDataSourceDefaultVersion("Israel_DEM", version=(1, 0, 0))
 A **Repository** is a JSON file that describes a collection of data sources and their locations. Repositories make it easy to share and reproduce project setups — instead of manually adding data sources one by one, you load a repository file that configures everything at once.
 
 ```bash
-# Register a repository
+# Register a repository (registered under the name "my_repository")
 hera-project repository add my_repository.json
 
-# Load it into a project
-hera-project repository load my_repository MY_PROJECT
+# Load the repository file into a project (takes the JSON file path, not the registered name)
+hera-project repository load my_repository.json MY_PROJECT
 ```
 
 A repository JSON maps toolkit names to their data sources, configurations, and documents:

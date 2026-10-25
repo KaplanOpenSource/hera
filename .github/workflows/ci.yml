@@ -17,6 +17,22 @@ jobs:
       - name: Checkout hera
         uses: actions/checkout@v4
 
+      # Source checkouts, not services: the unit layer stays hermetic.  With
+      # them on PYTHONPATH below, the classes that hera subclasses at import
+      # time are the real ones rather than the placeholders in
+      # hera/tests/unit/_stubs.py, which yield to a real install.
+      - name: Checkout hermes (internal dependency)
+        uses: actions/checkout@v6
+        with:
+          repository: KaplanOpenSource/hermes
+          path: _vendor/hermes
+
+      - name: Checkout pyargos (internal dependency — provides the `argos` package)
+        uses: actions/checkout@v6
+        with:
+          repository: KaplanOpenSource/pyargos
+          path: _vendor/pyargos
+
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
@@ -46,6 +62,7 @@ jobs:
         env:
           MPLBACKEND: Agg
           JUPYTER_PLATFORM_DIRS: "1"
+          PYTHONPATH: ${{ github.workspace }}/_vendor/hermes:${{ github.workspace }}/_vendor/pyargos
           # A distinct filename, so the integration job can merge the two
           # halves without a collision.  pytest-cov folds its own parallel
           # fragments into this file at the end of the run, which is why there
@@ -99,24 +116,24 @@ jobs:
 
     steps:
       - name: Checkout hera
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Checkout hermes (internal dependency)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: KaplanOpenSource/hermes
           path: _vendor/hermes
           # token: ${{ secrets.INTERNAL_REPO_PAT }}   # uncomment if private
 
       - name: Checkout pyargos (internal dependency — provides the `argos` package)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: KaplanOpenSource/pyargos
           path: _vendor/pyargos
           # token: ${{ secrets.INTERNAL_REPO_PAT }}   # uncomment if private
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.11'
           cache: 'pip'
@@ -183,7 +200,7 @@ jobs:
 
       - name: Cache test data
         id: cache-test-data
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.TEST_HERA }}
           key: hera-test-data-${{ steps.tdv.outputs.version }}
@@ -218,8 +235,146 @@ jobs:
           # just downloaded and the integration half from the step above --
           # into a single .coverage that the report then reads.
           coverage combine
-          coverage report
-          # First numeric line; the rest of the file documents the baseline.
-          FLOOR="$(grep -oE '^[0-9]+' coverage_floor.txt | head -1)"
-          echo "Enforcing combined coverage floor: ${FLOOR}%"
-          coverage report --fail-under="${FLOOR}"
+          # The floor lives here rather than in .coveragerc's fail_under,
+          # which would also gate the unit-only and integration-only runs
+          # above -- each about 21%, because each is half the measurement.
+          # Raise it in the same PR that raises coverage; never lower it.
+          coverage report --fail-under=30
+
+  ui-client:
+    name: UI client checks
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ui/client
+
+    steps:
+      - name: Checkout hera
+        uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: ui/client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The three steps below follow ui/client/TEST_UI.md, in order.
+      - name: TypeScript type-checking
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npm run test
+
+      # Build to a temp dir so the checked-in ui/client/bundle stays untouched.
+      - name: Production build
+        run: npx vite build --outDir /tmp/hera-vite-build --emptyOutDir
+
+  ui-server:
+    name: UI server tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout hera
+        uses: actions/checkout@v6
+
+      # node_params looks for the node directories in <repo>/Hermes.
+      - name: Checkout hermes (internal dependency)
+        uses: actions/checkout@v6
+        with:
+          repository: KaplanOpenSource/hermes
+          path: Hermes
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements.txt
+            requirements-minimal.txt
+
+      # Names only: the pins come from requirements.txt.
+      - name: Install Python dependencies
+        run: |
+          python scripts/minimal_requirements.py requirements.txt requirements-minimal.txt > /tmp/req.txt
+          pip install -r /tmp/req.txt
+
+      - name: Run UI server tests
+        run: pytest tests -v
+        working-directory: ui/server
+
+  ui-integration:
+    name: UI integration tests
+    runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:latest
+        # globalSetup.ts points hera at 27018 by default; HERA_INTEG_MONGO_PORT
+        # can override it.
+        ports:
+          - 27018:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: hera
+          MONGO_INITDB_ROOT_PASSWORD: heracles
+        options: >-
+          --health-cmd "mongosh --quiet -u hera -p heracles --authenticationDatabase admin --eval 'db.runCommand({ ping: 1 }).ok' | grep -q 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout hera
+        uses: actions/checkout@v6
+
+      - name: Checkout hermes (internal dependency)
+        uses: actions/checkout@v6
+        with:
+          repository: KaplanOpenSource/hermes
+          path: _vendor/hermes
+
+      - name: Checkout pyargos (internal dependency — provides the `argos` package)
+        uses: actions/checkout@v6
+        with:
+          repository: KaplanOpenSource/pyargos
+          path: _vendor/pyargos
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements.txt
+            requirements-minimal.txt
+
+      # Names only: the pins come from requirements.txt.
+      - name: Install Python dependencies
+        run: |
+          python scripts/minimal_requirements.py requirements.txt requirements-minimal.txt > /tmp/req.txt
+          pip install -r /tmp/req.txt
+          pip install -e . --no-deps
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: ui/client/package-lock.json
+
+      - name: Install client dependencies
+        run: npm ci
+        working-directory: ui/client
+
+      # globalSetup.ts starts the server itself on a free port, so hermes and
+      # pyargos have to be importable by the child process it spawns.
+      - name: Run integration tests
+        run: npx vitest run tests/integration -c vitest.integ.config.ts --no-file-parallelism --retry 1
+        working-directory: ui/client
+        env:
+          PYTHONPATH: ${{ github.workspace }}/_vendor/hermes:${{ github.workspace }}/_vendor/pyargos

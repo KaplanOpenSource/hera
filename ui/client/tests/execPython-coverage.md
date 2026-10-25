@@ -1,23 +1,68 @@
 # fetchPython call sites — test coverage
 
-> **Maintainer note:** All calls now use `fetchPython`. When adding or modifying calls, update this table.
+> **Maintainer note:** When adding or modifying calls, update this table.
+>
+> Startup no longer goes through `/exec`: one `GET /init` brings the project
+> list, datatypes, toolkits, the chosen project and the server info. The python
+> lives in `ui/server/init_data.py`.
+>
+> The project calls no longer go through `/exec` either: six named routes under
+> `/project/*`, with the python in `ui/server/project_api/`. See
+> `ENTRYPOINTS_PROJECTS_STEPS.md`.
+>
+> Every server call now lives in `src/api/`, one class per route group, all on
+> the `ApiCall` base class. `src/io/entrypoint.ts` is gone. See
+> `API_CLASSES_PLAN.md`.
+>
+> The document calls went the same way: three named routes under `/document/*`,
+> with the python in `ui/server/document_api/`. There is no per-document read:
+> `/project/documents` already brings them all, so the store is the only source.
+> See `ENTRYPOINTS_DOCUMENTS_STEPS.md`.
+>
+> The repositories went last: four named routes under `/repository/*`, with the
+> python in `ui/server/repository_api/`. A repository name is only a nickname for
+> a file, so no name crosses the wire: every route takes a path. See
+> `ENTRYPOINTS_REPOSITORIES_STEPS.md`.
 
-| # | Function | File | Unit test? | Latency? | Integration? | Test file |
-|---|----------|------|:---:|:---:|:---:|---|
-| 1 | `fetchProjectsNames` | `src/io/FetchProjects.tsx:9` | yes | yes | yes | `FetchProjects.test.ts` |
-| 2 | `fetchProjectDetails` | `src/io/FetchProjects.tsx:15` | yes | yes | yes | `FetchProjects.test.ts` |
-| 3 | `fetchToolkits` | `src/io/FetchProjects.tsx:33` | yes | yes | yes | `FetchProjects.test.ts` |
-| 4 | `fetchDocument` | `src/io/FetchDocument.tsx:5` | yes | yes | no | `documentOperations.test.ts` |
-| 5 | `updateDocument` | `src/io/FetchDocument.tsx:26` | yes | yes | yes | `documentOperations.test.ts` |
-| 6 | `readAllConstants` | `src/stores/useServerConstants.ts:13` | yes | yes | no | `serverConstants.test.ts` |
-| 7 | `doAddProject` | `src/components/header/AddProjectButton.tsx:25` | yes (integ) | no | yes | `integration/addProject.integ.test.tsx` |
-| 8 | `deleteProject` | `src/components/header/DeleteProjectButton.tsx:12` | yes | yes | yes | `deleteProject.test.tsx` |
-| 9 | `doAddDoc` | `src/components/project/AddDocumentButton.tsx:34` | yes | yes | yes | `addDocument.test.tsx` |
-| 10 | `deleteDocument` | `src/components/details/DeleteDocumentButton.tsx` | yes | yes | yes | `deleteDocumentButton.test.tsx` |
-| 11 | load repo JSON (useEffect) | `src/components/details/DetailsViewRepo.tsx:23` | yes | yes | no | `detailsViewRepo.test.tsx` |
-| 12 | `addRepo` | `src/components/details/RepoTreeAddButton.tsx:23` | yes | yes | no | `repoTreeAddButton.test.tsx` |
+## Named entrypoints (no exec)
+
+| Entrypoint | Caller | Unit test? | Integration? | Test file |
+|---|---|:---:|:---:|---|
+| `GET /init` | `ServerApi.init`, `src/io/fetchInit.ts` | yes | no | `fetchInit.test.ts`, `serverReadyGate.test.tsx`, `fetchProjectsAfterInit.test.tsx`, `server/tests/test_init_data.py` |
+| `GET /geojson` | `ServerApi.geoJson`, `GeoJsonPreview` | yes | no | `fetchGeoJson.test.ts`, `server/tests/test_geojson_file.py` |
+| `GET /cors` | `ServerApi.cors`, `CorsIndicator` | no | no | none |
+| `POST /jupyter/ensure` | `ServerApi.ensureJupyter`, `DetailsViewNotebook` | no | no | none |
+| `GET /node-catalog` | `NodeApi.catalog`, `useNodeCatalog` | yes | no | `useNodeCatalog.test.ts` |
+| `POST /node-params/validate` | `NodeApi.validateParams`, `useNodeParamsValidation` | yes | no | `nodeParamsValidation.test.tsx` |
+| `POST /start_workflow` | `WorkflowApi.start`, `RunWorkflowButton` | yes | no | `runWorkflow.test.tsx` |
+| `GET /workflow_status/{token}` | `WorkflowApi.poll`, `WorkflowRunPoller` | yes | no | `workflowRunPoller.test.tsx` |
+| `getJson` / `postJson` | `src/api/ApiCall.ts` | yes | no | `ApiCall.test.ts`, `apiPackageIsolation.test.ts` |
+| `GET /project/names` | `fetchProjectsNames` | yes | yes | `FetchProjects.test.ts`, `server/tests/test_projects.py` |
+| `GET /project/documents` | `fetchProjectDetails`, `fetchProjectData` | yes | yes | `FetchProjects.test.ts`, `server/tests/test_projects.py` |
+| `GET /project/toolkits` | `fetchProjectData` | yes | yes | `FetchProjects.test.ts`, `server/tests/test_projects.py` |
+| `POST /project/create` | `AddProjectButton` | yes | yes | `addProject.test.tsx`, `integration/addProject.integ.test.tsx`, `server/tests/test_projects.py` |
+| `POST /project/delete` | `DeleteProjectButton` | yes | yes | `deleteProject.test.tsx`, `integration/deleteProject.integ.test.tsx`, `server/tests/test_projects.py` |
+| `POST /project/detectNotebooks` | `DetectNotebooksButton` | yes | no | `detectNotebooks.test.tsx`, `server/tests/test_projects.py` |
+| `POST /document/create` | `AddDocumentButton`, `duplicateDocuments` | yes | yes | `addDocument.test.tsx`, `documentOperations.test.ts`, `treeInteractions.test.tsx`, `integration/documents.integ.test.tsx`, `server/tests/test_documents.py` |
+| `POST /document/update` | `useShownDoc` | yes | yes | `documentOperations.test.ts`, `saveDocument.test.tsx`, `TwoUiSync.test.tsx`, `integration/documents.integ.test.tsx`, `server/tests/test_documents.py` |
+| `POST /document/delete` | `deleteDocuments`, `DeleteDocumentButton`, `DeleteSelectedButton` | yes | yes | `deleteDocumentButton.test.tsx`, `documentOperations.test.ts`, `projectActions.test.tsx`, `treeInteractions.test.tsx`, `integration/documents.integ.test.tsx`, `server/tests/test_documents.py` |
+| `GET /repository/registered` | `useRegisteredRepositories` | yes | no | `registeredRepositories.test.tsx`, `server/tests/test_repositories.py` |
+| `GET /repository/get` | `DetailsViewRepo` | yes | yes | `detailsViewRepo.test.tsx`, `integration/centralRepo.integ.test.tsx`, `server/tests/test_repositories.py` |
+| `GET /repository/jsonsInFolder` | `CentralRepoFolder`, `DetailsViewMergedRepo` | yes | yes | `centralRepoFolder.test.tsx`, `detailsViewRepo.test.tsx`, `integration/centralRepo.integ.test.tsx`, `server/tests/test_repositories.py` |
+| `POST /repository/loadIntoProject` | `RepoTreeAddButton`, `UpdateRepositoriesButton`, `loadRepositoryIntoProject` | yes | no | `repoTreeAddButton.test.tsx`, `updateRepositoriesButton.test.tsx`, `repoTreeInteractions.test.tsx`, `server/tests/test_repositories.py` |
+
+A load answers `added` and `problems` as well as the project: hera skips what it
+cannot load without raising, so the route counts the documents before and after
+and reports the reason. See `ENTRYPOINTS_REPOSITORIES_STEPS.md`.
+
+## Still on `/exec`
+
+No call sites. `src/io/fetchPython.ts` is still there; `WARMING_UP` now lives in
+`src/shared/constants.ts` and `fetchPython.ts` re-exports it. The integration
+tests use `/exec` to write their own files on the server. Retiring the endpoint
+is its own issue, task 3 of `NEXT_TASKS_PLAN.md`.
 
 ## Gaps
 
-- **#7 `doAddProject`**: Only has integration test, no unit test with latency.
-- **Integration missing for**: `fetchDocument` (#4), `readAllConstants` (#6), `loadRepoJson` (#11), `addRepo` (#12).
+- No integration test for loading a repository into a project (`POST
+  /repository/loadIntoProject`), or for the repository views in the browser.

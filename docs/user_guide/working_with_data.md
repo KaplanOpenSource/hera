@@ -73,7 +73,7 @@ datatypes.GEOPANDAS        # "geopandas"
 
 ### Saving data with auto-detection
 
-For common Python objects, `saveData` / `saveCacheData` / `saveMeasurementData` auto-detect the format, save the file to disk, and create the document in one call:
+For common Python objects, `saveData` / `saveCacheData` / `saveMeasurementData` / `saveSimulationData` auto-detect the format, save the file under `<filesDirectory>/cache/<name>_<counter>.<ext>`, and create the document in one call (`type` defaults to `name`; pass `dataFormat=` to override detection):
 
 ```python
 import pandas as pd
@@ -97,9 +97,11 @@ The auto-detection mapping:
 | `pandas.Series` | `JSON_pandas` | `.json` |
 | `dask.DataFrame` | `parquet` | `.parquet` |
 | `geopandas.GeoDataFrame` | `geopandas` | `.gpkg` |
-| `xarray.DataArray` | `zarr_xarray` | `.zarr` |
+| `xarray.DataArray` | `netcdf_xarray` | `.zarr` (written as NetCDF despite the extension) |
 | `numpy.ndarray` | `numpy_array` | `.npy` |
-| `dict`, `list`, `bytes` | `pickle` | `.pckle` |
+| `dict`, `list`, `bytes`, any other object | `pickle` | `.pckle` |
+
+`xarray.Dataset` is not in the mapping and falls back to `pickle`; pass `dataFormat=proj.datatypes.NETCDF_XARRAY` to store it as NetCDF.
 
 ### Using counters for unique file names
 
@@ -108,8 +110,8 @@ Projects have built-in **atomic counters** — named integers stored in the data
 ```python
 proj = Project(projectName="WindStudy")
 
-# getCounterAndAdd returns the current value and increments it atomically.
-# On first call, the counter is created and returns 0.
+# getCounterAndAdd increments atomically and returns the new value.
+# The first call only creates the counter at 0 and returns 0.
 run_id = proj.getCounterAndAdd("simulation_run")  # 0
 output_path = f"/data/results/dispersion_run_{run_id}.nc"
 
@@ -132,7 +134,7 @@ This is exactly what `saveData` does internally — it uses a counter named afte
 
 | Method | Description |
 |--------|-------------|
-| `getCounterAndAdd(name, addition=1)` | Return current value and increment atomically. Creates the counter (starting at 0) if it doesn't exist. |
+| `getCounterAndAdd(name, addition=1)` | Add `addition` atomically and return the new value. If the counter doesn't exist, create it at 0 and return 0. |
 | `getCounter(name)` | Return the current value without incrementing. Returns `None` if the counter doesn't exist. |
 | `setCounter(name, defaultValue=0)` | Create or reset a counter to a specific value. |
 
@@ -164,14 +166,14 @@ The `dataFormat` field tells Hera how to read the `resource`. When you call `doc
 
 | Format | `dataFormat` value | `datatypes` constant | Python type returned | File extension |
 |--------|-------------------|---------------------|----------------------|---------------|
-| **Parquet** | `"parquet"` | `PARQUET` | `pandas.DataFrame` or `dask.DataFrame` | `.parquet` |
+| **Parquet** | `"parquet"` | `PARQUET` | `dask.DataFrame` by default, `pandas.DataFrame` with `getData(usePandas=True)` (set automatically when the file was saved from pandas) | `.parquet` |
 | **CSV** | `"csv_pandas"` | `CSV_PANDAS` | `pandas.DataFrame` | `.csv` |
-| **HDF5** | `"HDF"` | `HDF` | `pandas.DataFrame` or `dask.DataFrame` | `.hdf` |
+| **HDF5** | `"HDF"` | `HDF` | `dask.DataFrame` (`pandas` with `usePandas=True`); resource is `{"path": ..., "key": ...}`, read-only | `.hdf` |
 | **NetCDF** | `"netcdf_xarray"` | `NETCDF_XARRAY` | `xarray.Dataset` | `.nc` |
-| **Zarr** | `"zarr_xarray"` | `ZARR_XARRAY` | `xarray.Dataset` | `.zarr` |
+| **Zarr** | `"zarr_xarray"` | `ZARR_XARRAY` | `xarray.Dataset` (loading is currently broken in master: `getData` raises `AttributeError`) | `.zarr` |
 | **GeoPackage** | `"geopandas"` | `GEOPANDAS` | `geopandas.GeoDataFrame` | `.gpkg` |
 | **GeoJSON** | `"JSON_geopandas"` | `JSON_GEOPANDAS` | `geopandas.GeoDataFrame` | `.json` |
-| **GeoTIFF** | `"geotiff"` | `GEOTIFF` | GDAL dataset | `.tif` |
+| **GeoTIFF** | `"geotiff"` | `GEOTIFF` | GDAL dataset (read-only; requires GDAL) | `.tif` |
 | **JSON (dict)** | `"JSON_dict"` | `JSON_DICT` | `dict` | `.json` |
 | **JSON (pandas)** | `"JSON_pandas"` | `JSON_PANDAS` | `pandas.DataFrame` | `.json` |
 | **NumPy array** | `"numpy_array"` | `NUMPY_ARRAY` | `numpy.ndarray` | `.npy` |
@@ -187,7 +189,7 @@ The `dataFormat` field tells Hera how to read the `resource`. When you call `doc
 
 ## Querying the database {#querying}
 
-Hera uses [MongoEngine](http://mongoengine.org/) under the hood. When you call `getMeasurementsDocuments()`, keyword arguments are translated into MongoDB queries. The `desc` fields are flattened using double-underscore (`__`) notation — the same convention MongoEngine uses for nested document queries.
+Hera uses [MongoEngine](http://mongoengine.org/) under the hood. When you call `getMeasurementsDocuments()`, `resource`, `dataFormat` and `type` match the top-level fields and every other keyword argument is a `desc` field. The `desc` arguments are passed through `dictToMongoQuery`, so they are flattened using double-underscore (`__`) notation — the same convention MongoEngine uses for nested document queries.
 
 ### Basic queries
 
@@ -209,11 +211,14 @@ Pass desc fields directly as keyword arguments:
 # Find stations in Haifa
 docs = proj.getMeasurementsDocuments(type="WeatherStation", location="Haifa")
 
-# Find stations above 100m elevation
+# Find stations at exactly 120 m elevation
 docs = proj.getMeasurementsDocuments(type="WeatherStation", elevation=120)
+
+# MongoEngine operators work too: stations above 100 m
+docs = proj.getMeasurementsDocuments(type="WeatherStation", elevation__gt=100)
 ```
 
-Behind the scenes, `location="Haifa"` becomes a MongoDB query on `desc.location`, using MongoEngine's `__` syntax: `desc__location="Haifa"`.
+Behind the scenes, `location="Haifa"` becomes a MongoDB query on `desc.location`, using MongoEngine's `__` syntax: `desc__location="Haifa"`. A list value is expanded element by element (`variables=["a", "b"]` becomes `desc__variables__0="a", desc__variables__1="b"`).
 
 ### Structured (nested) metadata queries
 
@@ -221,7 +226,7 @@ When your `desc` has nested dictionaries, the double-underscore notation travers
 
 ```python
 # Store a document with nested metadata
-proj.addMeasurementsDocument(
+proj.addSimulationsDocument(
     resource="/data/sim_result.nc",
     dataFormat=proj.datatypes.NETCDF_XARRAY,
     type="DispersionRun",
@@ -254,6 +259,13 @@ docs = proj.getSimulationsDocuments(
     type="DispersionRun",
     scenario__source="factory_A",
     scenario__wind__direction=270,
+    status="completed"
+)
+
+# Equivalent: pass the nested dict directly — it is flattened the same way
+docs = proj.getSimulationsDocuments(
+    type="DispersionRun",
+    scenario={"source": "factory_A", "wind": {"direction": 270}},
     status="completed"
 )
 ```
@@ -301,7 +313,7 @@ mongo_query = dictToMongoQuery(query_dict)
 # }
 
 # Use it directly in a query
-docs = proj.getMeasurementsDocuments(type="DispersionRun", **mongo_query)
+docs = proj.getSimulationsDocuments(type="DispersionRun", **mongo_query)
 ```
 
 The conversion rules:
@@ -313,9 +325,9 @@ The conversion rules:
 | `{"a": {"b": {"c": 3}}}` | `{"a__b__c": 3}` |
 | `{"items": [10, 20]}` | `{"items__0": 10, "items__1": 20}` |
 
-This is especially useful when your query parameters come from an external source (a JSON file, CLI arguments, or a repository configuration) rather than hardcoded keyword arguments.
+The query methods already apply this conversion to their `desc` keyword arguments, so `dictToMongoQuery` is mainly useful when you need the flat form yourself (for example to inspect it, or to query a collection directly). It is especially useful when your query parameters come from an external source (a JSON file, CLI arguments, or a repository configuration) rather than hardcoded keyword arguments.
 
-Hera also provides `ConfigurationToJSON` (`hera.utils.jsonutils`) which handles the reverse direction — converting Python objects (including physical units via `Unum`) into JSON-safe dictionaries suitable for storing in `desc` fields. Together, these utilities form the bridge between structured Python data and MongoDB queries.
+Hera also provides `ConfigurationToJSON` (`hera.utils.jsonutils`) which handles the reverse direction — converting Python objects (including pint/unum physical quantities) into JSON-safe dictionaries suitable for storing in `desc` fields. Together, these utilities form the bridge between structured Python data and MongoDB queries.
 
 ---
 
@@ -394,13 +406,14 @@ df = meteo.getDataSourceData("YAVNEEL")
 
 When no version is specified, Hera resolves the data source in this order:
 
-1. **Default version** — if one is stored in the project config (via `setDataSourceDefaultVersion` or auto-persisted)
-2. **Latest version** — the highest version number among all versions. When this fallback is used, Hera **automatically saves** the latest version as the default in the project config, so subsequent calls return the same version consistently.
+1. **Default version** — if one is stored in the project config (`<name>_defaultVersion`, set via `setDataSourceDefaultVersion`)
+2. **Latest version** — the highest version number among all versions. This fallback is **not** saved as the default, so adding a newer version changes what you get. Pin a version with `setDataSourceDefaultVersion` when you need stable results.
 
 ### Setting a default version
 
 ```python
 # Pin a specific version as the default for this project
+# (raises ValueError if that name/version does not exist)
 meteo.setDataSourceDefaultVersion("YAVNEEL", version=(1, 0, 0))
 
 # Now getDataSourceData("YAVNEEL") returns version (1, 0, 0)
@@ -421,9 +434,11 @@ meteo.addDataSource(
     overwrite=True  # required when the version already exists
 )
 
-# Delete a data source
+# Delete a data source version (without version: the default/latest one)
 meteo.deleteDataSource("YAVNEEL", version=(1, 0, 0))
 ```
+
+`addDataSource` raises `ValueError` if the name/version already exists and `overwrite` is `False`. The version defaults to `(0, 0, 1)`, and any extra keyword arguments are stored in the document's `desc`.
 
 ### Loading data sources from a repository
 
@@ -433,10 +448,12 @@ Instead of adding data sources one by one, you can define them in a repository J
 
 | Method | Description |
 |--------|-------------|
-| `getDataSourceData(name, version)` | Load and return the data |
+| `getDataSourceData(datasourceName, version=None)` | Load and return the data (`None` if not found) |
 | `getDataSourceList(**filters)` | List data source names |
+| `getDataSourceMap(**filters)` | List of dicts (format, resource, desc fields) for every data source version |
 | `getDataSourceTable(**filters)` | DataFrame of all data sources with metadata |
-| `getDataSourceDocument(name, version)` | Get the raw MongoDB document |
-| `addDataSource(name, resource, dataFormat, version, overwrite)` | Register a new data source |
-| `deleteDataSource(name, version)` | Remove a data source |
+| `getDataSourceDocument(datasourceName, version=None)` | Get the raw MongoDB document (`None` if not found) |
+| `getDataSourceDocuments(datasourceName, version=None)` | Same, as a list (empty if not found) |
+| `addDataSource(dataSourceName, resource, dataFormat, version=(0, 0, 1), overwrite=False, **kwargs)` | Register a new data source |
+| `deleteDataSource(datasourceName, version=None)` | Remove a data source version |
 | `setDataSourceDefaultVersion(name, version)` | Pin a default version |

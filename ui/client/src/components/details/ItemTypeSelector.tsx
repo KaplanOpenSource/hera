@@ -6,13 +6,15 @@ export enum ItemTypesEnum {
   string = 'string',
   null = 'null',
   object = 'object',
+  array = 'array',
 }
 
 // Each type gets a semantic MUI palette color so it adapts to light/dark mode.
-const typeColor: { [key in ItemTypesEnum]: 'success' | 'info' | 'secondary' | 'warning' } = {
+const typeColor: { [key in ItemTypesEnum]: 'success' | 'info' | 'secondary' | 'warning' | 'primary' } = {
   [ItemTypesEnum.string]: 'success',
   [ItemTypesEnum.number]: 'info',
   [ItemTypesEnum.object]: 'secondary',
+  [ItemTypesEnum.array]: 'primary',
   [ItemTypesEnum.null]: 'warning',
 };
 
@@ -20,6 +22,8 @@ const typeColor: { [key in ItemTypesEnum]: 'success' | 'info' | 'secondary' | 'w
 export const calcItemType = (val: any) => {
   if (val === null) {
     return ItemTypesEnum.null;
+  } else if (Array.isArray(val)) {
+    return ItemTypesEnum.array;
   } else if (typeof val === 'object') {
     return ItemTypesEnum.object;
   } else if ((typeof val === 'number' || typeof val === 'bigint') && Number.isFinite(val)) {
@@ -29,28 +33,44 @@ export const calcItemType = (val: any) => {
   }
 };
 
-// The value to store when a field is switched to the given type. Objects become
-// an empty substructure; scalars coerce the current value where it makes sense.
+// Types that hold no single value to carry over into a scalar.
+const noValueTypes = [ItemTypesEnum.null, ItemTypesEnum.object, ItemTypesEnum.array];
+
+// The value to store when a field is switched to the given type.
 const coerceToType = (t: ItemTypesEnum, current: any) => {
   switch (t) {
     case ItemTypesEnum.object:
+      if (Array.isArray(current)) {
+        return Object.fromEntries(current.map((v, i) => [String(i), v]));
+      }
       return {};
+    case ItemTypesEnum.array:
+      if (Array.isArray(current)) {
+        return current;
+      }
+      if (calcItemType(current) === ItemTypesEnum.object) {
+        // Sorted like the tree shows them, so the order matches what was seen.
+        return Object.entries(current).sort().map(([, v]) => v);
+      }
+      return [];
     case ItemTypesEnum.null:
       return null;
     case ItemTypesEnum.number: {
+      // parseFloat on a list would wrongly pick up its first element.
+      if (noValueTypes.includes(calcItemType(current))) {
+        return 0;
+      }
       const num = parseFloat(current);
       return Number.isFinite(num) ? num : 0;
     }
     default: {
-      // string: an object/null has no sensible text, so start empty.
-      const currentType = calcItemType(current);
-      return (currentType === ItemTypesEnum.null || currentType === ItemTypesEnum.object) ? '' : String(current);
+      // string: an object or a list has no sensible text, so start empty.
+      return noValueTypes.includes(calcItemType(current)) ? '' : String(current);
     }
   }
 };
 
-// A small chip showing the value's type. Clicking it opens a menu to pick a
-// type, which coerces the current value to match (including object = substructure).
+// A chip showing the value's type. Click it to pick another type.
 export const ItemTypeSelector = ({
   itemValue,
   setItemValue,

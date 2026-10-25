@@ -2,6 +2,8 @@
 
 **Toolkit name:** `GIS_Buildings`
 
+**Class:** `hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit` (internal toolkit name `Buildings`)
+
 Manages building footprint data — query by bounding box, extract heights, compute urban morphology parameters (plan area fraction, frontal area density, average building height), generate 3D STL meshes for CFD simulations, and group buildings into convex clusters.
 
 ```python
@@ -23,7 +25,7 @@ morphology = buildings.analysis.LambdaFromBuildingData(
 )
 ```
 
-For the full API, see the [API Reference](../../developer_guide/api/measurements.md). For implementation details (height resolution logic, Blocks class, cache strategy), see the [Developer Guide > GIS > BuildingsToolkit](../../developer_guide/measurements/gis.md#buildingstoolkit).
+For the full API, see the [API Reference](../../../developer_guide/api/measurements.md). For implementation details (height resolution logic, Blocks class, cache strategy), see the [Developer Guide > GIS > BuildingsToolkit](../../../developer_guide/measurements/gis.md#buildingstoolkit).
 
 ---
 
@@ -34,11 +36,29 @@ For the full API, see the [API Reference](../../developer_guide/api/measurements
 | File format | Shapefile, GeoJSON, or GeoPackage (`dataFormat: "geopandas"`) |
 | Geometry type | `Polygon` (building footprints) |
 | Required columns | `geometry` |
-| Height column | `BLDG_HT` (or as specified in `desc.BuildingHeightColumn`) — building height in meters |
-| Ground height | `HT_LAND` (or as specified in `desc.LandHeightColumns`) — ground elevation |
-| Fallback | If no height column, uses `building:levels * 3` meters |
-| CRS | Any (must be defined; methods handle transformation) |
-| Config key | `defaultBuildingDataSource` |
+| Columns used by the analysis layer | `BLDG_HT` (building height, m), `HT_LAND` (ground elevation), `FTYPE` (feature type; 14 and 16 are excluded), and `HI_PNT_Z` (highest point, used when `BLDG_HT` < 2 m). These names are hard-coded in `analysis.py`; the `BuildingHeightColumn` / `LandHeightColumns` metadata keys seen in some repositories are not read by the code. |
+| CRS | Required in the datasource metadata as `desc.crs` (EPSG code). `getBuildingsFromRectangle` reprojects the query box to this CRS. |
+| Config key | `defaultBuildingDataSource` (used when `dataSourceName` is not given) |
+
+Repository JSON example:
+
+```json
+{
+    "GIS_Buildings": {
+        "Config": { "defaultBuildingDataSource": "BNTL" },
+        "DataSource": {
+            "BNTL": {
+                "isRelativePath": "True",
+                "item": {
+                    "resource": "data/GIS_BUILDING/BNTL-JERUSALEM/JERU-BLDG.shp",
+                    "dataFormat": "geopandas",
+                    "desc": { "crs": 2039 }
+                }
+            }
+        }
+    }
+}
+```
 
 ---
 
@@ -60,6 +80,7 @@ gdf = buildings.getBuildingsFromRectangle(
 )
 
 # With elevation from raster topography toolkit
+# (uses the GIS_Raster_Topography default SRTM datasource of the same project)
 gdf = buildings.getBuildingsFromRectangle(
     minx=35.0, miny=32.0, maxx=35.1, maxy=32.1,
     withElevation=True,   # adds 'elevation' column from SRTM data
@@ -75,7 +96,9 @@ gdf = buildings.getBuildingsFromRectangle(
 ### From GeoJSON
 
 ```python
-# Filter buildings from a GeoJSON-like dict
+from hera.measurements.GIS.vector.buildings.toolkit import BuildingsToolkit
+
+# Filter buildings from a GeoJSON-like dict (static method)
 gdf = BuildingsToolkit.filter_buildings_in_area(
     buildings_data=geojson_dict,
     min_longitude=35.0, min_latitude=32.0,
@@ -88,8 +111,8 @@ gdf = BuildingsToolkit.filter_buildings_in_area(
 ## Extracting building heights
 
 ```python
-# Extract heights from a GeoDataFrame
-# Uses BLDG_HT column if available; falls back to building:levels * 3
+# Extract heights from an OSM-style GeoDataFrame
+# Uses the 'height' column if present; falls back to 'building:levels' * 3
 height_gdf = BuildingsToolkit.get_buildings_height(gdf)
 # Returns GeoDataFrame with columns: name, geometry, height
 ```
@@ -98,12 +121,13 @@ height_gdf = BuildingsToolkit.get_buildings_height(gdf)
 
 ```python
 # Add ground elevation to each building (at centroid)
-gdf_with_elev = buildings.getBuildingHeightFromRasterTopographyToolkit(
-    buildingData=gdf,
-    topographyDataSource="SRTM_30m",   # optional, uses default if None
-)
-# Adds 'elevation' column from the TopographyToolkit
+gdf_with_elev = buildings.getBuildingHeightFromRasterTopographyToolkit(buildingData=gdf)
+# Joins 'elevation' (plus 'point', 'filename', 'lon', 'lat') columns from the raster TopographyToolkit
 ```
+
+!!! note
+    The `topographyDataSource` argument is currently ignored; the topography toolkit's default
+    SRTM datasource (`defaultSRTM` config) is always used.
 
 ---
 
@@ -119,7 +143,7 @@ Compute plan area fraction (**lambda_P**), frontal area density (**lambda_F**), 
 morphology = buildings.analysis.LambdaFromBuildingData(
     windMeteorologicalDirection=270,   # wind direction in degrees
     resolution=250,                     # block size in meters
-    buildingsData=gdf,                  # GeoDataFrame with CRS set
+    buildingsData=gdf,                  # GeoDataFrame with CRS set (or a GeoJSON string)
     overwrite=False,                    # recompute even if cached
     saveCache=True,                     # cache results in DB
 )
@@ -152,7 +176,7 @@ Group nearby buildings into convex hulls (useful for identifying urban blocks):
 
 ```python
 clusters = buildings.analysis.ConvexPolygons(
-    regionNameOrData=gdf,   # GeoDataFrame or region name
+    regionNameOrData=gdf,   # GeoDataFrame (passing a region name is not supported in master)
     buffer=100,              # buffer distance for grouping (meters)
 )
 # Returns GeoDataFrame of convex hull polygons, sorted by area
@@ -170,20 +194,21 @@ The algorithm:
 
 Generate 3D building meshes for CFD simulations using the FreeCAD module.
 
-### From a bounding box (recommended)
+### From a bounding box
+
+There is no single `regionToSTL` method on the buildings toolkit. Query the buildings with
+elevation and pass them to `buildingsGeopandasToSTLRasterTopography` (this is what
+`hera-GIS buildings toSTL` does):
 
 ```python
-buildings.regionToSTL(
+gdf = buildings.getBuildingsFromRectangle(
     minx=35.0, miny=32.0, maxx=35.1, maxy=32.1,
-    dxdy=30,                  # grid resolution
-    inputCRS=4326,            # input coordinate system
-    outputCRS=2039,           # output coordinate system (ITM)
-    solidName="Buildings",
-    fileName="buildings.stl",
+    withElevation=True,
 )
+buildings.buildingsGeopandasToSTLRasterTopography(gdf, "BLDG_HT", "elevation", "buildings.stl")
 ```
 
-### From a GeoDataFrame (low-level)
+### From a GeoDataFrame
 
 ```python
 buildings.buildingsGeopandasToSTLRasterTopography(
@@ -217,7 +242,7 @@ The buildings toolkit has a presentation layer for visualising footprints, heigh
 | `plotHeightHistogram(data)` | Histogram of building heights | `bins`, `heightColumn` |
 | `plotBuildingsOnMap(data, tilesToolkit)` | Buildings overlaid on tile server map | `heightColumn`, `zoomlevel` |
 
-All map methods support: `ax`, `figsize`, `cmap`, `alpha`, `edgecolor`, `linewidth`, `colorbar`, `title`, `xlim`/`ylim`, `inputCRS`, `outputCRS`.
+All map methods accept `ax`, `figsize`, `alpha`, `edgecolor`, `linewidth`, `title`, `xlim`/`ylim`, `inputCRS` and `outputCRS` (default ITM); the colored methods (`plotBuildingHeights`, `plotMorphology`, `plotBuildingsWithMorphology`, `plotBuildingsOnMap`) also accept `cmap`, `vmin`/`vmax`, `colorbar` and `colorbar_label`. `plotHeightHistogram` takes `ax`, `figsize`, `bins`, `color`, `edgecolor`, `title`, `xlabel`, `ylabel`.
 
 ### Building footprints
 
@@ -282,6 +307,12 @@ ax = buildings.presentation.plotHeightHistogram(
 
 ### Buildings on map
 
+!!! warning "Known broken in master"
+    `plotBuildingsOnMap` calls `tilesToolkit.presentation.plot(extent=..., zoomlevel=..., tileServer=...)`
+    without the required `imageNameOrData` argument (`buildings/presentation.py:490`), so it raises
+    `TypeError`. Until it is fixed, fetch the background with `tiles.getImageFromCorners(...)` and
+    `tiles.presentation.plot(...)` (see [Tiles](tiles.md)) and plot the buildings on the same axes.
+
 ```python
 from hera import toolkitHome
 
@@ -337,13 +368,7 @@ buildings.presentation.plotBuildingsWithMorphology(
     title="Tel Aviv — Plan Area Fraction",
 )
 
-# 6. Buildings on satellite map
-tiles = toolkitHome.getToolkit(toolkitHome.GIS_TILES, projectName="TelAvivStudy")
-buildings.presentation.plotBuildingsOnMap(
-    gdf, tiles, heightColumn="BLDG_HT", zoomlevel=15,
-)
-
-# 7. Generate 3D STL for CFD
+# 6. Generate 3D STL for CFD (requires FreeCAD)
 buildings.buildingsGeopandasToSTLRasterTopography(
     buildingData=gdf,
     buildingHeightColumn="BLDG_HT",

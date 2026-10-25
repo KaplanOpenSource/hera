@@ -84,8 +84,6 @@ Each experiment has a **data engine** that handles the actual data retrieval —
 
 ---
 
----
-
 ## ArgosWEB — experiment authoring
 
 [ArgosWEB](https://github.com/KaplanOpenSource/argos) is the web-based experiment management UI where experiments are designed before any code is written or data is collected. It is the **entry point** of the experiment pipeline.
@@ -115,8 +113,8 @@ Hera experiment directory
     │  ├── code/           (experiment class)
     │  ├── data/           (parquet files — filled during data collection)
     │  ├── runtimeExperimentData/
-    │  │   └── experiment.zip
-    │  └── repository.json (for loading into Hera projects)
+    │  │   └── <experimentName>.zip
+    │  └── <experimentName>_repository.json (for loading into Hera projects)
     │
     ▼ hera-project repository add + project create
 Hera Project (MongoDB)
@@ -148,7 +146,7 @@ This is useful for automation or when you want to avoid the export step.
 
 ### 1. Define in ArgosWEB
 
-Create the experiment in the Argos web UI (see [ArgosWEB section above](#argosweb--experiment-authoring)):
+Create the experiment in the Argos web UI (see [ArgosWEB section above](#argosweb-experiment-authoring)):
 - Define entity types and their attribute schemas
 - Create entity instances (devices/sensors)
 - Create trial sets and trials with `TrialStart`/`TrialEnd` dates
@@ -159,10 +157,10 @@ Create the experiment in the Argos web UI (see [ArgosWEB section above](#argoswe
 ### 2. Create experiment directory
 
 ```bash
-hera-experiment create MyExperiment --zip /path/to/exported.zip --path /experiments/
+hera-experiment create MyExperiment --zip /path/to/exported.zip --path /experiments/MyExperiment
 ```
 
-This creates the standard directory structure:
+`--path` is the experiment directory itself (default: `./MyExperiment`). This creates the standard directory structure:
 
 ```
 MyExperiment/
@@ -199,7 +197,7 @@ hera-project repository add MyExperiment/MyExperiment_repository.json
 hera-project project create MY_PROJECT
 
 # Or update existing project
-hera-project project updateRepositories MY_PROJECT
+hera-project project updateRepositories --projectName MY_PROJECT
 ```
 
 ### 5. Analyse in Python
@@ -244,7 +242,7 @@ for ts_name, ts in exp.trialSet.items():
         print(f"  Trial: {trial_name}")
         print(f"    Start: {trial.properties['TrialStart']}")
         print(f"    End: {trial.properties['TrialEnd']}")
-        print(trial.entitiesTable())   # devices in this trial with locations
+        print(trial.entitiesTable)     # devices in this trial with locations
 ```
 
 ---
@@ -261,7 +259,7 @@ Each entity type (device type) has a `StoreDataPerDevice` flag that controls how
 This flag is defined in the experiment metadata (Argos zip file) as a `Constant`-scope property on the entity type. It affects:
 
 - **How data is stored**: the repository JSON creates one `Experiment_rawData` document per type (if `false`) or per device (if `true`)
-- **How data is queried**: when `StoreDataPerDevice=false`, the engine loads the single file and filters by `deviceName`; when `true`, it loads the specific device's file directly
+- **How data is queried**: the data engine's `getData(..., perDevice=False)` loads the single per-type file and filters by `deviceName`; with `perDevice=True` (and a `deviceName`) it loads that device's own file. Only `EntityWithData.getData()` and `EntityTypeWithData.getDataTrial()` read the flag and pass `perDevice` automatically; `trial.getData()` and `exp.getDataFromDateRange()` always query with `perDevice=False`
 - **CLI usage**: when using `hera-experiment data`, pass `--perDevice True` if the entity type stores data per device
 
 ```python
@@ -269,8 +267,8 @@ This flag is defined in the experiment metadata (Argos zip file) as a `Constant`
 df = trial.getData(deviceType="Sonic", deviceName="sonic01")
 # Loads Sonic.parquet, filters to sonic01 rows
 
-# StoreDataPerDevice=true: separate files per device
-df = trial.getData(deviceType="PID", deviceName="PID_01")
+# StoreDataPerDevice=true: go through the entity (passes perDevice=True)
+df = exp.entityType["PID"]["PID_01"].getData()
 # Loads PID_01.parquet directly
 ```
 
@@ -285,7 +283,7 @@ home = toolkitHome.getToolkit(toolkitHome.EXPERIMENT, projectName="MY_PROJECT")
 home.keys()
 # ['IMS_experiment', 'Haifa2014']
 
-# Get a map of experiment names → datasource documents
+# Get a map of experiment names → datasource descriptions (dicts with resource, dataFormat and desc fields)
 home.getExperimentsMap()
 
 # Get a formatted table of all experiments
@@ -302,7 +300,7 @@ exp = home.getExperiment("Haifa2014")
 # Experiment properties
 print(exp.name)                    # 'Haifa2014'
 print(exp.configuration)           # full config dict
-print(exp.defaultTrialSet)         # name of the default trial set
+print(exp.defaultTrialSet)         # name of the default trial set (None unless set, see below)
 
 # Available trial sets and device types
 print(list(exp.trialSet.keys()))   # ['Measurements', 'Calibration']
@@ -313,7 +311,7 @@ print(list(exp.entityType.keys())) # ['Sonic', 'TRH', 'PID']
 
 ## Accessing trial data
 
-Trials are time-bounded segments of an experiment. Each trial has `TRIALSTART` and `TRIALEND` properties that are automatically used when you call `getData()` without specifying a time range.
+Trials are time-bounded segments of an experiment. Each trial has `TrialStart` and `TrialEnd` properties that are automatically used when you call `getData()` without specifying a time range.
 
 ```python
 # Navigate: experiment → trial set → trial
@@ -342,6 +340,8 @@ df = trial.getData(
 # Access trials from the default trial set directly
 trials = exp.trialsOfDefaultTrialSet
 ```
+
+The default trial set comes from the `defaultTrialSetName` argument of `experimentSetupWithData.__init__`. `home.getExperiment()` does not pass it, so it is `None` unless your experiment class sets it (e.g. `super().__init__(..., defaultTrialSetName="Measurements")`). Analysis/presentation methods that say "uses default trial set if omitted" need it set.
 
 ---
 
@@ -397,8 +397,8 @@ pandas_df = dask_df.compute()
 # Or compute immediately
 pandas_df = engine.getData(deviceType="Sonic", autoCompute=True)
 
-# Per-device organization
-df = engine.getData(deviceType="Sonic", perDevice=True)
+# Per-device organization (deviceName is required when perDevice=True)
+df = engine.getData(deviceType="PID", deviceName="PID_01", perDevice=True)
 ```
 
 ---
@@ -422,6 +422,9 @@ locations = analysis.getDeviceLocations(
 # Returns DataFrame with device positions and metadata
 ```
 
+!!! warning
+    `getDeviceLocations` and `addMetadata` call `trial.entitiesTable()`, but in current pyargos `Trial.entitiesTable` is a property (a DataFrame), so both raise `TypeError`. Until fixed, use `exp.trialSet[trialSetName][trialName].entitiesTable` directly (filter by `entityType`).
+
 ### Transmission frequency
 
 Analyze how reliably each device transmitted data during a trial:
@@ -436,11 +439,14 @@ freq = analysis.getDeviceTypeTransmissionFrequencyOfTrial(
     completeTimeSeries=True,       # fill gaps with zeros
     completeDevices=True,          # include non-transmitting devices
     wideFormat=True,               # pivot table (devices × time)
-    recalculate=False              # use cached result if available
+    recalculate=False              # use cached result if available (default: True)
 )
 ```
 
-When `normalize=True`, values represent fraction of expected messages (1.0 = perfect). Results are cached in the data layer — set `recalculate=True` to force recomputation.
+When `normalize=True`, values represent fraction of expected messages (1.0 = perfect). Results are cached in the data layer; the default `recalculate=True` always recomputes, pass `recalculate=False` to reuse the cache. Counts are always binned at 1 minute; `samplingWindow` only affects the normalisation.
+
+!!! warning
+    Normalisation (and `getDeviceTypePlannedMessageCount` below) calls `self.getOptimalFrequencyHz(deviceType)`, which the base `experimentAnalysis` does not define. Implement it in your experiment's analysis class (return the planned message rate in Hz), or call with `normalize=False`.
 
 ### Planned message count
 
@@ -479,9 +485,12 @@ For sonic anemometer data:
 stats = analysis.getTurbulenceStatistics(
     sonicData=sonic_df,
     samplingWindow="30min",
-    height=10   # measurement height in meters
+    height=10   # measurement height in meters (default: 1)
 )
 ```
+
+!!! warning "Broken in master"
+    `getTurbulenceStatistics` references undefined names (`toolkitExtension`, `kaijoData`, `kaijoHeight`) and raises on every call. Use the [MeteoHighFreq toolkit](meteorology/highfreq.md) directly for turbulence statistics.
 
 ---
 
@@ -528,9 +537,12 @@ fig, ax = pres.plotDevices(
 )
 ```
 
+!!! warning "Broken in master"
+    `plotDevices` currently fails: it reads `plot_kwargs` before assignment when `ax` is not given, and looks up `self.trialSet` on the presentation object. Use `plotDevicesOnImage` instead.
+
 ### Device functionality heatmap
 
-Visualize transmission health across devices and time. Color-codes each cell: red = no data, orange = partial, green = healthy.
+Visualize transmission health across devices and time. Color-codes each cell: red = no data, orange = partial, green = healthy. It always normalises the frequency, so your analysis class must define `getOptimalFrequencyHz` (see [Transmission frequency](#transmission-frequency)).
 
 ```python
 ax, pivot_table = pres.plotDeviceTypeFunctionality(
@@ -542,16 +554,35 @@ ax, pivot_table = pres.plotDeviceTypeFunctionality(
 )
 ```
 
-### LaTeX report generation
+### Frequency distribution
 
-Generate a PDF report with device maps and metadata tables:
+Cumulative histogram of the normalised transmission frequency (same `getOptimalFrequencyHz` requirement):
 
 ```python
+ax = pres.plotFrequencyDistribution(
+    deviceType="Sonic",
+    trialName="Trial_01",
+    trialSetName="Measurements",
+    perDevice=False   # True: fraction of devices, False: fraction of messages
+)
+```
+
+### LaTeX report generation
+
+Render a Jinja2 LaTeX template with device maps and location tables into `folder_path/latex_document.tex` (for compiling to PDF, e.g. on Overleaf):
+
+```python
+with open("report_template.tex") as f:
+    template = f.read()
+
 pres.generateLatexTable(
-    latex_template="report_template.tex",   # Jinja2 template
+    latex_template=template,          # the Jinja2 template *text*, not a file name
     folder_path="/path/to/output"
 )
 ```
+
+!!! warning "Broken in master"
+    `generateLatexTable` calls `plotDevices` with arguments it does not accept (`device=`, `display=`) and reads devices from a hard-coded `trialSet['Measurements']['Measurements']`, so it currently raises.
 
 ---
 
@@ -581,9 +612,14 @@ hera-experiment data Haifa2014 TRH --deviceName TRH_North --perDevice True
 Scaffolds a complete experiment directory with boilerplate code, config files, and a repository JSON:
 
 ```bash
-hera-experiment create my_experiment --path /path/to/experiments
-hera-experiment create my_experiment --zip /path/to/argos_export.zip --relative
+hera-experiment create my_experiment --path /path/to/experiments/my_experiment
+hera-experiment create my_experiment --zip /path/to/argos_export.zip --relative True
 ```
+
+`--path` is the experiment directory itself (default: `./my_experiment`). `--relative` takes a value (any non-empty string is treated as true). Besides the files below, `create` also creates a Hera project named after the experiment, loads the generated repository into it, and writes a `createNodeRedDeviceMap.sh` helper in the current directory.
+
+!!! warning
+    In master, `create` writes `runtimeExperimentData/Datasources_Configurations.json` before creating the `runtimeExperimentData/` directory, so on a fresh path it fails with `FileNotFoundError`. Create `runtimeExperimentData/` first as a workaround.
 
 This creates:
 
@@ -598,19 +634,24 @@ my_experiment/
 └── my_experiment_repository.json     # Repository for loading into projects
 ```
 
-The generated class provides hooks for custom analysis and presentation:
+The generated class provides hooks for custom analysis and presentation. The scaffold makes the analysis and presentation classes inherit from `experimentSetupWithData`; change their base classes to `experimentAnalysis` / `experimentPresentation` (already imported in the file) so they get the built-in methods:
 
 ```python
+from hera.measurements.experiment.experiment import experimentSetupWithData
+from hera.measurements.experiment.analysis import experimentAnalysis
+from hera.measurements.experiment.presentation import experimentPresentation
+
+
 class my_experiment(experimentSetupWithData):
     def __init__(self, projectName, pathToExperiment, filesDirectory):
-        super().__init__(projectName, pathToExperiment, filesDirectory)
+        super().__init__(projectName=projectName, pathToExperiment=pathToExperiment, filesDirectory=filesDirectory)
         self._analysis = my_experimentAnalysis(self)
         self._presentation = my_experimentPresentation(self, self.analysis)
 
-class my_experimentAnalysis(experimentAnalysis):
-    pass  # Add custom analysis methods here
+class my_experimentAnalysis(experimentAnalysis):      # scaffold: experimentSetupWithData
+    pass  # Add custom analysis methods here (e.g. getOptimalFrequencyHz)
 
-class my_experimentPresentation(experimentPresentation):
+class my_experimentPresentation(experimentPresentation):  # scaffold: experimentSetupWithData
     pass  # Add custom presentation methods here
 ```
 
@@ -622,7 +663,7 @@ hera-project repository add my_experiment/my_experiment_repository.json
 hera-project project create MY_PROJECT
 # or: hera-project project updateRepositories MY_PROJECT
 
-# Method 2: Direct load
+# Method 2: Direct load (add --overwrite to replace existing datasources)
 hera-experiment load --experiment /path/to/my_experiment MY_PROJECT
 ```
 
@@ -642,6 +683,7 @@ To use a non-default engine when loading an experiment programmatically:
 
 ```python
 from hera.measurements.experiment.dataEngine import PANDASDB
+from hera.measurements.experiment.experiment import experimentSetupWithData
 
 exp = experimentSetupWithData(
     projectName="MY_PROJECT",

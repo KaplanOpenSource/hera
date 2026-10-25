@@ -6,7 +6,6 @@ import { ProjectLayout } from './components/layout/ProjectLayout';
 import { FetchProjects } from './io/FetchProjects';
 import { ProjectAutoReload } from './io/ProjectAutoReload';
 import { useProjectStore } from './stores/useProjectStore';
-import { ServerConstantReader } from './stores/useServerConstants';
 import { buildTabKindCss } from './shared/tabKindConfig';
 
 export const Dashboard = () => {
@@ -18,7 +17,6 @@ export const Dashboard = () => {
   const project = getProject();
 
   return (<>
-    <ServerConstantReader />
     <FetchProjects urlProjectName={projectName} />
     <ProjectAutoReload />
     <Box

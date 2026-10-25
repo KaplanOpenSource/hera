@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run --exclude 'tests/integration/**'",
+    "test:server": "cd ../.. && docker run --rm -v \"$(pwd)\":/app -w /app/ui/server hera-server pytest tests -v",
     "test:integ": "cd ../.. && docker build -t hera-integ-test -f ui/client/tests/integration/Dockerfile-integ-test . && docker run --rm hera-integ-test",
     "test:all": "npm run test && npm run test:integ"
   },

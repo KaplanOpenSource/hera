@@ -1,7 +1,7 @@
 import pandas
 import numpy
 from hera.utils.unitHandler import ureg, unumToPint, Quantity
-from ..gaussian.Meteorology import StandardMeteorolgyConstant_powerLaw
+from hera.simulations.gaussian.Meteorology import StandardMeteorolgyConstant_powerLaw
 from hera.utils import tounit, tonumber
 from pyriskassessment.agents.Agents import Agent
 

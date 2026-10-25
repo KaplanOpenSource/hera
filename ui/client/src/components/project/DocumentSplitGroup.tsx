@@ -10,10 +10,12 @@ const DocumentSplitTree = ({
   project,
   nodes,
   onDocumentDeleted,
+  onRowContextMenu,
 }: {
   project: ProjectObj;
   nodes: SplitTreeNode[];
   onDocumentDeleted?: () => void;
+  onRowContextMenu?: (event: React.MouseEvent, itemId: string) => void;
 }) => {
   return (
     <>
@@ -26,6 +28,7 @@ const DocumentSplitTree = ({
               document={node.doc.data}
               kind={classifyDocument(node.doc)}
               onDocumentDeleted={onDocumentDeleted}
+              onRowContextMenu={onRowContextMenu}
             />
           );
         }
@@ -34,8 +37,10 @@ const DocumentSplitTree = ({
           <TreeItem
             key={node.itemKey}
             itemId={node.itemKey}
+            onContextMenu={event => onRowContextMenu?.(event, node.itemKey)}
             label={
               <DocumentSplitTreeLabel
+                itemKey={node.itemKey}
                 path={node.path}
                 value={node.value}
               />
@@ -45,6 +50,7 @@ const DocumentSplitTree = ({
               project={project}
               nodes={node.children}
               onDocumentDeleted={onDocumentDeleted}
+              onRowContextMenu={onRowContextMenu}
             />
           </TreeItem>
         );
@@ -58,11 +64,13 @@ export const DocumentSplitGroup = ({
   project,
   depth,
   onDocumentDeleted,
+  onRowContextMenu,
 }: {
   docs: DocumentObj[];
   project: ProjectObj;
   depth: number;
   onDocumentDeleted?: () => void;
+  onRowContextMenu?: (event: React.MouseEvent, itemId: string) => void;
 }) => {
   const { viewSettings } = useViewSettingsStore();
   const tree = new SplitTree(docs, depth, viewSettings);
@@ -71,6 +79,7 @@ export const DocumentSplitGroup = ({
       project={project}
       nodes={tree.nodes}
       onDocumentDeleted={onDocumentDeleted}
+      onRowContextMenu={onRowContextMenu}
     />
   );
 };

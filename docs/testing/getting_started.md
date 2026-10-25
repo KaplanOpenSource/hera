@@ -3,14 +3,14 @@
 ## Overview
 
 The Hera test infrastructure uses **native Pytest** with a **Project-based data access** pattern.
-All tests live under `hera/tests/` and can be executed with a single `pytest` command.
+All tests live under `hera/tests/` and can be executed with a single `pytest` command (or `make test`).
 
-Data is loaded once per session into a shared Hera **Project** via `test_repository.json`,
+For the toolkit tests, data is loaded once per session into a shared Hera **Project** via `test_repository.json`,
 and each toolkit test module receives a real toolkit instance backed by MongoDB —
 no monkey-patching of `getConfig` / `getDataSourceData` is needed.
 
 !!! tip "Key Principle"
-    Tests do NOT know where files are stored on disk.
+    Toolkit tests do NOT know where files are stored on disk.
     They interact only with the Project and Toolkit APIs, exactly as production code does.
 
 ---
@@ -18,42 +18,45 @@ no monkey-patching of `getConfig` / `getDataSourceData` is needed.
 ## Architecture
 
 ```
-hera/
-├── pytest.ini                          # Pytest configuration
+hera/                                   # repository root
+├── pytest.ini                          # Pytest configuration (testpaths = hera/tests)
+├── Makefile                            # test, test-setup, test-notebooks, test-ui, test-all
+├── scripts/s3/bootstrap_unittest_data.sh  # Downloads the test data repository from S3
 ├── hera/
-│   ├── utils/data/toolkit.py           # dataToolkit (enhanced with direct-load methods)
+│   ├── utils/data/toolkit.py           # dataToolkit (repository loader + direct-load helpers)
 │   └── tests/
-│       ├── conftest.py                 # Session-scoped project, per-toolkit fixtures, helpers
-│       ├── test_datalayer.py           # Project CRUD tests
+│       ├── conftest.py                 # Session-scoped project, per-toolkit fixtures, cleanup, helpers
+│       ├── test_datalayer.py           # Project / collections / datahandlers (MongoDB)
 │       ├── test_repository.py          # Repository add/get/load, path resolution
+│       ├── test_repository_export.py   # Project documents -> repository JSON export
 │       ├── test_topography.py          # TopographyToolkit tests
 │       ├── test_landcover.py           # LandCoverToolkit tests
+│       ├── test_demography.py          # DemographyToolkit (analysis + presentation)
 │       ├── test_lowfreq.py             # lowFreqToolKit + analysis + presentation
 │       ├── test_highfreq.py            # HighFreqToolKit + calculators + turbulence
-│       ├── test_demography.py          # DemographyToolkit tests
-│       ├── repository/testCases/       # Test JSON data for repository tests
-│       └── datalayer/testCases/        # Test JSON data for datalayer tests
-└── ~/hera_unittest_data/               # External test data repository
-    ├── data_config.json                # Data configuration metadata
+│       ├── test_experiment.py          # experiment toolkit (experimentHome)
+│       ├── test_*.py                   # further modules, see "Other test modules" below
+│       ├── unit/                       # Small DB-free regression tests
+│       ├── dynamic_loading/            # Dummy experiment + dummy toolkit fixtures data
+│       ├── dynamic_loading_tests_pack/ # Dynamic toolkit/experiment loading tests (own conftest.py)
+│       └── repository/testCases/       # Test JSON data for test_repository.py
+└── ~/hera_unittest_data/               # External test data repository ($TEST_HERA)
+    ├── data_config.json                # Data configuration metadata (default_result_set, ...)
     ├── test_repository.json            # Hera-format repository mapping all test data
     ├── measurements/                   # Raw test data files
     │   ├── GIS/raster/                 # HGT, TIF files
     │   ├── GIS/vector/                 # SHP files
-    │   └── meteorology/               # Parquet files (low/high freq)
+    │   └── meteorology/                # Parquet files (lowfreqdata/, highfreqdata/)
     └── expected/                       # Expected output result sets
-        ├── BASELINE/
-        ├── REGRESSION_20251113_1556/
-        └── demo/
+        └── BASELINE/
 ```
 
 ### Data Flow
 
-![Diagram](../images/diagrams/testing_getting_started_0_5985e56e.svg)
-
-<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 sequenceDiagram
     participant Session as conftest.py
+    participant DT as dataToolkit
     participant Project as Project
     participant DB as MongoDB
     participant Fixtures as Fixtures
@@ -61,11 +64,11 @@ sequenceDiagram
 
     Session->>Session: Read TEST_HERA env var
     Session->>Session: Open test_repository.json
-    Session->>Project: Create Project
-    Session->>Project: loadAllDatasources()
+    Session->>Project: Project(PYTEST_HERA_PROJECT, filesDirectory=tmp)
+    Session->>DT: loadAllDatasourcesInRepositoryJSONToProject()
 
     loop Each toolkit in JSON
-        Project->>DB: setConfig + addDataSource
+        DT->>DB: setConfig + addDataSource
     end
 
     Session->>Fixtures: Create toolkit fixtures
@@ -74,8 +77,9 @@ sequenceDiagram
     Fixtures->>Tests: Provide instances
     Tests->>DB: getDataSourceData()
     Tests->>Tests: analysis + presentation
+
+    Session->>DB: Teardown: purge every document of the project
 ```
--->
 
 ---
 
@@ -83,34 +87,76 @@ sequenceDiagram
 
 ### 1. Python Environment
 
+The test dependencies (`pytest`, `nbclient`, `nbformat`, `ipykernel`) are pinned in `requirements.txt`,
+so the standard Hera environment is enough:
+
 ```bash
-cd /home/ilay/hera
-source heraenv/bin/activate
-pip install pytest   # if not already installed
+make install-env          # creates ~/.pyhera/environment and installs requirements.txt + hera (editable)
+source activate_hera.sh   # activates it and puts the repository on PYTHONPATH
 ```
+
+See [Installation & Setup](../user_guide/installation.md) for the full procedure. CI runs the suite on **Python 3.11**.
+
+Some modules need packages that are not pip-installable and are only importable when their clone is on `PYTHONPATH`:
+
+- `hermes` (KaplanOpenSource/hermes) — `test_hermes_workflow.py`, `test_of_lsm_flow.py`, part of `test_workflow_execution.py`
+- `argos` (KaplanOpenSource/pyargos) — parts of `test_experiment.py` and the dynamic-loading pack
+
+These tests skip (`pytest.importorskip` / `skipif`) when the package is missing.
 
 ### 2. Test Data Repository
 
-The tests rely on external data files stored in `~/hera_unittest_data/`.
+The toolkit tests rely on external data files stored in `$TEST_HERA` (default `~/hera_unittest_data/`).
 This directory must contain:
 
-- `data_config.json` — metadata about paths, assets, and result sets
+- `data_config.json` — metadata about paths, assets, and result sets (`default_result_set`)
 - `test_repository.json` — Hera-format repository mapping all test datasources to their toolkits
 - `measurements/` — raw data files (HGT, TIF, SHP, Parquet, etc.)
 - `expected/` — expected output files organized by result set
 
+`make test` downloads it automatically when `$TEST_HERA/test_repository.json` does not exist, by running:
+
+```bash
+./scripts/s3/bootstrap_unittest_data.sh --target-dir ~/hera_unittest_data
+# optional: --base-url URL  (default https://s3.eu-west-1.amazonaws.com/hera.kaplanopensource.co.il)
+```
+
+The script reads `latest.json` and `manifest.json` from the public bucket, downloads every listed file and
+verifies its SHA-256.
+
+!!! warning "The published snapshot is a subset"
+    At the time of writing, the snapshot in the bucket (`poc-manual-20260413-v1`) contains only
+    `data_config.json`, `test_repository.json`, one HGT tile (`N31E034.hgt`), `YAVNEEL.parquet` and an empty
+    `expected/BASELINE/`. Tests whose data file is missing skip themselves, so with this snapshot the
+    landcover, demography and highfreq tests, and some topography tests, are skipped (locally and in CI).
+
+`make test-setup` only creates an **empty** skeleton (`measurements/...`, `expected/BASELINE/`, a minimal
+`data_config.json` and `{}` as `test_repository.json`). Because `test_repository.json` then exists,
+`make test` will no longer bootstrap from S3 — delete the skeleton first if you want the download.
+
 ### 3. MongoDB
 
-All toolkit tests require a running MongoDB instance.
-The session-scoped project fixture loads data into MongoDB at startup and cleans up on teardown.
+The toolkit, datalayer and repository tests require a running MongoDB instance reachable through
+`~/.pyhera/config.json` (see [MongoDB setup](../user_guide/installation.md#step-5-mongodb-setup)).
+Locally, `make mongo-up` starts a `mongo:5.0` container on `127.0.0.1:27017`.
+
+The session-scoped project fixture loads data into MongoDB at startup and purges it on teardown.
+`test_datalayer.py` and `test_experiment.py` probe MongoDB at import time and skip their DB tests when it is unreachable.
 
 ### 4. Environment Variables
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `TEST_HERA` | No | `~/hera_unittest_data` | Path to the test data repository root |
-| `RESULT_SET` | No | `BASELINE` | Name of the expected-output result set |
-| `PREPARE_EXPECTED_OUTPUT` | No | (unset) | Set to `"1"` to generate expected outputs instead of comparing |
+| `TEST_HERA` | No (but see note) | `~/hera_unittest_data` | Path to the test data repository root |
+| `RESULT_SET` | No | `default_result_set` from `data_config.json`, else `BASELINE` | Name of the expected-output result set |
+| `GDF_TOL_AREA` | No | `1e-7` | Area tolerance for geometry comparison in `compare_dataframes` |
+| `MPLBACKEND` | No | (system default) | Set to `Agg` for headless runs (CI does) |
+| `PREPARE_EXPECTED_OUTPUT` | — | — | **Not implemented in master.** It is mentioned in the `conftest.py` docstring, but no code reads it |
+
+!!! note "`TEST_HERA` and the landcover tests"
+    `conftest.py` falls back to `~/hera_unittest_data` when `TEST_HERA` is unset, but `test_landcover.py`
+    builds its data path from `TEST_HERA` alone and skips the whole module when the variable is unset.
+    Export `TEST_HERA` explicitly (`make test` does this for you).
 
 See also: [Environment Variables Reference](../configuration/env_vars.md)
 
@@ -121,11 +167,33 @@ See also: [Environment Variables Reference](../configuration/env_vars.md)
 ### Run All Tests
 
 ```bash
-cd /home/ilay/hera
-source heraenv/bin/activate
-export TEST_HERA=~/hera_unittest_data
-pytest hera/tests/ -v
+make test
 ```
+
+This bootstraps the test data if needed and then runs
+`PYTHONPATH=. TEST_HERA=$(TEST_HERA) pytest hera/tests/ -v -m "not notebook"`.
+`TEST_HERA` can be overridden: `make test TEST_HERA=/data/hera_unittest_data`.
+
+Equivalent manual invocation:
+
+```bash
+source activate_hera.sh
+export TEST_HERA=~/hera_unittest_data
+pytest hera/tests/ -v -m "not notebook"
+```
+
+!!! note
+    Running plain `pytest hera/tests/` without `-m "not notebook"` also executes `test_notebooks.py`,
+    which runs every notebook in the repository and is slow.
+
+### Other Make Targets
+
+| Target | What it runs |
+|--------|--------------|
+| `make test-setup` | Creates the empty test data skeleton at `$(TEST_HERA)` |
+| `make test-notebooks` | `pytest hera/tests/test_notebooks.py -v` (every `*.ipynb` in the repo, in a fresh kernel) |
+| `make test-ui` | `npm install && npm run test:all` in `ui/client/` |
+| `make test-all` | `test`, then `test-notebooks`, then `test-ui` |
 
 ### Run a Specific Test Module
 
@@ -149,52 +217,66 @@ pytest hera/tests/test_topography.py::TestGetPointElevation -v
 pytest hera/tests/test_topography.py::TestGetPointElevation::test_basic -v
 ```
 
+### Select by Marker
+
+The markers registered in `pytest.ini` are `slow`, `integration` (requires MongoDB), `unit` (no external
+dependencies) and `notebook`.
+
+```bash
+pytest hera/tests/ -v -m unit              # only tests explicitly marked unit
+pytest hera/tests/ -v -m "not integration"
+pytest hera/tests/ -v -m "not notebook"    # what make test and CI run
+```
+
+Not every test carries a marker, so `-m unit` selects a subset of the DB-free tests. No test in master is
+currently marked `slow`, so `-m "not slow"` deselects nothing.
+
 ### Choose a Result Set
 
 ```bash
-# Via CLI option
+# Via CLI option (defined in conftest.py)
 pytest hera/tests/ --result-set BASELINE -v
 
 # Via environment variable
-export RESULT_SET=REGRESSION_20251113_1556
+export RESULT_SET=BASELINE
 pytest hera/tests/ -v
 ```
 
+The result set only selects the directory returned by the `expected_dir` fixture; no test in master
+currently compares against expected files (see [Expected Output Management](flow.md#expected-output-management)).
+
 ### Run with Short Traceback
 
-```bash
-pytest hera/tests/ -v --tb=short
-```
+`pytest.ini` already sets `addopts = -v --tb=short`. Use `--tb=long` for full tracebacks.
 
-### Run Only Fast Tests (skip slow)
+### Parallel Workers
 
-```bash
-pytest hera/tests/ -v -m "not slow"
-```
+`pytest-xdist` is not in `requirements.txt`. The session fixture always uses the fixed project name
+`PYTEST_HERA_PROJECT` and purges it on teardown, so parallel workers would share (and delete) the same project.
 
-### Run with Parallel Workers (requires pytest-xdist)
+---
 
-```bash
-pip install pytest-xdist
-pytest hera/tests/ -v -n auto
-```
+## Continuous Integration
 
-### Generate Expected Outputs
+`.github/workflows/ci.yml` runs on every pull request to `master`. The Python job (`test`):
 
-When you need to update the baseline after intentional changes:
+- Ubuntu, **Python 3.11**, `libgdal-dev gdal-bin`, `pip install -r requirements.txt` and `pip install -e . --no-deps`
+- A `mongo:latest` service on port 27017 (root user `hera` / `heracles`); a step writes `~/.pyhera/config.json` for the runner user (database `hera_ci`)
+- Checks out `KaplanOpenSource/hermes` and `KaplanOpenSource/pyargos` into `_vendor/` and puts them on `PYTHONPATH`
+- `TEST_HERA=/home/runner/hera_unittest_data`; the data is cached by the version in the bucket's `latest.json` and fetched with `bootstrap_unittest_data.sh` on a cache miss
+- Runs `pytest hera/tests/ -v -m "not notebook"` with `MPLBACKEND=Agg` (and `JUPYTER_PLATFORM_DIRS=1` to silence a jupyter_client warning)
 
-```bash
-PREPARE_EXPECTED_OUTPUT=1 pytest hera/tests/ -v
-```
-
-This will write the current test outputs as the new expected outputs instead of comparing against existing ones.
+The same workflow has three UI jobs: `ui-client` (`npx tsc --noEmit`, `npm run test`, `vite build`),
+`ui-server` (`pytest tests` in `ui/server/`) and `ui-integration` (vitest integration tests against a MongoDB service).
+Notebook tests are not run in CI.
 
 ---
 
 ## `test_repository.json` — Test Data Mapping
 
-The file `~/hera_unittest_data/test_repository.json` maps test data files to Hera toolkit datasources
-using the standard Hera repository JSON format. All paths are relative to the JSON file's directory.
+The file `$TEST_HERA/test_repository.json` maps test data files to Hera toolkit datasources
+using the standard Hera repository JSON format. All entries use `"isRelativePath": "True"`, and the
+session fixture passes `$TEST_HERA` as `basedir`, so paths are relative to the test data root.
 
 | Toolkit Key | Config | DataSources |
 |-------------|--------|-------------|
@@ -202,7 +284,7 @@ using the standard Hera repository JSON format. All paths are relative to the JS
 | `GIS_LandCover` | `defaultLandCover: lc_mcd12q1` | `lc_mcd12q1` → `measurements/GIS/raster/lc_mcd12q1.tif` (format: string) |
 | `GIS_Demography` | — | `lamas_population` → `measurements/GIS/vector/population_lamas.shp` (format: geopandas) |
 | `MeteoLowFreq` | — | `YAVNEEL` → `measurements/meteorology/lowfreqdata/YAVNEEL.parquet` (format: parquet) |
-| `MeteoHighFreq` | — | `slicedYamim_sonic` + `slicedYamim_TRH` → `measurements/meteorology/highfreqdata/` (format: parquet) |
+| `MeteoHighFreq` | — | `slicedYamim_sonic.parquet` + `slicedYamim_TRH.parquet` → `measurements/meteorology/highfreqdata/` (format: parquet) |
 
 To add new test data, add entries to this JSON and they will automatically be loaded into the test project.
 
@@ -214,23 +296,26 @@ See also: [Repository Examples](../examples/repository_examples.md) and [Reposit
 
 ### `test_datalayer.py`
 
-Tests for `hera.datalayer.project.Project` CRUD operations.
+Tests for `hera.datalayer` against a real MongoDB (96 tests). It does **not** use the shared session project:
+it defines its own fixtures `proj` (module-scoped, project `pytest_datalayer_comprehensive`) and `clean_proj`
+(function-scoped, project `pytest_datalayer_func`). DB tests are skipped when MongoDB is unreachable.
 
-| Test | Description |
-|------|-------------|
-| `test_project_init` | Verify Project creation and basic properties |
-| `test_add_measurements_document` | Add a document, verify it persists |
-| `test_get_measurements_documents` | Query documents by resource/format/type |
-| `test_delete_measurements_documents` | Delete all documents, verify removal |
-| `test_add_and_read_counters` | Read/write Counter documents via setConfig/getConfig |
+| Area | Test classes |
+|------|--------------|
+| CRUD on the three collections | `TestMeasurementsCRUD`, `TestSimulationsCRUD`, `TestCacheCRUD`, `TestSimulationsCacheAsDict` |
+| Queries | `TestNestedQueries`, `TestGetAllDocuments`, `TestGetDocumentByID`, `TestGetMetadata`, `TestAddDocumentFromDict`, `TestEmptyProjectEdgeCases` |
+| Counters and config | `TestCounters`, `TestConfiguration`, `TestProjectProperties` |
+| Saving data and handlers | `TestSaveData`, `TestSaveDataAutoDetect`, `TestDataHandlers`, `TestDatatypes`, `TestGuessHandler` |
+| Collections and metadata frames | `TestCollectionDirect`, `TestMetadataFrame`, `TestNonDBMetadataFrame` |
+| Other | `TestAutoCache`, `TestExportImport`, `TestModuleFunctionsDB`, `TestModuleFunctionsLocal`, `TestParseConnectionString`, `TestConfigFileManagement` |
 
-**Requires:** MongoDB connection
+**Requires:** MongoDB connection for the classes marked `integration`
 
 ---
 
 ### `test_repository.py`
 
-Tests for `hera.utils.data.toolkit.dataToolkit` (repository management).
+Tests for `hera.utils.data.toolkit.dataToolkit` (repository management). Uses its own module-scoped `tk` fixture.
 
 | Test | Description |
 |------|-------------|
@@ -263,11 +348,13 @@ Uses the `topo_toolkit` fixture from conftest (backed by project datasource `SRT
 | `test_basic` (getElevation) | Area elevation via bounding box |
 | `test_matches_hgt_file` (area) | Area elevation comparison against raw HGT data |
 | `test_basic` (convertPointsCRS) | CRS conversion (WGS84 -> ITM) |
+| `test_single_point_no_deprecation_warning` | Single-point conversion emits no deprecation warning |
+| `test_single_point_matches_multi_point_conversion` | Single-point and multi-point conversions agree |
 | `test_basic` (createElevationSTL) | STL string generation |
 | `test_basic` (getElevationSTL) | STL from existing Dataset |
 | `test_basic` (calculateStatistics) | Mean, min, max statistics |
 
-**Data source:** `SRTMGL1` (HGT directory path via `getDataSourceData`)
+**Data source:** `SRTMGL1` (HGT directory path via `getDataSourceData`). Tests skip when the required tile is missing.
 
 ---
 
@@ -275,6 +362,7 @@ Uses the `topo_toolkit` fixture from conftest (backed by project datasource `SRT
 
 Tests for `hera.measurements.GIS.raster.landcover.LandCoverToolkit`.
 Uses the `lc_toolkit` fixture from conftest (backed by project datasource `lc_mcd12q1`).
+The whole module is skipped when `$TEST_HERA/measurements/GIS/raster/lc_mcd12q1.tif` does not exist.
 
 | Test | Description |
 |------|-------------|
@@ -328,29 +416,49 @@ Uses the `hf_toolkit` fixture from conftest (backed by datasources `slicedYamim_
 | AbstractCalculator | `test_init_basic`, `test_sampling_window`, `test_compute_methods_exist`, `test_set_save_properties` |
 | MeanDataCalculator | `test_calculate_mean`, `test_hour_and_timeWithinDay`, `test_horizontalSpeed`, `test_sigma_sigmaH`, `test_Ustar_and_uStarOverWindSpeed`, `test_compute_returns_dataframe` |
 | Advanced MeanData | `test_TKE`, `test_MOLength` |
-| RawdataAnalysis | `test_singlePointTurbulenceStatistics_returns_instance`, `test_raises_on_invalid`, `test_AveragingCalculator`, `test_AveragingCalculator_raises_on_invalid` |
+| RawdataAnalysis | `test_singlePointTurbulenceStatistics_returns_instance`, `test_singlePointTurbulenceStatistics_raises_on_invalid`, `test_AveragingCalculator`, `test_AveragingCalculator_raises_on_invalid` |
 | Turbulence Stats | `test_instantiation`, `test_invalid_input_type`, `test_fluctuations`, `test_secondMoments`, `test_sigma`, `test_horizontalSpeed`, `test_Ustar`, `test_TKE`, `test_MOLength_Sonic` |
 
-**Data sources:** `slicedYamim_sonic`, `slicedYamim_TRH` (parquet via `getDataSourceData`)
+**Data sources:** `slicedYamim_sonic`, `slicedYamim_TRH` (parquet via `getDataSourceData`). Skipped when the files are missing.
 
 ---
 
 ### `test_demography.py`
 
-Tests for `hera.measurements.GIS.vector.demography.DemographyToolkit`.
-Uses the `demo_toolkit` fixture from conftest (backed by project datasource `lamas_population`).
+Tests for `hera.measurements.GIS.vector.demography.DemographyToolkit` (54 tests).
+DB-backed tests use the `demo_toolkit` fixture from conftest (backed by project datasource `lamas_population`);
+others use synthetic GeoDataFrames.
 
-| Test | Description |
-|------|-------------|
-| `test_basic` (calculatePopulationInPolygon) | Basic polygon intersection |
-| `test_partial_intersection` | Partial polygon overlap |
-| `test_outside_bounds` | Polygon completely outside data extent |
-| `test_invalid_datasource` | ValueError for non-existing data source |
-| `test_with_known_values` | Synthetic data with known population values |
-| `test_simple` (createNewArea) | Create new area and verify total population |
-| `test_creates_and_sets_path` (setDefaultDirectory) | Directory creation and path assignment |
+| Test class | Covers |
+|------------|--------|
+| `TestDemographyToolkitInit` | `analysis` / `presentation` properties, population types |
+| `TestSetDefaultDirectory` | Directory creation and path assignment, error when missing and `create=False` |
+| `TestCalculatePopulationInPolygon` | Full/partial/no intersection, invalid datasource, known values, GeoDataFrame input, population types |
+| `TestCreateNewArea` | New area creation and total population |
+| `TestPlotPopulationDensity`, `TestPlotPopulation`, `TestPlotPopulationByType`, `TestPlotPopulationInPolygon`, `TestPlotArea`, `TestPlotPopulationOnMap` | Presentation layer plots and their options |
+| `TestEdgeCases` | Empty GeoDataFrame, single polygon, no overlap |
 
-**Data source:** `lamas_population` (geopandas via `getDataSourceData`)
+**Data source:** `lamas_population` (geopandas via `getDataSourceData`). DB-backed tests skip when the shapefile is missing.
+
+---
+
+### Other test modules
+
+| Module | What it covers | Needs |
+|--------|----------------|-------|
+| `test_repository_export.py` | `hera.utils.data.repositoryExport`: content hashes, document → repository item, merge, dedup, round trip | DB-free, except `TestExportFacade` / `TestRoundTrip` (temporary project in MongoDB) |
+| `test_experiment.py` | `experimentHome`, trials, entity types, data engines, analysis/presentation, Argos zip parsing | MongoDB, `argos` for some tests |
+| `test_toolkit_coverage.py` | Pure-logic paths of Topography, LSM template params, OFToolkit, Briggs rural sigmas, lowfreq `addDatesColumns` | None (`unit`) |
+| `test_riskassessment_flow.py` | Risk assessment agent, injury levels, toxic loads, full mock flow | None (`unit`) |
+| `test_matplotlibContour.py` | `hera.utils.matplotlibCountour` contour → GeoDataFrame conversion | None (`unit`) |
+| `test_of_lsm_flow.py` | `OFLSMToolkit` Lagrangian particle-file parsing | `hermes`; `blockMesh` for the full OpenFOAM test |
+| `test_hermes_workflow.py` | Running a hermes workflow through `hermesWorkflowToolkit` | `hermes`, `luigi` |
+| `test_workflow_execution.py` | Luigi command construction and `dispatch_id` output isolation | `hermes`, `luigi` for the integration test |
+| `test_logging_helpers.py` | Default logging config creation | None |
+| `test_no_invalid_escapes.py` | Every `hera/**/*.py` compiles without invalid-escape warnings | None |
+| `test_notebooks.py` | Executes every repository notebook (marker `notebook`) | Jupyter kernel; excluded from `make test` and CI |
+| `unit/` | `test_cli_import_cost.py`, `test_diffJSONS.py`, `test_lowfreq_docs_match_code.py`, `test_openfoam_dataset2of.py` | None |
+| `dynamic_loading_tests_pack/` | Dynamic toolkit loading via `classpath` (data in `dynamic_loading/`), dynamic experiment loading, `hera-experiment` CLI shortcuts | MongoDB, the `hera-experiment` script on `PATH` and `argos` for the experiment tests |
 
 ---
 
@@ -360,12 +468,13 @@ Uses the `demo_toolkit` fixture from conftest (backed by project datasource `lam
 
 | Fixture | Description |
 |---------|-------------|
-| `test_hera_root` | Validated path to `~/hera_unittest_data` |
+| `test_hera_root` | Validated path to `$TEST_HERA` (default `~/hera_unittest_data`); skips if missing |
 | `data_config` | Parsed `data_config.json` dict |
 | `result_set` | Active result-set name |
-| `expected_dir` | Path to `expected/<result_set>/` |
+| `expected_dir` | Path to `expected/<result_set>/`; skips if missing |
 | `hera_test_project` | **The shared Hera Project** with all test data loaded from `test_repository.json` |
 | `hera_project_name` | The string `"PYTEST_HERA_PROJECT"` |
+| `_no_trace_guard` | Autouse. Snapshots the project list at session start and purges every project (DB documents and directories) created during the session, plus leftovers matching test name patterns |
 
 ### Per-Toolkit Fixtures (session-scoped)
 
@@ -377,12 +486,21 @@ Uses the `demo_toolkit` fixture from conftest (backed by project datasource `lam
 | `lf_toolkit` | `lowFreqToolKit` | YAVNEEL (parquet → dask/pandas) |
 | `hf_toolkit` | `HighFreqToolKit` | slicedYamim_sonic, slicedYamim_TRH (parquet) |
 
-### Function-Scoped Fixtures
+### Lightweight Fixtures
 
-| Fixture | Description |
-|---------|-------------|
-| `project_fixture` | Temporary Project with cleanup (for `test_datalayer.py`) |
-| `data_toolkit_fixture` | dataToolkit instance |
+| Fixture | Scope | Description |
+|---------|-------|-------------|
+| `project_fixture` | function | Temporary Project `pytest_temp_project` with cleanup |
+| `data_toolkit_fixture` | session | `dataToolkit` instance |
+
+These two are available but not used by any test module in master (`test_datalayer.py` and
+`test_repository.py` define their own fixtures).
+
+### Cleanup Helpers
+
+`purge_project(projectName)` (= `purge_project_db` + `purge_project_dirs`) deletes every document of a project
+in all three collections, including the hidden config document, and removes `~/.hera/<projectName>`.
+Use it in fixtures that create their own projects.
 
 ---
 
@@ -433,14 +551,18 @@ resolved = dataToolkit.resolveDataSourcePaths(repo_dict, basedir="/data/root")
 
 ### Tests are skipped
 
-- **"TEST_HERA directory not found"** — Set `TEST_HERA` env var or create `~/hera_unittest_data/`
-- **"test_repository.json not found"** — Create the repository JSON (see `test_repository.json` section above)
+- **"TEST_HERA directory not found"** — Set `TEST_HERA` env var or run `make test` to download the data
+- **"test_repository.json not found"** / **"data_config.json not found"** — The data directory is incomplete; re-run `./scripts/s3/bootstrap_unittest_data.sh`
+- **"Skipping landcover tests — data file not found"** — `TEST_HERA` is unset or the TIF is not in the snapshot
+- **"... data file missing in TEST_HERA"** / **"Required elevation tile missing"** — The file is not part of the downloaded snapshot (see the warning under Test Data Repository)
 - **"datasource not loaded in project"** — Verify MongoDB is running and the repository JSON is valid
+- **"MongoDB not reachable"** — See below
 
 ### MongoDB connection errors
 
 All toolkit tests (topography, landcover, demography, lowfreq, highfreq) require an active MongoDB instance.
-The session-scoped `hera_test_project` fixture loads data into MongoDB at startup and cleans it up on teardown.
+The session-scoped `hera_test_project` fixture loads data into MongoDB at startup and purges it on teardown.
+Check `~/.pyhera/config.json` and `make mongo-status`.
 
 ### Matplotlib backend issues
 
@@ -457,10 +579,13 @@ See also: [Troubleshooting](../troubleshooting.md)
 
 ## Adding New Test Data
 
-1. Place the data file under `~/hera_unittest_data/measurements/<appropriate_subdir>/`
-2. Add an entry to `~/hera_unittest_data/test_repository.json` under the appropriate toolkit key
+1. Place the data file under `$TEST_HERA/measurements/<appropriate_subdir>/`
+2. Add an entry to `$TEST_HERA/test_repository.json` under the appropriate toolkit key
 3. The data will be automatically loaded into the test project on the next test run
 4. In your test module, access the data via `toolkit.getDataSourceData("your_datasource_name")`
+
+The copy in the S3 bucket is what CI and `make test` download; a file that exists only on your machine
+makes the dependent tests skip elsewhere.
 
 ---
 
@@ -468,12 +593,13 @@ See also: [Troubleshooting](../troubleshooting.md)
 
 ### Step-by-Step Guide
 
-1. **Add test data** to `~/hera_unittest_data/measurements/<subdir>/`
+1. **Add test data** to `$TEST_HERA/measurements/<subdir>/`
 2. **Update `test_repository.json`** with a new entry under the appropriate toolkit key
 3. **Add a fixture** in `conftest.py` (session-scoped, depends on `hera_test_project`)
 4. **Create a test module** `hera/tests/test_<name>.py`
 5. **Use the fixture** to get a real toolkit instance — no file paths in tests
-6. **Compare outputs** using `compare_outputs()` and expected files under `expected/BASELINE/`
+6. **Skip, don't fail, on missing data** — follow the existing modules (`pytest.skip` when `getDataSourceData` returns `None` or the file is absent)
+7. **Optionally compare outputs** using `compare_outputs()` and files under `expected/<result_set>/`
 
 ### Example: Adding a New Toolkit Test
 
@@ -497,6 +623,7 @@ class TestMyToolkit:
 ## Related Documentation
 
 - [Test Flow](flow.md) — Deep dive into the Pytest session lifecycle and comparison system
+- [Installation & Setup](../user_guide/installation.md) — Environment, MongoDB and `config.json`
 - [Repository Examples](../examples/repository_examples.md) — Examples of `test_repository.json` structure
 - [Repository Schema Reference](../reference/repository_schema.md) — Complete schema documentation
 - [Environment Variables](../configuration/env_vars.md) — All test-related environment variables

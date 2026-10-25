@@ -1,49 +1,10 @@
-import { BASEURL } from '../shared/baseurl';
+import type { WorkflowChunk } from '../api/WorkflowApi';
 
-// Reply from starting a run: a token to poll with, or status "busy" when a run
-// is already in progress on the server.
-export type StartWorkflowResult = {
-  token?: string,
-  status?: string,
-};
+export type { StartWorkflowResult, WorkflowChunk, PollWorkflowResult } from '../api/WorkflowApi';
 
-// Reply from polling a run. status is one of running / done / error / not_found.
-// output and error are filled in once the run is done / failed.
-export type PollWorkflowResult = {
-  status: string,
-  output: string,
-  error: string,
-};
-
-// Starts a saved workflow run on the server. Returns a token to poll with, or a
-// busy status when the server is already running a workflow.
-export const startWorkflow = async ({
-  projectName,
-  workflowName,
-}: {
-  projectName: string,
-  workflowName: string,
-}): Promise<StartWorkflowResult> => {
-  const response = await fetch(`${BASEURL}/start_workflow`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ projectName, workflowName }),
-  });
-  const text = await response.text();
-  if (!response.ok) {
-    const problem = JSON.parse(text);
-    throw new Error(problem.error ?? text);
-  }
-  return JSON.parse(text);
-};
-
-// Polls a run's status by token. Once done, output holds the full console output.
-export const pollWorkflow = async (token: string): Promise<PollWorkflowResult> => {
-  const response = await fetch(`${BASEURL}/workflow_status/${token}`);
-  const text = await response.text();
-  if (!response.ok) {
-    const problem = JSON.parse(text);
-    throw new Error(problem.error ?? text);
-  }
-  return JSON.parse(text);
+// Joins per-task chunks into one flat text, in run order (for a plain-text view).
+export const chunksToText = (
+  chunks?: WorkflowChunk[] | null,
+): string => {
+  return (chunks ?? []).map((chunk) => { return chunk.text; }).join('');
 };
