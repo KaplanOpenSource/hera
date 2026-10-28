@@ -1,7 +1,7 @@
 """The experiment parser module, and the pydoc factory convention it would use.
 
-CLAUDE.md requires that Calculator, InjuryLevel, Injury and Action subclasses
-carry pydoc.locate-compatible names, because the factories build a class path
+Calculator, InjuryLevel, Injury and Action subclasses must carry
+pydoc.locate-compatible names, because the factories build a class path
 from a string.  That convention is checked here, together with the state of
 hera/measurements/experiment/parsers.py -- which turns out to be orphaned.
 """
@@ -21,7 +21,7 @@ CALCULATOR_PATH = "hera.riskassessment.agents.effects.Calculator.Calculator%s"
 
 @pytest.mark.unit
 class TestPydocFactoryConvention:
-    """The naming rule CLAUDE.md enforces, exercised the way the factory does."""
+    """The naming rule enforced, exercised the way the factory does."""
 
     @pytest.mark.parametrize("suffix", ["Haber", "TenBerge", "MaxConcentration"])
     def test_each_calculator_resolves_by_name(self, suffix):

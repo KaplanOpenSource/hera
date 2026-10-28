@@ -1,10 +1,4 @@
 """datahandler: format registry, dispatch, and save/load round trips.
-
-The registry decides which storage format a Python object gets, so it decides
-whether hera's own policy in CLAUDE.md -- tabular data as parquet, never CSV --
-is actually followed.  That makes dispatch a correctness concern.
-
-Every round trip here writes to tmp_path, so nothing touches the test data set.
 """
 import json
 
@@ -104,12 +98,11 @@ class TestFormatDetection:
         reason="B20: typeDatatypeMap is keyed on third-party internal module paths "
                "('pandas.core.frame.DataFrame'). pandas 3 reports "
                "'pandas.DataFrame', which the map does not know, so every "
-               "DataFrame silently degrades to pickle instead of parquet -- "
-               "against the policy in CLAUDE.md, with no error. "
-               "See the consolidated findings issue.",
+               "DataFrame silently degrades to pickle instead of parquet "
+               ", with no error. See the consolidated findings issue.",
     )
     def test_a_dataframe_is_stored_as_parquet(self):
-        """CLAUDE.md: tabular data is parquet, and parquet is preferred over CSV."""
+        """tabular data is parquet, and parquet is preferred over CSV."""
         assert datatypes.getDataFormatName(pd.DataFrame({"a": [1]})) == datatypes.PARQUET
         assert datatypes.getDataFormatExtension(pd.DataFrame({"a": [1]})) == "parquet"
 

@@ -61,7 +61,7 @@ class TestAutomaticTagging:
         assert len(toolkit.getCacheDocuments(type="T")) == 2
 
     def test_the_three_collections_stay_separate(self, toolkit):
-        """CLAUDE.md: simulation results must never land in Measurements."""
+        """Simulation results must never land in Measurements."""
         toolkit.addCacheDocument(resource="/c", dataFormat="string", type="T")
         toolkit.addMeasurementsDocument(resource="/m", dataFormat="string", type="T")
         toolkit.addSimulationsDocument(resource="/s", dataFormat="string", type="T")
@@ -141,7 +141,7 @@ class TestToolkitIdentity:
         assert toolkit.analysis is not None
 
     def test_analysis_is_not_a_toolkit_subclass(self, toolkit):
-        """CLAUDE.md: analysis and presentation are composition, not inheritance."""
+        """Analysis and presentation are composition, not inheritance."""
         from hera.toolkit import abstractToolkit
 
         assert not isinstance(toolkit.analysis, abstractToolkit)
