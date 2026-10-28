@@ -12,8 +12,8 @@ Common errors and solutions when working with the Hera system.
 
 **Solution:**
 
-1. Hera auto-creates a template at `~/.pyhera/config.json` on first run
-2. Edit the file with valid MongoDB connection details:
+1. Hera auto-creates a template at `~/.pyhera/config.json` on first run (keyed by your OS user name, with `{username}`-style placeholders)
+2. Edit the file with valid MongoDB connection details (or run `hera-project db create <name> --username ... --password ... --IP ... --databaseName ...`):
 
 ```json
 {
@@ -26,15 +26,25 @@ Common errors and solutions when working with the Hera system.
 }
 ```
 
-3. Replace `connectionName` with a meaningful name (e.g., your OS username)
+3. Replace `connectionName` with your OS user name — that connection is used when no `connectionName` is given. Other names are used only when passed explicitly (`Project(..., connectionName=...)`).
 
 ---
 
-### `ConnectionRefusedError: [Errno 111] Connection refused`
+### `ConnectionRefusedError: [Errno 111] Connection refused` / `ServerSelectionTimeoutError`
 
 **Cause:** MongoDB is not running or not accessible at the configured IP/port.
 
 **Solution:**
+
+If you use the Docker MongoDB set up by `init_with_mongo.sh` / `make install`:
+
+```bash
+make mongo-status   # is the hera-mongo container running?
+make mongo-up       # start it
+make mongo-logs     # inspect errors
+```
+
+For a system MongoDB service:
 
 ```bash
 # Check if MongoDB is running
@@ -58,12 +68,12 @@ Verify the `dbIP` in `~/.pyhera/config.json` matches your MongoDB server address
 **Solution:**
 
 ```bash
-# Activate the virtual environment
-source heraenv/bin/activate
-
-# Install in development mode
+# Create the environment (venv at ~/.pyhera/environment, installs requirements + hera in editable mode)
 cd /path/to/hera
-pip install -e .
+make install-env
+
+# Activate it (also sets HERA_REPO_ROOT and adds hera/bin to PATH)
+source activate_hera.sh
 
 # Verify
 python -c "import hera; print(hera.__version__)"
@@ -73,9 +83,11 @@ python -c "import hera; print(hera.__version__)"
 
 ### `command not found: hera-project`
 
-**Cause:** The `hera/bin/` directory is not in your system `PATH`.
+**Cause:** The Hera environment is not activated, or `hera/bin/` is not in your system `PATH`.
 
 **Solution:**
+
+`source activate_hera.sh` adds `hera/bin` to `PATH`. Otherwise:
 
 ```bash
 # Add to PATH (temporary)
@@ -90,9 +102,9 @@ source ~/.bashrc
 
 ## Toolkit Issues
 
-### `getToolkit() returns None`
+### `ValueError: Toolkit '...' not found in static registry, ToolkitDataSource, or experiment toolkit`
 
-**Cause:** The toolkit is not registered in the static registry or the database.
+**Cause:** The toolkit is not registered in the static registry or the database. (`getToolkit()` raises; it does not return `None`.)
 
 **Solution:**
 
@@ -107,18 +119,20 @@ print(toolkitHome.getToolkitTable("MY_PROJECT"))
 2. If the toolkit is custom/dynamic, register it:
 
 ```python
+# The directory must contain MyCustomToolkit.py defining class MyCustomToolkit
 toolkitHome.registerToolkit(
-    toolkitclass="my_package.MyToolkit",
-    datasource_name="MyCustomToolkit",
-    projectName="MY_PROJECT"
+    toolkit_name="MyCustomToolkit",
+    toolkit_path="/path/to/toolkits/MyCustomToolkit",
 )
 ```
 
 3. Or via CLI:
 
 ```bash
-hera-toolkit register --project MY_PROJECT --cls my_package.MyToolkit --name MyCustomToolkit
+hera-project addToolkit MyCustomToolkit /path/to/toolkits/MyCustomToolkit
 ```
+
+4. `ImportError: Cannot find toolkit class X.X` means the directory does not contain a module `X` with a class `X`; `ValueError: ... would shadow the already-importable module` means the toolkit name collides with an installed module — rename it.
 
 ---
 
@@ -139,7 +153,7 @@ print(toolkit.getDataSourceTable())
 
 ```bash
 hera-project repository list
-hera-project repository load myRepo MY_PROJECT --overwrite
+hera-project repository load /path/to/myRepo.json MY_PROJECT --overwrite
 ```
 
 3. Verify the datasource name matches exactly (case-sensitive).
@@ -196,15 +210,13 @@ ls $TEST_HERA/measurements/
 
 ### `PREPARE_EXPECTED_OUTPUT` Not Generating Files
 
-**Cause:** The environment variable is not set correctly, or the expected directory doesn't exist.
+**Cause:** `PREPARE_EXPECTED_OUTPUT` is mentioned in the `hera/tests/conftest.py` docstring, but no test code reads it in master, so it never generates baseline files.
 
 **Solution:**
 
-```bash
-# Must be set to the string "1"
-PREPARE_EXPECTED_OUTPUT=1 pytest hera/tests/ -v
+There is no automatic baseline-generation mode. Write expected files explicitly with the `save_expected_output()` helper in `hera/tests/conftest.py`, and make sure the result-set directory exists:
 
-# Verify expected directory exists
+```bash
 ls $TEST_HERA/expected/BASELINE/
 ```
 
@@ -248,7 +260,8 @@ This has been fixed by replacing the wildcard import in `hera/utils/unitHandler.
 **Solution:**
 
 ```bash
-pip install -r requirements.txt
+pip install -r docs/requirements-docs.txt
+# or: make docs-deps   (also installs hera with --no-deps)
 ```
 
 ---

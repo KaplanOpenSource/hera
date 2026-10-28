@@ -1,6 +1,6 @@
-from ...datalayer import project
-from ...riskassessment import RiskToolkit
-from ..utils import tonumber, tounit
+from hera.datalayer import project
+from hera.riskassessment import RiskToolkit
+from hera.utils import tonumber, tounit
 from hera.utils.unitHandler import ureg, unumToPint
 import numpy
 

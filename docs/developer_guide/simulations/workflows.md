@@ -2,7 +2,7 @@
 
 The `hermesWorkflowToolkit` is the database-backed workflow orchestrator that wraps the [Hermes](https://github.com/KaplanOpenSource/hermes) library. It manages the full lifecycle of simulation workflows: creating them from JSON, storing them in MongoDB with auto-generated names, building them into Luigi task DAGs, executing them, and comparing parameter variations.
 
-`OFToolkit` inherits from `hermesWorkflowToolkit`, gaining workflow support automatically.
+`OFToolkit` inherits from `hermesWorkflowToolkit`, gaining workflow support automatically. The base toolkit itself is registered as `toolkitHome.SIMULATIONS_WORKFLOWS` (`"hermesWorkflows"`) and is what the `hera-workflows` CLI uses (handlers in `hera/simulations/CLI.py`).
 
 ---
 
@@ -26,11 +26,11 @@ The toolkit is a **wrapper** around the Hermes workflow engine:
 abstractToolkit
     ↓
 hermesWorkflowToolkit (hera/simulations/hermesWorkflowToolkit.py)
-    ├─ OFToolkit (hera/simulations/openFoam/toolkit.py)
-    │   └─ adds OFObjectHome, Analysis, Presentation, solver extensions
-    └─ workflowToolkit [LSM variant] (hera/simulations/LSM/hermesWorkflowToolkit.py)
-        └─ imports hermes handlers (handler_build, handler_expand, handler_execute)
+    └─ OFToolkit (hera/simulations/openFoam/toolkit.py)
+        └─ adds OFObjectHome, Analysis, Presentation, solver extensions
 ```
+
+`OFToolkit` is the only subclass in master. (`LSMToolkit` inherits from `abstractToolkit` directly; there is no LSM-specific workflow toolkit.)
 
 ### Toolkit extension pattern
 
@@ -64,7 +64,7 @@ class absractEulerianSolver_toolkitExtension:
 
 ```
 absractEulerianSolver_toolkitExtension
-    ├─ simpleFoam_toolkitExtension
+    ├─ simpleFoam_toolkitExtension        (not composed into OFToolkit)
     └─ buoyantReactingFoam_toolkitExtension
 
 absractStochasticLagrangianSolver_toolkitExtension
@@ -98,6 +98,13 @@ DESC_GROUPNAME   = "groupName"         # desc field keys
 DESC_GROUPID     = "groupID"
 DESC_WORKFLOWNAME = "workflowName"
 DESC_PARAMETERS  = "parameters"
+DOCKIND_CACHE       = "Cache"          # dockind values for the get*Documents lookups
+DOCKIND_SIMULATIONS = "Simulations"
+
+# Module level (hera/simulations/hermesWorkflowToolkit.py):
+SCHEDULER_LOCAL   = "local"            # Luigi --local-scheduler
+SCHEDULER_CENTRAL = "central"          # connect to a running luigid
+class actionModes(Enum): ADD, ADDBUILD, ADDBUILDEXECUTE
 ```
 
 ---
@@ -205,7 +212,7 @@ The `parameters` are stored separately from the full `workflow` JSON to enable e
 ### 3. Build: generate Luigi tasks
 
 ```python
-# Inside executeWorkflowFromDB():
+# Inside prepareWorkflowRunFromDoc(doc), called by executeWorkflowFromDB():
 build = hermesWF.build(buildername=workflow.BUILDER_LUIGI)
 ```
 
@@ -222,17 +229,23 @@ The build process:
 ### 4. Execute: run Luigi pipeline
 
 ```python
-toolkit.executeWorkflowFromDB("dispersion_0001")
+dispatch_id = toolkit.executeWorkflowFromDB(
+    "dispersion_0001",
+    scheduler="local",        # or "central" (SCHEDULER_CENTRAL)
+    schedulerHost=None, schedulerPort=None,
+    dispatch_id=None,         # auto-generated uuid4 hex if None; returned
+    stdout=None, stderr=None,
+)
 ```
 
-Execution steps:
+Execution steps (per matching document; steps 2-5 are `prepareWorkflowRunFromDoc(doc)`):
 
-1. Retrieve workflow document from DB
-2. Reconstruct `hermes.workflow` object from stored JSON
+1. Retrieve workflow document(s) from DB (`getWorkflowListDocumentFromDB`)
+2. Reconstruct the workflow object from stored JSON (`getHermesWorkflowFromJSON`)
 3. Build Luigi task DAG (generates Python module)
-4. Write workflow JSON + Python module to `filesDirectory`
+4. Write the workflow JSON to its resource path and the Python module to `filesDirectory/{name}.py`
 5. **Clean previous targets** — remove `{name}_targetFiles/` to force re-execution
-6. **Run Luigi** via command line: `python3 -m luigi --module {name} finalnode_xx_0 --local-scheduler`
+6. **Run Luigi** via the command from `buildLuigiExecutionCommand()`: `python3 -m luigi --module {name} finalnode_xx_0 --local-scheduler` (local), or with `--scheduler-host/--scheduler-port` for the central scheduler; run with `subprocess.run(..., check=True)`
 7. Clean up generated Python module (JSON stays)
 
 The `finalnode_xx` is a synthetic terminal node that depends on all actual nodes — executing it triggers the entire DAG.
@@ -256,7 +269,7 @@ diff = toolkit.compareWorkflowInGroup("dispersion")
 # Compare specific workflows
 diff = toolkit.compareWorkflows(["dispersion_0001", "dispersion_0002"])
 
-# List all workflows in a group
+# List all workflows in a group (returns a list of dicts)
 toolkit.listWorkflows("dispersion", listNodes=True, listParameters=True)
 ```
 
@@ -309,30 +322,36 @@ formatted_number = "{0:04d}".format(flowID)
 return f"{baseName}_{formatted_number}"
 ```
 
-**Counter mechanism:** Each group has its own counter stored in the project config via `getCounterAndAdd(groupName)`. The counter auto-increments on each `addWorkflowToGroup()` call.
+**Counter mechanism:** Each group has its own counter stored in the project config via `getCounterAndAdd(groupName)`. The counter auto-increments on each `addWorkflowToGroup()` call that adds a new document, and `deleteWorkflowInGroup(..., resetCounter=True)` resets it. Note that `findAvailableName(simulationGroup)` uses a *different* counter name (`simulations_<group>`), so its result does not track `addWorkflowToGroup`.
 
 **Parsing names:**
 ```python
 base, id = toolkit.splitWorkflowName("dispersion_0001")
 # base = "dispersion", id = "0001"
+# Underscores inside the base are dropped: "my_group_0001" -> ("mygroup", "0001")
 ```
 
 ---
 
-## LSM variant
+## CLI (`hera-workflows`)
 
-**Source:** `hera/simulations/LSM/hermesWorkflowToolkit.py`
+`hera/bin/hera-workflows` wires argparse subcommands to `hera/simulations/CLI.py`:
 
-The LSM `workflowToolkit` extends the base with additional handler imports for the expand → build → execute pipeline:
+| Subcommand | Handler |
+|------------|---------|
+| `list groups` | `WorkflowsGroup_list` |
+| `list workflows` | `workflow_list` |
+| `add` | `workflow_add` |
+| `buildExecute` | `workflow_buildExecute` |
+| `compare` | `workflow_compare` |
+| `delete` | `workflow_delete` |
+| `export` | `workflow_export` |
+| `compareToDisk` | `workflow_compareToDisk` |
+| `sync` | `workflow_sync_to_db` |
+| `variation` (alias `var`) | `create_workflow_variations` |
+| `batch-delete` (alias `bigdelete`) | `batch_delete_workflows` |
 
-| Handler | Purpose |
-|---------|---------|
-| `handler_expand` | Expand workflow templates with meteorological data |
-| `handler_build` | Build the workflow into executable tasks |
-| `handler_buildExecute` | Combined build + execute in one step |
-| `handler_execute` | Execute a pre-built workflow |
-
-This supports LSM's pattern where workflows are first **expanded** with site-specific meteorological data before being built and executed. The base toolkit only uses build → execute.
+See the [CLI reference](../../cli/reference.md#hera-workflows) for arguments.
 
 ---
 
@@ -342,7 +361,7 @@ This supports LSM's pattern where workflows are first **expanded** with site-spe
 
 | Method | Purpose |
 |--------|---------|
-| `getHermesWorkflowFromJSON(workflow, name, resource)` | Create workflow object from JSON (file/dict/string) |
+| `getHermesWorkflowFromJSON(workflow, name=None, resource=None)` | Create workflow object from JSON (file/dict/string); class chosen from `workflow.solver` |
 | `getHemresWorkflowFromDocument(documentList, returnFirst)` | Reconstruct workflow from DB document |
 | `updateDocumentWorkflow(document, workflow)` | Update stored JSON + parameters |
 
@@ -350,8 +369,8 @@ This supports LSM's pattern where workflows are first **expanded** with site-spe
 
 | Method | Purpose |
 |--------|---------|
-| `addWorkflowToGroup(workflowJSON, groupName, ...)` | Add workflow to DB with auto-naming |
-| `addWorkflowFileInGroup(workflowFilePath, write_file)` | Add from file, infer group from filename |
+| `addWorkflowToGroup(workflowJSON, groupName, writeWorkflowToFile=False, resource=None)` | Add workflow to DB with auto-naming |
+| `addWorkflowFileInGroup(workflowFilePath, write_file=False)` | Add from file (must be inside `FilesDirectory`), infer name/group from filename |
 | `findAvailableName(simulationGroup)` | Get next available ID + name |
 | `getworkFlowName(baseName, flowID)` | Format `<base>_<padded_id>` |
 | `splitWorkflowName(workflow_name)` | Parse `<base>_<id>` |
@@ -360,9 +379,9 @@ This supports LSM's pattern where workflows are first **expanded** with site-spe
 
 | Method | Purpose |
 |--------|---------|
-| `getHermesWorkflowFromDB(input, returnFirst)` | Retrieve as hermes.workflow object |
-| `getWorkflowDocumentFromDB(input, doctype, dockind)` | Retrieve raw document (cascading search) |
-| `getWorkflowDocumentByName(name, doctype, dockind)` | Retrieve by exact name |
+| `getHermesWorkflowFromDB(nameOrWorkflowFileOrJSONOrResource, ...)` | Retrieve as hermes.workflow object |
+| `getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource, doctype=None, dockind="Simulations", **query)` | Retrieve raw document list (cascading search) |
+| `getWorkflowDocumentByName(name, doctype=None, dockind="Simulations", **query)` | Retrieve by exact name |
 | `getWorkflowListDocumentFromDB(input)` | Retrieve as list of documents |
 | `getWorkflowDocumentsInGroup(groupName)` | All documents in a group |
 | `getWorkflowListOfSolvers(solverName)` | All documents for a solver |
@@ -371,28 +390,29 @@ This supports LSM's pattern where workflows are first **expanded** with site-spe
 
 | Method | Purpose |
 |--------|---------|
-| `compareWorkflows(Workflow, longFormat, transpose)` | Compare workflows by name or list |
-| `compareWorkflowInGroup(workflowGroup)` | Compare all in a group |
-| `compareWorkflowObj(workflowList)` | Compare workflow objects directly |
-| `listWorkflows(workflowGroup, listNodes, listParameters)` | List workflows with optional details |
-| `listGroups(solver, workflowName)` | List all groups in the project |
-| `workflowTable(workflowGroup)` | Alias for `compareWorkflowInGroup` |
+| `compareWorkflows(Workflow, longFormat=False, transpose=False)` | Compare workflows by name, group, file or list |
+| `compareWorkflowInGroup(workflowGroup, longFormat=False, transpose=False)` | Compare all in a group (`None` if the group is empty) |
+| `compareWorkflowObj(workflowList, longFormat=False)` | Compare workflow objects directly |
+| `listWorkflows(workflowGroup, listNodes=False, listParameters=False)` | List workflows (list of dicts) with optional details |
+| `listGroups(solver=None, workflowName=True)` | Print all groups in the project (grouped by solver) |
+| `workflowTable(workflowGroup, longFormat=False, transpose=False)` | Alias for `compareWorkflowInGroup` |
 
 ### Execution and cleanup
 
 | Method | Purpose |
 |--------|---------|
-| `executeWorkflowFromDB(input)` | Build + execute via Luigi |
-| `deleteWorkflowInGroup(workflowGroup, deepDelete, resetCounter)` | Delete workflows, optionally remove files |
+| `executeWorkflowFromDB(nameOrWorkflowFileOrJSONOrResource, scheduler="local", schedulerHost=None, schedulerPort=None, dispatch_id=None, stdout=None, stderr=None)` | Build + execute via Luigi; returns the `dispatch_id` |
+| `prepareWorkflowRunFromDoc(doc)` | Build one document's workflow and write the JSON + Luigi module; returns `(pythonFileName, workflowName, targetFilesDir)` |
+| `deleteWorkflowInGroup(workflowGroup, deepDelete=False, resetCounter=True, exclude=[])` | Delete workflows, optionally remove files |
 
 ### Templates
 
 | Method | Purpose |
 |--------|---------|
 | `listHermesSolverTemplates(solverName)` | List loaded templates for a solver |
-| `getHermesFlowTemplate(hermesFlowName)` | Get a flow template |
+| `getHermesFlowTemplate(hermesFlowName)` | Get a flow template (datasource with `desc.component="Flow"`) |
 | `listHermesNodesTemplates()` | List all node templates |
-| `getHermesNodeTemplate(hermesNodeName)` | Get a node template |
+| `getHermesNodeTemplate(hermesNodeName)` | Get a node template (datasource with `desc.component="Node"`) |
 
 ---
 

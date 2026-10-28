@@ -1,13 +1,20 @@
 import { useTheme } from '@mui/material';
 import { Action, Actions, ITabRenderValues, Layout, TabNode } from 'flexlayout-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { classifyItemId, idFromDocId, ItemKind } from '../../shared/idDocId';
 import { classifyTab } from '../../shared/tabKind';
 import { TAB_KIND_STYLES } from '../../shared/tabKindConfig';
+import { projectPath } from '../../shared/projectPath';
+import { useProjectStore } from '../../stores/useProjectStore';
+import { useWorkflowRunStore } from '../../stores/useWorkflowRunStore';
 import { useFlexlayoutTheme } from '../../theme';
 import { hasPreview } from '../details/PreviewPanel';
-import { DETAILS_TAB_PREFIX, LayoutModel } from './LayoutModel';
+import { isWorkflowDoc } from '../../shared/workflow';
+import { LayoutModel } from './LayoutModel';
+import { canvasTab } from './tabs/CanvasTab';
+import { detailsTab } from './tabs/DetailsTab';
 import { LayoutPanel } from './LayoutPanel';
 
 // Fallback "item" shown when the tree selection isn't a document/repo/split.
@@ -25,6 +32,10 @@ export const ProjectLayout = ({
   useFlexlayoutTheme();
   const dark = useTheme().palette.mode === 'dark';
   const [activeShowItemId, setActiveShowItemId] = useState<string | undefined>(undefined);
+  const setEditedDoc = useProjectStore(state => state.setEditedDoc);
+  const navigate = useNavigate();
+  // Documents whose canvas the user closed, so it is not opened again on its own.
+  const closedCanvases = useRef<Set<string>>(new Set());
 
   const [layout, setLayout] = useState(() => LayoutModel.create(!treeCollapsed));
 
@@ -56,9 +67,25 @@ export const ProjectLayout = ({
     let showItemId = rawShowItemId;
     if (kind === ItemKind.Config) showItemId = CONFIG_ITEM_ID;
 
+    // Picking the item in the tree asks for its canvas again.
+    const pickedDocId = idFromDocId(showItemId);
+    if (pickedDocId) {
+      closedCanvases.current.delete(pickedDocId);
+    }
     layout.openOrFocusDetailsTab(showItemId, project);
     setActiveShowItemId(showItemId);
   }, [layout, project]);
+
+  // Follows the document, not the selection: a new workflow is selected before it
+  // loads. Keyed on the docid, not the document object, which is rebuilt on every
+  // render and would reopen a canvas the user just closed.
+  const canvasDocId = activeDoc && isWorkflowDoc(activeDoc.data) ? activeDoc.docid : undefined;
+  const canvasDocName = activeDoc?.name;
+  useEffect(() => {
+    if (canvasDocId && !closedCanvases.current.has(canvasDocId)) {
+      layout.openOrFocusCanvasTab(canvasDocId, canvasDocName ?? '');
+    }
+  }, [canvasDocId, canvasDocName, layout]);
 
   useEffect(() => {
     if (previewAvailable && activeDocId) {
@@ -67,6 +94,18 @@ export const ProjectLayout = ({
       layout.setPreview();
     }
   }, [activeShowItemId, previewAvailable, activeDocId, layout]);
+
+  // A started run opens (or focuses) its output tab. Keyed on the run token, so a
+  // re-run brings the tab back after it was closed, while live chunk updates don't.
+  const runs = useWorkflowRunStore(state => state.runs);
+  const shownTokens = useRef<{ [workflowName: string]: string }>({});
+  useEffect(() => {
+    for (const [workflowName, run] of Object.entries(runs)) {
+      if (shownTokens.current[workflowName] === run.token) continue;
+      shownTokens.current[workflowName] = run.token;
+      layout.openOrFocusOutputTab(workflowName);
+    }
+  }, [runs, layout]);
 
   // Keep open tabs in sync with the project: close tabs whose document was
   // deleted, then rename the survivors (e.g. a new notebook's tab once its
@@ -77,9 +116,32 @@ export const ProjectLayout = ({
   }, [project, layout]);
 
   const handleAction = useCallback((action: Action) => {
+    // Closing the last tab of a document drops its edits, after the dispatch.
+    if (action.type === Actions.DELETE_TAB) {
+      const tabId = action.data.node as string;
+      const docid = layout.docIdOfTab(tabId);
+      if (docid) {
+        if (detailsTab.owns(tabId) || canvasTab.owns(tabId)) {
+          closedCanvases.current.add(docid);
+        }
+        queueMicrotask(() => {
+          // The canvas belongs to the document's details tab, so it closes with it,
+          // and the URL moves to whichever details tab is left.
+          if (detailsTab.owns(tabId)) {
+            layout.closeCanvasTab(docid);
+            const nextTab = layout.activeDetailsTab();
+            setActiveShowItemId(nextTab?.getConfig()?.showItemId);
+            navigate(projectPath(project.name, nextTab && layout.docIdOfTab(nextTab.getId())), { replace: true });
+          }
+          if (!layout.hasOtherTabForDoc(docid, tabId)) {
+            setEditedDoc(docid, null);
+          }
+        });
+      }
+    }
     if (action.type === Actions.SELECT_TAB) {
       const tabId = action.data.tabNode as string;
-      if (tabId?.startsWith(DETAILS_TAB_PREFIX)) {
+      if (tabId && detailsTab.owns(tabId)) {
         const node = layout.getTab(tabId);
         if (node) {
           setActiveShowItemId(node.getConfig()?.showItemId);
@@ -87,7 +149,7 @@ export const ProjectLayout = ({
       }
     }
     return action;
-  }, [layout]);
+  }, [layout, setEditedDoc, navigate, project.name]);
 
   const onRenderTab = useCallback((node: TabNode, renderValues: ITabRenderValues) => {
     const showItemId = node.getConfig()?.showItemId as string | undefined;

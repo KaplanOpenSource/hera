@@ -22,9 +22,9 @@ describe('paramsOnTypeChange', () => {
       .toEqual({ keep: 'hi', x: '', y: '' });
   });
 
-  it('keeps a shared param value (e.g. ProjectName) across the change', () => {
-    expect(paramsOnTypeChange({ ProjectName: 'demo' }, entry('t', ['ProjectName', 'z'])))
-      .toEqual({ ProjectName: 'demo', z: '' });
+  it('keeps a shared param value across the change', () => {
+    expect(paramsOnTypeChange({ shared: 'demo' }, entry('t', ['shared', 'z'])))
+      .toEqual({ shared: 'demo', z: '' });
   });
 
   it('keeps 0 and false — they are real values, not empty', () => {

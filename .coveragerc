@@ -1,0 +1,31 @@
+[run]
+branch = True
+source = hera
+parallel = True
+omit =
+    hera/tests/*
+    hera/doc/*
+    hera/bin/*
+    */__pycache__/*
+# Files that do not parse as Python at all, so they can never be imported and
+# coverage.py cannot even read them ("Couldn't parse ... as Python source").
+# Leaving them in both breaks `coverage report` and dilutes the denominator
+# with lines no test could ever reach.  Verified with ast.parse over hera/.
+    hera/simulations/gaussian/source.py
+    hera/simulations/utils/interpolation/interpolations.py
+    hera/simulations/openFoam/eulerian/NavierStokes.old/*
+    hera/simulations/openFoam/toberewritten/*
+
+[report]
+show_missing = True
+skip_covered = False
+exclude_lines =
+    pragma: no cover
+    if TYPE_CHECKING:
+    raise NotImplementedError
+    if __name__ == .__main__.:
+
+[paths]
+source =
+    hera
+    */hera

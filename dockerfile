@@ -37,10 +37,14 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Set working directory and copy project files (exclude .venv, .git via .dockerignore)
 WORKDIR /app
-COPY requirements.txt .
+COPY requirements.txt requirements-minimal.txt scripts/minimal_requirements.py ./
 
-# Install Python dependencies
-RUN python -m pip install --no-cache-dir -r requirements.txt
+# Which dependency set to install; requirements-minimal.txt builds much faster.
+ARG REQUIREMENTS=requirements.txt
+
+# Install Python dependencies, with every version taken from requirements.txt
+RUN python minimal_requirements.py requirements.txt "$REQUIREMENTS" > /tmp/req.txt && \
+    python -m pip install --no-cache-dir -r /tmp/req.txt
 
 # Disable the jupytext lab extension; it is built for JupyterLab 4.4+ and errors on 4.3.
 # RUN mkdir -p "$VIRTUAL_ENV/share/jupyter/lab/settings" && \

@@ -1,5 +1,5 @@
 import { Settings } from "@mui/icons-material";
-import { Button, DialogActions, DialogContent, DialogTitle, Stack, Typography } from "@mui/material";
+import { Button, DialogActions, DialogContent, DialogTitle, Divider, Stack, Typography } from "@mui/material";
 import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonDialog } from "../../elements/ButtonDialog";
 import { NumberProperty } from "../../elements/NumberProperty";
@@ -7,6 +7,9 @@ import { ReloadIntervalSlider } from "../../elements/ReloadIntervalSlider";
 import { ThemeModeSwitch } from "../../elements/ThemeModeSwitch";
 import { ThemeMode, useViewSettingsStore } from "../../stores/useViewSettingsStore";
 import { useAppTheme } from "../../theme";
+import { CorsIndicator } from "../header/CorsIndicator";
+import { UserIndicator } from "../header/UserIndicator";
+import { VersionShower } from "../header/VersionShower";
 
 export const ProjectViewSettingsButton = ({ }) => {
   const { viewSettings, setViewSettings } = useViewSettingsStore();
@@ -19,11 +22,12 @@ export const ProjectViewSettingsButton = ({ }) => {
           <DialogTitle>Settings</DialogTitle>
           <DialogContent>
             <Stack direction="column" spacing={1} sx={{ mt: 1 }}>
+              {/* Also on the header, so the switch is reachable from both places. */}
               <Stack direction="row" spacing={1} alignItems="center">
                 <Typography>Dark mode</Typography>
                 <ThemeModeSwitch
                   mode={viewSettings.themeMode}
-                  setMode={(mode: ThemeMode) => setViewSettings({ ...viewSettings, themeMode: mode })}
+                  setMode={(mode: ThemeMode) => setViewSettings({ themeMode: mode })}
                 />
               </Stack>
               <ReloadIntervalSlider
@@ -64,6 +68,13 @@ export const ProjectViewSettingsButton = ({ }) => {
                 value={viewSettings.alwaysSaveBeforeRun}
                 setValue={v => setViewSettings({ ...viewSettings, alwaysSaveBeforeRun: v })}
               />
+              <Divider sx={{ mt: 1 }} />
+              {/* Build info, the server user and the CORS tag, out of the way. */}
+              <Stack direction="row" spacing={1} alignItems="center">
+                <VersionShower />
+                <UserIndicator />
+                <CorsIndicator />
+              </Stack>
             </Stack>
           </DialogContent>
           <DialogActions>

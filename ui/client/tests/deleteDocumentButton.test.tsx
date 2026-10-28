@@ -1,26 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within, cleanup, act } from '@testing-library/react';
+import { mockApiCall } from './helpers/mockApiCall';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockFetchPython = vi.fn();
-vi.mock('../src/io/fetchPython', () => ({
-  fetchPython: (...args: any[]) => mockFetchPython(...args),
-}));
-
-const mockFetchProjectDetails = vi.fn();
-vi.mock('../src/io/FetchProjects', () => ({
-  fetchProjectDetails: (...args: any[]) => mockFetchProjectDetails(...args),
-}));
-
 const { DeleteDocumentButton } = await import('../src/components/details/DeleteDocumentButton');
+const { useProjectStore } = await import('../src/stores/useProjectStore');
 
 afterEach(() => { cleanup(); });
 
-beforeEach(() => {
-  vi.clearAllMocks();
-  mockFetchProjectDetails.mockResolvedValue(undefined);
-});
+let mockPostJson: ReturnType<typeof vi.fn>;
 
 const document = {
   _id: { $oid: 'doc1' },
@@ -32,10 +21,19 @@ const document = {
   projectName: 'TestProject',
 } as any;
 
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockPostJson = mockApiCall().postJson;
+  useProjectStore.setState({
+    currProjectName: 'TestProject',
+    currProject: { name: 'TestProject', documents: [document] },
+    editedDocs: {},
+  });
+});
+
 const renderButton = () => render(
   <DeleteDocumentButton
     document={document}
-    projectName="TestProject"
     displayName="MyDoc"
     isConfig={false}
   />
@@ -49,47 +47,47 @@ const clickDeleteAndConfirm = async () => {
 };
 
 describe('DeleteDocumentButton', () => {
-  it('calls execPython to delete document on confirm', async () => {
-    mockFetchPython.mockResolvedValueOnce({ data: {}, problem: undefined });
+  it('calls document.delete with the one id on confirm', async () => {
+    mockPostJson.mockResolvedValueOnce({ project: { name: 'TestProject', documents: [] } });
     renderButton();
 
     await clickDeleteAndConfirm();
 
     await waitFor(() => {
-      expect(mockFetchPython).toHaveBeenCalledTimes(1);
-      const code = mockFetchPython.mock.calls[0][0].code;
-      expect(code).toContain("All.deleteDocumentByID('doc1')");
+      expect(mockPostJson).toHaveBeenCalledTimes(1);
     });
+    expect(mockPostJson.mock.calls[0][0]).toBe('/document/delete');
+    expect(mockPostJson.mock.calls[0][1]).toEqual({ docIds: ['doc1'] });
   });
 
-  it('calls fetchProjectDetails after successful delete', async () => {
-    mockFetchPython.mockResolvedValueOnce({ data: {}, problem: undefined });
+  it('stores the project the answer carries, with no second call', async () => {
+    mockPostJson.mockResolvedValueOnce({ project: { name: 'TestProject', documents: [] } });
     renderButton();
 
     await clickDeleteAndConfirm();
 
     await waitFor(() => {
-      expect(mockFetchProjectDetails).toHaveBeenCalledWith('TestProject');
+      expect(useProjectStore.getState().currProject?.documents).toEqual([]);
     });
+    expect(mockPostJson).toHaveBeenCalledTimes(1);
   });
 
-  it('does not call fetchProjectDetails when delete fails', async () => {
-    mockFetchPython.mockResolvedValueOnce({ data: undefined, problem: 'error' });
+  it('leaves the project alone when the delete fails', async () => {
+    mockPostJson.mockResolvedValueOnce(null);
     renderButton();
 
     await clickDeleteAndConfirm();
 
     await waitFor(() => {
-      expect(mockFetchPython).toHaveBeenCalledTimes(1);
+      expect(mockPostJson).toHaveBeenCalledTimes(1);
     });
-    expect(mockFetchProjectDetails).not.toHaveBeenCalled();
+    expect(useProjectStore.getState().currProject?.documents).toEqual([document]);
   });
 
   it('is disabled for the project config document', async () => {
     render(
       <DeleteDocumentButton
         document={document}
-        projectName="TestProject"
         displayName="TestProject config"
         isConfig={true}
       />
@@ -101,25 +99,21 @@ describe('DeleteDocumentButton', () => {
   });
 
   it('handles delayed response', async () => {
-    let resolveExec!: (v: any) => void;
-    mockFetchPython.mockImplementationOnce(() =>
-      new Promise(r => { resolveExec = r; })
-    );
+    let resolveCall!: (v: any) => void;
+    mockPostJson.mockImplementationOnce(() => new Promise(r => { resolveCall = r; }));
     renderButton();
 
     await clickDeleteAndConfirm();
 
-    // execPython called but not yet resolved
-    expect(mockFetchPython).toHaveBeenCalledTimes(1);
-    expect(mockFetchProjectDetails).not.toHaveBeenCalled();
+    expect(mockPostJson).toHaveBeenCalledTimes(1);
+    expect(useProjectStore.getState().currProject?.documents).toEqual([document]);
 
-    // Resolve after delay
     await act(async () => {
-      resolveExec({ data: {}, problem: undefined });
+      resolveCall({ project: { name: 'TestProject', documents: [] } });
     });
 
     await waitFor(() => {
-      expect(mockFetchProjectDetails).toHaveBeenCalledWith('TestProject');
+      expect(useProjectStore.getState().currProject?.documents).toEqual([]);
     });
   });
 });

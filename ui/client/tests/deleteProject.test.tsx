@@ -4,26 +4,26 @@ import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockFetchPython = vi.fn();
-vi.mock('../src/io/fetchPython', () => ({
-  fetchPython: (...args: any[]) => mockFetchPython(...args),
-}));
+import { mockApiCall } from './helpers/mockApiCall';
 
 const { DeleteProjectButton } = await import('../src/components/header/DeleteProjectButton');
-const { useProjectStore } = await import('../src/stores/useProjectStore');
+const { useProjectStore, NO_PROJECT } = await import('../src/stores/useProjectStore');
+const { useProjectListStore } = await import('../src/stores/useProjectListStore');
 
 afterEach(() => {
   cleanup();
 });
 
+let mockPostJson: ReturnType<typeof vi.fn>;
+
 beforeEach(() => {
   vi.clearAllMocks();
+  ({ postJson: mockPostJson } = mockApiCall());
   useProjectStore.setState({
-    projectNames: [{ name: 'Alpha' }, { name: 'Beta' }],
     currProjectName: 'Alpha',
     currProject: { name: 'Alpha', documents: [] },
-    toolkits: [],
   });
+  useProjectListStore.setState({ projectNames: [{ name: 'Alpha' }, { name: 'Beta' }] });
 });
 
 const Wrapper = () => (
@@ -54,21 +54,18 @@ describe('DeleteProjectButton', () => {
     const yesBtn = screen.getByRole('button', { name: /yes/i });
     await act(async () => { fireEvent.click(yesBtn); });
 
-    expect(mockFetchPython).not.toHaveBeenCalled();
+    expect(mockPostJson).not.toHaveBeenCalled();
   });
 
-  it('calls execPython and updates store on confirmed delete', async () => {
+  it('calls project.delete and updates store on confirmed delete', async () => {
     const remainingProject = {
       name: 'Beta',
       documents: [{ _id: { $oid: 'x' }, type: 'Beta__config__', desc: {}, _cls: 'M', resource: '', dataFormat: 'string', projectName: 'Beta' }],
     };
 
-    mockFetchPython.mockResolvedValueOnce({
-      data: {
-        projectNames: [{ name: 'Beta' }],
-        project: remainingProject,
-      },
-      problem: undefined,
+    mockPostJson.mockResolvedValueOnce({
+      projects: [{ name: 'Beta' }],
+      project: remainingProject,
     });
 
     render(<Wrapper />);
@@ -83,26 +80,25 @@ describe('DeleteProjectButton', () => {
     await act(async () => { fireEvent.click(yesBtn); });
 
     await waitFor(() => {
-      expect(mockFetchPython).toHaveBeenCalledTimes(1);
+      expect(mockPostJson).toHaveBeenCalledTimes(1);
     });
 
-    const code = mockFetchPython.mock.calls[0][0].code;
-    expect(code).toContain("All.getDocumentsAsDict('Alpha'");
-    expect(code).toContain('deleteDocumentByID');
+    const [path, body] = mockPostJson.mock.calls[0];
+    expect(path).toBe('/project/delete');
     // Files are kept by default (checkbox unchecked).
-    expect(code).toContain('deleteFiles = False');
+    expect(body).toEqual({ projectName: 'Alpha', deleteFiles: false });
 
     await waitFor(() => {
       const state = useProjectStore.getState();
-      expect(state.projectNames).toEqual([{ name: 'Beta' }]);
+      expect(useProjectListStore.getState().projectNames).toEqual([{ name: 'Beta' }]);
       expect(state.currProject?.name).toBe('Beta');
     });
   });
 
   it('deletes files from disk when the checkbox is ticked', async () => {
-    mockFetchPython.mockResolvedValueOnce({
-      data: { projectNames: [{ name: 'Beta' }], project: { name: 'Beta', documents: [] } },
-      problem: undefined,
+    mockPostJson.mockResolvedValueOnce({
+      projects: [{ name: 'Beta' }],
+      project: { name: 'Beta', documents: [] },
     });
 
     render(<Wrapper />);
@@ -116,18 +112,13 @@ describe('DeleteProjectButton', () => {
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /yes/i })); });
 
     await waitFor(() => {
-      const code = mockFetchPython.mock.calls[0][0].code;
-      expect(code).toContain('deleteFiles = True');
-      // Also removes the caseConfiguration.json and drops the folder if empty.
-      expect(code).toContain("'caseConfiguration.json'");
-      expect(code).toContain('os.rmdir(filesDir)');
-      expect(code).toContain('if not os.listdir(filesDir)');
+      expect(mockPostJson.mock.calls[0][1].deleteFiles).toBe(true);
     });
   });
 
-  it('handles delayed execPython response', async () => {
+  it('handles a delayed answer', async () => {
     let resolveExec!: (v: any) => void;
-    mockFetchPython.mockImplementationOnce(() =>
+    mockPostJson.mockImplementationOnce(() =>
       new Promise(r => { resolveExec = r; })
     );
 
@@ -143,7 +134,7 @@ describe('DeleteProjectButton', () => {
     await act(async () => { fireEvent.click(yesBtn); });
 
     await waitFor(() => {
-      expect(mockFetchPython).toHaveBeenCalledTimes(1);
+      expect(mockPostJson).toHaveBeenCalledTimes(1);
     });
     // Store not yet updated while response pending
     expect(useProjectStore.getState().currProjectName).toBe('Alpha');
@@ -153,10 +144,7 @@ describe('DeleteProjectButton', () => {
       documents: [{ _id: { $oid: 'x' }, type: 'Beta__config__', desc: {}, _cls: 'M', resource: '', dataFormat: 'string', projectName: 'Beta' }],
     };
     await act(async () => {
-      resolveExec({
-        data: { projectNames: [{ name: 'Beta' }], project: remainingProject },
-        problem: undefined,
-      });
+      resolveExec({ projects: [{ name: 'Beta' }], project: remainingProject });
     });
 
     await waitFor(() => {
@@ -164,10 +152,8 @@ describe('DeleteProjectButton', () => {
     });
   });
 
-  it('sends delete code that sorts config document last', async () => {
-    mockFetchPython.mockResolvedValueOnce({
-      data: { projectNames: [], project: { name: '', documents: [] } },
-    });
+  it('shows no project when the last one is deleted', async () => {
+    mockPostJson.mockResolvedValueOnce({ projects: [], project: null });
 
     render(<Wrapper />);
     const wrapper = screen.getByLabelText('Delete project');
@@ -182,8 +168,29 @@ describe('DeleteProjectButton', () => {
     });
 
     await waitFor(() => {
-      const code = mockFetchPython.mock.calls[0][0].code;
-      expect(code).toContain("sorted(docs, key=lambda d: d['type'] == 'Alpha__config__')");
+      expect(useProjectListStore.getState().projectNames).toEqual([]);
+      expect(useProjectStore.getState().currProject).toBeNull();
+      expect(useProjectStore.getState().currProjectName).toBe(NO_PROJECT);
     });
+  });
+
+  it('does not touch the store when the delete failed', async () => {
+    mockPostJson.mockResolvedValueOnce(null);
+
+    render(<Wrapper />);
+    const wrapper = screen.getByLabelText('Delete project');
+    const btn = within(wrapper).getByRole('button');
+    await act(async () => { fireEvent.click(btn); });
+
+    fireEvent.change(await screen.findByRole('textbox'), { target: { value: 'Alpha' } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /yes/i }));
+    });
+
+    await waitFor(() => {
+      expect(mockPostJson).toHaveBeenCalledTimes(1);
+    });
+    expect(useProjectStore.getState().currProjectName).toBe('Alpha');
+    expect(useProjectListStore.getState().projectNames).toEqual([{ name: 'Alpha' }, { name: 'Beta' }]);
   });
 });

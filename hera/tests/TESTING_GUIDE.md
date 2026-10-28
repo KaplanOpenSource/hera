@@ -3,7 +3,9 @@
 ## Overview
 
 The Hera test infrastructure uses **native Pytest** with a **Project-based data access** pattern.
-All tests live under `hera/tests/` and can be executed with a single `pytest` command.
+All tests live under `hera/tests/`. The integration tests run with one `pytest`
+command; the hermetic unit layer under `hera/tests/unit/` runs as a separate
+process (see the note in **Running Tests** below).
 
 Data is loaded once per session into a shared Hera **Project** via `test_repository.json`,
 and each toolkit test module receives a real toolkit instance backed by MongoDB —
@@ -89,7 +91,7 @@ They interact only with the Project and Toolkit APIs, exactly as production code
 ### 1. Python Environment
 
 ```bash
-cd /home/ilay/hera
+cd <path-to>/hera
 source heraenv/bin/activate
 pip install pytest   # if not already installed
 ```
@@ -124,11 +126,27 @@ The session-scoped project fixture loads data into MongoDB at startup and cleans
 ### Run All Tests
 
 ```bash
-cd /home/ilay/hera
+cd <path-to>/hera
 source heraenv/bin/activate
 export TEST_HERA=~/hera_unittest_data
-pytest hera/tests/ -v
+pytest hera/tests/ -v --ignore=hera/tests/unit
 ```
+
+> **Two layers, two processes.** `hera/tests/unit/` is a hermetic layer that
+> needs no MongoDB, no test data and no network. Its `conftest.py` gets there
+> by moving `HOME` and rerouting the datalayer at an in-memory database for the
+> whole process, so it cannot share a pytest run with the integration tests —
+> they would end up authenticating with placeholder credentials. Hence the
+> `--ignore` above. Running the two together fails immediately with an
+> explanatory error rather than producing wrong results.
+>
+> Run the hermetic layer on its own:
+>
+> ```bash
+> pytest hera/tests/unit -m unit        # or: make test-unit
+> ```
+>
+> `make test` and `make coverage` already pass `--ignore=hera/tests/unit`.
 
 ### Run a Specific Test Module
 

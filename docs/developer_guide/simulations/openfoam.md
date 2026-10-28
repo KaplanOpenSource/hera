@@ -10,10 +10,8 @@ OFToolkit (hermesWorkflowToolkit)
 ├── Analysis              — VTK post-processing pipeline
 ├── Presentation          — output formats (CSV, VTK)
 ├── Solver extensions (composition):
-│   ├── simpleFoam_toolkitExtension
-│   ├── buoyantReactingFoam_toolkitExtension
-│   └── StochasticLagrangianSolver_toolkitExtension
-│       └── OFLSMToolkit  — LSM coupling
+│   ├── buoyantReactingFoam_toolkitExtension   (attribute buoyantReactingFoam)
+│   └── StochasticLagrangianSolver_toolkitExtension (attribute stochasticLagrangian)
 └── Workflows (Hermes-integrated):
     ├── workflow_Eulerian
     │   ├── workflow_simpleFoam
@@ -27,13 +25,15 @@ OFToolkit (hermesWorkflowToolkit)
 
 ## OFToolkit (`toolkit.py`)
 
-The main class inherits from `hermesWorkflowToolkit` for workflow support and composes all other components:
+The main class inherits from `hermesWorkflowToolkit` for workflow support and composes all other components. It is registered as `toolkitHome.SIMULATIONS_OPENFOAM` (`"OpenFOAM"`) and passes `toolkitName="OFworkflowToolkit"` to the base class.
+
+`simpleFoam_toolkitExtension` (`eulerian/simpleFoam.py`) exists but is **not** composed into `OFToolkit`; instantiate it directly with the toolkit if needed. `OFLSMToolkit` is a separate toolkit (registry name `OF_LSM`), not an attribute.
 
 | Attribute | Type | Purpose |
 |-----------|------|---------|
 | `OFObjectHome` | `OFObjectHome` | Field definitions catalog and field creation |
 | `analysis` | `Analysis` | VTK pipeline and data extraction |
-| `presentation` | `Presentation` | Output to CSV, VTK, parquet |
+| `presentation` | `Presentation` | Output to CSV, VTK; parallel Lagrangian loading |
 | `stochasticLagrangian` | `StochasticLagrangianSolver_toolkitExtension` | Lagrangian particle tracking |
 | `buoyantReactingFoam` | `buoyantReactingFoam_toolkitExtension` | Compressible reactive solver |
 
@@ -41,22 +41,26 @@ The main class inherits from `hermesWorkflowToolkit` for workflow support and co
 
 | Constant | Value | Used for |
 |----------|-------|----------|
-| `FLOWTYPE_INCOMPRESSIBLE` | — | simpleFoam, wind profile simulations |
-| `FLOWTYPE_COMPRESSIBLE` | — | buoyantReactingFoam |
-| `FLOWTYPE_DISPERSION` | — | Lagrangian particle dispersion |
+| `FLOWTYPE_INCOMPRESSIBLE` | `"incompressible"` | simpleFoam, wind profile simulations |
+| `FLOWTYPE_COMPRESSIBLE` | `"compressible"` | buoyantReactingFoam |
+| `FLOWTYPE_DISPERSION` | `"dispersion"` | Lagrangian particle dispersion |
+
+Other class constants (defined in `hera/simulations/openFoam/__init__.py` and re-exported on `OFToolkit`): `FIELDTYPE_SCALAR/VECTOR/TENSOR`, `CASETYPE_DECOMPOSED` (`"Decomposed Case"`), `CASETYPE_RECONSTRUCTED` (`"Reconstructed Case"`), `TIME_STEADYSTATE` / `TIME_DYNAMIC`, `DOCTYPE_OF_FLOWDISPERSION = "flowDispersion"`.
 
 **Key methods:**
 
 | Method | Description |
 |--------|-------------|
-| `createEmptyCase(caseDirectory, fieldList, flowType)` | Initialize OpenFOAM case directory structure |
-| `writeEmptyField(fieldName, flowType, caseDirectory, ...)` | Create empty field files with correct dimensions |
-| `getMesh(caseDirectory)` | Read cell centers (runs `foamJob postProcess`) |
-| `getMeshExtent(caseDirectory)` | Get bounding box from `points` file |
-| `runOFSimulation(nameOrWorkflowFileOrJSONOrResource)` | Build and execute full simulation via workflow |
-| `prepareSlurmWorkflowExecution(...)` | Generate Slurm batch submission scripts |
-| `getTimeList(...)` | Extract computed time steps from case |
-| `getVTKPipelineCacheTable(...)` | Query cached VTK filter results |
+| `createEmptyCase(caseDirectory, fieldList, flowType, additionalFieldsDescription=dict())` | Initialize OpenFOAM case directory structure |
+| `writeEmptyField(fieldName, flowType, caseDirectory, timeOrLocation=0, readBoundaryFromCase=False, writeProcBoundary=False)` | Create empty field files with correct dimensions |
+| `getMesh(caseDirectory, readParallel=True, time=0)` | Read cell centers (runs `foamJob ... postProcess -func writeCellCentres`) |
+| `getMeshFromName(nameOrWorkflowFileOrJSONOrResource, ...)` | Same, resolving the case from a workflow name/document |
+| `getMeshExtent(caseDirectory)` | Get bounding box from `constant/polyMesh/points` |
+| `runOFSimulation(nameOrWorkflowFileOrJSONOrResource, scheduler="local", schedulerHost=None, schedulerPort=None, dispatch_id=None)` | Build and execute full simulation via workflow |
+| `prepareSlurmWorkflowExecution(baseConfiguration, jsonVariations, slurmExecutionFileName="submit_all.sh", caseListFileName="cases.txt", ...)` | Generate Slurm batch submission scripts |
+| `getTimeList(nameOrWorkflowFileOrJSONOrResourceorDirectory, singleProcessor=False, returnFirst=True)` | Extract computed time steps from case |
+| `datasetToCaseFields(...)`, `netcdfToCaseFields(...)`, `datasetToSetFieldsDict(...)`, `netcdfToSetFieldsDict(...)`, `xarrayToSetFieldsDictDomain(...)` | Map xarray/netCDF data onto case fields or a `setFieldsDict` |
+| `getVTKPipelineCacheDocuments(...)` / `getVTKPipelineCacheTable(...)` / `clearVTKPipelineCache(...)` | Query or clear cached VTK filter results (filter by `regularMesh`, `filterName`, `workflowName`, `groupName`) |
 
 **Nested classes:**
 
@@ -73,7 +77,7 @@ Workflows define the steps to build and run an OpenFOAM case. They integrate wit
 
 | Class | Inherits from | Nodes |
 |-------|--------------|-------|
-| `abstractWorkflow` | `hermes.workflow` | `controlDict`, `fvSolution`, `fvSchemes`, `fileWriter`, `Parameters` |
+| `abstractWorkflow` | `hermes.workflow` | Node accessors `controlDict` (`ControlDict` node), `fvSolution`, `fvScheme`, `fileWriter`, `parameters` (`Parameters` node), `buildAllRun`, `defineNewBoundaryConditions`; `workflowGroup` / `workflowGroupID` |
 | `workflow_Eulerian` | `abstractWorkflow` | + `blockMesh`, optional `snappyHexMesh` |
 | `workflow_Lagrangian` | `abstractWorkflow` | Base for particle simulations |
 | `workflow_simpleFoam` | `workflow_Eulerian` | Steady incompressible |
@@ -81,36 +85,37 @@ Workflows define the steps to build and run an OpenFOAM case. They integrate wit
 | `workflow_scalarTransportFoam` | `workflow_Eulerian` | Scalar transport |
 | `workflow_indoorFOAMBoussinesq` | `workflow_Eulerian` | Indoor Boussinesq approximation |
 | `workflow_homogenousWindLogProfile` | `workflow_Eulerian` | Log-law wind profile |
-| `workflow_StochasticLagrangianSolver` | `workflow_Lagrangian` | Stochastic Lagrangian dispersion |
+| `workflow_StochasticLagrangianSolver` | `workflow_Lagrangian` | Stochastic Lagrangian dispersion; properties `dispersionName`, `originalFlowFieldName`, `dispersionFlowFieldName`, `dispersionDuration` |
 
 **workflow_Eulerian key methods:**
 
 | Method | Description |
 |--------|-------------|
 | `prepareICandBC(configurationFile)` | Set initial and boundary conditions from config |
-| `set_blockMesh_blockBoundaries(...)` | Configure block mesh vertices and boundaries |
-| `set_blockMesh_blockHeight(...)` | Adjust domain height |
+| `set_blockMesh_blockBoundaries(minx, maxx, miny, maxy, minz, maxz, dx, dy, dz)` | Configure block mesh vertices and boundaries |
+| `set_blockMesh_blockHeight(Z, dz)` | Adjust domain height |
 | `ICandBCHandler_node(icnode)` | Process IC/BC node entries |
+| `foam_snappyhexmesh_addobject(dataOrFile, objectFile)` | Add a geometry object to snappyHexMesh |
 
 ## Eulerian solver extensions (`eulerian/`)
 
-Solver extensions are composed into `OFToolkit` as attributes. They handle solver-specific case setup.
+Solver extensions handle solver-specific case setup. Only `buoyantReactingFoam_toolkitExtension` is composed into `OFToolkit` (as `buoyantReactingFoam`).
 
 | Class | Solver | Properties |
 |-------|--------|-----------|
 | `absractEulerianSolver_toolkitExtension` | (base) | `solverName`, `incompressible`, `flowType`, `analysis`, `presentation` |
-| `simpleFoam_toolkitExtension` | `simpleFOAM` | `incompressible=True` |
+| `simpleFoam_toolkitExtension` | `simpleFOAM` | `incompressible=True`; adds `buildSpecializedField(workflow, turbulenceType)` |
 | `buoyantReactingFoam_toolkitExtension` | `buoyantReactingFoam` | `incompressible=False` |
 
 **Key methods on the abstract solver:**
 
 | Method | Description |
 |--------|-------------|
-| `blockMesh_setBoundFromBounds(wf, minx, maxx, ...)` | Configure mesh boundaries from coordinates |
-| `blockMesh_setBoundFromFile(wf, fileName, dx, dy, dz)` | Configure mesh from OBJ geometry file |
-| `blockMesh_setDomainHeight(wf, Z, dz)` | Adjust vertical extent |
-| `writeFieldInCase(fieldName, caseDirectory, ...)` | Write a field file to the case |
-| `IC_getHydrostaticPressure(caseDirectory)` | Generate hydrostatic pressure initial condition |
+| `blockMesh_setBoundFromBounds(eulerianWF, minx, maxx, miny, maxy, minz, maxz, dx, dy, dz)` | Configure mesh boundaries from coordinates |
+| `blockMesh_setBoundFromFile(eulerianWorkFlow, fileName, dx, dy, dz)` | Configure mesh from OBJ geometry file |
+| `blockMesh_setDomainHeight(eulerianWorkFlow, Z, dz)` | Adjust vertical extent |
+| `writeFieldInCase(fieldName, caseDirectory, components, xarrayData, boundaryConditions=None, data=None)` | Write a field file to the case |
+| `IC_getHydrostaticPressure(caseDirectory, fieldName="p", groundPressure=101000)` | Generate hydrostatic pressure initial condition |
 
 ## Lagrangian solver extensions (`lagrangian/`)
 
@@ -118,9 +123,9 @@ Solver extensions are composed into `OFToolkit` as attributes. They handle solve
 
 | Class | Purpose |
 |-------|---------|
-| `absractStochasticLagrangianSolver_toolkitExtension` | Base for Lagrangian solvers — dispersion flow fields, source generation |
-| `StochasticLagrangianSolver_toolkitExtension` | Concrete implementation with default fields (ustar, distanceFromWalls) |
-| `OFLSMToolkit` | OpenFOAM + LSM coupling — particle data loading, concentration calculation |
+| `absractStochasticLagrangianSolver_toolkitExtension` (`abstractLagrangianSolver.py`) | Base for Lagrangian solvers — dispersion flow fields, source generation, case results; holds an `analysis` object (concentration methods) |
+| `StochasticLagrangianSolver_toolkitExtension` (`StochasticLagrangianSolver.py`) | Concrete implementation; overrides `createDispersionFlowField` (default dispersion fields such as `ustar`, `distanceFromWalls`) |
+| `OFLSMToolkit` (`LSM/toolkit.py`) | Separate OpenFOAM + LSM coupling toolkit — particle data loading, concentration calculation |
 
 ### Dispersion flow field pipeline (`createDispersionFlowField`)
 
@@ -181,12 +186,15 @@ Bins Lagrangian particles onto a Cartesian mesh, stores as partitioned netCDF:
 
 | Method | Description |
 |--------|-------------|
-| `makeSource_Point/Circle/Sphere/Cylinder/Rectangle/Cube(...)` | Generate particle source geometries |
-| `writeParticlePositionFile(x, y, z, nParticles, ...)` | Write particle initial positions |
+| `makeSource_Point/Circle/Sphere/Cylinder/Rectangle/Cube(x, y, z, nParticles, ...)` | Generate particle source geometries (`sourcesTypeList` lists them) |
+| `writeParticlePositionFile(x, y, z, nParticles, dispersionName, type="Point", ...)` | Write particle initial positions |
 
 ### OFLSMToolkit (`lagrangian/LSM/toolkit.py`)
 
-Inherits from `abstractToolkit` (not from OFToolkit) and provides OpenFOAM + LSM coupling:
+Inherits from `abstractToolkit` (not from OFToolkit) and provides OpenFOAM + LSM coupling. Registry name `OF_LSM` (no `toolkitHome` constant); constructor `OFLSMToolkit(projectName, casePath=None, cloudName="kinematicCloud", filesDirectory=None, parallelCase=False, connectionName=None)`.
+
+!!! warning "Known issue in master"
+    `OFLSMToolkit.__init__` calls `toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_TOPOGRAPHY, ...)` (`lagrangian/LSM/toolkit.py:97`), but `ToolkitHome` defines no `GIS_TOPOGRAPHY` constant (only `GIS_RASTER_TOPOGRAPHY` / `GIS_VECTOR_TOPOGRAPHY`), so instantiation raises `AttributeError`.
 
 | Property | Description |
 |----------|-------------|
@@ -198,12 +206,14 @@ Inherits from `abstractToolkit` (not from OFToolkit) and provides OpenFOAM + LSM
 
 | Method | Description |
 |--------|-------------|
-| `loadData(times, saveMode, withVelocity, ...)` | Extract particle positions/velocities/masses as dask DataFrame |
-| `makeDistanceFromGround(times, ground, ...)` | Compute ground distance field |
-| `makeUstar(times, ...)` | Compute friction velocity field (decomposed into 6 helpers) |
-| `to_paraview_CSV(data, ...)` | Export particles as timestep CSV |
-| `toUnstructuredVTK(data, ...)` | Export as VTU particle files |
-| `toStructuredVTK(data, ...)` | Export as structured VTK grid |
+| `loadData(times=None, saveMode=TOOLKIT_SAVEMODE_NOSAVE, withVelocity=False, withReleaseTimes=False, withMass=False, releaseTime=0, cloudName="kinematicCloud", casePath=None, **kwargs)` | Extract particle positions/velocities/masses as dask DataFrame |
+| `makeSource(x, y, z, nParticles, type="Point", fileName="kinematicCloudPositions", **kwargs)` | Write a particle source file via `sourcesFactory` |
+| `makeDistanceFromGround(times, ground="ground", fileName="cellHeights", resolution=10, ...)` | Compute ground distance field |
+| `makeUstar(times, fileName="ustar", ground="ground", heightLimits=[1, 2], ...)` | Compute friction velocity field (decomposed into 6 helpers) |
+| `createRootCaseMeshLink(rootCase)` | Link the root case mesh into the case |
+| `to_paraview_CSV(data, outputdirectory, filename, timeFactor=1)` | Export particles as timestep CSV |
+| `toUnstructuredVTK(data, outputdirectory, filename, timeNameOutput=True)` | Export as VTU particle files |
+| `toStructuredVTK(data, outputdirectory, filename, extents, dxdydz, timeNameOutput=True)` | Export as structured VTK grid |
 
 **makeUstar helper decomposition:**
 
@@ -216,14 +226,16 @@ Inherits from `abstractToolkit` (not from OFToolkit) and provides OpenFOAM + LSM
 | `_interpolateNearGroundValues()` | Regularize to 2D grid, interpolate with (x,y) cache |
 | `_writeScalarField()` | Assemble header + values + boundary → write file |
 
-**Analysis inner class** on OFLSMToolkit:
+**Analysis class** on OFLSMToolkit (`lagrangian/LSM/toolkit.py`; the Lagrangian solver extension's `analysis` class in `abstractLagrangianSolver.py` has methods of the same names, defaulting to `x/y/z` instead of `globalX/globalY/globalZ`):
 
 | Method | Description |
 |--------|-------------|
-| `calcConcentrationPointWise(data, dxdydz, ...)` | Cell-binned concentration from particle data |
-| `calcDocumentConcentrationPointWise(dataDocument, ...)` | Same with DB caching |
-| `calcConcentrationTimeStepFullMesh(...)` | Full domain regular grid concentration |
-| `calcConcentrationFieldFullMesh(...)` | Full pipeline: load particles → bin → pad → write netCDF (decomposed into helpers) |
+| `calcConcentrationPointWise(data, dxdydz, xfield="globalX", ...)` | Cell-binned concentration from particle data |
+| `calcDocumentConcentrationPointWise(dataDocument, dxdydz, ...)` | Same with DB caching |
+| `calcConcentrationTimeStepFullMesh(timeData, extents, dxdydz, ...)` | Full domain regular grid concentration |
+| `calcConcentrationFieldFullMesh(dataDocument, extents, dxdydz, ...)` | Full pipeline: load particles → bin → write netCDF (the helper decomposition above applies to the solver-extension version, not this one) |
+| `getConcentrationField(dataDocument, returnFirst=True, **metadata)` | Load a cached concentration field |
+| `getMassFromLog(logFile, solver="StochasticLagrangianSolver")` | Parse released/escaped mass from a solver log |
 
 ## Preprocessing objects (`preprocessOFObjects/`)
 
@@ -241,11 +253,11 @@ The preprocessing system provides an abstraction for OpenFOAM field files:
 
 | Method | Description |
 |--------|-------------|
-| `getEmptyField(fieldName, flowType, noOfProc)` | Create empty field with correct dimensions |
-| `getEmptyFieldFromCase(fieldName, flowType, caseDirectory, ...)` | Create field pre-loaded with boundaries from an existing case |
-| `readFieldFromCase(fieldName, flowType, caseDirectory, timeStep)` | Read complete field data |
-| `readFieldAsDataFrame(fieldName, caseDirectory, times, ...)` | Read field across multiple time steps as DataFrame |
-| `addFieldDefinitions(fieldName, dimensions, fieldType, ...)` | Register custom field definitions |
+| `getEmptyField(fieldName, flowType, noOfProc=None, addParallelProc=False)` | Create empty field with correct dimensions |
+| `getEmptyFieldFromCase(fieldName, flowType, caseDirectory, internalValue=None, readParallel=True)` | Create field pre-loaded with boundaries from an existing case |
+| `readFieldFromCase(fieldName, flowType, caseDirectory, timeStep=0, readParallel=True)` | Read complete field data |
+| `readFieldAsDataFrame(fieldName, caseDirectory, times=0, readParallel=True, filterInternalPatches=False)` | Read field across multiple time steps as DataFrame |
+| `addFieldDefinitions(fieldName, dimensions, fieldType, fieldComputation=FIELDCOMPUTATION_EULERIAN, compressible_dimensions=None, overwrite=False)` | Register custom field definitions |
 
 ## VTK post-processing pipeline (`postProcess/`)
 
@@ -255,7 +267,7 @@ The VTK pipeline provides a ParaView-integrated post-processing system with DB c
 
 | Class | Purpose |
 |-------|---------|
-| `VTKPipeLine` | Pipeline container — creates/manages filters, exports to JSON |
+| `VTKPipeLine` | Pipeline container — creates/manages filters (`addFilter(name, filterType, write=True, params=None)`), exports to JSON; obtained via `OFToolkit.analysis.getVTKPipeline()` |
 | `registeredVTKPipeLine` | Pipeline bound to a specific case — executes filters, caches results |
 | `VTKFilter` | Base filter node — tree structure with `downstream` children |
 | `paraviewOpenFOAM` (`pvOpenFOAMBase.py`) | ParaView backend — reads OpenFOAM cases, writes results |
@@ -274,9 +286,10 @@ The VTK pipeline provides a ParaView-integrated post-processing system with DB c
 **Data flow:**
 
 ```
-VTKPipeLine.registerPipeline(case)
+VTKPipeLine.registerPipeline(nameOrWorkflowFileOrJSONOrResource, serverName=None, caseType=CASETYPE_DECOMPOSED)
     → registeredVTKPipeLine
-        → getData(filterName, timeList, ...)
+        → getData(regularMesh, filterName=None, timeList=None, latestTime=False, fieldNames=None, overwrite=False)
+          (or getRegularData(...) / getNonRegularData(...))
             → checks DB cache
             → if miss: runs ParaView pipeline
             → saves to parquet (non-regular) or ZARR (regular mesh)
@@ -296,7 +309,7 @@ VTKPipeLine.registerPipeline(case)
 | 4 | `_buildAndExecuteParaViewPipeline()` | Create reader → build filter tree → execute → write results |
 | 5 | `_updateCacheDB()` | Merge new timesteps into existing DB records |
 
-**`writeCase` decomposition** (was 127 lines, CC 20):
+**`writeCase` decomposition** (`paraviewOpenFOAM.writeCase` in `pvOpenFOAMBase.py`; was 127 lines, CC 20):
 
 | Step | Helper | Purpose |
 |------|--------|---------|
@@ -313,6 +326,14 @@ The merge step supports both regular meshes (xarray → zarr with time-concatena
 
 ## Template system
 
-Templates are saved OpenFOAM case directories stored as data sources. The toolkit provides:
-- `saveTemplate(templateName, caseDirectory)` — save a case as a template
-- `loadTemplate(templateName, toDirectory, caseName)` — instantiate a template
+There is no `saveTemplate` / `loadTemplate` API in master. Templates are Hermes flow/node templates stored as toolkit datasources (`desc.component` = `"Flow"` or `"Node"`, flows also tagged with `solver`) and read through `hermesWorkflowToolkit`:
+
+- `listHermesSolverTemplates(solverName)` / `getHermesFlowTemplate(hermesFlowName)` — list and fetch flow templates
+- `listHermesNodesTemplates()` / `getHermesNodeTemplate(hermesNodeName)` — list and fetch node templates
+- CLI: `hera-openFoam <solver> templates list` and `hera-openFoam <solver> templates get`
+
+`OFToolkit.template_add(name, objFile, workflowObj=None)` exists but is an unimplemented stub (`pass`, `toolkit.py:502-525`).
+
+## CLI
+
+The `hera-openFoam` CLI (`hera/bin/hera-openFoam`, handlers in `openFoam/CLI.py`) exposes per-solver subcommands (`simpleFoam`, `pimpleFoam`, `oguraPhillipShallowConvectionFOAM`, `buoyantReactingFoam`, `scalarTransportFoam`, `homogenousWindLogProfile`, `stochasticLagrangian`) with actions such as `templates`, `executeWorkflow`, `list`, `delete`, `blockMesh`, `IC`, `case`, `postProcess`. See the [CLI reference](../../cli/reference.md#hera-openfoam).

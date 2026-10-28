@@ -58,6 +58,18 @@ const invalidToolkitNotDict = JSON.stringify({
 
 const notJson = 'this is not json {{{';
 
+// The route the central folder uses: the repository shape rule lives behind it.
+const jsonsInFolder = async (folder: string, withContents = false) => {
+  const r = await fetch(
+    `${SHARED_SERVER_URL}/repository/jsonsInFolder?folder=${encodeURIComponent(folder)}&withContents=${withContents}`);
+  return JSON.parse(await r.text());
+};
+
+const getRepository = async (path: string) => {
+  const r = await fetch(`${SHARED_SERVER_URL}/repository/get?path=${encodeURIComponent(path)}`);
+  return { status: r.status, body: JSON.parse(await r.text()) };
+};
+
 describe('Central Repo isRepoJson integration', () => {
   beforeAll(async () => {
     await createProjectViaUI('CentralTestProject');
@@ -85,36 +97,8 @@ result = 'ok'
     cleanup();
   }, 15000);
 
-  it('isRepoJson accepts valid repo and rejects invalid files', async () => {
-    const response = await execPython(`
-import os, glob, json
-
-SECTIONS = {'config', 'datasource', 'measurements', 'simulations', 'cache', 'function'}
-
-def isRepoJson(path):
-    try:
-        with open(path, 'r') as f:
-            doc = json.load(f)
-    except Exception:
-        return False
-    if not isinstance(doc, dict) or not doc:
-        return False
-    for toolkitValue in doc.values():
-        if not isinstance(toolkitValue, dict):
-            return False
-        for sectionKey in toolkitValue.keys():
-            if sectionKey.lower() not in SECTIONS:
-                return False
-    return True
-
-folder = '${REPO_DIR}'
-allFiles = glob.glob(os.path.join(folder, '**', '*.json'), recursive=True)
-allFiles = [f for f in allFiles if not f.endswith('caseConfiguration.json')]
-jsonFiles = sorted(f for f in allFiles if isRepoJson(f))
-result = jsonFiles
-`);
-
-    const files: string[] = response.data;
+  it('the folder route accepts repository files and rejects the rest', async () => {
+    const { files } = await jsonsInFolder(REPO_DIR);
 
     expect(files).toContain(`${REPO_DIR}/multi.json`);
     expect(files).toContain(`${REPO_DIR}/valid.json`);
@@ -129,79 +113,62 @@ result = jsonFiles
     expect(files).toHaveLength(3);
   }, 30000);
 
-  it('isRepoJson rejects empty JSON object', async () => {
+  it('an empty JSON object is not a repository', async () => {
     await writeFileOnServer(`${REPO_DIR}/empty.json`, '{}');
 
-    const response = await execPython(`
-import json
+    const { files } = await jsonsInFolder(REPO_DIR);
 
-SECTIONS = {'config', 'datasource', 'measurements', 'simulations', 'cache', 'function'}
-
-def isRepoJson(path):
-    try:
-        with open(path, 'r') as f:
-            doc = json.load(f)
-    except Exception:
-        return False
-    if not isinstance(doc, dict) or not doc:
-        return False
-    for toolkitValue in doc.values():
-        if not isinstance(toolkitValue, dict):
-            return False
-        for sectionKey in toolkitValue.keys():
-            if sectionKey.lower() not in SECTIONS:
-                return False
-    return True
-
-result = isRepoJson('${REPO_DIR}/empty.json')
-`);
-
-    expect(response.data).toBe(false);
+    expect(files).not.toContain(`${REPO_DIR}/empty.json`);
   }, 15000);
 
-  it('isRepoJson is case-insensitive on section keys', async () => {
+  it('the section names may be in any case', async () => {
     await writeFileOnServer(`${REPO_DIR}/mixcase.json`, JSON.stringify({
       MyToolkit: { Config: {}, Measurements: {} },
     }));
 
-    const response = await execPython(`
-import json
+    const { files } = await jsonsInFolder(REPO_DIR);
 
-SECTIONS = {'config', 'datasource', 'measurements', 'simulations', 'cache', 'function'}
+    expect(files).toContain(`${REPO_DIR}/mixcase.json`);
+  }, 15000);
 
-def isRepoJson(path):
-    try:
-        with open(path, 'r') as f:
-            doc = json.load(f)
-    except Exception:
-        return False
-    if not isinstance(doc, dict) or not doc:
-        return False
-    for toolkitValue in doc.values():
-        if not isinstance(toolkitValue, dict):
-            return False
-        for sectionKey in toolkitValue.keys():
-            if sectionKey.lower() not in SECTIONS:
-                return False
-    return True
+  it('the contents come with the files when asked', async () => {
+    const { files, repoJsons } = await jsonsInFolder(REPO_DIR, true);
 
-result = isRepoJson('${REPO_DIR}/mixcase.json')
-`);
+    expect(Object.keys(repoJsons).sort()).toEqual([...files].sort());
+    expect(repoJsons[`${REPO_DIR}/valid.json`]).toEqual(JSON.parse(validRepo));
+  }, 15000);
 
-    expect(response.data).toBe(true);
+  it('a folder that is not there is empty, not an error', async () => {
+    const { files, repoJsons } = await jsonsInFolder(`${REPO_DIR}/nowhere`, true);
+
+    expect(files).toEqual([]);
+    expect(repoJsons).toEqual({});
+  }, 15000);
+
+  it('one repository file comes with its paths resolved', async () => {
+    const answer = await getRepository(`${REPO_DIR}/valid.json`);
+
+    expect(answer.status).toBe(200);
+    expect(answer.body.json).toEqual(JSON.parse(validRepo));
+    expect(answer.body.resolved).toEqual(JSON.parse(validRepo));
+  }, 15000);
+
+  it('a file that is not a repository is not found', async () => {
+    const answer = await getRepository(`${REPO_DIR}/broken.json`);
+
+    expect(answer.status).toBe(404);
   }, 15000);
 
   it('central repo folder renders filtered files via the UI', async () => {
     localStorage.setItem('hera-central-repo-folder', REPO_DIR);
     renderApp('/CentralTestProject');
 
-    const reposLabel = await screen.findByText('Repositories', {}, { timeout: 15000 });
-    const reposContent = reposLabel.closest('.MuiTreeItem-content')!;
-    await act(async () => { fireEvent.click(reposContent); });
-
-    const folderLabel = await screen.findByText(REPO_DIR, {}, { timeout: 5000 });
-    const centralContent = folderLabel.closest('.MuiTreeItem-content')!;
-    await act(async () => { fireEvent.click(centralContent); });
+    // "Repositories" is a plain section heading now, not a tree node, so the
+    // central repo folder is visible without expanding anything first.
+    const folderLabel = await screen.findByText(REPO_DIR, {}, { timeout: 15000 });
+    const folderItem = folderLabel.closest('.MuiTreeItem-root')!;
+    const expandIcon = folderItem.querySelector('.MuiTreeItem-iconContainer')!;
+    await act(async () => { fireEvent.click(expandIcon); });
 
     await waitFor(() => {
       expect(screen.getByText(`${REPO_DIR}/valid.json`)).toBeTruthy();

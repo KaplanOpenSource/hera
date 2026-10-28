@@ -4,14 +4,14 @@ import { MemoryRouter } from 'react-router-dom';
 import type { ProjectDocument } from '../../src/shared/types';
 import App from '../../src/App';
 import { NO_PROJECT, useProjectStore } from '../../src/stores/useProjectStore';
+import { useProjectListStore } from '../../src/stores/useProjectListStore';
 
 export const resetStore = () => {
   useProjectStore.setState({
-    projectNames: [],
     currProjectName: NO_PROJECT,
     currProject: null,
-    toolkits: [],
   });
+  useProjectListStore.setState({ projectNames: [] });
 };
 
 /** Render the full app at a given path. */
@@ -21,6 +21,15 @@ export const renderApp = (path = '/') => {
       <App />
     </MemoryRouter>,
   );
+};
+
+/**
+ * Open the "Actions" popover on the project tree node. The project-level buttons
+ * (add document, delete project, detect notebooks) live inside it.
+ */
+export const openProjectActions = async () => {
+  const actionsWrapper = await screen.findByLabelText('Actions', {}, { timeout: 15000 });
+  await act(async () => { fireEvent.click(within(actionsWrapper).getByRole('button')); });
 };
 
 /** Render the app, click "Add project", fill the dialog, submit, cleanup. */
@@ -43,7 +52,7 @@ export const createProjectViaUI = async (projectName: string) => {
   });
 
   await waitFor(() => {
-    const names = useProjectStore.getState().projectNames;
+    const names = useProjectListStore.getState().projectNames;
     expect(names.some(p => p.name === projectName)).toBe(true);
   }, { timeout: 15000 });
 
@@ -63,17 +72,18 @@ export const addDocumentViaUI = async (
     expect(useProjectStore.getState().currProject?.name).toBe(projectName);
   }, { timeout: 15000 });
 
-  const addWrapper = await screen.findByLabelText('Add Document');
+  await openProjectActions();
+  const addWrapper = await screen.findByLabelText('Add document');
   await act(async () => { fireEvent.click(within(addWrapper).getByRole('button')); });
 
   const dialog = await screen.findByRole('dialog');
+  // Pick the kind first: switching kind resets the name field to a default.
+  if (opts.agent) {
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Agent' }));
+  }
   fireEvent.change(within(dialog).getByRole('textbox', { name: /^name$/i }), {
     target: { value: docName },
   });
-  if (opts.agent) {
-    fireEvent.mouseDown(within(dialog).getByText('Regular'));
-    fireEvent.click(await screen.findByRole('option', { name: 'Agent' }));
-  }
 
   await act(async () => {
     fireEvent.click(within(dialog).getByRole('button', { name: /add document/i }));

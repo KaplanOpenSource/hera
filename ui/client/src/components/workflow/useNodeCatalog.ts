@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { create } from 'zustand';
-import { BASEURL } from '../../shared/baseurl';
+import { nodeApi } from '../../api/api';
 import { NodeCatalogEntry } from './nodeCatalog';
 
 interface NodeCatalogStore {
@@ -18,15 +18,11 @@ export const useNodeCatalog = create<NodeCatalogStore>((set, get) => ({
     if (get().catalog.length > 0) {
       return;
     }
-    const response = await fetch(`${BASEURL}/node-catalog`);
-    if (!response.ok) {
-      // The server's error middleware returns { error, traceback }; log the real
-      // traceback instead of just the bare status so failures are debuggable here.
-      const problem = await response.json() as { error?: string; traceback?: string };
-      console.error(`node catalog failed (${response.status}): ${problem.error ?? response.statusText}\n${problem.traceback ?? ''}`);
-      return;
+    const catalog = await nodeApi.catalog();
+    // A failed call is already logged by the api layer; leave the catalog empty.
+    if (catalog) {
+      set({ catalog });
     }
-    set({ catalog: await response.json() as NodeCatalogEntry[] });
   },
 }));
 

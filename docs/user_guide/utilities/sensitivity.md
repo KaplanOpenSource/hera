@@ -8,6 +8,12 @@ The `hera.utils.SALibUtils` module provides the `SALibUtils` class, which bridge
 from hera.utils.SALibUtils import SALibUtils
 ```
 
+The module imports `SALib` at load time, and SALib is not listed in `requirements.txt` or `setup.py`. Install it first:
+
+```bash
+pip install SALib
+```
+
 ## Defining a Problem
 
 Use `SALibUtils.buildSAProblem` to define the parameters and their types. Plain two-element lists are treated as float ranges. Use the `typeInt`, `typeList`, and `typeLog` helpers for other types.
@@ -31,16 +37,21 @@ problem_container = SALibUtils.buildSAProblem(
 The returned `problem_container` is a dict with two keys:
 
 - `"problem"` -- the SALib problem dict (`num_vars`, `names`, `bounds`), ready to pass to any SALib sampler.
-- `"type"` -- metadata mapping each parameter name to its type descriptor, used by `transformSample`.
+- `"type"` -- metadata mapping each parameter name to its type descriptor (`{"type": ..., "parameters": ...}`), used by `transformSample`.
+
+Each keyword argument is either a two-element `[lower, upper]` list or a type descriptor dict produced by the helpers below.
 
 ## Type Helpers
 
 | Helper | Description | Example |
 |---|---|---|
-| `SALibUtils.typeInt(lower, upper)` | Integer range (inclusive) | `typeInt(1, 10)` |
+| `SALibUtils.typeInt(lower, upper)` | Integer range; the sample is floored to an `int` | `typeInt(1, 10)` |
 | `SALibUtils.typeList(items)` | Categorical choice from a list | `typeList(["a", "b", "c"])` |
-| `SALibUtils.typeLog(lower, upper)` | Log-scale: sampled value becomes `10**x` | `typeLog(-3, 0)` for 0.001--1.0 |
+| `SALibUtils.typeLog(lower, upper)` | Log-scale: sampled value becomes `10**x` | `typeLog(-3, 0)` |
 | Plain `[lower, upper]` list | Continuous float range | `[0.0, 1.0]` |
+
+!!! warning "Current bounds of `typeInt` and `typeLog`"
+    The bounds passed to SALib are wider than the helper arguments suggest. `typeInt(lower, upper)` stores `[lower, upper + 1]` and `buildSAProblem` adds 1 again, so the sampled bounds are `[lower, upper + 2]`: `typeInt(1, 10)` produces integers 1 to 11 (and 12 only at the exact upper bound). `typeLog(lower, upper)` is sampled in `[lower, upper + 1]`: `typeLog(1, 5)` gives values from 10 to 10**6, and `typeLog(-3, 0)` from 0.001 to 10. Check `problem_container["problem"]["bounds"]` and pass tighter arguments if you need exact ranges.
 
 ## Sampling
 
@@ -67,7 +78,7 @@ for row in transformed[:3]:
 # ...
 ```
 
-Each row is a list of parameter values in the same order as `problem_container["problem"]["names"]`.
+`transformSample` returns a plain Python list of lists (not a NumPy array). Each row is a list of parameter values in the same order as `problem_container["problem"]["names"]`.
 
 ## Full Workflow Example
 

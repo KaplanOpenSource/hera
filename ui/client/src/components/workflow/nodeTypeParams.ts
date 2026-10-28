@@ -9,8 +9,8 @@ const hasValue = (value: any): boolean => {
 // The input_parameters after a node's type changes to `entry`: keep every
 // existing param the user gave a value, drop the empty ones, then seed the new
 // type's params (empty) that aren't already kept. A param shared by the old and
-// new type (e.g. ProjectName) keeps its value, since valued params are kept
-// first. Existing params are returned unchanged for an unknown type.
+// new type keeps its value, since valued params are kept first. Existing params
+// are returned unchanged for an unknown type.
 export const paramsOnTypeChange = (
   existing: { [key: string]: any },
   entry: NodeCatalogEntry | undefined,

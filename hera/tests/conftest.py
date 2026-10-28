@@ -163,6 +163,41 @@ def pytest_addoption(parser):
         default=None,
         help="Name of the expected-output result set (overrides RESULT_SET env var).",
     )
+    parser.addoption(
+        "--require-data",
+        action="store_true",
+        default=False,
+        help="Fail instead of skipping when the TEST_HERA data set is "
+             "incomplete.  Intended for CI; local runs keep skipping.",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Missing-test-data gate
+# ---------------------------------------------------------------------------
+
+_REQUIRE_DATA_TRUTHY = frozenset({"1", "true", "yes"})
+
+
+def _missing_test_data(request, reason):
+    """Skip locally; fail when the missing-data gate is armed.
+
+    A local developer run with an absent or partial TEST_HERA must keep
+    skipping — that is the historical behaviour and it stays the default.
+    CI sets HERA_REQUIRE_TEST_DATA=1 so that a partial S3 download fails
+    the build instead of reporting green with dozens of silent skips.
+    """
+    armed = request.config.getoption("--require-data") or (
+        os.environ.get("HERA_REQUIRE_TEST_DATA", "").strip().lower()
+        in _REQUIRE_DATA_TRUTHY
+    )
+    if armed:
+        pytest.fail(
+            f"{reason} — the missing-data gate is armed "
+            "(HERA_REQUIRE_TEST_DATA / --require-data)",
+            pytrace=False,
+        )
+    pytest.skip(reason)
 
 
 # ---------------------------------------------------------------------------
@@ -218,21 +253,21 @@ def _no_trace_guard():
 # ---------------------------------------------------------------------------
 
 @pytest.fixture(scope="session")
-def test_hera_root():
+def test_hera_root(request):
     """Return the validated root path of the test data repository."""
     root = os.environ.get("TEST_HERA", os.path.expanduser("~/hera_unittest_data"))
     root = Path(root)
     if not root.is_dir():
-        pytest.skip(f"TEST_HERA directory not found: {root}")
+        _missing_test_data(request, f"TEST_HERA directory not found: {root}")
     return root
 
 
 @pytest.fixture(scope="session")
-def data_config(test_hera_root):
+def data_config(request, test_hera_root):
     """Parsed ``data_config.json`` dict."""
     cfg_path = test_hera_root / "data_config.json"
     if not cfg_path.is_file():
-        pytest.skip(f"data_config.json not found at {cfg_path}")
+        _missing_test_data(request, f"data_config.json not found at {cfg_path}")
     with open(cfg_path, encoding="utf-8") as fh:
         return json.load(fh)
 
@@ -247,11 +282,11 @@ def result_set(request, data_config):
 
 
 @pytest.fixture(scope="session")
-def expected_dir(test_hera_root, result_set):
+def expected_dir(request, test_hera_root, result_set):
     """``Path('<test_hera_root>/expected/<result_set>')``."""
     d = test_hera_root / "expected" / result_set
     if not d.is_dir():
-        pytest.skip(f"Expected result set directory not found: {d}")
+        _missing_test_data(request, f"Expected result set directory not found: {d}")
     return d
 
 
@@ -260,7 +295,7 @@ def expected_dir(test_hera_root, result_set):
 # ---------------------------------------------------------------------------
 
 @pytest.fixture(scope="session")
-def hera_test_project(test_hera_root):
+def hera_test_project(request, test_hera_root):
     """
     Create a Hera Project and load the test repository into it.
 
@@ -273,7 +308,7 @@ def hera_test_project(test_hera_root):
 
     repo_json_path = test_hera_root / "test_repository.json"
     if not repo_json_path.is_file():
-        pytest.skip(f"test_repository.json not found at {repo_json_path}")
+        _missing_test_data(request, f"test_repository.json not found at {repo_json_path}")
 
     # Read the repository JSON
     with open(repo_json_path, encoding="utf-8") as fh:
