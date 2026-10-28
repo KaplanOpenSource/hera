@@ -45,10 +45,10 @@ def _mongo_is_available():
         cfg = getMongoConfigFromJson()
         host = cfg.get("dbIP", "localhost")
         port = int(cfg.get("port", 27017))
-        client = pymongo.MongoClient(
+        with pymongo.MongoClient(
             host=host, port=port, serverSelectionTimeoutMS=1000
-        )
-        client.server_info()
+        ) as client:
+            client.server_info()
         return True
     except Exception:
         return False

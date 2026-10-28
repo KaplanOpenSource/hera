@@ -7,11 +7,12 @@ from collections.abc import Iterable
 from itertools import chain, product
 
 import dask
+
 import dask.dataframe as dask_dataframe
 import numpy
 import pandas
 from dask.delayed import delayed
-from evtk import hl as evtk_hl
+from pyevtk import hl as evtk_hl
 
 from hera.simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
 from hera.simulations.openFoam import (
