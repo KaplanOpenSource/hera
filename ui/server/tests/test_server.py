@@ -3,6 +3,7 @@ import time
 
 import pytest
 
+import args_settings
 import dependencies
 from api_models import ExecPayload, RunWorkflowPayload
 from routers import cors_info, exec_code, health, workflow
@@ -22,6 +23,22 @@ def test_healthz():
 def test_cors_info_shape():
     info = cors_info.cors_info()
     assert "origins" in info
+
+
+def test_cors_info_answers_the_origins_the_server_started_with(monkeypatch):
+    settings = args_settings.parse_args_settings(["--cors", "10.0.0.1", "--port", "9000"])
+    settings.origins()
+    monkeypatch.setattr(args_settings, "_settings", settings)
+
+    assert cors_info.cors_info() == {"origins": ["http://10.0.0.1:9000"]}
+
+
+def test_cors_info_has_no_origins_without_cors(monkeypatch):
+    settings = args_settings.parse_args_settings([])
+    settings.origins()
+    monkeypatch.setattr(args_settings, "_settings", settings)
+
+    assert cors_info.cors_info() == {"origins": None}
 
 
 def test_exec_returns_result_value(warmed):
