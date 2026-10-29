@@ -2,6 +2,7 @@ import { ProjectDocument } from '../../shared/types';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { ImagePreview, isImageResource } from './ImagePreview';
 import { GeoJsonPreview, isGeoJsonResource } from './maps/GeoJsonPreview';
+import { GeoTiffPreview, isGeoTiffResource } from './maps/GeoTiffPreview';
 import { isTileUrl, TileMapView } from './maps/TileMapView';
 
 export const hasPreview = (doc: ProjectDocument): boolean => {
@@ -23,6 +24,10 @@ export const PreviewPanel = ({
   }
   if (isGeoJsonResource(resource)) {
     return <GeoJsonPreview path={resource} />;
+  }
+  // Before images: a browser cannot show a TIFF as a plain picture.
+  if (isGeoTiffResource(resource)) {
+    return <GeoTiffPreview path={resource} />;
   }
   if (isImageResource(resource)) {
     return <ImagePreview path={resource} />;
