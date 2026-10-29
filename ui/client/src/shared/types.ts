@@ -7,6 +7,29 @@ export enum NodeParameterSource {
   Template = 'template',
 }
 
+// One parameter a node type accepts. Values (defaults) are not provided by the
+// catalog — only the name, whether it is required, and where it was discovered.
+export interface NodeCatalogParameter {
+  name: string;
+  is_required: boolean;
+  source: NodeParameterSource;
+}
+
+// One output a node type produces. Names only (no values), plus where it was
+// discovered. Best-effort — only outputs detected from the node's run() return.
+export interface NodeCatalogOutput {
+  name: string;
+  source: NodeParameterSource;
+}
+
+// One Hermes node type, the parameters it accepts and the outputs it produces.
+export interface NodeCatalogEntry {
+  type: string;
+  parameters: NodeCatalogParameter[];
+  // Optional: older callers/fixtures may omit it; the server always sends it.
+  outputs?: NodeCatalogOutput[];
+}
+
 // The three collections a document can live in. The server names them alike.
 export enum Collection {
   Measurements = 'Measurements',
