@@ -63,6 +63,7 @@ export interface DocumentDesc {
   version?: number[] | string;
   filesDirectory?: string;
   analysis_CacheCounter?: number;
+  defaultTileServer?: string;
   // docid?: string;
 }
 

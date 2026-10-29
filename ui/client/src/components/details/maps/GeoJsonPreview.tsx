@@ -5,6 +5,7 @@ import L from 'leaflet';
 import type { GeoJSON } from 'geojson';
 import 'leaflet/dist/leaflet.css';
 import { serverApi } from '../../../api/api';
+import { useProjectStore } from '../../../stores/useProjectStore';
 import { InvalidateOnResize } from './InvalidateOnResize';
 import { darkMapControlsSx, TILE_ATTRIBUTION, TILE_URL } from './mapDarkStyles';
 
@@ -39,6 +40,17 @@ export const GeoJsonPreview = ({
 }) => {
   const [mapState, setMapState] = useState<MapState>({ geojson: null, bounds: null, hasError: false });
   const dark = useTheme().palette.mode === 'dark';
+  const defaultTileServer = useProjectStore(state => {
+    const project = state.currProject;
+    const config = project?.documents.find(d => d.type === `${project.name}__config__`);
+    return config?.desc?.defaultTileServer;
+  });
+  let tileUrl = TILE_URL;
+  let tileAttribution = TILE_ATTRIBUTION;
+  if (defaultTileServer) {
+    tileUrl = defaultTileServer;
+    tileAttribution = '';
+  }
 
   useEffect(() => {
     (async () => {
@@ -69,7 +81,7 @@ export const GeoJsonPreview = ({
           zoom={8}
           style={{ height: '100%', width: '100%' }}
         >
-          <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} />
+          <TileLayer url={tileUrl} attribution={tileAttribution} />
           <GeoJSONLayer data={mapState.geojson as any} />
           <FitBounds bounds={mapState.bounds} />
           <InvalidateOnResize />
