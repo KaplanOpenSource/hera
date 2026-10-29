@@ -46,7 +46,7 @@ Each api class also has its own test file, one test per method:
 | `GET /project/toolkits` | `fetchProjectData` | yes | yes | `FetchProjects.test.ts`, `server/tests/test_projects.py` |
 | `POST /project/create` | `AddProjectButton` | yes | yes | `addProject.test.tsx`, `integration/addProject.integ.test.tsx`, `server/tests/test_projects.py` |
 | `POST /project/delete` | `DeleteProjectButton` | yes | yes | `deleteProject.test.tsx`, `integration/deleteProject.integ.test.tsx`, `server/tests/test_projects.py` |
-| `POST /project/detectNotebooks` | `DetectNotebooksButton` | yes | no | `detectNotebooks.test.tsx`, `server/tests/test_projects.py` |
+| `POST /project/detectNotebooks` | `detectNotebooks` (on project load) | yes | no | `detectNotebooks.test.tsx`, `server/tests/test_projects.py` |
 | `POST /document/create` | `AddDocumentButton`, `duplicateDocuments` | yes | yes | `addDocument.test.tsx`, `documentOperations.test.ts`, `treeInteractions.test.tsx`, `integration/documents.integ.test.tsx`, `server/tests/test_documents.py` |
 | `POST /document/update` | `useShownDoc` | yes | yes | `documentOperations.test.ts`, `saveDocument.test.tsx`, `TwoUiSync.test.tsx`, `integration/documents.integ.test.tsx`, `server/tests/test_documents.py` |
 | `POST /document/delete` | `deleteDocuments`, `DeleteDocumentButton`, `DeleteSelectedButton` | yes | yes | `deleteDocumentButton.test.tsx`, `documentOperations.test.ts`, `projectActions.test.tsx`, `treeInteractions.test.tsx`, `integration/documents.integ.test.tsx`, `server/tests/test_documents.py` |

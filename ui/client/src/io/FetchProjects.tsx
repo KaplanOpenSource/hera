@@ -6,6 +6,7 @@ import { useProjectListStore } from "../stores/useProjectListStore";
 import { useToolkitStore } from "../stores/useToolkitStore";
 import { projectApi } from "../api/api";
 import { parseToolkits } from "../utils/parseToolkits";
+import { detectNotebooks } from "./detectNotebooks";
 
 export const fetchProjectsNames = async () => {
   const data = await projectApi.names();
@@ -39,6 +40,8 @@ export const fetchProjectData = async (projectName: string) => {
     if (currProjectName === projectName) {
       setCurrentProject(details.project as ProjectEntire);
     }
+    // Not awaited, so the project shows before the scan ends.
+    detectNotebooks(details.project as ProjectEntire);
   }
 }
 

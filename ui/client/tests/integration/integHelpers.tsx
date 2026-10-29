@@ -25,7 +25,7 @@ export const renderApp = (path = '/') => {
 
 /**
  * Open the "Actions" popover on the project tree node. The project-level buttons
- * (add document, delete project, detect notebooks) live inside it.
+ * (add document, delete project) live inside it.
  */
 export const openProjectActions = async () => {
   const actionsWrapper = await screen.findByLabelText('Actions', {}, { timeout: 15000 });

@@ -6,6 +6,7 @@ import { useServerConstants } from '../stores/useServerConstants';
 import { useServerUserStore } from '../stores/useServerUserStore';
 import { useToolkitStore } from '../stores/useToolkitStore';
 import { parseToolkits } from '../utils/parseToolkits';
+import { detectNotebooks } from './detectNotebooks';
 
 // Asks the server for everything the UI needs to start. Returns the answer, or
 // null when the server did not answer at all. Not ready yet carries no data.
@@ -30,6 +31,8 @@ export const fetchInit = async (wantedProjectName?: string): Promise<InitData | 
     const { selectProject, setCurrentProject } = useProjectStore.getState();
     selectProject(data.project.name);
     setCurrentProject(data.project);
+    // Not awaited, so the project shows before the scan ends.
+    detectNotebooks(data.project);
   }
   return data;
 };
