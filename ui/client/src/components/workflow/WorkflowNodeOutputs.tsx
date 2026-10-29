@@ -12,9 +12,12 @@ export const OUTPUTS_KEY = 'outputs';
 export const WorkflowNodeOutputs = ({
   nodeName,
   outputs,
+  withHandles = true,
 }: {
   nodeName: string,
   outputs: string[],
+  // False off the canvas (the pop-up), where no line can leave an output.
+  withHandles?: boolean,
 }) => {
   const [expandedItems, setExpandedItems] = useState<string[]>([OUTPUTS_KEY]);
   return (
@@ -38,7 +41,7 @@ export const WorkflowNodeOutputs = ({
           <TreeItem
             key={name}
             itemId={keyForDetailsViewItem(name, OUTPUTS_KEY)}
-            label={<WorkflowNodeOutputRow nodeName={nodeName} name={name} />}
+            label={<WorkflowNodeOutputRow nodeName={nodeName} name={name} withHandle={withHandles} />}
           />
         ))}
       </TreeItem>
