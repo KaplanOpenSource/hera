@@ -4,7 +4,6 @@ The routes themselves live in ``routers/``; this file only assembles them.
 """
 from __future__ import annotations
 
-import socket
 import traceback
 from contextlib import asynccontextmanager
 
@@ -17,6 +16,7 @@ from args_settings import ArgsSettings, parse_args_settings, set_args_settings
 from dependencies import warmup
 from routers import (cors_info, documents, files, geojson, health, jupyter, nodes,
                      projects, repositories, startup, workflow)
+from server_address import find_available_port, print_ui_urls
 
 
 @asynccontextmanager
@@ -81,19 +81,6 @@ def create_app(settings: ArgsSettings) -> FastAPI:
     return app
 
 
-def find_available_port(host: str, start_port: int, attempts: int = 79) -> int:
-    """Return the first free port at or after start_port, trying up to `attempts` ports."""
-    for port in range(start_port, start_port + attempts):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            if sock.connect_ex((host, port)) != 0:
-                return port
-            print(f"Port {port} is in use, trying the next one...")
-    raise SystemExit(
-        f"No free port found in range {start_port}-{start_port + attempts - 1}."
-    )
-
-
 def main() -> None:
     # Use a single process: no reload watcher
     import uvicorn
@@ -113,6 +100,7 @@ def main() -> None:
     port = find_available_port(probe_host, settings.port)
     if port != settings.port:
         print(f"Requested port {settings.port} unavailable; starting on port {port} instead.")
+    print_ui_urls(settings.host, port)
 
     uvicorn.run(
         app,
