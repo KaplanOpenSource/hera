@@ -11,20 +11,6 @@ class JupyterStartPayload(BaseModel):
     dark: bool = False
 
 
-class ExecPayload(BaseModel):
-    code: str
-
-
-class Problem(BaseModel):
-    error: str
-    traceback: str
-
-
-class ExecResponse(BaseModel):
-    data: Any = None
-    problem: Optional[Problem] = None
-
-
 class RunWorkflowPayload(BaseModel):
     projectName: str
     # The whole workflow document (desc.workflow, desc.workflowName, resource, ...).

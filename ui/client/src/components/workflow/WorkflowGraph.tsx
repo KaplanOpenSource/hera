@@ -14,11 +14,13 @@ import { WorkflowFlowNode } from './WorkflowFlowNode';
 import { WorkflowNodeDeleteButton } from './WorkflowNodeDeleteButton';
 import { WorkflowNodeListPanel } from './WorkflowNodeListPanel';
 import { WorkflowNodePinButton } from './WorkflowNodePinButton';
+import { WorkflowNodePopupButton } from './WorkflowNodePopupButton';
+import { WorkflowNodeDialog } from './WorkflowNodeDialog';
 import { WorkflowRequiresEdge } from './WorkflowRequiresEdge';
 import { buildWorkflowEdges } from './workflowEdges';
 import { buildDataflowEdges } from './workflowDataflow';
 import { WorkflowInlineReference } from './WorkflowInlineReference';
-import { displayFlowNodes, flowStructureKey } from './workflowFlowNodesUtils';
+import { displayFlowNodes, FlowNodeHandlers, flowStructureKey } from './workflowFlowNodesUtils';
 import { useInlineReference } from './useInlineReference';
 import { useWorkflowCanvasNodes } from './useWorkflowCanvasNodes';
 import { NodeRunStatusMap } from './nodeRunStatus';
@@ -82,6 +84,8 @@ const WorkflowGraph = ({
   // Those show their editor; the rest stay small.
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [pinnedNodes, setPinnedNodes] = useState<string[]>([]);
+  // The node shown in the pop-up, if any.
+  const [popupNode, setPopupNode] = useState<string | null>(null);
   // Dataflow dependencies (an input referencing another node's output) — used
   // both to draw the lines and to order the columns, alongside `requires`.
   const dataflowDeps = buildDataflowEdges(nodeNames, nodes, catalog);
@@ -113,6 +117,23 @@ const WorkflowGraph = ({
   // The {…} reference autocomplete on a node's parameter fields.
   const { inline, closeInline, handleInlineEdit, pickInline } = useInlineReference({ nodes, references, onSetNode });
 
+  // What a node's editor reports back, on the canvas and in the pop-up alike.
+  const handlers: FlowNodeHandlers = {
+    onRename: onRenameNode,
+    onChange: onSetNode,
+    onFieldContextMenu: (name, param, x, y, caret) =>
+      setMenu({ kind: WorkflowContextMenuKind.Field, node: name, param, x, y, caret }),
+    onFieldInlineEdit: (name, param, value, caret, el) => handleInlineEdit(name, param, value, caret, el),
+  };
+
+  // A rename from the pop-up keeps the pop-up on the node; a taken name is refused.
+  const renamePopupNode = (oldName: string, newName: string) => {
+    onRenameNode(oldName, newName);
+    if (!nodeNames.includes(newName)) {
+      setPopupNode(newName);
+    }
+  };
+
   const displayNodes = displayFlowNodes({
     rfNodes,
     nodes,
@@ -128,16 +149,11 @@ const WorkflowGraph = ({
     actionButtons: (name: string) => (
       <>
         <WorkflowNodePinButton pinned={pinnedNodes.includes(name)} onToggle={() => togglePin(name)} />
+        <WorkflowNodePopupButton onOpen={() => setPopupNode(name)} />
         <WorkflowNodeDeleteButton onDelete={() => onDeleteNode(name)} />
       </>
     ),
-    handlers: {
-      onRename: onRenameNode,
-      onChange: onSetNode,
-      onFieldContextMenu: (name, param, x, y, caret) =>
-        setMenu({ kind: WorkflowContextMenuKind.Field, node: name, param, x, y, caret }),
-      onFieldInlineEdit: (name, param, value, caret, el) => handleInlineEdit(name, param, value, caret, el),
-    },
+    handlers,
   });
 
   const rfEdges = useMemo<Edge[]>(() => buildWorkflowEdges(nodeNames, nodes), [flowStructureKey(nodeNames, nodes, dataflowDeps)]);
@@ -205,6 +221,18 @@ const WorkflowGraph = ({
         <Background />
         <Controls />
       </ReactFlow>
+      {popupNode !== null && nodes[popupNode] && (
+        <WorkflowNodeDialog
+          name={popupNode}
+          node={nodes[popupNode]}
+          catalog={catalog}
+          onClose={() => setPopupNode(null)}
+          onRename={newName => renamePopupNode(popupNode, newName)}
+          onChange={updated => onSetNode(popupNode, updated)}
+          onFieldContextMenu={(param, x, y, caret) => handlers.onFieldContextMenu(popupNode, param, x, y, caret)}
+          onFieldInlineEdit={(param, value, caret, el) => handlers.onFieldInlineEdit(popupNode, param, value, caret, el)}
+        />
+      )}
       <WorkflowContextMenu
         menu={menu}
         referenceOptions={referenceOptions}

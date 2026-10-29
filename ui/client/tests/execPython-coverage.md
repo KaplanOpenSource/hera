@@ -26,23 +26,28 @@
 
 ## Named entrypoints (no exec)
 
+Each api class also has its own test file, one test per method:
+`serverApi`, `projectApi`, `documentApi`, `repositoryApi`, `nodeApi` and
+`workflowApi` `.test.ts`. See `ui/ENTRYPOINT_TESTS_PLAN.md`.
+
 | Entrypoint | Caller | Unit test? | Integration? | Test file |
 |---|---|:---:|:---:|---|
-| `GET /init` | `ServerApi.init`, `src/io/fetchInit.ts` | yes | no | `fetchInit.test.ts`, `serverReadyGate.test.tsx`, `fetchProjectsAfterInit.test.tsx`, `server/tests/test_init_data.py` |
+| `GET /init` | `ServerApi.init`, `src/io/fetchInit.ts` | yes | no | `serverApi.test.ts`, `fetchInit.test.ts`, `serverReadyGate.test.tsx`, `fetchProjectsAfterInit.test.tsx`, `server/tests/test_init_data.py` |
 | `GET /geojson` | `ServerApi.geoJson`, `GeoJsonPreview` | yes | no | `fetchGeoJson.test.ts`, `server/tests/test_geojson_file.py` |
-| `GET /cors` | `ServerApi.cors`, `CorsIndicator` | no | no | none |
-| `POST /jupyter/ensure` | `ServerApi.ensureJupyter`, `DetailsViewNotebook` | no | no | none |
-| `GET /node-catalog` | `NodeApi.catalog`, `useNodeCatalog` | yes | no | `useNodeCatalog.test.ts` |
-| `POST /node-params/validate` | `NodeApi.validateParams`, `useNodeParamsValidation` | yes | no | `nodeParamsValidation.test.tsx` |
-| `POST /start_workflow` | `WorkflowApi.start`, `RunWorkflowButton` | yes | no | `runWorkflow.test.tsx` |
-| `GET /workflow_status/{token}` | `WorkflowApi.poll`, `WorkflowRunPoller` | yes | no | `workflowRunPoller.test.tsx` |
+| `GET /cors` | `ServerApi.cors`, `CorsIndicator` | yes | no | `serverApi.test.ts`, `server/tests/test_server.py` |
+| `POST /jupyter/ensure` | `ServerApi.ensureJupyter`, `DetailsViewNotebook` | yes | no | `serverApi.test.ts`, `server/tests/test_jupyter.py` |
+| `GET /node-catalog` | `NodeApi.catalog`, `useNodeCatalog` | yes | no | `nodeApi.test.ts`, `useNodeCatalog.test.ts`, `server/tests/test_nodes.py` |
+| `POST /node-params/validate` | `NodeApi.validateParams`, `useNodeParamsValidation` | yes | no | `nodeApi.test.ts`, `nodeParamsValidation.test.tsx`, `server/tests/test_node_params.py` |
+| `POST /start_workflow` | `WorkflowApi.start`, `RunWorkflowButton` | yes | no | `workflowApi.test.ts`, `runWorkflow.test.tsx`, `server/tests/test_server.py` |
+| `GET /workflow_status/{token}` | `WorkflowApi.poll`, `WorkflowRunPoller` | yes | no | `workflowApi.test.ts`, `workflowRunPoller.test.tsx`, `server/tests/test_server.py` |
 | `getJson` / `postJson` | `src/api/ApiCall.ts` | yes | no | `ApiCall.test.ts`, `apiPackageIsolation.test.ts` |
 | `GET /project/names` | `fetchProjectsNames` | yes | yes | `FetchProjects.test.ts`, `server/tests/test_projects.py` |
 | `GET /project/documents` | `fetchProjectDetails`, `fetchProjectData` | yes | yes | `FetchProjects.test.ts`, `server/tests/test_projects.py` |
 | `GET /project/toolkits` | `fetchProjectData` | yes | yes | `FetchProjects.test.ts`, `server/tests/test_projects.py` |
+| `GET /project/files` | `ProjectFilesView` | yes | no | `projectApi.test.ts`, `projectFilesView.test.tsx`, `server/tests/test_projects.py` |
 | `POST /project/create` | `AddProjectButton` | yes | yes | `addProject.test.tsx`, `integration/addProject.integ.test.tsx`, `server/tests/test_projects.py` |
 | `POST /project/delete` | `DeleteProjectButton` | yes | yes | `deleteProject.test.tsx`, `integration/deleteProject.integ.test.tsx`, `server/tests/test_projects.py` |
-| `POST /project/detectNotebooks` | `DetectNotebooksButton` | yes | no | `detectNotebooks.test.tsx`, `server/tests/test_projects.py` |
+| `POST /project/detectNotebooks` | `detectNotebooks` (on project load) | yes | no | `detectNotebooks.test.tsx`, `server/tests/test_projects.py` |
 | `POST /document/create` | `AddDocumentButton`, `duplicateDocuments` | yes | yes | `addDocument.test.tsx`, `documentOperations.test.ts`, `treeInteractions.test.tsx`, `integration/documents.integ.test.tsx`, `server/tests/test_documents.py` |
 | `POST /document/update` | `useShownDoc` | yes | yes | `documentOperations.test.ts`, `saveDocument.test.tsx`, `TwoUiSync.test.tsx`, `integration/documents.integ.test.tsx`, `server/tests/test_documents.py` |
 | `POST /document/delete` | `deleteDocuments`, `DeleteDocumentButton`, `DeleteSelectedButton` | yes | yes | `deleteDocumentButton.test.tsx`, `documentOperations.test.ts`, `projectActions.test.tsx`, `treeInteractions.test.tsx`, `integration/documents.integ.test.tsx`, `server/tests/test_documents.py` |
@@ -54,13 +59,6 @@
 A load answers `added` and `problems` as well as the project: hera skips what it
 cannot load without raising, so the route counts the documents before and after
 and reports the reason. See `ENTRYPOINTS_REPOSITORIES_STEPS.md`.
-
-## Still on `/exec`
-
-No call sites. `src/io/fetchPython.ts` is still there; `WARMING_UP` now lives in
-`src/shared/constants.ts` and `fetchPython.ts` re-exports it. The integration
-tests use `/exec` to write their own files on the server. Retiring the endpoint
-is its own issue, task 3 of `NEXT_TASKS_PLAN.md`.
 
 ## Gaps
 

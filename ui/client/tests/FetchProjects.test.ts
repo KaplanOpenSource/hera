@@ -4,6 +4,7 @@ import { useProjectStore } from '../src/stores/useProjectStore';
 import { useProjectListStore } from '../src/stores/useProjectListStore';
 import { useToolkitStore } from '../src/stores/useToolkitStore';
 import { mockApiCall } from './helpers/mockApiCall';
+import { ApiCall } from '../src/api/ApiCall';
 
 let getJson: ReturnType<typeof vi.fn>;
 
@@ -213,6 +214,23 @@ describe('fetchProjectData', () => {
 
     const paths = vi.mocked(getJson).mock.calls.map(c => c[0]);
     expect(paths).toEqual(['/project/toolkits', '/project/documents']);
+  });
+
+  it('starts notebook detection once the project is loaded', async () => {
+    const postJson = vi.spyOn(ApiCall.prototype as any, 'postJson').mockResolvedValue(null);
+    const configDoc = { _id: { $oid: 'cfg1' }, type: 'TestProject__config__', desc: { filesDirectory: '/data/t' } };
+    vi.mocked(getJson).mockImplementation(async (path: string) => {
+      if (path === '/project/toolkits') {
+        return { toolkitDocs: [] };
+      }
+      return { project: { name: 'TestProject', documents: [configDoc] } };
+    });
+
+    await fetchProjectData('TestProject');
+
+    expect(postJson).toHaveBeenCalledWith('/project/detectNotebooks',
+      { projectName: 'TestProject', filesDirectory: '/data/t' },
+      { label: 'detect notebooks' });
   });
 
   it('does not update store when both calls failed', async () => {

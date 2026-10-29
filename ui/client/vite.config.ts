@@ -17,6 +17,10 @@ export default defineConfig({
   build: {
     outDir: 'bundle',
     chunkSizeWarningLimit: 2000,
+    rollupOptions: {
+      // Keep lazy imports (e.g. geotiff decoders) in the one bundle file.
+      output: { inlineDynamicImports: true },
+    },
   },
   test: {
     environment: 'jsdom',

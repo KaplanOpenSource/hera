@@ -1,4 +1,4 @@
-"""The project entrypoints: the list, one project, toolkits, create, delete, notebooks.
+"""The project entrypoints: the list, one project, its files, toolkits, create, delete, notebooks.
 
 Named routes replacing the project `/exec` calls the UI used to assemble in the
 browser. See ui/client/ENTRYPOINTS_PROJECTS_STEPS.md.
@@ -9,6 +9,7 @@ from fastapi.encoders import jsonable_encoder
 from api_models import CreateProjectPayload, DeleteProjectPayload, DetectNotebooksPayload
 from dependencies import warmup
 from project_api.project_api import ProjectApi
+from project_api.project_files import ProjectFiles
 from project_api.toolkit_documents import toolkit_documents
 
 router = APIRouter(prefix="/project")
@@ -43,6 +44,13 @@ def documents(projectName: str) -> dict:
     """One project and its documents. See ``ProjectApi.documents``."""
     project = _open_project(projectName)
     return jsonable_encoder({"project": project.documents()})
+
+
+@router.get("/files")
+def files(projectName: str, path: str = "") -> dict:
+    """The files and folders at a path inside the project's files directory."""
+    project = _open_project(projectName)
+    return {"files": ProjectFiles(project.files_directory()).list(path)}
 
 
 @router.get("/toolkits")

@@ -2,24 +2,9 @@ import pytest
 from pydantic import ValidationError
 
 from api_models import (
-    ExecPayload,
-    ExecResponse,
-    Problem,
     RunWorkflowPayload,
     RunWorkflowResponse,
 )
-
-
-def test_exec_response_defaults():
-    resp = ExecResponse()
-    assert resp.data is None
-    assert resp.problem is None
-
-
-def test_exec_response_with_problem():
-    resp = ExecResponse(problem=Problem(error="e", traceback="tb"))
-    assert resp.problem.error == "e"
-    assert resp.problem.traceback == "tb"
 
 
 def test_run_workflow_payload_requires_project():
@@ -49,8 +34,3 @@ def test_run_workflow_response_poll_done():
     assert resp.status == "done"
     assert resp.chunks[0].text == "log"
     assert resp.error == ""
-
-
-def test_exec_payload_requires_code():
-    with pytest.raises(ValidationError):
-        ExecPayload()

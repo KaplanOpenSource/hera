@@ -9,6 +9,7 @@ the project `/exec` calls. Status: **built**.
 |---|---|---|---|
 | `project.names` | `GET /project/names` | - | `{projects}` |
 | `project.documents` | `GET /project/documents?projectName=` | - | `{project}` |
+| `project.files` | `GET /project/files?projectName=&path=` | - | `{files}` |
 | `project.toolkits` | `GET /project/toolkits` | - | `{toolkitDocs}` |
 | `project.create` | `POST /project/create` | `projectName`, `filesDirectory`, `loadRepositories` | `{projects, project, addedNotebooks}` |
 | `project.delete` | `POST /project/delete` | `projectName`, `deleteFiles` | `{projects, project}` |

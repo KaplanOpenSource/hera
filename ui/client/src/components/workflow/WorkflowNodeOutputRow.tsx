@@ -8,20 +8,24 @@ import { outputHandleId } from './workflowDataflow';
 export const WorkflowNodeOutputRow = ({
   nodeName,
   name,
+  withHandle,
 }: {
   nodeName: string,
   name: string,
+  withHandle: boolean,
 }) => {
   const theme = useTheme();
   return (
     <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
       <Typography sx={{ whiteSpace: 'nowrap' }}>{name}</Typography>
-      <Handle
-        type="source"
-        id={outputHandleId(nodeName, name)}
-        position={Position.Right}
-        style={{ position: 'relative', top: 'auto', right: -14, transform: 'none', width: 8, height: 8, background: theme.palette.primary.main, border: 'none' }}
-      />
+      {withHandle && (
+        <Handle
+          type="source"
+          id={outputHandleId(nodeName, name)}
+          position={Position.Right}
+          style={{ position: 'relative', top: 'auto', right: -14, transform: 'none', width: 8, height: 8, background: theme.palette.primary.main, border: 'none' }}
+        />
+      )}
     </Stack>
   );
 };

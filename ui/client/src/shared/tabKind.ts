@@ -1,7 +1,7 @@
 import { DocumentObj } from '../objects/DocumentObj';
 import { ProjectObj } from '../objects/ProjectObj';
 import { VALUE_GROUP_UNDEFINED } from '../utils/splitTree';
-import { CENTRAL_REPO_FOLDER_ID, idFromDocId, idFromRepoId, isSplitId, toolkitNameFromSplitId } from './idDocId';
+import { CENTRAL_REPO_FOLDER_ID, PROJECT_FILES_ID, idFromDocId, idFromRepoId, isSplitId, toolkitNameFromSplitId } from './idDocId';
 import { isWorkflowDoc } from './workflow';
 
 export enum TabKind {
@@ -13,6 +13,7 @@ export enum TabKind {
   Repository = 'repository',
   CentralRepository = 'centralRepository',
   Toolkit = 'toolkit',
+  ProjectFiles = 'projectFiles',
 }
 
 const isAgentDoc = (doc: DocumentObj) => {
@@ -32,6 +33,7 @@ export const classifyDocument = (doc: DocumentObj): TabKind => {
 
 export const classifyTab = (showItemId: string, project: ProjectObj): TabKind | undefined => {
   if (showItemId === CENTRAL_REPO_FOLDER_ID) return TabKind.CentralRepository;
+  if (showItemId === PROJECT_FILES_ID) return TabKind.ProjectFiles;
 
   if (isSplitId(showItemId)) return TabKind.Toolkit;
 
@@ -59,6 +61,7 @@ export const tabKindClassName = (showItemId: string, project: ProjectObj): strin
 // Returns a human-readable tab title for a given item ID.
 export const detailsTabName = (showItemId: string, project: ProjectObj): string => {
   if (showItemId === CENTRAL_REPO_FOLDER_ID) return 'Repositories';
+  if (showItemId === PROJECT_FILES_ID) return project.name + ' files';
   if (isSplitId(showItemId)) {
     const toolkitName = toolkitNameFromSplitId(showItemId, project.documents);
     if (toolkitName) return toolkitName === VALUE_GROUP_UNDEFINED ? 'No toolkit' : toolkitName;

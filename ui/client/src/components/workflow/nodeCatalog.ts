@@ -1,28 +1,8 @@
-import { NodeParameterSource, WorkflowNode } from '../../shared/types';
+import { NodeCatalogEntry, WorkflowNode } from '../../shared/types';
 import { FieldDef } from '../details/fieldDef';
 
-// One parameter a node type accepts. Values (defaults) are not provided by the
-// catalog — only the name, whether it is required, and where it was discovered.
-export interface NodeCatalogParameter {
-  name: string;
-  is_required: boolean;
-  source: NodeParameterSource;
-}
-
-// One output a node type produces. Names only (no values), plus where it was
-// discovered. Best-effort — only outputs detected from the node's run() return.
-export interface NodeCatalogOutput {
-  name: string;
-  source: NodeParameterSource;
-}
-
-// One Hermes node type, the parameters it accepts and the outputs it produces.
-export interface NodeCatalogEntry {
-  type: string;
-  parameters: NodeCatalogParameter[];
-  // Optional: older callers/fixtures may omit it; the server always sends it.
-  outputs?: NodeCatalogOutput[];
-}
+// The entry type lives in shared, so the api package can use it too.
+export type { NodeCatalogEntry };
 
 // The group a type belongs to in the picker: its dotted prefix without the last
 // segment (e.g. `openFOAM.constant.g` → `openFOAM.constant`), or the whole type
