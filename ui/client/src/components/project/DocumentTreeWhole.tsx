@@ -5,7 +5,7 @@ import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { useRef, useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DocumentObj, ProjectObj } from '../../objects/ProjectObj';
-import { idFromDocId, isSplitId } from '../../shared/idDocId';
+import { idFromDocId, isSplitId, PROJECT_FILES_ID } from '../../shared/idDocId';
 import { clickedRow } from '../../utils/clickedRow';
 import { collectSubtreeKeys, findNodeByKey } from '../../utils/collectSubtreeKeys';
 import { SplitTree } from '../../utils/splitTree';
@@ -130,8 +130,12 @@ export const DocumentTreeWhole = ({
         >
           <Stack direction={'row'} spacing={0} alignItems={'center'} justifyContent={'start'} sx={{ marginLeft: 5, width: 'fit-content' }}>
             <Folder sx={{ mr: 1 }} />
-            <Tooltip title='Files directory where the project is located'>
-              <Typography color={filesDirectory ? 'text.primary' : 'text.secondary'}>
+            <Tooltip title='Files directory where the project is located. Click to browse it.'>
+              <Typography
+                color={filesDirectory ? 'text.primary' : 'text.secondary'}
+                onClick={() => filesDirectory && onOpenItem(PROJECT_FILES_ID)}
+                sx={{ cursor: filesDirectory ? 'pointer' : 'default' }}
+              >
                 {filesDirectory || 'No directory'}
               </Typography>
             </Tooltip>

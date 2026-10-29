@@ -5,6 +5,7 @@ import {
   idDocId,
   idRepoId,
   ItemKind,
+  PROJECT_FILES_ID,
 } from '../src/shared/idDocId';
 
 describe('classifyItemId', () => {
@@ -19,6 +20,10 @@ describe('classifyItemId', () => {
 
   it('classifies document ids', () => {
     expect(classifyItemId(idDocId('abc123'))).toBe(ItemKind.Document);
+  });
+
+  it('classifies the project files id', () => {
+    expect(classifyItemId(PROJECT_FILES_ID)).toBe(ItemKind.Files);
   });
 
   it('classifies repo ids', () => {

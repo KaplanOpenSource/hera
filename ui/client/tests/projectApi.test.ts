@@ -51,6 +51,16 @@ describe('projectApi.documents', () => {
   });
 });
 
+describe('projectApi.files', () => {
+  it('sends the project and the path', async () => {
+    getJson.mockResolvedValueOnce({ files: [] });
+
+    expect(await projectApi.files('A', 'run/out')).toEqual({ files: [] });
+    expect(getJson).toHaveBeenCalledWith('/project/files', { projectName: 'A', path: 'run/out' },
+      { label: 'project files' });
+  });
+});
+
 describe('projectApi.toolkits', () => {
   it('asks for the toolkits and returns the answer', async () => {
     getJson.mockResolvedValueOnce({ toolkitDocs: [] });

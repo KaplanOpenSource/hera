@@ -44,6 +44,7 @@ Each api class also has its own test file, one test per method:
 | `GET /project/names` | `fetchProjectsNames` | yes | yes | `FetchProjects.test.ts`, `server/tests/test_projects.py` |
 | `GET /project/documents` | `fetchProjectDetails`, `fetchProjectData` | yes | yes | `FetchProjects.test.ts`, `server/tests/test_projects.py` |
 | `GET /project/toolkits` | `fetchProjectData` | yes | yes | `FetchProjects.test.ts`, `server/tests/test_projects.py` |
+| `GET /project/files` | `ProjectFilesView` | yes | no | `projectApi.test.ts`, `projectFilesView.test.tsx`, `server/tests/test_projects.py` |
 | `POST /project/create` | `AddProjectButton` | yes | yes | `addProject.test.tsx`, `integration/addProject.integ.test.tsx`, `server/tests/test_projects.py` |
 | `POST /project/delete` | `DeleteProjectButton` | yes | yes | `deleteProject.test.tsx`, `integration/deleteProject.integ.test.tsx`, `server/tests/test_projects.py` |
 | `POST /project/detectNotebooks` | `detectNotebooks` (on project load) | yes | no | `detectNotebooks.test.tsx`, `server/tests/test_projects.py` |
