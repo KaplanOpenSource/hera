@@ -4,11 +4,6 @@ import { BrowserRouter, Route, Routes, useParams } from 'react-router-dom';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-// entrypoint.ts reads the constant from here, and nothing else does now.
-vi.mock('../src/io/fetchPython', () => ({
-  WARMING_UP: 'WARMING_UP',
-}));
-
 import { mockApiCall } from './helpers/mockApiCall';
 
 const { AddProjectButton } = await import('../src/components/header/AddProjectButton');

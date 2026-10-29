@@ -16,7 +16,6 @@ def test_every_router_is_included():
         "/healthz",
         "/cors",
         "/init",
-        "/exec",
         "/start_workflow",
         "/workflow_status/{token}",
         "/jupyter/ensure",

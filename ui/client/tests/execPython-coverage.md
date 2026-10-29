@@ -59,13 +59,6 @@ A load answers `added` and `problems` as well as the project: hera skips what it
 cannot load without raising, so the route counts the documents before and after
 and reports the reason. See `ENTRYPOINTS_REPOSITORIES_STEPS.md`.
 
-## Still on `/exec`
-
-No call sites. `src/io/fetchPython.ts` is still there; `WARMING_UP` now lives in
-`src/shared/constants.ts` and `fetchPython.ts` re-exports it. The integration
-tests use `/exec` to write their own files on the server. Retiring the endpoint
-is its own issue, task 3 of `NEXT_TASKS_PLAN.md`.
-
 ## Gaps
 
 - No integration test for loading a repository into a project (`POST

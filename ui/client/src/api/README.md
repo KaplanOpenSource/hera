@@ -109,8 +109,6 @@ To stub one method instead of the transport, spy on the instance:
 
 ## What is not here
 
-- `src/io/fetchPython.ts` still calls `/exec` directly. No UI code uses it.
-  Retiring it is task 3 of `../../../../NEXT_TASKS_PLAN.md`.
 - `DetailsViewNotebook.tsx` probes the jupyter server with
   `fetch(url, { mode: 'no-cors' })`. That is not our server and it wants the
   raw answer, so it stays in the component.

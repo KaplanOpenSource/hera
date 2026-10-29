@@ -1,4 +1,6 @@
 /// <reference types="node" />
+import * as fs from 'fs';
+import { dirname } from 'path';
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import { screen, waitFor, cleanup, act, fireEvent } from '@testing-library/react';
 import { createProjectViaUI, renderApp, resetStore } from './integHelpers';
@@ -8,27 +10,12 @@ vi.mock('../../src/shared/baseurl', async () => (await import('./mockFactories')
 vi.mock('../../src/stores/useServerConstants', async () => (await import('./mockFactories')).createServerConstantsMock());
 vi.mock('../../src/io/snackbar', async () => (await import('./mockFactories')).createSnackbarMock());
 
-const execPython = async (code: string) => {
-  const r = await fetch(`${SHARED_SERVER_URL}/exec`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code }),
-  });
-  return JSON.parse(await r.text());
-};
-
 const REPO_DIR = '/tmp/hera-test-central-repos';
 
+// The server runs on this machine (see globalSetup.ts), so it sees these files.
 const writeFileOnServer = async (path: string, content: string) => {
-  const escaped = content.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
-  await execPython(`
-import os
-path = '${path}'
-os.makedirs(os.path.dirname(path), exist_ok=True)
-with open(path, 'w') as f:
-    f.write('${escaped}')
-result = 'ok'
-`);
+  fs.mkdirSync(dirname(path), { recursive: true });
+  fs.writeFileSync(path, content);
 };
 
 const validRepo = JSON.stringify({
@@ -89,11 +76,7 @@ describe('Central Repo isRepoJson integration', () => {
   afterEach(() => { cleanup(); });
 
   afterAll(async () => {
-    await execPython(`
-import shutil
-shutil.rmtree('${REPO_DIR}', ignore_errors=True)
-result = 'ok'
-`);
+    fs.rmSync(REPO_DIR, { recursive: true, force: true });
     cleanup();
   }, 15000);
 

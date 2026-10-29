@@ -83,21 +83,6 @@ export interface ProjectDocument {
   dataFormat: string;
 }
 
-// The /exec endpoint returns a plain JSON value
-export interface ExecRequest {
-  code: string;
-}
-
-export interface Problem {
-  error: string;
-  traceback: string;
-}
-
-export interface ExecResponse {
-  data: any;
-  problem: Problem | null;
-}
-
 export interface Repository {
   datasourceName: string;
   resource: string;
