@@ -1,21 +1,16 @@
-import { Autocomplete, Box, InputBase, Stack, TextField, Theme, Typography, useTheme } from '@mui/material';
+import { Box, Stack, Theme, useTheme } from '@mui/material';
 import { cyan } from '@mui/material/colors';
 import { NodeProps, NodeResizer, useUpdateNodeInternals } from '@xyflow/react';
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { WorkflowNode } from '../../shared/types';
 import { normalizeRequires } from '../../shared/workflow';
-import { keyForDetailsViewItem } from '../details/DetailsViewItem';
 import { NodeRunStatus } from './nodeRunStatus';
-import { NodeCatalogEntry, nodeOutputNames, nodeTypeGroup, nodeTypeIssue, paramsFieldDef } from './nodeCatalog';
-import { paramsOnTypeChange } from './nodeTypeParams';
+import { NodeCatalogEntry, nodeTypeIssue, paramsFieldDef } from './nodeCatalog';
 import { nodeInputHandleId, nodeOutputHandleId } from './workflowDataflow';
-import { INPUT_PARAMETERS_KEY, WorkflowNodeInputs } from './WorkflowNodeInputs';
-import { WorkflowNodeOutputs } from './WorkflowNodeOutputs';
+import { WorkflowNodeEditor } from './WorkflowNodeEditor';
 import { WorkflowNodeSummary } from './WorkflowNodeSummary';
-import { WorkflowRequiresLine } from './WorkflowRequiresLine';
 import { WorkflowNodeDragGrip } from './WorkflowNodeDragGrip';
 import { RequiresSide, WorkflowRequiresHandle } from './WorkflowRequiresHandle';
-import { useNodeParamsValidation } from './useNodeParamsValidation';
 
 export interface WorkflowFlowNodeData {
   name: string;
@@ -92,23 +87,11 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
   const takeSpace = (data as WorkflowFlowNodeData).takeSpace ?? false;
   const hovered = (data as WorkflowFlowNodeData).hovered ?? false;
   const theme = useTheme();
-  const [draft, setDraft] = useState(name);
 
   const params = node.Execution?.input_parameters ?? {};
 
-  // Expanded two levels by default: input_parameters and each parameter under it,
-  // so nested parameter values are visible without a click.
-  const [expandedItems, setExpandedItems] = useState<string[]>(() => {
-    const inputsKey = keyForDetailsViewItem(INPUT_PARAMETERS_KEY);
-    return [inputsKey, ...Object.keys(params).map(param => keyForDetailsViewItem(param, inputsKey))];
-  });
-
-  const typeOptions = catalog.map(entry => entry.type);
   const typeIssue = nodeTypeIssue(node, catalog);
-  // Hermes's own complaint about the parameter values, shown under the node.
-  const paramsIssue = useNodeParamsValidation(node);
   const paramsDef = paramsFieldDef(node, catalog);
-  const outputs = nodeOutputNames(node, catalog);
 
   // The run state wins over the type warning and the selection, so a failed or
   // finished node is visible at a glance.
@@ -132,18 +115,6 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
   if (runStatus === NodeRunStatus.Running) {
     runningSx = marchingAntsSx(statusColor);
   }
-
-  // Free-form typing keeps the type as-is (custom types stay allowed); picking a
-  // known type also seeds its parameters from the catalog.
-  const setType = (type: string) => onChange({ ...node, type });
-  const pickType = (type: string) => {
-    const entry = catalog.find(e => e.type === type);
-    onChange({
-      ...node,
-      type,
-      Execution: { ...node.Execution, input_parameters: paramsOnTypeChange(params, entry) },
-    });
-  };
 
   // The editor's handles (one per parameter row) mount without changing the
   // node's own size, so ReactFlow has to be told to measure them again.
@@ -183,15 +154,6 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
       zIndex: 10,
     };
   }
-
-  const commit = () => {
-    const next = draft.trim();
-    if (next && next !== name) {
-      onRename(next);
-    } else {
-      setDraft(name);
-    }
-  };
 
   return (
     <Box
@@ -250,75 +212,15 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
         <Stack direction="row" spacing={0.5} sx={{ position: 'absolute', top: -12, right: -12 }}>
           {actionButtons}
         </Stack>
-        <InputBase
-          className="nodrag"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => { if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); } }}
-          inputProps={{ style: { padding: 0 }, 'aria-label': 'node name' }}
-          sx={{ fontSize: 13, fontWeight: 600 }}
+        <WorkflowNodeEditor
+          name={name}
+          node={node}
+          catalog={catalog}
+          onRename={onRename}
+          onChange={onChange}
+          onFieldContextMenu={onFieldContextMenu}
+          onFieldInlineEdit={onFieldInlineEdit}
         />
-        <Box className="nodrag" sx={{ mt: 1 }}>
-          <Autocomplete
-            className="nodrag"
-            freeSolo
-            size="small"
-            options={typeOptions}
-            groupBy={(option) => nodeTypeGroup(option)}
-            inputValue={node.type ?? ''}
-            onInputChange={(_e, value, reason) => {
-              if (reason === 'input') {
-                setType(value);
-              } else if (reason === 'clear') {
-                setType('');
-              }
-            }}
-            onChange={(_e, value) => pickType(typeof value === 'string' ? value : value ?? '')}
-            renderInput={(inputParams) => <TextField {...inputParams} label="type" fullWidth />}
-          />
-          <Box sx={{ mt: 0.5 }}>
-            <WorkflowRequiresLine requires={normalizeRequires(node.requires)} />
-          </Box>
-          <Stack spacing={1} sx={{ mt: 1, alignItems: 'stretch' }}>
-            <WorkflowNodeInputs
-              nodeName={name}
-              params={params}
-              paramsDef={paramsDef}
-              expandedItems={expandedItems}
-              onExpandedItemsChange={setExpandedItems}
-              onChangeParams={(newVal) => onChange({
-                ...node,
-                Execution: { ...node.Execution, input_parameters: newVal },
-              })}
-              onFieldContextMenu={onFieldContextMenu}
-              onFieldInlineEdit={onFieldInlineEdit}
-            />
-            {outputs.length > 0 && (
-              <WorkflowNodeOutputs nodeName={name} outputs={outputs} />
-            )}
-          </Stack>
-          {typeIssue && (
-            <Typography
-              className="nodrag"
-              variant="caption"
-              color="warning.main"
-              sx={{ display: 'block', mt: 0.5, userSelect: 'text' }}
-            >
-              {typeIssue}
-            </Typography>
-          )}
-          {paramsIssue && (
-            <Typography
-              className="nodrag"
-              variant="caption"
-              color="error.main"
-              sx={{ display: 'block', mt: 0.5, userSelect: 'text' }}
-            >
-              {paramsIssue}
-            </Typography>
-          )}
-        </Box>
         </Box>
       )}
       <WorkflowRequiresHandle id={nodeOutputHandleId(name)} side={RequiresSide.RequiredBy} />

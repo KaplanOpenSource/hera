@@ -1,5 +1,5 @@
 import { ApiCall } from './ApiCall';
-import { NodeCatalogEntry } from '../components/workflow/nodeCatalog';
+import { NodeCatalogEntry } from '../shared/types';
 
 export interface NodeParamsValidation {
   ok: boolean;

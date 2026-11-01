@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ProjectTreeView } from '../src/components/project/ProjectTreeView';
 import { ProjectObj } from '../src/objects/ProjectObj';
 import { ProjectEntire } from '../src/shared/types';
+import { PROJECT_FILES_ID } from '../src/shared/idDocId';
 
 vi.mock('../src/io/FetchProjects', () => ({
   fetchProjectDetails: vi.fn(),
@@ -41,12 +42,12 @@ const makeProject = (documents: ProjectEntire['documents'] = []): ProjectObj => 
   });
 };
 
-const renderTree = (project: ProjectObj) => {
+const renderTree = (project: ProjectObj, onSelectItem = vi.fn()) => {
   return render(
     <MemoryRouter>
       <ProjectTreeView
         project={project}
-        onSelectItem={vi.fn()}
+        onSelectItem={onSelectItem}
       />
     </MemoryRouter>
   );
@@ -151,5 +152,37 @@ describe('ProjectTreeView', () => {
     renderTree(project);
     expect(screen.getByText('Doc1')).toBeDefined();
     expect(screen.getByText('Doc2')).toBeDefined();
+  });
+
+  it('opens the files view when the files directory is clicked', () => {
+    const onSelectItem = vi.fn();
+    renderTree(makeProject(), onSelectItem);
+    onSelectItem.mockClear();
+
+    fireEvent.click(screen.getByText('/tmp/test'));
+
+    expect(onSelectItem).toHaveBeenCalledWith(PROJECT_FILES_ID);
+  });
+
+  it('opens nothing when the project has no directory', () => {
+    const onSelectItem = vi.fn();
+    const project = new ProjectObj({
+      name: 'TestProject',
+      documents: [{
+        _cls: 'Config',
+        _id: { $oid: 'config-id' },
+        projectName: 'TestProject',
+        desc: {},
+        type: 'TestProject__config__',
+        resource: '',
+        dataFormat: 'json',
+      }],
+    });
+    renderTree(project, onSelectItem);
+    onSelectItem.mockClear();
+
+    fireEvent.click(screen.getByText('No directory'));
+
+    expect(onSelectItem).not.toHaveBeenCalled();
   });
 });

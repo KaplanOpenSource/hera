@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mockApiCall } from './helpers/mockApiCall';
+import { ApiCall } from '../src/api/ApiCall';
 
 const { fetchInit } = await import('../src/io/fetchInit');
 const { useProjectStore, NO_PROJECT } = await import('../src/stores/useProjectStore');
@@ -47,6 +48,18 @@ describe('fetchInit', () => {
     });
     expect(useProjectStore.getState().currProjectName).toBe('Alpha');
     expect(useProjectStore.getState().currProject).toEqual({ name: 'Alpha', documents: [] });
+  });
+
+  it('starts notebook detection for the project it loaded', async () => {
+    const postJson = vi.spyOn(ApiCall.prototype as any, 'postJson').mockResolvedValue(null);
+    const configDoc = { _id: { $oid: 'cfg1' }, type: 'Alpha__config__', desc: { filesDirectory: '/data/a' } };
+    getJson.mockResolvedValueOnce({ ...fullAnswer, project: { name: 'Alpha', documents: [configDoc] } });
+
+    await fetchInit('Alpha');
+
+    expect(postJson).toHaveBeenCalledWith('/project/detectNotebooks',
+      { projectName: 'Alpha', filesDirectory: '/data/a' },
+      { label: 'detect notebooks' });
   });
 
   it('sends the wanted project name', async () => {

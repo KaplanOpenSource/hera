@@ -4,7 +4,6 @@ The routes themselves live in ``routers/``; this file only assembles them.
 """
 from __future__ import annotations
 
-import socket
 import traceback
 from contextlib import asynccontextmanager
 
@@ -15,8 +14,9 @@ from fastapi.staticfiles import StaticFiles
 
 from args_settings import ArgsSettings, parse_args_settings, set_args_settings
 from dependencies import warmup
-from routers import (cors_info, documents, exec_code, files, geojson, health, jupyter,
-                     nodes, projects, repositories, startup, workflow)
+from routers import (cors_info, documents, files, geojson, health, jupyter, nodes,
+                     projects, repositories, startup, workflow)
+from server_address import find_available_port, print_ui_urls
 
 
 @asynccontextmanager
@@ -28,8 +28,7 @@ async def lifespan(app: FastAPI):
 
 # Catch-all error reporter. Any unhandled exception (e.g. a broken import or a
 # change in hera/hermes) is printed to the server console AND returned to the
-# client as {error, traceback} with status 500 — the same content /exec already
-# sends. Without this, FastAPI's default 500 is generated outside the CORS
+# client as {error, traceback} with status 500. Without this, FastAPI's default 500 is generated outside the CORS
 # middleware, so it reaches the browser with no Access-Control-Allow-Origin
 # header and shows up as a misleading "CORS error" that hides the real cause.
 async def report_unhandled_errors(request, call_next):
@@ -64,7 +63,6 @@ def create_app(settings: ArgsSettings) -> FastAPI:
     app.include_router(health.router)
     app.include_router(cors_info.router)
     app.include_router(startup.router)
-    app.include_router(exec_code.router)
     app.include_router(workflow.router)
     app.include_router(jupyter.router)
     app.include_router(nodes.router)
@@ -81,19 +79,6 @@ def create_app(settings: ArgsSettings) -> FastAPI:
     app.include_router(files.router)
 
     return app
-
-
-def find_available_port(host: str, start_port: int, attempts: int = 79) -> int:
-    """Return the first free port at or after start_port, trying up to `attempts` ports."""
-    for port in range(start_port, start_port + attempts):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            if sock.connect_ex((host, port)) != 0:
-                return port
-            print(f"Port {port} is in use, trying the next one...")
-    raise SystemExit(
-        f"No free port found in range {start_port}-{start_port + attempts - 1}."
-    )
 
 
 def main() -> None:
@@ -115,6 +100,7 @@ def main() -> None:
     port = find_available_port(probe_host, settings.port)
     if port != settings.port:
         print(f"Requested port {settings.port} unavailable; starting on port {port} instead.")
+    print_ui_urls(settings.host, port)
 
     uvicorn.run(
         app,

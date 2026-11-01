@@ -46,6 +46,7 @@ export const WorkflowNodeInputs = ({
   onChangeParams,
   onFieldContextMenu,
   onFieldInlineEdit,
+  withHandles = true,
 }: {
   nodeName: string,
   params: { [key: string]: any },
@@ -61,6 +62,8 @@ export const WorkflowNodeInputs = ({
   // autocomplete: the row's path, the current value, the caret position, and
   // the input element (to anchor the suggestion menu to).
   onFieldInlineEdit: (paramPath: string, value: string, caret: number | null, el: HTMLInputElement) => void,
+  // False off the canvas (the pop-up), where no line can start or land.
+  withHandles?: boolean,
 }) => {
   const theme = useTheme();
   // The path of a row that can take a dataflow line, or null for a row that
@@ -147,6 +150,9 @@ export const WorkflowNodeInputs = ({
           if (path === null) {
             return <FieldSourceDot source={def?.source} />;
           }
+          if (!withHandles) {
+            return <FieldSourceDot source={def?.source} showUnknown />;
+          }
           return (
             <Handle
               type="target"
@@ -162,7 +168,7 @@ export const WorkflowNodeInputs = ({
         // so another node can read this parameter's value. Only top-level: a
         // reference can only name a parameter, not a value inside one.
         renderAfterValue={(itemKey, parentKey) => {
-          if (parentKey !== INPUTS_KEY) {
+          if (parentKey !== INPUTS_KEY || !withHandles) {
             return undefined;
           }
           return (

@@ -142,9 +142,9 @@ parse happens with or without the query.
 1. **`isolate: false`.** Attacks import (86.7s) and Cause A at once, since files
    sharing a worker share both the module registry and the parsed styles.
    Locally: import 52.6s -> 9.8s, wall 25.4s -> 10.2s. Blocked: 17-29 tests fail,
-   the count varying by run. 11 test files mock `../src/io/fetchPython` with
-   their own `vi.fn()`, and with a shared registry whichever file loads first
-   wins, so the others see 0 calls. Needs a shared mock helper first.
+   the count varying by run. Test files mock shared modules with their own
+   `vi.fn()`, and with a shared registry whichever file loads first wins, so
+   the others see 0 calls. Needs a shared mock helper first.
 2. ~~**Fake timers in `workflowRunPoller.test.tsx`.**~~ Done, see Cause B.
    1054ms -> 24ms.
 3. **`// @vitest-environment node`** on the 17 logic-only `.ts` test files.

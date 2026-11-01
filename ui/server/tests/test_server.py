@@ -1,18 +1,10 @@
 import os
 import time
 
-import pytest
-
+import args_settings
 import dependencies
-from api_models import ExecPayload, RunWorkflowPayload
-from routers import cors_info, exec_code, health, workflow
-
-
-@pytest.fixture
-def warmed(monkeypatch):
-    # exec_code returns WARMING_UP until the off-thread hera warmup finishes. There is
-    # no real hera in tests, so mark warmup ready to exercise the exec path itself.
-    monkeypatch.setattr(dependencies.warmup, "_ready", True)
+from api_models import RunWorkflowPayload
+from routers import cors_info, health, workflow
 
 
 def test_healthz():
@@ -24,30 +16,20 @@ def test_cors_info_shape():
     assert "origins" in info
 
 
-def test_exec_returns_result_value(warmed):
-    resp = exec_code.exec_code(ExecPayload(code="result = 1 + 2"))
-    assert resp.problem is None
-    assert resp.data == 3
+def test_cors_info_answers_the_origins_the_server_started_with(monkeypatch):
+    settings = args_settings.parse_args_settings(["--cors", "10.0.0.1", "--port", "9000"])
+    settings.origins()
+    monkeypatch.setattr(args_settings, "_settings", settings)
+
+    assert cors_info.cors_info() == {"origins": ["http://10.0.0.1:9000"]}
 
 
-def test_exec_without_result_is_none(warmed):
-    resp = exec_code.exec_code(ExecPayload(code="x = 5"))
-    assert resp.problem is None
-    assert resp.data is None
+def test_cors_info_has_no_origins_without_cors(monkeypatch):
+    settings = args_settings.parse_args_settings([])
+    settings.origins()
+    monkeypatch.setattr(args_settings, "_settings", settings)
 
-
-def test_exec_returns_jsonable_structure(warmed):
-    resp = exec_code.exec_code(ExecPayload(code="result = {'a': [1, 2], 'b': 'x'}"))
-    assert resp.problem is None
-    assert resp.data == {"a": [1, 2], "b": "x"}
-
-
-def test_exec_reports_errors(warmed):
-    resp = exec_code.exec_code(ExecPayload(code="raise ValueError('boom')"))
-    assert resp.data is None
-    assert "ValueError" in resp.problem.error
-    assert "boom" in resp.problem.error
-    assert "Traceback" in resp.problem.traceback
+    assert cors_info.cors_info() == {"origins": None}
 
 
 def test_start_workflow_delegates_to_runner_start(monkeypatch):
@@ -100,12 +82,3 @@ def test_run_workflow_endpoint_through_real_runner(install_fake_hera, tmp_path):
     assert resp.status == "done"
     assert "workflow hello done" in "".join(chunk.text for chunk in resp.chunks)
 
-
-def test_truncate_for_log_keeps_short_values():
-    assert exec_code._truncate_for_log("hi") == "'hi'"
-
-
-def test_truncate_for_log_cuts_long_values():
-    truncated = exec_code._truncate_for_log("x" * 1000)
-    assert "truncated" in truncated
-    assert len(truncated) < 1000
