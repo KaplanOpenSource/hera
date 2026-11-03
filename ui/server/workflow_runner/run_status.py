@@ -12,5 +12,6 @@ class RunStatus(str, Enum):
     RUNNING = "running"
     DONE = "done"
     ERROR = "error"
+    STOPPED = "stopped"
     BUSY = "busy"
     NOT_FOUND = "not_found"

@@ -11,7 +11,7 @@ permissions:
 jobs:
   unit:
     name: Unit tests (hermetic — no services)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout hera
@@ -84,7 +84,7 @@ jobs:
 
   test:
     name: Run full test suite
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: unit
 
     env:

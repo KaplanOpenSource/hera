@@ -50,3 +50,31 @@ describe('workflowApi.poll', () => {
     expect(await workflowApi.poll('t1')).toBeNull();
   });
 });
+
+describe('workflowApi.runs', () => {
+  it('asks quietly for the saved runs of one workflow and answers the list', async () => {
+    const runs = [{ id: 'r1', token: 't1', startTime: 's', endTime: 'e', status: 'done' }];
+    getJson.mockResolvedValueOnce({ runs });
+
+    expect(await workflowApi.runs('A', 'W')).toEqual(runs);
+    expect(getJson).toHaveBeenCalledWith('/workflow_runs', { projectName: 'A', workflowName: 'W' },
+      { label: 'list workflow runs', silent: true });
+  });
+
+  it('returns null when the call failed', async () => {
+    getJson.mockResolvedValueOnce(null);
+
+    expect(await workflowApi.runs('A', 'W')).toBeNull();
+  });
+});
+
+describe('workflowApi.run', () => {
+  it('asks for one saved run by id', async () => {
+    const run = { id: 'r1', token: 't1', startTime: 's', endTime: 'e', status: 'done', error: '', chunks: [] };
+    getJson.mockResolvedValueOnce(run);
+
+    expect(await workflowApi.run('A', 'W', 'r1')).toEqual(run);
+    expect(getJson).toHaveBeenCalledWith('/workflow_run', { projectName: 'A', workflowName: 'W', runId: 'r1' },
+      { label: 'read workflow run' });
+  });
+});

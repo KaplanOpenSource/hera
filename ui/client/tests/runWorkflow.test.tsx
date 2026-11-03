@@ -50,10 +50,10 @@ beforeEach(() => {
 });
 
 describe('RunWorkflowButton', () => {
-  it('starts the run and marks the button running (disabled + spinner)', async () => {
+  it('starts the run and turns the button into an enabled Stop button', async () => {
     postJson.mockResolvedValueOnce({ token: 'abc123' });
 
-    const { container } = render(<RunWorkflowButton projectName="TestProject" workflowName="hello_1" doc={testDoc} />);
+    render(<RunWorkflowButton projectName="TestProject" workflowName="hello_1" doc={testDoc} />);
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /run the workflow/i }));
     });
@@ -64,15 +64,39 @@ describe('RunWorkflowButton', () => {
         { projectName: 'TestProject', doc: { desc: { workflowName: 'hello_1' }, resource: '' } },
         { label: 'run workflow', silent: true },
       );
-      // The run button shows a spinner and is disabled while running.
-      const runButtons = Array.from(container.querySelectorAll('button'))
-        .filter(b => b.querySelector('[role="progressbar"]'));
-      expect(runButtons).toHaveLength(1);
-      expect(runButtons[0].disabled).toBe(true);
+      expect(screen.getByRole('button', { name: /stop the workflow/i })).toHaveProperty('disabled', false);
     });
   });
 
-  it('disables every button for the same workflow while it runs', async () => {
+  it('stops the run when the Stop button is clicked', async () => {
+    postJson.mockResolvedValueOnce({ token: 'abc123' });
+    render(<RunWorkflowButton projectName="P" workflowName="hello_1" doc={testDoc} />);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /run the workflow/i }));
+    });
+
+    postJson.mockResolvedValueOnce({ status: 'running', error: '', chunks: [] });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /stop the workflow/i }));
+    });
+
+    expect(postJson).toHaveBeenCalledWith('/stop_workflow/abc123', {}, { label: 'stop workflow', silent: true });
+    expect(mockPushError).not.toHaveBeenCalled();
+  });
+
+  it('shows an error when the stop call fails', async () => {
+    useWorkflowRunStore.getState().startRun('hello_1', 'abc123');
+    render(<RunWorkflowButton projectName="P" workflowName="hello_1" doc={testDoc} />);
+
+    postJson.mockResolvedValueOnce(null);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /stop the workflow/i }));
+    });
+
+    expect(mockPushError).toHaveBeenCalledWith('stop workflow: failed to stop');
+  });
+
+  it('turns every button for the same workflow into Stop while it runs', async () => {
     const { container } = render(
       <>
         <RunWorkflowButton projectName="P" workflowName="shared" doc={testDoc} />
@@ -87,12 +111,9 @@ describe('RunWorkflowButton', () => {
       fireEvent.click(buttons()[0]);
     });
 
-    // Both buttons react to the shared run, not just the one that was clicked:
-    // each shows a spinner and is disabled.
+    // Both buttons react to the shared run, not just the one that was clicked.
     await waitFor(() => {
-      const runButtons = buttons().filter(b => b.querySelector('[role="progressbar"]'));
-      expect(runButtons).toHaveLength(2);
-      expect(runButtons.every(b => b.disabled)).toBe(true);
+      expect(screen.getAllByRole('button', { name: /stop the workflow/i })).toHaveLength(2);
     });
   });
 
