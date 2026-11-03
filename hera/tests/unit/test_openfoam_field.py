@@ -162,34 +162,13 @@ class TestSetFieldFromDataFrame:
         field.setFieldFromDataFrame(df)
         assert sorted(field.data.keys()) == ["processor0", "processor1"]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B67: _processorToPyFoam always groups the boundary rows by "
-               "a 'boundary' column, even when there are none -- a field "
-               "with no boundary patches at all (exactly what getDataFrame() "
-               "returns for one) has no such column, so feeding it straight "
-               "back raises KeyError. See the consolidated findings issue.",
-    )
     def test_a_dataframe_with_no_boundary_column_should_still_work(self, scalar_field):
         df = pandas.DataFrame({"region": ["internalField"], "processorIndex": [0], "p": [5.0]})
         scalar_field.setFieldFromDataFrame(df)
+        # Should not raise and result in singleProcessor data
+        assert "singleProcessor" in scalar_field.data
 
-    def test_a_dataframe_with_no_boundary_column_currently_raises(self, scalar_field):
-        """Characterisation of B67."""
-        df = pandas.DataFrame({"region": ["internalField"], "processorIndex": [0], "p": [5.0]})
-        with pytest.raises(KeyError, match="boundary"):
-            scalar_field.setFieldFromDataFrame(df)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B68: the parallel branch reads "
-               "self.data[processorName]['boundaryField'] to merge in the "
-               "EXISTING boundary before writing, but a freshly-built field "
-               "(getEmptyField's default) is single-processor, so there is "
-               "no such key yet. Setting a parallel DataFrame on it should "
-               "be able to initialize the field from scratch. "
-               "See the consolidated findings issue.",
-    )
     def test_a_fresh_single_processor_field_can_be_set_parallel_from_scratch(self, scalar_field):
         df = pandas.DataFrame({
             "region": ["internalField", "internalField"],
@@ -199,15 +178,6 @@ class TestSetFieldFromDataFrame:
             "p": [5.0, 6.0],
         })
         scalar_field.setFieldFromDataFrame(df)
+        # Should initialize parallel data structures
+        assert sorted(scalar_field.data.keys()) == ["processor0", "processor1"]
 
-    def test_a_fresh_single_processor_field_currently_raises_on_parallel_data(self, scalar_field):
-        """Characterisation of B68."""
-        df = pandas.DataFrame({
-            "region": ["internalField", "internalField"],
-            "processorIndex": [0, 0],
-            "processor": [0, 1],
-            "boundary": [None, None],
-            "p": [5.0, 6.0],
-        })
-        with pytest.raises(KeyError, match="processor0"):
-            scalar_field.setFieldFromDataFrame(df)
