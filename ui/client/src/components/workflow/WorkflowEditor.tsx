@@ -84,6 +84,7 @@ export const WorkflowEditor = ({
     chunks: run?.chunks ?? [],
     nodeNames,
     runFinished: Boolean(run) && run!.status !== WorkflowRunStatus.Running,
+    runStopped: run?.status === WorkflowRunStatus.Stopped,
   });
 
   const uniqueNodeName = (): string => {

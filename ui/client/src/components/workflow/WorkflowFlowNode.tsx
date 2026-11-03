@@ -47,6 +47,10 @@ const runStatusColor = (status: NodeRunStatus, theme: Theme): string => {
   if (status === NodeRunStatus.Running) {
     return theme.palette.info.main;
   }
+  // Grey, apart from the red of a failure: the user stopped the run on this node.
+  if (status === NodeRunStatus.Stopped) {
+    return theme.palette.grey[500];
+  }
   return '';
 };
 
@@ -115,6 +119,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
   if (runStatus === NodeRunStatus.Running) {
     runningSx = marchingAntsSx(statusColor);
   }
+  const frameSx = { border: '1px solid', borderWidth, borderColor, ...runningSx };
 
   // The editor's handles (one per parameter row) mount without changing the
   // node's own size, so ReactFlow has to be told to measure them again.
@@ -137,6 +142,13 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
     nodeSilhouetteSx = {};
     editorSilhouetteSx = silhouetteSx;
   }
+  // The frame (run state, selection, type warning) also goes on the visible box.
+  let nodeFrameSx: object = frameSx;
+  let editorFrameSx = {};
+  if (floating) {
+    nodeFrameSx = { border: '1px solid', borderColor: 'divider' };
+    editorFrameSx = frameSx;
+  }
 
   // Where the open editor sits: in the node's own box when it takes space, laid
   // over the summary card (and the canvas) when it is only hovered.
@@ -158,6 +170,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
   return (
     <Box
       data-run-status={runStatus}
+      data-node-frame={!floating || undefined}
       sx={{
         position: 'relative',
         px: 1,
@@ -169,11 +182,8 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
         height: '100%',
         borderRadius: 1,
         bgcolor: 'background.paper',
-        border: '1px solid',
-        borderWidth,
-        borderColor,
+        ...nodeFrameSx,
         ...nodeSilhouetteSx,
-        ...runningSx,
       }}
     >
       {/* Drag handles to resize the node; shown while it's selected. Size is
@@ -198,6 +208,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
       {expanded && (
         <Box
           className="nodrag"
+          data-node-frame={floating || undefined}
           sx={{
             // As wide as the editor's own content needs, as the node itself was
             // before the summary card; never narrower than the card it covers.
@@ -205,6 +216,7 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
             minWidth: '100%',
             maxWidth: 560,
             ...editorSx,
+            ...editorFrameSx,
             ...editorSilhouetteSx,
           }}
         >
