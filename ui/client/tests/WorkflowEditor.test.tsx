@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 
 // The editor reads the node catalog from a zustand store and mounts a reader
 // that fetches it; stub both so nothing hits the network.
@@ -211,9 +211,9 @@ describe('WorkflowEditor past run graph', () => {
       oldRuns: { w: { id: 'r1', token: 't1', startTime: '2026-01-01 10:00:00', status: WorkflowRunStatus.Done, error: '', chunks: [], doc } },
     });
   };
-  const renderCanvas = () => {
+  const renderCanvas = (isChanged = false) => {
     const setWorkflow = vi.fn();
-    render(<WorkflowEditor workflow={today} setWorkflow={setWorkflow} workflowName="w" />);
+    render(<WorkflowEditor workflow={today} setWorkflow={setWorkflow} workflowName="w" isChanged={isChanged} />);
     return { setWorkflow };
   };
 
@@ -232,6 +232,33 @@ describe('WorkflowEditor past run graph', () => {
     expect(useWorkflowRunStore.getState().oldRuns.w).toBeUndefined();
     expect(graphProps.nodeNames).toEqual(['today']);
     expect(graphProps.readOnly).toBe(false);
+  });
+
+  it('restores the saved graph into the open workflow and leaves read-only mode', () => {
+    pickPastRun({ _id: { $oid: 'd' }, desc: { workflow: past } });
+    const { setWorkflow } = renderCanvas();
+
+    act(() => screen.getByText('Restore').click());
+    expect(setWorkflow).toHaveBeenCalledWith(past);
+    expect(useWorkflowRunStore.getState().oldRuns.w).toBeUndefined();
+  });
+
+  it('asks before a restore replaces unsaved edits', async () => {
+    pickPastRun({ _id: { $oid: 'd' }, desc: { workflow: past } });
+    const { setWorkflow } = renderCanvas(true);
+
+    act(() => screen.getByText('Restore').click());
+    expect(screen.getByText('Your unsaved edits to the workflow will be lost.')).toBeDefined();
+    expect(setWorkflow).not.toHaveBeenCalled();
+
+    act(() => screen.getByText('Cancel').click());
+    await waitFor(() => { expect(screen.queryByText('Your unsaved edits to the workflow will be lost.')).toBeNull(); });
+    expect(setWorkflow).not.toHaveBeenCalled();
+
+    act(() => screen.getByText('Restore').click());
+    await act(async () => { screen.getAllByText('Restore')[1].click(); });
+    expect(setWorkflow).toHaveBeenCalledWith(past);
+    expect(useWorkflowRunStore.getState().oldRuns.w).toBeUndefined();
   });
 
   it('falls back to today\'s graph for a past run with no saved doc', () => {

@@ -31,12 +31,15 @@ export const WorkflowEditor = ({
   setWorkflow,
   actionButtons,
   workflowName,
+  isChanged,
 }: {
   workflow?: WorkflowData,
   setWorkflow: (workflow: WorkflowData) => void,
   actionButtons?: ReactNode,
   // Set on the canvas tab, so the output tab can point this editor at a node.
   workflowName?: string,
+  // The shown doc has unsaved edits.
+  isChanged?: boolean,
 }) => {
   const [selectedNode, setSelectedNode] = useState<string | undefined>(undefined);
   const catalog = useNodeCatalog(s => s.catalog);
@@ -51,6 +54,16 @@ export const WorkflowEditor = ({
     shownWorkflow = (pastDoc.desc as WorkflowDesc).workflow;
   }
   const block = getWorkflowBlock(shownWorkflow);
+
+  // Copy the past run's graph into the open workflow, unsaved, and leave read-only mode.
+  const restorePastGraph = () => {
+    if (!shownWorkflow) {
+      console.error(`restorePastGraph: the past run of "${workflowName}" has no workflow`);
+      return;
+    }
+    setWorkflow(shownWorkflow);
+    showLatestRun(workflowName!);
+  };
 
   // Preserve the original nesting (the block may be wrapped in an extra
   // { workflow: {...} } level) when writing edits back.
@@ -184,7 +197,12 @@ export const WorkflowEditor = ({
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <NodeCatalogReader />
       {oldRun && pastDoc && (
-        <WorkflowPastRunBanner startTime={oldRun.startTime} onBack={() => showLatestRun(workflowName!)} />
+        <WorkflowPastRunBanner
+          startTime={oldRun.startTime}
+          hasUnsavedEdits={Boolean(isChanged)}
+          onRestore={restorePastGraph}
+          onBack={() => showLatestRun(workflowName!)}
+        />
       )}
       {!block
         ? <Typography color="text.secondary">No workflow found in this document.</Typography>
