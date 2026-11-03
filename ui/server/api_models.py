@@ -35,6 +35,25 @@ class RunWorkflowResponse(BaseModel):
     chunks: Optional[List[WorkflowChunk]] = None
 
 
+class WorkflowRunSummary(BaseModel):
+    # One saved run as the run list shows it; id names its file in the run history.
+    id: str
+    token: str = ""
+    startTime: str = ""
+    endTime: str = ""
+    status: str = ""
+
+
+class WorkflowRunsResponse(BaseModel):
+    # Newest first.
+    runs: List[WorkflowRunSummary]
+
+
+class WorkflowRunRecord(WorkflowRunSummary):
+    error: str = ""
+    chunks: List[WorkflowChunk] = []
+
+
 class ValidateNodeParamsPayload(BaseModel):
     # The node's dotted Hermes type, e.g. "RiskAssessment.calculateThresholds".
     type: str

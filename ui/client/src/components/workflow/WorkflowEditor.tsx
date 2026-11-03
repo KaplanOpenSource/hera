@@ -3,7 +3,7 @@ import { ReactNode, useEffect, useState } from 'react';
 import { WorkflowBlock, WorkflowData, WorkflowNode } from '../../shared/types';
 import { getWorkflowBlock, isTopLevelBlock, normalizeRequires } from '../../shared/workflow';
 import { useWorkflowFocusStore } from '../../stores/useWorkflowFocusStore';
-import { useWorkflowRunStore, WorkflowRunStatus } from '../../stores/useWorkflowRunStore';
+import { shownRun, useWorkflowRunStore, WorkflowRunStatus } from '../../stores/useWorkflowRunStore';
 import { mapStrings } from '../../utils/mapStrings';
 import { knownKinds } from './references/knownKinds';
 import { nodeRunStatuses } from './nodeRunStatus';
@@ -78,8 +78,8 @@ export const WorkflowEditor = ({
     }
   };
 
-  // How each node did in this workflow's run, so the canvas can outline them.
-  const run = useWorkflowRunStore(s => (workflowName ? s.runs[workflowName] : undefined));
+  // How each node did in the shown run (latest or picked old), so the canvas can outline them.
+  const run = useWorkflowRunStore(s => (workflowName ? shownRun(s, workflowName) : undefined));
   const nodeStatuses = nodeRunStatuses({
     chunks: run?.chunks ?? [],
     nodeNames,

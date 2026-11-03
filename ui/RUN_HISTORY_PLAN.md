@@ -27,7 +27,7 @@ One JSON file per run:
 
 ## Where
 
-- `<FilesDirectory>/workflow_runs/<workflow name>/<start time>.json`.
+- `<FilesDirectory>/workflow_runs/<workflow name>/<YYYY-MM-DD_HH-MM-SS>.json`.
 - Not inside `<name>_targetFiles`: that folder is deleted at the start of every run.
 - Every project has a files folder (`Project` falls back to `~/.hera/<projectName>`).
 - A run with no files folder fails before it starts, so there is nothing to save.
@@ -35,6 +35,7 @@ One JSON file per run:
 ## When
 
 - Write the file once, when the run ends (done, error or stopped).
+- Write it before the status changes, so a client that sees the end finds the file.
 - The one place every run ends is `ActiveWorkflowRunOne._background`.
 - While the run goes, the live output stays in memory, as today.
 - If the server crashes mid-run, that run is lost. Accepted.
@@ -42,15 +43,13 @@ One JSON file per run:
 
 ## Steps
 
-1. Server: folder methods on `ActiveWorkflowRunOne`:
-   - `files_directory()`: the project's `FilesDirectory`, read through the workflow toolkit.
-   - `target_files_folder()`: `<FilesDirectory>/<workflow name>_targetFiles`.
-   - `run_history_folder()`: `<FilesDirectory>/workflow_runs/<workflow name>`.
-   - Store `workflow_name` from `doc["desc"]["workflowName"]` in `__init__`.
-2. Server: record start and end time on `ActiveWorkflowRunOne`.
-3. Server: write the run JSON file at the end of `_background`.
-4. Server: an endpoint to list the saved runs of a workflow (time, status).
-5. Server: an endpoint to read one saved run.
-6. Client: a simple select box in the output tab to pick a run; latest run by default.
-7. Client: when an old run is picked, the canvas frames show that run.
-8. Tests for each step.
+All steps are done.
+
+1. Server: `WorkflowRunHistory` (`ui/server/workflow_runner/workflow_run_history.py`) owns the folder, save, list and read.
+2. Server: folder methods on `ActiveWorkflowRunOne`: `files_directory()`, `target_files_folder()`, `run_history_folder()`.
+3. Server: `ActiveWorkflowRunOne` records start and end time, and saves the run at the end of `_background`.
+4. Server: `GET /workflow_runs?projectName&workflowName` lists saved runs, newest first, without output.
+5. Server: `GET /workflow_run?projectName&workflowName&runId` reads one saved run.
+6. Client: `WorkflowRunSelect` in the output tab. "Latest run" plus older saved runs. With no run in this session, the newest saved run shows.
+7. Client: the picked old run lives in `useWorkflowRunStore.oldRuns`; `shownRun()` feeds both the output tab and the canvas frames. A new run drops the pick.
+8. Tests: `ui/server/tests/test_workflow_run_history.py`, `ui/client/tests/workflowRunSelect.test.tsx`, `ui/client/tests/workflowApi.test.ts`.

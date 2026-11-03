@@ -14,13 +14,14 @@ from .task_pointer import BETWEEN
 from .run_workflow_child_inprocess import WorkflowChildInProcess
 from .workflow_child_result import WorkflowError, WorkflowMessage, WorkflowOutput, WorkflowRunResult
 from .workflow_log_builder import WorkflowLogBuilder
+from .workflow_run_history import WorkflowRunHistory
 
 # How long the read loop waits on the queue before it checks that the child is alive.
 CHILD_CHECK_SECONDS = 0.2
 
 
 class ActiveWorkflowRunOne:
-    """One workflow run, in a forked child process. Kept in memory only.
+    """One workflow run, in a forked child process. Saved to the run history when it ends.
 
     ``start`` runs it in a background thread; ``poll`` reads its state and output;
     ``stop`` ends the child and every command it started.
@@ -30,7 +31,13 @@ class ActiveWorkflowRunOne:
         self.project_name = project_name
         self.doc = doc
         self.doc_id: str = doc["_id"]["$oid"]
+        self.workflow_name: str = doc["desc"]["workflowName"]
         self.token = uuid.uuid4().hex
+        started = time.localtime()
+        # The saved run's file name; one run at a time, so the start second is unique.
+        self.run_id = time.strftime("%Y-%m-%d_%H-%M-%S", started)
+        self.start_time = time.strftime("%Y-%m-%d %H:%M:%S", started)
+        self.end_time = ""
         self.status = RunStatus.RUNNING
         self.error = ""
         self.chunks = None  # per-task output segments, filled in once the run is done
@@ -51,6 +58,30 @@ class ActiveWorkflowRunOne:
         self.stop_requested = True
         if self.pid is not None:
             os.killpg(self.pid, signal.SIGTERM)
+
+    def files_directory(self) -> str:
+        return WorkflowRunHistory.files_directory(self.project_name)
+
+    def target_files_folder(self) -> str:
+        """The Luigi target files folder. It is deleted at the start of every run."""
+        return os.path.join(self.files_directory(), f"{self.workflow_name}_targetFiles")
+
+    def run_history_folder(self) -> str:
+        return WorkflowRunHistory(self.project_name, self.workflow_name).folder()
+
+    def save_history(self, status: RunStatus) -> None:
+        """Write this finished run, which ended with ``status``, to the run history folder."""
+        # A project with no files folder cannot run, so there is nothing to keep.
+        if not self.files_directory():
+            return
+        WorkflowRunHistory(self.project_name, self.workflow_name).save(self.run_id, {
+            "token": self.token,
+            "startTime": self.start_time,
+            "endTime": self.end_time,
+            "status": status.value,
+            "error": self.error,
+            "chunks": self.chunks,
+        })
 
     def poll(self) -> dict:
         """Return ``{"status", "error", "chunks"}``."""
@@ -78,7 +109,12 @@ class ActiveWorkflowRunOne:
             print("workflow run failed:", error)
         self.error = error
         self.chunks = chunks
-        self.status = status
+        self.end_time = time.strftime("%Y-%m-%d %H:%M:%S")
+        # Save before the status changes, so a client that sees the end finds the file.
+        try:
+            self.save_history(status)
+        finally:
+            self.status = status
 
     def run(self) -> WorkflowRunResult:
         """Build and execute the workflow in a forked child process.

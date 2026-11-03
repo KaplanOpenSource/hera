@@ -25,7 +25,22 @@ export type PollWorkflowResult = {
   chunks?: WorkflowChunk[] | null,
 };
 
-// Every call to /start_workflow, /workflow_status/* and /stop_workflow/*. Each method answers
+// One saved run of a workflow, as the run list shows it. id names it on the server.
+export type SavedRunSummary = {
+  id: string,
+  token: string,
+  startTime: string,
+  endTime: string,
+  status: WorkflowServerStatus,
+};
+
+// One saved run with its output.
+export type SavedRun = SavedRunSummary & {
+  error: string,
+  chunks: WorkflowChunk[],
+};
+
+// Every call to /start_workflow, /workflow_status/*, /stop_workflow/*, /workflow_runs and /workflow_run. Each method answers
 // data, or null when the call failed.
 export class WorkflowApi extends ApiCall {
   // Starts a saved workflow run. Returns a token to poll with, or a busy status
@@ -42,5 +57,19 @@ export class WorkflowApi extends ApiCall {
   // Stops a running run by token. The poller then sees it as stopped.
   async stop(token: string): Promise<PollWorkflowResult | null> {
     return await this.postJson(`/stop_workflow/${token}`, {}, { label: 'stop workflow', silent: true });
+  }
+
+  // The saved runs of a workflow, newest first, without their output.
+  async runs(projectName: string, workflowName: string): Promise<SavedRunSummary[] | null> {
+    const result = await this.getJson('/workflow_runs', { projectName, workflowName }, { label: 'list workflow runs', silent: true });
+    if (!result) {
+      return null;
+    }
+    return result.runs;
+  }
+
+  // One saved run of a workflow, with its output.
+  async run(projectName: string, workflowName: string, runId: string): Promise<SavedRun | null> {
+    return await this.getJson('/workflow_run', { projectName, workflowName, runId }, { label: 'read workflow run' });
   }
 }

@@ -41,6 +41,8 @@ Each api class also has its own test file, one test per method:
 | `POST /start_workflow` | `WorkflowApi.start`, `RunWorkflowButton` | yes | no | `workflowApi.test.ts`, `runWorkflow.test.tsx`, `server/tests/test_server.py` |
 | `GET /workflow_status/{token}` | `WorkflowApi.poll`, `WorkflowRunPoller` | yes | no | `workflowApi.test.ts`, `workflowRunPoller.test.tsx`, `server/tests/test_server.py` |
 | `POST /stop_workflow/{token}` | `WorkflowApi.stop`, `RunWorkflowButton` | yes | no | `runWorkflow.test.tsx`, `server/tests/test_workflow_runner.py` |
+| `GET /workflow_runs` | `WorkflowApi.runs`, `WorkflowRunSelect` | yes | no | `workflowApi.test.ts`, `workflowRunSelect.test.tsx`, `server/tests/test_workflow_run_history.py` |
+| `GET /workflow_run` | `WorkflowApi.run`, `WorkflowRunSelect` | yes | no | `workflowApi.test.ts`, `workflowRunSelect.test.tsx`, `server/tests/test_workflow_run_history.py` |
 | `getJson` / `postJson` | `src/api/ApiCall.ts` | yes | no | `ApiCall.test.ts`, `apiPackageIsolation.test.ts` |
 | `GET /project/names` | `fetchProjectsNames` | yes | yes | `FetchProjects.test.ts`, `server/tests/test_projects.py` |
 | `GET /project/documents` | `fetchProjectDetails`, `fetchProjectData` | yes | yes | `FetchProjects.test.ts`, `server/tests/test_projects.py` |
