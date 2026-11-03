@@ -1,4 +1,4 @@
-"""Starting a Hermes workflow run and polling it."""
+"""Starting a Hermes workflow run, polling it and stopping it."""
 from fastapi import APIRouter
 
 from api_models import RunWorkflowPayload, RunWorkflowResponse
@@ -24,4 +24,11 @@ def start_workflow(payload: RunWorkflowPayload) -> RunWorkflowResponse:
 def workflow_status(token: str) -> RunWorkflowResponse:
     """Report a run's status and its captured output as per-task chunks. See WorkflowRunner."""
     result = workflow_runner.poll(token)
+    return RunWorkflowResponse(**result)
+
+
+@router.post("/stop_workflow/{token}", response_model=RunWorkflowResponse)
+def stop_workflow(token: str) -> RunWorkflowResponse:
+    """Stop a running workflow by terminating its child process. See WorkflowRunner."""
+    result = workflow_runner.stop(token)
     return RunWorkflowResponse(**result)

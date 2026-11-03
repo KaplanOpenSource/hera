@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import os
+import signal
 import sys
 import time
 import traceback
@@ -134,4 +135,8 @@ class WorkflowChildInProcess:
         result_queue: Queue[WorkflowMessage],
     ) -> None:
         """Process entry point: run one workflow (from the sent doc) in this (forked) process."""
+        # Own process group, so a stop ends this process and every command it starts.
+        os.setpgid(0, 0)
+        # The fork copies the server's SIGTERM handler (uvicorn's); a stop must end the child.
+        signal.signal(signal.SIGTERM, signal.SIG_DFL)
         WorkflowChildInProcess(project_name, doc, result_queue).run()

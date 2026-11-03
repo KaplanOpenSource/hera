@@ -5,6 +5,7 @@ export enum WorkflowRunStatus {
   Running = 'running',
   Done = 'done',
   Error = 'error',
+  Stopped = 'stopped',
 }
 
 export type WorkflowRun = {
@@ -23,7 +24,7 @@ type WorkflowRunStore = {
   // Called by the poller while the run is still going, to show the growing output.
   // Keeps status = running; only updates the chunks.
   setRunChunks: (workflowName: string, chunks: WorkflowChunk[]) => void,
-  // Called by the poller when the run finishes (done or error).
+  // Called by the poller when the run ends (done, error or stopped).
   setRunResult: (
     workflowName: string,
     result: { status: WorkflowRunStatus, error: string, chunks: WorkflowChunk[] },

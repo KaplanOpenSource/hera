@@ -40,6 +40,7 @@ Each api class also has its own test file, one test per method:
 | `POST /node-params/validate` | `NodeApi.validateParams`, `useNodeParamsValidation` | yes | no | `nodeApi.test.ts`, `nodeParamsValidation.test.tsx`, `server/tests/test_node_params.py` |
 | `POST /start_workflow` | `WorkflowApi.start`, `RunWorkflowButton` | yes | no | `workflowApi.test.ts`, `runWorkflow.test.tsx`, `server/tests/test_server.py` |
 | `GET /workflow_status/{token}` | `WorkflowApi.poll`, `WorkflowRunPoller` | yes | no | `workflowApi.test.ts`, `workflowRunPoller.test.tsx`, `server/tests/test_server.py` |
+| `POST /stop_workflow/{token}` | `WorkflowApi.stop`, `RunWorkflowButton` | yes | no | `runWorkflow.test.tsx`, `server/tests/test_workflow_runner.py` |
 | `getJson` / `postJson` | `src/api/ApiCall.ts` | yes | no | `ApiCall.test.ts`, `apiPackageIsolation.test.ts` |
 | `GET /project/names` | `fetchProjectsNames` | yes | yes | `FetchProjects.test.ts`, `server/tests/test_projects.py` |
 | `GET /project/documents` | `fetchProjectDetails`, `fetchProjectData` | yes | yes | `FetchProjects.test.ts`, `server/tests/test_projects.py` |
