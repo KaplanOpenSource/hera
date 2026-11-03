@@ -1,5 +1,5 @@
 import { Menu as MenuIcon } from '@mui/icons-material';
-import { IconButton, Menu, MenuItem, Tooltip } from '@mui/material';
+import { Badge, IconButton, Menu, MenuItem, Tooltip } from '@mui/material';
 import { MouseEvent, useEffect, useState } from 'react';
 import { workflowApi } from '../../../api/api';
 import { SavedRunSummary } from '../../../api/WorkflowApi';
@@ -70,6 +70,14 @@ export const WorkflowRunSelect = ({
     }
   }, [latest, oldRun, older.length]);
 
+  // Most users do not know runs are kept, so the tooltip says what the button holds.
+  let tooltip = 'Past runs: none yet. Every finished run is saved here.';
+  if (older.length === 1) {
+    tooltip = 'Past runs: 1 saved run. Click to see its output.';
+  } else if (older.length > 1) {
+    tooltip = `Past runs: ${older.length} saved runs. Click to see the output of an earlier run.`;
+  }
+
   let value = '';
   if (oldRun) {
     value = oldRun.id;
@@ -79,13 +87,22 @@ export const WorkflowRunSelect = ({
 
   return (
     <>
-      <Tooltip title="Pick a run">
+      <Tooltip title={tooltip}>
         <IconButton
           size="small"
-          aria-label="Pick a run"
+          aria-label="Past runs"
           onClick={(event: MouseEvent<HTMLElement>) => { setAnchor(event.currentTarget); }}
         >
-          <MenuIcon fontSize="small" />
+          {/* The number of past runs; hidden when there are none. */}
+          <Badge
+            badgeContent={older.length}
+            color="primary"
+            max={99}
+            data-testid="past-runs-badge"
+            sx={{ '& .MuiBadge-badge': { fontSize: 9, height: 14, minWidth: 14, px: 0.5 } }}
+          >
+            <MenuIcon fontSize="small" />
+          </Badge>
         </IconButton>
       </Tooltip>
       {/* Opens upward from the bar, lined up on its right edge. */}

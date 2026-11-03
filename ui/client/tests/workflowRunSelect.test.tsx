@@ -27,7 +27,7 @@ const serve = (runs: ReturnType<typeof summary>[], byId: { [id: string]: ReturnT
 };
 
 const openSelect = () => {
-  fireEvent.click(screen.getByRole('button', { name: 'Pick a run' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Past runs' }));
   return within(screen.getByRole('menu'));
 };
 
@@ -98,6 +98,31 @@ describe('WorkflowRunSelect', () => {
 
     expect(screen.queryByRole('menu')).toBeNull();
     expect(openSelect().getByText('2026-01-01 10:00:00 - done')).toBeTruthy();
+  });
+
+  it('shows the number of past runs on the menu button', async () => {
+    useWorkflowRunStore.setState({ runs: { w: { token: 't3', status: WorkflowRunStatus.Done, error: '', chunks: [] } } });
+    serve([
+      summary('r3', 't3', '2026-03-01 10:00:00'),
+      summary('r2', 't2', '2026-02-01 10:00:00'),
+      summary('r1', 't1', '2026-01-01 10:00:00'),
+    ], {});
+    render(<WorkflowOutputPanel workflowName="w" />);
+
+    await waitFor(() => { expect(within(screen.getByTestId('past-runs-badge')).getByText('2')).toBeTruthy(); });
+  });
+
+  it('says in the tooltip that the button holds the past runs', async () => {
+    serve([summary('r2', 't2', '2026-02-01 10:00:00'), summary('r1', 't1', '2026-01-01 10:00:00')], {
+      r2: savedRun('r2', 't2', 'newest saved output'),
+    });
+    render(<WorkflowOutputPanel workflowName="w" />);
+    await waitFor(() => { expect(screen.getByText('newest saved output')).toBeTruthy(); });
+
+    fireEvent.mouseOver(screen.getByRole('button', { name: 'Past runs' }));
+    await waitFor(() => {
+      expect(screen.getByText('Past runs: 2 saved runs. Click to see the output of an earlier run.')).toBeTruthy();
+    });
   });
 
   it('asks nothing when no project is open', () => {
