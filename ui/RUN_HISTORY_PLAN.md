@@ -50,6 +50,6 @@ All steps are done.
 3. Server: `ActiveWorkflowRunOne` records start and end time, and saves the run at the end of `_background`.
 4. Server: `GET /workflow_runs?projectName&workflowName` lists saved runs, newest first, without output.
 5. Server: `GET /workflow_run?projectName&workflowName&runId` reads one saved run.
-6. Client: `WorkflowRunSelect` in the output tab. "Latest run" plus older saved runs. With no run in this session, the newest saved run shows.
+6. Client: `WorkflowRunSelect`, a menu button at the right end of the output tab's bottom bar. Its menu opens upward and lists "Latest run" plus older saved runs. With no run in this session, the newest saved run shows.
 7. Client: the picked old run lives in `useWorkflowRunStore.oldRuns`; `shownRun()` feeds both the output tab and the canvas frames. A new run drops the pick.
 8. Tests: `ui/server/tests/test_workflow_run_history.py`, `ui/client/tests/workflowRunSelect.test.tsx`, `ui/client/tests/workflowApi.test.ts`.

@@ -1,5 +1,6 @@
-import { MenuItem, TextField } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { Menu as MenuIcon } from '@mui/icons-material';
+import { IconButton, Menu, MenuItem, Tooltip } from '@mui/material';
+import { MouseEvent, useEffect, useState } from 'react';
 import { workflowApi } from '../../../api/api';
 import { SavedRunSummary } from '../../../api/WorkflowApi';
 import { NO_PROJECT, useProjectStore } from '../../../stores/useProjectStore';
@@ -9,7 +10,7 @@ import { useWorkflowRunStore, WorkflowRunStatus } from '../../../stores/useWorkf
 const LATEST = '__latest__';
 
 // Picks which run of a workflow the output tab and the canvas show: the latest
-// run, or one saved in the run history.
+// run, or one saved in the run history. A small menu button opens the run list.
 export const WorkflowRunSelect = ({
   workflowName,
 }: {
@@ -21,6 +22,7 @@ export const WorkflowRunSelect = ({
   const showOldRun = useWorkflowRunStore((state) => { return state.showOldRun; });
   const showLatestRun = useWorkflowRunStore((state) => { return state.showLatestRun; });
   const [saved, setSaved] = useState<SavedRunSummary[]>([]);
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
 
   // Read the list again when a run starts or ends, so the run before it shows up.
   useEffect(() => {
@@ -41,6 +43,7 @@ export const WorkflowRunSelect = ({
   }, [projectName, workflowName, latest?.token, latest?.status]);
 
   const pick = async (id: string) => {
+    setAnchor(null);
     if (id === LATEST) {
       showLatestRun(workflowName);
       return;
@@ -75,18 +78,38 @@ export const WorkflowRunSelect = ({
   }
 
   return (
-    <TextField
-      select
-      size="small"
-      label="Run"
-      value={value}
-      onChange={(event) => { pick(event.target.value); }}
-      sx={{ minWidth: 260 }}
-    >
-      {latest && <MenuItem value={LATEST}>{`Latest run - ${latest.status}`}</MenuItem>}
-      {older.map((run) => {
-        return <MenuItem key={run.id} value={run.id}>{`${run.startTime} - ${run.status}`}</MenuItem>;
-      })}
-    </TextField>
+    <>
+      <Tooltip title="Pick a run">
+        <IconButton
+          size="small"
+          aria-label="Pick a run"
+          onClick={(event: MouseEvent<HTMLElement>) => { setAnchor(event.currentTarget); }}
+        >
+          <MenuIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+      {/* Opens upward from the bar, lined up on its right edge. */}
+      <Menu
+        anchorEl={anchor}
+        open={Boolean(anchor)}
+        onClose={() => { setAnchor(null); }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        {latest && (
+          <MenuItem selected={value === LATEST} onClick={() => { pick(LATEST); }}>
+            {`Latest run - ${latest.status}`}
+          </MenuItem>
+        )}
+        {older.map((run) => {
+          return (
+            <MenuItem key={run.id} selected={value === run.id} onClick={() => { pick(run.id); }}>
+              {`${run.startTime} - ${run.status}`}
+            </MenuItem>
+          );
+        })}
+        {!latest && older.length === 0 && <MenuItem disabled>No runs yet</MenuItem>}
+      </Menu>
+    </>
   );
 };

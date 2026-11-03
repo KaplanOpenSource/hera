@@ -27,8 +27,8 @@ const serve = (runs: ReturnType<typeof summary>[], byId: { [id: string]: ReturnT
 };
 
 const openSelect = () => {
-  fireEvent.mouseDown(screen.getByRole('combobox'));
-  return within(screen.getByRole('listbox'));
+  fireEvent.click(screen.getByRole('button', { name: 'Pick a run' }));
+  return within(screen.getByRole('menu'));
 };
 
 beforeEach(() => {
@@ -89,6 +89,15 @@ describe('WorkflowRunSelect', () => {
     act(() => { useWorkflowRunStore.getState().startRun('w', 't3'); });
 
     expect(shownRun(useWorkflowRunStore.getState(), 'w')?.token).toBe('t3');
+  });
+
+  it('hides the run list until the menu button is clicked', async () => {
+    serve([summary('r1', 't1', '2026-01-01 10:00:00')], { r1: savedRun('r1', 't1', 'old output') });
+    render(<WorkflowOutputPanel workflowName="w" />);
+    await waitFor(() => { expect(screen.getByText('old output')).toBeTruthy(); });
+
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(openSelect().getByText('2026-01-01 10:00:00 - done')).toBeTruthy();
   });
 
   it('asks nothing when no project is open', () => {
