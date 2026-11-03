@@ -3,6 +3,7 @@ import { Badge, IconButton, Menu, MenuItem, Tooltip } from '@mui/material';
 import { MouseEvent, useEffect, useState } from 'react';
 import { workflowApi } from '../../../api/api';
 import { SavedRunSummary } from '../../../api/WorkflowApi';
+import { ProjectDocument } from '../../../shared/types';
 import { NO_PROJECT, useProjectStore } from '../../../stores/useProjectStore';
 import { useWorkflowRunStore, WorkflowRunStatus } from '../../../stores/useWorkflowRunStore';
 
@@ -42,7 +43,8 @@ export const WorkflowRunSelect = ({
     };
   }, [projectName, workflowName, latest?.token, latest?.status]);
 
-  const pick = async (id: string) => {
+  // withGraph shows the run's saved graph on the canvas, read-only.
+  const pick = async (id: string, withGraph: boolean) => {
     setAnchor(null);
     if (id === LATEST) {
       showLatestRun(workflowName);
@@ -50,12 +52,18 @@ export const WorkflowRunSelect = ({
     }
     const run = await workflowApi.run(projectName, workflowName, id);
     if (run) {
+      let doc: ProjectDocument | undefined;
+      if (withGraph && run.doc) {
+        doc = run.doc;
+      }
       showOldRun(workflowName, {
         id: run.id,
         token: run.token,
+        startTime: run.startTime,
         status: run.status as string as WorkflowRunStatus,
         error: run.error,
         chunks: run.chunks,
+        doc,
       });
     }
   };
@@ -63,10 +71,10 @@ export const WorkflowRunSelect = ({
   // The latest run is already in the list as its own option.
   const older = saved.filter((run) => { return run.token !== latest?.token; });
 
-  // With no run in this session, show the newest saved run instead of nothing.
+  // With no run in this session, the newest saved run stands in for the latest, on today's graph.
   useEffect(() => {
     if (!latest && !oldRun && older.length > 0) {
-      pick(older[0].id);
+      pick(older[0].id, false);
     }
   }, [latest, oldRun, older.length]);
 
@@ -114,13 +122,13 @@ export const WorkflowRunSelect = ({
         transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
         {latest && (
-          <MenuItem selected={value === LATEST} onClick={() => { pick(LATEST); }}>
+          <MenuItem selected={value === LATEST} onClick={() => { pick(LATEST, false); }}>
             {`Latest run - ${latest.status}`}
           </MenuItem>
         )}
         {older.map((run) => {
           return (
-            <MenuItem key={run.id} selected={value === run.id} onClick={() => { pick(run.id); }}>
+            <MenuItem key={run.id} selected={value === run.id} onClick={() => { pick(run.id, true); }}>
               {`${run.startTime} - ${run.status}`}
             </MenuItem>
           );

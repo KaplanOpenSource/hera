@@ -52,6 +52,8 @@ class WorkflowRunsResponse(BaseModel):
 class WorkflowRunRecord(WorkflowRunSummary):
     error: str = ""
     chunks: List[WorkflowChunk] = []
+    # The workflow doc the run used; None for runs saved before docs were kept.
+    doc: Optional[Dict[str, Any]] = None
 
 
 class ValidateNodeParamsPayload(BaseModel):

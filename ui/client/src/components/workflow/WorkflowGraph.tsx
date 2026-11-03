@@ -53,6 +53,8 @@ interface WorkflowGraphProps {
   onAddRequire: (source: string, target: string) => void;
   onRemoveRequire: (source: string, target: string) => void;
   onDeleteNode: (name: string) => void;
+  // A past run's saved graph: shown, never edited.
+  readOnly?: boolean;
 }
 
 // Node graph view of a workflow: one node per workflow node, edges from the
@@ -76,6 +78,7 @@ const WorkflowGraph = ({
   onAddRequire,
   onRemoveRequire,
   onDeleteNode,
+  readOnly,
 }: WorkflowGraphProps) => {
   const theme = useTheme();
   const [menu, setMenu] = useState<WorkflowContextMenuTarget | null>(null);
@@ -150,7 +153,7 @@ const WorkflowGraph = ({
       <>
         <WorkflowNodePinButton pinned={pinnedNodes.includes(name)} onToggle={() => togglePin(name)} />
         <WorkflowNodePopupButton onOpen={() => setPopupNode(name)} />
-        <WorkflowNodeDeleteButton onDelete={() => onDeleteNode(name)} />
+        {!readOnly && <WorkflowNodeDeleteButton onDelete={() => onDeleteNode(name)} />}
       </>
     ),
     handlers,
@@ -170,6 +173,12 @@ const WorkflowGraph = ({
     referenceOptions = references.optionsFor(menu.node);
   }
 
+  // Backspace deletes the picked node or edge, except on a read-only graph.
+  let deleteKeyCode: string | null = 'Backspace';
+  if (readOnly) {
+    deleteKeyCode = null;
+  }
+
   return (
     <Box ref={containerRef} sx={{ flex: 1, minHeight: 200, ml: -2, mr: -2, mb: -2, borderTop: '1px solid', borderColor: 'divider' }}>
       <ReactFlow
@@ -179,6 +188,8 @@ const WorkflowGraph = ({
         nodeTypes={NODE_TYPES}
         edgeTypes={EDGE_TYPES}
         onNodesChange={onNodesChange}
+        nodesConnectable={!readOnly}
+        deleteKeyCode={deleteKeyCode}
         onConnect={connection => edits.connect(connection)}
         onEdgesDelete={deleted => edits.removeEdges(deleted)}
         isValidConnection={connection => edits.canConnect(connection)}
@@ -186,10 +197,18 @@ const WorkflowGraph = ({
         fitViewOptions={{ maxZoom: FIT_MAX_ZOOM }}
         onNodeClick={(_e, node) => onSelectNode(node.id)}
         onPaneClick={() => { onSelectNode(undefined); closeInline(); }}
-        onEdgeMouseEnter={(_e, edge) => setHoveredEdge(edge.id)}
+        onEdgeMouseEnter={(_e, edge) => {
+          // The hovered edge shows its remove button, so a read-only graph never hovers one.
+          if (!readOnly) {
+            setHoveredEdge(edge.id);
+          }
+        }}
         onEdgeMouseLeave={() => setHoveredEdge(null)}
         onNodeContextMenu={(event, node) => {
           event.preventDefault();
+          if (readOnly) {
+            return;
+          }
           setMenu({ kind: WorkflowContextMenuKind.Node, name: node.id, x: event.clientX, y: event.clientY });
         }}
         onNodeMouseEnter={(_event, node) => {
@@ -202,6 +221,9 @@ const WorkflowGraph = ({
         }}
         onEdgeContextMenu={(event, edge) => {
           event.preventDefault();
+          if (readOnly) {
+            return;
+          }
           setMenu({ kind: WorkflowContextMenuKind.Edge, source: edge.source, target: edge.target, x: event.clientX, y: event.clientY });
         }}
       >
@@ -212,11 +234,13 @@ const WorkflowGraph = ({
           onPickNode={name => onPickNode?.(name)}
           onTogglePin={togglePin}
           onDeleteNode={onDeleteNode}
+          readOnly={readOnly}
         />
         <WorkflowCanvasToolbar
           actionButtons={actionButtons}
           onAddNode={onAddNode}
           onApplyTemplate={onApplyTemplate}
+          readOnly={readOnly}
         />
         <Background />
         <Controls />

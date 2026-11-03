@@ -38,6 +38,8 @@ export type SavedRunSummary = {
 export type SavedRun = SavedRunSummary & {
   error: string,
   chunks: WorkflowChunk[],
+  // The workflow doc the run used; null for runs saved before docs were kept.
+  doc: ProjectDocument | null,
 };
 
 // Every call to /start_workflow, /workflow_status/*, /stop_workflow/*, /workflow_runs and /workflow_run. Each method answers

@@ -81,6 +81,8 @@ class ActiveWorkflowRunOne:
             "status": status.value,
             "error": self.error,
             "chunks": self.chunks,
+            # The whole doc the client sent, so the run keeps the graph it ran.
+            "doc": self.doc,
         })
 
     def poll(self) -> dict:

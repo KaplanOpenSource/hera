@@ -1,6 +1,6 @@
 import { Box, Typography } from '@mui/material';
 import { ReactNode, useEffect, useState } from 'react';
-import { WorkflowBlock, WorkflowData, WorkflowNode } from '../../shared/types';
+import { WorkflowBlock, WorkflowData, WorkflowDesc, WorkflowNode } from '../../shared/types';
 import { getWorkflowBlock, isTopLevelBlock, normalizeRequires } from '../../shared/workflow';
 import { useWorkflowFocusStore } from '../../stores/useWorkflowFocusStore';
 import { shownRun, useWorkflowRunStore, WorkflowRunStatus } from '../../stores/useWorkflowRunStore';
@@ -10,6 +10,7 @@ import { nodeRunStatuses } from './nodeRunStatus';
 import { nodeNameFromTask } from './taskNodeName';
 import { NodeCatalogReader, useNodeCatalog } from './useNodeCatalog';
 import { WorkflowGraphWrapper } from './WorkflowGraph';
+import { WorkflowPastRunBanner } from './WorkflowPastRunBanner';
 
 // Returns the node's `requires` with oldName replaced by newName, preserving
 // its single-name / list shape (or undefined when the node had no requires).
@@ -39,11 +40,24 @@ export const WorkflowEditor = ({
 }) => {
   const [selectedNode, setSelectedNode] = useState<string | undefined>(undefined);
   const catalog = useNodeCatalog(s => s.catalog);
-  const block = getWorkflowBlock(workflow);
+
+  // A picked past run with a saved doc shows the graph it ran, read-only.
+  const oldRun = useWorkflowRunStore(s => (workflowName ? s.oldRuns[workflowName] : undefined));
+  const showLatestRun = useWorkflowRunStore(s => s.showLatestRun);
+  const pastDoc = oldRun?.doc;
+  const readOnly = Boolean(pastDoc);
+  let shownWorkflow = workflow;
+  if (pastDoc) {
+    shownWorkflow = (pastDoc.desc as WorkflowDesc).workflow;
+  }
+  const block = getWorkflowBlock(shownWorkflow);
 
   // Preserve the original nesting (the block may be wrapped in an extra
   // { workflow: {...} } level) when writing edits back.
   const setBlock = (newBlock: WorkflowBlock) => {
+    if (readOnly) {
+      return;
+    }
     setWorkflow(isTopLevelBlock(workflow) ? newBlock : { ...workflow, workflow: newBlock });
   };
 
@@ -169,6 +183,9 @@ export const WorkflowEditor = ({
   return (
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <NodeCatalogReader />
+      {oldRun && pastDoc && (
+        <WorkflowPastRunBanner startTime={oldRun.startTime} onBack={() => showLatestRun(workflowName!)} />
+      )}
       {!block
         ? <Typography color="text.secondary">No workflow found in this document.</Typography>
         : (
@@ -191,6 +208,7 @@ export const WorkflowEditor = ({
               onAddRequire={addRequire}
               onRemoveRequire={removeRequire}
               onDeleteNode={deleteNode}
+              readOnly={readOnly}
             />
           </>
         )

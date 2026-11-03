@@ -13,7 +13,7 @@ const summary = (id: string, token: string, startTime: string) => {
 };
 
 const savedRun = (id: string, token: string, text: string) => {
-  return { ...summary(id, token, 's'), error: '', chunks: [{ name: '__between__', text }] };
+  return { ...summary(id, token, 's'), error: '', chunks: [{ name: '__between__', text }], doc: { _id: { $oid: 'd' }, desc: { workflow: {} } } };
 };
 
 // Answers the list call with runs, and a run call with the matching saved run.
@@ -79,11 +79,24 @@ describe('WorkflowRunSelect', () => {
     render(<WorkflowOutputPanel workflowName="w" />);
 
     await waitFor(() => { expect(screen.getByText('newest saved output')).toBeTruthy(); });
+    // It stands in for the latest run, so the canvas keeps today's graph.
+    expect(useWorkflowRunStore.getState().oldRuns.w.doc).toBeUndefined();
+  });
+
+  it('keeps the saved graph of a run picked from the list', async () => {
+    useWorkflowRunStore.setState({ runs: { w: { token: 't2', status: WorkflowRunStatus.Done, error: '', chunks: [] } } });
+    serve([summary('r1', 't1', '2026-01-01 10:00:00')], { r1: savedRun('r1', 't1', 'old output') });
+    render(<WorkflowOutputPanel workflowName="w" />);
+    await waitFor(() => { expect(getJson).toHaveBeenCalled(); });
+
+    fireEvent.click(openSelect().getByText('2026-01-01 10:00:00 - done'));
+    await waitFor(() => { expect(useWorkflowRunStore.getState().oldRuns.w?.doc).toBeTruthy(); });
+    expect(useWorkflowRunStore.getState().oldRuns.w.startTime).toBe('s');
   });
 
   it('drops the picked old run when a new run starts', () => {
     useWorkflowRunStore.setState({
-      oldRuns: { w: { id: 'r1', token: 't1', status: WorkflowRunStatus.Done, error: '', chunks: [] } },
+      oldRuns: { w: { id: 'r1', token: 't1', startTime: 's', status: WorkflowRunStatus.Done, error: '', chunks: [] } },
     });
 
     act(() => { useWorkflowRunStore.getState().startRun('w', 't3'); });

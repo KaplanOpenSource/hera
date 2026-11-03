@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { WorkflowChunk } from '../io/runWorkflow';
+import { ProjectDocument } from '../shared/types';
 
 export enum WorkflowRunStatus {
   Running = 'running',
@@ -19,6 +20,9 @@ export type WorkflowRun = {
 // A finished run read back from the run history; id names it on the server.
 export type OldWorkflowRun = WorkflowRun & {
   id: string,
+  startTime: string,
+  // The workflow doc the run used, shown read-only on the canvas; unset keeps today's graph.
+  doc?: ProjectDocument,
 };
 
 type WorkflowRunStore = {

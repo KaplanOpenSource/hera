@@ -59,6 +59,23 @@ def test_a_finished_run_is_saved_before_its_status_changes(install_fake_hera, tm
     assert "saved line" in "".join(chunk["text"] for chunk in record["chunks"])
 
 
+def test_a_saved_run_holds_the_doc_as_sent_and_the_list_leaves_it_out(install_fake_hera, tmp_path, monkeypatch):
+    monkeypatch.setattr(dependencies.warmup, "_ready", True)
+    install_fake_hera(str(tmp_path))
+    doc = _doc("WORKFLOW")
+    doc["desc"]["workflow"] = {"nodeList": ["unsaved"], "nodes": {"unsaved": {"type": "x"}}}
+    doc["type"] = "ToolkitDataSource"
+    runner = WorkflowRunner()
+    token = runner.start("PROJECT", doc)["token"]
+    assert _wait_done(runner, token)["status"] == RunStatus.DONE
+
+    history = WorkflowRunHistory("PROJECT", "WORKFLOW")
+    summary = history.summaries()[0]
+    assert "doc" not in summary
+    assert history.read(summary["id"])["doc"] == doc
+    assert workflow.workflow_run("PROJECT", "WORKFLOW", summary["id"]).doc == doc
+
+
 def test_a_failed_run_is_saved_with_its_error(install_fake_hera, tmp_path):
     def on_execute(workflow_name):
         raise RuntimeError("workflow blew up")
@@ -103,6 +120,8 @@ def test_routes_list_and_read_saved_runs(install_fake_hera, tmp_path, monkeypatc
 
     record = workflow.workflow_run("PROJECT", "WORKFLOW", "one")
     assert record.chunks[0].text == "out one"
+    # A run saved before docs were kept still loads, with no doc.
+    assert record.doc is None
 
     with pytest.raises(HTTPException) as missing:
         workflow.workflow_run("PROJECT", "WORKFLOW", "missing")
