@@ -1,12 +1,17 @@
-import pandas
-import os
 import glob
+import os
+
+import pandas
 import tqdm
-from ....utils.logging import get_classMethod_logger
-from .. import FIELDTYPE_VECTOR,  FIELDTYPE_SCALAR
-from PyFoam.RunDictionary.ParsedParameterFile import ParsedParameterFile,WriteParameterFile
+from PyFoam.Basics.DataStructures import DictProxy, Dimension, Field, Tensor, Vector
 from PyFoam.RunDictionary.BoundaryDict import BoundaryDict
-from PyFoam.Basics.DataStructures import Field,Vector,Tensor,DictProxy,Dimension
+from PyFoam.RunDictionary.ParsedParameterFile import (
+    ParsedParameterFile,
+    WriteParameterFile,
+)
+
+from ....utils.logging import get_classMethod_logger
+from .. import FIELDTYPE_SCALAR, FIELDTYPE_VECTOR
 from .OFObject import OFObject
 from .utils import ParsedParameterFileToDataFrame
 
@@ -303,7 +308,9 @@ class OFField(OFObject):
         except FileNotFoundError as e:
             err = f"File not found, initializing as an empty field: {e} "
             logger.warning(err)
-            raise ValueError("Field not found")
+            # Initialize as empty single processor field
+            self.initialize(noOfProc=None)
+            return
 
     def readFromCase(self, caseDirectory, timeStep=0, readParallel=True):
         """
@@ -363,7 +370,9 @@ class OFField(OFObject):
         except FileNotFoundError as e:
             err = f"File not found, initializing as an empty field: {e} "
             logger.warning(err)
-            raise ValueError("Field not found")
+            # Initialize as empty single processor field
+            self.initialize(noOfProc=None)
+            return
 
     def setFieldFromDataFrame(self,fieldDataFrame):
         """
@@ -429,16 +438,21 @@ class OFField(OFObject):
 
         logger.info("Setting boundary field")
         boundaryDict = DictProxy()
-        for boundaryName, boundaryData in self.data[processorName]['boundaryField'].items():
+        existing_boundary = self.data.get(processorName, {}).get('boundaryField', {})
+        for boundaryName, boundaryData in existing_boundary.items():
             logger.debug(f"Setting the boundary {boundaryName} to existing value")
             boundaryDict[boundaryName] = boundaryData
 
-        for boundaryName, boundaryData in processordataFrame.query("region=='boundaryField'").groupby("boundary"):
-            logger.debug(f"Setting the boundary {boundaryName} to new  value. data of length {len(boundaryData)}")
-            boundaryValue = DictProxy()
-            boundaryValue['type'] = 'fixedValue'
-            boundaryValue['value'] = dataframeToField(boundaryData)
-            boundaryDict[boundaryName] = boundaryValue
+        # Process boundary fields if present
+        if "boundary" in processordataFrame.columns:
+            for boundaryName, boundaryData in processordataFrame.query("region=='boundaryField'").groupby("boundary"):
+                logger.debug(f"Setting the boundary {boundaryName} to new  value. data of length {len(boundaryData)}")
+                boundaryValue = DictProxy()
+                boundaryValue['type'] = 'fixedValue'
+                boundaryValue['value'] = dataframeToField(boundaryData)
+                boundaryDict[boundaryName] = boundaryValue
+        else:
+            logger.debug("No boundary column present; skipping boundary processing.")
 
         if self.parallel:
             processorValue = DictProxy()
