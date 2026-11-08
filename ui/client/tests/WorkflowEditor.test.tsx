@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 
 // The editor reads the node catalog from a zustand store and mounts a reader
 // that fetches it; stub both so nothing hits the network.
@@ -19,6 +19,7 @@ vi.mock('../src/components/workflow/WorkflowGraph', () => ({
 }));
 
 import { WorkflowEditor } from '../src/components/workflow/WorkflowEditor';
+import { useWorkflowRunStore, WorkflowRunStatus } from '../src/stores/useWorkflowRunStore';
 
 const setup = (workflow: any) => {
   const setWorkflow = vi.fn();
@@ -29,6 +30,7 @@ const setup = (workflow: any) => {
 beforeEach(() => {
   graphProps = null;
   cleanup();
+  useWorkflowRunStore.setState({ runs: {}, oldRuns: {} });
 });
 
 describe('WorkflowEditor empty state', () => {
@@ -198,5 +200,73 @@ describe('WorkflowEditor setNode', () => {
     const { setWorkflow } = setup({ nodeList: ['a'], nodes: { a: { type: 'old' } } });
     act(() => graphProps.onSetNode('a', { type: 'new' }));
     expect(setWorkflow).toHaveBeenCalledWith({ nodeList: ['a'], nodes: { a: { type: 'new' } } });
+  });
+});
+
+describe('WorkflowEditor past run graph', () => {
+  const today = { nodeList: ['today'], nodes: { today: { type: 't' } } };
+  const past = { nodeList: ['past'], nodes: { past: { type: 't' } } };
+  const pickPastRun = (doc?: any) => {
+    useWorkflowRunStore.setState({
+      oldRuns: { w: { id: 'r1', token: 't1', startTime: '2026-01-01 10:00:00', status: WorkflowRunStatus.Done, error: '', chunks: [], doc } },
+    });
+  };
+  const renderCanvas = (isChanged = false) => {
+    const setWorkflow = vi.fn();
+    render(<WorkflowEditor workflow={today} setWorkflow={setWorkflow} workflowName="w" isChanged={isChanged} />);
+    return { setWorkflow };
+  };
+
+  it('shows the saved graph read-only, with a mark and a way back', () => {
+    pickPastRun({ _id: { $oid: 'd' }, desc: { workflow: past } });
+    const { setWorkflow } = renderCanvas();
+
+    expect(graphProps.nodeNames).toEqual(['past']);
+    expect(graphProps.readOnly).toBe(true);
+    expect(screen.getByText('Past run from 2026-01-01 10:00:00. This is the graph it ran. Read-only.')).toBeDefined();
+    act(() => graphProps.onAddNode());
+    act(() => graphProps.onDeleteNode('past'));
+    expect(setWorkflow).not.toHaveBeenCalled();
+
+    act(() => screen.getByText('Back to latest').click());
+    expect(useWorkflowRunStore.getState().oldRuns.w).toBeUndefined();
+    expect(graphProps.nodeNames).toEqual(['today']);
+    expect(graphProps.readOnly).toBe(false);
+  });
+
+  it('restores the saved graph into the open workflow and leaves read-only mode', () => {
+    pickPastRun({ _id: { $oid: 'd' }, desc: { workflow: past } });
+    const { setWorkflow } = renderCanvas();
+
+    act(() => screen.getByText('Restore').click());
+    expect(setWorkflow).toHaveBeenCalledWith(past);
+    expect(useWorkflowRunStore.getState().oldRuns.w).toBeUndefined();
+  });
+
+  it('asks before a restore replaces unsaved edits', async () => {
+    pickPastRun({ _id: { $oid: 'd' }, desc: { workflow: past } });
+    const { setWorkflow } = renderCanvas(true);
+
+    act(() => screen.getByText('Restore').click());
+    expect(screen.getByText('Your unsaved edits to the workflow will be lost.')).toBeDefined();
+    expect(setWorkflow).not.toHaveBeenCalled();
+
+    act(() => screen.getByText('Cancel').click());
+    await waitFor(() => { expect(screen.queryByText('Your unsaved edits to the workflow will be lost.')).toBeNull(); });
+    expect(setWorkflow).not.toHaveBeenCalled();
+
+    act(() => screen.getByText('Restore').click());
+    await act(async () => { screen.getAllByText('Restore')[1].click(); });
+    expect(setWorkflow).toHaveBeenCalledWith(past);
+    expect(useWorkflowRunStore.getState().oldRuns.w).toBeUndefined();
+  });
+
+  it('falls back to today\'s graph for a past run with no saved doc', () => {
+    pickPastRun(undefined);
+    renderCanvas();
+
+    expect(graphProps.nodeNames).toEqual(['today']);
+    expect(graphProps.readOnly).toBe(false);
+    expect(screen.queryByText('Back to latest')).toBeNull();
   });
 });

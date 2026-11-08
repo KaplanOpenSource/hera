@@ -69,7 +69,7 @@ def test_run_workflow_endpoint_through_real_runner(install_fake_hera, tmp_path):
 
     install_fake_hera(str(tmp_path), on_execute)
 
-    hello_doc = {"desc": {"workflow": {"solver": "s"}, "workflowName": "hello"}, "resource": str(tmp_path / "hello.json")}
+    hello_doc = {"_id": {"$oid": "doc-hello"}, "desc": {"workflow": {"solver": "s"}, "workflowName": "hello"}, "resource": str(tmp_path / "hello.json")}
     start = workflow.start_workflow(RunWorkflowPayload(projectName="P", doc=hello_doc))
     assert start.token
 

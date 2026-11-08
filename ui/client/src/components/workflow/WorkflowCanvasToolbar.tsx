@@ -15,10 +15,13 @@ export const WorkflowCanvasToolbar = ({
   actionButtons,
   onAddNode,
   onApplyTemplate,
+  readOnly,
 }: {
   actionButtons?: ReactNode,
   onAddNode: () => void,
   onApplyTemplate: (block: WorkflowBlock) => void,
+  // Hides the add and template buttons, for a past run's saved graph.
+  readOnly?: boolean,
 }) => {
   const [templatesAnchor, setTemplatesAnchor] = useState<HTMLElement | null>(null);
 
@@ -30,12 +33,16 @@ export const WorkflowCanvasToolbar = ({
   return (
     <Panel position="top-right" style={{ marginRight: 24 }}>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-end' }}>
-        <ButtonTooltip title="Add node" onClick={onAddNode} sx={BUTTON_SX}>
-          <Add sx={{ fontSize: 16 }} />
-        </ButtonTooltip>
-        <ButtonTooltip title="Templates" onClick={e => setTemplatesAnchor(e.currentTarget)} sx={BUTTON_SX}>
-          <AutoAwesome sx={{ fontSize: 16 }} />
-        </ButtonTooltip>
+        {!readOnly && (
+          <>
+            <ButtonTooltip title="Add node" onClick={onAddNode} sx={BUTTON_SX}>
+              <Add sx={{ fontSize: 16 }} />
+            </ButtonTooltip>
+            <ButtonTooltip title="Templates" onClick={e => setTemplatesAnchor(e.currentTarget)} sx={BUTTON_SX}>
+              <AutoAwesome sx={{ fontSize: 16 }} />
+            </ButtonTooltip>
+          </>
+        )}
         {actionButtons}
       </Box>
       <Menu anchorEl={templatesAnchor} open={!!templatesAnchor} onClose={() => setTemplatesAnchor(null)}>

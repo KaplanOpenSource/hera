@@ -19,6 +19,7 @@ export const WorkflowNodeListPanel = ({
   onPickNode,
   onTogglePin,
   onDeleteNode,
+  readOnly,
 }: {
   nodeNames: string[],
   selectedNode?: string,
@@ -26,6 +27,8 @@ export const WorkflowNodeListPanel = ({
   onPickNode: (name: string) => void,
   onTogglePin: (name: string) => void,
   onDeleteNode: (name: string) => void,
+  // Hides the delete icons, for a past run's saved graph.
+  readOnly?: boolean,
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -72,7 +75,7 @@ export const WorkflowNodeListPanel = ({
                   secondaryAction={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, '& > div': { display: 'flex' } }}>
                       <WorkflowNodePinButton pinned={pinnedNodes.includes(name)} onToggle={() => onTogglePin(name)} />
-                      <WorkflowNodeDeleteButton onDelete={() => onDeleteNode(name)} />
+                      {!readOnly && <WorkflowNodeDeleteButton onDelete={() => onDeleteNode(name)} />}
                     </Box>
                   }
                 >
