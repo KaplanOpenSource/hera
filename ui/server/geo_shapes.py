@@ -5,18 +5,31 @@ import io
 
 # Coordinates above this cannot be degrees, so the file is in metres.
 MAX_DEGREES = 360
+# Above this many shapes, send one dot per shape instead of the full shapes.
+MAX_SHAPES = 50_000
 
 
 def read_geo_shapes(path: str) -> bytes:
     """The whole file (.shp, .geojson, .fgb) as FlatGeobuf bytes in WGS84.
 
+    Over MAX_SHAPES shapes, it sends one dot per shape at its center, with no
+    columns: full shapes would be too slow and too big.
+
     hera's files are sometimes written in ITM with no CRS of their own. Large
     coordinates give that away, so they are read as ITM and converted.
     """
     import geopandas as gpd
+    import pyogrio
+    import shapely
     from hera.measurements.GIS.utils import ITM, WGS84
 
-    gdf = gpd.read_file(path)
+    count = pyogrio.read_info(path, force_feature_count=True)["features"]
+    if count > MAX_SHAPES:
+        shapes = gpd.read_file(path, columns=[])
+        # Centers in the file's own CRS, before any change to degrees.
+        gdf = gpd.GeoDataFrame(geometry=shapely.centroid(shapes.geometry.values), crs=shapes.crs)
+    else:
+        gdf = gpd.read_file(path)
     if gdf.crs and not gdf.crs.is_geographic:
         gdf = gdf.to_crs(epsg=WGS84)
     else:

@@ -17,6 +17,13 @@ export const isGeoShapesResource = (resource: unknown): resource is string => {
   return typeof resource === 'string' && GEO_SHAPES_EXTENSIONS.test(resource);
 };
 
+const DOT_RADIUS = 3;
+
+// Small canvas circles, not Leaflet's pin icons, so many points stay usable.
+export const pointToDot = (_feature: unknown, latlng: L.LatLng): L.Layer => {
+  return L.circleMarker(latlng, { radius: DOT_RADIUS });
+};
+
 type MapState = {
   shapes: FeatureCollection | null,
   bounds: L.LatLngBounds | null,
@@ -85,7 +92,7 @@ export const GeoShapesPreview = ({
           style={{ height: '100%', width: '100%' }}
         >
           <TileLayer url={tileUrl} attribution={tileAttribution} />
-          <GeoJSONLayer data={mapState.shapes} />
+          <GeoJSONLayer data={mapState.shapes} pointToLayer={pointToDot} />
           <FitBounds bounds={mapState.bounds} />
           <InvalidateOnResize />
         </MapContainer>

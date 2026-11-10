@@ -127,6 +127,45 @@ def test_geojson_metres_with_no_crs_are_read_as_itm(tmp_path):
     assert result.geometry[0].equals_exact(expected[0], TOLERANCE)
 
 
+@pytest.mark.parametrize("extension", EXTENSIONS)
+def test_over_the_cap_sends_one_dot_per_shape(tmp_path, monkeypatch, extension):
+    monkeypatch.setattr(geo_shapes, "MAX_SHAPES", 1)
+    source = _frame(SHAPES["polygons"], ITM)
+    path = _write(tmp_path, source, extension)
+
+    result = _decode(geo_shapes.read_geo_shapes(path))
+
+    expected = source.geometry.centroid.to_crs(epsg=WGS84)
+    assert result.crs.to_epsg() == WGS84
+    assert list(result.columns) == ["geometry"]
+    assert len(result) == len(expected)
+    for got, want in zip(result.geometry, expected):
+        assert got.equals_exact(want, TOLERANCE)
+
+
+def test_at_the_cap_sends_full_shapes(tmp_path, monkeypatch):
+    source = _frame(SHAPES["polygons"], ITM)
+    monkeypatch.setattr(geo_shapes, "MAX_SHAPES", len(source))
+    path = _write(tmp_path, source, "shp")
+
+    result = _decode(geo_shapes.read_geo_shapes(path))
+
+    _assert_same_shapes(result, source.to_crs(epsg=WGS84))
+
+
+def test_dots_from_itm_with_no_crs_are_read_as_itm(tmp_path, monkeypatch):
+    monkeypatch.setattr(geo_shapes, "MAX_SHAPES", 1)
+    source = _frame(SHAPES["polygons"], ITM)
+    path = _write(tmp_path, source, "shp")
+    (tmp_path / "shapes.prj").unlink()
+
+    result = _decode(geo_shapes.read_geo_shapes(path))
+
+    expected = source.geometry.centroid.to_crs(epsg=WGS84)
+    for got, want in zip(result.geometry, expected):
+        assert got.equals_exact(want, TOLERANCE)
+
+
 def test_shp_with_no_prj_is_read_as_itm(tmp_path):
     source = _frame(SHAPES["polygons"], ITM)
     path = _write(tmp_path, source, "shp")

@@ -9,7 +9,9 @@ vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 vi.mock('react-leaflet', () => ({
   MapContainer: ({ children }: { children: any }) => <div>{children}</div>,
   TileLayer: ({ url }: { url: string }) => <div data-testid="tiles">{url}</div>,
-  GeoJSON: ({ data }: { data: FeatureCollection }) => <div data-testid="shapes">{data.features.length}</div>,
+  GeoJSON: ({ data, pointToLayer }: { data: FeatureCollection, pointToLayer?: unknown }) => (
+    <div data-testid="shapes" data-dots={String(Boolean(pointToLayer))}>{data.features.length}</div>
+  ),
   useMap: () => ({ fitBounds: () => {}, invalidateSize: () => {} }),
 }));
 vi.mock('../src/components/details/maps/InvalidateOnResize', () => ({
@@ -95,7 +97,9 @@ describe('GeoShapesPreview shapes', () => {
 
     const { container } = render(<GeoShapesPreview path="/a.shp" />);
 
-    expect((await findByTestId(container, 'shapes')).textContent).toBe('1');
+    const shapes = await findByTestId(container, 'shapes');
+    expect(shapes.textContent).toBe('1');
+    expect(shapes.dataset.dots).toBe('true');
     expect(mockGetBytes).toHaveBeenCalledWith('/geoshapes', { path: '/a.shp' }, { label: 'geoshapes' });
   });
 
@@ -124,5 +128,17 @@ describe('isGeoShapesResource', () => {
     for (const path of ['/a.gpkg', '/a.shx', '/a.dbf', '/a.tif', '/a.json', 5, null]) {
       expect(isGeoShapesResource(path)).toBe(false);
     }
+  });
+});
+
+describe('pointToDot', () => {
+  it('draws a point as a small circle, not a pin icon', async () => {
+    const L = (await import('leaflet')).default;
+    const { pointToDot } = await import('../src/components/details/maps/GeoShapesPreview');
+
+    const layer = pointToDot(null, L.latLng(32, 35));
+
+    expect(layer).toBeInstanceOf(L.CircleMarker);
+    expect((layer as L.CircleMarker).getLatLng()).toEqual(L.latLng(32, 35));
   });
 });
