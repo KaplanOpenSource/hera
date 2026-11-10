@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, cleanup, findByTestId, findByText } from '@testing-library/react';
+import { render, cleanup, findByTestId, findByText, fireEvent } from '@testing-library/react';
+import { readFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import type { FeatureCollection } from 'geojson';
 import { serialize } from 'flatgeobuf/geojson';
 import { mockApiCall } from './helpers/mockApiCall';
@@ -18,12 +21,20 @@ vi.mock('../src/components/details/maps/InvalidateOnResize', () => ({
   InvalidateOnResize: () => null,
 }));
 vi.mock('../src/components/details/maps/ClusterLayer', () => ({
-  ClusterLayer: ({ points }: { points: unknown[] }) => <div data-testid="clusters">{points.length}</div>,
+  ClusterLayer: ({ points, hidden }: { points: unknown[], hidden?: boolean }) => (
+    <div data-testid="clusters" data-hidden={String(Boolean(hidden))}>{points.length}</div>
+  ),
+}));
+vi.mock('../src/components/details/maps/ViewShapesLayer', () => ({
+  ViewShapesLayer: ({ limit, onShowing }: { limit: number, onShowing: (showing: boolean) => void }) => (
+    <button data-testid="view-shapes" onClick={() => onShowing(true)}>{limit}</button>
+  ),
 }));
 
 const { GeoShapesPreview, CLUSTER_ABOVE, pointsToCluster } = await import('../src/components/details/maps/GeoShapesPreview');
 const { TILE_URL } = await import('../src/components/details/maps/mapDarkStyles');
 const { useProjectStore } = await import('../src/stores/useProjectStore');
+const { serverApi } = await import('../src/api/api');
 
 const square: FeatureCollection = {
   type: 'FeatureCollection',
@@ -62,7 +73,7 @@ const setDocs = (documents: object[]) => {
 afterEach(() => { cleanup(); });
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.restoreAllMocks();
   mockGetBytes = mockApiCall().getBytes;
   mockGetBytes.mockResolvedValue(squareBytes());
 });
@@ -103,7 +114,7 @@ describe('GeoShapesPreview shapes', () => {
     const shapes = await findByTestId(container, 'shapes');
     expect(shapes.textContent).toBe('1');
     expect(shapes.dataset.dots).toBe('true');
-    expect(mockGetBytes).toHaveBeenCalledWith('/geoshapes', { path: '/a.shp' }, { label: 'geoshapes' });
+    expect(mockGetBytes).toHaveBeenCalledWith('/geoshapes', { path: '/a.shp' }, { label: 'geoshapes', silent: false });
   });
 
   it('says the map is unavailable when the server could not read the file', async () => {
@@ -197,5 +208,58 @@ describe('GeoShapesPreview clusters', () => {
 
     expect((await findByTestId(container, 'shapes')).textContent).toBe('10');
     expect(container.querySelector('[data-testid="clusters"]')).toBeNull();
+  });
+});
+
+describe('GeoShapesPreview dots from a big file', () => {
+  const dotsBytes = () => {
+    const bytes = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'dots.fgb'));
+    return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  };
+
+  it('asks for full shapes on zoom, with the limit from the flag', async () => {
+    setDocs([]);
+    // The fixture is three dots; clusters need more than CLUSTER_ABOVE.
+    vi.spyOn(serverApi, 'geoShapes').mockResolvedValue({
+      shapes: pointsCollection(CLUSTER_ABOVE + 1),
+      dotsLimit: 2,
+    });
+
+    const { container } = render(<GeoShapesPreview path="/big.shp" />);
+
+    expect((await findByTestId(container, 'view-shapes')).textContent).toBe('2');
+  });
+
+  it('hides the clusters while the view shows full shapes', async () => {
+    setDocs([]);
+    vi.spyOn(serverApi, 'geoShapes').mockResolvedValue({
+      shapes: pointsCollection(CLUSTER_ABOVE + 1),
+      dotsLimit: 2,
+    });
+    const { container } = render(<GeoShapesPreview path="/big.shp" />);
+    expect((await findByTestId(container, 'clusters')).dataset.hidden).toBe('false');
+
+    fireEvent.click(await findByTestId(container, 'view-shapes'));
+
+    expect((await findByTestId(container, 'clusters')).dataset.hidden).toBe('true');
+  });
+
+  it('never asks for view shapes when the points are not flagged as dots', async () => {
+    setDocs([]);
+    mockGetBytes.mockResolvedValue(asBuffer(pointsCollection(CLUSTER_ABOVE + 1)));
+
+    const { container } = render(<GeoShapesPreview path="/points.shp" />);
+
+    await findByTestId(container, 'clusters');
+    expect(container.querySelector('[data-testid="view-shapes"]')).toBeNull();
+  });
+
+  it('reads the flag from real server bytes', async () => {
+    setDocs([]);
+    mockGetBytes.mockResolvedValue(dotsBytes());
+
+    const answer = await serverApi.geoShapes('/big.shp');
+
+    expect(answer?.dotsLimit).toBe(2);
   });
 });

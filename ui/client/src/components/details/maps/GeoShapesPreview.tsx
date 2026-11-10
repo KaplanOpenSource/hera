@@ -10,6 +10,7 @@ import { useProjectStore } from '../../../stores/useProjectStore';
 import { ClusterLayer } from './ClusterLayer';
 import { InvalidateOnResize } from './InvalidateOnResize';
 import { pointToDot } from './pointToDot';
+import { ViewShapesLayer } from './ViewShapesLayer';
 import { findConfigDoc } from './projectConfigDoc';
 import { TileServerButton } from './TileServerButton';
 import { darkMapControlsSx, TILE_ATTRIBUTION, TILE_URL } from './mapDarkStyles';
@@ -49,6 +50,8 @@ const pointsBounds = (points: PointFeature<AnyProps>[]): L.LatLngBounds => {
 type MapState = {
   shapes: FeatureCollection | null,
   points: PointFeature<AnyProps>[] | null,
+  // Set when the server sent dots: the most full shapes it sends for one view.
+  dotsLimit: number | null,
   bounds: L.LatLngBounds | null,
   hasError: boolean,
 };
@@ -70,7 +73,8 @@ export const GeoShapesPreview = ({
 }: {
   path: string,
 }) => {
-  const [mapState, setMapState] = useState<MapState>({ shapes: null, points: null, bounds: null, hasError: false });
+  const [mapState, setMapState] = useState<MapState>({ shapes: null, points: null, dotsLimit: null, bounds: null, hasError: false });
+  const [showingViewShapes, setShowingViewShapes] = useState(false);
   const dark = useTheme().palette.mode === 'dark';
   const defaultTileServer = useProjectStore(state => findConfigDoc(state.currProject)?.desc?.defaultTileServer);
   let tileUrl = TILE_URL;
@@ -82,9 +86,11 @@ export const GeoShapesPreview = ({
 
   useEffect(() => {
     (async () => {
-      setMapState({ shapes: null, points: null, bounds: null, hasError: false });
-      const shapes = await serverApi.geoShapes(path);
-      if (shapes) {
+      setMapState({ shapes: null, points: null, dotsLimit: null, bounds: null, hasError: false });
+      setShowingViewShapes(false);
+      const answer = await serverApi.geoShapes(path);
+      if (answer) {
+        const shapes = answer.shapes;
         const points = pointsToCluster(shapes);
         let bounds: L.LatLngBounds;
         if (points) {
@@ -93,11 +99,11 @@ export const GeoShapesPreview = ({
           bounds = L.geoJSON(shapes).getBounds();
         }
         if (bounds.isValid()) {
-          setMapState({ shapes, points, bounds, hasError: false });
+          setMapState({ shapes, points, dotsLimit: answer.dotsLimit, bounds, hasError: false });
           return;
         }
       }
-      setMapState({ shapes: null, points: null, bounds: null, hasError: true });
+      setMapState({ shapes: null, points: null, dotsLimit: null, bounds: null, hasError: true });
     })();
   }, [path]);
 
@@ -121,7 +127,10 @@ export const GeoShapesPreview = ({
           style={{ height: '100%', width: '100%' }}
         >
           <TileLayer url={tileUrl} attribution={tileAttribution} />
-          {mapState.points && <ClusterLayer points={mapState.points} />}
+          {mapState.points && <ClusterLayer points={mapState.points} hidden={showingViewShapes} />}
+          {mapState.points && mapState.dotsLimit !== null && (
+            <ViewShapesLayer path={path} points={mapState.points} limit={mapState.dotsLimit} onShowing={setShowingViewShapes} />
+          )}
           {!mapState.points && <GeoJSONLayer data={mapState.shapes} pointToLayer={pointToDot} />}
           <FitBounds bounds={mapState.bounds} />
           <InvalidateOnResize />

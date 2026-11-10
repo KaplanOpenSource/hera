@@ -30,8 +30,10 @@ const clusterIcon = (count: number, label: string | number): L.DivIcon => {
 // Many points as clusters: only what is in view becomes a Leaflet layer.
 export const ClusterLayer = ({
   points,
+  hidden,
 }: {
   points: PointFeature<AnyProps>[],
+  hidden?: boolean,
 }) => {
   const map = useMap();
   const index = useMemo(() => {
@@ -39,6 +41,10 @@ export const ClusterLayer = ({
   }, [points]);
 
   useEffect(() => {
+    // Hidden keeps the index built, ready for when the clusters come back.
+    if (hidden) {
+      return;
+    }
     const group = L.layerGroup();
     map.addLayer(group);
     const redraw = () => {
@@ -67,7 +73,7 @@ export const ClusterLayer = ({
       map.off('moveend', redraw);
       map.removeLayer(group);
     };
-  }, [map, index]);
+  }, [map, index, hidden]);
 
   return null;
 };

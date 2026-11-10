@@ -97,4 +97,11 @@ describe('ClusterLayer', () => {
     expect(fakeMap.layers).toHaveLength(0);
     expect(fakeMap.handlers).toHaveLength(0);
   });
+
+  it('draws nothing while hidden', () => {
+    render(<ClusterLayer points={pointsAt(10, 35, 32)} hidden />);
+
+    expect(fakeMap.layers).toHaveLength(0);
+    expect(fakeMap.handlers).toHaveLength(0);
+  });
 });

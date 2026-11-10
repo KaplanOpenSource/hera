@@ -6,8 +6,9 @@ import types
 
 import geopandas as gpd
 import pandas as pd
+import pyogrio
 import pytest
-from shapely.geometry import LineString, MultiPolygon, Point, Polygon
+from shapely.geometry import LineString, MultiPolygon, Point, Polygon, box
 
 import dependencies
 import geo_shapes
@@ -164,6 +165,104 @@ def test_dots_from_itm_with_no_crs_are_read_as_itm(tmp_path, monkeypatch):
     expected = source.geometry.centroid.to_crs(epsg=WGS84)
     for got, want in zip(result.geometry, expected):
         assert got.equals_exact(want, TOLERANCE)
+
+
+def _title(data):
+    metadata = pyogrio.read_info(io.BytesIO(data))["layer_metadata"] or {}
+    return metadata.get("TITLE")
+
+
+def _wgs84_bbox(geometry):
+    return tuple(gpd.GeoSeries([geometry], crs=ITM).to_crs(epsg=WGS84).total_bounds)
+
+
+# Three squares 1 km apart, so a bbox can take one or two of them.
+SPREAD = [box(X + i * 1000, Y, X + i * 1000 + 100, Y + 100) for i in range(3)]
+
+
+def test_dots_are_flagged_with_the_limit(tmp_path, monkeypatch):
+    monkeypatch.setattr(geo_shapes, "MAX_SHAPES", 1)
+    path = _write(tmp_path, _frame(SHAPES["polygons"], ITM), "shp")
+
+    assert _title(geo_shapes.read_geo_shapes(path)) == "dots max=1"
+
+
+def test_full_shapes_have_no_flag(tmp_path):
+    path = _write(tmp_path, _frame(SHAPES["polygons"], ITM), "shp")
+
+    assert _title(geo_shapes.read_geo_shapes(path)) is None
+
+
+@pytest.mark.parametrize("extension", EXTENSIONS)
+def test_bbox_sends_exactly_the_full_shapes_in_it(tmp_path, monkeypatch, extension):
+    # A bbox read ignores the limit: the client asks only when the view is small enough.
+    monkeypatch.setattr(geo_shapes, "MAX_SHAPES", 1)
+    source = _frame(SPREAD, ITM)
+    path = _write(tmp_path, source, extension)
+    bbox = _wgs84_bbox(box(X - 50, Y - 50, X + 1150, Y + 150))
+
+    data = geo_shapes.read_geo_shapes(path, bbox)
+
+    assert _title(data) is None
+    _assert_same_shapes(_decode(data), source.iloc[:2].to_crs(epsg=WGS84))
+
+
+def test_bbox_from_wgs84_file(tmp_path):
+    source = _frame(SPREAD, ITM).to_crs(epsg=WGS84)
+    path = _write(tmp_path, source, "fgb")
+    bbox = _wgs84_bbox(box(X + 1950, Y - 50, X + 2150, Y + 150))
+
+    _assert_same_shapes(_decode(geo_shapes.read_geo_shapes(path, bbox)), source.iloc[2:].reset_index(drop=True))
+
+
+def test_bbox_on_itm_with_no_crs(tmp_path):
+    source = _frame(SPREAD, ITM)
+    path = _write(tmp_path, source, "shp")
+    (tmp_path / "shapes.prj").unlink()
+    bbox = _wgs84_bbox(box(X + 950, Y - 50, X + 1150, Y + 150))
+
+    result = _decode(geo_shapes.read_geo_shapes(path, bbox))
+
+    _assert_same_shapes(result, source.iloc[1:2].reset_index(drop=True).to_crs(epsg=WGS84))
+
+
+def test_bbox_on_geojson_metres_read_as_wgs84(tmp_path):
+    source = _frame(SPREAD, ITM)
+    path = tmp_path / "itm.geojson"
+    # Plain GeoJSON with ITM numbers and no CRS, as hera writes them.
+    path.write_text(source.set_crs(epsg=WGS84, allow_override=True).to_json(drop_id=True))
+    bbox = _wgs84_bbox(box(X - 50, Y - 50, X + 150, Y + 150))
+
+    result = _decode(geo_shapes.read_geo_shapes(str(path), bbox))
+
+    _assert_same_shapes(result, source.iloc[:1].to_crs(epsg=WGS84))
+
+
+def test_empty_bbox_sends_no_bytes(tmp_path):
+    path = _write(tmp_path, _frame(SPREAD, ITM), "shp")
+    bbox = _wgs84_bbox(box(X + 5000, Y + 5000, X + 6000, Y + 6000))
+
+    assert geo_shapes.read_geo_shapes(path, bbox) == b""
+
+
+def test_the_route_reads_a_bbox(tmp_path, warmed):
+    source = _frame(SPREAD, ITM)
+    path = _write(tmp_path, source, "shp")
+    minx, miny, maxx, maxy = _wgs84_bbox(box(X - 50, Y - 50, X + 150, Y + 150))
+
+    response = geoshapes.geoshapes(path, f"{minx},{miny},{maxx},{maxy}")
+
+    _assert_same_shapes(_decode(response.body), source.iloc[:1].to_crs(epsg=WGS84))
+
+
+@pytest.mark.parametrize("bbox", ["1,2,3", "1,2,3,x", "3,2,1,4", "1,4,3,2"])
+def test_the_route_refuses_a_bad_bbox(tmp_path, warmed, bbox):
+    path = _write(tmp_path, _frame(SPREAD, ITM), "shp")
+
+    with pytest.raises(HTTPException) as raised:
+        geoshapes.geoshapes(path, bbox)
+
+    assert raised.value.status_code == 400
 
 
 def test_shp_with_no_prj_is_read_as_itm(tmp_path):

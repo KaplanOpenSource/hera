@@ -57,16 +57,25 @@ To see how plain dots look before adding Supercluster.
 ## Phase 1.7: full shapes when zoomed in
 
 - A big file shows dots (phase 1.25). Zoomed in far enough, show full shapes instead.
-- "Far enough" means the view holds at most `MAX_SHAPES_IN_VIEW` dots (a client constant, start at 20,000).
+- One limit for both: `MAX_SHAPES` = 10,000 (was 50,000), on the server only.
+  - First open: at or under it, full shapes; over it, dots.
+  - Zoomed in: the view holds at most that many dots, so ask for full shapes.
+- A flag says the answer is dots, in the FlatGeobuf title: `dots max=10000`. Full shapes have no title.
+  - Checked: GDAL writes it (`TITLE=...`); the `flatgeobuf` package reads it (header `title`).
+  - The client gets the limit from the flag, so it keeps no copy of the number.
 
-1. Client: on zoom / pan, count the dots inside the map view. No server call: the dots are already loaded.
-2. Client: at or under the limit, ask for the full shapes in the view's bbox.
-3. Server: `GET /geoshapes?path=...&bbox=minx,miny,maxx,maxy`, bbox in WGS84; full shapes in the bbox only.
-4. Server: convert the bbox to the file's own CRS before reading (ITM guess as in phase 1).
-5. Client: draw the shapes and hide the dots; over the limit again, back to dots.
-6. Client: drop a reply for an old view if the map moved since.
-7. Measured on Jerusalem: 0.05 s for a tiny bbox, 0.23 s for a 5 km bbox (12,621 shapes). No index needed.
-8. Tests: a bbox read gives exactly the shapes in the bbox; an empty bbox gives none; a stale reply is dropped.
+1. Server: set `MAX_SHAPES` to 10,000; write the dots flag in the title when sending dots.
+2. Client: read the title while decoding; dots only when the flag is there.
+3. Client: on zoom / pan, count the dots inside the map view. No server call: the dots are already loaded.
+4. Client: at or under the limit, ask for the full shapes in the view's bbox.
+5. Server: `GET /geoshapes?path=...&bbox=minx,miny,maxx,maxy`, bbox in WGS84; full shapes in the bbox only, no flag.
+6. Server: no bbox works as before (whole file, or dots over the limit).
+7. Server: convert the bbox to the file's own CRS before reading (ITM guess as in phase 1).
+8. Server: handle a bbox with no shapes. Writing an empty FlatGeobuf to memory fails today.
+9. Client: draw the shapes and hide the clusters; over the limit again, back to clusters.
+10. Client: drop a reply for an old view if the map moved since.
+11. Measured on Jerusalem: 0.05 s for a tiny bbox, 0.23 s for a 5 km bbox (12,621 shapes). No index needed.
+12. Tests: the flag is set for dots and not for shapes; a bbox read gives exactly the shapes in the bbox; an empty bbox gives none; a stale reply is dropped.
 
 ## Phase 2: to plan after phase 1.7
 

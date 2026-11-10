@@ -33,7 +33,7 @@ Each api class also has its own test file, one test per method:
 | Entrypoint | Caller | Unit test? | Integration? | Test file |
 |---|---|:---:|:---:|---|
 | `GET /init` | `ServerApi.init`, `src/io/fetchInit.ts` | yes | no | `serverApi.test.ts`, `fetchInit.test.ts`, `serverReadyGate.test.tsx`, `fetchProjectsAfterInit.test.tsx`, `server/tests/test_init_data.py` |
-| `GET /geoshapes` | `ServerApi.geoShapes`, `GeoShapesPreview` | yes | no | `fetchGeoShapes.test.ts`, `geoShapesPreview.test.tsx`, `server/tests/test_geo_shapes.py` |
+| `GET /geoshapes` | `ServerApi.geoShapes`, `GeoShapesPreview`, `ViewShapesLayer` (bbox) | yes | no | `fetchGeoShapes.test.ts`, `geoShapesPreview.test.tsx`, `viewShapesLayer.test.tsx`, `server/tests/test_geo_shapes.py` |
 | `GET /cors` | `ServerApi.cors`, `CorsIndicator` | yes | no | `serverApi.test.ts`, `server/tests/test_server.py` |
 | `POST /jupyter/ensure` | `ServerApi.ensureJupyter`, `DetailsViewNotebook` | yes | no | `serverApi.test.ts`, `server/tests/test_jupyter.py` |
 | `GET /node-catalog` | `NodeApi.catalog`, `useNodeCatalog` | yes | no | `nodeApi.test.ts`, `useNodeCatalog.test.ts`, `server/tests/test_nodes.py` |
