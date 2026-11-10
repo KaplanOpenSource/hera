@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 // The node renders ReactFlow Handles, which need the ReactFlow store. We only
 // care about the editing UI here, so stub them out.
 vi.mock('@xyflow/react', () => ({
-  Handle: () => null,
+  Handle: ({ id, children }: { id: string, children?: any }) => <span data-handle-id={id}>{children}</span>,
   NodeResizer: () => null,
   Position: { Left: 'left', Right: 'right', Top: 'top', Bottom: 'bottom' },
   useUpdateNodeInternals: () => () => {},
@@ -36,6 +36,7 @@ const catalog: NodeCatalogEntry[] = [
     ],
   },
   { type: 'general.JinjaTransform', parameters: [] },
+  { type: 'general.Out', parameters: [], outputs: [{ name: 'result' }, { name: 'log' }] },
 ];
 
 // The editor only shows while the pointer is on the node, which the canvas
@@ -220,6 +221,31 @@ describe('WorkflowFlowNode', () => {
     expect(screen.getByText('Y')).toBeDefined();
     // No values, so nothing to edit.
     expect(screen.queryByDisplayValue('1')).toBeNull();
+  });
+
+  it('lists every output in the summary, under a divider', () => {
+    renderNode({ type: 'general.Out' }, undefined, false);
+    expect(screen.getByText('result')).toBeDefined();
+    expect(screen.getByText('log')).toBeDefined();
+    expect(document.querySelector('hr')).not.toBeNull();
+  });
+
+  it('gives the small card a line dot per parameter and per output', () => {
+    renderNode({ type: 'general.Out', Execution: { input_parameters: { x: 1 } } }, undefined, false);
+    expect(document.querySelector('[data-handle-id="node1:in:x"]')).not.toBeNull();
+    expect(document.querySelectorAll('[data-handle-id="node1:out:result"]')).toHaveLength(1);
+    expect(document.querySelectorAll('[data-handle-id="node1:out:log"]')).toHaveLength(1);
+  });
+
+  it('keeps each line dot once while the editor is open over the card', () => {
+    renderNode({ type: 'general.Out', Execution: { input_parameters: { x: 1 } } }, undefined, true);
+    expect(document.querySelectorAll('[data-handle-id="node1:in:x"]')).toHaveLength(1);
+    expect(document.querySelectorAll('[data-handle-id="node1:out:result"]')).toHaveLength(1);
+  });
+
+  it('shows no divider when the node has no outputs', () => {
+    renderNode({ type: 'general.JinjaTransform' }, undefined, false);
+    expect(document.querySelector('hr')).toBeNull();
   });
 
   // A pinned node holds its editor in its own box, so the canvas can lay the

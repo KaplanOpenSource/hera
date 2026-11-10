@@ -5,7 +5,7 @@ import { ReactNode, useEffect } from 'react';
 import { WorkflowNode } from '../../shared/types';
 import { normalizeRequires } from '../../shared/workflow';
 import { NodeRunStatus } from './nodeRunStatus';
-import { NodeCatalogEntry, nodeTypeIssue, paramsFieldDef } from './nodeCatalog';
+import { NodeCatalogEntry, nodeOutputNames, nodeTypeIssue, paramsFieldDef } from './nodeCatalog';
 import { nodeInputHandleId, nodeOutputHandleId } from './workflowDataflow';
 import { WorkflowNodeEditor } from './WorkflowNodeEditor';
 import { WorkflowNodeSummary } from './WorkflowNodeSummary';
@@ -196,9 +196,11 @@ export const WorkflowFlowNode = ({ data, selected }: NodeProps) => {
         <WorkflowNodeSummary
           name={name}
           type={node.type}
-          paramNames={Object.keys(params)}
+          params={params}
           paramsDef={paramsDef}
           requires={normalizeRequires(node.requires)}
+          outputs={nodeOutputNames(node, catalog)}
+          withHandles={!expanded}
         />
       )}
       {/* The editor. Laid over the summary card while only hovered, so a passing

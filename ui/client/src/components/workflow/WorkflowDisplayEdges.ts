@@ -1,5 +1,5 @@
 import { Edge, MarkerType } from '@xyflow/react';
-import { nodeInputHandleId, nodeOutputHandleId, WorkflowDataflowEdge } from './workflowDataflow';
+import { nodeInputHandleId, nodeOutputHandleId, topInputHandleId, WorkflowDataflowEdge } from './workflowDataflow';
 
 // Holds the edges ReactFlow draws and builds them up kind by kind. Start with
 // the hovered edge id (the X button shows on that one), add the `requires`
@@ -42,9 +42,9 @@ export class WorkflowDisplayEdges {
   }
 
   // Dataflow edges from parameter values that reference another node's output
-  // drawn source-handle -> input-handle. Only an expanded node shows those
-  // per-row handles, so a line to or from a collapsed node lands on that node's
-  // edge instead - the line stays on the canvas either way.
+  // drawn source-handle -> input-handle. The small card has the same source
+  // dots, but only top-level input rows, so a line into a nested value of a
+  // collapsed node lands on the row of its top-level parameter.
   withDataflow(
     edges: WorkflowDataflowEdge[],
     color: string,
@@ -52,17 +52,12 @@ export class WorkflowDisplayEdges {
     expandedNodes: string[],
   ): WorkflowDisplayEdges {
     const built = edges.map(edge => {
-      let sourceHandle = nodeOutputHandleId(edge.source);
-      if (expandedNodes.includes(edge.source)) {
-        sourceHandle = edge.sourceHandle;
-      }
-      let targetHandle = nodeInputHandleId(edge.target);
+      let targetHandle = topInputHandleId(edge.target, edge.targetHandle);
       if (expandedNodes.includes(edge.target)) {
         targetHandle = edge.targetHandle;
       }
       return {
         ...edge,
-        sourceHandle,
         targetHandle,
         type: 'dataflow',
         markerEnd: { type: MarkerType.ArrowClosed, color },
