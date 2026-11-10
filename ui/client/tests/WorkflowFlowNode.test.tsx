@@ -19,6 +19,11 @@ const nodeBox = (): HTMLElement => {
   return document.querySelector('[data-run-status]') as HTMLElement;
 };
 
+// The box that holds the frame: the open editor when it floats, else the node.
+const frameBox = (): HTMLElement => {
+  return document.querySelector('[data-node-frame]') as HTMLElement;
+};
+
 afterEach(() => cleanup());
 
 const catalog: NodeCatalogEntry[] = [
@@ -116,25 +121,25 @@ describe('WorkflowFlowNode', () => {
   it('has no run outline before the node ran', () => {
     renderNode({ type: 'general.JinjaTransform' });
     expect(nodeBox().dataset.runStatus).toBe(NodeRunStatus.Pending);
-    expect(getComputedStyle(nodeBox()).borderWidth).toBe('1px');
+    expect(getComputedStyle(frameBox()).borderWidth).toBe('1px');
   });
 
   it('outlines a finished node in green', () => {
     renderNode({ type: 'general.JinjaTransform' }, NodeRunStatus.Success);
-    const style = getComputedStyle(nodeBox());
+    const style = getComputedStyle(frameBox());
     expect(style.borderWidth).toBe('10px');
     expect(style.borderColor).toBe('rgb(46, 125, 50)');
   });
 
   it('outlines a failed node in red', () => {
     renderNode({ type: 'general.JinjaTransform' }, NodeRunStatus.Failure);
-    expect(getComputedStyle(nodeBox()).borderColor).toBe('rgb(211, 47, 47)');
+    expect(getComputedStyle(frameBox()).borderColor).toBe('rgb(211, 47, 47)');
   });
 
   // The run outline matters more than the unknown-type warning.
   it('outlines a failed node in red even when its type is unknown', () => {
     renderNode({ type: 'made.up' }, NodeRunStatus.Failure);
-    expect(getComputedStyle(nodeBox()).borderColor).toBe('rgb(211, 47, 47)');
+    expect(getComputedStyle(frameBox()).borderColor).toBe('rgb(211, 47, 47)');
   });
 
   it('gives a running node a moving outline', () => {
@@ -257,7 +262,26 @@ describe('WorkflowFlowNode', () => {
 
   it('keeps its run outline while collapsed', () => {
     renderNode({ type: 'general.JinjaTransform' }, NodeRunStatus.Failure, false);
+    expect(frameBox()).toBe(nodeBox());
     expect(getComputedStyle(nodeBox()).borderColor).toBe('rgb(211, 47, 47)');
+  });
+
+  it('moves the run outline onto the editor when it opens over the canvas', () => {
+    renderNode({ type: 'general.JinjaTransform' }, NodeRunStatus.Failure, true);
+    expect(frameBox()).not.toBe(nodeBox());
+    expect(getComputedStyle(frameBox()).borderColor).toBe('rgb(211, 47, 47)');
+    expect(getComputedStyle(nodeBox()).borderWidth).toBe('1px');
+  });
+
+  it('keeps the run outline on the node when the editor takes its space', () => {
+    renderNode({ type: 'general.JinjaTransform' }, NodeRunStatus.Failure, true, true);
+    expect(frameBox()).toBe(nodeBox());
+    expect(getComputedStyle(nodeBox()).borderColor).toBe('rgb(211, 47, 47)');
+  });
+
+  it('outlines a stopped node in grey, not red', () => {
+    renderNode({ type: 'general.JinjaTransform' }, NodeRunStatus.Stopped);
+    expect(getComputedStyle(frameBox()).borderColor).toBe('rgb(158, 158, 158)');
   });
 
   it('shows a readable parameter name, and the hermes name while editing it', () => {

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import shutil
+from typing import Any, Dict, List
 
 
 class ProjectFiles:
@@ -26,6 +27,20 @@ class ProjectFiles:
             return False
         target = os.path.abspath(path)
         return target == self.directory or target.startswith(self.directory + os.sep)
+
+    def list(self, relPath: str = "") -> List[Dict[str, Any]]:
+        """The files and folders right inside relPath, or none when it is not a folder in here."""
+        if not self.directory or not os.path.isdir(self.directory):
+            return []
+        root = os.path.realpath(self.directory)
+        target = os.path.realpath(os.path.join(root, relPath))
+        if target != root and not target.startswith(root + os.sep):
+            return []
+        if not os.path.isdir(target):
+            return []
+        entries = [{"name": e.name, "isFolder": e.is_dir()} for e in os.scandir(target)]
+        entries.sort(key=lambda e: (not e["isFolder"], e["name"].lower()))
+        return entries
 
     def remove(self, path: str) -> bool:
         """Remove the path if this directory holds it. Answers whether it went."""

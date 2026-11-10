@@ -1,6 +1,6 @@
 # Three tasks
 
-Written 2026-10-19. Status: **proposed**.
+Written 2026-10-19. Status: **done** (task 3 on 2026-10-29).
 
 1. Build the minimal requirements from `requirements.txt`, so no pin is written
    twice.

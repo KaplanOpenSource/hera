@@ -12,6 +12,11 @@ export class ProjectApi extends ApiCall {
     return await this.getJson('/project/documents', { projectName }, { label, silent });
   }
 
+  // path starts at the project's files directory; "" is the directory itself.
+  async files(projectName: string, path: string): Promise<any | null> {
+    return await this.getJson('/project/files', { projectName, path }, { label: 'project files' });
+  }
+
   async toolkits(): Promise<any | null> {
     return await this.getJson('/project/toolkits', {}, { label: 'toolkits' });
   }

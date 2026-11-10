@@ -1,5 +1,5 @@
 import { Box, CircularProgress, Typography } from '@mui/material';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { chunksToText, WorkflowChunk } from '../../../io/runWorkflow';
 import { useLogFilterStore } from '../../../stores/useLogFilterStore';
 import { useWorkflowFocusStore } from '../../../stores/useWorkflowFocusStore';
@@ -22,11 +22,14 @@ export const WorkflowOutputView = ({
   chunks,
   error,
   workflowName,
+  barEnd,
 }: {
   running: boolean,
   chunks?: WorkflowChunk[] | null,
   error: string | null,
   workflowName?: string,
+  // Shown at the right end of the bottom bar.
+  barEnd?: ReactNode,
 }) => {
   const visible = useLogFilterStore((state) => { return state.visible; });
   const toggle = useLogFilterStore((state) => { return state.toggle; });
@@ -150,9 +153,11 @@ export const WorkflowOutputView = ({
           </>
         )}
       </Box>
-      {showLog && (
-        <Box sx={{ display: 'flex', borderTop: 1, borderColor: 'divider', px: 1, py: 0.5 }}>
-          <LogToolbar counts={metrics.counts} visible={visible} onToggle={toggle} fullText={metrics.fullText} />
+      {(showLog || barEnd) && (
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', borderTop: 1, borderColor: 'divider', px: 1, py: 0.5 }}>
+          {showLog && <LogToolbar counts={metrics.counts} visible={visible} onToggle={toggle} fullText={metrics.fullText} />}
+          <Box sx={{ flexGrow: 1 }} />
+          {barEnd}
         </Box>
       )}
     </Box>

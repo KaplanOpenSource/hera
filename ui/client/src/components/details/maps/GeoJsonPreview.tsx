@@ -5,7 +5,10 @@ import L from 'leaflet';
 import type { GeoJSON } from 'geojson';
 import 'leaflet/dist/leaflet.css';
 import { serverApi } from '../../../api/api';
+import { useProjectStore } from '../../../stores/useProjectStore';
 import { InvalidateOnResize } from './InvalidateOnResize';
+import { findConfigDoc } from './projectConfigDoc';
+import { TileServerButton } from './TileServerButton';
 import { darkMapControlsSx, TILE_ATTRIBUTION, TILE_URL } from './mapDarkStyles';
 
 const GEOJSON_EXTENSIONS = /\.(geojson|geo\.json)$/i;
@@ -39,6 +42,13 @@ export const GeoJsonPreview = ({
 }) => {
   const [mapState, setMapState] = useState<MapState>({ geojson: null, bounds: null, hasError: false });
   const dark = useTheme().palette.mode === 'dark';
+  const defaultTileServer = useProjectStore(state => findConfigDoc(state.currProject)?.desc?.defaultTileServer);
+  let tileUrl = TILE_URL;
+  let tileAttribution = TILE_ATTRIBUTION;
+  if (defaultTileServer) {
+    tileUrl = defaultTileServer;
+    tileAttribution = '';
+  }
 
   useEffect(() => {
     (async () => {
@@ -63,13 +73,16 @@ export const GeoJsonPreview = ({
     ) : !mapState.geojson || !mapState.bounds ? (
       <Box sx={centered}><CircularProgress /></Box>
     ) : (
-      <Box sx={{ height: '100%', width: '100%', ...(dark && darkMapControlsSx) }}>
+      <Box sx={{ position: 'relative', height: '100%', width: '100%', ...(dark && darkMapControlsSx) }}>
+        <Box sx={{ position: 'absolute', top: 10, right: 10, zIndex: 1000 }}>
+          <TileServerButton currentUrl={tileUrl} />
+        </Box>
         <MapContainer
           center={[32, 35]}
           zoom={8}
           style={{ height: '100%', width: '100%' }}
         >
-          <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} />
+          <TileLayer url={tileUrl} attribution={tileAttribution} />
           <GeoJSONLayer data={mapState.geojson as any} />
           <FitBounds bounds={mapState.bounds} />
           <InvalidateOnResize />

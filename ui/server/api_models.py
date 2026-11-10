@@ -11,20 +11,6 @@ class JupyterStartPayload(BaseModel):
     dark: bool = False
 
 
-class ExecPayload(BaseModel):
-    code: str
-
-
-class Problem(BaseModel):
-    error: str
-    traceback: str
-
-
-class ExecResponse(BaseModel):
-    data: Any = None
-    problem: Optional[Problem] = None
-
-
 class RunWorkflowPayload(BaseModel):
     projectName: str
     # The whole workflow document (desc.workflow, desc.workflowName, resource, ...).
@@ -47,6 +33,27 @@ class RunWorkflowResponse(BaseModel):
     # Per-task output segments, in run order. Grows live while the run is going;
     # None only before any output (or when the token is unknown).
     chunks: Optional[List[WorkflowChunk]] = None
+
+
+class WorkflowRunSummary(BaseModel):
+    # One saved run as the run list shows it; id names its file in the run history.
+    id: str
+    token: str = ""
+    startTime: str = ""
+    endTime: str = ""
+    status: str = ""
+
+
+class WorkflowRunsResponse(BaseModel):
+    # Newest first.
+    runs: List[WorkflowRunSummary]
+
+
+class WorkflowRunRecord(WorkflowRunSummary):
+    error: str = ""
+    chunks: List[WorkflowChunk] = []
+    # The workflow doc the run used; None for runs saved before docs were kept.
+    doc: Optional[Dict[str, Any]] = None
 
 
 class ValidateNodeParamsPayload(BaseModel):

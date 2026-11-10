@@ -4,13 +4,6 @@ import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-// The dialog also lists the registered repositories, which still uses /exec.
-vi.mock('../src/io/fetchPython', () => ({
-  fetchPython: vi.fn().mockResolvedValue({ data: null }),
-  fetchPythonClean: vi.fn().mockResolvedValue({ data: null }),
-  WARMING_UP: 'WARMING_UP',
-}));
-
 import { mockApiCall } from './helpers/mockApiCall';
 
 const { AddProjectButton } = await import('../src/components/header/AddProjectButton');

@@ -120,6 +120,23 @@ describe('WorkflowRunPoller', () => {
     expect(mockPushInfo).not.toHaveBeenCalled();
   });
 
+  it('writes stopped to the store and keeps the output when the run was stopped', async () => {
+    const chunks = [{ name: '__between__', text: 'before the stop' }];
+    getJson.mockResolvedValueOnce({ status: 'stopped', error: '', chunks });
+
+    render(<WorkflowRunPoller />);
+    await act(async () => {
+      startRun('w', 'tok');
+    });
+
+    await waitFor(() => {
+      expect(runOf('w').status).toBe(WorkflowRunStatus.Stopped);
+      expect(runOf('w').chunks).toEqual(chunks);
+      expect(mockPushInfo).toHaveBeenCalledWith('Workflow "w" stopped');
+    });
+    expect(mockPushError).not.toHaveBeenCalled();
+  });
+
   it('stops on an unknown token and marks the run as error', async () => {
     getJson.mockResolvedValueOnce({ status: 'not_found', error: '', chunks: null });
 

@@ -65,6 +65,17 @@ describe('nodeRunStatuses', () => {
     });
   });
 
+  it('counts a task still running as stopped when the user stopped the run', () => {
+    const chunks = [
+      chunk('ListFiles_0', '[luigi-event] START ListFiles_0\n[luigi-event] SUCCESS ListFiles_0\n'),
+      chunk('Run_0', '[luigi-event] START Run_0\n'),
+    ];
+    expect(nodeRunStatuses({ chunks, nodeNames, runFinished: true, runStopped: true })).toEqual({
+      ListFiles: NodeRunStatus.Success,
+      Run: NodeRunStatus.Stopped,
+    });
+  });
+
   it('ignores lines that are not luigi events', () => {
     const chunks = [chunk('Run_0', 'START Run_0\nINFO: SUCCESS Run_0\n')];
     expect(nodeRunStatuses({ chunks, nodeNames, runFinished: false })).toEqual({});
