@@ -6,6 +6,7 @@ httpx
 argcomplete
 debugpy
 pytest
+jupyterlab
 
 mongoengine
 numpy
