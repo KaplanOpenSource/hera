@@ -1,4 +1,5 @@
 """Reading SRTM .hgt files as GeoTIFF for the preview."""
+from contextlib import contextmanager
 from pathlib import Path
 
 import numpy as np
@@ -33,9 +34,11 @@ def _write(tmp_path, heights, name="N32E035.hgt"):
     return str(path)
 
 
+@contextmanager
 def _open(data):
-    memory = MemoryFile(data)
-    return memory.open()
+    # Keep the MemoryFile alive while reading: it holds the only copy of the bytes.
+    with MemoryFile(data) as memory, memory.open() as tiff:
+        yield tiff
 
 
 def test_heights_are_exact_at_full_detail(tmp_path):
