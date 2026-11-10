@@ -29,18 +29,55 @@
 7. Client: draw with Leaflet's canvas renderer, so many shapes stay usable.
 8. Client: add `.shp` and `.fgb` to the preview file check and to `hasPreview`.
 
-## Phase 2: to plan after phase 1
+## Phase 1.25: dots above a cap, no clusters
 
-Ideas only. Plan the details once phase 1 is done.
+To see how plain dots look before adding Supercluster.
 
-- Each open reads and converts again (about 2 s on the big buildings file).
-- A memory cache of the last few files, so reopen is fast. Must be thread safe.
-- For huge files, read only the map bbox, with a cap on shape count and a "zoom in" message.
+1. Server: read the shape count first (`pyogrio.read_info`, about 2 ms).
+2. Server: over a cap (`MAX_SHAPES`, a constant, start at 50,000), send one dot per shape at its center, no columns.
+3. Server: find the centers in the file's own CRS (ITM), then convert to WGS84.
+4. Server: at or under the cap, send the full shapes, as in phase 1.
+5. Client: draw points as small canvas circles (`circleMarker`), not Leaflet's default pin icons.
+6. Measured on Jerusalem: 0.77 s and 10 MB as dots, against 2.6 s and 59 MB as shapes.
+7. Tests: over the cap gives one dot per shape at the exact center, no columns; at the cap gives full shapes; ITM with no CRS still works.
+
+## Phase 1.4: full shapes when zoomed in
+
+- A big file shows dots (phase 1.25). Zoomed in far enough, show full shapes instead.
+- "Far enough" means the view holds at most `MAX_SHAPES_IN_VIEW` dots (a client constant, start at 20,000).
+
+1. Client: on zoom / pan, count the dots inside the map view. No server call: the dots are already loaded.
+2. Client: at or under the limit, ask for the full shapes in the view's bbox.
+3. Server: `GET /geoshapes?path=...&bbox=minx,miny,maxx,maxy`, bbox in WGS84; full shapes in the bbox only.
+4. Server: convert the bbox to the file's own CRS before reading (ITM guess as in phase 1).
+5. Client: draw the shapes and hide the dots; over the limit again, back to dots.
+6. Client: drop a reply for an old view if the map moved since.
+7. Measured on Jerusalem: 0.05 s for a tiny bbox, 0.23 s for a 5 km bbox (12,621 shapes). No index needed.
+8. Tests: a bbox read gives exactly the shapes in the bbox; an empty bbox gives none; a stale reply is dropped.
+
+## Phase 1.5: dots and clusters for big files (Supercluster)
+
+- Big files are slow as full shapes: 2.6 s and 59 MB for the Jerusalem buildings.
+- As dots (one per shape, no table columns) they take 0.54 s and 10 MB.
+- Leaflet alone may be slow with 157k dots, so merge near dots into clusters with a count.
+
+1. Server: same dots as phase 1.25.
+2. Client: add the `supercluster` package (https://github.com/mapbox/supercluster). Checked: no network code, one small dependency (`kdbush`), ISC license.
+3. Client: when the answer is many points, cluster them with Supercluster; redraw the clusters on zoom / pan.
+4. Client: point files with many points get clusters too, the same way.
+5. Zoomed in under the limit, full shapes as in phase 1.4.
+
+## Phase 2: to plan after phase 1.5
+
+Ideas only. Plan the details once phase 1.5 is done.
+
+- No cache needed for `.shp`: bbox reads are fast (phase 1.4).
+- `.geojson` has no per-shape boxes, so a bbox read parses the whole file. Not timed yet.
 
 ## Future: `.gpkg` and similar files
 
 - `.gpkg` (GeoPackage) and similar formats can be many GB, so never read or convert them whole.
-- Most have their own spatial index, so a map bbox read (phase 2) is fast.
+- Most have their own spatial index, so a map bbox read (phase 1.4) is fast.
 - Needed: add the extension to the preview file check and `hasPreview`, plus a test.
 - A `.gpkg` can hold several layers. Pick one (first by default) or let the user choose.
 
