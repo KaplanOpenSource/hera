@@ -5,10 +5,11 @@ const { serverApi } = await import('../src/api/api');
 
 let getJson: ReturnType<typeof vi.fn>;
 let postJson: ReturnType<typeof vi.fn>;
+let getBytes: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  ({ getJson, postJson } = mockApiCall());
+  ({ getJson, postJson, getBytes } = mockApiCall());
 });
 
 describe('serverApi.init', () => {
@@ -62,5 +63,21 @@ describe('serverApi.ensureJupyter', () => {
     postJson.mockResolvedValueOnce(null);
 
     expect(await serverApi.ensureJupyter('/data', false)).toBeNull();
+  });
+});
+
+describe('serverApi.hgt', () => {
+  it('asks /hgt for the file and returns its GeoTIFF bytes', async () => {
+    const bytes = new ArrayBuffer(4);
+    getBytes.mockResolvedValueOnce(bytes);
+
+    expect(await serverApi.hgt('/data/N33E035.hgt')).toBe(bytes);
+    expect(getBytes).toHaveBeenCalledWith('/hgt', { path: '/data/N33E035.hgt' }, { label: 'hgt' });
+  });
+
+  it('returns null when the call failed', async () => {
+    getBytes.mockResolvedValueOnce(null);
+
+    expect(await serverApi.hgt('/missing.hgt')).toBeNull();
   });
 });

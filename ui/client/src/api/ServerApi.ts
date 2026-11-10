@@ -37,7 +37,7 @@ export type GeoShapesAnswer = {
 // The FlatGeobuf title the server writes on dots, see geo_shapes.dots_title.
 const DOTS_TITLE = /^dots max=(\d+)$/;
 
-// Every call to /init, /cors, /jupyter/ensure and /geoshapes. Each method
+// Every call to /init, /cors, /jupyter/ensure, /geoshapes and /hgt. Each method
 // answers data, or null when the call failed.
 export class ServerApi extends ApiCall {
   // Everything the UI needs to start. Not ready yet carries no data.
@@ -78,6 +78,11 @@ export class ServerApi extends ApiCall {
       features.push(feature as Feature);
     }
     return { shapes: { type: 'FeatureCollection', features }, dotsLimit };
+  }
+
+  // An SRTM .hgt file from the server's disk, as GeoTIFF bytes.
+  async hgt(path: string): Promise<ArrayBuffer | null> {
+    return await this.getBytes('/hgt', { path }, { label: 'hgt' });
   }
 
   // The origins the server's CORS setup allows, for the header indicator.

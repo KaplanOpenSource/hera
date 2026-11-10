@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 
 from args_settings import ArgsSettings, parse_args_settings, set_args_settings
 from dependencies import warmup
-from routers import (cors_info, documents, files, geoshapes, health, jupyter, nodes,
+from routers import (cors_info, documents, files, geoshapes, health, hgt, jupyter, nodes,
                      projects, repositories, startup, workflow)
 from server_address import find_available_port, print_ui_urls
 
@@ -67,6 +67,7 @@ def create_app(settings: ArgsSettings) -> FastAPI:
     app.include_router(jupyter.router)
     app.include_router(nodes.router)
     app.include_router(geoshapes.router)
+    app.include_router(hgt.router)
     app.include_router(projects.router)
     app.include_router(documents.router)
     app.include_router(repositories.router)
