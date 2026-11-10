@@ -14,18 +14,14 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-      - name: Checkout hera
-        uses: actions/checkout@v4
-
       # Source checkouts, not services: the unit layer stays hermetic.  With
       # them on PYTHONPATH below, the classes that hera subclasses at import
       # time are the real ones rather than the placeholders in
       # hera/tests/unit/_stubs.py, which yield to a real install.
-      - name: Checkout hermes (internal dependency)
+      - name: Checkout hera
         uses: actions/checkout@v6
         with:
-          repository: KaplanOpenSource/hermes
-          path: _vendor/hermes
+          submodules: true
 
       - name: Checkout pyargos (internal dependency — provides the `argos` package)
         uses: actions/checkout@v6
@@ -62,7 +58,7 @@ jobs:
         env:
           MPLBACKEND: Agg
           JUPYTER_PLATFORM_DIRS: "1"
-          PYTHONPATH: ${{ github.workspace }}/_vendor/hermes:${{ github.workspace }}/_vendor/pyargos
+          PYTHONPATH: ${{ github.workspace }}/Hermes:${{ github.workspace }}/_vendor/pyargos
           # A distinct filename, so the integration job can merge the two
           # halves without a collision.  pytest-cov folds its own parallel
           # fragments into this file at the end of the run, which is why there
@@ -117,13 +113,8 @@ jobs:
     steps:
       - name: Checkout hera
         uses: actions/checkout@v6
-
-      - name: Checkout hermes (internal dependency)
-        uses: actions/checkout@v6
         with:
-          repository: KaplanOpenSource/hermes
-          path: _vendor/hermes
-          # token: ${{ secrets.INTERNAL_REPO_PAT }}   # uncomment if private
+          submodules: true
 
       - name: Checkout pyargos (internal dependency — provides the `argos` package)
         uses: actions/checkout@v6
@@ -219,7 +210,7 @@ jobs:
         run: pytest hera/tests/ -v -m "not notebook" --ignore=hera/tests/unit --cov=hera --cov-report=
         env:
           MPLBACKEND: Agg
-          PYTHONPATH: ${{ github.workspace }}/_vendor/hermes:${{ github.workspace }}/_vendor/pyargos
+          PYTHONPATH: ${{ github.workspace }}/Hermes:${{ github.workspace }}/_vendor/pyargos
           COVERAGE_FILE: .coverage.integration
 
       - name: Download unit coverage
@@ -279,15 +270,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # node_params looks for the node directories in <repo>/Hermes.
       - name: Checkout hera
         uses: actions/checkout@v6
-
-      # node_params looks for the node directories in <repo>/Hermes.
-      - name: Checkout hermes (internal dependency)
-        uses: actions/checkout@v6
         with:
-          repository: KaplanOpenSource/hermes
-          path: Hermes
+          submodules: true
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v7
@@ -331,12 +318,8 @@ jobs:
     steps:
       - name: Checkout hera
         uses: actions/checkout@v6
-
-      - name: Checkout hermes (internal dependency)
-        uses: actions/checkout@v6
         with:
-          repository: KaplanOpenSource/hermes
-          path: _vendor/hermes
+          submodules: true
 
       - name: Checkout pyargos (internal dependency — provides the `argos` package)
         uses: actions/checkout@v6
@@ -377,4 +360,4 @@ jobs:
         run: npx vitest run tests/integration -c vitest.integ.config.ts --no-file-parallelism --retry 1
         working-directory: ui/client
         env:
-          PYTHONPATH: ${{ github.workspace }}/_vendor/hermes:${{ github.workspace }}/_vendor/pyargos
+          PYTHONPATH: ${{ github.workspace }}/Hermes:${{ github.workspace }}/_vendor/pyargos
