@@ -34,7 +34,7 @@ One class per route group, one file per class:
 | `RepositoryApi` | `/repository/*` |
 | `WorkflowApi` | `/start_workflow`, `/workflow_status/{token}` |
 | `NodeApi` | `/node-catalog`, `/node-params/validate` |
-| `ServerApi` | `/init`, `/geojson`, `/cors`, `/jupyter/ensure` |
+| `ServerApi` | `/init`, `/geoshapes`, `/cors`, `/jupyter/ensure` |
 
 `api.ts` builds one instance of each. Always import from there:
 

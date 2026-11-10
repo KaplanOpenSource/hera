@@ -37,6 +37,7 @@
     "@mui/x-tree-view": "^8.12.0",
     "@types/leaflet": "^1.9.21",
     "@xyflow/react": "^12.11.0",
+    "flatgeobuf": "^4.6.1",
     "flexlayout-react": "^0.9.1",
     "geotiff": "^3.0.5",
     "leaflet": "^1.9.4",
@@ -46,6 +47,7 @@
     "react-leaflet": "^4.2.1",
     "react-resizable-panels": "^4.7.0",
     "react-router-dom": "^7.13.1",
+    "supercluster": "^9.1.0",
     "zustand": "^5.0.8"
   }
 }
