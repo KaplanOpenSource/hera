@@ -47,6 +47,7 @@
     "react-leaflet": "^4.2.1",
     "react-resizable-panels": "^4.7.0",
     "react-router-dom": "^7.13.1",
+    "supercluster": "^9.1.0",
     "zustand": "^5.0.8"
   }
 }

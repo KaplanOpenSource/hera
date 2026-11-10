@@ -3,10 +3,13 @@ import { Box, CircularProgress, Typography, useTheme } from '@mui/material';
 import { GeoJSON as GeoJSONLayer, MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import type { FeatureCollection } from 'geojson';
+import type { AnyProps, PointFeature } from 'supercluster';
 import 'leaflet/dist/leaflet.css';
 import { serverApi } from '../../../api/api';
 import { useProjectStore } from '../../../stores/useProjectStore';
+import { ClusterLayer } from './ClusterLayer';
 import { InvalidateOnResize } from './InvalidateOnResize';
+import { pointToDot } from './pointToDot';
 import { findConfigDoc } from './projectConfigDoc';
 import { TileServerButton } from './TileServerButton';
 import { darkMapControlsSx, TILE_ATTRIBUTION, TILE_URL } from './mapDarkStyles';
@@ -17,15 +20,35 @@ export const isGeoShapesResource = (resource: unknown): resource is string => {
   return typeof resource === 'string' && GEO_SHAPES_EXTENSIONS.test(resource);
 };
 
-const DOT_RADIUS = 3;
+// Above this many points, draw clusters instead of one layer per point.
+export const CLUSTER_ABOVE = 1000;
 
-// Small canvas circles, not Leaflet's pin icons, so many points stay usable.
-export const pointToDot = (_feature: unknown, latlng: L.LatLng): L.Layer => {
-  return L.circleMarker(latlng, { radius: DOT_RADIUS });
+// The points to cluster: only when every shape is a point and there are many.
+export const pointsToCluster = (shapes: FeatureCollection): PointFeature<AnyProps>[] | null => {
+  if (shapes.features.length <= CLUSTER_ABOVE) {
+    return null;
+  }
+  for (const feature of shapes.features) {
+    if (feature.geometry?.type !== 'Point') {
+      return null;
+    }
+  }
+  return shapes.features as PointFeature<AnyProps>[];
+};
+
+// Straight from the coordinates; L.geoJSON would build a layer per point.
+const pointsBounds = (points: PointFeature<AnyProps>[]): L.LatLngBounds => {
+  const bounds = L.latLngBounds([]);
+  for (const point of points) {
+    const [lng, lat] = point.geometry.coordinates;
+    bounds.extend([lat, lng]);
+  }
+  return bounds;
 };
 
 type MapState = {
   shapes: FeatureCollection | null,
+  points: PointFeature<AnyProps>[] | null,
   bounds: L.LatLngBounds | null,
   hasError: boolean,
 };
@@ -47,7 +70,7 @@ export const GeoShapesPreview = ({
 }: {
   path: string,
 }) => {
-  const [mapState, setMapState] = useState<MapState>({ shapes: null, bounds: null, hasError: false });
+  const [mapState, setMapState] = useState<MapState>({ shapes: null, points: null, bounds: null, hasError: false });
   const dark = useTheme().palette.mode === 'dark';
   const defaultTileServer = useProjectStore(state => findConfigDoc(state.currProject)?.desc?.defaultTileServer);
   let tileUrl = TILE_URL;
@@ -59,16 +82,22 @@ export const GeoShapesPreview = ({
 
   useEffect(() => {
     (async () => {
-      setMapState({ shapes: null, bounds: null, hasError: false });
+      setMapState({ shapes: null, points: null, bounds: null, hasError: false });
       const shapes = await serverApi.geoShapes(path);
       if (shapes) {
-        const bounds = L.geoJSON(shapes).getBounds();
+        const points = pointsToCluster(shapes);
+        let bounds: L.LatLngBounds;
+        if (points) {
+          bounds = pointsBounds(points);
+        } else {
+          bounds = L.geoJSON(shapes).getBounds();
+        }
         if (bounds.isValid()) {
-          setMapState({ shapes, bounds, hasError: false });
+          setMapState({ shapes, points, bounds, hasError: false });
           return;
         }
       }
-      setMapState({ shapes: null, bounds: null, hasError: true });
+      setMapState({ shapes: null, points: null, bounds: null, hasError: true });
     })();
   }, [path]);
 
@@ -92,7 +121,8 @@ export const GeoShapesPreview = ({
           style={{ height: '100%', width: '100%' }}
         >
           <TileLayer url={tileUrl} attribution={tileAttribution} />
-          <GeoJSONLayer data={mapState.shapes} pointToLayer={pointToDot} />
+          {mapState.points && <ClusterLayer points={mapState.points} />}
+          {!mapState.points && <GeoJSONLayer data={mapState.shapes} pointToLayer={pointToDot} />}
           <FitBounds bounds={mapState.bounds} />
           <InvalidateOnResize />
         </MapContainer>

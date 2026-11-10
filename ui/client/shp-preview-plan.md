@@ -41,7 +41,20 @@ To see how plain dots look before adding Supercluster.
 6. Measured on Jerusalem: 0.77 s and 10 MB as dots, against 2.6 s and 59 MB as shapes.
 7. Tests: over the cap gives one dot per shape at the exact center, no columns; at the cap gives full shapes; ITM with no CRS still works.
 
-## Phase 1.4: full shapes when zoomed in
+## Phase 1.4: dots and clusters for big files (Supercluster, client only)
+
+- Big files are slow as full shapes: 2.6 s and 59 MB for the Jerusalem buildings.
+- As dots (one per shape, no table columns) they take 0.54 s and 10 MB.
+- Leaflet alone may be slow with 157k dots, so merge near dots into clusters with a count.
+- Seen: the browser hangs when switching from Jerusalem (157k dots as Leaflet layers) to a lambda geojson. Clusters should fix it; not confirmed.
+
+1. Server: no change. It already sends dots (phase 1.25).
+2. Client: add the `supercluster` package (https://github.com/mapbox/supercluster). Checked: no network code, one small dependency (`kdbush`), ISC license.
+3. Client: when the answer is many points, cluster them with Supercluster; redraw the clusters on zoom / pan.
+4. Client: point files with many points get clusters too, the same way.
+5. Zoomed in, clusters split into single dots. Full shapes come in phase 1.7.
+
+## Phase 1.7: full shapes when zoomed in
 
 - A big file shows dots (phase 1.25). Zoomed in far enough, show full shapes instead.
 - "Far enough" means the view holds at most `MAX_SHAPES_IN_VIEW` dots (a client constant, start at 20,000).
@@ -55,29 +68,17 @@ To see how plain dots look before adding Supercluster.
 7. Measured on Jerusalem: 0.05 s for a tiny bbox, 0.23 s for a 5 km bbox (12,621 shapes). No index needed.
 8. Tests: a bbox read gives exactly the shapes in the bbox; an empty bbox gives none; a stale reply is dropped.
 
-## Phase 1.5: dots and clusters for big files (Supercluster)
+## Phase 2: to plan after phase 1.7
 
-- Big files are slow as full shapes: 2.6 s and 59 MB for the Jerusalem buildings.
-- As dots (one per shape, no table columns) they take 0.54 s and 10 MB.
-- Leaflet alone may be slow with 157k dots, so merge near dots into clusters with a count.
+Ideas only. Plan the details once phase 1.7 is done.
 
-1. Server: same dots as phase 1.25.
-2. Client: add the `supercluster` package (https://github.com/mapbox/supercluster). Checked: no network code, one small dependency (`kdbush`), ISC license.
-3. Client: when the answer is many points, cluster them with Supercluster; redraw the clusters on zoom / pan.
-4. Client: point files with many points get clusters too, the same way.
-5. Zoomed in under the limit, full shapes as in phase 1.4.
-
-## Phase 2: to plan after phase 1.5
-
-Ideas only. Plan the details once phase 1.5 is done.
-
-- No cache needed for `.shp`: bbox reads are fast (phase 1.4).
+- No cache needed for `.shp`: bbox reads are fast (phase 1.7).
 - `.geojson` has no per-shape boxes, so a bbox read parses the whole file. Not timed yet.
 
 ## Future: `.gpkg` and similar files
 
 - `.gpkg` (GeoPackage) and similar formats can be many GB, so never read or convert them whole.
-- Most have their own spatial index, so a map bbox read (phase 1.4) is fast.
+- Most have their own spatial index, so a map bbox read (phase 1.7) is fast.
 - Needed: add the extension to the preview file check and `hasPreview`, plus a test.
 - A `.gpkg` can hold several layers. Pick one (first by default) or let the user choose.
 

@@ -17,8 +17,11 @@ vi.mock('react-leaflet', () => ({
 vi.mock('../src/components/details/maps/InvalidateOnResize', () => ({
   InvalidateOnResize: () => null,
 }));
+vi.mock('../src/components/details/maps/ClusterLayer', () => ({
+  ClusterLayer: ({ points }: { points: unknown[] }) => <div data-testid="clusters">{points.length}</div>,
+}));
 
-const { GeoShapesPreview } = await import('../src/components/details/maps/GeoShapesPreview');
+const { GeoShapesPreview, CLUSTER_ABOVE, pointsToCluster } = await import('../src/components/details/maps/GeoShapesPreview');
 const { TILE_URL } = await import('../src/components/details/maps/mapDarkStyles');
 const { useProjectStore } = await import('../src/stores/useProjectStore');
 
@@ -134,11 +137,65 @@ describe('isGeoShapesResource', () => {
 describe('pointToDot', () => {
   it('draws a point as a small circle, not a pin icon', async () => {
     const L = (await import('leaflet')).default;
-    const { pointToDot } = await import('../src/components/details/maps/GeoShapesPreview');
+    const { pointToDot } = await import('../src/components/details/maps/pointToDot');
 
     const layer = pointToDot(null, L.latLng(32, 35));
 
     expect(layer).toBeInstanceOf(L.CircleMarker);
     expect((layer as L.CircleMarker).getLatLng()).toEqual(L.latLng(32, 35));
+  });
+});
+
+const pointsCollection = (count: number): FeatureCollection => {
+  const features: FeatureCollection['features'] = [];
+  for (let i = 0; i < count; i++) {
+    features.push({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [35 + i * 1e-5, 32] } });
+  }
+  return { type: 'FeatureCollection', features };
+};
+
+const asBuffer = (shapes: FeatureCollection) => {
+  const bytes = serialize(shapes, 4326);
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+};
+
+describe('pointsToCluster', () => {
+  it('clusters many points', () => {
+    const shapes = pointsCollection(CLUSTER_ABOVE + 1);
+
+    expect(pointsToCluster(shapes)).toHaveLength(CLUSTER_ABOVE + 1);
+  });
+
+  it('does not cluster a few points', () => {
+    expect(pointsToCluster(pointsCollection(CLUSTER_ABOVE))).toBeNull();
+  });
+
+  it('does not cluster when any shape is not a point', () => {
+    const shapes = pointsCollection(CLUSTER_ABOVE + 1);
+    shapes.features.push(square.features[0]);
+
+    expect(pointsToCluster(shapes)).toBeNull();
+  });
+});
+
+describe('GeoShapesPreview clusters', () => {
+  it('draws many points as clusters, not as one layer per point', async () => {
+    setDocs([]);
+    mockGetBytes.mockResolvedValue(asBuffer(pointsCollection(CLUSTER_ABOVE + 1)));
+
+    const { container } = render(<GeoShapesPreview path="/big.shp" />);
+
+    expect((await findByTestId(container, 'clusters')).textContent).toBe(String(CLUSTER_ABOVE + 1));
+    expect(container.querySelector('[data-testid="shapes"]')).toBeNull();
+  });
+
+  it('draws a few points one by one', async () => {
+    setDocs([]);
+    mockGetBytes.mockResolvedValue(asBuffer(pointsCollection(10)));
+
+    const { container } = render(<GeoShapesPreview path="/small.shp" />);
+
+    expect((await findByTestId(container, 'shapes')).textContent).toBe('10');
+    expect(container.querySelector('[data-testid="clusters"]')).toBeNull();
   });
 });
