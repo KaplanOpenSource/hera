@@ -1,4 +1,5 @@
-import type { GeoJSON } from 'geojson';
+import type { Feature, FeatureCollection } from 'geojson';
+import { deserialize } from 'flatgeobuf/geojson';
 import { ProjectEntire, ProjectName } from '@shared/types';
 import { ApiCall } from './ApiCall';
 
@@ -22,7 +23,7 @@ export type JupyterEnsureAnswer = {
   port: number,
 };
 
-// Every call to /init, /cors, /jupyter/ensure and /geojson. Each method
+// Every call to /init, /cors, /jupyter/ensure and /geoshapes. Each method
 // answers data, or null when the call failed.
 export class ServerApi extends ApiCall {
   // Everything the UI needs to start. Not ready yet carries no data.
@@ -34,9 +35,17 @@ export class ServerApi extends ApiCall {
     return await this.getJson('/init', params, { label: 'init' });
   }
 
-  // A GeoJSON file from the server's disk, converted to WGS84.
-  async geoJson(path: string): Promise<GeoJSON | null> {
-    return await this.getJson('/geojson', { path }, { label: 'geojson' });
+  // A shapes file (.shp, .geojson, .fgb) from the server's disk, in WGS84.
+  async geoShapes(path: string): Promise<FeatureCollection | null> {
+    const bytes = await this.getBytes('/geoshapes', { path }, { label: 'geoshapes' });
+    if (!bytes) {
+      return null;
+    }
+    const features: Feature[] = [];
+    for await (const feature of deserialize(new Uint8Array(bytes))) {
+      features.push(feature as Feature);
+    }
+    return { type: 'FeatureCollection', features };
   }
 
   // The origins the server's CORS setup allows, for the header indicator.

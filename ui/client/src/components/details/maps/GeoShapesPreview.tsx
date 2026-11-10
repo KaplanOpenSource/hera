@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Box, CircularProgress, Typography, useTheme } from '@mui/material';
 import { GeoJSON as GeoJSONLayer, MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import type { GeoJSON } from 'geojson';
+import type { FeatureCollection } from 'geojson';
 import 'leaflet/dist/leaflet.css';
 import { serverApi } from '../../../api/api';
 import { useProjectStore } from '../../../stores/useProjectStore';
@@ -11,14 +11,14 @@ import { findConfigDoc } from './projectConfigDoc';
 import { TileServerButton } from './TileServerButton';
 import { darkMapControlsSx, TILE_ATTRIBUTION, TILE_URL } from './mapDarkStyles';
 
-const GEOJSON_EXTENSIONS = /\.(geojson|geo\.json)$/i;
+const GEO_SHAPES_EXTENSIONS = /\.(geojson|geo\.json|shp|fgb)$/i;
 
-export const isGeoJsonResource = (resource: unknown): resource is string => {
-  return typeof resource === 'string' && GEOJSON_EXTENSIONS.test(resource);
+export const isGeoShapesResource = (resource: unknown): resource is string => {
+  return typeof resource === 'string' && GEO_SHAPES_EXTENSIONS.test(resource);
 };
 
 type MapState = {
-  geojson: GeoJSON | null,
+  shapes: FeatureCollection | null,
   bounds: L.LatLngBounds | null,
   hasError: boolean,
 };
@@ -35,12 +35,12 @@ const FitBounds = ({
   return null;
 };
 
-export const GeoJsonPreview = ({
+export const GeoShapesPreview = ({
   path,
 }: {
   path: string,
 }) => {
-  const [mapState, setMapState] = useState<MapState>({ geojson: null, bounds: null, hasError: false });
+  const [mapState, setMapState] = useState<MapState>({ shapes: null, bounds: null, hasError: false });
   const dark = useTheme().palette.mode === 'dark';
   const defaultTileServer = useProjectStore(state => findConfigDoc(state.currProject)?.desc?.defaultTileServer);
   let tileUrl = TILE_URL;
@@ -52,16 +52,16 @@ export const GeoJsonPreview = ({
 
   useEffect(() => {
     (async () => {
-      setMapState({ geojson: null, bounds: null, hasError: false });
-      const geojson = await serverApi.geoJson(path);
-      if (geojson) {
-        const bounds = L.geoJSON(geojson as any).getBounds();
+      setMapState({ shapes: null, bounds: null, hasError: false });
+      const shapes = await serverApi.geoShapes(path);
+      if (shapes) {
+        const bounds = L.geoJSON(shapes).getBounds();
         if (bounds.isValid()) {
-          setMapState({ geojson, bounds, hasError: false });
+          setMapState({ shapes, bounds, hasError: false });
           return;
         }
       }
-      setMapState({ geojson: null, bounds: null, hasError: true });
+      setMapState({ shapes: null, bounds: null, hasError: true });
     })();
   }, [path]);
 
@@ -70,20 +70,22 @@ export const GeoJsonPreview = ({
   return (
     mapState.hasError ? (
       <Box sx={centered}><Typography color="text.secondary">Map unavailable</Typography></Box>
-    ) : !mapState.geojson || !mapState.bounds ? (
+    ) : !mapState.shapes || !mapState.bounds ? (
       <Box sx={centered}><CircularProgress /></Box>
     ) : (
       <Box sx={{ position: 'relative', height: '100%', width: '100%', ...(dark && darkMapControlsSx) }}>
         <Box sx={{ position: 'absolute', top: 10, right: 10, zIndex: 1000 }}>
           <TileServerButton currentUrl={tileUrl} />
         </Box>
+        {/* Canvas, not SVG, so many shapes stay usable. */}
         <MapContainer
           center={[32, 35]}
           zoom={8}
+          preferCanvas
           style={{ height: '100%', width: '100%' }}
         >
           <TileLayer url={tileUrl} attribution={tileAttribution} />
-          <GeoJSONLayer data={mapState.geojson as any} />
+          <GeoJSONLayer data={mapState.shapes} />
           <FitBounds bounds={mapState.bounds} />
           <InvalidateOnResize />
         </MapContainer>

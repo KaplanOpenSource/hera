@@ -15,9 +15,9 @@ vi.mock('../src/components/details/ImagePreview', () => ({
   isImageResource: (r: unknown) => typeof r === 'string' && r.endsWith('.png'),
   ImagePreview: ({ path }: { path: string }) => <div data-testid="image">{path}</div>,
 }));
-vi.mock('../src/components/details/maps/GeoJsonPreview', () => ({
-  isGeoJsonResource: () => false,
-  GeoJsonPreview: () => null,
+vi.mock('../src/components/details/maps/GeoShapesPreview', () => ({
+  isGeoShapesResource: () => false,
+  GeoShapesPreview: () => null,
 }));
 vi.mock('../src/components/details/maps/TileMapView', () => ({
   isTileUrl: () => false,
