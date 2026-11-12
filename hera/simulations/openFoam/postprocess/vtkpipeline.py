@@ -550,7 +550,8 @@ class RegisteredVTKPipeLine:
         if regularMesh is not None:
             qry['simulation']['regularMesh'] = regularMesh
 
-        qry['filter_name'] = filter_name
+        # The DB key stays camelCase: OFToolkit queries it and existing cache documents carry it.
+        qry['filterName'] = filter_name
         return qry
 
     def _buildFilterLayer(self, fatherName, father, structureJson):
@@ -861,7 +862,8 @@ class vtkFilter_DescriptiveStatistics(VTKFilter):
 
     def setVariablesOfInterest(self, variables=[]):
         """Set the list of variables to compute statistics for."""
-        self.set_param("VariablesOfInterest", variables)
+        # ParaView spells the DescriptiveStatistics property with a lower-case "of".
+        self.set_param("VariablesofInterest", variables)
 
 
 class vtkFilter_IntegrateVariables(VTKFilter):
