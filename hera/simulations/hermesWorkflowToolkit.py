@@ -405,11 +405,7 @@ class hermesWorkflowToolkit(abstractToolkit):
                         try:
                             jsn = loadJSON(nameOrWorkflowFileOrJSONOrResource)
                             wf = self.getHermesWorkflowFromJSON(jsn, resource=nameOrWorkflowFileOrJSONOrResource)
-                            # Flatten the workflow parameters to MongoDB query format
-                            # using dictToMongoQuery with "parameters" prefix.
-                            currentQuery = dictToMongoQuery(wf.parametersJSON, prefix="parameters")
-                            currentQuery.update(mongo_crit)
-                            docList = retrieve_func(type=self.DOCTYPE_WORKFLOW, **currentQuery)
+                            docList = self._get_workflow_documents_by_parameters(retrieve_func, wf.parametersJSON, **mongo_crit)
                         except ValueError as e:
 
                             # logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a file.")
@@ -457,9 +453,7 @@ class hermesWorkflowToolkit(abstractToolkit):
                 qryDict = wrkflw.parametersJSON
 
             logger.debug(f"Searching for {qryDict} using parameters")
-            currentQuery = dictToMongoQuery(qryDict, prefix="parameters")
-            currentQuery.update(mongo_crit)
-            docList = retrieve_func(**currentQuery, type=self.DOCTYPE_WORKFLOW)
+            docList = self._get_workflow_documents_by_parameters(retrieve_func, qryDict, **mongo_crit)
         else:
             docList = []
 
@@ -704,9 +698,7 @@ class hermesWorkflowToolkit(abstractToolkit):
             workflowName = self.getworkFlowName(groupName, groupID)
             resource = os.path.abspath(resource) if resource else (os.path.join(self.FilesDirectory, workflowName) + ".json")
             hermesWF = hermes.workflow(workflowData, Resource_path=resource)
-            # Store the full workflow JSON + extracted parameters in the document.
-            # The parameters are stored separately to enable efficient querying
-            # via dictToMongoQuery without parsing the full workflow tree.
+            # Store the full workflow JSON; its parameters are rebuilt from it on demand.
             doc = self.addSimulationsDocument(resource=resource,
                                               dataFormat=datatypes.STRING,
                                               type=self.DOCTYPE_WORKFLOW,
@@ -989,6 +981,16 @@ class hermesWorkflowToolkit(abstractToolkit):
 
 
 
+
+    def _get_workflow_documents_by_parameters(self, retrieve_func, parameters, **mongo_crit):
+        """The workflow documents whose parameters equal ``parameters``.
+
+        The documents no longer store their parameters (7731cab0), so they are
+        rebuilt from each document's workflow JSON and compared here.
+        """
+        # Scans every workflow document of this kind. If that gets slow, store a hash of the parameters in desc.
+        return [doc for doc in retrieve_func(type=self.DOCTYPE_WORKFLOW, **mongo_crit)
+                if self.getParamsFromDoc(doc) == parameters]
 
     def getParamsFromDoc(self, doc):
         """Retrieve parameters from a workflow document by extrapolating them from the JSON."""
