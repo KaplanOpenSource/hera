@@ -13,6 +13,12 @@ export type CallOptions = {
 
 export type QueryParams = { [key: string]: string };
 
+// What a successful answer carries, and so how to read it.
+enum AnswerKind {
+  Json = 'application/json',
+  Bytes = 'application/octet-stream',
+}
+
 const shorten = (text: string) => {
   if (text.length <= SHORT_ERROR_MAX) {
     return text;
@@ -36,9 +42,9 @@ export class ApiCall {
     }
   }
 
-  // One call to a named server entrypoint. Returns its JSON answer, or null
-  // when the call failed.
-  private async call(path: string, init: RequestInit, options: CallOptions): Promise<any | null> {
+  // One call to a named server entrypoint. Returns its answer, or null when
+  // the call failed. Errors always come back as JSON.
+  private async call(path: string, init: RequestInit, options: CallOptions, kind = AnswerKind.Json): Promise<any | null> {
     let ticket: Ticket | null = null;
     if (!options.silent && this.reporter) {
       ticket = this.reporter.started(options.label);
@@ -47,17 +53,20 @@ export class ApiCall {
       // no-store: the answer must never come from the browser cache.
       const response = await fetch(`${BASEURL}${path}`, { cache: 'no-store', ...init });
       const contentType = response.headers.get('content-type');
-      // A server without this route answers with the SPA's HTML, not an error.
-      if (!contentType?.includes('application/json')) {
-        this.report(options, `${response.status} ${contentType}`);
-        return null;
-      }
-      const body = await response.json();
-      if (!response.ok) {
+      if (!response.ok && contentType?.includes(AnswerKind.Json)) {
+        const body = await response.json();
         this.report(options, String(body?.detail ?? body?.error ?? response.status));
         return null;
       }
-      return body;
+      // A server without this route answers with the SPA's HTML, not an error.
+      if (!response.ok || !contentType?.includes(kind)) {
+        this.report(options, `${response.status} ${contentType}`);
+        return null;
+      }
+      if (kind === AnswerKind.Bytes) {
+        return await response.arrayBuffer();
+      }
+      return await response.json();
     } catch (e: any) {
       // The server restarting must not break the UI, so a dead connection is
       // reported like any other failure instead of throwing at the caller.
@@ -70,13 +79,22 @@ export class ApiCall {
     }
   }
 
-  protected async getJson(path: string, params: QueryParams, options: CallOptions): Promise<any | null> {
+  private withQuery(path: string, params: QueryParams): string {
     const query = new URLSearchParams(params).toString();
     let suffix = '';
     if (query) {
       suffix = `?${query}`;
     }
-    return await this.call(`${path}${suffix}`, {}, options);
+    return `${path}${suffix}`;
+  }
+
+  protected async getJson(path: string, params: QueryParams, options: CallOptions): Promise<any | null> {
+    return await this.call(this.withQuery(path, params), {}, options);
+  }
+
+  // A GET whose answer is raw bytes, not JSON.
+  protected async getBytes(path: string, params: QueryParams, options: CallOptions): Promise<ArrayBuffer | null> {
+    return await this.call(this.withQuery(path, params), {}, options, AnswerKind.Bytes);
   }
 
   protected async postJson(path: string, body: object, options: CallOptions): Promise<any | null> {

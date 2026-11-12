@@ -20,6 +20,9 @@ class TestApi extends ApiCall {
   post(path: string, body: any, options: any) {
     return this.postJson(path, body, options);
   }
+  bytes(path: string, params: any, options: any) {
+    return this.getBytes(path, params, options);
+  }
 }
 
 const jsonAnswer = (data: any, ok = true, status = 200) => ({
@@ -27,6 +30,13 @@ const jsonAnswer = (data: any, ok = true, status = 200) => ({
   status,
   headers: { get: () => 'application/json' },
   json: () => Promise.resolve(data),
+});
+
+const bytesAnswer = (data: ArrayBuffer) => ({
+  ok: true,
+  status: 200,
+  headers: { get: () => 'application/octet-stream' },
+  arrayBuffer: () => Promise.resolve(data),
 });
 
 let api: TestApi;
@@ -129,5 +139,29 @@ describe('setReporter', () => {
     await late.get('/project/names', {}, { label: 'names' });
 
     expect(started).toHaveBeenCalledWith('names');
+  });
+});
+
+describe('getBytes', () => {
+  it('returns the raw bytes, with the parameters in the query', async () => {
+    const data = new Uint8Array([1, 2, 3]).buffer;
+    mockFetch.mockResolvedValueOnce(bytesAnswer(data));
+
+    expect(await api.bytes('/geoshapes', { path: '/a b.shp' }, { label: 'shapes' })).toBe(data);
+    expect(mockFetch.mock.calls[0][0]).toBe('http://test/geoshapes?path=%2Fa+b.shp');
+  });
+
+  it('reports the server message and returns null on a rejected call', async () => {
+    mockFetch.mockResolvedValueOnce(jsonAnswer({ detail: 'not a file: /a.shp' }, false, 404));
+
+    expect(await api.bytes('/geoshapes', { path: '/a.shp' }, { label: 'shapes' })).toBeNull();
+    expect(failed).toHaveBeenCalledWith('shapes: not a file: /a.shp');
+  });
+
+  it('returns null when the answer is JSON, not bytes', async () => {
+    mockFetch.mockResolvedValueOnce(jsonAnswer({}));
+
+    expect(await api.bytes('/geoshapes', { path: '/a.shp' }, { label: 'shapes' })).toBeNull();
+    expect(failed).toHaveBeenCalledWith('shapes: 200 application/json');
   });
 });

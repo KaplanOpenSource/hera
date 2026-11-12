@@ -3,7 +3,7 @@ import { NodeCatalogEntry } from './nodeCatalog';
 import { Reference } from './references/Reference';
 import { ReferenceKind } from './references/ReferenceKind';
 import { OUTPUT, knownKinds } from './references/knownKinds';
-import { leafStringsOf, valueAtPath, withValueAtPath } from './paramPath';
+import { leafStringsOf, segmentsOf, valueAtPath, withValueAtPath } from './paramPath';
 
 // A dataflow edge inferred from a parameter value that references another node.
 // The reference formats live in the references folder.
@@ -23,6 +23,12 @@ export const nodeInputHandleId = (node: string): string => `${node}:req-in`;
 export const outputHandleId = (node: string, name: string): string => new Reference(node, OUTPUT, name).handleId();
 export const inputHandleId = (node: string, paramPath: string): string => `${node}:in:${paramPath}`;
 const INPUT_HANDLE_MATCH = /:in:([^:]+)$/;
+
+// The input handle of the top-level parameter that holds a (maybe nested) input handle.
+export const topInputHandleId = (node: string, handleId: string): string => {
+  const path = handleId.slice(inputHandleId(node, '').length);
+  return inputHandleId(node, segmentsOf(path)[0]);
+};
 
 // A connection dragged from a source handle to an input handle: the kind and key
 // it leaves from and the parameter path it lands on.

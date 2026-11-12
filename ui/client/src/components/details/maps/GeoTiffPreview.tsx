@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { Box, CircularProgress, Typography, useTheme } from '@mui/material';
 import { MapContainer, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { fromUrl, type GeoTIFFImage } from 'geotiff';
+import { fromArrayBuffer, fromUrl, type GeoTIFF, type GeoTIFFImage } from 'geotiff';
 import 'leaflet/dist/leaflet.css';
+import { serverApi } from '../../../api/api';
 import { BASEURL } from '../../../shared/baseurl';
 import { InvalidateOnResize } from './InvalidateOnResize';
 import { GeoTiffGridLayer } from './GeoTiffGridLayer';
@@ -11,6 +12,7 @@ import { valueRange } from './geoTiffTiles';
 import { darkMapControlsSx } from './mapDarkStyles';
 
 const TIFF_EXTENSIONS = /\.(tif|tiff)$/i;
+const HGT_EXTENSION = /\.hgt$/i;
 
 // Long side of the coarse read used to find the value range.
 const RANGE_SAMPLE_SIZE = 512;
@@ -21,6 +23,27 @@ const MAX_ZOOM = 4;
 
 export const isGeoTiffResource = (resource: unknown): resource is string => {
   return typeof resource === 'string' && TIFF_EXTENSIONS.test(resource);
+};
+
+export const isHgtResource = (resource: unknown): resource is string => {
+  return typeof resource === 'string' && HGT_EXTENSION.test(resource);
+};
+
+// Where the TIFF comes from: the file itself, or a .hgt the server turns into one.
+export enum TiffSource {
+  File = 'file',
+  Hgt = 'hgt',
+}
+
+const openTiff = async (path: string, source: TiffSource): Promise<GeoTIFF> => {
+  if (source === TiffSource.Hgt) {
+    const bytes = await serverApi.hgt(path);
+    if (!bytes) {
+      throw new Error(`no GeoTIFF for ${path}`);
+    }
+    return await fromArrayBuffer(bytes);
+  }
+  return await fromUrl(`${BASEURL}/file${path.startsWith('/') ? '' : '/'}${path}`);
 };
 
 type TiffState = {
@@ -61,8 +84,10 @@ const TiffLayer = ({
 
 export const GeoTiffPreview = ({
   path,
+  source = TiffSource.File,
 }: {
   path: string,
+  source?: TiffSource,
 }) => {
   const [tiffState, setTiffState] = useState<TiffState>(EMPTY_STATE);
   const dark = useTheme().palette.mode === 'dark';
@@ -70,9 +95,8 @@ export const GeoTiffPreview = ({
   useEffect(() => {
     let stale = false;
     setTiffState(EMPTY_STATE);
-    const url = `${BASEURL}/file${path.startsWith('/') ? '' : '/'}${path}`;
     (async () => {
-      const tiff = await fromUrl(url);
+      const tiff = await openTiff(path, source);
       const image = await tiff.getImage();
       const scale = RANGE_SAMPLE_SIZE / Math.max(image.getWidth(), image.getHeight());
       const sample = await image.readRasters({
@@ -94,7 +118,7 @@ export const GeoTiffPreview = ({
     return () => {
       stale = true;
     };
-  }, [path]);
+  }, [path, source]);
 
   const centered = { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' };
 

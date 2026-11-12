@@ -17,3 +17,18 @@
 ## Limit
 
 - Lines between nodes can't be dragged from the pop-up. Use a pinned node for that.
+
+## Done
+
+- Steps 3-5 landed in b229eb1c9, merged to master in #1138.
+- Steps 1-2 did not land. Hover still opens the editor. We keep it that way.
+
+## Next (new info on #1134, Nov 4)
+
+- Lior is fine with a small node about 50% taller. Try it.
+
+1. Show the outputs on the small card. Done.
+2. Put a thin divider between the inputs and the outputs. Done.
+3. Give the small card the same line dots as the editor, so lines reach the rows. Done.
+   A line into a nested value lands on its top-level row. The dots hide while hover opens the editor.
+4. Add tests, run the UI checklist, post a screenshot on #1134.
