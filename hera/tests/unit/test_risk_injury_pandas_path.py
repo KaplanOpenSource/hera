@@ -123,8 +123,8 @@ class TestCalculatorTenBergeOnPandas:
 class TestInjuryCalculateToxicLoadsOnPandas:
     """The Injury-level API on pandas input.  Haber used to hit B62 (the
     wrong positional slot) and both calculators used to hit B36 (the attrs
-    lookup) before that; the pointwise entry point still runs into the
-    recorded B39/B12 cross-registry defect in InjuryLevelThreshold."""
+    lookup) before that, and the pointwise entry point to the B39/B12
+    cross-registry defect in InjuryLevelThreshold."""
 
     def test_toxic_loads_via_haber_work_on_pandas_input(self):
         """B62, fixed: `field` used to be passed positionally, which landed
@@ -159,28 +159,13 @@ class TestInjuryCalculateToxicLoadsOnPandas:
         with pytest.raises(ValueError, match="not implemented"):
             injury.calculatePointWiseFractionInjured({"not": "a dataframe"}, time="datetime")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B39/B12 (recorded, and pinned in test_utils_units.py and "
-               "test_risk_injurylevel.py): the toxic loads now reach "
-               "InjuryLevelThreshold.getPercent as plain numbers, and tounit "
-               "builds those in pint's default registry while the threshold "
-               "lives in hera's, so the comparison raises. "
-               "See the consolidated findings issue.",
-    )
-    def test_calculate_point_wise_fraction_injured_should_work_on_pandas_input(self):
+    def test_calculate_point_wise_fraction_injured_works_on_pandas_input(self):
+        """B39/B12: tounit builds on hera's registry now, so the toxic loads
+        and the threshold compare."""
         injury = _agent_with_calculator("TenBerge", tenbergeCoefficient=1)
         df = _series_dataframe([0.0, 5.0, 20.0, 20.0, 20.0])
         frac = injury.calculatePointWiseFractionInjured(df, time="datetime")
         assert set(frac["level"]) == {"Severe"}
-
-    def test_calculate_point_wise_fraction_injured_currently_raises(self):
-        """Characterisation of B39/B12 on calculatePointWiseFractionInjured:
-        the dose is computed, and only the threshold comparison fails."""
-        injury = _agent_with_calculator("TenBerge", tenbergeCoefficient=1)
-        df = _series_dataframe([0.0, 5.0, 20.0, 20.0, 20.0])
-        with pytest.raises(ValueError, match="different registries"):
-            injury.calculatePointWiseFractionInjured(df, time="datetime")
 
     def test_the_deprecated_calculate_warns_and_is_xarray_only(self):
         """calculateRegionOfInjured selects with .sel()/.isel(), so the
