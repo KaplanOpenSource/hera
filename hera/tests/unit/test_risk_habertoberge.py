@@ -115,12 +115,16 @@ class TestPlotGuess:
     PROBIT = 4.0
 
     @pytest.fixture()
-    def drawn(self):
+    def drawn(self, monkeypatch):
         import matplotlib.pyplot as plt
 
+        # plotGuess ends with plt.show(); whether that warns under Agg depends on
+        # the matplotlib version, so it is replaced rather than relied on.
+        shown = []
+        monkeypatch.setattr(plt, "show", lambda *args, **kwargs: shown.append(True))
         estimator = EstimateTBProbit(1.5)
-        with pytest.warns(UserWarning, match="non-interactive"):
-            returned = estimator.plotGuess(self.NEW_PROBIT, self.E50, self.PROBIT)
+        returned = estimator.plotGuess(self.NEW_PROBIT, self.E50, self.PROBIT)
+        assert shown == [True]
         return returned, plt.gca(), estimator
 
     def test_it_returns_nothing(self, drawn):
