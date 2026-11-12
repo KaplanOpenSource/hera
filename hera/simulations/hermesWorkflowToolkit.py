@@ -780,6 +780,7 @@ class hermesWorkflowToolkit(abstractToolkit):
             # does not deduplicate distinct executions of the same workflow.
             pythonPath = os.path.join(self.FilesDirectory, f"{workflowName}")
             executionStr = buildLuigiExecutionCommand(os.path.basename(pythonPath),
+                                                      dispatch_id=dispatch_id,
                                                       scheduler=scheduler,
                                                       schedulerHost=schedulerHost,
                                                       schedulerPort=schedulerPort)

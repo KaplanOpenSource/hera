@@ -17,18 +17,12 @@ is asserted is what crosses the subprocess seam, what is on disk while the
 command runs, what survives afterwards, and what the method returns -- never
 anything a stub invented.
 
-Bug pinned here (with a strict xfail for the intended behaviour and a
-passing characterisation of what happens today):
+Bug fixed here:
 
-* B294 ``executeWorkflowFromDB`` generates (or accepts) a ``dispatch_id``,
-  logs it, returns it -- and then builds the Luigi command line *without
-  passing it*: ``buildLuigiExecutionCommand(os.path.basename(pythonPath),
-  scheduler=..., schedulerHost=..., schedulerPort=...)``.  The parameter
-  therefore keeps its ``None`` default and, on a central scheduler, the
-  command carries the literal ``--dispatch-id None`` for every run.  Both
-  docstrings say the id exists so "the central scheduler can tell distinct
-  runs apart", which is exactly what it cannot now do -- while the caller
-  still receives a unique id and believes the run was tagged with it.
+* B294 (fixed) ``executeWorkflowFromDB`` generated (or accepted) a
+  ``dispatch_id``, logged it and returned it, but built the Luigi command
+  line without it, so on a central scheduler every run carried the literal
+  ``--dispatch-id None`` and concurrent runs could not be told apart.
 """
 import os
 import subprocess
@@ -181,16 +175,6 @@ class TestTheDispatchId:
         tk.executeWorkflowFromDB(oneWorkflow, dispatch_id="deadbeef")
         assert "--dispatch-id" not in luigiSeam[0]["command"]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B294: the dispatch_id is generated, logged and returned, "
-               "but buildLuigiExecutionCommand is called without it, so it "
-               "keeps its None default and the central-scheduler command "
-               "carries the literal '--dispatch-id None' for every run -- "
-               "defeating the documented purpose of telling concurrent runs "
-               "apart, while the caller is handed a unique id and believes "
-               "the run was tagged.  See the consolidated findings issue.",
-    )
     def test_the_central_scheduler_should_receive_the_dispatch_id(self, tk, oneWorkflow,
                                                                   luigiSeam):
         tk.executeWorkflowFromDB(oneWorkflow, dispatch_id="deadbeef",
@@ -198,23 +182,14 @@ class TestTheDispatchId:
         command = luigiSeam[0]["command"]
         assert command[command.index("--dispatch-id") + 1] == "deadbeef"
 
-    def test_the_central_scheduler_currently_receives_the_string_none(self, tk, oneWorkflow,
-                                                                      luigiSeam):
-        """Characterisation of B294."""
-        tk.executeWorkflowFromDB(oneWorkflow, dispatch_id="deadbeef",
-                                 scheduler=SCHEDULER_CENTRAL)
-        command = luigiSeam[0]["command"]
-        assert command[command.index("--dispatch-id") + 1] == "None"
-
-    def test_two_concurrent_runs_are_indistinguishable_on_the_command_line(self, tk,
-                                                                            oneWorkflow,
-                                                                            luigiSeam):
-        """Characterisation of B294: the returned ids differ, the commands
-        the scheduler sees do not."""
+    def test_two_concurrent_runs_are_told_apart_on_the_command_line(self, tk,
+                                                                     oneWorkflow,
+                                                                     luigiSeam):
+        """B294: each run's own id reaches the central scheduler."""
         first = tk.executeWorkflowFromDB(oneWorkflow, scheduler=SCHEDULER_CENTRAL)
         second = tk.executeWorkflowFromDB(oneWorkflow, scheduler=SCHEDULER_CENTRAL)
         assert first != second
-        assert luigiSeam[0]["command"] == luigiSeam[1]["command"]
+        assert luigiSeam[0]["command"] != luigiSeam[1]["command"]
 
 
 # ---------------------------------------------------------------------------
