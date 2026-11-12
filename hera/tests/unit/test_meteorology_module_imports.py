@@ -72,6 +72,7 @@ class TestGFS:
         assert "scikit-learn" in requirements
 
     def test_the_module_imports_when_the_dependency_is_present(self):
+        """B333: the scratch code at the bottom of GFS.py runs only under __main__."""
         pytest.importorskip("sklearn")
         pytest.importorskip("osgeo")
         assert importlib.import_module(

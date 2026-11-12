@@ -68,10 +68,10 @@ class analysis():
                 if g == len(indicelist) - 1:
                     indicelist.append([i])
 
-        geo = data.loc[indicelist[0]].unary_union.convex_hull
+        geo = data.loc[indicelist[0]].union_all().convex_hull
         gpd = geopandas.GeoDataFrame.from_dict([{"geometry": geo, "area": geo.area}])
         for indice in indicelist[1:]:
-            geo = data.loc[indice].unary_union.convex_hull
+            geo = data.loc[indice].union_all().convex_hull
             gpd = pandas.concat([gpd, geopandas.GeoDataFrame.from_dict([{"geometry": geo, "area": geo.area}])])
 
         gpd = gpd.sort_values(by="area", ascending=False).reset_index()

@@ -13,6 +13,11 @@ import re
 
 import pytest
 
+# Every test in this directory must carry the `unit` marker: the suite runs
+# with `-m unit`, so an unmarked test is silently deselected and never runs
+# in CI.  Applies to every test in this module.
+pytestmark = pytest.mark.unit
+
 DOC = pathlib.Path(__file__).resolve().parents[3] / "docs/toolkits/measurements/meteorology/lowfreq.md"
 
 # The object `lf.<accessor>` resolves to in the examples.

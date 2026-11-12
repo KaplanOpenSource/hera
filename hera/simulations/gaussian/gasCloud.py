@@ -1,6 +1,5 @@
 import pandas
 import numpy
-from numpy import matlib
 import math
 from hera.utils import *
 from hera.utils.unitHandler import ureg, unumToPint

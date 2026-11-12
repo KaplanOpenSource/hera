@@ -202,6 +202,124 @@ pytest hera/tests/ -v -n auto
 
 ---
 
+## The Hermetic Unit Layer — `hera/tests/unit/`
+
+193 test files, ~5,600 tests, ~80 seconds, no MongoDB, no test data, no network.
+
+### Why it runs in its own pytest process
+
+`hera/tests/unit/conftest.py` does four things, and all four are **process-wide**:
+
+| What it does | Why |
+|---|---|
+| Swaps MongoDB for `mongomock` | So tests need no database service |
+| Moves `HOME` to a temp directory | So no test writes to the real home directory |
+| Blocks network access | So a stray call fails loudly instead of hanging |
+| Drops the in-memory DB after every test | So test order can never change a result |
+
+Because these apply to the whole interpreter, any integration test collected
+alongside the unit layer would silently talk to `mongomock` and report green
+without testing anything. A guard in `pytest_collection_modifyitems` therefore
+refuses the mixed run outright, at collection time, before a single test runs:
+
+```bash
+pytest hera/tests/unit -m unit                               # layer 1
+pytest hera/tests --ignore=hera/tests/unit -m "not notebook" # layer 2
+```
+
+Or just `make test-unit` and `make test`, which already do exactly that.
+
+### Every test must carry the `unit` marker
+
+The suite runs with `-m unit`. A test without `@pytest.mark.unit` (or a
+module-level `pytestmark = pytest.mark.unit`) is silently **deselected** and
+never runs in CI. Check for orphans with:
+
+```bash
+pytest hera/tests/unit -m "not unit" --collect-only -qq | grep "::"
+```
+
+### How bugs are recorded instead of fixed
+
+This layer changes no production code. When a test uncovers a real defect, the
+defect is **pinned** with two tests: one describing the correct behaviour,
+marked `xfail(strict=True)`, and one characterising what the code actually does
+today, which passes.
+
+```python
+@pytest.mark.xfail(
+    strict=True,
+    reason="B143: plotFields calls plt.subplots(1, 1) for a single field, "
+           "which returns a bare Axes, then indexes it as axes[i].",
+)
+def test_a_single_field_should_plot(self, plotter, frame):
+    plotter.plotFields(["u"], ...)          # the correct behaviour
+
+def test_a_single_field_currently_raises(self, plotter, frame):
+    with pytest.raises(TypeError, match="not subscriptable"):
+        plotter.plotFields(["u"], ...)      # the behaviour today
+```
+
+`strict=True` is the point: if someone fixes the bug, the first test starts
+passing and **the run fails on purpose**, forcing the finding to be updated in
+the same change. A fix cannot land silently.
+
+List every pinned bug with its reason:
+
+```bash
+pytest hera/tests/unit -m unit -q -rx
+```
+
+All findings are catalogued in
+`docs/superpowers/findings/2026-08-24-test-expansion-findings.md`.
+
+### Running one group
+
+Grouping is by filename prefix. Use a shell glob — **not** `-k`, which matches
+the whole test id including the path (`-k gis` also catches re**gis**try and
+lo**gis**tic).
+
+```bash
+pytest hera/tests/unit/test_gis_*.py        -m unit -q   # GIS
+pytest hera/tests/unit/test_openfoam_*.py   -m unit -q   # OpenFOAM
+pytest hera/tests/unit/test_datalayer_*.py  -m unit -q   # datalayer
+pytest hera/tests/unit/test_risk*.py        -m unit -q   # risk assessment
+pytest hera/tests/unit/test_meteorology_*.py -m unit -q  # meteorology
+```
+
+Other prefixes: `test_utils_`, `test_simulations_`, `test_gaussian_`,
+`test_experiment_`, `test_toolkit_`, `test_lsm_`, `test_infra_`,
+`test_hermes_`, `test_deposition_`, `test_evaporation_`, `test_windprofile_`,
+`test_presentation_`, `test_wrf_`, `test_ml_`.
+
+### Flag reference
+
+| Flag | Effect |
+|---|---|
+| `-m unit` | Select by **marker**. Unrelated to `python -m`. |
+| `-q` / `-qq` | Quieter output. `pytest.ini` sets `-v`, and verbosity is additive, so `-q` alone only cancels it out; use `-qq` for a truly terse run. |
+| `-v` | One line per test, with its full id. |
+| `-rx` | Print the reason for every `xfail` — the live bug list. |
+| `-x` | Stop at the first failure. |
+| `--lf` | Re-run only what failed last time. |
+| `--collect-only` | Count without running. |
+| `--durations=10` | Show the ten slowest tests. |
+| `--cov=hera --cov-report=term` | Line coverage in the terminal; `=html` writes a browsable report. |
+| `file::Class::test` | Run one file, class, or single test. |
+
+### Coverage
+
+```bash
+make coverage-unit    # unit layer only
+make coverage         # combined with the integration layer, then enforces coverage_floor.txt
+```
+
+The floor in `coverage_floor.txt` is enforced on the **combined** measurement
+on purpose — gating on the unit layer alone would reward mocking every
+boundary. That file also records the original baseline.
+
+---
+
 ## `test_repository.json` — Test Data Mapping
 
 The file `~/hera_unittest_data/test_repository.json` maps test data files to Hera toolkit datasources

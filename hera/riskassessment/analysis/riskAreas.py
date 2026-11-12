@@ -140,7 +140,7 @@ class riskAreaAlgorithm_Sweep(object):
 		    A GeoDataFrame of grid points covering the bounding area, rotated
 		    back to the original coordinate system.
 		"""
-		united = demog.convex_hull.unary_union
+		united = demog.convex_hull.union_all()
 		minX, minY, maxX, maxY = affinity.rotate(united, origin=united.centroid, angle=-mathematical_angle).bounds
 
 		maxdatetime = effectIsopleths.datetime.max()
@@ -149,7 +149,7 @@ class riskAreaAlgorithm_Sweep(object):
 		severityForMesh 	 = bounds_effectIsopleths.set_geometry(geometryColumn).dissolve(by=severityColumn).area.sort_values(ascending=False).index[0]
 		effectIsopleths_mesh = bounds_effectIsopleths.query("%s=='%s'" % (severityColumn, severityForMesh))
 
-		minXi, minYi, maxXi, maxYi = effectIsopleths_mesh.set_geometry(geometryColumn).unary_union.bounds
+		minXi, minYi, maxXi, maxYi = effectIsopleths_mesh.set_geometry(geometryColumn).union_all().bounds
 
 		width = maxYi - minYi
 		length = maxXi  # Assume the min is 0.

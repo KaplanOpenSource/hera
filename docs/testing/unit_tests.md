@@ -208,8 +208,8 @@ cannot turn green.
 
 ### What CI runs
 
-`.github/workflows/ci.yml` runs on `pull_request` targeting `master` only. Both jobs use
-**Python 3.11** on `ubuntu-latest`:
+`.github/workflows/ci.yml` runs on `pull_request` targeting `master`, and on every push to an
+`upgrade/**` branch. Both jobs use **Python 3.14** on `ubuntu-26.04`:
 
 1. **`unit`** (no services): `pytest hera/tests/unit -m unit -q --cov=hera --cov-report=` with
    `COVERAGE_FILE=.coverage.unit`. The data file is uploaded as an artifact.
@@ -225,7 +225,6 @@ cannot turn green.
       Commit `ab6264da` gives the `unit` job real hermes/pyargos checkouts. According to that commit, 106 of
       111 failures and 278 of 286 errors on `tests/batch33-coverage90` in CI came from the hermes/argos
       placeholder stubs.
-    - `fix/bugs-structural` (issue #1125) adds a CI matrix of Python 3.11 and 3.14 against MongoDB 9.0.
 
 ---
 

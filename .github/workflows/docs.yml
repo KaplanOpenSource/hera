@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -31,10 +31,10 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Setup Python 3.9
+      - name: Set up Python 3.14
         uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.14'
           cache: 'pip'
           cache-dependency-path: |
             requirements.txt

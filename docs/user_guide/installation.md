@@ -8,8 +8,8 @@ This guide walks you through installing Hera and configuring the required servic
 
 | Requirement | Minimum Version | Notes |
 |-------------|----------------|-------|
-| **OS** | Ubuntu 22.04 LTS | Linux only (`setup.py` classifier); the Docker image is built on Ubuntu 22.04 |
-| **Python** | 3.9+ | `setup.py` requires `>=3.9`. CI and the Docker image use **Python 3.11** (recommended) |
+| **OS** | Ubuntu 26.04 LTS | Linux only (`setup.py` classifier); the Docker image is built on Ubuntu 26.04 |
+| **Python** | 3.14 | The version development is based on, and the only one CI tests (`setup.py` requires `>=3.14`). It is the Ubuntu 26.04 system Python |
 | **Git** | 2.x | For cloning the repository |
 | **pip** | 21+ | For installing Python packages |
 | **Docker** | 20+ | Required for the quick install (MongoDB runs in a container) |
@@ -55,9 +55,11 @@ flowchart TD
     - Prompt to create a Python virtual environment at `~/.pyhera/environment` (installs `requirements.txt`, then `pip install -e .`)
     - Prompt to persist the environment to `~/.bashrc`
     - Prompt to auto-activate the Hera environment when you `cd` into the project directory
-    - Pull and start a `mongo:5.0` Docker container named `hera-mongo` on `127.0.0.1:27017`, with data in `~/mongo-db-datadir`
+    - Pull and start a `mongo:9.0` Docker container named `hera-mongo` on `127.0.0.1:27017`, with data in `~/mongo-db-datadir` (`MONGO_IMAGE` overrides the image)
     - Create the MongoDB users from `mongo-init.d/50-create-users.js` on first start: an admin user (`MathAdmin`/`MathAdmin`) and a Hera user (`hera`/`heracles`) with `readWrite` on the `olymp` database
     - Create `~/.pyhera/config.json` for your OS user, pointing at `127.0.0.1` / `olymp` (skipped if the file already exists)
+
+    > **Upgrading an existing MongoDB:** MongoDB 9 does not open a data directory written by 5.0 or 6.0 in place; migrate it with dump/restore (#1126).
 
     After running, everything is ready to use.
 
@@ -74,7 +76,7 @@ flowchart TD
 
     ```bash
     make install-deps       # System packages (libcairo, GDAL, etc.) + GDAL Python binding
-    make install-paraview   # ParaView 5.11.0
+    make install-paraview   # apt python3-paraview, linked into the venv
     make install-freecad    # FreeCad Python3 bindings
     make install-openfoam   # OpenFOAM 10
     make install-deps-all   # All of the above
@@ -175,7 +177,7 @@ flowchart TD
     end
 
     subgraph Step5 ["Step 5: MongoDB"]
-        MongoInstall["Install MongoDB"]
+        MongoInstall["Install MongoDB 9.0"]
         MongoUsers["Create admin +\napplication users"]
         MongoConfig["Create\n~/.pyhera/config.json"]
     end
@@ -204,8 +206,8 @@ sudo apt install libcairo2-dev pkg-config python3-dev libgirepository1.0-dev lib
 git clone https://github.com/KaplanOpenSource/hera
 cd hera
 
-# Create the virtual environment where the helper scripts expect it (Python 3.11 recommended)
-python3.11 -m venv ~/.pyhera/environment
+# Create the virtual environment where the helper scripts expect it (Python 3.14)
+python3.14 -m venv ~/.pyhera/environment
 source activate_hera.sh          # activates the venv, sets HERA_REPO_ROOT/PYTHONPATH, adds hera/bin to PATH
 pip install --upgrade pip setuptools wheel
 
@@ -279,7 +281,7 @@ See the [Environment Variables Reference](../configuration/env_vars.md) for comp
 
 ### Step 5: MongoDB Setup
 
-Install MongoDB following the [official instructions](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/) and ensure it runs on port 27017. The Docker setup uses `mongo:5.0`; CI runs against `mongo:latest`.
+Install MongoDB 9.0 following the [official instructions](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/) and ensure it runs on port 27017. The Docker setup and CI both use `mongo:9.0`.
 
 Start MongoDB with `mongosh` and create users. Create them in the `admin` database: Hera authenticates with `authenticationSource='admin'`.
 

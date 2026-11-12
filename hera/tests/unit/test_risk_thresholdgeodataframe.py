@@ -19,6 +19,7 @@ subclass with no ``_constructor`` override -- has its type erased by
 ``.copy()`` down to a plain ``GeoDataFrame``. Chaining another
 ``thresholdGeoDataFrame``-only method (``shiftLocationAndAngle`` again,
 or ``project``) onto the result fails with ``AttributeError``.
+Fixed by the geopandas 1.1 upgrade (#1125): ``.copy()`` now keeps the subclass.
 
 B108: ``_calculatePopulationInPolygon`` always raises. It computes
 ``demography.loc[not demography["geometry"].intersection(poly).is_empty]``
@@ -45,32 +46,18 @@ def _single_polygon_frame(poly=None):
 
 
 @pytest.mark.unit
-class TestShiftLocationAndAngleLosesTheSubclass:
-    """B97: see the module docstring."""
+class TestShiftLocationAndAngleKeepsTheSubclass:
+    """B97, fixed by the geopandas 1.1 upgrade (#1125): under 1.0.1,
+    self.copy() erased the thresholdGeoDataFrame subclass."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B97: shiftLocationAndAngle calls self.copy(), which under "
-               "the pinned geopandas (1.0.1) erases the thresholdGeoDataFrame "
-               "subclass (no _constructor override) down to a plain "
-               "GeoDataFrame. See the consolidated findings issue.",
-    )
-    def test_the_result_should_still_be_a_threshold_geo_data_frame(self):
+    def test_the_result_is_still_a_threshold_geo_data_frame(self):
         shifted = _single_polygon_frame().shiftLocationAndAngle(loc=(0, 0), meteorological_angle=0)
         assert isinstance(shifted, thresholdGeoDataFrame)
 
-    def test_the_result_is_currently_a_plain_geodataframe(self):
-        """Characterisation of B97."""
-        import geopandas
-
+    def test_the_result_can_be_shifted_again(self):
         shifted = _single_polygon_frame().shiftLocationAndAngle(loc=(0, 0), meteorological_angle=0)
-        assert type(shifted) is geopandas.GeoDataFrame
-
-    def test_chaining_shift_again_on_the_result_currently_fails(self):
-        """Characterisation of B97: losing the subclass breaks chaining."""
-        shifted = _single_polygon_frame().shiftLocationAndAngle(loc=(0, 0), meteorological_angle=0)
-        with pytest.raises(AttributeError, match="shiftLocationAndAngle"):
-            shifted.shiftLocationAndAngle(loc=(1, 1), meteorological_angle=0)
+        again = shifted.shiftLocationAndAngle(loc=(1, 1), meteorological_angle=0)
+        assert isinstance(again, thresholdGeoDataFrame)
 
 
 @pytest.mark.unit

@@ -36,12 +36,17 @@ Deliberately not covered here: the ``string``/``time``/``csv_pandas``/
 ``numpy_*`` handlers and the ``datatypes`` dispatch tables -- see
 ``test_datalayer_datahandler.py``, ``_more.py`` and ``_formats.py``.
 """
+import importlib.util
+
 import numpy
 import pytest
 
 from hera.datalayer.datahandler import (DataHandler_Class, DataHandler_geotiff,
                                         DataHandler_HDF, DataHandler_tif,
                                         DataHandler_zarr_xarray, datatypes)
+
+
+_HAS_GDAL = importlib.util.find_spec("osgeo") is not None
 
 
 @pytest.fixture()
@@ -99,6 +104,8 @@ class TestUnimplementedSavers:
 # ---------------------------------------------------------------------------
 
 @pytest.mark.unit
+@pytest.mark.skipif(_HAS_GDAL, reason="GDAL is installed here (e.g. the Ubuntu 26.04 image); "
+                                      "these pin the missing-GDAL path")
 class TestGeotiffReader:
     def test_gdal_is_not_installed_in_this_environment(self):
         """States the precondition for the two tests below, so that a future
@@ -130,6 +137,19 @@ class TestGeotiffReader:
         path, _ = geotiff_file
         with pytest.raises(ImportError):
             DataHandler_geotiff.getData(path, rasterBand=2, desc={"a": 1})
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not _HAS_GDAL, reason="needs the GDAL Python binding")
+class TestGeotiffReaderWithGdal:
+    def test_it_returns_an_open_gdal_dataset_with_the_file_shape(self, geotiff_file):
+        path, payload = geotiff_file
+        ds = DataHandler_geotiff.getData(path)
+        assert (ds.RasterYSize, ds.RasterXSize) == payload.shape
+
+    def test_the_pixels_come_back_unchanged(self, geotiff_file):
+        path, payload = geotiff_file
+        numpy.testing.assert_array_equal(DataHandler_geotiff.getData(path).ReadAsArray(), payload)
 
 
 # ---------------------------------------------------------------------------

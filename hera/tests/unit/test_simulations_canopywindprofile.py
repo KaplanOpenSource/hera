@@ -409,5 +409,8 @@ class TestChainedAssignmentWriteBack:
     def test_the_write_back_is_flagged_by_pandas_today(self):
         """Characterisation of B245: it is not a latent style issue, pandas
         already emits a FutureWarning for every one of the four writes."""
-        with pytest.warns(FutureWarning, match="ChainedAssignmentError"):
+        # Python 3.14 changed refcounting, so pandas reports the same write as a
+        # SettingWithCopyWarning there instead of the ChainedAssignmentError one.
+        with pytest.warns((FutureWarning, pandas.errors.SettingWithCopyWarning),
+                          match="ChainedAssignmentError|set on a copy of a slice"):
             _run()

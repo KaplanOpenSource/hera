@@ -4,6 +4,10 @@ on:
   pull_request:
     branches:
       - master
+  # Long-lived upgrade branches (#1125) run the whole suite on every push, no PR needed.
+  push:
+    branches:
+      - 'upgrade/**'
 
 permissions:
   contents: read
@@ -11,7 +15,7 @@ permissions:
 jobs:
   unit:
     name: Unit tests (hermetic — no services)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     steps:
       # Source checkouts, not services: the unit layer stays hermetic.  With
@@ -27,12 +31,15 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: KaplanOpenSource/pyargos
+          # Pinned: an unpinned checkout follows the default branch, so a push to
+          # KaplanOpenSource/pyargos could break hera's CI with no change to hera.
+          ref: a8c9e76fdf9143c20331e1f3fbca7d6fcc74941d
           path: _vendor/pyargos
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.14
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.14'
           cache: 'pip'
           cache-dependency-path: |
             requirements.txt
@@ -80,7 +87,7 @@ jobs:
 
   test:
     name: Run full test suite
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: unit
 
     env:
@@ -98,7 +105,8 @@ jobs:
 
     services:
       mongodb:
-        image: mongo:latest
+        # The 9.0 tag is 9.0.4 or later, which starts on the 26.04 kernel (7.0).
+        image: mongo:9.0
         ports:
           - 27017:27017
         env:
@@ -120,13 +128,16 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: KaplanOpenSource/pyargos
+          # Pinned: an unpinned checkout follows the default branch, so a push to
+          # KaplanOpenSource/pyargos could break hera's CI with no change to hera.
+          ref: a8c9e76fdf9143c20331e1f3fbca7d6fcc74941d
           path: _vendor/pyargos
           # token: ${{ secrets.INTERNAL_REPO_PAT }}   # uncomment if private
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.14
         uses: actions/setup-python@v7
         with:
-          python-version: '3.11'
+          python-version: '3.14'
           cache: 'pip'
           cache-dependency-path: |
             requirements.txt
@@ -234,7 +245,7 @@ jobs:
 
   ui-client:
     name: UI client checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     defaults:
       run:
@@ -267,7 +278,7 @@ jobs:
 
   ui-server:
     name: UI server tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
       # node_params looks for the node directories in <repo>/Hermes.
@@ -276,10 +287,10 @@ jobs:
         with:
           submodules: true
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.14
         uses: actions/setup-python@v7
         with:
-          python-version: '3.11'
+          python-version: '3.14'
           cache: 'pip'
           cache-dependency-path: |
             requirements.txt
@@ -297,11 +308,12 @@ jobs:
 
   ui-integration:
     name: UI integration tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     services:
       mongodb:
-        image: mongo:latest
+        # The 9.0 tag is 9.0.4 or later, which starts on the 26.04 kernel (7.0).
+        image: mongo:9.0
         # globalSetup.ts points hera at 27018 by default; HERA_INTEG_MONGO_PORT
         # can override it.
         ports:
@@ -325,12 +337,15 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: KaplanOpenSource/pyargos
+          # Pinned: an unpinned checkout follows the default branch, so a push to
+          # KaplanOpenSource/pyargos could break hera's CI with no change to hera.
+          ref: a8c9e76fdf9143c20331e1f3fbca7d6fcc74941d
           path: _vendor/pyargos
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.14
         uses: actions/setup-python@v7
         with:
-          python-version: '3.11'
+          python-version: '3.14'
           cache: 'pip'
           cache-dependency-path: |
             requirements.txt
