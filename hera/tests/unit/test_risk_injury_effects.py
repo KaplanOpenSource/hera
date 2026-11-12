@@ -33,19 +33,18 @@ Deliberately not covered here:
   contour code stamps onto its output are its business, so the tests below
   assert row counts and geometry rather than datetime values.
 
-Bugs found while writing this file are pinned below as xfail(strict)/
-characterisation pairs: B122 (``Injury.__str__`` returns None),
-B123 (the "injuries found" list is mangled), B124 (an empty
-``calculator`` mapping does not raise the documented ValueError) and
-B125 (a descriptor-level ``units`` string becomes a Quantity where a
-pint Unit is documented).
+Bugs found while writing this file: B122 (``Injury.__str__`` returned
+None), B123 (the "injuries found" list was mangled) and
+B124 (an empty ``calculator`` mapping did not raise the documented
+ValueError) and B125 (a descriptor-level ``units`` string became a
+Quantity where a pint Unit is documented) -- all now fixed.
 """
 import json
 
 import numpy
 import pandas
 import pytest
-from pint import Quantity, Unit
+from pint import Unit
 from scipy.stats import norm
 from shapely.geometry import Polygon
 
@@ -195,22 +194,11 @@ class TestInjuryFactoryValidation:
         with pytest.raises(ValueError, match="Calculator not defined"):
             injuryfactory.getInjury("inhalation", descriptor)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B124: an empty `calculator` mapping is exactly the "
-               "'Calculator not defined' case the code means to report, but "
-               "the guard only catches KeyError -- taking [0] of the empty "
-               "items() list raises IndexError instead, so callers cannot "
-               "distinguish a malformed descriptor from an internal error. "
-               "See the consolidated findings issue.",
-    )
     def test_an_empty_calculator_mapping_reports_an_undefined_calculator(self):
+        """B124, fixed: the guard caught only KeyError, so taking [0] of the
+        empty items() list raised IndexError and callers could not tell a
+        malformed descriptor from an internal error."""
         with pytest.raises(ValueError, match="Calculator not defined"):
-            injuryfactory.getInjury("inhalation", _threshold_descriptor(calculator={}))
-
-    def test_an_empty_calculator_mapping_currently_raises_indexerror(self):
-        """Characterisation of B124."""
-        with pytest.raises(IndexError, match="list index out of range"):
             injuryfactory.getInjury("inhalation", _threshold_descriptor(calculator={}))
 
     def test_an_unknown_injury_type_is_reported_as_not_implemented(self):
@@ -224,23 +212,12 @@ class TestInjuryFactoryValidation:
         listing = str(raised.value).split("Injuries found:")[1]
         return {name.strip() for name in listing.split(",")}
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B123: the 'Injuries found' list is built by stripping six "
-               "characters off every dir() entry starting with 'Injury', so "
-               "it advertises 'Factory' (from InjuryFactory, not an injury "
-               "at all) and an empty name (from the abstract Injury base), "
-               "while omitting nothing else -- the hint names things the "
-               "caller cannot use. See the consolidated findings issue.",
-    )
     def test_the_hint_lists_exactly_the_implemented_injuries(self):
+        """B123, fixed: the list was built by stripping six characters off
+        every dir() entry starting with 'Injury', so it advertised 'Factory'
+        (from InjuryFactory, not an injury) and an empty name (from the
+        abstract Injury base)."""
         assert self._injuries_found() == {"Lognormal10", "Threshold", "Exponential"}
-
-    def test_the_hint_currently_advertises_the_factory_and_the_base_class(self):
-        """Characterisation of B123."""
-        found = self._injuries_found()
-        assert "Factory" in found
-        assert "" in found
 
     def test_an_unknown_calculator_name_currently_fails_opaquely(self):
         """Robustness note (not pinned as a bug): the injury type gets a
@@ -324,27 +301,16 @@ class TestDescriptorUnits:
         assert threshold_injury["Severe"].units == ureg.mg / ureg.m**3
         assert isinstance(threshold_injury["Severe"].units, Unit)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B125: Injury.__init__ converts the descriptor's units "
-               "string with ureg(units), which yields a Quantity of "
-               "magnitude 1 rather than the pint.Unit that InjuryLevel.units "
-               "documents and that hera.utils.tounit accepts (Unit or str "
-               "only) -- so a declared unit reaches every level as the wrong "
-               "type and leaks into toJSON as '1.0 milligram / meter ** 3'. "
-               "See the consolidated findings issue.",
-    )
     def test_a_declared_unit_reaches_the_levels_as_a_pint_unit(self):
+        """B125, fixed: the string was converted with ureg(units), which
+        yields a Quantity of magnitude 1 rather than the pint.Unit that
+        InjuryLevel.units documents and that hera.utils.tounit accepts."""
         injury = injuryfactory.getInjury("inhalation", _threshold_descriptor(units="mg/m**3"))
         assert isinstance(injury["Severe"].units, Unit)
 
-    def test_a_declared_unit_currently_arrives_as_a_quantity(self):
-        """Characterisation of B125."""
+    def test_a_declared_unit_serialises_as_the_unit_alone(self):
         injury = injuryfactory.getInjury("inhalation", _threshold_descriptor(units="mg/m**3"))
-        units = injury["Severe"].units
-        assert isinstance(units, Quantity)
-        assert units.magnitude == pytest.approx(1.0)
-        assert injury.toJSON()["levels"]["Severe"]["units"].startswith("1.0 ")
+        assert injury.toJSON()["levels"]["Severe"]["units"] == "milligram / meter ** 3"
 
     def test_the_threshold_value_is_still_converted_to_the_declared_unit(self):
         injury = injuryfactory.getInjury(
@@ -706,19 +672,7 @@ class TestSerialisation:
         """The point of the dict form: it has to survive json.dumps."""
         assert json.loads(json.dumps(lognormal_injury.toJSON()))["levels"]["Light"]["name"] == "Light"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B122: Injury.__str__ builds json.dumps(self.toJSON(), "
-               "indent=4) but never returns it, so it returns None and "
-               "every str()/print()/f-string on an Injury raises TypeError: "
-               "__str__ returned non-string. (InjuryLevel.__str__ has the "
-               "identical missing return.) See the consolidated findings "
-               "issue.",
-    )
     def test_str_is_the_pretty_printed_json(self, lognormal_injury):
+        """B122, fixed: __str__ built the string but never returned it, so
+        every str()/print()/f-string on an Injury raised TypeError."""
         assert str(lognormal_injury) == json.dumps(lognormal_injury.toJSON(), indent=4)
-
-    def test_str_currently_raises_because_nothing_is_returned(self, lognormal_injury):
-        """Characterisation of B122."""
-        with pytest.raises(TypeError, match="__str__ returned non-string"):
-            str(lognormal_injury)

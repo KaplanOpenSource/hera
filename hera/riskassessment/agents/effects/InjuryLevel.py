@@ -169,7 +169,7 @@ class InjuryLevel(object):
 
 	def __str__(self):
 		"""Return a JSON string representation of the injury level."""
-		json.dumps(self.toJSON(),indent=4)
+		return json.dumps(self.toJSON(),indent=4)
 
 
 
@@ -332,9 +332,14 @@ class InjuryLevelThreshold(InjuryLevel):
 		if "threshold" not in parameters: 
 			raise ValueError("Cannot find the threshold")
 
-		thr = ureg(parameters["threshold"])
+		threshold = parameters["threshold"]
+		if isinstance(threshold,str):
+			threshold = ureg(threshold)
+		elif isinstance(threshold,(int,float)):
+			# A plain number is in the level's units, like TL_50 in the sibling class.
+			threshold = ureg.Quantity(threshold,actualunit)
 
-		parameters["threshold"] = ureg(parameters["threshold"]).to(actualunit)
+		parameters["threshold"] = threshold.to(actualunit)
 
 		super(InjuryLevelThreshold,self).__init__(name,units=actualunit,**parameters)
 

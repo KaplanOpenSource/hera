@@ -352,7 +352,7 @@ class ActionIndoor(abstractAction):
 		if "turnover" in kwargs: 
 			self._alpha = (1/kwargs["turnover"]).to(1/ureg.h)
 		elif "alpha" in kwargs: 
-			self._alpha = (kwargs["alpha"]).ureg(1/ureg.h)
+			self._alpha = (kwargs["alpha"]).to(1/ureg.h)
 		else: 
 			raise ValueError("Must supply either alpha or turnover rate to indoor calculation (ID %s) " % self.actionid)
 		
@@ -371,7 +371,7 @@ class ActionIndoor(abstractAction):
 			curstep = {self.policy.datetimename : I}
 			prevstep = {self.policy.datetimename : I-1}
 			dt =  (pandas.to_timedelta((data.datetime[curstep] - data.datetime[prevstep]).values)).total_seconds()
-			Cin[curstep].values = ((Cin[prevstep] + alphanum*dt*Cout[curstep])/(1+alphanum*dt)).values
+			Cin[curstep] = (Cin[prevstep] + alphanum*dt*Cout[curstep])/(1+alphanum*dt)
 
 		data[self.name] = Cin
 
