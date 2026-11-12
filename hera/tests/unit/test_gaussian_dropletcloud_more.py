@@ -16,24 +16,22 @@ distribution (the geometric bin edges, the mass in each bin, the
 normalisation for the clipped variants), never read back out of the
 implementation.
 
-``FixedPointClippedDropletCloud`` stays unreachable even with the stand-in
-in place: B100 (already pinned in test_gaussian_dropletcloud.py) makes its
-constructor dispatch to its own ``_initDropletPosition`` override before
-assigning ``self.clippedDiameter``.  Its clipped discretisation is
-therefore exercised through ``CirclePositionClippedDropletsCloud``, which
-sets ``clippedDiameter`` first and inherits the same override.
+The clipped discretisation is exercised through
+``CirclePositionClippedDropletsCloud``, which shares
+``FixedPointClippedDropletCloud``'s ``_initDropletPosition`` override.
 
 Bugs pinned here:
-  * B272: ``CirclePositionClippedDropletsCloud`` builds the crosswind
-    coordinate of every sub-cloud from ``position[0]`` instead of
-    ``position[1]``, so the ring is centred on (x0, x0) rather than
+  * B272 (fixed): ``CirclePositionClippedDropletsCloud`` built the
+    crosswind coordinate of every sub-cloud from ``position[0]`` instead
+    of ``position[1]``, so the ring was centred on (x0, x0) rather than
     (x0, y0).
-  * B273: the same constructor's ``if radius is None`` branch is dead --
-    ``tounit(radius, ureg.m)`` has already run on the line above and
-    raises TypeError for None.
-  * B274: its ring angles come from ``numpy.linspace(0, 2*pi, n)``,
-    which includes both endpoints, so the 0-degree position is duplicated:
-    n positions occupy n-1 locations and one of them gets a double share.
+  * B273 (fixed): the same constructor's ``if radius is None`` branch was
+    dead -- ``tounit(radius, ureg.m)`` had already run on the line above
+    and raises TypeError for None.
+  * B274 (fixed): its ring angles came from ``numpy.linspace(0, 2*pi, n)``,
+    which includes both endpoints, so the 0-degree position was
+    duplicated: n positions occupied n-1 locations and one of them got a
+    double share.
 """
 import numpy
 import pandas
@@ -246,12 +244,9 @@ class TestDropletListForTheLineSource:
 
 @pytest.mark.unit
 class TestDropletListForTheClippedSpectrum:
-    """The clipped discretisation is only reachable through the circle
-    subclass: FixedPointClippedDropletCloud cannot be constructed at all
-    (B100, already pinned in test_gaussian_dropletcloud.py -- it dispatches
-    to its own _initDropletPosition override before assigning
-    self.clippedDiameter), while CirclePositionClippedDropletsCloud sets
-    clippedDiameter first and inherits the same override."""
+    """The clipped discretisation, exercised through the circle subclass,
+    which inherits FixedPointClippedDropletCloud's _initDropletPosition
+    override."""
 
     CLIP = 300 * ureg.um
     CLOUDS = 4
@@ -347,61 +342,23 @@ class TestDropletListForTheCircleSource:
         for droplet in self._build().dropletList:
             assert droplet.position[2] == POSITION[2]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B272: CirclePositionClippedDropletsCloud builds each "
-               "sub-cloud position as (position[0] + r*cos, position[0] + "
-               "r*sin, position[2]) -- the crosswind coordinate is taken "
-               "from position[0] instead of position[1]. The ring is "
-               "therefore centred on (x0, x0), so any source whose x and y "
-               "differ is placed somewhere else entirely (here 150 m away "
-               "from the requested centre). Its sibling "
-               "LinePositionDropletsCloud gets this right. See the "
-               "consolidated findings issue.",
-    )
-    def test_every_position_should_sit_on_a_circle_around_the_source(self):
+    def test_every_position_sits_on_a_circle_around_the_source(self):
+        """B272: the crosswind coordinate used to be built from position[0],
+        which centred the ring on (x0, x0) instead of (x0, y0)."""
         x0 = tonumber(POSITION[0], ureg.m)
         y0 = tonumber(POSITION[1], ureg.m)
         for x, y in self._locations(self._build()):
             assert numpy.hypot(x - x0, y - y0) == pytest.approx(10.0)
 
-    def test_the_ring_is_currently_centred_on_the_downwind_coordinate_twice(self):
-        """Characterisation of B272."""
-        x0 = tonumber(POSITION[0], ureg.m)
-        for x, y in self._locations(self._build()):
-            assert numpy.hypot(x - x0, y - x0) == pytest.approx(10.0)
-
-    def test_the_ring_currently_sits_far_from_the_requested_centre(self):
-        """Characterisation of B272: 150 m off for this source."""
-        x0 = tonumber(POSITION[0], ureg.m)
-        y0 = tonumber(POSITION[1], ureg.m)
-        offsets = [
-            numpy.hypot(x - x0, y - y0) for x, y in self._locations(self._build())
-        ]
-        assert min(offsets) > abs(y0 - x0) - 10.0
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B274: the ring angles are numpy.linspace(0, 2*pi, "
-               "circlepositions), which includes both endpoints -- 0 and "
-               "2*pi are the same point. A ring of n positions therefore "
-               "occupies only n-1 distinct locations, and the one at 0 "
-               "receives a double share of the release while the angular "
-               "spacing is 2*pi/(n-1) rather than 2*pi/n. endpoint=False is "
-               "what a closed ring needs. See the consolidated findings "
-               "issue.",
-    )
-    def test_a_ring_of_four_should_occupy_four_distinct_locations(self):
-        assert len(self._locations(self._build(circlepositions=4))) == 4
-
     @pytest.mark.parametrize("circlepositions", [3, 4, 5, 8])
-    def test_a_ring_currently_occupies_one_location_fewer(self, circlepositions):
-        """Characterisation of B274."""
+    def test_a_ring_of_n_occupies_n_distinct_locations(self, circlepositions):
+        """B274: the angles came from numpy.linspace(0, 2*pi, n) including
+        both endpoints, so 0 and 2*pi coincided -- n positions occupied
+        only n-1 locations and the one at 0 got a double share."""
         cloud = self._build(circlepositions=circlepositions)
-        assert len(self._locations(cloud)) == circlepositions - 1
+        assert len(self._locations(cloud)) == circlepositions
 
-    def test_the_duplicated_location_currently_carries_a_double_share(self):
-        """Characterisation of B274."""
+    def test_every_location_carries_the_same_share(self):
         cloud = self._build(circlepositions=4)
         byLocation = {}
         for droplet in cloud.dropletList:
@@ -411,27 +368,16 @@ class TestDropletListForTheCircleSource:
             )
             byLocation[key] = byLocation.get(key, 0.0) + tonumber(droplet.Q, ureg.kg)
         shares = sorted(byLocation.values())
-        assert len(shares) == 3
-        assert shares[-1] == pytest.approx(2 * shares[0])
+        assert len(shares) == 4
+        assert shares == pytest.approx([shares[0]] * 4)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B273: the `if radius is None: curpos = position` branch is "
-               "unreachable -- the line above it already evaluates "
-               "tounit(radius, ureg.m), which raises TypeError('Invalid "
-               "magnitude for Quantity: None') for None. The documented "
-               "'no radius' case cannot be requested. See the consolidated "
-               "findings issue.",
-    )
-    def test_omitting_the_radius_should_place_every_cloud_at_the_source(self):
+    def test_omitting_the_radius_places_every_cloud_at_the_source(self):
+        """B273: tounit(radius, ureg.m) used to run before the `radius is
+        None` test below it, so the documented 'no radius' case raised
+        TypeError instead of being honoured."""
         cloud = self._build(radius=None)
         for droplet in cloud.dropletList:
             assert droplet.position == POSITION
-
-    def test_omitting_the_radius_currently_raises_a_typeerror(self):
-        """Characterisation of B273."""
-        with pytest.raises(TypeError, match="Invalid magnitude"):
-            self._build(radius=None)
 
 
 # ---------------------------------------------------------------------------

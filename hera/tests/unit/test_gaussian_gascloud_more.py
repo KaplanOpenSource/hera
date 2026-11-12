@@ -14,13 +14,11 @@ below check.
 
 ``Continuous`` is the convolution helper in the "Yehuda's code" section at
 the bottom of the file.  Its kernel construction is already covered;
-``_convolve`` is exercised here directly (window on axis 0, which is what
-it assumes), and ``calc`` is pinned as broken.
+``_convolve`` is exercised here directly (window on axis 0), and ``calc``
+through xarray's rolling reducer (window on the last axis).
 
-Bug pinned here:
-  * B271: ``Continuous.calc`` and ``Continuous._convolve`` disagree
-    about the shape xarray hands a rolling reducer, so ``calc`` always
-    raises ValueError.
+B271 (fixed): ``calc`` and ``_convolve`` used to disagree about the shape
+xarray hands a rolling reducer, so ``calc`` always raised ValueError.
 """
 import numpy
 import pytest
@@ -287,7 +285,12 @@ class TestConvolveReducer:
 
 
 @pytest.mark.unit
-class TestContinuousCalcIsBroken:
+class TestContinuousCalc:
+    """calc runs _convolve through xarray's rolling reducer, which hands the
+    window over on the LAST axis and pads the oldest slots of a partial
+    window with NaN -- the same weights _convolve's kernel alignment drops.
+    """
+
     @pytest.fixture()
     def kernel(self):
         return Continuous(dt=1 * ureg.min, kernelsize=3, timetofinish=10 * ureg.min)
@@ -303,42 +306,32 @@ class TestContinuousCalcIsBroken:
             },
         )
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B271: Continuous.calc builds a kernel shaped "
-               "(kernelsize, nx, ny, nz) and hands it to _convolve through "
-               "xarray's rolling(...).reduce(). xarray gives a reducer an "
-               "array whose *last* axis is the rolling window -- shape "
-               "(nt, nx, ny, nz, kernelsize) -- but _convolve indexes the "
-               "kernel on axis 0 using data.shape[0] (the number of time "
-               "steps, not the window length) and slices only three of the "
-               "four kernel dimensions. The multiplication is therefore "
-               "always shape-incompatible and calc() can never return. "
-               "See the consolidated findings issue.",
-    )
-    def test_it_should_convolve_the_release_kernel_over_time(self, kernel, data):
+    def test_it_convolves_the_release_kernel_over_time(self, kernel, data):
         result = kernel.calc(data)
         assert set(result.dims) == {"datetime", "x", "y", "z"}
+        assert result.shape == data.shape
         assert numpy.isfinite(numpy.asarray(result)).all()
 
-    def test_it_currently_raises_a_broadcasting_error(self, kernel, data):
-        """Characterisation of B271."""
-        with pytest.raises(ValueError, match="could not be broadcast"):
-            kernel.calc(data)
+    def test_a_full_window_is_the_whole_kernel_times_the_timestep(self, kernel, data):
+        """From the third step on, every window is complete."""
+        result = numpy.asarray(kernel.calc(data))[:, 0, 0, 0]
+        full = kernel.Timekernel.sum() * kernel.dt
+        assert result[2:] == pytest.approx([full] * 3)
 
-    def test_the_mismatch_is_between_the_window_axis_and_the_kernel_axis(
-        self, kernel, data
-    ):
-        """Characterisation of B271: the two shapes named in the error are
-        the windowed data (window last) and the kernel slice (window first)."""
-        with pytest.raises(ValueError) as raised:
-            kernel.calc(data)
-        message = str(raised.value)
-        assert "(5,2,2,2,3)" in message
-        assert "(2,2,2,2)" in message
+    def test_the_leading_partial_windows_drop_the_oldest_weights(self, kernel, data):
+        """A window shorter than the kernel keeps its newest weights, which is
+        what _convolve's kernel alignment does when called directly."""
+        result = numpy.asarray(kernel.calc(data))[:, 0, 0, 0]
+        weights = kernel.Timekernel.ravel()
+        assert result[0] == pytest.approx(weights[-1] * kernel.dt)
+        assert result[1] == pytest.approx(weights[-2:].sum() * kernel.dt)
 
-    def test_a_kernel_as_long_as_the_series_does_not_rescue_it(self, kernel, data):
-        """Characterisation of B271: it is not an off-by-one in the slice."""
+    def test_it_scales_linearly_with_the_data(self, kernel, data):
+        single = numpy.asarray(kernel.calc(data))
+        double = numpy.asarray(kernel.calc(2 * data))
+        assert double == pytest.approx(2 * single)
+
+    def test_a_kernel_as_long_as_the_series_still_works(self, kernel, data):
         sized = Continuous(dt=1 * ureg.min, kernelsize=5, timetofinish=10 * ureg.min)
-        with pytest.raises(ValueError, match="could not be broadcast"):
-            sized.calc(data)
+        result = sized.calc(data)
+        assert numpy.isfinite(numpy.asarray(result)).all()

@@ -145,6 +145,10 @@ class FixedPointClippedDropletCloud(FixedPositionDropletsCloud):
 
     def __init__(self,mmd,geometricstd,position,Q,clippedDiameter,clouds=30, meteorologyname="StandardMeteorolgyConstant",**kwargs):
 
+        # must precede super().__init__: it dispatches to the
+        # _initDropletPosition override below, which reads clippedDiameter.
+        self.clippedDiameter = clippedDiameter
+
         super().__init__(mmd=mmd,
                          geometricstd=geometricstd,
                          position=position,
@@ -152,8 +156,6 @@ class FixedPointClippedDropletCloud(FixedPositionDropletsCloud):
                          clouds=clouds,
                          meteorologyname=meteorologyname
                          )
-
-        self.clippedDiameter = clippedDiameter
 
 
     def _initDropletPosition(self, mmd, geometricstd, position, Q, clouds=30, meteorologyname="StandardMeteorolgyConstant", **kwargs):
@@ -212,15 +214,15 @@ class CirclePositionClippedDropletsCloud(FixedPointClippedDropletCloud):
         self._dropletList = []
 
         self.clippedDiameter = clippedDiameter
-        radius_m = tounit(radius,ureg.m)
+        radius_m = None if radius is None else tounit(radius,ureg.m)
 
         qCloud = Q/circlepositions
-        for deg in numpy.linspace(0,2*numpy.pi,circlepositions):
+        for deg in numpy.linspace(0,2*numpy.pi,circlepositions,endpoint=False):  # 2*pi is 0 again
 
             if radius is None:
                 curpos = position
             else:
-                curpos = (position[0]+ radius_m*numpy.cos(deg),position[0]+ radius_m*numpy.sin(deg),position[2])
+                curpos = (position[0]+ radius_m*numpy.cos(deg),position[1]+ radius_m*numpy.sin(deg),position[2])
 
             self._initDropletPosition(mmd, geometricstd, curpos, qCloud, clouds=clouds,meteorologyname=meteorologyname, **kwargs)
 

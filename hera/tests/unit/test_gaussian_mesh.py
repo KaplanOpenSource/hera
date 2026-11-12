@@ -21,10 +21,17 @@ def recovered_std(coordinates, weights):
 
 
 def one_puff(x=0.0, y=0.0, sigmaX=5.0, sigmaY=None, quantity=1.0):
-    """A single puff as the mesher expects it: a Series with named columns."""
-    fields = {"x": x, "y": y, "sigmaXCorrected": sigmaX, "Q": quantity}
-    if sigmaY is not None:
-        fields["sigmaYCorrected"] = sigmaY
+    """A single puff as the mesher expects it: a Series with named columns.
+
+    sigmaY defaults to sigmaX, i.e. a circular puff.
+    """
+    fields = {
+        "x": x,
+        "y": y,
+        "sigmaXCorrected": sigmaX,
+        "sigmaYCorrected": sigmaX if sigmaY is None else sigmaY,
+        "Q": quantity,
+    }
     return pd.Series(fields)
 
 
@@ -94,8 +101,8 @@ class TestIntegrationVariant:
     """GaussianIntegrationToMesh uses erf differences instead of point values.
 
     Its docstring calls itself "more accurate than estimating the gaussian",
-    which invites swapping it in for the base class.  It cannot be swapped in
-    freely -- see B29 at the bottom of this class.
+    which invites swapping it in for the base class, so the tests below check
+    that it accepts everything the base class does.
     """
 
     def test_it_also_conserves_mass(self):
@@ -127,16 +134,6 @@ class TestIntegrationVariant:
         with_units = mesher.gaussianToMesh(one_puff(quantity=1.0 * ureg.kg))
         assert float(plain.sum()) == pytest.approx(float(with_units.sum()))
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B29: the subclass narrows its parent's input. The base kernel "
-               "multiplies by the plain number and converts a unit factor; the "
-               "integration kernel calls unumToPint on the value itself, so a "
-               "plain float becomes dimensionless and .m_as(kg) raises "
-               "DimensionalityError. Code written against the base class breaks "
-               "on the substitution its own docstring invites. "
-               "See the consolidated findings issue.",
-    )
     def test_the_subclass_accepts_a_plain_quantity_like_its_parent(self):
         mesher = GaussianIntegrationToMesh(dxdy=1.0)
         field = mesher.gaussianToMesh(one_puff(quantity=1.0))
@@ -153,11 +150,9 @@ class TestSigmaColumnNames:
         assert mesher.sigmaYName == "myY"
 
     def test_anisotropy_works_once_the_names_are_distinct(self, mesher):
-        """Proves the kernel itself is fine -- only the default name is wrong.
-
-        With sigmaYName pointed at its own column, the recovered crosswind
+        """With sigmaYName pointed at its own column, the recovered crosswind
         sigma follows that column, so the machinery supports an elliptical
-        plume.  Only the constructor's default prevents it.
+        plume.
         """
         mesher.sigmaYName = "sigmaYCorrected"
         field = mesher.gaussianToMesh(one_puff(sigmaX=5.0, sigmaY=15.0))
@@ -168,23 +163,9 @@ class TestSigmaColumnNames:
         assert alongwind == pytest.approx(5.0, rel=1e-2)
         assert crosswind == pytest.approx(15.0, rel=1e-2)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B27: GaussianToMesh.__init__ sets sigmaYName to 'sigmaXCorrected', "
-               "the X column, so the crosswind spread always reads the alongwind "
-               "sigma and the plume is forced isotropic. Verified: an input "
-               "sigmaYCorrected of 50 yields a recovered sigma_y of 5.000. "
-               "See the consolidated findings issue.",
-    )
     def test_the_default_crosswind_column_is_the_crosswind_one(self, mesher):
         assert mesher.sigmaYName == "sigmaYCorrected"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B27: because sigmaYName defaults to the X column, a puff carrying "
-               "a distinct sigmaYCorrected is silently spread isotropically. "
-               "See the consolidated findings issue.",
-    )
     def test_a_distinct_crosswind_sigma_is_honoured_by_default(self, mesher):
         """An atmospheric plume is elliptical; sigma_x and sigma_y differ by design."""
         field = mesher.gaussianToMesh(one_puff(sigmaX=5.0, sigmaY=50.0))
@@ -199,14 +180,6 @@ class TestDataFrameIndexing:
         coordinates, _ = mesher._defineCoordinates(frame)
         assert len(coordinates) > 0
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B28: _defineCoordinates takes a LABEL from .index[0] and feeds it to "
-               ".iloc, which wants a POSITION. Any frame whose index is not a "
-               "0-based RangeIndex raises IndexError -- which covers anything that "
-               "came out of a groupby, a filter or a concat. "
-               "See the consolidated findings issue.",
-    )
     def test_a_non_zero_based_index_works(self, mesher):
         """A filtered or grouped frame keeps its original labels."""
         frame = pd.DataFrame(
@@ -215,12 +188,6 @@ class TestDataFrameIndexing:
         coordinates, _ = mesher._defineCoordinates(frame)
         assert len(coordinates) > 0
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B28: the same label-versus-position confusion, reached through the "
-               "public entry point after a filter. "
-               "See the consolidated findings issue.",
-    )
     def test_a_filtered_frame_can_be_meshed(self, mesher):
         frame = pd.DataFrame(
             [one_puff(x=0.0), one_puff(x=10.0), one_puff(x=20.0)]
