@@ -108,7 +108,7 @@ class Parser_OldStyleMetaDataParquet():
         devicesList = []
         assetsDict=dict()
 
-        stationsData = pandas.DataFrame.from_dict(descriptionData['stationLocations'])\
+        stationsData = pandas.DataFrame.from_dict(descriptionData['stationLocations'],orient="index")\
             .reset_index()\
             .rename(columns={"index": "station_name"})
 
@@ -364,8 +364,16 @@ class Parser_TOA5(object):
         ----------
         file : str
             Path to the TOA5 file.
+
+        Raises
+        ------
+        NotImplementedError
+            Always. Use
+            hera.measurements.meteorology.highfreqdata.parsers.TOA5.ASCIIParser
+            instead.
         """
-        pass
+        raise NotImplementedError("Parser_TOA5.parse is not implemented. Use "
+                                  "hera.measurements.meteorology.highfreqdata.parsers.TOA5.ASCIIParser")
 
 
 
@@ -602,6 +610,12 @@ class CampbellBinaryInterface(object):
         -------
         list of list of int
             Start/end index pairs for slicing record data per height.
+
+        Notes
+        -----
+        The indexes address the *data* fields only, i.e. what
+        ``_getDataFromStream`` returns as ``retval[2:]``, with the two
+        leading SECONDS/NANOSECONDS fields already dropped.
         """
         colheader = self.headers[1].upper()
         Indexes = []
@@ -610,16 +624,16 @@ class CampbellBinaryInterface(object):
             # Raw Sonic Binary data file
             for i in range(3):
                 if colheader.find("U_{}".format(i + 1)) != -1:
-                    Indexes.append([1 + 4 * i, 5 + 4 * i])
+                    Indexes.append([4 * i, 4 + 4 * i])
 
 
         elif colheader.find("TC_T") != -1:
             if colheader.find("TC_T1") != -1:
-                Indexes.append([1, 2])
+                Indexes.append([0, 1])
             else:
                 for i in range(3):
                     if colheader.find("TC_T({})".format(i + 1)) != -1:
-                        Indexes.append([i + 1, i + 2])
+                        Indexes.append([i, i + 1])
 
             Indexes[len(Indexes) - 1][1] += 2
         return Indexes
@@ -683,7 +697,7 @@ class CampbellBinaryInterface(object):
         """
         index = self.headersSize+i*self.recordSize
         lastSec, lastmili, line = self._getDataFromStream(self._binData[index: index+self.recordSize])
-        time = pandas.Timestamp(1990, 1, 1) + pandas.Timedelta(days=lastSec / 86400.0, milliseconds=lastmili)
+        time = pandas.Timestamp(1990, 1, 1) + pandas.Timedelta(seconds=lastSec, milliseconds=lastmili)
         return time, line
 
     def getRecordByTime(self, time):
@@ -724,7 +738,8 @@ class CampbellBinaryInterface(object):
             Converted data values.
         """
         retval = list(struct.unpack(self.format, partStream))
-        for i in range(3, len(retval)):
+        # retval[0]/retval[1] are SECONDS/NANOSECONDS; the data starts at [2].
+        for i in range(2, len(retval)):
             if self.rawFormat[i] == 'FP2':
                 retval[i] = self._newfloatConvert(retval[i])
             elif self.rawFormat[i].find("ASCII(") != -1:
@@ -795,7 +810,7 @@ class CampbellBinaryInterface(object):
 
         Returns
         -------
-        float or None
+        float
             Converted float, or NaN for the sentinel value 65183.
         """
         try:
@@ -803,8 +818,8 @@ class CampbellBinaryInterface(object):
         except:
             if key == 65183:
                 self._lut[key] = float('nan')
-                return
-            val = self._floatConvert(int(key % 256), key / 256)
+                return self._lut[key]
+            val = self._floatConvert(int(key % 256), key // 256)
             self._lut[key] = val
             return val
 

@@ -65,38 +65,39 @@ argos / ``presentation.py``, not here.
 
 Bugs pinned here
 ----------------
-* B160: ``_process_row`` does ``pp = convertCRS(...)`` and then reads
-  ``pp.x[0]`` / ``pp.y[0]``, but ``hera.measurements.GIS.utils.convertCRS``
-  returns ``list(gdf.to_crs(...).geometry)`` -- a plain Python list of
-  shapely Points, which has no ``.x``. Every call raises
+* B160 (fixed): ``_process_row`` does ``pp = convertCRS(...)`` and then
+  read ``pp.x[0]`` / ``pp.y[0]``, but
+  ``hera.measurements.GIS.utils.convertCRS`` returns
+  ``list(gdf.to_crs(...).geometry)`` -- a plain Python list of shapely
+  Points, which has no ``.x``. Every call raised
   ``AttributeError: 'list' object has no attribute 'x'``, so the entire
-  ``outputCRS=ITM`` branch of ``get_devices_image_coordinates`` is dead.
+  ``outputCRS=ITM`` branch of ``get_devices_image_coordinates`` was dead.
   The working access is ``pp[0].x`` / ``pp[0].y``.
-* B161: ``get_devices_image_coordinates`` (and ``_process_row``) read
-  the columns ``Latitude``/``Longitude``, but argos spreads a
+* B161 (fixed): ``get_devices_image_coordinates`` (and ``_process_row``)
+  read the columns ``Latitude``/``Longitude``, but argos spreads a
   device-on-trial ``location`` into **lowercase** ``latitude``/
   ``longitude`` (``fillContained.spread_attributes``), so on any
   experiment whose device positions come from the map -- the normal case,
-  and what every example export in argos does -- the lookup raises
-  ``KeyError: 'Latitude'``. The method only ever works if the devices
-  happen to carry free-text *attributes* literally named ``Latitude`` and
-  ``Longitude``.
-* B162: ``TrialWithdata.getData(withMetadata=True)`` merges the data
-  against ``self.entitiesTable`` with ``right_on="entityName"``, but
+  and what every example export in argos does -- the lookup raised
+  ``KeyError: 'Latitude'``. It used to work only if the devices happened
+  to carry free-text *attributes* literally named ``Latitude`` and
+  ``Longitude``; both now read the lowercase columns argos writes.
+* B162 (fixed): ``TrialWithdata.getData(withMetadata=True)`` merged the
+  data against ``self.entitiesTable`` with ``right_on="entityName"``, but
   ``argos.Trial.entitiesTable`` names that column ``deviceItemName``
   (``entityName`` exists only on ``Experiment.entitiesTable`` and
-  ``EntityType.entitiesTable``). Every metadata-joined trial read raises
-  ``KeyError: 'entityName'``.
-* B163: the two overridden initialisers index a metadata key that
-  argos's own versions read defensively:
-  ``TrialSetWithData._initTrials`` uses ``self._metadata["trials"]``
+  ``EntityType.entitiesTable``), so every metadata-joined trial read
+  raised ``KeyError: 'entityName'``.
+* B163 (fixed): the two overridden initialisers indexed a metadata key
+  that argos's own versions read defensively:
+  ``TrialSetWithData._initTrials`` used ``self._metadata["trials"]``
   (argos: ``.get('trials', [])``) and
-  ``EntityTypeWithData._initEntities`` uses ``self._metadata["entities"]``
+  ``EntityTypeWithData._initEntities`` used ``self._metadata["entities"]``
   (argos: ``.get('entities', [])``). A v3.0.0 export omits ``trials``
   entirely for a trial type that has none -- argos's own
   ``example_exp/exp_simple`` export does exactly that -- so loading such
-  an experiment through hera raises ``KeyError: 'trials'`` from inside
-  the constructor.
+  an experiment through hera raised ``KeyError: 'trials'`` from inside
+  the constructor. Both now use the same ``.get(..., [])`` as argos.
 * B164: ``EntityTypeWithData.getDataTrial`` forwards
   ``perDevice=StoreDataPerDevice`` but never forwards a ``deviceName``,
   while ``parquetDataEngineHera.getData`` starts its per-device branch
@@ -153,8 +154,8 @@ def _experiment_setup(coordinateAttributes=False, withTrials=True, storePerDevic
 
     coordinateAttributes
         also give every device free-text ``Latitude``/``Longitude``
-        attributes, which is the only shape ``get_devices_image_coordinates``
-        can actually read (see B161).
+        attributes, on top of the lowercase pair argos spreads from the
+        device location (see B161).
     withTrials
         when False the trial type carries no ``trials`` key at all, which
         is what a real export looks like for an empty trial type.
@@ -449,43 +450,16 @@ class TestTrialSetInitialisation:
 
 
 @pytest.mark.unit
-class TestTrialSetInitialisationIsNotDefensive:
-    """B163: ``[...]`` where argos itself uses ``.get(..., [])``."""
+class TestInitialisationIsDefensive:
+    """B163: ``.get(..., [])``, the same as argos itself uses."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B163: TrialSetWithData._initTrials reads "
-               "self._metadata['trials'] while argos's TrialSet._initTrials "
-               "reads self._metadata.get('trials', []). A real v3.0.0 export "
-               "omits the key for a trial type with no trials (see argos's "
-               "own example_exp/exp_simple), so hera cannot load it. "
-               "See the consolidated findings issue.",
-    )
-    def test_a_trial_set_without_trials_should_load_as_an_empty_trial_set(self, experimentFactory):
+    def test_a_trial_set_without_trials_loads_as_an_empty_trial_set(self, experimentFactory):
         exp = experimentFactory(_experiment_setup(withTrials=False))
         assert dict(exp.trialSet["Measurements"]) == {}
 
-    def test_a_trial_set_without_trials_currently_fails_to_load(self, experimentFactory):
-        """Characterisation of B163."""
-        with pytest.raises(KeyError, match="trials"):
-            experimentFactory(_experiment_setup(withTrials=False))
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B163: the same non-defensive indexing in "
-               "EntityTypeWithData._initEntities (self._metadata['entities'] "
-               "against argos's .get('entities', [])), reachable through a "
-               "version-1.0.0 setup, which is passed through unmigrated. "
-               "See the consolidated findings issue.",
-    )
-    def test_an_entity_type_without_entities_should_load_as_an_empty_entity_type(self, experimentFactory):
+    def test_an_entity_type_without_entities_loads_as_an_empty_entity_type(self, experimentFactory):
         exp = experimentFactory(_v1_setup_without_entities())
         assert dict(exp.entityType["sonic"]) == {}
-
-    def test_an_entity_type_without_entities_currently_fails_to_load(self, experimentFactory):
-        """Characterisation of B163, on the entity side."""
-        with pytest.raises(KeyError, match="entities"):
-            experimentFactory(_v1_setup_without_entities())
 
 
 def _v1_setup_without_entities():
@@ -594,32 +568,20 @@ class TestTrialGetData:
 
 @pytest.mark.unit
 class TestTrialGetDataWithMetadata:
-    """B162: the merge key does not exist in argos's trial entities table."""
+    """B162: the merge key argos uses in a trial's entities table."""
 
     def test_the_trial_entities_table_has_no_entity_name_column(self, experiment):
-        """Characterisation of B162: this is the table the merge is given."""
+        """Why the merge joins on deviceItemName: this is the table."""
         table = experiment.trialSet["Measurements"]["T1"].entitiesTable
         assert "deviceItemName" in table.columns
         assert "entityName" not in table.columns
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B162: TrialWithdata.getData merges on "
-               "right_on='entityName', but argos's Trial.entitiesTable "
-               "names the device column deviceItemName -- entityName exists "
-               "only on Experiment.entitiesTable and "
-               "EntityType.entitiesTable. See the consolidated findings issue.",
-    )
-    def test_it_should_join_the_trial_device_metadata_onto_the_data(self, experiment, deviceData):
+    def test_it_joins_the_trial_device_metadata_onto_the_data(self, experiment, deviceData):
         data = experiment.trialSet["Measurements"]["T1"].getData(
             deviceType="sonic", withMetadata=True)
         assert "height" in data.columns
-
-    def test_it_currently_raises_a_key_error_on_the_merge_column(self, experiment, deviceData):
-        """Characterisation of B162."""
-        with pytest.raises(KeyError, match="entityName"):
-            experiment.trialSet["Measurements"]["T1"].getData(
-                deviceType="sonic", withMetadata=True)
+        assert set(data.deviceItemName) == {"sonic_1", "sonic_2"}
+        assert data.index.name == "timestamp"
 
 
 @pytest.mark.unit
@@ -767,32 +729,27 @@ class TestGetDataFromDateRange:
 
 @pytest.mark.unit
 class TestProcessRow:
-    """B160: convertCRS returns a list, not a GeoSeries."""
+    """B160: convertCRS returns a list of Points, not a GeoSeries."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B160: _process_row reads pp.x[0]/pp.y[0], but "
-               "hera.measurements.GIS.utils.convertCRS returns "
-               "list(gdf.to_crs(...).geometry) -- a plain list of shapely "
-               "Points, which has no .x. The working access is pp[0].x. "
-               "See the consolidated findings issue.",
-    )
-    def test_it_should_return_the_itm_coordinates_of_the_row(self, experiment):
-        row = pandas.Series({"Longitude": 34.0, "Latitude": 32.0})
+    def test_convert_crs_returns_a_list_of_points(self):
+        """Why the access is pp[0].x and not pp.x[0]."""
+        from hera.measurements.GIS.utils import convertCRS
+
+        pp = convertCRS([[34.0, 32.0]], inputCRS=WSG84, outputCRS=ITM)
+        assert isinstance(pp, list)
+        assert not hasattr(pp, "x")
+
+    def test_it_returns_the_itm_coordinates_of_the_row(self, experiment):
+        row = pandas.Series({"longitude": 34.0, "latitude": 32.0})
         converted = experiment._process_row(row)
         assert len(converted) == 2
         assert converted[0] > 100000
-
-    def test_it_currently_raises_an_attribute_error(self, experiment):
-        """Characterisation of B160."""
-        row = pandas.Series({"Longitude": 34.0, "Latitude": 32.0})
-        with pytest.raises(AttributeError, match="'list' object has no attribute 'x'"):
-            experiment._process_row(row)
+        assert converted[1] > 100000
 
 
 @pytest.mark.unit
 class TestGetDevicesImageCoordinates:
-    def test_it_returns_the_bounding_box_of_capitalised_coordinate_attributes(
+    def test_it_returns_the_bounding_box_of_the_device_coordinates(
             self, coordinateExperiment):
         bbox = coordinateExperiment.get_devices_image_coordinates(
             trialSetName="Measurements", trialName="T1",
@@ -814,39 +771,23 @@ class TestGetDevicesImageCoordinatesColumnNames:
     """B161: the method reads Latitude/Longitude; argos writes latitude/longitude."""
 
     def test_the_trial_entities_table_spells_the_coordinates_in_lower_case(self, experiment):
-        """Characterisation of B161: this is the table the method reads."""
+        """Why the method reads latitude/longitude: this is the table."""
         table = experiment.trialSet["Measurements"]["T1"].entitiesTable
         assert {"latitude", "longitude"}.issubset(table.columns)
         assert "Latitude" not in table.columns
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B161: get_devices_image_coordinates reads the columns "
-               "Latitude/Longitude, but argos spreads a device-on-trial "
-               "location into lowercase latitude/longitude "
-               "(fillContained.spread_attributes), so for map-positioned "
-               "devices -- what every argos example export does -- the "
-               "lookup raises KeyError. See the consolidated findings issue.",
-    )
-    def test_it_should_use_the_device_locations_from_the_map(self, experiment):
+    def test_it_uses_the_device_locations_from_the_map(self, experiment):
+        """No free-text Latitude/Longitude attributes needed any more."""
         bbox = experiment.get_devices_image_coordinates(
             trialSetName="Measurements", trialName="T1",
             deviceType="sonic", outputCRS=WSG84,
         )
         assert bbox == (32.0, 34.0, 32.5, 34.5)
 
-    def test_it_currently_raises_a_key_error_on_the_capitalised_column(self, experiment):
-        """Characterisation of B161."""
-        with pytest.raises(KeyError, match="Latitude"):
-            experiment.get_devices_image_coordinates(
-                trialSetName="Measurements", trialName="T1",
-                deviceType="sonic", outputCRS=WSG84,
-            )
-
-    def test_the_itm_branch_is_dead_even_with_capitalised_columns(self, coordinateExperiment):
-        """Characterisation of B160, reached through the public method."""
-        with pytest.raises(AttributeError, match="'list' object has no attribute 'x'"):
-            coordinateExperiment.get_devices_image_coordinates(
-                trialSetName="Measurements", trialName="T1",
-                deviceType="sonic", outputCRS=ITM,
-            )
+    def test_the_itm_branch_converts_the_bounding_box(self, coordinateExperiment):
+        """B160, reached through the public method."""
+        bbox = coordinateExperiment.get_devices_image_coordinates(
+            trialSetName="Measurements", trialName="T1",
+            deviceType="sonic", outputCRS=ITM,
+        )
+        assert all(value > 100000 for value in bbox)

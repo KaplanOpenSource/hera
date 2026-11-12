@@ -266,40 +266,28 @@ class TestCampbellBinaryInterfaceLowLevelHelpers:
 
 
 @pytest.mark.unit
-class TestNewFloatConvertNanSentinelIsInconsistent:
-    """B107: the NaN sentinel branch (key == 65183) sets self._lut[key] =
-    float('nan') but falls off the end of the if-block without returning
-    it -- the implicit `return None` fires instead. A second call for the
-    same key returns nan correctly, because by then the lookup at the top
-    of the function (`return self._lut[key]`) short-circuits the branch
-    entirely. The two calls disagree about what this key means."""
+class TestNewFloatConvertNanSentinel:
+    """B107: the NaN sentinel branch (key == 65183) used to set
+    self._lut[key] = float('nan') and then fall off the end of the
+    if-block without returning it, so the implicit `return None` fired.
+    A second call for the same key returned nan, because by then the
+    lookup at the top of the function (`return self._lut[key]`)
+    short-circuited the branch -- the two calls disagreed about what the
+    key means."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B107: the nan-sentinel branch of _newfloatConvert does not "
-               "return its own cached value -- the first call for key "
-               "65183 returns None while every subsequent (cached) call "
-               "returns nan. See the consolidated findings issue.",
-    )
-    def test_the_first_call_should_also_return_nan(self, sonic_file):
+    def test_the_first_call_returns_nan(self, sonic_file):
         import math
 
         cbi = CampbellBinaryInterface(file=str(sonic_file))
         first = cbi._newfloatConvert(65183)
         assert first is not None and math.isnan(first)
 
-    def test_the_first_call_currently_returns_none(self, sonic_file):
-        """Characterisation of B107."""
-        cbi = CampbellBinaryInterface(file=str(sonic_file))
-        assert cbi._newfloatConvert(65183) is None
-
-    def test_a_second_call_for_the_same_key_returns_nan_from_the_cache(self, sonic_file):
-        """Characterisation of B107: same key, different call, different
-        answer -- because the second call hits the cache lookup instead of
-        re-running the broken branch."""
+    def test_every_call_for_the_same_key_agrees(self, sonic_file):
+        """Same key, same answer, cached or not."""
         import math
 
         cbi = CampbellBinaryInterface(file=str(sonic_file))
-        cbi._newfloatConvert(65183)
+        first = cbi._newfloatConvert(65183)
         second = cbi._newfloatConvert(65183)
-        assert second is not None and math.isnan(second)
+        assert math.isnan(first) and math.isnan(second)
+        assert math.isnan(cbi._lut[65183])

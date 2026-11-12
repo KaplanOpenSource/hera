@@ -8,34 +8,35 @@ tests exercise what the parsers actually do when called).
   (same class names, same bodies), carrying the identical bug already
   pinned there as B82:
 
-  B89: ``Parser_CampbellBinary.getData`` slices each record's data with
+  B89 (fixed here): ``Parser_CampbellBinary.getData`` slices each
+  record's data with
   ``line[cbi.columnsIndexes[i][0] : cbi.columnsIndexes[i][1]]``, but
-  ``columnsIndexes`` is computed as if it indexed into the *raw* record --
+  ``columnsIndexes`` was computed as if it indexed into the *raw* record --
   which starts with two leading timestamp fields (SECONDS, NANOSECONDS).
   ``line`` is ``_getDataFromStream``'s ``retval[2:]``, which has *already*
-  dropped those two fields. The off-by-two slice drops the first data
-  column and returns one column short of what the header declares --
-  pandas then refuses to build the DataFrame. Because this file is an
-  independent copy (not an import) of the other parser, fixing one does
-  not fix the other -- and since the whole module is orphaned (see
-  test_experiment_parsers.py::TestParserModuleIsOrphaned), nothing is
-  currently exercising this path in production either way.
+  dropped those two fields. The off-by-two slice dropped the first data
+  column and returned one column short of what the header declares, and
+  pandas then refused to build the DataFrame. ``_getColumnIndexes`` now
+  addresses the data fields. Because this file is an independent copy
+  (not an import) of the other parser, the meteorology copy keeps its own
+  pin (B82).
 
 * Parser_OldStyleMetaDataParquet:
 
-  B90: ``_getLists`` builds ``stationsData`` with
+  B90 (fixed): ``_getLists`` built ``stationsData`` with
   ``pandas.DataFrame.from_dict(descriptionData['stationLocations'])`` --
   the default ``orient="columns"`` treats each station name as a *column*
   and its attribute names (``lat``/``lon``/``station_code``) as the *row
   index*. The rest of the method (``.reset_index().rename(columns=
   {"index": "station_name"})``, then ``stndata['lat'].item()``) only makes
   sense if stations are rows and attributes are columns, i.e.
-  ``orient="index"``. With the current orientation, ``reset_index()``
-  produces a ``station_name`` column containing the strings
-  ``"lat"``/``"lon"``/``"station_code"`` instead of station names, and
-  ``stndata['lat']`` raises ``KeyError`` for any real multi-field station
-  dict. This breaks ``_getLists``/``getExperimentDict``/``parse`` for any
-  campaign with more than a single bare value per station.
+  ``orient="index"``, which is what it now passes. With the old
+  orientation, ``reset_index()`` produced a ``station_name`` column
+  containing the strings ``"lat"``/``"lon"``/``"station_code"`` instead of
+  station names, and ``stndata['lat']`` raised ``KeyError`` for any real
+  multi-field station dict, breaking
+  ``_getLists``/``getExperimentDict``/``parse`` for any campaign with more
+  than a single bare value per station.
 """
 import json
 import struct
@@ -96,28 +97,20 @@ class TestCampbellBinaryInterfaceStillWorks:
 
 
 @pytest.mark.unit
-class TestParserCampbellBinaryGetDataIsBroken:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B89: same off-by-two columnsIndexes bug as the meteorology "
-               "highfreqdata CampbellBinary parser (B82), duplicated "
-               "independently in this file. See the consolidated findings issue.",
-    )
-    def test_get_pandas_from_file_should_return_all_sonic_columns(self, sonic_file):
+class TestParserCampbellBinaryGetData:
+    def test_get_pandas_from_file_returns_all_sonic_columns(self, sonic_file):
         df = Parser_CampbellBinary().getPandasFromFile(str(sonic_file), fromTime=None, toTime=None)
-        assert list(df.columns[:4]) == ["u", "v", "w", "T"]
+        # concat(sort=True) orders the columns alphabetically
+        assert set(df.columns) == {"T", "u", "v", "w", "height", "station", "instrument"}
+        assert len(df) == 2
+        assert df.u.iloc[0] == pytest.approx(1.0)
 
-    def test_get_pandas_from_file_currently_raises(self, sonic_file):
-        """Characterisation of B89."""
-        with pytest.raises(ValueError, match="columns"):
-            Parser_CampbellBinary().getPandasFromFile(str(sonic_file), fromTime=None, toTime=None)
-
-    def test_get_data_drops_the_first_data_column(self, sonic_file):
-        """Characterisation of B89, one level below the DataFrame
-        construction that raises."""
+    def test_get_data_keeps_every_data_column(self, sonic_file):
+        """B89: the first data column used to be sliced away."""
         ts, cols, values = Parser_CampbellBinary().getData(str(sonic_file), fromTime=None, toTime=None)
         assert cols == [["u", "v", "w", "T"]]
-        assert len(values[10][0]) == 3  # v, w, T -- u is missing
+        assert len(values[10][0]) == 4  # u, v, w, T
+        assert values[10][0][0] == pytest.approx(1.0)
 
 
 def _write_campaign(tmp_path, metadata, station_locations):
@@ -132,9 +125,9 @@ def _write_campaign(tmp_path, metadata, station_locations):
 
 
 @pytest.mark.unit
-class TestParserOldStyleMetaDataParquetGetListsIsBroken:
-    """B90: stationsData is built with the wrong DataFrame.from_dict
-    orientation -- see the module docstring."""
+class TestParserOldStyleMetaDataParquetGetLists:
+    """B90: stationsData is built with stations as rows -- see the module
+    docstring."""
 
     METADATA = {
         "stations": {
@@ -147,29 +140,22 @@ class TestParserOldStyleMetaDataParquetGetListsIsBroken:
     }
     STATION_LOCATIONS = {"STN1": {"lat": 32.1, "lon": 34.8, "station_code": "S1"}}
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B90: DataFrame.from_dict(stationLocations) uses the default "
-               "orient='columns', putting attribute names in the row index "
-               "instead of station names -- stndata['lat'] raises KeyError "
-               "for any real (multi-field) station dict. "
-               "See the consolidated findings issue.",
-    )
-    def test_parse_should_wrap_everything_under_the_campaign_name(self, tmp_path):
+    def test_parse_wraps_everything_under_the_campaign_name(self, tmp_path):
         _write_campaign(tmp_path, self.METADATA, self.STATION_LOCATIONS)
-        Parser_OldStyleMetaDataParquet().parse(str(tmp_path))
+        parsed = Parser_OldStyleMetaDataParquet().parse(str(tmp_path))
+        assert list(parsed.keys()) == ["MyCampaign"]
 
-    def test_parse_currently_raises_a_keyerror_on_lat(self, tmp_path):
-        """Characterisation of B90."""
+    def test_the_station_coordinates_reach_the_asset(self, tmp_path):
+        """B90: the station row is found by name, so lat/lon are readable."""
         _write_campaign(tmp_path, self.METADATA, self.STATION_LOCATIONS)
-        with pytest.raises(KeyError, match="lat"):
-            Parser_OldStyleMetaDataParquet().parse(str(tmp_path))
+        parsed = Parser_OldStyleMetaDataParquet().parse(str(tmp_path))
+        asset = parsed["MyCampaign"]["assets"]["STN1"]
+        assert asset["codeName"] == "S1"
+        assert asset["properties"]["coords"] == [32.1, 34.8]
 
-    def test_it_fails_the_same_way_for_any_station_shape(self, tmp_path):
-        """Characterisation of B90: the wrong orientation means the
-        'station_name' column never actually holds station names, so the
-        query-then-lookup pattern fails regardless of how many attributes
-        each station carries."""
+    def test_a_station_without_lat_still_raises(self, tmp_path):
+        """The orientation is right, but a station that really has no 'lat'
+        attribute still cannot supply one."""
         _write_campaign(tmp_path, self.METADATA, {"STN1": {"only_field": 1}})
         with pytest.raises(KeyError, match="lat"):
             Parser_OldStyleMetaDataParquet().parse(str(tmp_path))

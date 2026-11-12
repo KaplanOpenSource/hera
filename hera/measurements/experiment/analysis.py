@@ -49,7 +49,7 @@ class experimentAnalysis:
         trialSetName = self.datalayer.defaultTrialSet if trialSetName is None else trialSetName
         if trialSetName is None:
             raise ValueError("trialSetName is None. Either set default with the getExperiment, or set explicitly here")
-        return self.datalayer.trialSet[trialSetName][trialName].entitiesTable().query("entityType==@entityTypeName")
+        return self.datalayer.trialSet[trialSetName][trialName].entitiesTable.query("deviceTypeName==@entityTypeName")
 
 
     def getTurbulenceStatistics(self,sonicData,samplingWindow,height=1):
@@ -174,13 +174,13 @@ class experimentAnalysis:
 
         if len(docList) ==0 or recalculate:
             # calculating the cache and updating it / or writing a new one.
-            data = experimentData.trialSet[trialSetName][trialName].getData(deviceType)
+            trial = experimentData.trialSet[trialSetName][trialName]
+            data = trial.getData(deviceType)
             colCount = data.columns[1]
-            freq = data.groupby('deviceName').resample("1min").count()[colCount].reset_index()
+            freq = data.groupby('deviceName').resample(samplingWindow).count()[colCount].reset_index()
 
             freq = freq.assign(deviceID=freq.deviceName.apply(lambda x: self._splitName(x))).sort_values("deviceID").rename(columns=({colCount:"Frequency"}))
 
-            freq.set_index('timestamp')
             pvt = freq.pivot(index="timestamp", columns="deviceName", values="Frequency")
             if completeDevices:
                 for deviceName in experimentData.entityType[deviceType].keys():
@@ -188,11 +188,11 @@ class experimentAnalysis:
                         pvt[deviceName] = 0
 
             # Filling in time (only if trial has start and end).
-            tstart = experimentData.trialSet[trialSetName].trials.query("trialName == @trialName ")['TrialStart'].iloc[0]
-            tend = experimentData.trialSet[trialSetName].trials.query("trialName == @trialName ")['TrialEnd'].iloc[0]
+            tstart = trial.properties.get('TrialStart', None)
+            tend = trial.properties.get('TrialEnd', None)
 
             if (tend is not None and completeTimeSeries):
-                actualDates = pandas.date_range(tstart, tend, freq="1min")
+                actualDates = pandas.date_range(tstart, tend, freq=samplingWindow)
 
                 missingTimes = actualDates[[x not in pvt.index for x in actualDates]]
                 for tme in missingTimes:
@@ -279,9 +279,9 @@ class experimentAnalysis:
         """
         trialSetName =  self.datalayer.defaultTrialSet if  trialSetName is None else trialSetName
 
-        devicemetadata = self.datalayer.trialSet[trialSetName][trialName].entitiesTable()
+        devicemetadata = self.datalayer.trialSet[trialSetName][trialName].entitiesTable
         if len(devicemetadata) > 0:
-            ret = dataset.reset_index().merge(devicemetadata, left_on="deviceName", right_on="entityName").set_index("timestamp")
+            ret = dataset.reset_index().merge(devicemetadata, left_on="deviceName", right_on="deviceItemName").set_index("timestamp")
         else:
             ret=None
 
@@ -290,8 +290,9 @@ class experimentAnalysis:
     def addTrialProperties(self,data,trialName,trialSetName=None):
         """
         Adds the calculated properties of the trial to the data.
-        - FromRelease: seconds from the release.
         - FromStart  : seconds from the start.
+        - FromRelease: seconds from the release. Added only if the trial
+                       has a ReleaseStart property.
         Assume the time column is timestamp.
 
         Parameters
@@ -320,11 +321,12 @@ class experimentAnalysis:
         else:
             tmp = data
 
-        tmp = tmp.assign(fromStart = tmp.timestamp-startTime,
-                         fromRelease=tmp.timestamp-releaseTime)
+        tmp = tmp.assign(fromStart = tmp.timestamp-startTime)
+        tmp = tmp.assign(fromStartSeconds = tmp.fromStart.apply(lambda x: x.total_seconds()))
 
-        tmp = tmp.assign(fromStartSeconds = tmp.fromStart.apply(lambda x: x.total_seconds()),
-                         fromReleaseSeconds=tmp.fromRelease.apply(lambda x: x.total_seconds()))
+        if releaseTime is not None:
+            tmp = tmp.assign(fromRelease=tmp.timestamp-releaseTime)
+            tmp = tmp.assign(fromReleaseSeconds=tmp.fromRelease.apply(lambda x: x.total_seconds()))
 
 
         return tmp

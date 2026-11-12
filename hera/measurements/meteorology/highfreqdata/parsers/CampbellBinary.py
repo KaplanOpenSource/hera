@@ -445,7 +445,7 @@ class CampbellBinaryInterface(object):
         """
         index = self.headersSize+i*self.recordSize
         lastSec, lastmili, line = self._getDataFromStream(self._binData[index: index+self.recordSize])
-        time = pandas.Timestamp(1990, 1, 1) + pandas.Timedelta(days=lastSec / 86400.0, milliseconds=lastmili)
+        time = pandas.Timestamp(1990, 1, 1) + pandas.Timedelta(seconds=lastSec, milliseconds=lastmili)
         return time, line
 
     def getRecordByTime(self, time):
@@ -468,7 +468,8 @@ class CampbellBinaryInterface(object):
 
     def _getDataFromStream(self, partStream):
         retval = list(struct.unpack(self.format, partStream))
-        for i in range(3, len(retval)):
+        # retval[0]/retval[1] are SECONDS/NANOSECONDS; the data starts at [2].
+        for i in range(2, len(retval)):
             if self.rawFormat[i] == 'FP2':
                 retval[i] = self._newfloatConvert(retval[i])
             elif self.rawFormat[i].find("ASCII(") != -1:
@@ -506,8 +507,8 @@ class CampbellBinaryInterface(object):
         except:
             if key == 65183:
                 self._lut[key] = float('nan')
-                return
-            val = self._floatConvert(int(key % 256), key / 256)
+                return self._lut[key]
+            val = self._floatConvert(int(key % 256), key // 256)
             self._lut[key] = val
             return val
 
