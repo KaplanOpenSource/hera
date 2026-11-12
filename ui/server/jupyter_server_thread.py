@@ -18,14 +18,19 @@ class JupyterServerThread:
         self._root_dir = root_dir
         self._ip = ip
         self._dark = dark
+        # Set once Jupyter has picked its real port; it moves on when the asked one is busy.
+        self._port_known = threading.Event()
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
         print(f"Jupyter server starting on {ip}:{port}, root_dir={root_dir}")
 
     def wait_until_ready(self, timeout: float = 30) -> bool:
         import time
-        url = f"http://localhost:{self._port}/api/status"
         deadline = time.time() + timeout
+        while not self._port_known.wait(0.5):
+            if time.time() >= deadline or not self.is_running():
+                return False
+        url = f"http://localhost:{self._port}/api/status"
         while time.time() < deadline:
             try:
                 resp = urllib.request.urlopen(url, timeout=2)
@@ -77,6 +82,32 @@ class JupyterServerThread:
         except OSError:
             print("WARNING: Could not write IPython config — %%ai magic requires manual %load_ext")
 
+    @staticmethod
+    def _set_ollama_timeout():
+        # jupyter-ai reaches Ollama through langchain's ChatOllama. By default a
+        # request to an unavailable Ollama hangs ~5-10s, which freezes the whole
+        # notebook while it loads. Give the Ollama client a 100ms connect timeout
+        # so it fails fast when Ollama is down, while leaving the read timeout
+        # open (model generation is slow).
+        try:
+            import httpx
+            from jupyter_ai_magics.partner_providers.ollama import OllamaProvider
+        except ImportError:
+            return
+        if getattr(OllamaProvider, '_hera_timeout_patched', False):
+            return
+        fast_connect = httpx.Timeout(None, connect=0.1)
+        original_init = OllamaProvider.__init__
+
+        def patched_init(self, *args, **kwargs):
+            client_kwargs = dict(kwargs.get('client_kwargs') or {})
+            client_kwargs.setdefault('timeout', fast_connect)
+            kwargs['client_kwargs'] = client_kwargs
+            original_init(self, *args, **kwargs)
+
+        OllamaProvider.__init__ = patched_init
+        OllamaProvider._hera_timeout_patched = True
+
     def set_theme(self, dark: bool):
         # Rewrite overrides so a notebook reload picks up the new theme (read per request).
         self._dark = dark
@@ -114,6 +145,7 @@ class JupyterServerThread:
             asyncio.set_event_loop(asyncio.new_event_loop())
             self._disable_announcements()
             self._enable_ai_magics()
+            self._set_ollama_timeout()
             from jupyter_server.serverapp import ServerApp
             ServerApp.clear_instance()
             ServerApp.init_signal = lambda self: None  # signals only work in main thread
@@ -135,6 +167,10 @@ class JupyterServerThread:
                 '--ServerApp.allow_origin=*',
                 '--ServerApp.tornado_settings={"headers": {"Content-Security-Policy": "frame-ancestors *"}}',
             ])
+            if app.port != self._port:
+                print(f"Jupyter port {self._port} is busy, using {app.port}")
+            self._port = app.port
+            self._port_known.set()
             app.start()
         except ImportError:
             print("WARNING: jupyterlab is not installed — notebook server disabled. Install with: pip install jupyterlab")

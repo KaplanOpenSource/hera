@@ -19,8 +19,9 @@ hera/measurements/
             buildings/
                 toolkit.py     # BuildingsToolkit — footprints + 3D STL
                 analysis.py    # Building analysis layer
+                presentation.py  # Building presentation layer
             demography.py      # DemographyToolkit — population data
-            abstractLocation.py
+            _io_utils.py       # Engine-agnostic GeoJSON -> GeoDataFrame helpers
         utils.py               # CRS conversion, coordinate utilities
         CLI.py                 # hera-GIS CLI entry points
     meteorology/
@@ -64,8 +65,10 @@ hera/measurements/
 
 1. Create a new module under `hera/measurements/<domain>/`
 2. Create a class inheriting from `abstractToolkit` (or `VectorToolkit` for vector GIS)
-3. Set `toolkitName` in `__init__`
+3. Pass `toolkitName` to `super().__init__(...)`
 4. Optionally add `_analysis` and `_presentation` layers
-5. Register in `ToolkitHome._toolkits` dict in `hera/toolkit.py`
+5. Register it:
+    - **External / project toolkits** — register dynamically with `toolkitHome.registerToolkit(toolkit_name=..., toolkit_path=...)` (stored as a `ToolkitDataSource`; `getToolkit` then imports `<toolkit_name>.<toolkit_name>` from that path), or in bulk with `toolkitHome.import_toolkits_from_json(...)`.
+    - **Built-in toolkits** — the static registry is the `self._toolkits` dict built in `ToolkitHome.__init__` (`hera/toolkit.py`), together with a name constant on `ToolkitHome` (e.g. `METEOROLOGY_LOWFREQ = "MeteoLowFreq"`). Prefer dynamic registration over editing this dict.
 
-For the full API, see the [Measurements API Reference](api/measurements.md).
+For the full API, see the [Measurements API Reference](../api/measurements.md).

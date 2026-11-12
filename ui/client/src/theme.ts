@@ -49,7 +49,8 @@ export const useFlexlayoutTheme = () => {
       override.id = overrideId;
       document.head.appendChild(override);
     }
-    override.textContent = themeMode === ThemeMode.Dark
+    const isDark = themeMode === ThemeMode.Dark;
+    const panelColors = isDark
       ? `.flexlayout__layout {
           --color-background: #0b1220;
           --color-base: #0b1220;
@@ -58,5 +59,25 @@ export const useFlexlayoutTheme = () => {
           --color-tab-selected-background: #1f2d47;
         }`
       : '';
+
+    // The maximize button is flexlayout's own, and its gray icon is hard to spot.
+    // Give it the accent color on a bordered chip, and invert it on hover.
+    const accent = isDark ? '#22d3ee' : '#0891b2';
+    const maximizeButton = `
+      .flexlayout__tab_toolbar_button-min,
+      .flexlayout__tab_toolbar_button-max {
+        --color-icon: ${accent};
+        border: 1px solid ${accent};
+        border-radius: 4px;
+        padding: 2px;
+        opacity: 1;
+      }
+      .flexlayout__tab_toolbar_button-min:hover,
+      .flexlayout__tab_toolbar_button-max:hover {
+        --color-icon: #fff;
+        background-color: ${accent};
+      }`;
+
+    override.textContent = panelColors + maximizeButton;
   }, [themeMode]);
 };

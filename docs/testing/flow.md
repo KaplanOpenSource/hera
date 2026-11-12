@@ -1,6 +1,6 @@
 # Testing Flow
 
-This page provides a complete technical walkthrough of the Hera test infrastructure — how tests are organized, how data flows from JSON files through MongoDB into toolkit instances, and how results are compared against expected outputs.
+This page provides a complete technical walkthrough of the Hera test infrastructure — how tests are organized, how data flows from JSON files through MongoDB into toolkit instances, and how results can be compared against expected outputs.
 
 ---
 
@@ -9,29 +9,32 @@ This page provides a complete technical walkthrough of the Hera test infrastruct
 The Hera test suite uses **native Pytest** with a **project-based data access** pattern. The core principle:
 
 !!! tip "The Golden Rule"
-    **Tests never access files directly by path.** They interact only with the `Project` and `Toolkit` APIs, exactly as production code does. Data is loaded into MongoDB once per session, and toolkits read it back through the standard datasource mechanism.
+    **Toolkit tests never access files directly by path.** They interact only with the `Project` and `Toolkit` APIs, exactly as production code does. Data is loaded into MongoDB once per session, and toolkits read it back through the standard datasource mechanism.
 
 ### Test Directory Structure
 
 ```
 hera/tests/
-├── conftest.py                      # Session fixtures, comparison helpers
-├── test_datalayer.py                # Project CRUD tests
+├── conftest.py                      # Session fixtures, cleanup, comparison + save/load helpers
+├── test_datalayer.py                # Project / collections / datahandlers (own fixtures)
 ├── test_repository.py               # Repository add/get/load tests
+├── test_repository_export.py        # Repository export tests
 ├── test_topography.py               # TopographyToolkit tests
 ├── test_landcover.py                # LandCoverToolkit tests
 ├── test_lowfreq.py                  # lowFreqToolKit tests
 ├── test_highfreq.py                 # HighFreqToolKit tests
 ├── test_demography.py               # DemographyToolkit tests
+├── test_experiment.py               # experiment toolkit tests
+├── test_*.py                        # risk assessment, OpenFOAM/LSM, hermes, notebooks, ...
+├── unit/                            # Small DB-free regression tests
+├── dynamic_loading/                 # Dummy experiment + dummy toolkit used by the pack below
+├── dynamic_loading_tests_pack/      # Dynamic loading tests (own conftest.py)
 ├── repository/testCases/            # Test JSON data for repository tests
-├── datalayer/testCases/             # Test JSON data for datalayer tests
-├── expected/
-│   ├── BASELINE/                    # Default expected outputs
-│   └── REGRESSION_2025_11_11/       # Alternative result set
-└── TESTING_GUIDE.md                 # Human-readable test guide
+├── TESTING_GUIDE.md                 # Human-readable test guide
+└── Hera_Tests_Simple_Guide*.md      # Short guides
 ```
 
-External test data lives in a separate directory:
+External test data lives in a separate directory (downloaded by `make test` / `scripts/s3/bootstrap_unittest_data.sh`, see [Getting Started](getting_started.md#2-test-data-repository)):
 
 ```
 ~/hera_unittest_data/                # Configured via TEST_HERA env var
@@ -42,17 +45,13 @@ External test data lives in a separate directory:
 │   ├── GIS/vector/                  # SHP files
 │   └── meteorology/                 # Parquet files
 └── expected/                        # Expected output result sets
-    ├── BASELINE/
-    └── REGRESSION_20251113_1556/
+    └── BASELINE/
 ```
 
 ---
 
 ## Session Lifecycle — The Complete Flow
 
-![Diagram](../images/diagrams/testing_flow_0_14d2ef73.svg)
-
-<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 sequenceDiagram
     participant Pytest as Pytest Runner
@@ -63,16 +62,12 @@ sequenceDiagram
     participant MongoDB as MongoDB
     participant TKFixture as Toolkit Fixtures
     participant TestModule as Test Modules
-    participant Expected as expected/ directory
 
     rect rgb(240, 248, 255)
     note over Pytest, MongoDB: PHASE 1 -- Session Setup (runs once)
 
-    Pytest ->> Conftest: Collect session-scoped fixtures
+    Pytest ->> Conftest: _no_trace_guard (autouse):<br/>snapshot getProjectList()
     Conftest ->> Conftest: test_hera_root fixture:<br/>Read TEST_HERA env var<br/>Default: ~/hera_unittest_data
-    Conftest ->> Conftest: data_config fixture:<br/>Parse data_config.json<br/>from test_hera_root
-    Conftest ->> Conftest: result_set fixture:<br/>Priority: CLI flag ><br/>env var > config > BASELINE
-    Conftest ->> Conftest: expected_dir fixture:<br/>Build path to<br/>expected/RESULT_SET/
 
     note over Conftest, RepoJSON: Load repository JSON
 
@@ -81,24 +76,24 @@ sequenceDiagram
 
     note over Conftest, MongoDB: Create project and populate data
 
-    Conftest ->> Conftest: Create Project instance<br/>projectName = PYTEST_HERA_PROJECT
+    Conftest ->> Conftest: Project(PYTEST_HERA_PROJECT,<br/>filesDirectory=mkdtemp())
     Conftest ->> DT: loadAllDatasourcesIn<br/>RepositoryJSONToProject(<br/>projectName, repoJSON,<br/>basedir, overwrite=True)
 
     loop For each toolkit in repository JSON
-        DT ->> TKHome: getToolkit(toolkitName,<br/>projectName)
+        DT ->> TKHome: getToolkit(toolkitName)
         TKHome -->> DT: Return toolkit instance
 
-        note over DT, MongoDB: Process Config, DataSource,<br/>Measurements sections
+        note over DT, MongoDB: Process Config, DataSource,<br/>Measurements, ... sections
 
         DT ->> MongoDB: toolkit.setConfig(**values)
-        DT ->> MongoDB: toolkit.addDataSource(<br/>name, resource, format,<br/>version)
+        DT ->> MongoDB: toolkit.addDataSource(<br/>dataSourceName, resource,<br/>dataFormat, ...)
     end
 
     Conftest -->> Pytest: Yield populated<br/>Project instance
     end
 
     rect rgb(240, 255, 240)
-    note over Conftest, TKFixture: PHASE 2 -- Fixture Resolution (runs once per session)
+    note over Conftest, TKFixture: PHASE 2 -- Fixture Resolution (once per session, on first use)
 
     Conftest ->> TKFixture: topo_toolkit =<br/>TopographyToolkit(<br/>PYTEST_HERA_PROJECT)
     Conftest ->> TKFixture: lc_toolkit =<br/>LandCoverToolkit(<br/>PYTEST_HERA_PROJECT)
@@ -108,7 +103,7 @@ sequenceDiagram
     end
 
     rect rgb(255, 248, 235)
-    note over TKFixture, Expected: PHASE 3 -- Test Execution (per test function)
+    note over TKFixture, TestModule: PHASE 3 -- Test Execution (per test function)
 
     Pytest ->> TestModule: Run test functions in<br/>test_topography.py,<br/>test_lowfreq.py, etc.
 
@@ -117,40 +112,21 @@ sequenceDiagram
     MongoDB -->> TKFixture: Return document with<br/>resource path + dataFormat
     TKFixture -->> TestModule: Return loaded data:<br/>DataFrame / xarray / etc.
 
-    note over TestModule: Call analysis and<br/>presentation methods
-
     TestModule ->> TestModule: result = toolkit.analysis<br/>.someMethod(data, ...)
-
-    note over TestModule, Expected: Compare with expected output
-
-    TestModule ->> Expected: load_expected_output(<br/>filename, output_type,<br/>expected_dir)
-    Expected -->> TestModule: expected data object
-    TestModule ->> TestModule: compare_outputs(<br/>result, expected,<br/>output_type)
-    TestModule -->> Pytest: PASS or FAIL
+    TestModule ->> TestModule: assert on result<br/>(values, shapes, raw-file cross-checks)
+    TestModule -->> Pytest: PASS / FAIL / SKIP
     end
 
     rect rgb(255, 240, 240)
     note over Pytest, MongoDB: PHASE 4 -- Teardown (runs once)
 
     Pytest ->> Conftest: Session teardown triggered
-    Conftest ->> MongoDB: Delete ALL documents<br/>where projectName =<br/>PYTEST_HERA_PROJECT
-    MongoDB -->> Conftest: Deletion confirmed
+    Conftest ->> MongoDB: purge_project_db: delete ALL documents<br/>(Measurements, Simulations, Cache,<br/>incl. __config__) of PYTEST_HERA_PROJECT
+    Conftest ->> Conftest: Remove project dirs +<br/>temporary filesDirectory
+    Conftest ->> MongoDB: _no_trace_guard: purge every project<br/>created during the session
     Conftest -->> Pytest: Cleanup complete
     end
 ```
--->ST_HERA_PROJECT
-    MongoDB -->> Conftest: Deletion confirmed
-    Conftest -->> Pytest: Cleanup complete
-    end
-```
--->
--->ST_HERA_PROJECT
-    MongoDB -->> Conftest: Deletion confirmed
-    Conftest -->> Pytest: Cleanup complete
-    end
-```
--->
--->
 
 ---
 
@@ -163,23 +139,26 @@ This is the **single most important fixture** in the test suite. It runs once pe
 ```python
 # Simplified from hera/tests/conftest.py
 
+PYTEST_PROJECT_NAME = "PYTEST_HERA_PROJECT"
+
 @pytest.fixture(scope="session")
 def hera_test_project(test_hera_root):
     from hera.datalayer.project import Project
     from hera.utils.data.toolkit import dataToolkit
 
-    # 1. Read the repository JSON
+    # 1. Read the repository JSON (skip if missing)
     repo_json_path = test_hera_root / "test_repository.json"
-    with open(repo_json_path) as fh:
+    with open(repo_json_path, encoding="utf-8") as fh:
         repo_json = json.load(fh)
 
-    # 2. Create the project
-    proj = Project(projectName="PYTEST_HERA_PROJECT")
+    # 2. Create the project, with its files directory in /tmp
+    _files_tmp = tempfile.mkdtemp(prefix="hera_pytest_main_")
+    proj = Project(projectName=PYTEST_PROJECT_NAME, filesDirectory=_files_tmp)
 
     # 3. Load ALL datasources into the project
     dt = dataToolkit()
     dt.loadAllDatasourcesInRepositoryJSONToProject(
-        projectName="PYTEST_HERA_PROJECT",
+        projectName=PYTEST_PROJECT_NAME,
         repositoryJSON=repo_json,
         basedir=str(test_hera_root),
         overwrite=True,
@@ -187,69 +166,70 @@ def hera_test_project(test_hera_root):
 
     yield proj
 
-    # 4. Cleanup: remove all documents
-    for doc in proj.getMeasurementsDocuments():
-        doc.delete()
+    # 4. Cleanup: delete every document of the project (all collections,
+    #    including the __config__ document), then the directories
+    purge_project_db(PYTEST_PROJECT_NAME)
+    purge_project_dirs(PYTEST_PROJECT_NAME)
+    shutil.rmtree(_files_tmp, ignore_errors=True)
 ```
+
+### The _no_trace_guard Fixture
+
+An autouse, session-scoped safety net. At session start it records `getProjectList()`; at the end it calls
+`purge_project()` on every project that appeared during the session, plus any project whose name matches the
+test patterns (`pytest_*`, `unittest_project_dynamic_*`, `PYTEST_HERA_PROJECT`, `REPOSITORY_PROJECT_TESTING_01`).
+It also removes leftover `hera_pytest_main_*`, `hera_pytest_func_*` and `hera_exp_test_*` directories in the
+temp directory. Projects that existed before the session and do not match those patterns are never touched.
 
 ### What loadAllDatasourcesInRepositoryJSONToProject Does
 
-![Diagram](../images/diagrams/testing_flow_1_2c0423bb.svg)
-
-<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TD
     Start["Start:\nrepositoryJSON dict\n+ basedir path"] --> IterToolkits["Iterate over each\ntoolkitName key\nin the JSON"]
 
-    IterToolkits --> GetToolkit["toolkitHome.getToolkit(\ntoolkitName, projectName)"]
+    IterToolkits --> GetToolkit["ToolkitHome(projectName)\n.getToolkit(toolkitName)"]
     GetToolkit --> ToolkitOK{Toolkit\ninstance\nobtained?}
 
     ToolkitOK -- "Yes" --> IterSections["Iterate over each\nsection key in\ntoolkit sub-dict"]
-    ToolkitOK -- "No" --> TryAuto{auto_register_missing\nenabled?}
-    TryAuto -- "Yes" --> AutoReg["auto_register_and_get(\ntoolkitName, projectName,\nrepositoryJSON)"]
-    AutoReg --> IterSections
-    TryAuto -- "No" --> SkipWarn["Log warning and\nskip this toolkit"]
-    SkipWarn --> IterToolkits
+    ToolkitOK -- "No (exception)" --> SkipInfo["Log info and\nskip this toolkit"]
+    SkipInfo --> IterToolkits
 
-    IterSections --> SectionType{Section\ntype?}
+    IterSections --> SectionType{"key.title()?"}
 
     SectionType -- "Config" --> HandleConfig["_handle_Config:\ntoolkit.setConfig(\n**configDict)"]
-    SectionType -- "DataSource" --> IterDS["Iterate over each\ndatasource item"]
-    SectionType -- "Measurements" --> HandleMeas["_DocumentHandler:\ntoolkit.addMeasurements\nDocument(resource,\ndataFormat, type, desc)"]
-    SectionType -- "Simulations" --> HandleSim["_DocumentHandler:\ntoolkit.addSimulations\nDocument(resource,\ndataFormat, type, desc)"]
-    SectionType -- "Cache" --> HandleCache["_DocumentHandler:\ntoolkit.addCache\nDocument(resource,\ndataFormat, type, desc)"]
+    SectionType -- "Datasource" --> IterDS["_handle_DataSource:\niterate over each\ndatasource item"]
+    SectionType -- "Measurements" --> HandleMeas["_DocumentHandler:\ntoolkit.addMeasurements\nDocument(...)"]
+    SectionType -- "Simulations" --> HandleSim["_DocumentHandler:\ntoolkit.addSimulations\nDocument(...)"]
+    SectionType -- "Cache" --> HandleCache["_DocumentHandler:\ntoolkit.addCache\nDocument(...)"]
     SectionType -- "Function" --> HandleFunc["_handle_Function:\nCall named function\nwith provided parameters"]
+    SectionType -- "anything else" --> Raise["raise ValueError\n(unknown handler)"]
 
     IterDS --> CheckRelPath{isRelativePath\n== True?}
-    CheckRelPath -- "Yes" --> ResolvePath["Prepend basedir\nto resource path:\nresource = basedir /\nresource"]
+    CheckRelPath -- "Yes" --> ResolvePath["resource =\nos.path.join(basedir,\nresource)"]
     CheckRelPath -- "No" --> UseAbsPath["Use resource\npath as-is"]
-    ResolvePath --> AddDS["toolkit.addDataSource(\nname, resource,\ndataFormat, version,\noverwrite)"]
-    UseAbsPath --> AddDS
+    ResolvePath --> Exists{Datasource exists\nand not overwrite?}
+    UseAbsPath --> Exists
+    Exists -- "Yes" --> LogErr["Log error,\nkeep existing"]
+    Exists -- "No" --> AddDS["deleteDataSource (if it exists)\ntoolkit.addDataSource(\ndataSourceName, resource,\ndataFormat, version, ...)"]
 
     HandleConfig --> NextSection["Next section\nor next toolkit"]
     AddDS --> NextSection
+    LogErr --> NextSection
     HandleMeas --> NextSection
     HandleSim --> NextSection
     HandleCache --> NextSection
     HandleFunc --> NextSection
     NextSection --> SectionType
 ```
--->m --> NextSection
-    HandleCache --> NextSection
-    HandleFunc --> NextSection
-    NextSection --> SectionType
-```
--->
--->m --> NextSection
-    HandleCache --> NextSection
-    HandleFunc --> NextSection
-    NextSection --> SectionType
-```
--->
--->
+
+Exceptions raised inside a section handler are logged and that section is skipped; the loader moves on to the next section.
 
 !!! info "Overwrite Mode"
-    The `overwrite=True` parameter ensures that running the test suite multiple times does not accumulate stale documents. Existing documents with the same datasource name are deleted before the new ones are inserted.
+    The `overwrite=True` parameter ensures that running the test suite multiple times does not accumulate stale documents. An existing datasource with the same name is deleted before the new one is inserted.
+
+!!! note "auto_register_missing"
+    The method accepts `auto_register_missing: bool = True`, but in master the parameter is not used: a toolkit
+    name that `getToolkit` cannot resolve is simply skipped.
 
 ---
 
@@ -267,12 +247,15 @@ Each toolkit test module depends on a session-scoped fixture that instantiates t
 | `lf_toolkit` | `lowFreqToolKit` | `hera_test_project` | `YAVNEEL` (parquet -> dask/pandas) |
 | `hf_toolkit` | `HighFreqToolKit` | `hera_test_project` | `slicedYamim_sonic`, `slicedYamim_TRH` (parquet) |
 
-### Function-Scoped Fixtures
+### Lightweight Fixtures
 
 | Fixture | Scope | Description |
 |---------|-------|-------------|
-| `project_fixture` | function | Temporary `Project` with cleanup (for `test_datalayer.py`) |
-| `data_toolkit_fixture` | session | `dataToolkit` instance (for `test_repository.py`) |
+| `project_fixture` | function | Temporary `Project` (`pytest_temp_project`) with full cleanup |
+| `data_toolkit_fixture` | session | `dataToolkit` instance |
+
+Neither is used by a test module in master: `test_datalayer.py` defines its own `proj` / `clean_proj`
+fixtures and `test_repository.py` its own `tk` fixture.
 
 ### Fixture Dependency Graph
 
@@ -317,24 +300,6 @@ flowchart TD
     HeraPrj --> LfTK
     HeraPrj --> HfTK
 ```
--->ir
-
-    HeraPrj --> TopoTK
-    HeraPrj --> LcTK
-    HeraPrj --> DemoTK
-    HeraPrj --> LfTK
-    HeraPrj --> HfTK
-```
--->
--->ir
-
-    HeraPrj --> TopoTK
-    HeraPrj --> LcTK
-    HeraPrj --> DemoTK
-    HeraPrj --> LfTK
-    HeraPrj --> HfTK
-```
--->
 -->
 
 ---
@@ -343,62 +308,54 @@ flowchart TD
 
 ### Test Modules Overview
 
-| Module | Toolkit | Tests | Key Patterns |
+| Module | Toolkit | Test functions | Key Patterns |
 |--------|---------|-------|--------------|
-| `test_datalayer.py` | (Project directly) | 5 | CRUD operations, counters, config |
+| `test_datalayer.py` | (Project / collections directly) | 96 | CRUD on 3 collections, counters, config, saveData, datahandlers, autocache, export/import |
 | `test_repository.py` | `dataToolkit` | 7 | Repository add/get/load, path resolution |
-| `test_topography.py` | `TopographyToolkit` | 13 | Point/list/grid elevation, STL, CRS conversion |
+| `test_repository_export.py` | `repositoryExport` | 28 | Hashing, merge, dedup, export round trip |
+| `test_topography.py` | `TopographyToolkit` | 15 | Point/list/grid elevation, STL, CRS conversion |
 | `test_landcover.py` | `LandCoverToolkit` | 11 | Land cover at point/area, roughness, coding map |
-| `test_lowfreq.py` | `lowFreqToolKit` | 18 | Analysis, presentation, data matching, edge cases |
-| `test_highfreq.py` | `HighFreqToolKit` | 24 | Sonic/TRH data, calculators, turbulence statistics |
-| `test_demography.py` | `DemographyToolkit` | 7 | Population calculations, area creation, defaults |
+| `test_lowfreq.py` | `lowFreqToolKit` | 20 | Analysis, presentation, data matching, edge cases |
+| `test_highfreq.py` | `HighFreqToolKit` | 35 | Sonic/TRH data, calculators, turbulence statistics |
+| `test_demography.py` | `DemographyToolkit` | 54 | Population calculations, area creation, presentation plots |
+| `test_experiment.py` | `experimentHome` | 38 | Experiments, trials, entities, data engines, Argos zip parsing |
+| `test_toolkit_coverage.py` | several | 34 | Pure-logic paths (topography, LSM, OpenFOAM, Briggs, lowfreq) |
+| `test_riskassessment_flow.py` | `RiskAssessment` | 20 | Agent, injury levels, toxic loads, mock flow |
+| `test_of_lsm_flow.py` | `OFLSMToolkit` | 19 | Lagrangian particle-file parsing |
+| `test_matplotlibContour.py` | (utility) | 16 | Contour to GeoDataFrame |
+| `test_workflow_execution.py` | (Luigi execution) | 7 | Scheduler command construction, `dispatch_id` isolation |
+| `test_hermes_workflow.py` | `hermesWorkflowToolkit` | 3 | Hermes workflow run |
+| `test_logging_helpers.py` | (logging) | 1 | Default logging config |
+| `test_no_invalid_escapes.py` | (all sources) | 1 per file | Parametrized over every `hera/**/*.py` |
+| `test_notebooks.py` | (notebooks) | 1 per notebook | Marker `notebook`, excluded from `make test` and CI |
+| `unit/` | various | 38 functions (some parametrized) | CLI import cost, `diffJSONS`, lowfreq docs vs code, `datasetToOF` |
+| `dynamic_loading_tests_pack/` | dynamic loading | 5 | Toolkit `classpath` loading, experiment loading, `hera-experiment` CLI |
 
 ### Anatomy of a Toolkit Test
 
 Here is the typical pattern, using `test_lowfreq.py` as an example:
 
-![Diagram](../images/diagrams/testing_flow_3_0990832d.svg)
-
-<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TD
     Start["Test function receives\nlf_toolkit fixture\n(session-scoped)"] --> LoadData["Module fixture: lowfreq_df\nlf_toolkit.getDataSourceData(\n'YAVNEEL')"]
 
-    LoadData --> Compute["Returns dask DataFrame\nCall .compute() to\nmaterialize to pandas"]
+    LoadData --> Missing{"None?"}
+    Missing -- "Yes" --> Skip["pytest.skip(\n'datasource not loaded')"]
+    Missing -- "No" --> Compute["Returns dask DataFrame\nCall .compute() to\nmaterialize to pandas"]
 
-    Compute --> FixDates["Fix datetime column:\nParse dates, set index\nif needed"]
+    Compute --> FixDates["Parse 'datetime' column\n(pd.to_datetime, utc=True)"]
 
     FixDates --> CallMethod["Call analysis or\npresentation method:\nlf_toolkit.analysis\n.addDatesColumns(df, ...)"]
 
-    CallMethod --> BasicAssert["Basic assertions:\nassert result is not None\nassert len(result) > 0\nassert expected columns exist"]
-
-    BasicAssert --> NeedCompare{Compare with\nexpected output?}
-
-    NeedCompare -- "Yes" --> CheckPrepare{PREPARE_EXPECTED_OUTPUT\nenv var set?}
-
-    CheckPrepare -- "Yes (generation mode)" --> SaveOutput["save_expected_output(\nfilename, result,\noutput_type, expected_dir)"]
-    SaveOutput --> PassTest["Test PASSES\n(output saved for\nfuture comparisons)"]
-
-    CheckPrepare -- "No (comparison mode)" --> LoadExpected["load_expected_output(\nfilename, output_type,\nexpected_dir)"]
-    LoadExpected --> Compare["compare_outputs(\nresult, expected,\noutput_type)\n\nDispatches to type-specific\ncomparison function"]
-    Compare --> AssertMatch["assert comparison\nreturns True"]
-    AssertMatch --> PassTest2["Test PASSES"]
-
-    NeedCompare -- "No" --> DirectAssert["Direct assertions:\nassert value == expected\nassert shape == (n, m)"]
-    DirectAssert --> PassTest3["Test PASSES"]
+    CallMethod --> Assert["Assertions:\nresult is not None\nexpected columns exist\nvalues / shapes / ranges\nmatch the raw data"]
+    Assert --> Pass["Test PASSES"]
 ```
--->ct assertions:\nassert value == expected\nassert shape == (n, m)"]
-    DirectAssert --> PassTest3["Test PASSES"]
-```
--->
--->ct assertions:\nassert value == expected\nassert shape == (n, m)"]
-    DirectAssert --> PassTest3["Test PASSES"]
-```
--->
--->
 
 !!! note "Dask to Pandas"
     The `parquet` data handler returns a **dask DataFrame** for lazy loading. Test fixtures call `.compute()` to materialize it into a pandas DataFrame before running assertions.
+
+Several modules also cross-check the toolkit against the raw file (e.g. `test_topography.py` reads the HGT
+tile directly, `test_landcover.py` reads the TIF with rasterio), and skip when that file is not in `$TEST_HERA`.
 
 ### Test Data Mapping (test_repository.json)
 
@@ -408,74 +365,67 @@ flowchart TD
 | `GIS_LandCover` | `defaultLandCover: lc_mcd12q1` | `lc_mcd12q1` -> `measurements/GIS/raster/lc_mcd12q1.tif` (string) |
 | `GIS_Demography` | — | `lamas_population` -> `measurements/GIS/vector/population_lamas.shp` (geopandas) |
 | `MeteoLowFreq` | — | `YAVNEEL` -> `measurements/meteorology/lowfreqdata/YAVNEEL.parquet` (parquet) |
-| `MeteoHighFreq` | — | `slicedYamim_sonic` + `slicedYamim_TRH` -> `measurements/meteorology/highfreqdata/` (parquet) |
+| `MeteoHighFreq` | — | `slicedYamim_sonic` + `slicedYamim_TRH` -> `measurements/meteorology/highfreqdata/*.parquet` (parquet) |
 
 ---
 
 ## Comparison Helpers
 
-The `conftest.py` module provides a rich set of comparison functions for validating test outputs against expected baselines.
+The `conftest.py` module provides a set of comparison functions for validating test outputs against expected baselines.
+They are importable with `from hera.tests.conftest import compare_outputs, ...`.
 
 ### compare_outputs Dispatcher
 
-![Diagram](../images/diagrams/testing_flow_4_80e13768.svg)
-
-<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TD
-    Start["compare_outputs(\nresult, expected,\noutput_type)"] --> TypeSwitch{output_type\nvalue?}
+    Start["compare_outputs(\nresult, expected,\noutput_type)"] --> Norm["Lower-case output_type\nnondbmetadataframe: call getData(),\nthen treat as dataframe\nUnwrap objects with a .df DataFrame\nNone vs 'null' counts as equal"]
+    Norm --> TypeSwitch{output_type\nvalue?}
 
-    TypeSwitch -- "dataframe" --> CompareDF["compare_dataframes()\n\n1. Sort columns alphabetically\n2. Reset index\n3. Float cols: np.allclose\n   rtol=1e-6, atol=1e-6\n4. Datetime: strip timezone\n5. Other: direct equality"]
+    TypeSwitch -- "dataframe /\nmetadataframe" --> CompareDF["compare_dataframes()\n\n1. Sort columns, reset index\n2. Column names must match\n3. Numeric: np.allclose\n   rtol=1e-6, atol=1e-6\n4. Datetime: strip timezone\n5. Other: Series.equals"]
 
-    TypeSwitch -- "geodataframe" --> CompareGDF["compare_dataframes()\n+ geometry comparison\n\n1. Sort by numeric columns\n2. Compare geometries via\n   symmetric_difference().area\n3. Area tolerance: GDF_TOL_AREA"]
+    TypeSwitch -- "geodataframe" --> CompareGDF["compare_dataframes()\nwith a geometry column:\n\n1. Sort rows by preferred\n   numeric columns\n2. Geometries equal, or\n   symmetric_difference().area\n   < GDF_TOL_AREA"]
 
     TypeSwitch -- "ndarray" --> CompareNP["np.allclose(\nresult, expected,\nrtol=1e-6, atol=1e-6)"]
 
-    TypeSwitch -- "xarray" --> CompareXR["result.equals(expected)\n\nFull dataset comparison\nincluding coordinates"]
+    TypeSwitch -- "xarray" --> CompareXR["result.equals(expected)"]
 
-    TypeSwitch -- "dataarray" --> CompareDA["compare_dataarrays()\n\nnp.allclose on .values\n+ coordinate comparison"]
+    TypeSwitch -- "dataarray" --> CompareDA["compare_dataarrays()\n\nnp.allclose on .values"]
 
-    TypeSwitch -- "float / int" --> CompareNum["math.isclose(\nresult, expected,\nrel_tol=1e-6)"]
+    TypeSwitch -- "float" --> CompareFloat["math.isclose(\nrel_tol=1e-6,\nabs_tol=1e-6)"]
+
+    TypeSwitch -- "int" --> CompareInt["result == expected"]
 
     TypeSwitch -- "dict / list / tuple" --> CompareDeep["deep_compare_with_tolerance()\n\nRecursive comparison:\n- Floats: math.isclose\n- DataFrames: compare_dataframes\n- Arrays: np.allclose\n- Nested: recurse"]
 
-    TypeSwitch -- "str / bytes" --> CompareStr["Direct equality\nresult == expected"]
+    TypeSwitch -- "str / string / bytes" --> CompareStr["Direct equality\nresult == expected"]
 
-    TypeSwitch -- "npz" --> CompareNPZ["For each array key:\nnp.allclose(\nresult, expected)"]
+    TypeSwitch -- "npz" --> CompareNPZ["Both tuples:\nnp.allclose per array pair"]
+
+    TypeSwitch -- "unknown" --> RetFalse["Return False"]
 
     CompareDF --> ReturnBool["Return True / False"]
     CompareGDF --> ReturnBool
     CompareNP --> ReturnBool
     CompareXR --> ReturnBool
     CompareDA --> ReturnBool
-    CompareNum --> ReturnBool
+    CompareFloat --> ReturnBool
+    CompareInt --> ReturnBool
     CompareDeep --> ReturnBool
     CompareStr --> ReturnBool
     CompareNPZ --> ReturnBool
 ```
--->areNum --> ReturnBool
-    CompareDeep --> ReturnBool
-    CompareStr --> ReturnBool
-    CompareNPZ --> ReturnBool
-```
--->
--->areNum --> ReturnBool
-    CompareDeep --> ReturnBool
-    CompareStr --> ReturnBool
-    CompareNPZ --> ReturnBool
-```
--->
--->
 
 ### compare_dataframes — Deep Comparison
 
-The `compare_dataframes` function handles several complex scenarios:
+The `compare_dataframes(df1, df2, rtol=1e-6, atol=1e-6)` function handles several complex scenarios:
 
-1. **Column Alignment** — Sorts columns alphabetically and resets index
-2. **Numeric Tolerance** — Uses `np.allclose(rtol=1e-6, atol=1e-6)` for float columns
+1. **Column Alignment** — Sorts columns alphabetically and resets index; returns `False` if the column names differ
+2. **Numeric Tolerance** — Uses `np.allclose(rtol, atol, equal_nan=True)` for numeric columns (NaN filled with 0 first)
 3. **Datetime Handling** — Strips timezone info before comparison
-4. **Geometry Handling** — For GeoDataFrames, compares geometries via `symmetric_difference().area`
-5. **Sort Stability** — For GeoDataFrames, sorts by preferred numeric columns to ensure deterministic comparison
+4. **Geometry Handling** — When both frames have a `geometry` column, geometries match if equal or if `symmetric_difference().area` is below `GDF_TOL_AREA` (default `1e-7`)
+5. **Sort Stability** — With a geometry column, rows are first sorted by preferred columns (`areaFraction`, `total_pop`, `age_*`) or, failing that, by all numeric columns
+
+Any exception during comparison makes the function return `False`.
 
 ### deep_compare_with_tolerance — Recursive Comparison
 
@@ -484,7 +434,7 @@ For nested structures (dicts, lists, tuples), the `deep_compare_with_tolerance` 
 - **Floats** — `math.isclose(rel_tol=1e-6, abs_tol=1e-6)`
 - **DataFrames** — Delegates to `compare_dataframes`
 - **NumPy arrays** — `np.allclose`
-- **Lists/Tuples** — Element-wise recursive comparison
+- **Lists/Tuples** — Length check + element-wise recursive comparison
 - **Dicts** — Key-set comparison + recursive value comparison
 - **Everything else** — Direct equality
 
@@ -492,28 +442,31 @@ For nested structures (dicts, lists, tuples), the `deep_compare_with_tolerance` 
 
 ## Expected Output Management
 
+!!! warning "Not used by the master test suite"
+    The result-set fixtures (`result_set`, `expected_dir`) and the save/load helpers below exist in
+    `conftest.py`, but no test module in master currently calls `compare_outputs`, `save_expected_output`,
+    `load_expected_output` or requests `expected_dir`. Tests assert directly on their results. The machinery
+    is available for new tests.
+
 ### Result Sets
 
-Expected outputs are organized into **result sets** — named directories under `expected/`:
+Expected outputs are organized into **result sets** — named directories under `$TEST_HERA/expected/`:
 
 ```
 expected/
-├── BASELINE/                        # Default result set
-│   ├── getPointElevation.json
-│   ├── expected_lowfreq_addDatesColumns.parquet
-│   ├── expected_lowfreq_calcHourlyDist_density.npz
-│   ├── create_xarray.nc
-│   └── ...
-└── REGRESSION_2025_11_11/           # Alternative result set
+└── BASELINE/                        # Default result set
     └── ...
 ```
+
+`data_config.json` may list additional result sets; only directories that actually exist can be selected
+(the `expected_dir` fixture skips when the directory is missing).
 
 ### Choosing a Result Set
 
 The active result set is determined by (in priority order):
 
-1. **CLI option:** `pytest --result-set REGRESSION_2025_11_11`
-2. **Environment variable:** `RESULT_SET=REGRESSION_2025_11_11`
+1. **CLI option:** `pytest --result-set <NAME>`
+2. **Environment variable:** `RESULT_SET=<NAME>`
 3. **Config default:** `data_config.json -> default_result_set`
 4. **Hardcoded fallback:** `"BASELINE"`
 
@@ -521,22 +474,24 @@ The active result set is determined by (in priority order):
 
 | Function | Purpose |
 |----------|---------|
-| `save_expected_output(filename, data, output_type, expected_dir)` | Serialize test output to the expected directory |
-| `load_expected_output(filename, output_type, expected_dir)` | Deserialize expected output for comparison |
+| `save_expected_output(filename, data, output_type, expected_dir)` | Serialize test output to the expected directory (`None` is written as the text `null`) |
+| `load_expected_output(filename, output_type, expected_dir)` | Deserialize expected output for comparison; raises `FileNotFoundError` if missing, `ValueError` for an unknown type |
 
-!!! warning "PREPARE_EXPECTED_OUTPUT Mode"
-    Setting the `PREPARE_EXPECTED_OUTPUT=1` environment variable switches tests into **generation mode**: instead of comparing results against expected outputs, they **write** the current results as the new expected outputs. This is used when establishing a new baseline after intentional changes.
+!!! warning "PREPARE_EXPECTED_OUTPUT is not implemented"
+    The `conftest.py` docstring describes a `PREPARE_EXPECTED_OUTPUT=1` generation mode, but no code in master
+    reads this variable. To create a baseline, call `save_expected_output(...)` from the test (or a one-off
+    script) and commit the file to the test data repository.
 
 ### Supported Output Formats
 
 | output_type | Save Format | Load Method |
 |-------------|-------------|-------------|
-| `dataframe` | `.parquet` or `.json` | `pd.read_parquet()` / `pd.read_json()` |
-| `geodataframe` | `.geojson` | `gpd.read_file()` |
-| `xarray` / `dataarray` | `.nc` (NetCDF) | `xr.open_dataset()` / `xr.open_dataarray()` |
+| `dataframe` | `.parquet` if the filename ends with `.parquet`, otherwise JSON (`orient="records"`) | `pd.read_parquet()` / `pd.read_json()` |
+| `geodataframe` | GeoJSON | `gpd.read_file()` |
+| `xarray` / `dataarray` | NetCDF | `xr.open_dataset()` / `xr.open_dataarray()` |
 | `dict` / `list` | `.json` | `json.load()` |
 | `float` / `int` | `.json` | `json.load()` + cast |
-| `ndarray` / `npz` | `.npz` | `np.load()` |
+| `ndarray` / `npz` | `.npz` (`np.savez`; a tuple is stored as `arr0`, `arr1`, ...) | `np.load()` → array, or tuple of arrays |
 | `str` / `string` | plain text | `open().read()` |
 
 ---
@@ -545,11 +500,11 @@ The active result set is determined by (in priority order):
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `TEST_HERA` | No | `~/hera_unittest_data` | Path to the test data repository root |
-| `RESULT_SET` | No | `BASELINE` | Name of the expected-output result set |
-| `PREPARE_EXPECTED_OUTPUT` | No | (unset) | Set to `"1"` to generate expected outputs |
-| `MPLBACKEND` | No | (system default) | Set to `Agg` for headless matplotlib |
+| `TEST_HERA` | No (export it; see [Getting Started](getting_started.md#4-environment-variables)) | `~/hera_unittest_data` | Path to the test data repository root |
+| `RESULT_SET` | No | `default_result_set` or `BASELINE` | Name of the expected-output result set |
 | `GDF_TOL_AREA` | No | `1e-7` | Tolerance for geometry comparison area |
+| `MPLBACKEND` | No | (system default) | Set to `Agg` for headless matplotlib |
+| `PREPARE_EXPECTED_OUTPUT` | — | — | Not implemented in master (docstring only) |
 
 ---
 
@@ -559,11 +514,13 @@ The active result set is determined by (in priority order):
 
 ```bash
 # Activate the environment
-cd /home/ilay/hera
-source heraenv/bin/activate
+source activate_hera.sh
 
-# Run all tests
-pytest hera/tests/ -v
+# Run the suite the way CI does (downloads test data if missing)
+make test
+
+# Run all tests except notebooks, manually
+pytest hera/tests/ -v -m "not notebook"
 
 # Run a specific module
 pytest hera/tests/test_lowfreq.py -v
@@ -577,11 +534,11 @@ pytest hera/tests/test_lowfreq.py::TestLowFreqToolkitInit::test_has_analysis -v
 # Choose a result set
 pytest hera/tests/ --result-set BASELINE -v
 
-# Skip slow tests
-pytest hera/tests/ -v -m "not slow"
+# Only tests marked as unit (no external dependencies)
+pytest hera/tests/ -v -m unit
 
-# Generate expected outputs
-PREPARE_EXPECTED_OUTPUT=1 pytest hera/tests/ -v
+# Notebook regression tests
+make test-notebooks
 ```
 
 ### Pytest Configuration (pytest.ini)
@@ -592,11 +549,16 @@ testpaths = hera/tests
 python_files = test_*.py
 python_classes = Test*
 python_functions = test_*
+cache_dir = cache/test_results/.pytest_cache
 addopts = -v --tb=short
 markers =
     slow: marks tests as slow (deselect with '-m "not slow"')
     integration: marks tests that require MongoDB
+    unit: marks tests as unit tests (no external dependencies)
+    notebook: marks notebook execution tests (run with 'make test-notebooks', excluded from 'make test')
 ```
+
+`hera/tests/dynamic_loading_tests_pack/` has its own `pytest.ini`, which only applies when pytest is run from inside that directory.
 
 ---
 
@@ -604,12 +566,13 @@ markers =
 
 ### Step-by-Step Guide
 
-1. **Add test data** to `~/hera_unittest_data/measurements/<subdir>/`
+1. **Add test data** to `$TEST_HERA/measurements/<subdir>/`
 2. **Update `test_repository.json`** with a new entry under the appropriate toolkit key
 3. **Add a fixture** in `conftest.py` (session-scoped, depends on `hera_test_project`)
 4. **Create a test module** `hera/tests/test_<name>.py`
 5. **Use the fixture** to get a real toolkit instance — no file paths in tests
-6. **Compare outputs** using `compare_outputs()` and expected files under `expected/BASELINE/`
+6. **Mark it** with `@pytest.mark.integration` (needs MongoDB) or `@pytest.mark.unit` (no external dependencies)
+7. **Optionally compare outputs** using `compare_outputs()` and expected files under `expected/<result_set>/`
 
 ### Example: Adding a New Toolkit Test
 
@@ -621,9 +584,18 @@ def my_toolkit(hera_test_project):
     return MyToolkit(projectName=PYTEST_PROJECT_NAME)
 
 # In test_my_toolkit.py
+@pytest.mark.integration
 class TestMyToolkit:
     def test_basic(self, my_toolkit):
         data = my_toolkit.getDataSourceData("my_datasource")
-        assert data is not None
+        if data is None:
+            pytest.skip("my_datasource not loaded in project")
         # ... assertions ...
 ```
+
+---
+
+## Related Documentation
+
+- [Getting Started with Tests](getting_started.md) — Prerequisites, test data download, CI, and how to run the suite
+- [Environment Variables](../configuration/env_vars.md) — All test-related environment variables

@@ -1,22 +1,12 @@
 import { useEffect, useState } from "react";
-import { fetchPython } from "../../io/fetchPython";
+import { repositoryApi } from "../../api/api";
 import { Repository } from "../../shared/types";
 
 export const useRegisteredRepositories = () => {
   const [repositories, setRepositories] = useState<Repository[]>([]);
 
   const fetchRepositories = async () => {
-    const { data } = await fetchPython({
-      results: ['repos'],
-      label: 'registered repositories',
-      code: `
-from hera.utils.data.toolkit import dataToolkit
-repos = dataToolkit().getRepositoryTable().to_dict(orient='records')
-`,
-    });
-    if (data?.repos) {
-      setRepositories(data.repos);
-    }
+    setRepositories(await repositoryApi.registered());
   };
 
   useEffect(() => {

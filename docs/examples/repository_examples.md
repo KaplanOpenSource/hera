@@ -30,14 +30,14 @@ A single toolkit with one datasource:
 ```
 
 **Explanation:**
-- `MeteoLowFreq` — Toolkit name (must match registered toolkit)
+- `MeteoLowFreq` — Toolkit name (must be resolvable by `toolkitHome.getToolkit()`; unknown names are silently skipped)
 - `DataSource` — Section type (creates a ToolkitDataSource document)
 - `YAVNEEL` — Datasource name (used in `getDataSourceData("YAVNEEL")`)
 - `isRelativePath: "True"` — Path is relative to repository JSON file location
 - `resource` — Path to the data file
 - `dataFormat: "parquet"` — How to read the file
 - `version: [0, 0, 1]` — Version tuple (major, minor, patch)
-- `desc` — Free-form metadata dictionary
+- `desc` — Free-form metadata. Every key of `item` other than `resource`, `dataFormat`, `version` (and `overwrite`) is stored in the document's `desc`, so this dictionary ends up as `doc.desc["desc"]`. Put keys directly in `item` instead if you want them at the top level of `desc`.
 
 ---
 
@@ -110,7 +110,9 @@ Multiple toolkits with different section types:
 
 ## Versioned Datasources
 
-Multiple versions of the same datasource:
+A repository JSON can hold **only one version per datasource name**: JSON objects cannot contain the same key twice (most parsers silently keep the last one), and the loader looks datasources up by name only. When a datasource with that name already exists, it is skipped unless `overwrite` is set, in which case the existing documents of that name are deleted before the new item is added.
+
+Declare the version you want the repository to provide:
 
 ```json
 {
@@ -119,26 +121,11 @@ Multiple versions of the same datasource:
             "YAVNEEL": {
                 "isRelativePath": "True",
                 "item": {
-                    "resource": "measurements/meteorology/lowfreqdata/YAVNEEL_v1.parquet",
-                    "dataFormat": "parquet",
-                    "version": [0, 0, 1],
-                    "desc": {
-                        "stationName": "YAVNEEL",
-                        "processedDate": "2024-01-15"
-                    }
-                }
-            },
-            "YAVNEEL": {
-                "isRelativePath": "True",
-                "item": {
                     "resource": "measurements/meteorology/lowfreqdata/YAVNEEL_v2.parquet",
                     "dataFormat": "parquet",
                     "version": [0, 0, 2],
-                    "desc": {
-                        "stationName": "YAVNEEL",
-                        "processedDate": "2024-03-20",
-                        "qualityControl": "passed"
-                    }
+                    "processedDate": "2024-03-20",
+                    "qualityControl": "passed"
                 }
             }
         }
@@ -146,7 +133,14 @@ Multiple versions of the same datasource:
 }
 ```
 
-**Note:** Both entries have the same datasource name (`"YAVNEEL"`) but different versions. The loader will create two separate documents. Use `setDataSourceDefaultVersion()` to choose which version is returned by default.
+To keep several versions side by side, add them through the API (or use distinct datasource names):
+
+```python
+lf = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName="MY_PROJECT")
+lf.addDataSource("YAVNEEL", "/data/YAVNEEL_v1.parquet", "parquet", version=(0, 0, 1))
+lf.addDataSource("YAVNEEL", "/data/YAVNEEL_v2.parquet", "parquet", version=(0, 0, 2))
+lf.setDataSourceDefaultVersion("YAVNEEL", (0, 0, 2))
+```
 
 ---
 
@@ -176,7 +170,6 @@ Complete example showing all supported section types:
         },
         "Measurements": {
             "raw_export_2024": {
-                "isRelativePath": "True",
                 "item": {
                     "resource": "measurements/meteorology/exports/raw_2024.parquet",
                     "dataFormat": "parquet",
@@ -190,7 +183,6 @@ Complete example showing all supported section types:
         },
         "Simulations": {
             "wind_simulation_001": {
-                "isRelativePath": "True",
                 "item": {
                     "resource": "simulations/wind/wind_001.nc",
                     "dataFormat": "netcdf_xarray",
@@ -204,7 +196,6 @@ Complete example showing all supported section types:
         },
         "Cache": {
             "processed_stats": {
-                "isRelativePath": "True",
                 "item": {
                     "resource": "cache/statistics.json",
                     "dataFormat": "JSON_dict",
@@ -217,10 +208,9 @@ Complete example showing all supported section types:
             }
         },
         "Function": {
-            "initializeToolkit": {
-                "params": {
-                    "autoLoadDefaults": true
-                }
+            "addRepository": {
+                "repositoryName": "shared_gis",
+                "repositoryPath": "/data/repositories/shared_gis.json"
             }
         }
     }
@@ -236,7 +226,9 @@ Complete example showing all supported section types:
 | `Measurements` | `_DocumentHandler` | Calls `toolkit.addMeasurementsDocument(...)` |
 | `Simulations` | `_DocumentHandler` | Calls `toolkit.addSimulationsDocument(...)` |
 | `Cache` | `_DocumentHandler` | Calls `toolkit.addCacheDocument(...)` |
-| `Function` | `_handle_Function` | Calls a named function with parameters |
+| `Function` | `_handle_Function` | Calls `dataToolkit.<name>(**params, overwrite=...)` (a method of the loader, not of the toolkit) |
+
+Measurements/Simulations/Cache `item`s may contain only `resource`, `dataFormat`, `type` and `desc`; their `resource` is always joined to the repository directory (absolute paths are kept), so they need no `isRelativePath`.
 
 ---
 
@@ -388,11 +380,11 @@ A realistic repository for a meteorological analysis project:
 **Usage:**
 
 ```bash
-# Register the repository
-hera-project repository add meteo_project /path/to/repository.json
+# Register the repository (registered under the file's base name)
+hera-project repository add /path/to/meteo_project.json
 
 # Load into a project
-hera-project repository load meteo_project MY_PROJECT --overwrite
+hera-project repository load /path/to/meteo_project.json MY_PROJECT --overwrite
 ```
 
 Or via Python:
@@ -416,6 +408,8 @@ dt.loadAllDatasourcesInRepositoryJSONToProject(
 ---
 
 ## Common Patterns
+
+In these patterns `MyToolkit` stands for any toolkit name that `toolkitHome.getToolkit()` can resolve (a built-in name or a toolkit registered with `hera-project addToolkit`); otherwise the whole key is skipped.
 
 ### Pattern 1: Multiple Data Formats
 
@@ -503,17 +497,18 @@ The toolkit will search this directory for files (e.g., `.hgt` files for SRTM).
 
 The repository loader validates:
 
-- **Toolkit existence** — Toolkit must be registered or auto-registrable
-- **Section names** — Must be one of: `Config`, `DataSource`, `Measurements`, `Simulations`, `Cache`, `Function`
-- **Required fields** — `resource`, `dataFormat` are required for DataSource items
-- **Path resolution** — Relative paths must be resolvable (directory must exist)
-- **Version format** — Must be a list of 3 integers: `[major, minor, patch]`
+- **Toolkit existence** — Keys that `toolkitHome.getToolkit()` cannot resolve are skipped (INFO log only); no auto-registration is attempted
+- **Section names** — After `key.title()`, must be one of: `Config`, `Datasource`, `Measurements`, `Simulations`, `Cache`, `Function` (an unknown section raises `ValueError`)
+- **Required fields** — `isRelativePath` on each DataSource entry, and `resource` (or `resourceFilePath`) and `dataFormat` in its `item`
+- **Version format** — A list of 3 integers: `[major, minor, patch]`
+- Paths are **not** checked at load time; a wrong path fails only when the data is read
 
 **Common Errors:**
 
-- `Unknown Handler X` — Section name doesn't match expected handlers
-- `Toolkit X not found` — Toolkit not registered and auto-registration failed
-- `Source X already exists` — Datasource exists and `overwrite=False`
+- `Unkonw Handler X. The handler must be ...` — Section name doesn't match a handler
+- `Skipping key 'X' in repository JSON` (INFO) — Toolkit cannot be resolved
+- `Source X already exists in <project>. Use --overwrite to force update` — Datasource exists and `overwrite=False` (logged, item skipped)
+- `isRelativePath must be defined as 'True' or 'False'.` — Missing/invalid `isRelativePath` on a DataSource entry
 
 ---
 

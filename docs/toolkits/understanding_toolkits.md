@@ -64,13 +64,13 @@ meteo = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName="Win
 risk = toolkitHome.getToolkit(toolkitHome.RISKASSESSMENT, projectName="WindStudy")
 ```
 
-The `projectName` parameter is **always required** — either explicitly or via `caseConfiguration.json`. If you pass `projectName=None`, the toolkit loads the project name from `caseConfiguration.json` in the current working directory:
+Every toolkit needs a project — either passed explicitly or taken from `caseConfiguration.json`. If you pass `projectName=None` (or omit it), `getToolkit` uses the project of the `toolkitHome` singleton, which is read from `caseConfiguration.json` in the current working directory when Hera first creates `toolkitHome`:
 
 ```python
 # Explicit project name
 meteo = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName="WindStudy")
 
-# projectName=None — loads from caseConfiguration.json in the current directory
+# projectName=None — uses toolkitHome's project (from caseConfiguration.json)
 meteo = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName=None)
 
 # Omitting projectName is equivalent to projectName=None
@@ -95,11 +95,14 @@ Each toolkit constant maps to a toolkit name string. Using constants avoids typo
 | Constant | String value |
 |----------|-------------|
 | `toolkitHome.GIS_RASTER_TOPOGRAPHY` | `"GIS_Raster_Topography"` |
+| `toolkitHome.GIS_BUILDINGS` | `"GIS_Buildings"` |
 | `toolkitHome.METEOROLOGY_LOWFREQ` | `"MeteoLowFreq"` |
 | `toolkitHome.SIMULATIONS_OPENFOAM` | `"OpenFOAM"` |
 | `toolkitHome.RISKASSESSMENT` | `"RiskAssessment"` |
 
 See the [Toolkit Catalog](overview.md) for the full list of constants and toolkit names.
+
+The registry name is not always the name the toolkit instance reports: `toolkit.toolkitName` (and the `toolkit` field stored on its data sources) is an internal name — for example `"TopographyToolkit"` for `GIS_Raster_Topography` or `"lowFreqMeteorology"` for `MeteoLowFreq`. The catalog lists both.
 
 ### Project binding
 
@@ -112,21 +115,18 @@ Every toolkit is **bound to a project** when you create it. This means:
 The project name is resolved as follows:
 
 1. If `projectName="WindStudy"` — use that name directly
-2. If `projectName=None` (or omitted) — load from `caseConfiguration.json` in the current directory
-3. If no `caseConfiguration.json` exists — use the read-only default project
+2. If `projectName=None` (or omitted) — use the project of `toolkitHome`, which was loaded from `caseConfiguration.json` in the current directory
+3. If no `caseConfiguration.json` exists — use the read-only default project (`defaultProject`)
 
 ### Listing available toolkits
 
 ```python
 # Get a table of all available toolkits (built-in + registered)
-toolkitHome.getToolkitTable(projectName="WindStudy")
+# Columns: toolkit, cls, source, type, repositoryName, version
+toolkitHome.getToolkitTable()
 ```
 
-From the CLI:
-
-```bash
-hera-toolkit list --project WindStudy
-```
+There is currently no CLI command that lists toolkits.
 
 ---
 
@@ -134,19 +134,19 @@ hera-toolkit list --project WindStudy
 
 ### Built-in toolkits
 
-Hera ships with ~15 built-in toolkits covering GIS, meteorology, simulations, and risk assessment. These are hardcoded in the `ToolkitHome` registry and available immediately:
+Hera ships with 17 built-in toolkits covering GIS, meteorology, simulations, and risk assessment. These are hardcoded in the `ToolkitHome` registry and available immediately:
 
 | Domain | Toolkits |
 |--------|----------|
-| GIS | Topography (raster/vector), Buildings, Demography, LandCover, Tiles, Shapes |
+| GIS | Topography (raster/vector), Buildings, Demography, LandCover, Tiles |
 | Meteorology | MeteoLowFreq, MeteoHighFreq |
-| Simulations | OpenFOAM, LSM, GaussianDispersion, WindProfile, hermesWorkflows |
+| Simulations | OpenFOAM, OF_LSM, LSM, GaussianDispersion, WindProfile, hermesWorkflows, machine_deep_learning |
 | Risk | RiskAssessment |
-| Data | experiment, ML/DL |
+| Data | experiment |
 
 ### Dynamic toolkits
 
-You can also register **custom toolkits** at runtime. Dynamic toolkits are stored in the database and loaded on demand.
+You can also register **custom toolkits** at runtime. Dynamic toolkits are stored in the database (as `ToolkitDataSource` documents of the repository toolkit in the default project, so they are visible from every project) and loaded on demand.
 
 This is useful when:
 
@@ -159,7 +159,7 @@ This is useful when:
 From the CLI:
 
 ```bash
-# Register a toolkit by name and path
+# Register a toolkit by name and path (optional: --version 1,0,0 --params '{"a":1}' --overwrite)
 hera-project addToolkit myCustomToolkit /path/to/toolkit/directory
 ```
 
@@ -173,26 +173,26 @@ toolkitHome.registerToolkit(
 )
 ```
 
-The toolkit directory should contain a Python module following the convention `<toolkit_name>/<toolkit_name>.py` with a class that inherits from `abstractToolkit`.
+Only the directory is stored (if you pass a file, its parent directory is used). When the toolkit is requested, that directory is put first on `sys.path` and the class is located as `<toolkit_name>.<toolkit_name>`. So the directory must contain a module `<toolkit_name>.py` (or a package `<toolkit_name>/` whose `__init__.py` defines the class) with a class named exactly `<toolkit_name>`, which should inherit from `abstractToolkit` and accept `projectName` and `filesDirectory` keyword arguments. The name must not shadow a module that is already importable, otherwise `getToolkit` raises `ValueError`.
 
 #### Using a dynamic toolkit
 
 Once registered, dynamic toolkits are accessed the same way as built-in ones:
 
 ```python
-# ToolkitHome searches: built-in registry → database → experiments
+# ToolkitHome searches: built-in registry → database
 my_toolkit = toolkitHome.getToolkit("myCustomToolkit", projectName="MY_PROJECT")
 ```
 
 #### How ToolkitHome resolves toolkit names
 
-When you call `getToolkit(name)`, ToolkitHome searches three sources in order:
+When you call `getToolkit(name)`, ToolkitHome searches these sources in order:
 
-1. **Built-in registry** — the hardcoded dict of ~15 toolkits
+1. **Built-in registry** — the hardcoded dict of 17 toolkits
 2. **Database** — dynamically registered toolkits stored as `ToolkitDataSource` documents
-3. **Experiments** — experiments exposed via the experiment toolkit
+3. **Experiments** — experiments exposed via the experiment toolkit. In master this step never runs, because `toolkitHome.experimentTK` is never populated; get experiments through `toolkitHome.getToolkit(toolkitHome.EXPERIMENT).getExperiment(name)` instead.
 
-The first match wins. This means you can override a built-in toolkit by registering a dynamic one with the same name.
+The first match wins, so a dynamic toolkit **cannot** override a built-in one with the same name — the built-in is always found first. If nothing matches, `ValueError` is raised.
 
 ---
 
@@ -206,13 +206,13 @@ The analysis layer provides domain-specific data processing. Examples:
 
 - **Meteorology**: `addDatesColumns()`, `calcHourlyDist()`, `resampleSecondMoments()`
 - **Risk assessment**: `getRiskAreas()` — compute risk zones from dispersion data
-- **High-frequency meteo**: `calculateMeanData()`, turbulence statistics
+- **High-frequency meteo**: `singlePointTurbulenceStatistics()`, `MeanDataCalculator()` — turbulence and mean-flow statistics
 
 ### `toolkit.presentation`
 
 The presentation layer generates domain-specific visualizations. Examples:
 
-- **Meteorology**: `dailyPlots.plotScatter()`, `seasonalPlots.plotSeasonalHourly()`
+- **Meteorology**: `dailyPlots.plotScatter()`, `seasonalPlots.plotProbContourf_bySeason()`
 - **Risk assessment**: `plotCasualtiesRose()` — radial casualty distribution
 - **GIS Tiles**: `plot()` — render map tile images with CRS axes
 
@@ -220,9 +220,11 @@ The presentation layer generates domain-specific visualizations. Examples:
 
 The data layer normalizes how data is loaded, converted, and stored. All toolkits inherit these methods from `abstractToolkit`:
 
-- `getDataSourceData(name)` — load data by name (handles format detection and conversion)
+- `getDataSourceData(datasourceName=None, version=None)` — load data by name (the stored `dataFormat` decides how it is read; without `version`, the default version if one was set, otherwise the latest)
 - `getDataSourceList()` — list available data sources
-- `addDataSource(name, resource, dataFormat)` — register a new data source with persistent storage
+- `addDataSource(dataSourceName, resource, dataFormat, version=(0, 0, 1), overwrite=False, **desc)` — register a new data source (stored as a Measurements document of type `ToolkitDataSource`)
+- `setDataSourceDefaultVersion(datasourceName, version)` — choose which version is loaded by default
+- `deleteDataSource(datasourceName, version=None)` — remove a data source
 - `getDataSourceTable()` — view all data sources as a DataFrame
 
 ---
@@ -230,7 +232,7 @@ The data layer normalizes how data is loaded, converted, and stored. All toolkit
 ## Next steps
 
 - **[Toolkit Catalog](overview.md)** — reference tables for all toolkits with methods and constants
-- **[Measurements](measurements.md)** — GIS, meteorology, and experiment toolkit usage with code examples
-- **[Simulations](simulations.md)** — OpenFOAM, LSM, Gaussian, wind profile usage
+- **Measurements** — [Topography (Raster)](measurements/gis/topography_raster.md), [Buildings](measurements/gis/buildings.md), [Land Cover](measurements/gis/landcover.md), [MeteoLowFreq](measurements/meteorology/lowfreq.md), [MeteoHighFreq](measurements/meteorology/highfreq.md), [Experiment](measurements/experiment.md)
+- **Simulations** — [OpenFOAM](simulations/openfoam.md), [LSM](simulations/lsm.md), [Gaussian](simulations/gaussian.md), [Wind Profile](simulations/windprofile.md), [Hermes Workflows](simulations/workflows.md)
 - **[Risk Assessment](risk_assessment.md)** — agents, effects, protection policies
 - **[Working with Data Sources](../user_guide/working_with_data.md#data-sources)** — detailed API for versions, defaults, querying

@@ -1,0 +1,51 @@
+{
+    "workflow": {
+        "nodes": {
+            "Compute": {
+                "Execution": {
+                    "input_parameters": {
+                        "ModulePath": "myCode.resultMaker",
+                        "ClassName": "ResultMaker",
+                        "MethodName": "run",
+                        "Parameters": {}
+                    }
+                },
+                "type": "general.RunPythonCode"
+            },
+            "WholeOutput": {
+                "Execution": {
+                    "input_parameters": {
+                        "Method": "Command list",
+                        "Command": [
+                            "echo 'the whole returned dict: {Compute.output.Return}'"
+                        ]
+                    }
+                },
+                "type": "general.RunOsCommand"
+            },
+            "DictField": {
+                "Execution": {
+                    "input_parameters": {
+                        "Method": "Command list",
+                        "Command": [
+                            "echo 'one key of it: {Compute.output.Return.station}'"
+                        ]
+                    }
+                },
+                "type": "general.RunOsCommand"
+            },
+            "ListElement": {
+                "Execution": {
+                    "input_parameters": {
+                        "Method": "Command list",
+                        "Command": [
+                            "echo 'one element: {Compute.output.Return.rows[0].name}'",
+                            "echo 'every element: {Compute.output.Return.rows[*].name}'"
+                        ]
+                    }
+                },
+                "type": "general.RunOsCommand"
+            }
+        }
+    }
+}

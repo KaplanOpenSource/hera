@@ -4,12 +4,8 @@ import { SimpleTreeView } from '@mui/x-tree-view';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockFetchPython = vi.fn();
-vi.mock('../src/io/fetchPython', () => ({
-  fetchPython: (...args: any[]) => mockFetchPython(...args),
-}));
-
 import { CentralRepoFolder } from '../src/components/repo/CentralRepoFolder';
+import { mockApiCall } from './helpers/mockApiCall';
 
 const renderInTree = ({
   expanded = false,
@@ -27,8 +23,11 @@ const clickTreeItem = async () => {
   await act(async () => { fireEvent.click(treeItem); });
 };
 
+let mockGetJson: ReturnType<typeof vi.fn>;
+
 beforeEach(() => {
   vi.clearAllMocks();
+  ({ getJson: mockGetJson } = mockApiCall());
   localStorage.clear();
 });
 
@@ -52,38 +51,38 @@ describe('CentralRepoFolder', () => {
   });
 });
 
-describe('CentralRepoFolder — fetchFiles Python code', () => {
-  it('calls fetchPython with jsonFiles result on expand', async () => {
-    mockFetchPython.mockResolvedValueOnce({ data: { jsonFiles: [] } });
+describe('CentralRepoFolder — the call it makes', () => {
+  it('asks the folder entrypoint for the names only on expand', async () => {
+    mockGetJson.mockResolvedValueOnce({ files: [] });
     renderInTree();
     await clickTreeItem();
 
     await waitFor(() => {
-      expect(mockFetchPython).toHaveBeenCalledTimes(1);
+      expect(mockGetJson).toHaveBeenCalledTimes(1);
     });
-
-    const call = mockFetchPython.mock.calls[0][0];
-    expect(call.results).toEqual(['jsonFiles']);
+    expect(mockGetJson.mock.calls[0][0]).toBe('/repository/jsonsInFolder');
+    expect(mockGetJson.mock.calls[0][1]).toEqual({
+      folder: '~/hera/repositories/',
+      withContents: 'false',
+    });
   });
 
-  it('interpolates the folder path into the Python code', async () => {
+  it('sends the folder the user set', async () => {
     localStorage.setItem('hera-central-repo-folder', '/my/repos/');
-    mockFetchPython.mockResolvedValueOnce({ data: { jsonFiles: [] } });
+    mockGetJson.mockResolvedValueOnce({ files: [] });
     renderInTree();
     await clickTreeItem();
 
     await waitFor(() => {
-      expect(mockFetchPython).toHaveBeenCalledTimes(1);
+      expect(mockGetJson).toHaveBeenCalledTimes(1);
     });
-    expect(mockFetchPython.mock.calls[0][0].code).toContain("/my/repos/");
+    expect(mockGetJson.mock.calls[0][1].folder).toBe('/my/repos/');
   });
 });
 
 describe('CentralRepoFolder — response handling', () => {
   it('renders returned file paths as tree items', async () => {
-    mockFetchPython.mockResolvedValueOnce({
-      data: { jsonFiles: ['/repos/a.json', '/repos/b.json'] },
-    });
+    mockGetJson.mockResolvedValueOnce({ files: ['/repos/a.json', '/repos/b.json'] });
     renderInTree({ expanded: true });
     await clickTreeItem();
 
@@ -94,7 +93,7 @@ describe('CentralRepoFolder — response handling', () => {
   });
 
   it('shows "No JSON files found" when server returns empty list', async () => {
-    mockFetchPython.mockResolvedValueOnce({ data: { jsonFiles: [] } });
+    mockGetJson.mockResolvedValueOnce({ files: [] });
     renderInTree({ expanded: true });
     await clickTreeItem();
 
@@ -104,7 +103,7 @@ describe('CentralRepoFolder — response handling', () => {
   });
 
   it('shows "No JSON files found" when data is null', async () => {
-    mockFetchPython.mockResolvedValueOnce({ data: null });
+    mockGetJson.mockResolvedValueOnce(null);
     renderInTree({ expanded: true });
     await clickTreeItem();
 
@@ -114,21 +113,19 @@ describe('CentralRepoFolder — response handling', () => {
   });
 
   it('does not re-fetch on second click', async () => {
-    mockFetchPython.mockResolvedValueOnce({
-      data: { jsonFiles: ['/repos/a.json'] },
-    });
+    mockGetJson.mockResolvedValueOnce({ files: ['/repos/a.json'] });
     renderInTree({ expanded: true });
     await clickTreeItem();
     await waitFor(() => { expect(screen.getByText('/repos/a.json')).toBeTruthy(); });
 
     await clickTreeItem();
-    expect(mockFetchPython).toHaveBeenCalledTimes(1);
+    expect(mockGetJson).toHaveBeenCalledTimes(1);
   });
 });
 
 describe('CentralRepoFolder — change folder dialog', () => {
   it('opens settings dialog and re-fetches with new folder', async () => {
-    mockFetchPython.mockResolvedValue({ data: { jsonFiles: [] } });
+    mockGetJson.mockResolvedValue({ files: [] });
     renderInTree();
 
     const settingsWrapper = screen.getByLabelText('Change repository folder');
@@ -145,9 +142,9 @@ describe('CentralRepoFolder — change folder dialog', () => {
     });
 
     await waitFor(() => {
-      expect(mockFetchPython).toHaveBeenCalled();
-      const lastCall = mockFetchPython.mock.calls[mockFetchPython.mock.calls.length - 1][0];
-      expect(lastCall.code).toContain('/new/folder/');
+      expect(mockGetJson).toHaveBeenCalled();
+      const lastCall = mockGetJson.mock.calls[mockGetJson.mock.calls.length - 1];
+      expect(lastCall[1].folder).toBe('/new/folder/');
     });
 
     expect(localStorage.getItem('hera-central-repo-folder')).toBe('/new/folder/');

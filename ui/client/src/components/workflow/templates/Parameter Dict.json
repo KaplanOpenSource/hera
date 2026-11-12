@@ -1,0 +1,46 @@
+{
+    "workflow": {
+        "nodes": {
+            "Parameters": {
+                "Execution": {
+                    "input_parameters": {
+                        "pipeProjectName": "MY_PROJECT",
+                        "pipeWorkflowName": "MY_WORKFLOW",
+                        "Method": "Command list",
+                        "Command": [
+                            "echo 'holds the two values the next nodes read'"
+                        ]
+                    }
+                },
+                "type": "general.RunOsCommand"
+            },
+            "StringValueWorks": {
+                "Execution": {
+                    "input_parameters": {
+                        "project_name": "{Parameters.Execution.input_parameters.pipeProjectName}",
+                        "Method": "Command list",
+                        "Command": [
+                            "echo 'one line is drawn to the project_name row'"
+                        ]
+                    }
+                },
+                "type": "general.RunOsCommand"
+            },
+            "DictValueBroken": {
+                "Execution": {
+                    "input_parameters": {
+                        "Parameters": {
+                            "project_name": "{Parameters.Execution.input_parameters.pipeProjectName}",
+                            "workflow_name": "{Parameters.Execution.input_parameters.pipeWorkflowName}"
+                        },
+                        "Method": "Command list",
+                        "Command": [
+                            "echo 'no line is drawn to either key - issue 1120'"
+                        ]
+                    }
+                },
+                "type": "general.RunOsCommand"
+            }
+        }
+    }
+}

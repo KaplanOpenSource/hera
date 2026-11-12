@@ -146,7 +146,7 @@ class TestMolecularDiffusion:
             models.molecularDiffusion(300.0 * ureg.K)
 
     def test_a_temperature_in_celsius_is_converted(self, models):
-        """CLAUDE.md requires pint; the conversion must reach the correlation."""
+        """The conversion must reach the correlation."""
         fromCelsius = models.molecularDiffusion(ureg.Quantity(26.85, ureg.degC))
         fromKelvin = models.molecularDiffusion(300.0 * ureg.K)
         assert fromCelsius == pytest.approx(fromKelvin, rel=1e-3)
@@ -263,8 +263,9 @@ class TestEvaporativeFlux:
         assert "vaporPressure(temperature)" in source
 
     def test_vapour_pressure_requires_units(self):
-        from hera.riskassessment.agents.Agents import PhysicalPropeties
         import inspect
+
+        from hera.riskassessment.agents.Agents import PhysicalPropeties
 
         source = inspect.getsource(PhysicalPropeties.vaporPressure)
         assert "unumToPint(temperature).m_as(ureg.kelvin)" in source

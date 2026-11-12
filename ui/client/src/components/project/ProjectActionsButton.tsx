@@ -5,7 +5,6 @@ import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DeleteProjectButton } from '../header/DeleteProjectButton';
 import { AddDocumentButton } from './AddDocumentButton';
 import { DeleteSelectedButton } from './DeleteSelectedButton';
-import { DetectNotebooksButton } from './DetectNotebooksButton';
 
 // "Actions" button on the project node: opens a popover holding the project-level actions.
 export const ProjectActionsButton = ({
@@ -43,9 +42,6 @@ export const ProjectActionsButton = ({
               onSelectDocument?.(oid);
               setAnchorEl(null);
             }}
-          />
-          <DetectNotebooksButton
-            onDetected={() => setAnchorEl(null)}
           />
           <DeleteSelectedButton
             selectedIds={selectedIds}

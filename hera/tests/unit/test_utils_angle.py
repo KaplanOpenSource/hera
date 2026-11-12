@@ -1,6 +1,6 @@
 """Angle conversions.
 
-The two conventions, per CLAUDE.md:
+The two conventions:
 
 * meteorological — 0 deg = North, increasing clockwise.  Used for wind
   direction input.
@@ -53,7 +53,7 @@ class TestConversionAliasing:
     Mathematically sound: (270 - x) mod 360 is self-inverse, so the same
     transform converts in both directions.  It is undocumented though, and it
     means the two names give no protection against converting the wrong way --
-    the precise risk CLAUDE.md calls out when it requires explicit conversion.
+    the precise risk when it requires explicit conversion.
     """
 
     def test_the_two_names_are_the_same_object(self):

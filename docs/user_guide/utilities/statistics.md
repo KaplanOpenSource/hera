@@ -50,14 +50,16 @@ The `normalization` parameter controls how the raw bin counts are scaled:
 | Mode | Description |
 |------|-------------|
 | `"max_normalized"` | Divide all bins by the maximum count so the peak equals 1. This is the **default**. |
-| `"density"` | Divide each bin by its area, producing a probability density (counts per unit area). |
-| `"y_normalized"` | Normalize each column (fixed x-bin) so its values sum to 1. Useful for showing conditional distributions. |
+| `"density"` | Divide each bin count by the bin area (counts per unit area). The result is **not** divided by the total number of samples, so it does not integrate to 1. |
+| `"y_normalized"` | Normalize each y-bin so that its values across the x-bins sum to 1 (each row of the returned `hist` sums to 1). This is the distribution of x conditional on y; y-bins with no samples stay 0. |
+
+Any other value raises `ValueError`.
 
 ```python
 # Density normalization
 x_mid, y_mid, hist = calcDist2d(x, y, bins=30, normalization="density")
 
-# Column-normalized (conditional on x)
+# Row-normalized (distribution of x within each y-bin)
 x_mid, y_mid, hist = calcDist2d(x, y, bins=30, normalization="y_normalized")
 ```
 
@@ -74,7 +76,9 @@ x_mid, y_mid, hist = calcDist2d(
 )
 ```
 
-Both must be provided together as `(lower, upper)` tuples.
+Both must be provided together as `(lower, upper)` tuples; if only one is given, it is silently ignored and the full data range is used.
+
+`bins` is passed straight to `matplotlib.pyplot.hist2d`, so it can also be a `(nx, ny)` pair or explicit bin edges.
 
 ## Return Values
 
@@ -82,4 +86,4 @@ Both must be provided together as `(lower, upper)` tuples.
 
 - `x_mid` -- 1D array of bin-center x-coordinates.
 - `y_mid` -- 1D array of bin-center y-coordinates.
-- `hist` -- 2D array (transposed) ready for `plt.contourf(x_mid, y_mid, hist)`.
+- `hist` -- 2D array of shape `(len(y_mid), len(x_mid))` (the transposed `hist2d` matrix), ready for `plt.contourf(x_mid, y_mid, hist)`.

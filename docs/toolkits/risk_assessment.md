@@ -1,5 +1,7 @@
 # Risk Assessment Toolkit
 
+**Toolkit name:** `RiskAssessment` | **Constant:** `toolkitHome.RISKASSESSMENT`
+
 The Risk Assessment toolkit provides an agent-based framework for modeling hazards, calculating injury effects, applying protection policies, and estimating casualties.
 
 ```python
@@ -21,41 +23,26 @@ The risk assessment framework models a chain of events:
 4. **Protection policies** (sheltering, evacuation) modify the exposure
 5. **Casualties** are estimated based on injury levels
 
-![Diagram](../images/diagrams/toolkits_risk_assessment_0_5542f6e1.svg)
-
-<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart LR
     Agent["Agent\n(hazardous material)"] --> Effects["Effects\n(injury models)"]
     Effects --> Protection["Protection\n(policies)"]
     Protection --> Casualties["Casualties\n(estimates)"]
 ```
--->jury models)"]
-    Effects --> Protection["Protection\n(policies)"]
-    Protection --> Casualties["Casualties\n(estimates)"]
-```
--->
--->jury models)"]
-    Effects --> Protection["Protection\n(policies)"]
-    Protection --> Casualties["Casualties\n(estimates)"]
-```
--->
--->
--->
 
 ---
 
 ## Agents
 
-An **Agent** represents a hazardous material with its associated effects (injury models). Agents are loaded from a repository.
+An **Agent** represents a hazardous material with its associated effects (injury models). Agents are stored as `JSON_dict` data sources of the toolkit, usually loaded from a repository.
 
 ```python
-# List available agents
+# List available agents (the data source names)
 risk.listAgentsNames()
 # ['Chlorine', 'Ammonia', 'Propane']
 
-# Load an agent
-agent = risk.getAgent("Chlorine")
+# Load an agent (by data source name, optionally a version; or pass the descriptor dict itself)
+agent = risk.getAgent("Chlorine", version=None)
 
 # Access agent properties
 print(agent.name)                # "Chlorine"
@@ -63,7 +50,31 @@ print(agent.effectNames)         # ['inhalation', 'thermal']
 print(agent.tenbergeCoefficient) # Tenberge coefficient for the agent
 
 # Access a specific effect
-inhalation_effect = agent["inhalation"]
+inhalation_effect = agent["inhalation"]   # effects are also attributes: agent.inhalation
+```
+
+An agent descriptor has the form:
+
+```json
+{
+    "name": "Chlorine",
+    "version": [0, 0, 1],
+    "effectParameters": {"tenbergeCoefficient": 2.0},
+    "effects": {"RegularPopulation": {"type": "Lognormal10", "calculator": {...}, "parameters": {...}}},
+    "physicalProperties": {...}
+}
+```
+
+### Adding agents to the project
+
+```python
+# From a JSON file, a JSON string or a dict (the "name" key is required)
+risk.loadData("/path/to/Chlorine.json")
+# saveMode=risk.TOOLKIT_SAVEMODE_FILEANDDB (default) raises ValueError if the agent/version exists;
+# use risk.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE to replace it
+
+# Or with an explicit name and version
+risk.loadAgent("Chlorine", agentDescription=descriptor, version=[0, 0, 1])
 ```
 
 ### Creating an agent repository
@@ -71,9 +82,15 @@ inhalation_effect = agent["inhalation"]
 From the CLI:
 
 ```bash
-# Create an agent repository from JSON files
+# Create a repository JSON named "myAgents" in --path (default: the current directory)
+# from the agent JSON files found there (files with an "effectParameters" key)
 hera-riskassessment agents createRepository myAgents --path /path/to/agents/
 ```
+
+Register and load the resulting repository with `hera-project repository add` / `hera-project repository load` (see the [CLI Reference](../cli/reference.md)).
+
+!!! note
+    `createRepository` opens the listed file names relative to the **current directory**, so run it from inside the agents directory (`--path` must point to the same place). The agents are embedded in the repository (`isRelativePath: "False"`).
 
 ---
 
@@ -98,13 +115,15 @@ Calculators determine *how* concentration is converted to dose. The choice depen
 
 | Calculator | What it computes | When to use |
 |-----------|-----------------|-------------|
-| **Haber** | `D(T) = integral(C dt)` — simple time integral | Agents where dose is proportional to concentration × time |
-| **Ten Berge** | `D(T) = integral(C^n dt)` — concentration raised to power n | Agents where higher concentrations are disproportionately more dangerous (most real chemicals) |
-| **Max Concentration** | Peak concentration value | Agents where the instantaneous peak matters, not cumulative dose |
+| **Haber** (`"Haber"`, `CalculatorHaber`) | `D(T) = integral(C dt)` — simple time integral | Agents where dose is proportional to concentration × time |
+| **Ten Berge** (`"TenBerge"`, `CalculatorTenBerge`) | `D(T) = integral(C^n dt)` — concentration raised to power n | Agents where higher concentrations are disproportionately more dangerous (most real chemicals) |
+| **Max Concentration** (`"MaxConcentration"`, `CalculatorMaxConcentration`) | Maximum over time of the rolling mean over `sampling` (e.g. `"10min"`) | Agents where the peak matters, not cumulative dose |
+
+The quoted name is the key used under `"calculator"` in the effect JSON; the class lives in `hera.riskassessment.agents.effects.Calculator`.
 
 The Ten Berge exponent `n` (the `tenbergeCoefficient`) is an agent property — it controls how much weight is given to high vs. low concentrations. When `n=1`, Ten Berge reduces to Haber.
 
-All calculators accept concentration data as either `pandas.DataFrame` or `xarray.Dataset`, and account for the population's breathing rate.
+All calculators accept concentration data as either `pandas.DataFrame` (time index, one column per point, mg/m³) or `xarray.Dataset`, and scale the result by the ratio of the population's breathing rate to the calculator's `breathingRate` (default 10 L/min). For an `xarray.Dataset` the concentration units are read from `attrs[field]` and the time step from `attrs["dt"]` — the LSM `getConcentration` output provides both. Haber/Ten Berge return the cumulative toxic load at every time step; MaxConcentration returns a single map (no time dimension).
 
 ### Injury levels
 
@@ -294,10 +313,18 @@ percent_severe = effect.getPercent("Severe", toxic_load_value)
 percent_mild = effect.getPercent("Mild", toxic_load_value)
 print(f"At toxic load {toxic_load_value}: {percent_severe:.1%} severe, {percent_mild:.1%} mild")
 
-# Step 3: Calculate contours of injury regions on a 2D map
+# Step 3: Calculate the injury regions on a 2D map (all severity levels)
+regions = effect.calculateRegionOfInjured(concentration_data, field="C", time="datetime", x="x", y="y")
+# Returns a thresholdGeoDataFrame with the columns:
+#   datetime | severity | ToxicLoad | TotalPolygon | ThresholdPolygon | percentEffected
+# (ThresholdPolygon = the area of this level minus the area of the level above)
+
+# The contours of a single level from precomputed toxic loads (a plain GeoDataFrame
+# with ToxicLoad, TotalPolygon, severity, datetime — no percentEffected/ThresholdPolygon)
 contours = severe.calculateContours(toxic_loads, time="datetime", x="x", y="y")
-# Returns a GeoDataFrame with polygons for each time step and severity level
 ```
+
+For point time-series (a `pandas.DataFrame` with a time index and one column per point), `effect.calculatePointWiseFractionInjured(df)` returns the injured fraction per point, time and level.
 
 #### Modifying the Ten Berge coefficient
 
@@ -319,17 +346,17 @@ print(json.dumps(agent.toJSON(), indent=2))
 
 ### Physical properties
 
-Agents can also have physical properties used for evaporation and dispersion modeling:
+Agents can also have physical properties (the `physicalProperties` key of the descriptor: `molecularWeight`, `sorptionCoefficient`, `spreadFactor`, `volatilityConstants`, `densityConstants`, `vaporPressure`) used for evaporation and dispersion modeling. Pass temperatures as pint quantities:
 
 ```python
 # Access physical properties
 props = agent.physicalproperties
 
 # Molecular weight, density, vapor pressure at a temperature
-mw = props.molecularWeight           # e.g., 70.9 g/mol
-density = props.getDensity(20)       # density at 20°C
-volatility = props.getVolatility(20) # vapor saturation at 20°C
-vp = props.vaporPressure(293)        # vapor pressure at 293K
+mw = props.molecularWeight                                 # pint quantity in g/mol
+density = props.getDensity(ureg.Quantity(20, ureg.degC))     # g/cm³ at 20°C
+volatility = props.getVolatility(ureg.Quantity(20, ureg.degC))  # vapor saturation, g/cm³
+vp = props.vaporPressure(293 * ureg.K)                       # vapor pressure in bar (float)
 ```
 
 ---
@@ -349,7 +376,7 @@ Cin[t] = (Cin[t-1] + alpha × dt × Cout[t]) / (1 + alpha × dt)
 Where `alpha = 1/turnover` is the air exchange rate. A longer turnover time means better protection (slower air exchange).
 
 ```python
-from hera.riskassessment import ProtectionPolicy
+from hera.riskassessment import ProtectionPolicy   # also available as risk.ProtectionPolicy
 from hera.utils import ureg
 
 # Create a policy with indoor sheltering
@@ -360,9 +387,13 @@ policy.indoor(
     stay="2h"                # stays indoor for 2 hours
 )
 
-# Apply to a concentration field
+# Apply to a concentration field (an xarray.Dataset with x, y, datetime)
 protected = policy.compute(concentration_data, C="C")
+# Returns an xarray.Dataset: "outdoor_0", one variable per action, and the final
+# concentration in "C" (the protected value inside the action's time window)
 ```
+
+Instead of `enter`/`stay` (timedelta strings relative to the first time step) you can give absolute `begin`/`end` times; `alpha` (1/time) can replace `turnover`. Without a time window the action applies to the whole period. A policy can also be built from a list of actions: `ProtectionPolicy([{"name": "Indoor", "params": {...}}, {"name": "Masks", "params": {...}}])`, or with `addActions(jsonFileOrDict)` (actions under an `"actions"` key).
 
 ### Masking
 
@@ -371,7 +402,7 @@ Masks reduce the inhaled concentration by a protection factor:
 ```python
 policy.masks(
     protectionFactor=1000,   # mask reduces concentration by 1000x
-    wear="0min",             # masks on immediately
+    wear="0min",             # masks on immediately (or begin=/end=)
     duration="3h"            # worn for 3 hours
 )
 ```
@@ -391,29 +422,32 @@ result = policy.compute(concentration_data, C="C")
 
 ## Analysis
 
-The analysis layer provides:
-
-- **Risk area calculation** — determine the geographic area at risk for a given scenario
-- **Casualty estimation** — estimate the number and severity of casualties
-- **Statistical analysis** — aggregate results across multiple scenarios or weather conditions
+`risk.analysis.getRiskAreas` computes the extent of the area where the Ten Berge toxic load of an LSM simulation (at the lowest `z` level, last time step) exceeds given levels:
 
 ```python
-# Access the analysis layer
-risk.analysis
-
-# Access the presentation layer for visualizations
-risk.presentation
+areas = risk.analysis.getRiskAreas(
+    tenbergeCoefficient=2.0,
+    levels=[10, 100],              # toxic-load levels
+    Q=1 * ureg.kg,                 # released mass
+    protectionPolicy=None,         # optional action list for ProtectionPolicy
+    LSMfile=None,                  # a simulation directory, or None to query the LSM toolkit:
+    simulationName="run_001",      # ... extra keyword arguments go to lsm.getSimulations
+)
+# GeoDataFrame: tenBergCoefficient | level | bounds | geometry (convex hull)
 ```
+
+For casualty estimates over many release points, `hera.riskassessment.getRiskAreaAlgorithm("Sweep", dxdy=150, outlayers=3, parallel=True)` returns an estimator whose `calculate(effectIsopleths, demog, meteorological_angle=...)` sweeps release locations around the populated area.
 
 ---
 
 ## Presentation
 
-The presentation layer generates visualizations:
+`risk.presentation` (`casualtiesPlot`) draws casualty figures from the result of `calculateRegionOfInjured`:
 
-- **Casualty plots** — bar charts and spatial maps of estimated casualties
-- **Risk maps** — geographic visualization of risk zones
-- **Casualty roses** — directional risk distribution
+- `plotCasualtiesRose(results, area, severityList, loc, meteorological_angles=None, mathematical_angles=None, effectedPopulation="effectedtotal_pop", ...)` — radial bars of the affected population for each wind direction
+- `plotCasualtiesProjection(results, area, severityList, loc, meteorological_angle=None, mathematical_angle=None, plumSeverity=[], ...)` — the injury polygons projected on the population map
+
+Both rely on `thresholdGeoDataFrame.project`, which is currently broken (see the note in the examples).
 
 ---
 
@@ -449,9 +483,12 @@ For the full API details, see the [Toolkit Catalog](overview.md) and the [API Re
 
 This example models a chlorine gas release using the LSM dispersion model and Lognormal10 injury levels with the Ten Berge calculator. It covers the full pipeline: dispersion → concentration → toxic load → injury contours → casualty estimation.
 
+!!! bug "Known issue"
+    The casualty steps (`thresholdGeoDataFrame.project`, and therefore `risk.presentation.plotCasualtiesRose` / `plotCasualtiesProjection`) currently fail with `ValueError: The truth value of a Series is ambiguous` (`hera/riskassessment/agents/effects/thresholdGeoDataFrame.py:125`). The steps up to the injury regions work.
+
 ```python
 from hera import toolkitHome
-from unum.units import kg, mg
+from hera.utils import ureg
 
 # ---------------------------------------------------------------
 # Step 1: Set up toolkits
@@ -467,8 +504,8 @@ demo = toolkitHome.getToolkit(toolkitHome.GIS_DEMOGRAPHY, projectName=PROJECT)
 # ---------------------------------------------------------------
 # Option A: run a new simulation from a template
 template = lsm.getTemplateByName("urban_chlorine")
-template.run(
-    topography="/data/topography",
+sim = template.run(                    # returns a SingleSimulation (to_xarray=True)
+    topography=topography_str,         # topography file content, or None for flat terrain
     stations=weather_stations_df,
     simulationName="chlorine_run_001",
     windSpeed=3.0,
@@ -477,15 +514,15 @@ template.run(
 )
 
 # Option B: retrieve an existing simulation
-simulations = lsm.getSimulations(windSpeed=3.0, windDirection=225)
-sim = simulations[0]
+sim = lsm.getSimulations(simulationName="chlorine_run_001")[0]
 
 # ---------------------------------------------------------------
 # Step 3: Get concentration field
 # ---------------------------------------------------------------
 # Q = total released mass (scales the normalized LSM output)
-concentration = sim.getConcentration(Q=500 * kg)
-# Result: xarray.Dataset with 'C' field in mg/m³ at each (x, y, z, datetime)
+concentration = sim.getConcentration(Q=500 * ureg.kg)
+# Result: xarray.Dataset with 'C' field in mg/m³ over (datetime, x, y, z),
+# with attrs dt, Q and C (units) used by the calculators
 
 # ---------------------------------------------------------------
 # Step 4: Load the agent and compute toxic loads
@@ -500,25 +537,19 @@ effect = agent["RegularPopulation"]
 print(f"Calculator: {type(effect.calculator).__name__}")  # CalculatorTenBerge
 print(f"Severity levels: {effect.levelNames}")            # ['Severe', 'Mild', 'Light']
 
-# Compute toxic loads: integral(C^n dt) over time
-# Uses concentration at ground level (z=0 or z=10)
-toxic_loads = effect.calculateToxicLoads(
-    concentration.sel(z=10),
-    field="C"
-)
+# Use the concentration near the ground (the z levels depend on the template)
+ground = concentration.sel(z=10, method="nearest")
+
+# Compute toxic loads: integral(C^n dt) over time (cumulative, per time step)
+toxic_loads = effect.calculateToxicLoads(ground, field="C")
 
 # ---------------------------------------------------------------
-# Step 5: Calculate injury contours
+# Step 5: Calculate injury regions
 # ---------------------------------------------------------------
-# Get contour polygons for the Severe injury level
-severe_contours = effect["Severe"].calculateContours(
-    toxic_loads,
-    time="datetime",
-    x="x",
-    y="y"
-)
-# Result: GeoDataFrame with columns:
-#   datetime | severity | percentEffected | TotalPolygon | DiffPolygon
+# Polygons of all the severity levels (computes the toxic loads internally)
+regions = effect.calculateRegionOfInjured(ground, field="C", time="datetime", x="x", y="y")
+# Result: thresholdGeoDataFrame with columns:
+#   datetime | severity | ToxicLoad | TotalPolygon | ThresholdPolygon | percentEffected
 
 # ---------------------------------------------------------------
 # Step 6: Project onto population data for casualty estimates
@@ -530,7 +561,7 @@ population = demo.getDataSourceData("census_2020")
 release_location = (178000, 665000)  # ITM coordinates
 wind_direction_math = 45  # mathematical angle
 
-casualties = severe_contours.project(
+casualties = regions.project(
     demographic=population,
     loc=release_location,
     mathematical_angle=wind_direction_math
@@ -549,16 +580,13 @@ policy = ProtectionPolicy()
 policy.indoor(turnover=2 * ureg.hour, enter="10min", stay="3h")
 
 # Apply protection to the concentration field before computing toxic loads
-protected_concentration = policy.compute(concentration.sel(z=10), C="C")
+protected_concentration = policy.compute(ground, C="C")   # keeps the attrs of the input
 
 # Recalculate with protected concentrations
-protected_toxic_loads = effect.calculateToxicLoads(protected_concentration, field="C")
-protected_contours = effect["Severe"].calculateContours(
-    protected_toxic_loads, time="datetime", x="x", y="y"
-)
+protected_regions = effect.calculateRegionOfInjured(protected_concentration, field="C")
 
 # Compare casualties with and without protection
-protected_casualties = protected_contours.project(
+protected_casualties = protected_regions.project(
     demographic=population,
     loc=release_location,
     mathematical_angle=wind_direction_math
@@ -570,7 +598,7 @@ print("With indoor shelter:", protected_casualties["effectedtotal_pop"].sum())
 # Step 8: Visualize
 # ---------------------------------------------------------------
 risk.presentation.plotCasualtiesRose(
-    results=severe_contours,
+    results=regions,
     area=population,
     severityList=["Severe", "Mild"],
     loc=release_location,
@@ -586,7 +614,7 @@ This example models an industrial chemical release using AEGL threshold levels w
 
 ```python
 from hera import toolkitHome
-from unum.units import kg
+from hera.utils import ureg
 
 # ---------------------------------------------------------------
 # Step 1: Set up toolkits
@@ -601,7 +629,8 @@ demo = toolkitHome.getToolkit(toolkitHome.GIS_DEMOGRAPHY, projectName=PROJECT)
 # Step 2: Get concentration from LSM simulation
 # ---------------------------------------------------------------
 sim = lsm.getSimulations(simulationName="factory_release")[0]
-concentration = sim.getConcentration(Q=100 * kg)
+concentration = sim.getConcentration(Q=100 * ureg.kg)
+ground = concentration.sel(z=10, method="nearest")
 
 # ---------------------------------------------------------------
 # Step 3: Load an agent with Threshold effects
@@ -657,28 +686,15 @@ for level_name in aegl.levelNames:
 # The Threshold injury level then marks locations where
 # peak concentration exceeds each AEGL threshold.
 
-# Calculate contours for the most severe level (AEGL-3)
-aegl3_contours = aegl["AEGL-3"].calculateContours(
-    concentration.sel(z=10),
-    time="datetime",
-    x="x",
-    y="y"
-)
+# The threshold levels must be applied to the toxic loads (the max rolling
+# concentration), not to the raw concentration: calculateRegionOfInjured does both.
+aegl_regions = aegl.calculateRegionOfInjured(ground, field="C", time="datetime", x="x", y="y")
+# One row per level that is exceeded somewhere; percentEffected = 1.
+# (None/empty if the concentration is below all thresholds)
 
-# Calculate for all levels
-aegl2_contours = aegl["AEGL-2"].calculateContours(
-    concentration.sel(z=10),
-    time="datetime",
-    x="x",
-    y="y"
-)
-
-aegl1_contours = aegl["AEGL-1"].calculateContours(
-    concentration.sel(z=10),
-    time="datetime",
-    x="x",
-    y="y"
-)
+aegl3_contours = aegl_regions.query("severity == 'AEGL-3'")
+aegl2_contours = aegl_regions.query("severity == 'AEGL-2'")
+aegl1_contours = aegl_regions.query("severity == 'AEGL-1'")
 
 # ---------------------------------------------------------------
 # Step 6: Estimate affected population
@@ -686,23 +702,17 @@ aegl1_contours = aegl["AEGL-1"].calculateContours(
 population = demo.getDataSourceData("census_2020")
 release_location = (180000, 663000)  # ITM coordinates
 
-# Project each AEGL zone onto population
-for name, contours in [("AEGL-3", aegl3_contours),
-                        ("AEGL-2", aegl2_contours),
-                        ("AEGL-1", aegl1_contours)]:
-    if len(contours) > 0:
-        casualties = contours.project(
-            demographic=population,
-            loc=release_location,
-            mathematical_angle=45
-        )
-        if casualties is not None:
-            total = casualties["effectedtotal_pop"].sum()
-            print(f"{name}: {total:.0f} people in affected zone")
-        else:
-            print(f"{name}: no affected population")
-    else:
-        print(f"{name}: concentration below threshold everywhere")
+# Project the AEGL zones onto the population (project() is defined on the full
+# thresholdGeoDataFrame; slices made with query() are plain GeoDataFrames)
+casualties = aegl_regions.project(
+    demographic=population,
+    loc=release_location,
+    mathematical_angle=45
+)
+if casualties is None:
+    print("no affected population")
+else:
+    print(casualties.groupby("severity")["effectedtotal_pop"].sum())
 
 # ---------------------------------------------------------------
 # Step 7: Compare with protection (masks)
@@ -714,15 +724,14 @@ from hera.utils import ureg
 policy = ProtectionPolicy()
 policy.masks(protectionFactor=1000, wear="5min", duration="4h")
 
-protected = policy.compute(concentration.sel(z=10), C="C")
+protected = policy.compute(ground, C="C")
 
-# With masks, the effective concentration is 1000x lower
+# With masks, the effective concentration is 1000x lower (inside the wear window)
 # so fewer locations exceed the AEGL thresholds
-aegl3_protected = aegl["AEGL-3"].calculateContours(
-    protected, time="datetime", x="x", y="y"
-)
-print(f"AEGL-3 zone without masks: {len(aegl3_contours)} polygons")
-print(f"AEGL-3 zone with masks:    {len(aegl3_protected)} polygons")
+aegl_protected = aegl.calculateRegionOfInjured(protected, field="C")
+aegl3_protected = aegl_protected.query("severity == 'AEGL-3'")
+print(f"AEGL-3 area without masks: {aegl3_contours.area.sum():.0f} m²")
+print(f"AEGL-3 area with masks:    {aegl3_protected.area.sum():.0f} m²")
 ```
 
 ### Key differences between the two examples

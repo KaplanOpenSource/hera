@@ -4,6 +4,11 @@ Hera includes a logging system built on Python's standard `logging` module. It u
 
 Logging is initialized automatically when Hera is imported. You only need to call `initialize_logging` explicitly if you want to customize the configuration.
 
+The default configuration is copied on first use to `~/.pyhera/log/heraLogging.config` (a JSON `logging.config.dictConfig` file), and you can edit that copy. It defines the loggers `hera.datalayer`, `hera.measurements`, `hera.simulations`, `hera.bin` and `hera.riskassessment`, all at level `CRITICAL` and with `propagate: false`, each writing to the console and to a rotating log file in `~/.pyhera/log/` (`datalayer.log`, `measurements.log`, ...). The available formatters are `brief` and `default`.
+
+!!! note "`disable_existing_loggers`"
+    `initialize_logging(*overrides, disable_existing_loggers=True)` disables every logger that already exists by default. Since `import hera` already creates loggers, pass `disable_existing_loggers=False` when you call it yourself.
+
 ## Importing
 
 ```python
@@ -18,18 +23,20 @@ from hera.utils import initialize_logging, with_logger, get_logger, add_FileHand
 from hera.utils import initialize_logging, with_logger
 
 initialize_logging(
-    with_logger("hera.utils", level="DEBUG"),
+    with_logger("hera.datalayer", level="DEBUG"),
+    disable_existing_loggers=False,
 )
 ```
 
-This sets the `hera.utils` logger to DEBUG while keeping other loggers at their default levels.
+This sets the `hera.datalayer` logger to DEBUG while keeping its configured handlers and leaving the other loggers at their default levels. A logger that is not in the default configuration (for example `hera.utils`) has no handlers, so also pass `handlers=["console"]` (or a file handler) to see its messages.
 
 ### Override Multiple Loggers
 
 ```python
 initialize_logging(
-    with_logger("hera.utils", level="DEBUG"),
+    with_logger("hera.utils", level="DEBUG", handlers=["console"]),
     with_logger("hera.datalayer", level="WARNING"),
+    disable_existing_loggers=False,
 )
 ```
 
@@ -51,6 +58,8 @@ class MyProcessor:
         logger.debug("Processing started")
 ```
 
+`get_logger(instance, name=None)` returns the class logger of `instance` (named `<module>.<ClassName>`) or, when `name` is given, `logging.getLogger(name)`. Related helpers: `getClassLogger(cls)` takes a class, and `get_classMethod_logger(instance, name)` returns `<module>.<ClassName>.<name>`.
+
 ## Writing Logs to a File
 
 Use `add_FileHandler` to register a file handler, then assign it to a logger:
@@ -61,6 +70,7 @@ from hera.utils import initialize_logging, with_logger, add_FileHandler
 initialize_logging(
     add_FileHandler("my_file", "experiment.log", mode="w"),
     with_logger("hera.utils", level="DEBUG", handlers=["my_file"]),
+    disable_existing_loggers=False,
 )
 ```
 
@@ -82,6 +92,7 @@ initialize_logging(
     add_formatter("detailed", format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"),
     add_FileHandler("debug_file", "/tmp/hera_debug.log", mode="a", formatter="detailed"),
     with_logger("hera", level="DEBUG", handlers=["debug_file"]),
+    disable_existing_loggers=False,
 )
 ```
 
@@ -91,6 +102,8 @@ The `add_formatter` function accepts:
 - `format` -- a Python logging format string.
 - `datefmt` -- date format (default: `"%Y-%m-%d %H:%M:%S"`).
 
+Note that the default loggers (`hera.datalayer`, `hera.measurements`, ...) have `propagate: false`, so a handler attached to the parent `hera` logger does not receive their messages; attach it to those loggers directly.
+
 ## Log File Location
 
 By default, Hera stores its log configuration and log files under:
@@ -99,4 +112,4 @@ By default, Hera stores its log configuration and log files under:
 ~/.pyhera/log/
 ```
 
-This directory is created automatically the first time logging is initialized.
+This directory is created automatically the first time logging is initialized (that is, on `import hera`). The path is fixed; it is not configurable through an environment variable.

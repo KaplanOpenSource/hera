@@ -106,7 +106,7 @@ A **Collection** is a MongoDB collection that stores documents of a particular t
 | **Simulations** | `Simulations_Collection` | Simulation model outputs |
 | **Cache** | `Cache_Collection` | Intermediate results, configurations |
 
-Each collection provides `addDocument()`, `getDocuments()`, and `deleteDocuments()` methods.
+Each collection provides `addDocument()`, `getDocuments()`, `getDocumentsAsDict()`, `getDocumentByID()`, `deleteDocuments()` and `deleteDocumentByID()` methods. In normal use you access them through the `Project` wrappers (`addMeasurementsDocument`, `getCacheDocuments`, ...).
 
 ---
 
@@ -127,7 +127,7 @@ print(config["defaultSRTM"])  # "SRTMGL1"
 
 ### Counter
 
-A **Counter** is an atomic integer stored within the project config, used for generating sequential IDs. Counters are thread-safe and support atomic read-and-increment operations.
+A **Counter** is an atomic integer stored within the project config, used for generating sequential IDs. `getCounterAndAdd` uses an atomic MongoDB `$inc` update, so concurrent callers get distinct values.
 
 ```python
 # Define a counter
@@ -145,7 +145,7 @@ A **Version** is a three-element tuple `[major, minor, patch]` used to manage mu
 
 - **Explicit versioning** — Request a specific version: `getDataSourceData("YAVNEEL", version=[0, 0, 2])`
 - **Default version** — Set a default for a datasource: `setDataSourceDefaultVersion("YAVNEEL", [0, 0, 2])`
-- **Latest version** — If no version is specified and no default is set, the highest version is returned
+- **Latest version** — If no version is specified and no default is set, the highest version is returned. It is **not** saved as the default; call `setDataSourceDefaultVersion` to pin one (stored as `<name>_defaultVersion` in the project config)
 
 ---
 
@@ -189,7 +189,7 @@ See [Data Layer: datatypes](architecture/data_layer.md#the-datatypes-system) for
 The **Analysis Layer** is a property of each toolkit (`toolkit.analysis`) that provides domain-specific data processing methods. For example:
 
 - `lowFreqToolKit.analysis.addDatesColumns()` — Add temporal columns to meteorological data
-- `TopographyToolkit.analysis.calculateStatistics()` — Compute elevation statistics
+- `TopographyToolkit.analysis.calculateStastics(elevation)` — Compute elevation statistics (the method name is misspelled in the code)
 
 ---
 
@@ -204,7 +204,7 @@ The **Presentation Layer** is a property of each toolkit (`toolkit.presentation`
 
 ### Expected Output
 
-An **Expected Output** is a serialized file containing the known-correct result of a test. These files are organized into **result sets** (named directories) and are used by the comparison helpers to validate test results.
+An **Expected Output** is a serialized file containing the known-correct result of a test. These files are organized into **result sets** (named directories under `$TEST_HERA/expected/`). `hera/tests/conftest.py` provides comparison and save/load helpers for them (`compare_outputs`, `save_expected_output`, `load_expected_output`), although no test in master currently calls them.
 
 See [Testing Flow: Expected Output Management](testing/flow.md#expected-output-management) for details.
 
@@ -212,4 +212,4 @@ See [Testing Flow: Expected Output Management](testing/flow.md#expected-output-m
 
 ### Result Set
 
-A **Result Set** is a named collection of expected output files, stored in a directory under `expected/`. The default result set is called `BASELINE`. Alternative result sets can be created for regression testing.
+A **Result Set** is a named collection of expected output files, stored in a directory under `$TEST_HERA/expected/`. The active set is chosen by `--result-set`, then the `RESULT_SET` environment variable, then `default_result_set` in `data_config.json`, falling back to `BASELINE`.

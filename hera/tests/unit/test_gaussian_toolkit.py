@@ -138,7 +138,7 @@ class TestToolkitStructure:
         assert toolkit.presentation is not None
 
     def test_presentation_is_composition_not_inheritance(self, toolkit):
-        """CLAUDE.md: analysis and presentation must not subclass the toolkit."""
+        """Analysis and presentation must not subclass the toolkit."""
         from hera.toolkit import abstractToolkit
 
         assert not isinstance(toolkit.presentation, abstractToolkit)

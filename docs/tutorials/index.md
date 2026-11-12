@@ -13,7 +13,6 @@ Start here if you're new to Hera. These notebooks cover the fundamentals in orde
 | Notebook | What you'll learn | Related docs | Download |
 |----------|------------------|-------------|----------|
 | [Project](Project.ipynb) | Creating projects (CLI + Python), caseConfiguration.json, loading documents manually | [Projects](../user_guide/projects.md) | [:material-download: .ipynb](https://github.com/KaplanOpenSource/hera/raw/master/docs/tutorials/Project.ipynb) |
-| [Toolkit and DataSource](Toolkit_and_DataSource.ipynb) | What toolkits are, available toolkit names, initializing toolkits, data source JSON structure | [Key Concepts](../user_guide/concepts.md), [Working with Data](../user_guide/working_with_data.md#data-sources) | [:material-download: .ipynb](https://github.com/KaplanOpenSource/hera/raw/master/docs/tutorials/Toolkit_and_DataSource.ipynb) |
 | [DataSource](DataSource.ipynb) | Adding data sources, versioning, listing, querying, getting data, deleting | [Working with Data > Data Sources](../user_guide/working_with_data.md#data-sources) | [:material-download: .ipynb](https://github.com/KaplanOpenSource/hera/raw/master/docs/tutorials/DataSource.ipynb) |
 | [Repository](Repository.ipynb) | Repository management (add, list, remove, show), JSON structure, DataSource vs Measurements items | [Key Concepts > Repositories](../user_guide/concepts.md#repositories), [CLI Reference](../cli/reference.md#repository-management) | [:material-download: .ipynb](https://github.com/KaplanOpenSource/hera/raw/master/docs/tutorials/Repository.ipynb) |
 
@@ -21,7 +20,7 @@ Start here if you're new to Hera. These notebooks cover the fundamentals in orde
 
 | Notebook | What you'll learn | Related docs | Download |
 |----------|------------------|-------------|----------|
-| [Tile Toolkit](TileToolkitDocumentation.ipynb) | Map images from tile servers, WGS84 and ITM coordinates, custom tile servers | [Measurements > Tiles](../toolkits/measurements.md#tiles) | [:material-download: .ipynb](https://github.com/KaplanOpenSource/hera/raw/master/docs/tutorials/TileToolkitDocumentation.ipynb) |
+| [Tile Toolkit](TileToolkitDocumentation.ipynb) | Map images from tile servers, WGS84 and ITM coordinates, custom tile servers | [Measurements > Tiles](../toolkits/measurements/gis/tiles.md) | [:material-download: .ipynb](https://github.com/KaplanOpenSource/hera/raw/master/docs/tutorials/TileToolkitDocumentation.ipynb) |
 
 ### How to run the tutorials
 
@@ -40,7 +39,11 @@ Start here if you're new to Hera. These notebooks cover the fundamentals in orde
    jupyter lab docs/tutorials/
    ```
 
-4. Run the notebooks in order: Project → Toolkit and DataSource → DataSource → Repository.
+4. Run the notebooks in order: Project → DataSource → Repository.
+
+!!! warning "Known differences from master"
+    - **Project**: the CLI snippets in the text pass values to flag options (`--noRepositories 1`, `--overwrite <ANY_CHAR>`); in master these flags take no value — use `hera-project project create MY_FIRST_PROJECT --noRepositories`. `hera-project repository remove` takes the repository *name*, and `project updateRepositories` without `--projectName` reads the project from `caseConfiguration.json` (it does not update all projects; use `project populate` for that). See the [CLI Reference](../cli/reference.md).
+    - **Toolkit and DataSource** (`Toolkit_and_DataSource.ipynb`) is not listed above because its last cell calls `addDataSource()` with a repository-style dict as the datasource name, which is not a valid call in master. Use the [DataSource](DataSource.ipynb) tutorial and the [Repository Schema](../reference/repository_schema.md) instead.
 
 ---
 

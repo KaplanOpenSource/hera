@@ -1,6 +1,6 @@
 # Hera Documentation
 
-**Version 2.16.1** | Scientific Data Management & Analysis Platform
+**Version 2.16.3** | Scientific Data Management & Analysis Platform
 
 ---
 
@@ -12,7 +12,8 @@ Hera is a Python-based platform for managing scientific data across measurements
     ```bash
     git clone https://github.com/KaplanOpenSource/hera
     cd hera
-    source init_with_mongo.sh
+    source init_with_mongo.sh      # venv + environment + MongoDB (Docker)
+    # or: make install-env && make install && source activate_hera.sh
     ```
     Then in Python:
     ```python
@@ -27,15 +28,12 @@ Hera is a Python-based platform for managing scientific data across measurements
 
 The entire system is built around three core abstractions: **Project**, **ToolkitHome**, and **abstractToolkit**. The diagram below shows how they relate to each other and to the concrete domain toolkits.
 
-![Diagram](images/diagrams/index_0_fb3e36be.svg)
-
-<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TB
     subgraph UserLayer ["User Entry Points"]
         direction LR
         PythonAPI["Python API\n(import hera)"]
-        CLI["CLI Tools\n(hera-project,\nhera-toolkit, ...)"]
+        CLI["CLI Tools\n(hera-project,\nhera-workflows, ...)"]
         Notebooks["Jupyter\nNotebooks"]
     end
 
@@ -104,17 +102,6 @@ flowchart TB
     Project -- "CRUD" --> SimColl
     Project -- "CRUD" --> CacheColl
 ```
--->  Project -- "CRUD" --> MeasColl
-    Project -- "CRUD" --> SimColl
-    Project -- "CRUD" --> CacheColl
-```
--->
--->  Project -- "CRUD" --> MeasColl
-    Project -- "CRUD" --> SimColl
-    Project -- "CRUD" --> CacheColl
-```
--->
--->
 
 ---
 
@@ -141,7 +128,8 @@ For developers working **on** Hera — architecture, data model, testing, and ex
 |---------|-------------|
 | [**Core Concepts**](architecture/core_concepts.md) | Deep dive into `Project`, `ToolkitHome`, and `abstractToolkit` with class diagrams |
 | [**Data Layer**](architecture/data_layer.md) | MongoDB document model, `datatypes`, and the repository JSON pipeline |
-| [**Testing Flow**](testing/flow.md) | Pytest session lifecycle, fixtures, comparison helpers, and expected-output mechanism |
+| [**Testing Flow**](testing/flow.md) | Pytest test-session lifecycle, fixtures, and test-data loading |
+| [**Unit Tests**](testing/unit_tests.md) | The hermetic unit-test layer (not yet merged into master) |
 | [**Repository Schema**](reference/repository_schema.md) | Detailed schema documentation |
 | [**Environment Variables**](configuration/env_vars.md) | Complete reference of all environment variables |
 | [**Glossary**](glossary.md) | Definitions of key Hera terms |
@@ -168,6 +156,9 @@ Hera ships with the following built-in toolkits, all registered in the `ToolkitH
 | `GaussianDispersion` | Simulations | `hera.simulations.gaussian.toolkit.gaussianToolkit` |
 | `RiskAssessment` | Risk | `hera.riskassessment.riskToolkit.RiskToolkit` |
 | `experiment` | Measurements | `hera.measurements.experiment.experiment.experimentHome` |
+| `hermesWorkflows` | Simulations | `hera.simulations.hermesWorkflowToolkit.hermesWorkflowToolkit` |
+| `machine_deep_learning` | Simulations | `hera.simulations.machineLearningDeepLearning.toolkit.machineLearningDeepLearningToolkit` |
+| `OF_LSM` | Simulations | `hera.simulations.openFoam.lagrangian.LSM.toolkit.OFLSMToolkit` (registered, but the module does not exist in master, so `getToolkit("OF_LSM")` fails) |
 
 ---
 
@@ -183,13 +174,14 @@ hera/
 │   ├── simulations/               # OpenFOAM, LSM, Gaussian, WindProfile
 │   ├── riskassessment/            # Risk assessment agents and toolkit
 │   ├── utils/                     # Logging, data utilities, CLI helpers
-│   ├── bin/                       # CLI tools (hera-project, hera-toolkit, ...)
+│   ├── bin/                       # CLI tools (hera-project, hera-workflows, hera-openFoam, ...)
 │   └── tests/                     # Pytest test suite
 │       ├── conftest.py            # Session fixtures, comparison helpers
-│       ├── test_*.py              # Per-domain test modules
-│       └── expected/              # Expected output result sets
+│       └── test_*.py              # Per-domain test modules (expected outputs live in $TEST_HERA/expected/)
+├── ui/                            # Web UI: FastAPI server (ui/server) + React client (ui/client)
 ├── docs/                          # MkDocs documentation source
-├── notebooks/                     # Jupyter exploration notebooks
+├── Makefile                       # install-env, mongo-*, test, docs-* targets
+├── activate_hera.sh               # Activate the venv and Hera environment
 ├── pytest.ini                     # Pytest configuration
 ├── setup.py                       # Package setup
 ├── requirements.txt               # Runtime dependencies

@@ -28,6 +28,7 @@ describe('Agent config UI integration', () => {
 
     const docLabel = await screen.findByText('TestAgent', {}, { timeout: 10000 });
     await act(async () => { fireEvent.click(docLabel); });
+    await act(async () => { fireEvent.doubleClick(docLabel); });
 
     await waitFor(() => {
       const headings = screen.getAllByText('TestAgent');
@@ -39,7 +40,7 @@ describe('Agent config UI integration', () => {
     await openAgentDoc();
 
     await waitFor(() => {
-      expect(screen.getByText('Effects')).toBeTruthy();
+      expect(screen.getByText('Effects & Warning Thresholds')).toBeTruthy();
       expect(screen.getByText('Physical Properties')).toBeTruthy();
     }, { timeout: 5000 });
   }, 45000);
@@ -48,7 +49,7 @@ describe('Agent config UI integration', () => {
     await openAgentDoc();
 
     await waitFor(() => {
-      expect(screen.getByText('Effects')).toBeTruthy();
+      expect(screen.getByText('Effects & Warning Thresholds')).toBeTruthy();
     }, { timeout: 5000 });
 
     const newEffectInput = screen.getByRole('textbox', { name: /new effect name/i });

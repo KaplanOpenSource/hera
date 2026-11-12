@@ -230,7 +230,7 @@ class abstractToolkit(Project):
             ret.append(dta)
         return ret
 
-    def getDataSourceTable(self, **filters) -> "pd.DataFrame":
+    def getDataSourceTable(self, **filters):
         """
         Build a pandas DataFrame from all data sources of this toolkit.
 
@@ -709,7 +709,7 @@ class ToolkitHome(abstractToolkit):
     # Main API: getToolkit
     # ------------------------------------------------------------------
 
-    def getToolkit(self, toolkitName: str, filesDirectory: Optional[str] = None, **kwargs):
+    def getToolkit(self, toolkitName: str, filesDirectory: Optional[str] = None, **kwargs) -> abstractToolkit:
         """
         Locate and instantiate a toolkit by name.
 
