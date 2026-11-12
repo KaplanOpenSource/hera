@@ -3,7 +3,7 @@
 
 MONGO_CONTAINER = hera-mongo
 # Override to run an older server on an existing data dir; to move that data to
-# 9.0, migrate it with dump/restore (issue #1126).
+# 9.0, run scripts/mongo/migrate_to_mongo9.sh (docs/user_guide/mongodb_upgrade.md).
 MONGO_IMAGE     ?= mongo:9.0
 MONGO_DATA      ?= $(HOME)/mongo-db-datadir
 MONGO_INIT      = $(CURDIR)/mongo-init.d

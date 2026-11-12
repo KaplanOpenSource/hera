@@ -89,6 +89,7 @@ nav:
   - User Guide:
       - Overview: user_guide/index.md
       - Installation & Setup: user_guide/installation.md
+      - Upgrading MongoDB to 9.0: user_guide/mongodb_upgrade.md
       - Key Concepts: user_guide/concepts.md
       - Projects: user_guide/projects.md
       - Working with Data: user_guide/working_with_data.md
