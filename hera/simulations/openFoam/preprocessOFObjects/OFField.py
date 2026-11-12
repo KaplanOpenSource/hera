@@ -308,7 +308,12 @@ class OFField(OFObject):
         except FileNotFoundError as e:
             err = f"File not found: {e}"
             logger.warning(err)
-            # Wrap as ValueError to indicate missing field
+            # If reading in parallel mode and the case directory is empty, fall back to a single processor empty field.
+            if readParallel:
+                self.initialize(noOfProc=None)
+                self.parallel = False
+                return
+            # Otherwise, propagate as a missing field error.
             raise ValueError("Field not found") from e
 
     def readFromCase(self, caseDirectory, timeStep=0, readParallel=True):
@@ -369,7 +374,12 @@ class OFField(OFObject):
         except FileNotFoundError as e:
             err = f"File not found: {e}"
             logger.warning(err)
-            # Wrap as ValueError to indicate missing field
+            # If reading in parallel mode and the case directory is empty, fall back to a single processor empty field.
+            if readParallel:
+                self.initialize(noOfProc=None)
+                self.parallel = False
+                return
+            # Otherwise, propagate as a missing field error.
             raise ValueError("Field not found") from e
 
     def setFieldFromDataFrame(self,fieldDataFrame):
