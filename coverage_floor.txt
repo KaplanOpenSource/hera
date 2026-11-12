@@ -1,0 +1,294 @@
+37
+# The number on the first line is the combined line+branch coverage floor,
+# enforced in CI by `coverage report --fail-under`.  Raise it in the same PR
+# that raises coverage; never lower it.
+#
+# Phase 0 baseline (2026-08-24, Python 3.12, pytest 9.0.3):
+#     unit layer only ......... 7%   (18446 stmts, 16920 missed)
+#     integration only ....... 22%   (18568 stmts, 13878 missed)
+#     combined ............... 22%   (18568 stmts, 13871 missed)
+#   Floor was set to 20.
+#
+# After batch 1 (hera/utils):
+#     unit layer only ........ 12%
+#     combined ............... 28%   (18568 stmts, 12937 missed)
+#     hera/utils combined .... 43%   (was 23%)
+#     hera/utils in scope .... 74%   (912 of the 2397 statements; the rest is
+#                                    rag/*, data/CLI.py, data/toolkit*,
+#                                    SALibUtils and freeCAD, all deferred with
+#                                    reasons in the batch 1 plan)
+#   Floor raised to 26.
+#
+# After batch 2 (toolkit.py + datalayer):
+#     combined ............... 28%   (18568 stmts, 12850 missed)
+#     toolkit.py + datalayer . 68%   (was 61%)
+#     hera/toolkit.py ........ 47% from the unit layer alone (was 30% combined)
+#   Floor UNCHANGED at 26.  The batch added 87 covered statements, which does
+#   not move the package figure past 28%: the datalayer was already well
+#   covered by the integration suite, unlike hera/utils in batch 1.  The value
+#   here is that behaviour which needed a live MongoDB now runs hermetically in
+#   under two seconds, plus six defects found -- not a higher number.  Raising
+#   the floor on a 0.4-point gain would leave no headroom for CI drift.
+#
+# After batch 3 (simulations/gaussian):
+#     combined ............... 30%   (18568 stmts, 12513 missed)
+#     gaussian ............... 33%
+#     gaussian in scope ...... 66%   (470 of 1061 statements)
+#       Sigma.py ............ 100%   -- validated against Briggs (1973)
+#       Meteorology.py ....... 95%
+#       MeshUtils.py ......... 88%
+#   Floor raised to 28.  337 covered statements, enough to move the package
+#   figure this time.  Deferred with reasons: gasCloud.py (291),
+#   FallingNonEvaporatingDroplets.py (217) and DropletCloud.py (83) -- the
+#   gas-cloud solver and falling-droplet physics build multi-dimensional xarray
+#   fields and need whole meteorology and source objects, so they belong in a
+#   batch of their own rather than the tail of this one.
+#
+# After batch 4 (evaporation, deposition, hydrodynamics, windProfile,
+#                simulations/utils):
+#     combined ............... 31%   (18591 stmts, 12351 missed)
+#     targeted files ......... 70%   (199 statements)
+#       errorCalculation.py . 100%
+#       nearWallFlow.py ...... 77%
+#       interpolations.py .... 53%
+#   Floor raised to 29.
+#
+#   312 of the batch's nominal statements CANNOT be covered: evaporation and
+#   deposition are unimportable (B31 -- `from ..utils import tonumber, tounit`
+#   resolves to an empty package).  A further 425 statements in
+#   canopyWindProfile, coordinateHandler and windProfile/toolkit were not
+#   targeted: they need xarray/dask structures or an external IMS token, so
+#   they are integration-shaped rather than unit-shaped.
+#
+# After batch 5 (riskassessment + presentation):
+#     combined ............... 31%   (18591 stmts, 12313 missed)
+#     riskassessment ......... 39%
+#   Floor UNCHANGED at 29.  38 covered statements is real but well inside the
+#   rounding; the value was four defects, including proof that B12's registry
+#   split actively breaks InjuryLevelThreshold.getPercent for numeric input.
+#
+# After batch 6 (measurements/meteorology):
+#     combined ............... 31%   (18591 stmts, 12291 missed)
+#     meteorology ............ 35%
+#   Floor UNCHANGED at 29.  22 covered statements; the batch's substance was
+#   two unimportable modules (B40 radiosonde, B41 a hard-coded personal path)
+#   and a corrected diagnosis of P1's effect on the turbulence cache.
+#
+# After batch 7 (measurements/GIS):
+#     combined ............... 31%   (18591 stmts, 12221 missed)
+#     GIS .................... 43%
+#   Floor UNCHANGED at 29.  70 covered statements.  The batch's substance was
+#   B43: two contradictory IGBP roughness tables in one file, differing by a
+#   factor of 1300 for snow and ice.
+#
+# After batch 8 (measurements/experiment):
+#   Floor UNCHANGED at 29.  The batch is small by design: parsers.py (41 defs)
+#   is orphaned -- nothing in the tree imports it -- so covering it would only
+#   raise a number.  B44 records that its TOA5 parser is an empty stub.
+#
+# After batch 9 (openFoam, LSM, mlDL, WRF) -- the last batch:
+#     combined ............... 32%   (18591 stmts, 12150 missed)
+#   Floor raised to 30.
+#
+#   Final position across Phase 0 and nine batches: 1000 hermetic tests in
+#   about four seconds, floor 20 -> 30, package coverage 22% -> 32%, and 48
+#   defects recorded in docs/superpowers/findings/ with every one pinned by an
+#   xfail(strict=True) so that fixing it demands the marker's removal.
+#
+# Two points of headroom below the measured value, deliberately: CI runs
+# Python 3.11 with the versions pinned in requirements.txt, so its number will
+# not match this one exactly, and the gate should fail on regressions rather
+# than on environment drift.
+#
+# After batches 10-12 (deposition/evaporation pure physics, a first openFoam
+# slice, and riskassessment protectionpolicy/analysis/riskToolkit):
+#     combined ............... 33%   (18592 stmts, 11785 missed)
+#   Floor raised to 31.
+#
+#   These three batches added 82 hermetic tests and eight more defects
+#   (B53-B60), the most consequential being B59: ProtectionPolicy's indoor
+#   dilution model writes into a copy returned by dict-based xarray indexing,
+#   so it computes all zeros regardless of alpha, dt or the outdoor
+#   concentration -- and B60, where getRiskAreaAlgorithm's dispatcher
+#   resolves a class name in a package ("pyriskassessment") that does not
+#   exist anywhere in this codebase, so it can never succeed even for the one
+#   algorithm it implements. Function-level coverage across the whole
+#   codebase (a stricter measure than statement coverage -- a function only
+#   counts once one of its own body lines runs, not merely its `def` line at
+#   import time) sits at 489 of 1429 public functions/methods (34%); the
+#   remaining gap is concentrated in openFoam (237 of 252 uncovered),
+#   meteorology (98), gaussian (80), experiment (68), GIS (63) and
+#   machineLearningDeepLearning (57, needs torch).
+#
+# After batch 13 (openFoam preprocessing base classes: OFObject, OFList,
+#                 preprocessOFObjects/utils.py):
+#     combined ............... 34%   (18592 stmts, 11730 missed)
+#   Floor raised to 32.
+#
+#   28 more hermetic tests and one more defect (B61: OFList cannot write
+#   anything in either its scalar or vector branch, because it calls
+#   self.getHeader() -- a method nothing in its class hierarchy defines --
+#   before either branch runs; nothing in the codebase constructs an OFList
+#   at all). The rest of the batch was substance without a new defect:
+#   OFObject's ten public methods (dimension bookkeeping, component-name
+#   derivation, per-processor data access, disk I/O) all behave correctly,
+#   and ParsedParameterFileToDataFrame's boundary-patch branching -- value
+#   present, value absent, value empty, processor patches, explicit patch
+#   lists -- was verified against a hand-built fake shaped like PyFoam's own
+#   parsed-file objects, since the stubbed PyFoam is a MagicMock and would
+#   not have exercised the real branches.
+#
+# After batch 14 (riskassessment/agents: Agents.py, Calculator,
+#                 Injury, InjuryLevel, thresholdGeoDataFrame):
+#     combined ............... 34%   (18592 stmts, 11655 missed)
+#   Floor raised to 33.
+#
+#   Five more defects (B62-B66), the two costliest being: B63, where
+#   Injury.calculateToxicLoads/calculatePointWiseFractionInjured have no
+#   inUnits parameter to forward to the calculator, so every call on plain
+#   pandas.DataFrame input raises KeyError regardless of which calculator is
+#   configured (pandas.DataFrame has carried .attrs since 1.0, so the
+#   hasattr() check meant to detect xarray no longer distinguishes the two);
+#   and B65, thresholdGeoDataFrame.project checking
+#   isinstance(x, collections.Iterable), an attribute removed from
+#   collections in Python 3.10 -- the method cannot run on this Python at
+#   all. Everything else in the five files -- Agent/PhysicalPropeties'
+#   remaining ten methods, InjuryLevelThreshold/Exponential's full
+#   construction and dose-response math, and shiftLocationAndAngle's
+#   rotate+translate under both angle conventions -- checked out correct.
+#
+# After batch 15 (OFField.py, the five public methods batch 11 left):
+#     combined ............... 35%   (18592 stmts, 11537 missed)
+#     function coverage ....... 573 of 1429 public functions/methods (40.1%),
+#                               up from 489 (34.2%) after batch 13.
+#   Floor raised to 34.
+#
+#   Two more defects (B67, B68), both in setFieldFromDataFrame: it always
+#   groups boundary rows by a 'boundary' column even when there are none, so
+#   a field with no boundary patches -- exactly what getDataFrame() returns
+#   for one -- cannot be round-tripped back through it (B67); and the
+#   parallel branch reads the EXISTING per-processor boundary before writing,
+#   so a freshly-built single-processor field (the common case) cannot be
+#   turned parallel by feeding it a parallel DataFrame -- only an
+#   already-parallel field can be updated this way (B68). getDataFrame and
+#   the single/parallel dispatch in setFieldFromDataFrame both check out
+#   correct once those preconditions are met. Three more methods
+#   (addProcBoundary, readBoundariesFromCase, readFromCase) only got a
+#   smoke test: PyFoam's DictProxy/Field/WriteParameterFile are a bare
+#   MagicMock with no real storage, so nothing they write can be verified --
+#   the same ceiling batch 11 documented for addBoundaryField.
+#
+# After batch 16 (measurements/meteorology highfreqdata: abstractcalculator,
+#                 meandatacalculator, turbulencestatistics, parsers/__init__):
+#     combined ............... 37%   (18592 stmts, 11206 missed)
+#     function coverage ....... 616 of 1429 public functions/methods (43.1%),
+#                               up from 573 (40.1%) after batch 15.
+#   Floor raised to 36.
+#
+#   Five more defects (B69-B73). The two most consequential: B70, where
+#   MeanDataCalculator's constructor dispatches on `type(x) == pandas` /
+#   `== dask` -- comparing an argument's type to the MODULE objects
+#   themselves, which nothing is ever equal to -- so passing a plain
+#   DataFrame directly (explicitly documented and type-hinted as supported)
+#   always raises, even though the class exists specifically to accept one;
+#   and B71, anisotropyEigs's _eig helper defined without `self` but called
+#   as the bound method self._eig via DataFrame.apply, always raising
+#   TypeError. GFS.py (sklearn + gdal, both absent) and radiosonde.py
+#   (already dead per B40) were confirmed still blocked and left alone;
+#   CampbellBinary.py's binary parser and TOA5.py/HighFreqToolKit's
+#   file-based parsing (25 functions combined) need realistic multi-row
+#   fixture files and were deferred rather than pursued at the expense of
+#   the batches still ahead. Everything else -- the full sigma/Ustar/
+#   stability chain on both singlePointTurbulenceStatistics and
+#   MeanDataCalculator, the sonic/TRH normalisation helpers, and
+#   InMemoryRawData's HDF round trip -- checked out correct.
+#
+# After batch 17 (measurements/GIS, partial: hill2stl, stlFactory,
+#                 TilesToolkit's tile math, one LandCoverToolkit method):
+#     combined ............... 37%   (18592 stmts, 11104 missed)
+#     function coverage ....... 629 of 1429 public functions/methods (44.0%),
+#                               up from 616 (43.1%) after batch 16.
+#   Floor UNCHANGED at 36. One new defect (B74: vectorToSTL's dask branch
+#   references a name this module never imports, so anything that isn't a
+#   GeoDataFrame or plain DataFrame raises NameError instead of a clean
+#   rejection) plus a noted-but-not-filed duplicate @staticmethod definition
+#   in LandCoverToolkit (same formula both times, so no behavioural defect).
+#   Deliberately partial: buildings/demography/topography's 34 functions
+#   need real shapefiles or DEM rasters, tiles.py's getImageFromCorners/
+#   listImages need a live tile server or stored imagery, and GIS/CLI.py's
+#   6 commands are thin argparse wrappers over those toolkits -- all left
+#   for a future pass rather than pursued at the expense of the batches
+#   still ahead.
+#
+# After batch 18 (measurements/experiment: experimentHome,
+#                 experimentAnalysis, dataEngine):
+#   Floor UNCHANGED at 36; measured together with batch 19, whose note
+#   below has the combined coverage figure for both.
+#   Three defects (B75-B77): getTurbulenceStatistics references
+#   kaijoData/kaijoHeight, names that exist nowhere in the method (B75);
+#   both pandasDataEngineDB and daskDataEngineDB's DBconfiguration property
+#   is missing its return statement, so it always yields None (B76); and
+#   pandasDataEngineDB.dbConnect's `except OperationFailure` references a
+#   name never imported, so any real connection failure is masked behind a
+#   NameError that the outer except silently swallows (B77). parsers.py's
+#   27 functions are a second copy of the same binary parser already
+#   deferred in batch 16 (and already dead per B44's original finding on a
+#   different parsers.py); presentation.py and experimentSetupWithData's
+#   argos-zip-dependent methods were deferred too.
+#
+# After batch 19 (simulations/gaussian: gasCloud.py, the 25 functions
+#                 deferred from batch 3):
+#     combined ............... 38%   (18592 stmts, 10873 missed)
+#     function coverage ....... 665 of 1429 public functions/methods (46.5%),
+#                               up from 629 (44.0%) after batch 17.
+#   Floor raised to 37.
+#
+#   One severe defect (B78): continuousReleaseGasCloud inherits directly
+#   from abstractGasCloud, not from instantaneousReleaseGasCloud, but all
+#   four of its own public methods call self.getDosage_inst_noQ /
+#   self.getDosage_inst_NoERF_noQ -- methods that exist only on
+#   instantaneousReleaseGasCloud. Every one of them raises AttributeError;
+#   the entire continuous-release branch of the Gaussian dispersion model
+#   is unusable, even though createGasCloud's own factory dispatches
+#   mass-per-time sources into it exactly as documented. Everything in
+#   instantaneousReleaseGasCloud -- the full noQ/withQ/NoERF/bounded/TIAC
+#   chain, the depletion factor, and get_TIAC_for_dist -- checked out
+#   correct. FallingNonEvaporatingDroplets.py and DropletCloud.py, deferred
+#   since batch 3, are still deferred; this batch's time went to gasCloud.py.
+#
+# This is the last batch in the phase 2 sweep (batches 10-19). Final tally:
+# 1370 hermetic tests (up from 1000 after phase 0 + batch 9), 20 branches
+# pushed with no PRs opened, 78 defects recorded, floor 20 -> 37, combined
+# coverage 22% -> 38%, function coverage 27% -> 46.5%. The remaining 764
+# uncovered functions concentrate in openFoam's solver/VTK/workflow layers
+# (222, largely needs real OpenFOAM/paraview execution), machineLearning
+# DeepLearning (57, needs a properly namespaced torch stub), LSM (51, needs
+# real hermes), utils/rag (18, needs RAG-specific deps) and
+# hermesWorkflowToolkit.py (28, needs real hermes) -- all judged genuinely
+# blocked or disproportionate effort rather than merely unattempted.
+
+# After batch 20 (measurements/GIS continued: buildings/analysis,
+#                 buildings/toolkit static helpers, vector/toolkit,
+#                 vector/demography; meteorology's CampbellBinary parser):
+#   Floor left UNCHANGED at 37 -- this batch is local-only (not pushed),
+#   and this dev environment cannot run the integration layer reliably
+#   right now (the `hermes` package needed by
+#   hera/simulations/openFoam/OFWorkflow.py isn't importable locally --
+#   it's vendored only inside CI via a separate checkout of
+#   KaplanOpenSource/hermes; the `Hermes` git submodule in this repo is a
+#   different, unrelated vendored library). Combined coverage was 46.5%
+#   function coverage (665/1429) after batch 19; this batch adds roughly
+#   30 more newly-covered functions across the areas above, precise
+#   re-measurement deferred until this is pushed and CI can compute it
+#   properly, or until a local hermes checkout is available.
+#
+#   105 new hermetic tests, four more defects (B79-B82). The most
+#   consequential: B82, where the Campbell binary (TOB1) parser's
+#   Parser.getData drops the first data column of every record because
+#   columnsIndexes is computed against the raw record layout while `line`
+#   has already had its two leading timestamp fields stripped -- breaking
+#   getPandasFromFile/getPandasFromDir/parse entirely, for both the sonic
+#   and TRH column layouts. And B80, where cutRegionFromSource silently
+#   discards a CRS reprojection because the dict handed to getData() is
+#   built from the pre-reprojection object, and .to_crs() returns a new
+#   object rather than mutating in place.

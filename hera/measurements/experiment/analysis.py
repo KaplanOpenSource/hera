@@ -73,14 +73,16 @@ class experimentAnalysis:
         """
 
         highfreqtk = self.datalayer.toolkitExtension.sonicHighFreqToolkit
-        analysis = highfreqtk.analysis.singlePointTurbulenceStatistics(sonicData=kaijoData,
-                                                                       start=None,
-                                                                       end=None,
-                                                                       height=kaijoHeight,
-                                                                       samplingWindow=samplingWindow,
-                                                                       buildingHeight= 0,
-                                                                       averagedHeight=0,
-                                                                       isMissingData=True)
+        analysis = highfreqtk.analysis.singlePointTurbulenceStatistics(
+            sonicData=sonicData,
+            start=None,
+            end=None,
+            height=height,
+            samplingWindow=samplingWindow,
+            buildingHeight=0,
+            averagedHeight=0,
+            isMissingData=True,
+        )
 
         return analysis
 
