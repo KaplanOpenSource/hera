@@ -2,44 +2,14 @@
 ``getSimulations``, ``getSimulationsList`` and ``prepareSlurmLSMExecution``.
 
 The datasource documents are registered with ``addDataSource`` directly
-rather than through ``loadData``, because ``loadData`` never persists the
-parsed template JSON's own desc (B92, already pinned in
-test_simulations_lsm_toolkit.py) -- a template registered the normal way
-has no ``params`` and no ``units`` to look up, so it could not exercise
-either lookup here.
+rather than through ``loadData``, so the ``params``/``units`` each lookup
+needs can be stated here instead of coming from a template JSON file.
 
 ``SingleSimulation`` is replaced with a pass-through stand-in for the
 lookup tests: building a real one needs netcdf files on disk, and what
 LSMToolkit owns is the query it issues, not the reader.
 ``slurm.prepareSlurmScriptExecution`` is replaced with a recorder so that
 nothing is submitted to a scheduler.
-
-Bugs pinned here, each with an xfail(strict) for the intended behaviour
-and a passing characterisation of what actually happens:
-
-  * B281: ``getSimulations`` dereferences
-    ``getTemplateByName(unitsTemplateVersion)`` without checking for None,
-    so it dies with AttributeError in any project that does not happen to
-    hold a template called "v4-general" (its default).
-  * B282: ``getSimulations`` wraps ``SingleSimulation(doc)`` in a bare
-    ``except:`` that prints a warning and drops the document, so callers
-    silently receive a short list.
-  * B283: ``getSimulationsList(wideFormat=True)`` reports
-    FileNotFoundError("No simulations.old found") for any project holding
-    more than one matching simulation -- the pivot's "Index contains
-    duplicate entries" ValueError is swallowed by the ``except ValueError``
-    that exists to report emptiness.
-  * B284: ``prepareSlurmLSMExecution`` calls
-    ``LSMTemplate.prepareParams(desc=None, ...)``, but that parameter is
-    named ``template_desc`` -- every call raises TypeError.
-  * B285: the same method logs ``logger.error(...)`` for a non-dict
-    ``baseParameters`` and for an unusable ``jsonVariations`` without
-    returning, so execution runs on into an unrelated failure.
-
-B276 (the ``product()`` cross-join, pinned against
-LSMTemplate._getSimulationsList in test_lsm_template_more.py) is repeated
-verbatim in ``getSimulationsList``; its consequences here are
-characterised rather than re-pinned as a separate finding.
 """
 import json
 import os
@@ -47,7 +17,6 @@ import os
 import pytest
 
 import hera.simulations.LSM.toolkit as lsmToolkit_mod
-from hera.simulations.LSM.template import LSMTemplate
 from hera.utils import slurm
 from hera.utils.unitHandler import ureg
 
@@ -114,37 +83,27 @@ def slurmRecorder(monkeypatch):
 # ---------------------------------------------------------------------------
 
 @pytest.mark.unit
-class TestGetSimulationsNeedsAUnitsTemplate:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B281: getSimulations looks the units template up with "
-               "`template = self.getTemplateByName(unitsTemplateVersion)` "
-               "and immediately reads `template._document['desc']`. "
-               "getTemplateByName is documented to return None when the "
-               "template is absent (and does), so any project that has not "
-               "registered a template literally named 'v4-general' -- the "
-               "default -- cannot list its simulations at all: every call "
-               "raises AttributeError: 'NoneType' object has no attribute "
-               "'_document'. See the consolidated findings issue.",
-    )
-    def test_a_project_without_the_units_template_should_still_list_simulations(
+class TestGetSimulationsWithoutAUnitsTemplate:
+    """getTemplateByName returns None when the template is absent, so a
+    project that never registered one must simply fall back to the path for
+    a template that declares no units."""
+
+    def test_a_project_without_the_units_template_still_lists_simulations(
         self, lsm, registerSimulation, fakeSingleSimulation
     ):
         registerSimulation("sim1", TopoXmax=100)
         assert len(lsm.getSimulations(TopoXmax=100)) == 1
 
-    def test_a_project_without_the_units_template_currently_raises(self, lsm):
-        """Characterisation of B281."""
-        with pytest.raises(AttributeError, match="'NoneType' object has no attribute '_document'"):
-            lsm.getSimulations()
+    def test_an_empty_project_without_the_units_template_lists_nothing(self, lsm):
+        assert lsm.getSimulations() == []
 
-    def test_naming_a_template_that_does_not_exist_raises_the_same_way(
-        self, lsm, registerTemplate
+    def test_naming_a_template_that_does_not_exist_behaves_the_same_way(
+        self, lsm, registerTemplate, registerSimulation, fakeSingleSimulation
     ):
-        """Characterisation of B281: the default name is not the problem."""
         registerTemplate(name=TEMPLATE_NAME)
-        with pytest.raises(AttributeError, match="_document"):
-            lsm.getSimulations(unitsTemplateVersion="noSuchTemplate")
+        registerSimulation("sim1", TopoXmax=100)
+        found = lsm.getSimulations(unitsTemplateVersion="noSuchTemplate", TopoXmax=100)
+        assert [item.document.desc["simulationName"] for item in found] == ["sim1"]
 
 
 @pytest.mark.unit
@@ -241,36 +200,30 @@ class TestGetSimulationsWithDeclaredUnits:
 
 
 @pytest.mark.unit
-class TestGetSimulationsSwallowsReaderFailures:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B282: getSimulations wraps SingleSimulation(doc) in a "
-               "bare `except:` that prints 'Warning: could not find data "
-               "with the following document: ...' and moves on. A document "
-               "whose data cannot be read is therefore dropped from the "
-               "result without the caller being able to tell, the diagnostic "
-               "goes to stdout instead of the toolkit's logger, and the bare "
-               "except also catches KeyboardInterrupt and SystemExit. See "
-               "the consolidated findings issue.",
-    )
-    def test_an_unreadable_simulation_should_not_vanish_silently(
+class TestGetSimulationsReaderFailures:
+    def test_an_unreadable_simulation_is_skipped_without_printing(
         self, lsm, registerTemplate, registerSimulation, capsys
     ):
-        registerTemplate()
-        registerSimulation("sim1", TopoXmax=100)
-        found = lsm.getSimulations(TopoXmax=100)
-        assert capsys.readouterr().out == ""
-        assert len(found) == 1
-
-    def test_an_unreadable_simulation_is_currently_dropped_with_a_printed_warning(
-        self, lsm, registerTemplate, registerSimulation, capsys
-    ):
-        """Characterisation of B282."""
+        """A document whose data cannot be read is still skipped, but the
+        diagnostic goes to the toolkit's logger, not to stdout."""
         registerTemplate()
         registerSimulation("sim1", TopoXmax=100)
         found = lsm.getSimulations(TopoXmax=100)
         assert found == []
-        assert "could not find data with the following document" in capsys.readouterr().out
+        assert capsys.readouterr().out == ""
+
+    def test_a_keyboard_interrupt_is_not_swallowed(
+        self, lsm, registerTemplate, registerSimulation, monkeypatch
+    ):
+        registerTemplate()
+        registerSimulation("sim1", TopoXmax=100)
+
+        def _interrupt(document):
+            raise KeyboardInterrupt
+
+        monkeypatch.setattr(lsmToolkit_mod, "SingleSimulation", _interrupt)
+        with pytest.raises(KeyboardInterrupt):
+            lsm.getSimulations(TopoXmax=100)
 
 
 # ---------------------------------------------------------------------------
@@ -312,20 +265,16 @@ class TestGetSimulationsListLongFormat:
         pairs = dict(zip(table["variable"], table["value"]))
         assert pairs["simulationName"] == "sim2"
 
-    def test_two_simulations_currently_produce_the_cross_join(
+    def test_two_simulations_each_melt_to_their_own_fields(
         self, lsm, registerSimulation
     ):
-        """Characterisation of B276, repeated verbatim in this method:
-        two documents with three fields each melt to 2*2*4 = 16 rows."""
+        """Two documents with four fields each melt to 2*4 = 8 rows."""
         registerSimulation("sim1", TopoXmax=100, extra=1)
         registerSimulation("sim2", TopoXmax=100, extra=2)
         table = lsm.getSimulationsList()
-        assert len(table) == 16
+        assert len(table) == 8
 
-    def test_the_cross_join_currently_mixes_one_run_with_anothers_parameters(
-        self, lsm, registerSimulation
-    ):
-        """Characterisation of B276."""
+    def test_each_run_keeps_its_own_parameters(self, lsm, registerSimulation):
         registerSimulation("sim1", TopoXmax=100, extra=1)
         registerSimulation("sim2", TopoXmax=100, extra=2)
         table = lsm.getSimulationsList()
@@ -333,7 +282,7 @@ class TestGetSimulationsListLongFormat:
         byId = {}
         for identifier, value in zip(extras.index, extras["value"]):
             byId.setdefault(identifier, set()).add(value)
-        assert all(values == {1, 2} for values in byId.values())
+        assert sorted(byId.values(), key=sorted) == [{1}, {2}]
 
 
 @pytest.mark.unit
@@ -351,40 +300,31 @@ class TestGetSimulationsListWideFormat:
         with pytest.raises(FileNotFoundError, match="No simulations.old found"):
             lsm.getSimulationsList(wideFormat=True)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B283: with two or more matching simulations the wide "
-               "format cannot be built at all. The product() cross-join "
-               "(B276) puts each document id into the melted index twice "
-               "with the same 'variable', so pandas.pivot raises "
-               "ValueError('Index contains duplicate entries, cannot "
-               "reshape') -- and that lands in the `except ValueError` "
-               "whose only purpose is to report an empty project, so the "
-               "caller is told FileNotFoundError('No simulations.old "
-               "found') about a project that holds two. See the "
-               "consolidated findings issue.",
-    )
+    def test_a_pivot_failure_is_not_reported_as_a_missing_file(
+        self, lsm, registerSimulation, monkeypatch
+    ):
+        """Only emptiness may become FileNotFoundError; a reshape failure on
+        a project that does hold simulations must surface as itself."""
+        registerSimulation("sim1", TopoXmax=100)
+
+        def boom(*args, **kwargs):
+            raise ValueError("Index contains duplicate entries, cannot reshape")
+
+        monkeypatch.setattr(lsmToolkit_mod.pandas.DataFrame, "pivot", boom)
+        with pytest.raises(ValueError, match="cannot reshape"):
+            lsm.getSimulationsList(wideFormat=True)
+
     def test_two_simulations_should_give_two_rows(self, lsm, registerSimulation):
         registerSimulation("sim1", TopoXmax=100, extra=1)
         registerSimulation("sim2", TopoXmax=100, extra=2)
         assert len(lsm.getSimulationsList(wideFormat=True)) == 2
 
-    def test_two_simulations_are_currently_reported_as_none_found(
-        self, lsm, registerSimulation
-    ):
-        """Characterisation of B283."""
+    def test_each_row_carries_its_own_runs_parameters(self, lsm, registerSimulation):
         registerSimulation("sim1", TopoXmax=100, extra=1)
         registerSimulation("sim2", TopoXmax=100, extra=2)
-        with pytest.raises(FileNotFoundError, match="No simulations.old found"):
-            lsm.getSimulationsList(wideFormat=True)
-
-    def test_the_long_format_of_the_same_project_still_returns_data(
-        self, lsm, registerSimulation
-    ):
-        """Characterisation of B283: the data is plainly there."""
-        registerSimulation("sim1", TopoXmax=100, extra=1)
-        registerSimulation("sim2", TopoXmax=100, extra=2)
-        assert len(lsm.getSimulationsList(wideFormat=False)) > 0
+        table = lsm.getSimulationsList(wideFormat=True)
+        pairs = set(zip(table["simulationName"], table["params__extra"]))
+        assert pairs == {("sim1", 1), ("sim2", 2)}
 
 
 # ---------------------------------------------------------------------------
@@ -404,72 +344,46 @@ class TestPrepareSlurmLSMExecution:
         arguments.update(overrides)
         return lsm.prepareSlurmLSMExecution(**arguments)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B284: prepareSlurmLSMExecution calls "
-               "`LSMTemplate.prepareParams(desc=None, "
-               "paramsToPrepare=jsonConfig)`, but that staticmethod's first "
-               "parameter is named `template_desc`. Every call therefore "
-               "raises TypeError: prepareParams() got an unexpected keyword "
-               "argument 'desc' on the first variation, before a single "
-               "run script is written. The whole Slurm entry point is "
-               "unusable. See the consolidated findings issue.",
-    )
-    def test_it_should_write_one_run_script_per_variation(self, lsm, slurmRecorder):
+    def _scriptsDirectory(self, lsm):
+        return os.path.join(lsm.filesDirectory, "simulationsScripts")
+
+    def test_it_writes_one_run_script_per_variation(self, lsm, slurmRecorder):
         self._prepare(lsm)
-        scriptsDirectory = os.path.join(lsm.filesDirectory, "simulationsScripts")
         assert sorted(
-            name for name in os.listdir(scriptsDirectory) if name.startswith("LSM_")
+            name for name in os.listdir(self._scriptsDirectory(lsm))
+            if name.startswith("LSM_")
         ) == ["LSM_Simulation_0", "LSM_Simulation_1"]
 
-    def test_it_currently_raises_on_the_first_variation(self, lsm, slurmRecorder):
-        """Characterisation of B284."""
-        with pytest.raises(TypeError, match="unexpected keyword argument 'desc'"):
-            self._prepare(lsm)
+    def test_the_case_list_names_every_simulation(self, lsm, slurmRecorder):
+        self._prepare(lsm)
+        with open(os.path.join(self._scriptsDirectory(lsm), "cases.txt")) as cases:
+            assert cases.read().split() == ["LSM_Simulation_0", "LSM_Simulation_1"]
 
-    def test_the_parameter_it_passes_is_not_the_one_declared(self):
-        """Characterisation of B284: `template_desc`, not `desc`."""
-        import inspect
+    def test_the_scheduler_is_handed_the_case_list(self, lsm, slurmRecorder):
+        self._prepare(lsm)
+        assert len(slurmRecorder) == 1
+        assert str(slurmRecorder[0]["jobDirListFilePath"]).endswith("cases.txt")
 
-        parameters = list(
-            inspect.signature(LSMTemplate.prepareParams).parameters
-        )
-        assert parameters == ["template_desc", "paramsToPrepare"]
-
-    def test_nothing_reaches_the_scheduler(self, lsm, slurmRecorder):
-        """Characterisation of B284."""
-        with pytest.raises(TypeError):
-            self._prepare(lsm)
-        assert slurmRecorder == []
-
-    def test_the_scripts_directory_is_created_before_the_failure(
-        self, lsm, slurmRecorder
-    ):
-        """Characterisation of B284: a half-built layout is left behind."""
-        with pytest.raises(TypeError):
-            self._prepare(lsm)
-        assert os.path.isdir(
-            os.path.join(lsm.filesDirectory, "simulationsScripts")
-        )
-
-    def test_stations_are_written_out_before_the_failure(
+    def test_stations_are_written_out_for_the_run_scripts(
         self, lsm, slurmRecorder, tmp_path
     ):
         import pandas
 
         stations = pandas.DataFrame(dict(x=[0.0], y=[0.0], u=[3.0]))
-        with pytest.raises(TypeError):
-            self._prepare(lsm, stations=stations)
+        self._prepare(lsm, stations=stations)
         assert os.path.isfile(
-            os.path.join(lsm.filesDirectory, "simulationsScripts", "stations.parquet")
+            os.path.join(self._scriptsDirectory(lsm), "stations.parquet")
         )
 
     def test_a_variations_file_on_disk_is_read(self, lsm, slurmRecorder, tmp_path):
-        """The str branch is taken before the B284 failure."""
+        """The str branch loads the same variations the list branch takes."""
         path = tmp_path / "variations.json"
         path.write_text(json.dumps(self.VARIATIONS))
-        with pytest.raises(TypeError, match="unexpected keyword argument 'desc'"):
-            self._prepare(lsm, jsonVariations=str(path))
+        self._prepare(lsm, jsonVariations=str(path))
+        assert sorted(
+            name for name in os.listdir(self._scriptsDirectory(lsm))
+            if name.startswith("LSM_")
+        ) == ["LSM_Simulation_0", "LSM_Simulation_1"]
 
     def test_an_unreadable_variations_path_is_refused(self, lsm, slurmRecorder):
         with pytest.raises(FileNotFoundError):
@@ -480,20 +394,7 @@ class TestPrepareSlurmLSMExecution:
 class TestPrepareSlurmLSMExecutionInputValidation:
     VARIATIONS = [{"TopoXmax": [100]}]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B285: prepareSlurmLSMExecution reports bad input with "
-               "`logger.error('Slurm preparation can only handle dictionary "
-               "of parameters to run variations')` and then falls straight "
-               "through into JSONVariations(baseParameters, ...), which "
-               "fails on `dict(base)` with 'dictionary update sequence "
-               "element #0 has length 1; 2 is required'. The caller gets an "
-               "opaque pandas/builtins error instead of the diagnostic that "
-               "was written for them; the same shape of mistake is repeated "
-               "for jsonVariations a few lines below. Both need a `return` "
-               "or a raise. See the consolidated findings issue.",
-    )
-    def test_a_non_dict_baseParameters_should_be_refused_clearly(self, lsm):
+    def test_a_non_dict_baseParameters_is_refused_clearly(self, lsm):
         with pytest.raises((ValueError, TypeError), match="dictionary of parameters"):
             lsm.prepareSlurmLSMExecution(
                 baseParameters="notADictionary",
@@ -501,42 +402,14 @@ class TestPrepareSlurmLSMExecutionInputValidation:
                 templateName=TEMPLATE_NAME,
             )
 
-    def test_a_non_dict_baseParameters_currently_fails_deeper_in(self, lsm):
-        """Characterisation of B285."""
-        with pytest.raises(ValueError, match="dictionary update sequence"):
-            lsm.prepareSlurmLSMExecution(
-                baseParameters="notADictionary",
-                jsonVariations=list(self.VARIATIONS),
-                templateName=TEMPLATE_NAME,
-            )
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B285: the jsonVariations check has the same shape -- "
-               "`elif not isinstance(jsonVariations, list): logger.error("
-               "'Slurm preparation only supports json variation input as "
-               "path or dict')` with no return -- so a dict (which the "
-               "message itself invites) falls through into JSONVariations "
-               "and fails on iteration instead. See the consolidated "
-               "findings issue.",
-    )
-    def test_an_unsupported_variations_type_should_be_refused_clearly(self, lsm):
+    def test_an_unsupported_variations_type_is_refused_clearly(self, lsm):
+        """The message names what the isinstance check actually accepts:
+        a path or a list of variation groups, not a dict."""
         with pytest.raises(
-            (ValueError, TypeError), match="only supports json variation input"
+            (ValueError, TypeError), match="only supports json variation input as path or list"
         ):
             lsm.prepareSlurmLSMExecution(
                 baseParameters=dict(TEMPLATE_PARAMS),
                 jsonVariations={"TopoXmax": [100]},
                 templateName=TEMPLATE_NAME,
             )
-
-    def test_an_unsupported_variations_type_currently_fails_deeper_in(self, lsm):
-        """Characterisation of B285: the error message says 'path or
-        dict', yet a dict is exactly what the isinstance check rejects."""
-        with pytest.raises(Exception) as raised:
-            lsm.prepareSlurmLSMExecution(
-                baseParameters=dict(TEMPLATE_PARAMS),
-                jsonVariations={"TopoXmax": [100]},
-                templateName=TEMPLATE_NAME,
-            )
-        assert "only supports json variation input" not in str(raised.value)

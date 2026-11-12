@@ -7,7 +7,6 @@ from hera.utils.jsonutils import JSONToConfiguration, JSONVariations
 from hera.utils.logging.helpers import get_classMethod_logger
 
 from .template import LSMTemplate
-from itertools import product
 from ... import datalayer
 from ... import toolkit
 from .singleSimulation import SingleSimulation
@@ -152,7 +151,7 @@ class LSMToolkit(toolkit.abstractToolkit):
 
             params_df_list = [pandas.DataFrame(desc.pop('params'), index=[0]) for desc in descList]
             desc_df_list = [pandas.DataFrame(desc, index=[0]) for desc in descList]
-            df_list = [desc.join(params) for (desc,params) in product(desc_df_list, params_df_list)]
+            df_list = [desc.join(params) for (desc,params) in zip(desc_df_list, params_df_list)]
             ret = pandas.concat(df_list,ignore_index=True,sort=False)
         else:
             ret = pandas.DataFrame()
@@ -200,6 +199,12 @@ class LSMToolkit(toolkit.abstractToolkit):
         templateName = desc['name']
         version = kwargs.get("version",None)
 
+        # the description of the datasource is the template JSON itself, with the
+        # caller's kwargs overriding it. 'version' is passed separately.
+        templateDesc = dict(desc)
+        templateDesc.update(kwargs)
+        templateDesc.pop("version", None)
+
         doc = None
         if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB,toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
 
@@ -211,14 +216,14 @@ class LSMToolkit(toolkit.abstractToolkit):
                                    resource=fileNameOrData,
                                    dataFormat=datalayer.datatypes.STRING,
                                    version=version,
-                                   desc=kwargs)
+                                   **templateDesc)
 
             else:
                 if  (saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB):
                     raise ValueError(f"Template {templateName} already exists in the DB")
 
                 doc.resource = fileNameOrData
-                doc.desc = kwargs
+                doc.desc = templateDesc
                 doc.desc['version'] = version
 
         if doc is None:
@@ -234,7 +239,7 @@ class LSMToolkit(toolkit.abstractToolkit):
         """
         template = self.getTemplateByName(unitsTemplateVersion)
 
-        if 'units' in template._document['desc']:
+        if template is not None and 'units' in template._document['desc']:
             for key in template._document['desc']["units"].keys():
                 if key in query.keys():
                     query_item= query[key]
@@ -254,12 +259,13 @@ class LSMToolkit(toolkit.abstractToolkit):
             queryWithParams["simulationName"] = simulationName
 
         docList = self.getSimulationsDocuments(type=LSMTemplate("",self).doctype_simulation, **queryWithParams)
+        logger = get_classMethod_logger(self, "getSimulations")
         retList = []
         for doc in docList:
             try:
                 retList.append(SingleSimulation(doc))
-            except:
-                print(f"Warning: could not find data with the following document: {doc.asDict()}")
+            except Exception:
+                logger.warning(f"could not find data with the following document: {doc.asDict()}", exc_info=True)
 
         return retList
 
@@ -276,21 +282,21 @@ class LSMToolkit(toolkit.abstractToolkit):
         params_df_list = [pandas.DataFrame(desc.pop('params'), index=[0]) for desc in descList]
         params_df_list = [df.rename(columns=dict([(x,"params__%s"%x) for x in df.columns])) for df in params_df_list]
         desc_df_list = [pandas.DataFrame(desc, index=[0]) for desc in descList]
-        df_list = [desc.join(params) for (desc,params) in product(desc_df_list, params_df_list)]
+        df_list = [desc.join(params) for (desc,params) in zip(desc_df_list, params_df_list)]
         new_df_list = []
         for df in df_list:
             id = df['id'][0]
             new_df = df.copy().drop(columns=['id']).melt()
             new_df.index = [id]*len(new_df)
             new_df_list.append(new_df)
-        try:
-            df = pandas.concat(new_df_list)
-            if wideFormat:
-                return df.pivot(columns='variable', values='value')
-            else:
-                return df
-        except ValueError:
+        if len(new_df_list) == 0:
             raise FileNotFoundError('No simulations.old found')
+
+        df = pandas.concat(new_df_list)
+        if wideFormat:
+            return df.pivot(columns='variable', values='value')
+        else:
+            return df
         
 
     def prepareSlurmLSMExecution(self,baseParameters,
@@ -341,13 +347,15 @@ class LSMToolkit(toolkit.abstractToolkit):
         simList = ""
         if not isinstance(baseParameters, dict):
             logger.error("Slurm preparation can only handle dictionary of parameters to run variations")
+            raise ValueError("Slurm preparation can only handle dictionary of parameters to run variations")
 
         if isinstance(jsonVariations, str):
             logger.info(f"Assuming {jsonVariations} is path to variations file")
             with open(jsonVariations, 'r') as variationsFile:
                 jsonVariations = json.load(variationsFile)
         elif not isinstance(jsonVariations, list):
-            logger.error("Slurm preparation only supports json variation input as path or dict")
+            logger.error("Slurm preparation only supports json variation input as path or list")
+            raise ValueError("Slurm preparation only supports json variation input as path or list")
 
         SIMULATIONS_SCRIPT_DIR_NAME= "simulationsScripts"
         STATIONS_PATH = "stations.parquet"
@@ -363,7 +371,7 @@ class LSMToolkit(toolkit.abstractToolkit):
             stations.to_parquet(simulations_scripts_dir / STATIONS_PATH)
         for i, jsonConfig in enumerate(JSONVariations(baseParameters, jsonVariations)):
             jsonConfig = JSONToConfiguration(jsonConfig)
-            jsonConfig = LSMTemplate.prepareParams(desc=None, paramsToPrepare=jsonConfig)
+            jsonConfig = LSMTemplate.prepareParams(template_desc=None, paramsToPrepare=jsonConfig)
             simName = f"LSM_Simulation_{i}"
             simSavePath = simulations_scripts_dir /simName/RUN_SIM_FILE_NAME
 

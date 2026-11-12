@@ -1,17 +1,5 @@
 """LSMToolkit: construction/property validation, template loading, and
-the getTemplatesTable bug.
-
-B92: loadData parses the template JSON file into a local `desc` dict (used
-only to pull out `templateName = desc['name']`), then registers the
-datasource with `self.addDataSource(dataSourceName=templateName,
-resource=fileNameOrData, dataFormat=..., version=version, **kwargs)` --
-passing only the *caller's own* kwargs, never the parsed `desc` itself. So
-none of the template JSON's actual content (e.g. `params`) ever reaches
-the stored datasource document's `desc` field. getTemplatesTable()
-unconditionally does `desc.pop('params')` on every returned document, so
-it crashes with KeyError for every template ever registered through the
-normal loadData(..., saveMode=TOOLKIT_SAVEMODE_FILEANDDB) path -- which is
-the default saveMode.
+getTemplatesTable.
 
 getSimulations/getSimulationsList/prepareSlurmLSMExecution are left
 uncovered: they need real SingleSimulation documents or a working Slurm
@@ -120,28 +108,20 @@ class TestLoadDataFileAndDB:
 
 
 @pytest.mark.unit
-class TestGetTemplatesTableIsBroken:
+class TestGetTemplatesTable:
     def test_an_empty_project_yields_an_empty_table(self, lsm):
         table = lsm.getTemplatesTable()
         assert len(table) == 0
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B92: loadData never persists the parsed template JSON's "
-               "own desc (e.g. 'params') into the stored datasource "
-               "document -- only the caller's own **kwargs makes it "
-               "through. getTemplatesTable unconditionally pops 'params' "
-               "from every document's desc, so it crashes for every "
-               "template ever registered via the default (FILEANDDB) "
-               "loadData path. See the consolidated findings issue.",
-    )
     def test_it_should_list_a_registered_template(self, lsm, template_file):
         lsm.loadData(template_file)
         table = lsm.getTemplatesTable()
         assert len(table) == 1
 
-    def test_it_currently_crashes_for_any_registered_template(self, lsm, template_file):
-        """Characterisation of B92."""
+    def test_the_template_json_reaches_the_stored_document(self, lsm, template_file):
+        """loadData must persist the parsed template JSON, not only the
+        caller's own kwargs -- everything downstream reads it from there."""
         lsm.loadData(template_file)
-        with pytest.raises(KeyError, match="params"):
-            lsm.getTemplatesTable()
+        stored = lsm.getDataSourceDocument("myTemplate")
+        assert stored.desc["params"] == {"a": 1}
+        assert lsm.getTemplateByName("myTemplate").params == {"a": 1}

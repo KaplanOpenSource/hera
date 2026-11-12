@@ -4,17 +4,8 @@ input-file templates and subprocess execution -- out of scope for a
 hermetic unit test.
 
 The document is constructed by hand rather than via LSMToolkit.loadData(),
-because loadData carries B92 (already documented in batch27): it never
-persists the parsed template JSON's own desc (params, modelFolder, etc.)
-into the datasource document it registers, so `params`/`modelFolder`
-always KeyError on a template loaded that way. Building the document
-directly here isolates LSMTemplate's own logic from that separate,
-already-pinned defect.
-
-B99: ``getSimulationByID`` calls ``self.getDocumentByID(id)``, but
-``getDocumentByID`` is a ``Project``/toolkit method, not one
-``LSMTemplate`` has itself -- it lives on ``self.Toolkit``, not ``self``.
-Every call raises ``AttributeError``.
+so that LSMTemplate's own logic is exercised without depending on how the
+toolkit registers a datasource.
 """
 import pytest
 
@@ -89,29 +80,26 @@ class TestPrepareParams:
 
 
 @pytest.mark.unit
-class TestGetSimulationByIDIsBroken:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B99: getSimulationByID calls self.getDocumentByID(id), but "
-               "getDocumentByID is a Project/toolkit method LSMTemplate "
-               "does not have itself -- it lives on self.Toolkit. "
-               "See the consolidated findings issue.",
-    )
+class TestGetSimulationByID:
+    """SingleSimulation is monkeypatched to a passthrough for the same reason
+    as TestSimulationLookups below: building a real one needs netcdf files on
+    disk, and what is under test here is the document lookup."""
+
+    @pytest.fixture(autouse=True)
+    def _fake_single_simulation(self, monkeypatch):
+        class _FakeSim:
+            def __init__(self, doc):
+                self.doc = doc
+
+        monkeypatch.setattr(template_mod, "SingleSimulation", _FakeSim)
+
     def test_it_should_find_a_registered_simulation(self, tpl):
         doc = tpl.Toolkit.addSimulationsDocument(
             type="LSM_run", resource="res", dataFormat="string",
             desc=dict(version=[1, 0, 0], templateName="myTemplate", simulationName="sim1", params={"a": 1}),
         )
-        tpl.getSimulationByID(doc.id)
-
-    def test_it_currently_raises_attributeerror(self, tpl):
-        """Characterisation of B99."""
-        doc = tpl.Toolkit.addSimulationsDocument(
-            type="LSM_run", resource="res", dataFormat="string",
-            desc=dict(version=[1, 0, 0], templateName="myTemplate", simulationName="sim1", params={"a": 1}),
-        )
-        with pytest.raises(AttributeError, match="getDocumentByID"):
-            tpl.getSimulationByID(doc.id)
+        found = tpl.getSimulationByID(doc.id)
+        assert found.doc.desc["simulationName"] == "sim1"
 
 
 @pytest.mark.unit
