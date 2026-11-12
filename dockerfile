@@ -38,11 +38,15 @@ RUN python minimal_requirements.py requirements.txt "$REQUIREMENTS" > /tmp/req.t
 # python3-paraview is built for the system Python against the system VTK, so the
 # venv links those in and drops pip's vtk.  Re-running `pip install -r requirements.txt`
 # in the image brings pip's vtk back over the links; repeat this step after it.
+# paraview.servermanager puts the system dist-packages (as VTK sees it, via the
+# /lib symlink) at the FRONT of sys.path unless it is already there, after which
+# e.g. the system matplotlib shadows the venv's.  The .pth lists it at the end.
 RUN apt-get update && apt-get install -y --no-install-recommends python3-paraview && \
     apt-get clean && rm -rf /var/lib/apt/lists/* && \
     python -m pip uninstall -y vtk && \
     SP="$(python -c "import sysconfig; print(sysconfig.get_paths()['purelib'])")" && \
     dpkg -L python3-paraview python3-vtk9 | grep -E '^/usr/lib/python3/dist-packages/[^/]+$' | sort -u | xargs -I{} ln -sf {} "$SP/" && \
+    echo "//lib/python3/dist-packages" > "$SP/zz-system-dist-packages.pth" && \
     python -c "import paraview.simple"
 
 # Disable the jupytext lab extension; it is built for JupyterLab 4.4+ and errors on 4.3.

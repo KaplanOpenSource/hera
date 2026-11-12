@@ -2,8 +2,8 @@
 # Usage: make <target>
 
 MONGO_CONTAINER = hera-mongo
-# Override for an existing data dir made by an older server (see issue #1126) or
-# a host kernel >= 6.19 until MongoDB ships the SERVER-136848 fix: MONGO_IMAGE=mongo:7.0
+# Override to run an older server on an existing data dir; to move that data to
+# 9.0, migrate it with dump/restore (issue #1126).
 MONGO_IMAGE     ?= mongo:9.0
 MONGO_DATA      ?= $(HOME)/mongo-db-datadir
 MONGO_INIT      = $(CURDIR)/mongo-init.d
@@ -311,8 +311,11 @@ install-paraview:
 	sudo apt-get update
 	sudo apt-get install -y --no-install-recommends python3-paraview
 	pip uninstall -y vtk || true
+	@# paraview.servermanager would otherwise put the system dist-packages first on sys.path;
+	@# the .pth lists it last, so the venv's packages keep priority.
 	SP=$$(python -c "import sysconfig; print(sysconfig.get_paths()['purelib'])"); \
-	dpkg -L python3-paraview python3-vtk9 | grep -E '^/usr/lib/python3/dist-packages/[^/]+$$' | sort -u | xargs -I{} ln -sf {} "$$SP/"
+	dpkg -L python3-paraview python3-vtk9 | grep -E '^/usr/lib/python3/dist-packages/[^/]+$$' | sort -u | xargs -I{} ln -sf {} "$$SP/"; \
+	echo "//lib/python3/dist-packages" > "$$SP/zz-system-dist-packages.pth"
 	python -c "import paraview.simple as s; print('ParaView', s.GetParaViewVersion())"
 
 install-freecad:
