@@ -49,7 +49,7 @@ The fastest way to get Hera running. Requires Docker and Python 3.14.
    - Pull and start a MongoDB 9.0 Docker container with preconfigured credentials
    - Create the `~/.pyhera/config.json` configuration file automatically
 
-> **Upgrading an existing MongoDB:** MongoDB 9 does not open a data directory written by 5.0 or 6.0 in place; migrate it with dump/restore (#1126).
+> **Upgrading an existing MongoDB:** MongoDB 9 does not open a data directory written by 5.0 or 6.0 in place; migrate it with dump/restore: see [Upgrading MongoDB to 9.0](docs/user_guide/mongodb_upgrade.md).
 
    After running, everything is ready to use.
 

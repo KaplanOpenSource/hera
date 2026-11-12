@@ -59,7 +59,7 @@ flowchart TD
     - Create the MongoDB users from `mongo-init.d/50-create-users.js` on first start: an admin user (`MathAdmin`/`MathAdmin`) and a Hera user (`hera`/`heracles`) with `readWrite` on the `olymp` database
     - Create `~/.pyhera/config.json` for your OS user, pointing at `127.0.0.1` / `olymp` (skipped if the file already exists)
 
-    > **Upgrading an existing MongoDB:** MongoDB 9 does not open a data directory written by 5.0 or 6.0 in place; migrate it with dump/restore (#1126).
+    > **Upgrading an existing MongoDB:** MongoDB 9 does not open a data directory written by 5.0 or 6.0 in place; migrate it with dump/restore: see [Upgrading MongoDB to 9.0](mongodb_upgrade.md).
 
     After running, everything is ready to use.
 
