@@ -396,12 +396,13 @@ def add_toolkit(arguments):
     if arguments.params:
         try:
             params_dict = json.loads(arguments.params)
-            if not isinstance(params_dict, dict):
-                raise ValueError("Params must be a JSON object.")
         except Exception as e:
             raise ValueError(
                 f"Invalid JSON passed to --params: {arguments.params}"
             ) from e
+        # Outside the try: valid JSON that is not an object is not a parse error.
+        if not isinstance(params_dict, dict):
+            raise ValueError("Params must be a JSON object.")
     # -------- Call registerToolkit --------
     try:
         tkh = ToolkitHome()
@@ -482,10 +483,25 @@ def update_datasource_default_version(arguments):
     """
     Set the default version for a data source in a project.
     """
+    from ...toolkit import TOOLKIT_DATASOURCE_TYPE
+
     logger = logging.getLogger("hera.bin.update_datasource_version")
     arguments.version = tuple(int(item.strip()) for item in arguments.version.split(','))
     proj = Project(projectName=arguments.projectName)
-    proj.setDataSourceDefaultVersion(datasourceName=arguments.datasource, version=arguments.version)
+
+    # setDataSourceDefaultVersion is defined on abstractToolkit, not on Project,
+    # and it stores the default in the toolkit's own configuration -- so find
+    # the toolkit the datasource was registered under.
+    documents = proj.getMeasurementsDocuments(type=TOOLKIT_DATASOURCE_TYPE,
+                                              datasourceName=arguments.datasource,
+                                              version=arguments.version)
+    if len(documents) == 0:
+        raise ValueError(f"No DataSource with name={arguments.datasource} and "
+                         f"version={arguments.version} in project {arguments.projectName}.")
+
+    toolkitName = documents[0].desc['toolkit']
+    toolkit = ToolkitHome(projectName=arguments.projectName).getToolkit(toolkitName=toolkitName)
+    toolkit.setDataSourceDefaultVersion(datasourceName=arguments.datasource, version=arguments.version)
 
 
 @_lazy_setup
@@ -679,8 +695,8 @@ def toolkit_register(arguments):
 
         # Call registerToolkit
         th.registerToolkit(
-            toolkit_name = toolkit_name,
-            toolkit_path = toolkit_path,
+            toolkit_name = name,
+            toolkit_path = cls_path,
             params = None,
             version = version,
             overwrite = False,

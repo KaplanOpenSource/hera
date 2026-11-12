@@ -54,7 +54,7 @@ def zip_items(zip_filename, items):
                             relative_path = os.path.relpath(full_path, start=os.path.dirname(item))
                             zipf.write(full_path, arcname=relative_path)
                 else:
-                    raise(f"Type Error: The item {item} is not a file or a directory")
+                    raise TypeError(f"The item {item} is not a file or a directory")
             elif isinstance(item, dict):
                 # Dict → each key is filename, value is content
                 for filename, content in item.items():
@@ -82,6 +82,7 @@ def list_json_files_in_zip(zip_path):
                         content = file.read().decode('utf-8')
                     except UnicodeDecodeError:
                         print("Binary file, skipped reading content.")
+                        continue
 
                 jsonFiles.append(dict(name=file_name,content=loadJSON((content))))
 

@@ -123,16 +123,6 @@ class TestThresholdLevel:
         assert float(level.getPercent(49.9 * ureg.mg / ureg.m**3)) == 0
         assert float(level.getPercent(50.1 * ureg.mg / ureg.m**3)) == 1
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B39 (a downstream victim of B12): getPercent evaluates "
-               "tounit(x, self.units) > threshold. For a plain number tounit "
-               "builds a Quantity in pint's DEFAULT registry while the threshold "
-               "lives in hera's, so the comparison raises "
-               "'Cannot operate with Quantity and Quantity of different "
-               "registries'. A numeric toxic load -- the ordinary calling form -- "
-               "cannot be evaluated at all. See the consolidated findings issue.",
-    )
     @pytest.mark.parametrize("load, expected", [(10.0, 0), (100.0, 1)])
     def test_a_plain_numeric_toxic_load_is_evaluated(self, load, expected):
         level = InjuryLevelThreshold("T", threshold="50 mg/m**3")

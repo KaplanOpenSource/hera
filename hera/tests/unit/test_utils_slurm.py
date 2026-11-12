@@ -125,12 +125,6 @@ class TestOptionalDirectives:
     def test_memory_directive_appears_only_when_asked(self, jobs_file, submit_path):
         assert "mem=" not in _generate(jobs_file, submit_path)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B7: the memory directive is emitted as '#SBATCH -mem=8G'; Slurm's "
-               "option is '--mem'. A single dash makes sbatch reject the script. "
-               "See the consolidated findings issue.",
-    )
     def test_memory_directive_uses_slurms_option_name(self, jobs_file, submit_path):
         text = _generate(jobs_file, submit_path, memoryInGB=8)
         assert "#SBATCH --mem=8G" in text

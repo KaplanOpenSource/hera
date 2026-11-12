@@ -108,18 +108,16 @@ class bibItem:
                                     if indx == len(word):
                                         break
                                 theword.append(word[beginIndex:indx])
-                        elif  word[indx] == 'DOLLAR SIGN':
-                            # begin command:
+                        elif  word[indx] == '$':
+                            # begin math mode: copy verbatim up to and
+                            # including the closing '$'.
                             beginIndex = indx
                             indx += 1
-                            if indx == len(word):
-                                theword.append("$")
-                            else:
-                                while 'DOLLAR SIGN' in self._getUnicodeName(word[indx]):
-                                    indx += 1
-                                    if indx == len(word):
-                                        break
-                                theword.append(word[beginIndex:indx])
+                            while indx < len(word) and word[indx] != '$':
+                                indx += 1
+                            if indx < len(word):
+                                indx += 1
+                            theword.append(word[beginIndex:indx])
 
 
                         elif 'DIGIT'  in charName:
@@ -177,6 +175,9 @@ class bibtexFile:
 
         self._bibItems = []
 
+        if len(thefileStr) == 0:
+            raise ValueError(f"The bibliography {thefile} is empty")
+
         self._first_last_Lines = (thefileStr[0],thefileStr[-1])
         self._parseBibItems(thefileStr[1:-1])
 
@@ -198,13 +199,15 @@ class bibtexFile:
         curItem = []
         for line in strList:
             if line.startswith("\\bibitem"):
-                #close current item
-                self._bibItems.append(bibItem(curItem))
+                #close current item (nothing to close before the first one)
+                if len(curItem) > 0:
+                    self._bibItems.append(bibItem(curItem))
                 curItem = [line]
             else:
                 curItem.append(line)
 
-        self._bibItems.append(bibItem(curItem))
+        if len(curItem) > 0:
+            self._bibItems.append(bibItem(curItem))
 
     @property
     def items(self):

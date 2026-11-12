@@ -107,30 +107,12 @@ class TestToUnit:
         assert isinstance(result, Quantity)
         assert result.magnitude == pytest.approx(5.0)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B12: tounit builds Quantity(x, unit) from the bare pint import "
-               "rather than ureg.Quantity, so the result belongs to pint's default "
-               "application registry. See the consolidated findings issue.",
-    )
     def test_result_belongs_to_heras_registry(self):
-        """A value produced by tounit has to be usable with hera's units.
-
-        Two consequences of the current behaviour, both verified:
-          * tounit(5, "m") + 5 * ureg.m raises
-            "Cannot operate with Quantity and Quantity of different registries"
-          * tounit(1, "dunam") raises UndefinedUnitError -- the custom unit
-            hera's registry exists to provide is exactly the one it cannot make
-        """
+        """A value produced by tounit has to be usable with hera's units."""
         result = tounit(5, "m")
         assert result._REGISTRY is ureg
         assert (result + 5 * ureg.m).to(ureg.m).magnitude == pytest.approx(10.0)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B12: tounit uses the default pint registry, which has no 'dunam'. "
-               "See the consolidated findings issue.",
-    )
     def test_custom_units_are_reachable_through_tounit(self):
         assert tounit(1, "dunam").to(ureg.m**2).magnitude == pytest.approx(1000.0)
 

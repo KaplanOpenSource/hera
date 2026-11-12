@@ -155,13 +155,6 @@ class TestWithLogger:
         _, config, _ = with_logger("hera.test")
         assert config == {}
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B14: with_logger is annotated `-> (str, dict)` but returns a "
-               "3-tuple (name, config, 'loggers'). Anyone unpacking it per the "
-               "annotation gets ValueError: too many values to unpack. "
-               "See the consolidated findings issue.",
-    )
     def test_the_return_annotation_matches_the_arity(self):
         annotated = with_logger.__annotations__["return"]
         assert len(annotated) == len(with_logger("hera.test"))

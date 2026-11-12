@@ -34,10 +34,13 @@ Three further findings came out of exercising those:
   *python list of pint Quantities* with ``numpy.mean``, which always
   raises ValueError. Neither function can ever return a value, and
   "Plume" is the default, so ``solveToTime`` is unusable too.
-* B12 (already documented) cascades into ``_fallingParticle``: ``tounit``
-  builds its Quantity from the bare ``pint`` import, i.e. in the default
-  application registry, so ``u_p - U`` mixes two registries and raises.
-  ``solveToTime`` therefore dies inside ``solve_ivp``.
+* B12 (fixed) used to cascade into ``_fallingParticle``: ``tounit`` built
+  its Quantity in pint's default application registry, so ``u_p - U``
+  mixed two registries and raised.  With ``tounit`` on hera's registry the
+  right-hand side evaluates, which uncovers the next defect in the same
+  family as B119/B120: ``new_w_p.magnitude`` reads the magnitude of a sum
+  that pint expressed in the composite units of its first operand
+  (kg/g-scaled), so dw/dt comes back 1000x too small.
 
 Deliberately left uncovered: lines 5-6 (the ImportError fallback for a
 scipy without ``solve_ivp``, unreachable with a working scipy) and the
@@ -521,15 +524,12 @@ class TestCloudSigmaCorrection:
 class TestFallingParticleDerivative:
     @pytest.mark.xfail(
         strict=True,
-        reason="B12 cascade: tounit() builds its Quantity from the bare "
-               "`from pint import Quantity` import, i.e. in pint's default "
-               "application registry, while the meteorology's wind speed "
-               "lives in hera's own ureg.  _fallingParticle then evaluates "
-               "u_p - U across the two registries and pint raises "
-               "ValueError('Cannot operate with Quantity and Quantity of "
-               "different registries').  The right-hand side of the ODE "
-               "can therefore never be evaluated. "
-               "See the consolidated findings issue.",
+        reason="With B12 fixed the right-hand side evaluates, but newy[5] is "
+               "`new_w_p.magnitude` and new_w_p is a sum pint expressed in "
+               "the composite units of its first operand (Coeff carries "
+               "kg/m**3 over g/cm**3), so dw/dt comes back as -g/1000 "
+               "instead of -g.  Same family as B119/B120: a magnitude read "
+               "without m_as. See the consolidated findings issue.",
     )
     def test_a_droplet_released_from_rest_starts_in_free_fall(self, buildDroplet):
         """With no initial velocity, drag vanishes on the vertical axis, so
@@ -543,19 +543,12 @@ class TestFallingParticleDerivative:
         assert derivative[5] == pytest.approx(-STANDARD_GRAVITY)
         assert derivative[4] > 0
 
-    def test_the_derivative_currently_raises_on_mixed_registries(self, buildDroplet):
-        """Characterisation of the B12 cascade."""
-        built = buildDroplet(diameter=1000 * ureg.um, height=50 * ureg.m)
-        with pytest.raises(ValueError, match="different registries"):
-            built._fallingParticle(0.0, numpy.array([0.0, 0.0, 50.0, 0.0, 0.0, 0.0]))
-
     def test_numpy_max_with_a_scalar_second_argument_does_not_clip(self):
         """_fallingParticle line 402 reads `z = numpy.max(z, 0)`.
 
         That second positional argument is `axis`, not a floor, so the
-        intended "never go below the ground" clamp is a no-op.  Recorded
-        here because the line is unreachable while the B12 cascade above
-        stands; numpy.clip / max(z, 0) is what it wanted.
+        intended "never go below the ground" clamp is a no-op;
+        numpy.clip / max(z, 0) is what it wanted.
         """
         assert numpy.max(-5.0, 0) == -5.0
 
@@ -564,12 +557,12 @@ class TestFallingParticleDerivative:
 class TestSolveToTime:
     @pytest.mark.xfail(
         strict=True,
-        reason="B12 cascade: solveToTime hands _fallingParticle to "
-               "scipy.solve_ivp, and the first right-hand-side evaluation "
-               "raises ValueError('Cannot operate with Quantity and "
-               "Quantity of different registries') -- see "
-               "TestFallingParticleDerivative.  Independently, the default "
-               "correctionCloudFunc 'Plume' would raise as well (B120). "
+        reason="With B12 fixed the integration runs, but solveToTime then "
+               "merges briggsRural.getSigma(...) into the trajectory frame "
+               "and getSigma returns a dict, so pandas raises TypeError "
+               "('Can only merge Series or DataFrame objects').  "
+               "Independently, the default correctionCloudFunc 'Plume' "
+               "would raise as well (B120). "
                "See the consolidated findings issue.",
     )
     def test_it_returns_the_documented_trajectory_table(self, buildDroplet):
@@ -584,12 +577,13 @@ class TestSolveToTime:
             assert column in trajectory.columns
         assert trajectory["z"].iloc[-1] < trajectory["z"].iloc[0]
 
-    def test_it_currently_raises_from_inside_the_integrator(self, buildDroplet):
-        """Characterisation of the B12 cascade."""
+    def test_it_currently_raises_when_merging_the_sigma_table(self, buildDroplet):
+        """Characterisation of the defect left after B12: the integration
+        completes, the sigma merge does not."""
         built = buildDroplet(
             diameter=1000 * ureg.um, height=50 * ureg.m, correction="None"
         )
-        with pytest.raises(ValueError, match="different registries"):
+        with pytest.raises(TypeError, match="Can only merge Series or DataFrame"):
             built.solveToTime(200)
 
 

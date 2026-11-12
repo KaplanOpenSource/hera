@@ -91,13 +91,6 @@ class TestZipItemsErrors:
         with pytest.raises(TypeError, match="Unsupported item type"):
             zip_items(str(tmp_path / "x.zip"), [42])
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B5: the branch does `raise(f\"Type Error: ...\")` -- raising a "
-               "string. Python reports 'exceptions must derive from BaseException' "
-               "and the message naming the bad path never reaches the caller. "
-               "See the consolidated findings issue.",
-    )
     def test_a_path_that_is_neither_file_nor_directory_names_itself(self, tmp_path):
         """The caller needs to know WHICH item was wrong."""
         with pytest.raises(Exception, match="not a file or a directory"):
@@ -165,13 +158,6 @@ class TestListJsonFilesInZip:
             "conf.json.bak"
         ]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B6: on UnicodeDecodeError the handler prints and falls through, "
-               "leaving `content` unbound, so the next line raises "
-               "UnboundLocalError instead of skipping the member. "
-               "See the consolidated findings issue.",
-    )
     def test_an_undecodable_json_member_is_skipped(self, tmp_path):
         """The code says 'Binary file, skipped reading content' -- so skip it."""
         target = tmp_path / "bad.zip"
