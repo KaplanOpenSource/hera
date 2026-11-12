@@ -3,6 +3,8 @@ import {
   nodeWithoutParam,
   nodeWithParamValue,
   nodeWithReferenceAt,
+  nodeWithRequire,
+  nodeWithRequiresFromText,
 } from '../src/components/workflow/workflowNodeEdits';
 import { Reference } from '../src/components/workflow/references/Reference';
 import { OUTPUT } from '../src/components/workflow/references/knownKinds';
@@ -92,5 +94,41 @@ describe('nodeWithReferenceAt', () => {
   it('leaves the other parameters alone', () => {
     const updated = nodeWithReferenceAt(node({ cmd: '', keep: 'as is' }), 'cmd', new Reference('A', OUTPUT, 'result'));
     expect(updated.Execution?.input_parameters?.keep).toBe('as is');
+  });
+});
+
+describe('nodeWithRequire', () => {
+  it('adds the name to requires', () => {
+    expect(nodeWithRequire(node({}), 'A', 'B').requires).toEqual(['A']);
+  });
+
+  it('keeps a name that is already required', () => {
+    const before = { ...node({}), requires: ['A'] };
+    expect(nodeWithRequire(before, 'A', 'B').requires).toEqual(['A']);
+  });
+
+  it('turns a single name into a list', () => {
+    const before = { ...node({}), requires: 'A' };
+    expect(nodeWithRequire(before, 'C', 'B').requires).toEqual(['A', 'C']);
+  });
+
+  it('never makes a node require itself', () => {
+    expect(nodeWithRequire(node({}), 'B', 'B').requires).toBeUndefined();
+  });
+});
+
+describe('nodeWithRequiresFromText', () => {
+  it('requires every node the text references', () => {
+    const updated = nodeWithRequiresFromText(node({}), 'C', '{A.output.x} {B.output.y}', ['A', 'B', 'C']);
+    expect(updated.requires).toEqual(['A', 'B']);
+  });
+
+  it('ignores a name that is not a node of this workflow', () => {
+    const updated = nodeWithRequiresFromText(node({}), 'C', '{Zz.output.x}', ['A', 'C']);
+    expect(updated.requires).toBeUndefined();
+  });
+
+  it('ignores text with no reference in it', () => {
+    expect(nodeWithRequiresFromText(node({}), 'C', 'plain text', ['A', 'C']).requires).toBeUndefined();
   });
 });

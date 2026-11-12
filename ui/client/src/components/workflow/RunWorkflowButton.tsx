@@ -1,12 +1,14 @@
-import { PlayArrow, Save } from '@mui/icons-material';
-import { Box, CircularProgress, Menu, MenuItem, SxProps, Theme } from '@mui/material';
+import { Box, Menu, MenuItem, SxProps, Theme } from '@mui/material';
 import { MouseEvent, useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
-import { startWorkflow } from '../../io/runWorkflow';
+import { workflowApi } from '../../api/api';
+import { WorkflowServerStatus } from '../../api/WorkflowServerStatus';
 import { pushError } from '../../io/snackbar';
 import { useViewSettingsStore } from '../../stores/useViewSettingsStore';
 import { useWorkflowRunStore, WorkflowRunStatus } from '../../stores/useWorkflowRunStore';
 import { ProjectDocument } from '../../shared/types';
+import { RunWorkflowButtonIcon } from './RunWorkflowButtonIcon';
+import { runWorkflowButtonTitle } from './runWorkflowButtonTitle';
 
 // Runs a saved workflow via the server. The run happens in the background: starting
 // it returns a token, and the shared WorkflowRunPoller polls that token until the
@@ -14,6 +16,8 @@ import { ProjectDocument } from '../../shared/types';
 // every button for the same workflow shares it: they all disable and show a spinner
 // while it runs, and completion/errors reach every one of them. The output shows in
 // its own dock tab, opened by the layout when the run enters the store.
+//
+// While the workflow runs, the button becomes a Stop button.
 //
 // Left click runs the workflow. Right click opens a menu with more options:
 // run, run with save (one time), and a toggle to always save before running.
@@ -51,6 +55,8 @@ export const RunWorkflowButton = ({
 
   const canSave = Boolean(save);
   const isRunning = starting || run?.status === WorkflowRunStatus.Running;
+  // Stop needs the run's token, so it only shows once the run is in the store.
+  const canStop = !starting && run?.status === WorkflowRunStatus.Running;
 
   const doRun = async (withSave: boolean) => {
     setStarting(true);
@@ -61,9 +67,11 @@ export const RunWorkflowButton = ({
       // Ensure the sent doc carries the resolved name; the server reads it as
       // desc.workflowName (the doc's own desc may leave it unset, falling back to the doc name).
       const docToRun = { ...doc, desc: { ...doc.desc, workflowName } };
-      const result = await startWorkflow({ projectName, doc: docToRun });
-      if (result.status === 'busy') {
+      const result = await workflowApi.start(projectName, docToRun);
+      if (!result) {
         // A failed start makes no run, so there is no output tab: the snackbar tells it.
+        pushError('run workflow: failed to start');
+      } else if (result.status === WorkflowServerStatus.Busy) {
         pushError('run workflow: The server is busy running another workflow. Try again shortly.');
       } else if (result.token) {
         // Hand the run to the store; the poller drives it from here.
@@ -79,7 +87,17 @@ export const RunWorkflowButton = ({
   // Only save on click when there is something to save.
   const saveOnClick = saveBeforeRun && canSave && Boolean(isChanged);
 
+  const doStop = async (token: string) => {
+    const result = await workflowApi.stop(token);
+    if (!result) {
+      pushError('stop workflow: failed to stop');
+    }
+  };
+
   const handleClick = () => {
+    if (canStop && run) {
+      return doStop(run.token);
+    }
     return doRun(saveOnClick);
   };
 
@@ -97,26 +115,10 @@ export const RunWorkflowButton = ({
     doRun(withSave);
   };
 
-  // Disabled while this workflow is running so both buttons block during a run.
+  // Disabled while the run is starting; once it runs, the button stops it.
   // Unsaved changes no longer block: the run uses the shown workflow, not the saved one.
-  const effectiveDisabled = disabled || isRunning;
-  let title = 'Run the workflow as shown (right click for options)';
-  if (isRunning) {
-    title = 'Workflow is running…';
-  } else if (disabled && disabledReason) {
-    title = disabledReason;
-  }
-  let icon = <PlayArrow />;
-  if (isRunning) {
-    icon = <CircularProgress size={18} />;
-  } else if (saveBeforeRun && canSave) {
-    icon = (
-      <Box sx={{ position: 'relative', display: 'inline-flex' }}>
-        <PlayArrow />
-        <Save sx={{ position: 'absolute', right: -5, bottom: -5, fontSize: 12 }} />
-      </Box>
-    );
-  }
+  const effectiveDisabled = !canStop && (disabled || isRunning);
+  const title = runWorkflowButtonTitle({ canStop, isStarting: starting, disabled, disabledReason });
 
   return (
     <>
@@ -130,7 +132,7 @@ export const RunWorkflowButton = ({
           onClick={handleClick}
           sx={sx}
         >
-          {icon}
+          <RunWorkflowButtonIcon canStop={canStop} isStarting={starting} showSaveBadge={saveBeforeRun && canSave} />
         </ButtonTooltip>
       </Box>
       <Menu

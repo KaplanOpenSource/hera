@@ -683,7 +683,7 @@ class TestAnalysis:
         assert of.analysis.datalayer is of
 
     def test_the_vtk_pipeline_is_bound_to_the_toolkit(self, of):
-        from hera.simulations.openFoam.postProcess.VTKPipeline import VTKPipeLine
+        from hera.simulations.openFoam.postprocess.vtkpipeline import VTKPipeLine
 
         pipeline = of.analysis.getVTKPipeline()
         assert isinstance(pipeline, VTKPipeLine)

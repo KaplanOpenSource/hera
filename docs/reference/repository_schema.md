@@ -1,6 +1,6 @@
 # Repository JSON Schema Reference
 
-Complete schema documentation for repository JSON files.
+Complete schema documentation for repository JSON files, as interpreted by `dataToolkit.loadAllDatasourcesInRepositoryJSONToProject()` in `hera/utils/data/toolkit.py`.
 
 ---
 
@@ -23,7 +23,7 @@ A repository JSON is a dictionary mapping toolkit names to their configuration a
 ```
 
 **Rules:**
-- Toolkit names must match registered toolkit names (case-sensitive)
+- Toolkit names must be names that `toolkitHome.getToolkit()` can resolve (case-sensitive): a built-in toolkit name (e.g. `MeteoLowFreq`, `GIS_Raster_Topography`, see the `toolkitHome.*` constants), a dynamically registered toolkit, or an experiment. Keys that cannot be resolved are **skipped** (logged at INFO level), not reported as errors.
 - Each toolkit section is independent
 - Section order doesn't matter
 - Sections are optional (only include what you need)
@@ -51,7 +51,7 @@ A repository JSON is a dictionary mapping toolkit names to their configuration a
 }
 ```
 
-**Handler:** `_handle_Config` → Calls `toolkit.setConfig(**configDict)`
+**Handler:** `_handle_Config` → Calls `toolkit.setConfig(**configDict)`. Config is always written (the `overwrite` flag does not apply); existing keys not in the section are kept.
 
 **Example:**
 ```json
@@ -82,11 +82,7 @@ A repository JSON is a dictionary mapping toolkit names to their configuration a
                     "resource": "<path or value>",
                     "dataFormat": "<format constant>",
                     "version": [<major>, <minor>, <patch>],
-                    "desc": {
-                        "<key>": "<value>",
-                        ...
-                    },
-                    "overwrite": true | false  // Optional, default: false
+                    "<extraKey>": "<value>"
                 }
             }
         }
@@ -94,20 +90,23 @@ A repository JSON is a dictionary mapping toolkit names to their configuration a
 }
 ```
 
-**Handler:** `_handle_DataSource` → Calls `toolkit.addDataSource(...)`
+**Handler:** `_handle_DataSource` → Calls `toolkit.addDataSource(dataSourceName=<datasourceName>, **item)`
 
 **Required Fields:**
-- `resource` — Path to data file or inline value
+- `isRelativePath` (next to `item`) — must be `"True"`, `"False"`, `true` or `false`
+- `resource` (or `resourceFilePath`, see below) — Path to data file or inline value
 - `dataFormat` — One of the `datatypes` constants (e.g., `"parquet"`, `"geopandas"`)
 
 **Optional Fields:**
-- `version` — Version tuple `[major, minor, patch]` (default: `[0, 0, 1]`)
-- `desc` — Metadata dictionary (default: `{}`)
-- `overwrite` — Overwrite existing datasource (default: `false`)
+- `version` — Version `[major, minor, patch]` (default: `[0, 0, 1]`)
+- `resourceFilePath` — Instead of `resource`: path to a JSON file whose **contents** become the resource (resolved with the same `isRelativePath` rule). If both are given, `resource` wins.
+- Any other key — stored as a metadata field in the document's `desc` (next to the automatic `toolkit`, `datasourceName` and `version` fields). Note that a `"desc": {...}` key is stored as a nested `desc.desc` dictionary, so put metadata keys directly in `item` if you want to query them as `desc.<key>`.
+
+The `overwrite` value is set by the loader (`--overwrite` / `overwrite=True`); an `overwrite` key inside `item` is ignored.
 
 **Path Resolution:**
-- If `isRelativePath` is `"True"` or `true`: `resource` is resolved relative to repository JSON directory
-- If `isRelativePath` is `"False"` or `false`: `resource` is used as absolute path
+- If `isRelativePath` is `"True"` or `true`: `resource` is joined to `basedir` (the repository JSON directory)
+- If `isRelativePath` is `"False"` or `false`: `resource` is used as-is
 
 **Example:**
 ```json
@@ -120,11 +119,9 @@ A repository JSON is a dictionary mapping toolkit names to their configuration a
                     "resource": "measurements/YAVNEEL.parquet",
                     "dataFormat": "parquet",
                     "version": [0, 0, 1],
-                    "desc": {
-                        "stationName": "YAVNEEL",
-                        "latitude": 31.7683,
-                        "longitude": 35.2137
-                    }
+                    "stationName": "YAVNEEL",
+                    "latitude": 31.7683,
+                    "longitude": 35.2137
                 }
             }
         }
@@ -144,7 +141,6 @@ A repository JSON is a dictionary mapping toolkit names to their configuration a
     "<ToolkitName>": {
         "Measurements": {
             "<documentName>": {
-                "isRelativePath": "True" | "False" | true | false,
                 "item": {
                     "resource": "<path or value>",
                     "dataFormat": "<format constant>",
@@ -160,17 +156,22 @@ A repository JSON is a dictionary mapping toolkit names to their configuration a
 }
 ```
 
-**Handler:** `_DocumentHandler` → Calls `toolkit.addMeasurementsDocument(...)`
+**Handler:** `_DocumentHandler` → Calls `toolkit.addMeasurementsDocument(**item)`
 
-**Required Fields:**
+**Fields:** `item` is passed directly to `addMeasurementsDocument(resource, dataFormat, type, desc)`, so it may contain only these four keys (any other key, including `isRelativePath`, makes the call fail and the section is skipped with a logged error).
 - `resource` — Path to data file or inline value
 - `dataFormat` — Format constant
 - `type` — Application-defined document type (e.g., `"Experiment_rawData"`)
+- `desc` — Metadata dictionary
+
+**Path Resolution:** `resource` is always joined to `basedir` (`os.path.join(basedir, resource)`), so relative paths are resolved against the repository directory and absolute paths are kept. An `isRelativePath` key next to `item` is accepted but ignored.
+
+**Duplicate detection:** existing documents are looked up by the item's `type` and `desc`. If one exists and `overwrite` is set, its `resource`, `dataFormat` and `desc` are updated; otherwise the item is skipped with a logged error.
 
 **Differences from DataSource:**
 - No `version` field (documents are not versioned)
-- Requires `type` field
-- Creates a `Measurements` collection document (not a ToolkitDataSource)
+- Has a `type` field
+- Creates a plain `Measurements` collection document (not a `ToolkitDataSource`)
 
 **Example:**
 ```json
@@ -178,7 +179,6 @@ A repository JSON is a dictionary mapping toolkit names to their configuration a
     "MeteoLowFreq": {
         "Measurements": {
             "raw_export_2024": {
-                "isRelativePath": "True",
                 "item": {
                     "resource": "exports/raw_2024.parquet",
                     "dataFormat": "parquet",
@@ -206,7 +206,6 @@ A repository JSON is a dictionary mapping toolkit names to their configuration a
     "<ToolkitName>": {
         "Simulations": {
             "<documentName>": {
-                "isRelativePath": "True" | "False" | true | false,
                 "item": {
                     "resource": "<path or value>",
                     "dataFormat": "<format constant>",
@@ -222,9 +221,9 @@ A repository JSON is a dictionary mapping toolkit names to their configuration a
 }
 ```
 
-**Handler:** `_DocumentHandler` → Calls `toolkit.addSimulationsDocument(...)`
+**Handler:** `_DocumentHandler` → Calls `toolkit.addSimulationsDocument(**item)`
 
-**Same structure as Measurements**, but creates documents in the `Simulations` collection.
+**Same structure and rules as Measurements**, but creates documents in the `Simulations` collection.
 
 **Example:**
 ```json
@@ -232,7 +231,6 @@ A repository JSON is a dictionary mapping toolkit names to their configuration a
     "OpenFOAM": {
         "Simulations": {
             "wind_simulation_001": {
-                "isRelativePath": "True",
                 "item": {
                     "resource": "simulations/wind_001.nc",
                     "dataFormat": "netcdf_xarray",
@@ -260,7 +258,6 @@ A repository JSON is a dictionary mapping toolkit names to their configuration a
     "<ToolkitName>": {
         "Cache": {
             "<documentName>": {
-                "isRelativePath": "True" | "False" | true | false,
                 "item": {
                     "resource": "<path or value>",
                     "dataFormat": "<format constant>",
@@ -276,9 +273,9 @@ A repository JSON is a dictionary mapping toolkit names to their configuration a
 }
 ```
 
-**Handler:** `_DocumentHandler` → Calls `toolkit.addCacheDocument(...)`
+**Handler:** `_DocumentHandler` → Calls `toolkit.addCacheDocument(**item)`
 
-**Same structure as Measurements/Simulations**, but creates documents in the `Cache` collection.
+**Same structure and rules as Measurements/Simulations**, but creates documents in the `Cache` collection.
 
 **Example:**
 ```json
@@ -286,7 +283,6 @@ A repository JSON is a dictionary mapping toolkit names to their configuration a
     "MeteoLowFreq": {
         "Cache": {
             "processed_stats": {
-                "isRelativePath": "True",
                 "item": {
                     "resource": "cache/statistics.json",
                     "dataFormat": "JSON_dict",
@@ -306,19 +302,17 @@ A repository JSON is a dictionary mapping toolkit names to their configuration a
 
 ### Function Section
 
-**Purpose:** Call named functions on the dataToolkit instance
+**Purpose:** Call named methods on the `dataToolkit` instance that is loading the repository (not on the toolkit named by the key)
 
-**Schema:**
+**Schema:** the value of each method name is the keyword-argument dictionary itself (there is no `params` wrapper):
+
 ```json
 {
     "<ToolkitName>": {
         "Function": {
-            "<functionName>": {
-                "params": {
-                    "<param1>": "<value1>",
-                    "<param2>": 42,
-                    ...
-                }
+            "<methodName>": {
+                "<param1>": "<value1>",
+                "<param2>": 42
             }
         }
     }
@@ -331,35 +325,30 @@ A repository JSON is a dictionary mapping toolkit names to their configuration a
 {
     "<ToolkitName>": {
         "Function": {
-            "<functionName>": [
-                {
-                    "params": { ... }
-                },
-                {
-                    "params": { ... }
-                }
+            "<methodName>": [
+                { "<param1>": "<value1>" },
+                { "<param1>": "<value2>" }
             ]
         }
     }
 }
 ```
 
-**Handler:** `_handle_Function` → Calls `dataToolkit.<functionName>(**params, overwrite=overwrite)`
+**Handler:** `_handle_Function` → Calls `dataToolkit.<methodName>(**kwargs, overwrite=overwrite)`
 
 **Requirements:**
-- Function must exist on `dataToolkit` instance
-- Function signature must accept `overwrite` parameter
-- `params` can be a dict (single call) or list of dicts (multiple calls)
+- The method must exist on `dataToolkit` (e.g. `addRepository`, `loadAllDatasourcesInRepositoryToProject`)
+- The method must accept an `overwrite` keyword argument
+- The value must be a dict (single call) or a list of dicts (one call per dict); any other value raises `ValueError`
 
 **Example:**
 ```json
 {
     "MeteoLowFreq": {
         "Function": {
-            "initializeToolkit": {
-                "params": {
-                    "autoLoadDefaults": true
-                }
+            "addRepository": {
+                "repositoryName": "shared_gis",
+                "repositoryPath": "/data/repositories/shared_gis.json"
             }
         }
     }
@@ -372,25 +361,24 @@ A repository JSON is a dictionary mapping toolkit names to their configuration a
 
 ### How `basedir` is Determined
 
-The `basedir` is the directory containing the repository JSON file:
+- **Registered repository** (`hera-project repository load`, `loadAllDatasourcesInRepositoryToProject`): `basedir` is the directory of the registered repository JSON file:
 
-```python
-basedir = os.path.dirname(repository_json_path)
-```
+    ```python
+    basedir = os.path.dirname(repositoryDocument.resource)
+    ```
+
+- **Direct JSON** (`loadAllDatasourcesInRepositoryJSONToProject(repositoryJSON=..., basedir=...)`): `basedir` is whatever you pass (default `""`, i.e. relative to the current working directory).
 
 **Example:**
 - Repository JSON at: `/home/user/repos/my_repo.json`
-- `basedir` = `/home/user/repos/`
+- `basedir` = `/home/user/repos`
 
 ### Relative Path Resolution
 
-For each item with `isRelativePath: "True"` or `isRelativePath: true`:
+For DataSource items with `isRelativePath: "True"` or `isRelativePath: true`, and for **all** Measurements/Simulations/Cache items:
 
 ```python
-if isRelativePath:
-    absolute_path = os.path.join(basedir, resource)
-else:
-    absolute_path = resource  # Used as-is
+absolute_path = os.path.join(basedir, resource)   # an absolute resource stays unchanged
 ```
 
 **Example:**
@@ -401,7 +389,7 @@ else:
 
 ### Absolute Path Handling
 
-For items with `isRelativePath: "False"` or `isRelativePath: false`:
+For DataSource items with `isRelativePath: "False"` or `isRelativePath: false`:
 
 - Path is used exactly as specified
 - No modification is performed
@@ -413,72 +401,60 @@ For items with `isRelativePath: "False"` or `isRelativePath: false`:
 
 ### Toolkit Validation
 
-- **Toolkit must exist** — Name must match a registered toolkit
-- **Auto-registration** — If `auto_register_missing=True`, attempts to register from JSON hints or DB documents
+- **Toolkit must resolve** — the key is passed to `toolkitHome.getToolkit()`; if that fails, the whole toolkit key is skipped (INFO log). No auto-registration is performed (the `auto_register_missing` argument is currently unused).
 
 ### Section Validation
 
-- **Valid section names** — Must be one of: `Config`, `DataSource`, `Measurements`, `Simulations`, `Cache`, `Function`
-- **Case-sensitive** — Section names are title-cased internally
+- **Valid section names** — The key is title-cased (`key.title()`) and must then be one of `Config`, `Datasource`, `Measurements`, `Simulations`, `Cache`, `Function`. So `DataSource`, `Datasource` and `datasource` are all accepted.
+- **Unknown section** — raises `ValueError` and stops loading the repository. (When loading all repositories with `loadAllDatasourcesInAllRepositoriesToProject`, that repository is skipped.)
+- **Errors inside a section** (bad item, failing call) are caught and logged as `The error ... occured while adding *<section>* to toolkit <name>... skipping!!!`; the remaining items of that section are not loaded.
 
 ### DataSource Item Validation
 
-- **Required fields:** `resource`, `dataFormat`
-- **Version format:** Must be a list of 3 integers: `[major, minor, patch]`
-- **isRelativePath:** Must be `"True"`, `"False"`, `true`, or `false`
+- **Required fields:** `resource` (or `resourceFilePath`), `dataFormat`
+- **Version format:** a list of 3 integers: `[major, minor, patch]`
+- **isRelativePath:** must be `"True"`, `"False"`, `true`, or `false` (an `assert`)
+- **Existing datasource:** if a datasource with that name already exists and `overwrite` is not set, the item is skipped with the logged error `Source X already exists in <project>. Use --overwrite to force update`
 
 ### Document Item Validation
 
-- **Required fields:** `resource`, `dataFormat`, `type`
-- **Type field:** Must be a non-empty string
+- **Allowed fields:** `resource`, `dataFormat`, `type`, `desc`
+- **Type field:** a string (default `""`)
 
 ### Path Validation
 
-- **Relative paths** — Directory must exist when resolved
-- **Absolute paths** — File/directory must exist (checked during `getData()`)
+- Paths are **not** checked when the repository is loaded. A wrong path only fails later, when the document's `getData()` is called.
 
 ---
 
 ## Complete Schema Diagram
 
-![Diagram](../images/diagrams/reference_repository_schema_0_89b70986.svg)
-
-<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TD
-    Start["Repository JSON\nRoot Dictionary"] --> ToolkitKey["<ToolkitName>\nString key"]
+    Start["Repository JSON\nRoot Dictionary"] --> ToolkitKey["<ToolkitName>\nresolved by toolkitHome.getToolkit"]
 
-    ToolkitKey --> Sections{Section Type}
+    ToolkitKey --> Sections{"Section key\n(key.title())"}
 
     Sections -->|Config| ConfigSection["Config\nDictionary\nkey: value pairs"]
-    Sections -->|DataSource| DataSourceSection["DataSource\nDictionary\n<name>: item"]
-    Sections -->|Measurements| MeasSection["Measurements\nDictionary\n<name>: item"]
-    Sections -->|Simulations| SimSection["Simulations\nDictionary\n<name>: item"]
-    Sections -->|Cache| CacheSection["Cache\nDictionary\n<name>: item"]
-    Sections -->|Function| FuncSection["Function\nDictionary\n<name>: params"]
+    Sections -->|DataSource| DataSourceSection["DataSource\nDictionary\n<name>: entry"]
+    Sections -->|Measurements| MeasSection["Measurements\nDictionary\n<name>: entry"]
+    Sections -->|Simulations| SimSection["Simulations\nDictionary\n<name>: entry"]
+    Sections -->|Cache| CacheSection["Cache\nDictionary\n<name>: entry"]
+    Sections -->|Function| FuncSection["Function\nDictionary\n<method>: kwargs or [kwargs]"]
 
-    DataSourceSection --> DSItem["Item Structure\nisRelativePath\nitem: {...}"]
-    MeasSection --> DocItem["Item Structure\nisRelativePath\nitem: {...}"]
+    DataSourceSection --> DSItem["Entry\nisRelativePath (required)\nitem: {...}"]
+    MeasSection --> DocItem["Entry\nitem: {...}"]
     SimSection --> DocItem
     CacheSection --> DocItem
 
-    DSItem --> DSFields["Required:\nresource\ndataFormat\n\nOptional:\nversion\ndesc\noverwrite"]
-    DocItem --> DocFields["Required:\nresource\ndataFormat\ntype\n\nOptional:\ndesc"]
+    DSItem --> DSFields["Required:\nresource or resourceFilePath\ndataFormat\n\nOptional:\nversion\nextra keys -> desc"]
+    DocItem --> DocFields["Allowed:\nresource\ndataFormat\ntype\ndesc"]
 
     ConfigSection --> ConfigAction["toolkit.setConfig\n(**configDict)"]
     DSFields --> DSAction["toolkit.addDataSource\n(...)"]
     DocFields --> DocAction["toolkit.addMeasurements\nDocument(...)\nOR\naddSimulationsDocument(...)\nOR\naddCacheDocument(...)"]
-    FuncSection --> FuncAction["dataToolkit.<functionName>\n(**params)"]
+    FuncSection --> FuncAction["dataToolkit.<method>\n(**kwargs, overwrite=...)"]
 ```
--->dSimulationsDocument(...)\nOR\naddCacheDocument(...)"]
-    FuncSection --> FuncAction["dataToolkit.<functionName>\n(**params)"]
-```
--->
--->dSimulationsDocument(...)\nOR\naddCacheDocument(...)"]
-    FuncSection --> FuncAction["dataToolkit.<functionName>\n(**params)"]
-```
--->
--->
 
 ---
 
@@ -486,11 +462,12 @@ flowchart TD
 
 | Error | Cause | Solution |
 |-------|-------|----------|
-| `Unknown Handler X` | Section name doesn't match expected handlers | Use one of: `Config`, `DataSource`, `Measurements`, `Simulations`, `Cache`, `Function` |
-| `Toolkit X not found` | Toolkit not registered | Register toolkit or enable `auto_register_missing` |
-| `Source X already exists` | Datasource exists and `overwrite=False` | Set `overwrite: true` in item or use `--overwrite` flag |
-| `isRelativePath must be defined` | Missing or invalid `isRelativePath` | Set to `"True"`, `"False"`, `true`, or `false` |
-| `resource path not found` | Resolved path doesn't exist | Check path, ensure `isRelativePath` is correct |
+| `Unkonw Handler X. The handler must be Config, Datasource, Measurements, Simulations, Cache, Function.` | Section name doesn't match a handler | Use one of: `Config`, `DataSource`, `Measurements`, `Simulations`, `Cache`, `Function` |
+| `Skipping key 'X' in repository JSON – no matching toolkit...` (INFO) | Toolkit key cannot be resolved by `getToolkit` | Use a `toolkitHome.*` name or register the toolkit first (`hera-project addToolkit` / `toolkitHome.registerToolkit`) |
+| `Source X already exists in <project>. Use --overwrite to force update` | Datasource/document exists and `overwrite=False` | Pass `--overwrite` (CLI) or `overwrite=True` (API) |
+| `isRelativePath must be defined as 'True' or 'False'.` | Missing or invalid `isRelativePath` on a DataSource entry | Set to `"True"`, `"False"`, `true`, or `false` |
+| `... got an unexpected keyword argument ...` | Extra key (e.g. `isRelativePath`) inside a Measurements/Simulations/Cache `item` | Keep only `resource`, `dataFormat`, `type`, `desc` in the item |
+| File not found on `getData()` | Resolved path doesn't exist | Check path, ensure `isRelativePath` / `basedir` are correct |
 
 ---
 
@@ -499,11 +476,14 @@ flowchart TD
 The repository loading is implemented in `hera/utils/data/toolkit.py`:
 
 - **`loadAllDatasourcesInRepositoryJSONToProject()`** — Main entry point
+- **`loadAllDatasourcesInRepositoryToProject()`** / **`loadAllDatasourcesInAllRepositoriesToProject()`** — Load registered repositories (compute `basedir`)
 - **`_handle_Config()`** — Config section handler
 - **`_handle_DataSource()`** — DataSource section handler
 - **`_DocumentHandler()`** — Measurements/Simulations/Cache handler
 - **`_handle_Function()`** — Function section handler
-- **`_makeItemPathAbsolute()`** — Path resolution logic
+- **`_makeItemPathAbsolute()`** — Path resolution for document sections
+- **`resolveDataSourcePaths()`** / **`loadRepositoryFromPath()`** — Static helpers that resolve `resource` paths without MongoDB
+- **`exportDocumentsToRepository()`** — The reverse direction: writes project documents into a repository JSON (`hera-project repository export`)
 
 ---
 

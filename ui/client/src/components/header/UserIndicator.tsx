@@ -1,13 +1,8 @@
 import { Tooltip, Typography } from '@mui/material';
-import { useEffect } from 'react';
 import { useServerUserStore } from '../../stores/useServerUserStore';
 
 export const UserIndicator = () => {
-  const { username, inDocker, loadServerUser } = useServerUserStore();
-
-  useEffect(() => {
-    loadServerUser();
-  }, [loadServerUser]);
+  const { username, inDocker } = useServerUserStore();
 
   return username && (
     <Tooltip title="User that started the server">

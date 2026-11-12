@@ -41,6 +41,7 @@ passing characterisation of what happens today):
 """
 import os
 import sys
+from unittest.mock import MagicMock
 
 import pandas
 import pytest
@@ -48,6 +49,19 @@ import pytest
 from hera.simulations.openFoam.preprocessOFObjects.OFObjectHome import OFObjectHome
 
 _SCALAR_TIME_DIRS = ("0", "100", "constant")
+
+
+@pytest.fixture(autouse=True)
+def _pyfoamStandIns(monkeypatch):
+    """The stub layer yields to a real PyFoam when one is installed (#1067),
+    and the real one reads mesh and field files these bare case directories
+    do not have.  Put MagicMocks back where OFField looks the names up, so the
+    module docstring's premise -- PyFoam stores and invents nothing -- holds
+    either way."""
+    ofField = sys.modules["hera.simulations.openFoam.preprocessOFObjects.OFField"]
+    for name in ("BoundaryDict", "ParsedParameterFile", "WriteParameterFile",
+                 "Field", "Dimension", "DictProxy", "Vector", "Tensor"):
+        monkeypatch.setattr(ofField, name, MagicMock())
 
 
 @pytest.fixture()

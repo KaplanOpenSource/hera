@@ -32,14 +32,7 @@ passing characterisation of what actually happens):
     FileNotFoundError / IndexError;
   * workflow_compare with the default `--format pandas` plus `--file`
     tries to write a DataFrame object to a text file (TypeError).
-
-Introduced by the master merge (603bc853):
-  * MERGE-jsonpatch -- compareToDisk / sync_to_db now go through
-    `diffJSONS`, which imports `jsonpatch`, but master (741299ee) dropped
-    `jsonpatch` from requirements.txt again, so in an environment built
-    from it both handlers die with ModuleNotFoundError.
 """
-import importlib.util
 import json
 import sys
 import types
@@ -69,18 +62,6 @@ from hera.simulations.CLI import (
 )
 
 PROJECT = "UNIT_WORKFLOW_PROJECT"
-
-# Only an expected failure where jsonpatch is absent; where it is installed
-# these tests must pass, so the marker is conditional rather than blanket.
-_needs_jsonpatch = pytest.mark.xfail(
-    importlib.util.find_spec("jsonpatch") is None,
-    strict=True,
-    raises=ModuleNotFoundError,
-    reason="MERGE-jsonpatch: #1080 (90598fd0) routed workflow_compareToDisk "
-           "and workflow_sync_to_db through hera.utils.diffJSONS, which does "
-           "`import jsonpatch`; 741299ee then removed `jsonpatch==1.32` from "
-           "requirements.txt, so in an environment built from requirements.txt "
-           "every disk-vs-DB comparison raises ModuleNotFoundError.")
 
 
 # ---------------------------------------------------------------------------
@@ -588,7 +569,6 @@ class TestWorkflowCompareToDisk:
         assert "does not exist on the disk" in printed
         assert "use export to create it" in printed
 
-    @_needs_jsonpatch
     def test_an_unchanged_workflow_reports_that_disk_and_db_are_identical(
         self, install_toolkit, tmp_path, capsys
     ):
@@ -608,7 +588,6 @@ class TestWorkflowCompareToDisk:
         assert "Simulation wf_0" in printed
         assert "Disk and DB are identical" in printed
 
-    @_needs_jsonpatch
     def test_a_changed_parameter_is_printed_as_a_json_patch_table(
         self, install_toolkit, tmp_path, capsys
     ):
@@ -663,7 +642,6 @@ class TestWorkflowSyncToDb:
         assert "does not exist on the disk" in capsys.readouterr().out
         assert "updateDocumentWorkflow" not in toolkit.names()
 
-    @_needs_jsonpatch
     def test_identical_parameters_are_reported_and_nothing_is_written_to_the_db(
         self, install_toolkit, tmp_path, capsys
     ):
@@ -678,7 +656,6 @@ class TestWorkflowSyncToDb:
         assert "Disk and DB parameters are identical" in printed
         assert "updateDocumentWorkflow" not in toolkit.names()
 
-    @_needs_jsonpatch
     def test_a_local_change_is_pushed_to_the_database(self, install_toolkit, tmp_path, capsys):
         onDisk = tmp_path / "wf_0.json"
         onDisk.write_text(json.dumps({"nodes": {"A": {"value": 2}}}))
@@ -692,7 +669,6 @@ class TestWorkflowSyncToDb:
         assert kwargs["document"] is document
         assert kwargs["workflow"] is toolkit.localWorkflow
 
-    @_needs_jsonpatch
     def test_the_force_flag_syncs_even_when_nothing_changed(self, install_toolkit, tmp_path):
         onDisk = tmp_path / "wf_0.json"
         onDisk.write_text(json.dumps({"nodes": {"A": {"value": 1}}}))
@@ -702,7 +678,6 @@ class TestWorkflowSyncToDb:
         workflow_sync_to_db(_syncArgs(force=True))
         assert "updateDocumentWorkflow" in toolkit.names()
 
-    @_needs_jsonpatch
     def test_the_quiet_flag_suppresses_the_report_but_still_syncs(
         self, install_toolkit, tmp_path, capsys
     ):

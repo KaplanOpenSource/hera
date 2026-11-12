@@ -4,6 +4,13 @@ Toolkits for managing GIS data, meteorological observations, and experimental me
 
 ## GIS - Vector
 
+### VectorToolkit (base class)
+
+::: hera.measurements.GIS.vector.toolkit.VectorToolkit
+    options:
+      show_source: true
+      members_order: source
+
 ### BuildingsToolkit
 
 ::: hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit
@@ -58,6 +65,17 @@ Toolkits for managing GIS data, meteorological observations, and experimental me
 ### TilesToolkit
 
 ::: hera.measurements.GIS.raster.tiles.TilesToolkit
+    options:
+      show_source: true
+      members_order: source
+
+## GIS - Utilities
+
+Coordinate-system constants (`WSG84`/`WGS84`, `ITM`) and `convertCRS`.
+
+### GIS utils
+
+::: hera.measurements.GIS.utils
     options:
       show_source: true
       members_order: source

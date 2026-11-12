@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { SnackbarKey } from 'notistack';
-import { pollWorkflow } from '../../io/runWorkflow';
+import { workflowApi } from '../../api/api';
+import { WorkflowServerStatus } from '../../api/WorkflowServerStatus';
 import { dismiss, pushError, pushInfo, pushRunning } from '../../io/snackbar';
 import { useWorkflowRunStore, WorkflowRunStatus } from '../../stores/useWorkflowRunStore';
 
@@ -41,34 +42,34 @@ export const WorkflowRunPoller = () => {
     };
 
     const poll = async () => {
-      let result;
-      try {
-        result = await pollWorkflow(token);
-      } catch (e: any) {
-        if (cancelled) {
-          return;
-        }
-        setRunResult(workflowName, { status: WorkflowRunStatus.Error, error: e?.message ?? String(e), chunks: [] });
-        pushError(`run workflow: ${e?.message ?? e}`);
-        clearRunningSnackbar();
-        return;
-      }
+      const result = await workflowApi.poll(token);
       if (cancelled) {
         return;
       }
-      if (result.status === 'running') {
+      if (!result) {
+        const message = 'The run status could not be read.';
+        setRunResult(workflowName, { status: WorkflowRunStatus.Error, error: message, chunks: [] });
+        pushError(`run workflow: ${message}`);
+        clearRunningSnackbar();
+        return;
+      }
+      if (result.status === WorkflowServerStatus.Running) {
         // Show the chunks as they grow, without ending the run.
         setRunChunks(workflowName, result.chunks ?? []);
         timer = setTimeout(poll, POLL_MS);
-      } else if (result.status === 'done') {
+      } else if (result.status === WorkflowServerStatus.Done) {
         setRunResult(workflowName, { status: WorkflowRunStatus.Done, error: '', chunks: result.chunks ?? [] });
         pushInfo(`Workflow "${workflowName}" finished`);
         clearRunningSnackbar();
-      } else if (result.status === 'error') {
+      } else if (result.status === WorkflowServerStatus.Error) {
         const message = result.error || 'Workflow failed';
         // Keep the output that led to the failure so the log stays with the error.
         setRunResult(workflowName, { status: WorkflowRunStatus.Error, error: message, chunks: result.chunks ?? [] });
         pushError(`run workflow: ${message}`);
+        clearRunningSnackbar();
+      } else if (result.status === WorkflowServerStatus.Stopped) {
+        setRunResult(workflowName, { status: WorkflowRunStatus.Stopped, error: '', chunks: result.chunks ?? [] });
+        pushInfo(`Workflow "${workflowName}" stopped`);
         clearRunningSnackbar();
       } else {
         // not_found: the server restarted or a newer run overwrote the slot.

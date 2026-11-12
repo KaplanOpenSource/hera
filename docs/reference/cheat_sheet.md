@@ -21,17 +21,19 @@ A one-page quick reference for common Hera operations.
 | Command | Description |
 |--------|-------------|
 | `hera-project repository list` | List registered repositories |
-| `hera-project repository add myRepo /path/to/repo.json` | Register a repository |
-| `hera-project repository load myRepo MY_PROJECT` | Load repository into project |
+| `hera-project repository add /path/to/myRepo.json` | Register a repository (named after the file: `myRepo`) |
+| `hera-project repository export myRepo --toolkitName MeteoLowFreq` | Export project documents into a repository JSON |
+| `hera-project repository load /path/to/myRepo.json MY_PROJECT` | Load a repository JSON file into a project (takes the file path, not the registered name) |
 | `hera-project repository show myRepo` | Show repository contents |
 
 ### Toolkit Management
 
 | Command | Description |
 |--------|-------------|
-| `hera-toolkit list --project MY_PROJECT` | List available toolkits |
-| `hera-toolkit load --project MY_PROJECT --name MeteoLowFreq` | Load a toolkit |
-| `hera-toolkit register --project MY_PROJECT --cls pkg.Class --name MyToolkit` | Register custom toolkit |
+| `hera-project addToolkit MyToolkit /path/to/toolkit` | Register a custom toolkit |
+| `hera-project addToolkit MyToolkit /path/to/toolkit --version "0,0,2" --overwrite` | Re-register with a new version |
+
+There is no `hera-toolkit` command; list and load toolkits from Python (`toolkitHome.getToolkitTable(...)`, `toolkitHome.getToolkit(...)`).
 
 ### Version Management
 
@@ -145,14 +147,12 @@ id = proj.getCounterAndAdd("experimentID", addition=1)
                 "item": {
                     "resource": "path/to/data.parquet",
                     "dataFormat": "parquet",
-                    "version": [0, 0, 1],
-                    "desc": {}
+                    "version": [0, 0, 1]
                 }
             }
         },
         "Measurements": {
             "<name>": {
-                "isRelativePath": "True",
                 "item": {
                     "resource": "path/to/file.shp",
                     "dataFormat": "geopandas",
@@ -179,6 +179,12 @@ id = proj.getCounterAndAdd("experimentID", addition=1)
 | `CSV_PANDAS` | `"csv_pandas"` | CSV files (pandas) |
 | `PICKLE` | `"pickle"` | Python pickle files |
 | `CLASS` | `"Class"` | Dynamic Python classes |
+| `GEOTIFF` | `"geotiff"` | GeoTIFF rasters |
+| `ZARR_XARRAY` | `"zarr_xarray"` | Zarr stores (xarray) |
+| `HDF` | `"HDF"` | HDF files |
+| `JSON_PANDAS` / `JSON_GEOPANDAS` | `"JSON_pandas"` / `"JSON_geopandas"` | JSON-serialized (Geo)DataFrames |
+| `NUMPY_ARRAY` / `NUMPY_DICT_ARRAY` | `"numpy_array"` / `"numpy_dict_array"` | NumPy arrays / dict of arrays |
+| `TIME`, `DICT`, `IMAGE` | `"time"`, `"dict"`, `"image"` | Timestamps, in-document dicts, images |
 
 ```python
 from hera.datalayer import datatypes
@@ -200,9 +206,12 @@ toolkit.addDataSource(
 |----------|---------|---------|
 | `TEST_HERA` | `~/hera_unittest_data` | Test data root |
 | `RESULT_SET` | `BASELINE` | Expected output result set |
-| `PREPARE_EXPECTED_OUTPUT` | unset | Generate test baselines |
 | `MPLBACKEND` | system | Matplotlib backend |
 | `GDF_TOL_AREA` | `1e-7` | Geometry comparison tolerance |
+| `HERA_REPO_ROOT` | unset | Base dir for relative dynamic-toolkit / experiment paths |
+| `RAG_*` | see env vars page | RAG search settings (e.g. `RAG_OLLAMA_BASE_URL`) |
+
+Full list: [Environment Variables](../configuration/env_vars.md).
 
 ---
 
@@ -250,7 +259,7 @@ df = lf.getDataSourceData("YAVNEEL").compute()
 
 # Analysis
 enriched = lf.analysis.addDatesColumns(df, datecolumn="datetime")
-hourly = lf.analysis.calcHourlyDist(enriched, field="T", density=True)
+x_mid, y_mid, hist = lf.analysis.calcHourlyDist(enriched, Field="T", normalization="density")
 
 # Presentation
 ax = lf.presentation.dailyPlots.plotScatter(enriched, plotField="RH")
@@ -287,7 +296,7 @@ Location: `~/.pyhera/config.json`
 
 ## Quick Links
 
-- [Installation Guide](../getting_started/installation.md)
+- [Installation Guide](../user_guide/installation.md)
 - [CLI Reference](../cli/reference.md)
 - [Repository Schema](repository_schema.md)
 - [Best Practices](../guides/best_practices.md)

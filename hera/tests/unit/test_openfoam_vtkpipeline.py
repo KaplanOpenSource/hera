@@ -1,18 +1,18 @@
-"""openFoam/postProcess/VTKPipeline.py: the pipeline/filter tree, its JSON
-form, the DB-backed cache bookkeeping of ``registeredVTKPipeLine``, and the
+"""openFoam/postprocess/vtkpipeline.py: the pipeline/filter tree, its JSON
+form, the DB-backed cache bookkeeping of ``RegisteredVTKPipeLine``, and the
 argument forwarding into ParaView.
 
 What is covered *deeply* (real logic, no ParaView involved at all)
 -----------------------------------------------------------------
-``VTKPipeLine`` (construction, ``newVTKPipelineFilter``, ``addFilter``,
-``addFilterFromObj``, ``addExistingFilter``, ``__setitem__``,
-``__getitem__``, ``registerPipeline``, ``toJSON``, ``allFilterNames``),
+``VTKPipeLine`` (construction, ``new_vtk_pipeline_filter``, ``add_filter``,
+``add_filter_from_obj``, ``addExistingFilter``, ``__setitem__``,
+``__getitem__``, ``register_pipeline``, ``to_json``, ``all_filter_names``),
 the whole of ``VTKFilter`` (including ``set_param`` / ``enforce_param`` and
 the ``fullName`` property, which is broken), every ``vtkFilter_*``
 subclass and its setters -- all of these only build Python dicts, lists
 and strings, so the assertions below are on real values.
 
-On ``registeredVTKPipeLine``: ``__init__`` (both the DB branch and the
+On ``RegisteredVTKPipeLine``: ``__init__`` (both the DB branch and the
 directory branch, plus the rejection), ``_resolveRequestedFilters``,
 ``_parseTimeList``, ``_filterCachedTimesteps``, ``_updateCacheDB``,
 ``_buildFilterQuery``, ``getFilterOutputFileExt``,
@@ -28,9 +28,15 @@ empty namespace module, so *nothing* in it exists until a test puts it
 there.  That is actually the useful seam: the tests below install
 recording stand-ins (``_RecordingProxy``) and assert on the recorded call
 log -- which filter type was instantiated, with which ``Input`` and
-``guiName``, which properties were set in which order, and that
-``UpdatePipeline`` was called.  Those calls are the entire observable
-behaviour of ``_buildFilterLayer``.
+``registrationName``, which properties were set in which order, and that
+no ``UpdatePipeline`` is forced while building.  Those calls are the
+entire observable behaviour of ``_buildFilterLayer``.
+
+Since #1137 ``ParaviewOpenFOAM.__init__`` builds its reader at once
+through ``pvsimple.OpenFOAMReader``, which the stub does not have, so every
+``RegisteredVTKPipeLine`` construction would fail.  The autouse
+``paraviewReaders`` fixture therefore replaces
+``ParaviewOpenFOAM.initialize_reader`` with a recorder for every test.
 
 Consequently:
 
@@ -38,13 +44,14 @@ Consequently:
   parameter application order, nested ``a.b`` property traversal).  The
   geometric *effect* of those calls is unobservable here and is not
   asserted.
-* ``_buildAndExecuteParaViewPipeline`` -- argument forwarding only: which
-  reader is created, whether ``CellArrays`` is narrowed, exactly which
-  ``filtersDict`` reaches ``writeCase``, and that every ParaView source is
-  deleted afterwards.  ``paraviewOpenFOAM.initializeReader`` /
-  ``writeCase`` are patched on the class, because the real ones dereference
-  a ``pvsimple`` name that does not even exist in ``pvOpenFOAMBase`` when
-  ``vtkmodules`` is absent.
+* ``_buildAndExecuteParaViewPipeline`` -- argument forwarding only: that
+  it roots the tree at the reader built at registration, whether
+  ``CellArrays`` is narrowed, exactly which ``filtersDict`` reaches
+  ``writeCase``, and that every ParaView source is deleted afterwards.
+  ``ParaviewOpenFOAM.initialize_reader`` / ``writeCase`` are patched on the
+  class, because the real ones call into a ``pvsimple`` that is only the
+  empty stub when ``vtkmodules`` is absent.  The ``mesh_region`` argument
+  added in #1137 is not covered.
 * ``getData`` -- the orchestration (time resolution, cache hit/miss, DB
   persistence, reload) is real; only step 4 (the ParaView execution) is
   stubbed, with the stub writing a real parquet file so that the final
@@ -52,10 +59,10 @@ Consequently:
   the returned frame are whatever the stub wrote; no physics is asserted.
 * ``getRegularData`` / ``getNonRegularData`` -- pure forwarding, tested as
   forwarding.
-* ``registeredVTKPipeLine.__init__`` with ``serverName`` set is not
-  covered: it reaches ``pvsimple.Connect`` inside ``pvOpenFOAMBase``, whose
-  ``pvsimple`` import is skipped entirely when ``vtkmodules`` is missing,
-  so the only thing observable would be a stub artefact (``NameError``).
+* ``RegisteredVTKPipeLine.__init__`` with ``serverName`` set is not
+  covered: it reaches ``pvsimple.Connect`` inside ``pvopenfoam``, whose
+  ``pvsimple`` is the empty stub when ``vtkmodules`` is missing, so the
+  only thing observable would be a stub artefact (``AttributeError``).
 
 Deliberately not duplicated: ``OFToolkit.getVTKPipelineCacheDocuments`` /
 ``clearVTKPipelineCache`` live in ``toolkit.py`` and are covered by
@@ -63,6 +70,7 @@ Deliberately not duplicated: ``OFToolkit.getVTKPipelineCacheDocuments`` /
 """
 import copy
 import os
+import types
 
 import pandas
 import pytest
@@ -72,11 +80,11 @@ from hera.simulations.openFoam import (
     CASETYPE_RECONSTRUCTED,
     TYPE_VTK_FILTER,
 )
-from hera.simulations.openFoam.postProcess import VTKPipeline as pipelineModule
-from hera.simulations.openFoam.postProcess.VTKPipeline import (
+from hera.simulations.openFoam.postprocess import vtkpipeline as pipelineModule
+from hera.simulations.openFoam.postprocess.vtkpipeline import (
     VTKFilter,
     VTKPipeLine,
-    registeredVTKPipeLine,
+    RegisteredVTKPipeLine,
     vtkFilter_CellCenters,
     vtkFilter_DescriptiveStatistics,
     vtkFilter_ExtractBlock,
@@ -84,7 +92,7 @@ from hera.simulations.openFoam.postProcess.VTKPipeline import (
     vtkFilter_PlotOverLine,
     vtkFilter_Slice,
 )
-from hera.simulations.openFoam.postProcess.pvOpenFOAMBase import paraviewOpenFOAM
+from hera.simulations.openFoam.postprocess.pvopenfoam import ParaviewOpenFOAM
 from hera.utils import dictToMongoQuery
 
 ALL_FILTER_TYPES = [
@@ -138,22 +146,44 @@ class _RecordingProxy:
         return f"<proxy {self.__dict__['_path']}>"
 
 
+@pytest.fixture(autouse=True)
+def paraviewReaders(monkeypatch):
+    """Stand in for the reader ``ParaviewOpenFOAM.__init__`` now builds.
+
+    Every ``RegisteredVTKPipeLine`` constructs a ``ParaviewOpenFOAM``, whose
+    constructor calls ``initialize_reader`` -> ``pvsimple.OpenFOAMReader``;
+    the stub has no such attribute.  The recorder hands back a
+    ``_RecordingProxy`` named ``__<reader_name>__`` that logs into the same
+    list ``paraviewLog`` returns, and remembers the names asked for.
+    """
+    state = types.SimpleNamespace(log=[], names=[])
+
+    def _initializeReader(self, reader_name="reader"):
+        state.names.append(reader_name)
+        self.reader = _RecordingProxy(state.log, f"__{reader_name}__")
+        self.reader_name = reader_name
+        return self.reader
+
+    monkeypatch.setattr(ParaviewOpenFOAM, "initialize_reader", _initializeReader)
+    return state
+
+
 @pytest.fixture()
-def paraviewLog(monkeypatch):
+def paraviewLog(monkeypatch, paraviewReaders):
     """Install recording filter constructors on the stubbed paraview.simple.
 
     Returns the shared call log.  Entries are one of:
-        ("create", filterType, guiName, inputProxy)
+        ("create", filterType, registrationName, inputProxy)
         ("set", proxyPath, propertyName, value)
         ("update", proxyPath)
         ("delete", proxyName)
     """
-    log = []
+    log = paraviewReaders.log
 
     def _makeConstructor(filterType):
         def _construct(**kwargs):
-            proxy = _RecordingProxy(log, kwargs.get("guiName"))
-            log.append(("create", filterType, kwargs.get("guiName"), kwargs.get("Input")))
+            proxy = _RecordingProxy(log, kwargs.get("registrationName"))
+            log.append(("create", filterType, kwargs.get("registrationName"), kwargs.get("Input")))
             return proxy
 
         return _construct
@@ -197,7 +227,7 @@ def caseDirectory(tmp_path):
 def pipeline(of):
     """A pipeline with one write-enabled Slice under a non-writing ExtractBlock."""
     pl = VTKPipeLine(of)
-    block = pl.addFilter("ExtractBlock", VTKPipeLine.FILTER_EXTRACTBLOCK, write=False)
+    block = pl.add_filter("ExtractBlock", VTKPipeLine.FILTER_EXTRACTBLOCK, write=False)
     sliceFilter = block.addFilter("slice", VTKPipeLine.FILTER_SLICE, write=True)
     sliceFilter.setPlaneOrigin([0, 0, 10])
     sliceFilter.setPlaneNormal([0, 0, 1])
@@ -207,7 +237,7 @@ def pipeline(of):
 @pytest.fixture()
 def registered(pipeline, caseDirectory):
     """``pipeline`` bound to ``caseDirectory`` through the directory branch."""
-    return pipeline.registerPipeline(str(caseDirectory))
+    return pipeline.register_pipeline(str(caseDirectory))
 
 
 # ---------------------------------------------------------------------------
@@ -221,12 +251,12 @@ class TestVTKPipeLineConstruction:
 
     def test_it_adopts_an_existing_filter_dict_by_reference(self, of):
         existing = {"a": "placeholder"}
-        assert VTKPipeLine(of, vtkPipeline=existing).filters is existing
+        assert VTKPipeLine(of, vtk_pipeline=existing).filters is existing
 
     def test_two_pipelines_do_not_share_the_default_filter_dict(self, of):
         first = VTKPipeLine(of)
         second = VTKPipeLine(of)
-        first.addFilter("s", VTKPipeLine.FILTER_SLICE)
+        first.add_filter("s", VTKPipeLine.FILTER_SLICE)
         assert second.filters == {}
 
     def test_it_keeps_the_datalayer_it_was_given(self, of):
@@ -247,14 +277,14 @@ class TestVTKPipeLineConstruction:
 class TestNewVTKPipelineFilter:
     @pytest.mark.parametrize("filterType", ALL_FILTER_TYPES)
     def test_it_builds_the_class_matching_each_known_filter_type(self, filterType):
-        built = VTKPipeLine.newVTKPipelineFilter(name="n", filterType=filterType)
+        built = VTKPipeLine.new_vtk_pipeline_filter(name="n", filter_type=filterType)
         assert type(built).__name__ == f"vtkFilter_{filterType}"
         assert built.filterType == filterType
         assert built.name == "n"
 
     def test_it_rejects_an_unknown_filter_type_and_lists_the_known_ones(self):
         with pytest.raises(ValueError) as err:
-            VTKPipeLine.newVTKPipelineFilter(name="n", filterType="NoSuchFilter")
+            VTKPipeLine.new_vtk_pipeline_filter(name="n", filter_type="NoSuchFilter")
         message = str(err.value)
         assert "NoSuchFilter is not Known" in message
         assert all(known in message for known in ALL_FILTER_TYPES)
@@ -266,21 +296,21 @@ class TestNewVTKPipelineFilter:
         assert discovered == ALL_FILTER_TYPES
 
     def test_it_defaults_the_parameter_list_to_empty(self):
-        assert VTKPipeLine.newVTKPipelineFilter(name="n", filterType="CellCenters").params == []
+        assert VTKPipeLine.new_vtk_pipeline_filter(name="n", filter_type="CellCenters").params == []
 
     def test_two_filters_built_with_the_default_do_not_share_a_parameter_list(self):
-        first = VTKPipeLine.newVTKPipelineFilter(name="a", filterType="Slice")
-        second = VTKPipeLine.newVTKPipelineFilter(name="b", filterType="Slice")
+        first = VTKPipeLine.new_vtk_pipeline_filter(name="a", filter_type="Slice")
+        second = VTKPipeLine.new_vtk_pipeline_filter(name="b", filter_type="Slice")
         first.set_param("Q", 1)
         assert second.params == []
 
     def test_it_forwards_the_write_flag(self):
-        assert VTKPipeLine.newVTKPipelineFilter(name="n", filterType="Slice", write=False).write is False
+        assert VTKPipeLine.new_vtk_pipeline_filter(name="n", filter_type="Slice", write=False).write is False
 
     def test_it_forwards_an_explicit_parameter_list(self):
         params = [("Resolution", 7)]
-        built = VTKPipeLine.newVTKPipelineFilter(
-            name="n", filterType="PlotOverLine", params=params
+        built = VTKPipeLine.new_vtk_pipeline_filter(
+            name="n", filter_type="PlotOverLine", params=params
         )
         assert built.params == [("Resolution", 7)]
 
@@ -293,30 +323,30 @@ class TestNewVTKPipelineFilter:
         """
         monkeypatch.setattr(pipelineModule.pydoc, "locate", lambda path: None)
         with pytest.raises(RuntimeError, match="Slice does not exist"):
-            VTKPipeLine.newVTKPipelineFilter(name="n", filterType="Slice")
+            VTKPipeLine.new_vtk_pipeline_filter(name="n", filter_type="Slice")
 
 
 @pytest.mark.unit
 class TestVTKPipeLineAddFilter:
     def test_add_filter_registers_the_new_filter_under_its_name(self, of):
         pl = VTKPipeLine(of)
-        added = pl.addFilter("mySlice", VTKPipeLine.FILTER_SLICE)
+        added = pl.add_filter("mySlice", VTKPipeLine.FILTER_SLICE)
         assert pl.filters == {"mySlice": added}
         assert pl["mySlice"] is added
 
     def test_add_filter_returns_the_filter_so_it_can_be_configured(self, of):
         pl = VTKPipeLine(of)
-        assert isinstance(pl.addFilter("s", VTKPipeLine.FILTER_SLICE), vtkFilter_Slice)
+        assert isinstance(pl.add_filter("s", VTKPipeLine.FILTER_SLICE), vtkFilter_Slice)
 
     def test_add_filter_forwards_an_explicit_parameter_list(self, of):
         pl = VTKPipeLine(of)
-        added = pl.addFilter("s", VTKPipeLine.FILTER_SLICE, params=[("SliceType", "Plane")])
+        added = pl.add_filter("s", VTKPipeLine.FILTER_SLICE, params=[("SliceType", "Plane")])
         assert added.params == [("SliceType", "Plane")]
 
     def test_add_filter_from_obj_keys_the_filter_by_its_own_name(self, of):
         pl = VTKPipeLine(of)
         existing = vtkFilter_CellCenters(name="cc", write=True)
-        pl.addFilterFromObj(existing)
+        pl.add_filter_from_obj(existing)
         assert pl["cc"] is existing
 
     def test_the_deprecated_add_existing_filter_still_adds_the_filter(self, of):
@@ -333,8 +363,8 @@ class TestVTKPipeLineAddFilter:
 
     def test_a_second_filter_with_the_same_name_replaces_the_first(self, of):
         pl = VTKPipeLine(of)
-        pl.addFilter("s", VTKPipeLine.FILTER_SLICE)
-        second = pl.addFilter("s", VTKPipeLine.FILTER_CELLCENTERS)
+        pl.add_filter("s", VTKPipeLine.FILTER_SLICE)
+        second = pl.add_filter("s", VTKPipeLine.FILTER_CELLCENTERS)
         assert pl.filters == {"s": second}
 
 
@@ -359,17 +389,17 @@ class TestVTKPipeLineLookup:
 @pytest.mark.unit
 class TestVTKPipeLineToJSON:
     def test_the_json_is_wrapped_in_a_filters_key(self, pipeline):
-        assert list(pipeline.toJSON().keys()) == ["filters"]
+        assert list(pipeline.to_json().keys()) == ["filters"]
 
     def test_it_records_type_write_params_and_downstream_for_each_filter(self, pipeline):
-        block = pipeline.toJSON()["filters"]["ExtractBlock"]
+        block = pipeline.to_json()["filters"]["ExtractBlock"]
         assert block["filterType"] == "ExtractBlock"
         assert block["write"] is False
         assert block["params"] == [("Selectors", [])]
         assert list(block["downstream"]) == ["slice"]
 
     def test_nested_filters_appear_under_their_fathers_downstream(self, pipeline):
-        nested = pipeline.toJSON()["filters"]["ExtractBlock"]["downstream"]["slice"]
+        nested = pipeline.to_json()["filters"]["ExtractBlock"]["downstream"]["slice"]
         assert nested["filterType"] == "Slice"
         assert nested["write"] is True
         assert nested["params"] == [
@@ -379,38 +409,38 @@ class TestVTKPipeLineToJSON:
         ]
 
     def test_an_empty_pipeline_serialises_to_an_empty_filter_map(self, of):
-        assert VTKPipeLine(of).toJSON() == dict(filters={})
+        assert VTKPipeLine(of).to_json() == dict(filters={})
 
     def test_the_json_is_keyed_by_the_filter_name_not_the_dict_key(self, of):
         """Characterisation: toJSON ignores the key ``__setitem__`` was given."""
         pl = VTKPipeLine(of)
         pl["otherKey"] = vtkFilter_CellCenters(name="realName", write=True)
-        assert list(pl.toJSON()["filters"]) == ["realName"]
+        assert list(pl.to_json()["filters"]) == ["realName"]
 
 
 @pytest.mark.unit
 class TestAllFilterNames:
     def test_it_returns_dotted_paths_depth_first(self, pipeline):
-        assert pipeline.allFilterNames() == ["ExtractBlock", "ExtractBlock.slice"]
+        assert pipeline.all_filter_names() == ["ExtractBlock", "ExtractBlock.slice"]
 
     def test_write_only_drops_the_filters_not_marked_for_output(self, pipeline):
-        assert pipeline.allFilterNames(writeOnly=True) == ["ExtractBlock.slice"]
+        assert pipeline.all_filter_names(write_only=True) == ["ExtractBlock.slice"]
 
     def test_an_empty_pipeline_has_no_filter_names(self, of):
-        assert VTKPipeLine(of).allFilterNames() == []
+        assert VTKPipeLine(of).all_filter_names() == []
 
     def test_siblings_are_returned_in_insertion_order(self, of):
         pl = VTKPipeLine(of)
-        pl.addFilter("first", VTKPipeLine.FILTER_CELLCENTERS)
-        pl.addFilter("second", VTKPipeLine.FILTER_SLICE)
-        assert pl.allFilterNames() == ["first", "second"]
+        pl.add_filter("first", VTKPipeLine.FILTER_CELLCENTERS)
+        pl.add_filter("second", VTKPipeLine.FILTER_SLICE)
+        assert pl.all_filter_names() == ["first", "second"]
 
     def test_it_descends_more_than_one_level(self, of):
         pl = VTKPipeLine(of)
-        block = pl.addFilter("a", VTKPipeLine.FILTER_EXTRACTBLOCK)
+        block = pl.add_filter("a", VTKPipeLine.FILTER_EXTRACTBLOCK)
         middle = block.addFilter("b", VTKPipeLine.FILTER_EXTRACTBLOCK)
         middle.addFilter("c", VTKPipeLine.FILTER_CELLCENTERS)
-        assert pl.allFilterNames() == ["a", "a.b", "a.b.c"]
+        assert pl.all_filter_names() == ["a", "a.b", "a.b.c"]
 
 
 # ---------------------------------------------------------------------------
@@ -744,19 +774,19 @@ class TestIntegrateVariablesFilter:
             vtkFilter_IntegrateVariables(name="iv", write=True)
 
     def test_the_factory_hides_the_missing_default_by_always_passing_params(self):
-        """Characterisation of B317: newVTKPipelineFilter always supplies one."""
-        assert VTKPipeLine.newVTKPipelineFilter(name="iv", filterType="IntegrateVariables").params == []
+        """Characterisation of B317: new_vtk_pipeline_filter always supplies one."""
+        assert VTKPipeLine.new_vtk_pipeline_filter(name="iv", filter_type="IntegrateVariables").params == []
 
 
 # ---------------------------------------------------------------------------
-# registeredVTKPipeLine: binding a pipeline to a case
+# RegisteredVTKPipeLine: binding a pipeline to a case
 # ---------------------------------------------------------------------------
 
 @pytest.mark.unit
 class TestRegisterPipeline:
     def test_it_returns_a_registered_pipeline_bound_to_this_pipeline(self, pipeline, caseDirectory):
-        reg = pipeline.registerPipeline(str(caseDirectory))
-        assert isinstance(reg, registeredVTKPipeLine)
+        reg = pipeline.register_pipeline(str(caseDirectory))
+        assert isinstance(reg, RegisteredVTKPipeLine)
         assert reg.vtkpipeline is pipeline
         assert reg.datalayer is pipeline.datalayer
 
@@ -764,7 +794,7 @@ class TestRegisterPipeline:
         assert registered.pvOFBase.caseType == CASETYPE_DECOMPOSED
 
     def test_it_forwards_the_case_type_to_the_paraview_base(self, pipeline, caseDirectory):
-        reg = pipeline.registerPipeline(str(caseDirectory), caseType=CASETYPE_RECONSTRUCTED)
+        reg = pipeline.register_pipeline(str(caseDirectory), case_type=CASETYPE_RECONSTRUCTED)
         assert reg.pvOFBase.caseType == CASETYPE_RECONSTRUCTED
 
     def test_the_paraview_base_is_pointed_at_the_case_path(self, registered, caseDirectory):
@@ -788,7 +818,7 @@ class TestRegisteredPipelineFromDirectory:
     def test_a_directory_without_an_underscore_gets_an_empty_group_name(self, pipeline, tmp_path):
         directory = tmp_path / "plaincase"
         directory.mkdir()
-        reg = pipeline.registerPipeline(str(directory))
+        reg = pipeline.register_pipeline(str(directory))
         assert reg.simulationParams["groupName"] == ""
 
     def test_a_pseudo_document_has_no_workflow_parameters(self, registered):
@@ -800,11 +830,23 @@ class TestRegisteredPipelineFromDirectory:
     def test_a_path_that_is_neither_in_the_db_nor_a_directory_is_refused(self, pipeline, tmp_path):
         missing = str(tmp_path / "nope")
         with pytest.raises(ValueError, match="is not in the DB, and does not represent a valid case"):
-            pipeline.registerPipeline(missing)
+            pipeline.register_pipeline(missing)
 
 
 @pytest.mark.unit
 class TestRegisteredPipelineFromDatabase:
+    @pytest.fixture(autouse=True)
+    def paramsFromDoc(self, of, monkeypatch):
+        """Since #1137 the workflow parameters come from
+        ``getParamsFromDoc(document)``, which parses the hermes workflow JSON
+        in ``desc['workflow']``.  Building a real hermes workflow is out of
+        scope here; the stand-in tags its answer with the document's name so
+        the forwarding is visible."""
+        monkeypatch.setattr(
+            type(of), "getParamsFromDoc",
+            lambda self, doc: {"paramsOf": doc.desc["workflowName"]},
+        )
+
     @pytest.fixture()
     def workflowDocument(self, of, caseDirectory):
         return of.addSimulationsDocument(
@@ -819,22 +861,24 @@ class TestRegisteredPipelineFromDatabase:
         )
 
     def test_it_finds_the_case_by_workflow_name(self, pipeline, workflowDocument, caseDirectory):
-        reg = pipeline.registerPipeline("myFlow")
+        reg = pipeline.register_pipeline("myFlow")
         assert reg.casePath == str(caseDirectory)
 
     def test_it_keeps_the_simulation_document_it_found(self, pipeline, workflowDocument):
-        reg = pipeline.registerPipeline("myFlow")
+        reg = pipeline.register_pipeline("myFlow")
         assert reg.simulationDocument is not None
         assert reg.simulationDocument.desc["workflowName"] == "myFlow"
 
-    def test_the_simulation_parameters_come_from_the_document_description(
+    def test_the_simulation_parameters_come_from_the_document(
         self, pipeline, workflowDocument
     ):
-        reg = pipeline.registerPipeline("myFlow")
+        """Name and group from the description; the workflow parameters
+        from the datalayer's ``getParamsFromDoc`` (changed in #1137)."""
+        reg = pipeline.register_pipeline("myFlow")
         assert reg.simulationParams == dict(
             workflowName="myFlow",
             groupName="myGroup",
-            workflowParameters={"Parameters": {"alpha": 1.0}},
+            workflowParameters={"paramsOf": "myFlow"},
         )
 
     def test_the_database_branch_wins_over_an_identically_named_directory(
@@ -848,7 +892,7 @@ class TestRegisteredPipelineFromDatabase:
             type=of.DOCTYPE_WORKFLOW,
             desc=dict(workflowName="myFlow", groupName="g", parameters={}),
         )
-        reg = pipeline.registerPipeline("myFlow")
+        reg = pipeline.register_pipeline("myFlow")
         assert reg.casePath == str(caseDirectory)
         assert reg.simulationDocument is not None
 
@@ -861,11 +905,11 @@ class TestRegisteredPipelineFromDatabase:
             desc=dict(workflowName="bare"),
         )
         with pytest.raises(KeyError, match="groupName"):
-            pipeline.registerPipeline("bare")
+            pipeline.register_pipeline("bare")
 
 
 # ---------------------------------------------------------------------------
-# registeredVTKPipeLine: the small pure helpers
+# RegisteredVTKPipeLine: the small pure helpers
 # ---------------------------------------------------------------------------
 
 @pytest.mark.unit
@@ -925,6 +969,17 @@ class TestParseTimeList:
             registered._parseTimeList("early:late", self.CASE_TIMES)
 
 
+def _advanceCounter(registered, filterName):
+    """Advance the per-filter counter the way ``_filterCachedTimesteps`` does.
+
+    Since #1137 ``getFilterOutputFilePath`` only *reads* the counter (it
+    returns None until one exists); the cache-miss branch of
+    ``_filterCachedTimesteps`` is the one that advances it.
+    """
+    workflowName = registered.simulationParams["workflowName"]
+    registered.datalayer.getCounterAndAdd(f"{workflowName}_{filterName}_counter")
+
+
 @pytest.mark.unit
 class TestFilterOutputFileNaming:
     def test_a_regular_mesh_is_written_as_zarr(self, registered):
@@ -934,34 +989,43 @@ class TestFilterOutputFileNaming:
         assert registered.getFilterOutputFileExt(False) == "parquet"
 
     def test_the_first_path_for_a_filter_gets_counter_zero(self, registered, caseDirectory):
+        _advanceCounter(registered, "slice")
         path = registered.getFilterOutputFilePath("slice", "parquet")
         assert path == os.path.join(str(caseDirectory), "vtkpipelinedata", "slice_0.parquet")
 
-    def test_each_request_advances_the_per_filter_counter(self, registered):
+    def test_each_advance_of_the_per_filter_counter_moves_to_the_next_path(self, registered):
+        _advanceCounter(registered, "slice")
         first = registered.getFilterOutputFilePath("slice", "parquet")
+        _advanceCounter(registered, "slice")
         second = registered.getFilterOutputFilePath("slice", "parquet")
         assert os.path.basename(first) == "slice_0.parquet"
         assert os.path.basename(second) == "slice_1.parquet"
 
     def test_counters_are_kept_separately_per_filter(self, registered):
-        registered.getFilterOutputFilePath("first", "parquet")
+        _advanceCounter(registered, "first")
+        _advanceCounter(registered, "first")
+        _advanceCounter(registered, "second")
         second = registered.getFilterOutputFilePath("second", "parquet")
         assert os.path.basename(second) == "second_0.parquet"
 
     def test_a_dotted_filter_path_becomes_an_underscored_file_name(self, registered):
+        _advanceCounter(registered, "ExtractBlock.slice")
         path = registered.getFilterOutputFilePath("ExtractBlock.slice", "parquet")
         assert os.path.basename(path) == "ExtractBlock_slice_0.parquet"
 
     def test_the_extension_is_whatever_the_caller_asked_for(self, registered):
+        _advanceCounter(registered, "slice")
         path = registered.getFilterOutputFilePath("slice", "zarr")
         assert os.path.basename(path) == "slice_0.zarr"
 
     def test_asking_for_an_existing_path_before_any_exists_returns_nothing(self, registered):
-        assert registered.getFilterOutputFilePath("slice", "parquet", generate_new=False) is None
+        assert registered.getFilterOutputFilePath("slice", "parquet") is None
 
-    def test_asking_for_an_existing_path_reuses_the_current_counter(self, registered):
+    def test_asking_again_reuses_the_current_counter(self, registered):
+        """Since #1137 asking for the path never advances the counter."""
+        _advanceCounter(registered, "slice")
         generated = registered.getFilterOutputFilePath("slice", "parquet")
-        reused = registered.getFilterOutputFilePath("slice", "parquet", generate_new=False)
+        reused = registered.getFilterOutputFilePath("slice", "parquet")
         assert reused == generated
 
     def test_the_path_is_always_absolute_even_from_a_relative_case_path(
@@ -969,29 +1033,33 @@ class TestFilterOutputFileNaming:
     ):
         (tmp_path / "relcase").mkdir()
         monkeypatch.chdir(tmp_path)
-        reg = pipeline.registerPipeline("relcase")
+        reg = pipeline.register_pipeline("relcase")
+        _advanceCounter(reg, "slice")
         assert os.path.isabs(reg.getFilterOutputFilePath("slice", "parquet"))
 
 
 @pytest.mark.unit
 class TestBuildFilterQuery:
-    def test_the_query_carries_the_simulation_the_pipeline_and_the_filter(self, registered):
-        qry = registered._buildFilterQuery(filterName="ExtractBlock.slice")
-        assert qry["filterName"] == "ExtractBlock.slice"
+    def test_the_query_carries_the_simulation_and_the_pipeline(self, registered):
+        qry = registered._buildFilterQuery(filter_name="ExtractBlock.slice")
         assert qry["simulation"]["workflowName"] == "flow_0001"
-        assert qry["pipeline"] == registered.vtkpipeline.toJSON()
+        assert qry["pipeline"] == registered.vtkpipeline.to_json()
+
+    def test_the_filter_is_recorded_under_the_key_the_toolkit_queries(self, registered):
+        qry = registered._buildFilterQuery(filter_name="ExtractBlock.slice")
+        assert qry["filterName"] == "ExtractBlock.slice"
+        assert dictToMongoQuery(qry)["filterName"] == "ExtractBlock.slice"
 
     def test_the_regular_mesh_flag_is_omitted_when_it_is_not_given(self, registered):
-        qry = registered._buildFilterQuery(filterName="f")
+        qry = registered._buildFilterQuery(filter_name="f")
         assert "regularMesh" not in qry["simulation"]
 
     def test_the_regular_mesh_flag_is_recorded_under_the_simulation(self, registered):
-        qry = registered._buildFilterQuery(filterName="f", regularMesh=True)
+        qry = registered._buildFilterQuery(filter_name="f", regularMesh=True)
         assert qry["simulation"]["regularMesh"] is True
 
     def test_the_query_is_usable_as_a_mongo_query(self, registered):
-        mongoQuery = dictToMongoQuery(registered._buildFilterQuery(filterName="f"))
-        assert mongoQuery["filterName"] == "f"
+        mongoQuery = dictToMongoQuery(registered._buildFilterQuery(filter_name="f"))
         assert mongoQuery["simulation__workflowName"] == "flow_0001"
 
     @pytest.mark.xfail(
@@ -1009,32 +1077,32 @@ class TestBuildFilterQuery:
                "findings issue.",
     )
     def test_building_a_query_leaves_the_simulation_parameters_alone(self, registered):
-        registered._buildFilterQuery(filterName="f", regularMesh=True)
+        registered._buildFilterQuery(filter_name="f", regularMesh=True)
         assert registered.simulationParams == dict(
             workflowName="flow_0001", groupName="flow", workflowParameters={}
         )
 
     def test_the_regular_mesh_flag_currently_leaks_into_later_queries(self, registered):
         """Characterisation of B318."""
-        registered._buildFilterQuery(filterName="f", regularMesh=True)
+        registered._buildFilterQuery(filter_name="f", regularMesh=True)
         assert registered.simulationParams["regularMesh"] is True
-        leaked = registered._buildFilterQuery(filterName="f")
+        leaked = registered._buildFilterQuery(filter_name="f")
         assert leaked["simulation"]["regularMesh"] is True
 
     def test_every_query_shares_the_one_simulation_parameters_dict(self, registered):
         """Characterisation of B318."""
-        first = registered._buildFilterQuery(filterName="a")
-        second = registered._buildFilterQuery(filterName="b")
+        first = registered._buildFilterQuery(filter_name="a")
+        second = registered._buildFilterQuery(filter_name="b")
         assert first["simulation"] is second["simulation"] is registered.simulationParams
 
 
 # ---------------------------------------------------------------------------
-# registeredVTKPipeLine: the DB cache bookkeeping
+# RegisteredVTKPipeLine: the DB cache bookkeeping
 # ---------------------------------------------------------------------------
 
 def _cacheDescriptionFor(registered, filterName, regularMesh, timeList):
     """A cache-document desc exactly as ``_updateCacheDB`` would write it."""
-    desc = copy.deepcopy(registered._buildFilterQuery(filterName=filterName, regularMesh=regularMesh))
+    desc = copy.deepcopy(registered._buildFilterQuery(filter_name=filterName, regularMesh=regularMesh))
     desc["simulation"]["timeList"] = list(timeList)
     return desc
 
@@ -1195,8 +1263,11 @@ class TestUpdateCacheDB:
         registered._updateCacheDB(["slice"], [0.0, 10.0], {}, {"slice": str(output)}, False)
         docList = of.getCacheDocuments(type=TYPE_VTK_FILTER)
         assert len(docList) == 1
-        assert docList[0].desc["filterName"] == "slice"
         assert docList[0].desc["simulation"]["timeList"] == [0.0, 10.0]
+
+    def test_the_document_names_the_filter_under_the_key_the_toolkit_reads(self, of, registered, tmp_path):
+        registered._updateCacheDB(["slice"], [0.0], {}, {"slice": str(tmp_path / "o")}, False)
+        assert of.getCacheDocuments(type=TYPE_VTK_FILTER)[0].desc["filterName"] == "slice"
 
     def test_the_document_resource_is_the_absolute_output_path(self, of, registered, monkeypatch, tmp_path):
         monkeypatch.chdir(tmp_path)
@@ -1254,7 +1325,7 @@ class TestClearCache:
             "deleteSimulationsDocuments",
             lambda self, **kwargs: seen.append(kwargs) or [],
         )
-        registered.clearCache(filterName="ExtractBlock.slice")
+        registered.clearCache(filter_name="ExtractBlock.slice")
         assert [kw["filterName"] for kw in seen] == ["ExtractBlock.slice"]
 
     def test_it_always_scopes_the_deletion_to_vtk_filter_documents(self, registered, monkeypatch):
@@ -1264,7 +1335,7 @@ class TestClearCache:
             "deleteSimulationsDocuments",
             lambda self, **kwargs: seen.append(kwargs) or [],
         )
-        registered.clearCache(filterName="f")
+        registered.clearCache(filter_name="f")
         assert seen[0]["type"] == TYPE_VTK_FILTER
 
     def test_the_regular_mesh_flag_is_added_to_the_deletion_query(self, registered, monkeypatch):
@@ -1274,7 +1345,7 @@ class TestClearCache:
             "deleteSimulationsDocuments",
             lambda self, **kwargs: seen.append(kwargs) or [],
         )
-        registered.clearCache(regularMesh=True, filterName="f")
+        registered.clearCache(regularMesh=True, filter_name="f")
         assert seen[0]["simulation__regularMesh"] is True
 
     def test_the_regular_mesh_flag_is_absent_when_it_is_not_given(self, registered, monkeypatch):
@@ -1284,7 +1355,7 @@ class TestClearCache:
             "deleteSimulationsDocuments",
             lambda self, **kwargs: seen.append(kwargs) or [],
         )
-        registered.clearCache(filterName="f")
+        registered.clearCache(filter_name="f")
         assert "simulation__regularMesh" not in seen[0]
 
     def test_a_deleted_documents_output_file_is_removed_from_disk(self, registered, monkeypatch, tmp_path):
@@ -1297,7 +1368,7 @@ class TestClearCache:
         monkeypatch.setattr(
             type(registered.datalayer), "deleteSimulationsDocuments", lambda self, **kwargs: [doc]
         )
-        registered.clearCache(filterName="f")
+        registered.clearCache(filter_name="f")
         assert not output.exists()
 
     def test_a_deleted_documents_output_directory_is_removed_recursively(
@@ -1312,7 +1383,7 @@ class TestClearCache:
         monkeypatch.setattr(
             type(registered.datalayer), "deleteSimulationsDocuments", lambda self, **kwargs: [doc]
         )
-        registered.clearCache(filterName="f")
+        registered.clearCache(filter_name="f")
         assert not output.exists()
 
     def test_an_already_missing_output_file_is_tolerated(self, registered, monkeypatch, tmp_path):
@@ -1323,7 +1394,7 @@ class TestClearCache:
         monkeypatch.setattr(
             type(registered.datalayer), "deleteSimulationsDocuments", lambda self, **kwargs: [doc]
         )
-        registered.clearCache(filterName="f")
+        registered.clearCache(filter_name="f")
 
     @pytest.mark.xfail(
         strict=True,
@@ -1346,7 +1417,7 @@ class TestClearCache:
         of.addCacheDocument(
             resource=str(output), dataFormat="parquet", type=TYPE_VTK_FILTER, desc=desc
         )
-        registered.clearCache(regularMesh=False, filterName="ExtractBlock.slice")
+        registered.clearCache(regularMesh=False, filter_name="ExtractBlock.slice")
         assert list(of.getCacheDocuments(type=TYPE_VTK_FILTER)) == []
 
     def test_the_cache_documents_currently_survive_the_clear(self, of, registered, tmp_path):
@@ -1358,11 +1429,11 @@ class TestClearCache:
             resource=str(output), dataFormat="parquet", type=TYPE_VTK_FILTER, desc=desc
         )
         query = dictToMongoQuery(
-            registered._buildFilterQuery(filterName="ExtractBlock.slice", regularMesh=False)
+            registered._buildFilterQuery(filter_name="ExtractBlock.slice", regularMesh=False)
         )
         assert len(of.getCacheDocuments(type=TYPE_VTK_FILTER, **query)) == 1
 
-        registered.clearCache(regularMesh=False, filterName="ExtractBlock.slice")
+        registered.clearCache(regularMesh=False, filter_name="ExtractBlock.slice")
 
         assert len(of.getCacheDocuments(type=TYPE_VTK_FILTER)) == 1
         assert output.exists()
@@ -1392,7 +1463,7 @@ class TestClearCache:
         monkeypatch.setattr(
             type(registered.datalayer), "deleteSimulationsDocuments", lambda self, **kwargs: [doc]
         )
-        registered.clearCache(filterName="ExtractBlock.slice")
+        registered.clearCache(filter_name="ExtractBlock.slice")
         assert not output.exists()
 
     def test_a_document_written_by_this_class_currently_raises_on_clear(
@@ -1411,7 +1482,7 @@ class TestClearCache:
             type(registered.datalayer), "deleteSimulationsDocuments", lambda self, **kwargs: [doc]
         )
         with pytest.raises(KeyError, match="workflowName"):
-            registered.clearCache(filterName="ExtractBlock.slice")
+            registered.clearCache(filter_name="ExtractBlock.slice")
         assert output.exists()
 
 
@@ -1431,22 +1502,22 @@ class TestBuildFilterLayer:
 
     def test_it_returns_the_full_names_of_the_filters_it_created(self, registered, paraviewLog):
         names = registered._buildFilterLayer(
-            None, "READER", registered.vtkpipeline.toJSON()["filters"]
+            None, "READER", registered.vtkpipeline.to_json()["filters"]
         )
         assert names == ["ExtractBlock", "ExtractBlock.slice"]
 
     def test_each_filter_is_instantiated_by_its_paraview_type_name(self, registered, paraviewLog):
-        registered._buildFilterLayer(None, "READER", registered.vtkpipeline.toJSON()["filters"])
+        registered._buildFilterLayer(None, "READER", registered.vtkpipeline.to_json()["filters"])
         created = [(entry[1], entry[2]) for entry in paraviewLog if entry[0] == "create"]
         assert created == [("ExtractBlock", "ExtractBlock"), ("Slice", "ExtractBlock.slice")]
 
     def test_a_root_filter_is_wired_to_the_father_it_was_given(self, registered, paraviewLog):
-        registered._buildFilterLayer(None, "READER", registered.vtkpipeline.toJSON()["filters"])
+        registered._buildFilterLayer(None, "READER", registered.vtkpipeline.to_json()["filters"])
         rootCreate = [entry for entry in paraviewLog if entry[0] == "create"][0]
         assert rootCreate[3] == "READER"
 
     def test_a_downstream_filter_is_wired_to_its_father_proxy(self, registered, paraviewLog):
-        registered._buildFilterLayer(None, "READER", registered.vtkpipeline.toJSON()["filters"])
+        registered._buildFilterLayer(None, "READER", registered.vtkpipeline.to_json()["filters"])
         creates = [entry for entry in paraviewLog if entry[0] == "create"]
         fatherProxy = creates[1][3]
         assert isinstance(fatherProxy, _RecordingProxy)
@@ -1454,12 +1525,12 @@ class TestBuildFilterLayer:
 
     def test_a_father_name_prefixes_the_gui_names(self, registered, paraviewLog):
         names = registered._buildFilterLayer(
-            "root", "READER", registered.vtkpipeline.toJSON()["filters"]
+            "root", "READER", registered.vtkpipeline.to_json()["filters"]
         )
         assert names == ["root.ExtractBlock", "root.ExtractBlock.slice"]
 
     def test_the_parameters_are_applied_in_the_declared_order(self, registered, paraviewLog):
-        registered._buildFilterLayer(None, "READER", registered.vtkpipeline.toJSON()["filters"])
+        registered._buildFilterLayer(None, "READER", registered.vtkpipeline.to_json()["filters"])
         sets = [entry for entry in paraviewLog if entry[0] == "set"]
         assert sets == [
             ("set", "ExtractBlock", "Selectors", []),
@@ -1475,21 +1546,19 @@ class TestBuildFilterLayer:
         registered._buildFilterLayer(None, "READER", structure)
         assert ("set", "s.a.b", "c", 5) in paraviewLog
 
-    def test_every_filter_is_updated_after_its_parameters_are_set(self, registered, paraviewLog):
-        registered._buildFilterLayer(None, "READER", registered.vtkpipeline.toJSON()["filters"])
-        assert [entry for entry in paraviewLog if entry[0] == "update"] == [
-            ("update", "ExtractBlock"),
-            ("update", "ExtractBlock.slice"),
-        ]
+    def test_building_the_layer_does_not_force_any_filter_to_update(self, registered, paraviewLog):
+        """#1137 dropped the per-filter ``UpdatePipeline()``: ParaView runs
+        the tree lazily when ``_readTimeStep`` updates the sink at a time."""
+        registered._buildFilterLayer(None, "READER", registered.vtkpipeline.to_json()["filters"])
+        assert [entry for entry in paraviewLog if entry[0] == "update"] == []
 
-    def test_a_father_is_created_and_updated_before_its_child(self, registered, paraviewLog):
-        registered._buildFilterLayer(None, "READER", registered.vtkpipeline.toJSON()["filters"])
-        order = [(entry[0], entry[1]) for entry in paraviewLog if entry[0] in ("create", "update")]
-        assert order == [
+    def test_a_father_is_created_and_configured_before_its_child(self, registered, paraviewLog):
+        registered._buildFilterLayer(None, "READER", registered.vtkpipeline.to_json()["filters"])
+        order = [(entry[0], entry[1]) for entry in paraviewLog if entry[0] in ("create", "set")]
+        assert order[:3] == [
             ("create", "ExtractBlock"),
-            ("update", "ExtractBlock"),
+            ("set", "ExtractBlock"),
             ("create", "Slice"),
-            ("update", "ExtractBlock.slice"),
         ]
 
     def test_siblings_are_built_in_declaration_order(self, registered, paraviewLog):
@@ -1517,33 +1586,32 @@ class TestBuildFilterLayer:
 
 @pytest.fixture()
 def paraviewExecution(monkeypatch, paraviewLog):
-    """Patch the two ParaView entry points of paraviewOpenFOAM and record them.
+    """Record ``ParaviewOpenFOAM.writeCase`` (the reader is ``paraviewReaders``).
 
-    ``initializeReader``/``writeCase`` dereference a ``pvsimple`` name that
-    is never bound in ``pvOpenFOAMBase`` when ``vtkmodules`` is missing, so
-    the real ones cannot run here at all.  The recorder is the observable.
+    ``writeCase`` calls into a ``pvsimple`` that is only the empty stub in
+    ``pvopenfoam`` when ``vtkmodules`` is missing, so the real one cannot
+    run here at all.  The recorder is the observable.
     """
-    calls = {"readers": [], "writeCase": []}
-
-    def _initializeReader(self, readerName="reader"):
-        calls["readers"].append(readerName)
-        return _RecordingProxy(paraviewLog, f"__{readerName}__")
+    calls = {"writeCase": []}
 
     def _writeCase(self, **kwargs):
         calls["writeCase"].append(kwargs)
 
-    monkeypatch.setattr(paraviewOpenFOAM, "initializeReader", _initializeReader)
-    monkeypatch.setattr(paraviewOpenFOAM, "writeCase", _writeCase)
+    monkeypatch.setattr(ParaviewOpenFOAM, "writeCase", _writeCase)
     return calls
 
 
 @pytest.mark.unit
 class TestBuildAndExecuteParaViewPipeline:
-    def test_it_creates_the_reader_named_reader(self, registered, paraviewExecution):
+    def test_it_reuses_the_reader_named_reader_built_at_registration(
+        self, registered, paraviewExecution, paraviewReaders
+    ):
+        """Since #1137 the reader is built once, by ``ParaviewOpenFOAM.__init__``."""
+        assert paraviewReaders.names == ["reader"]
         registered._buildAndExecuteParaViewPipeline(
             ["ExtractBlock.slice"], {"ExtractBlock.slice": "/out.parquet"}, [0.0], None, False, False
         )
-        assert paraviewExecution["readers"] == ["reader"]
+        assert paraviewReaders.names == ["reader"]
 
     def test_the_root_filters_are_wired_to_the_reader(self, registered, paraviewExecution, paraviewLog):
         registered._buildAndExecuteParaViewPipeline(
@@ -1644,9 +1712,6 @@ def executedPipeline(registered, monkeypatch, paraviewLog):
         type(registered.datalayer), "getTimeList", lambda self, *args, **kwargs: [0.0, 10.0]
     )
 
-    def _initializeReader(self, readerName="reader"):
-        return _RecordingProxy(paraviewLog, f"__{readerName}__")
-
     def _writeCase(self, **kwargs):
         calls["writeCase"].append(kwargs)
         for filterName, outputPath in kwargs["filtersDict"].items():
@@ -1655,8 +1720,7 @@ def executedPipeline(registered, monkeypatch, paraviewLog):
                 outputPath
             )
 
-    monkeypatch.setattr(paraviewOpenFOAM, "initializeReader", _initializeReader)
-    monkeypatch.setattr(paraviewOpenFOAM, "writeCase", _writeCase)
+    monkeypatch.setattr(ParaviewOpenFOAM, "writeCase", _writeCase)
     return registered, calls
 
 
@@ -1698,12 +1762,12 @@ class TestGetData:
 
     def test_an_explicit_time_list_is_honoured(self, executedPipeline):
         registered, calls = executedPipeline
-        registered.getData(regularMesh=False, timeList=[10.0])
+        registered.getData(regularMesh=False, time_list=[10.0])
         assert calls["writeCase"][0]["timeList"] == [10.0]
 
     def test_a_single_named_filter_overrides_the_write_flags(self, executedPipeline):
         registered, calls = executedPipeline
-        result = registered.getData(regularMesh=False, filterName="ExtractBlock")
+        result = registered.getData(regularMesh=False, filter_name="ExtractBlock")
         assert list(result) == ["ExtractBlock"]
         assert list(calls["writeCase"][0]["filtersDict"]) == ["ExtractBlock"]
 
@@ -1743,13 +1807,13 @@ class TestGetData:
         """
         registered, calls = executedPipeline
         registered.getData(regularMesh=False)
-        registered.getData(regularMesh=False, filterName=["ExtractBlock.slice", "ghost"])
+        registered.getData(regularMesh=False, filter_name=["ExtractBlock.slice", "ghost"])
 
         assert calls["writeCase"][1]["timeList"] == []
         ghost = [
             doc
             for doc in of.getCacheDocuments(type=TYPE_VTK_FILTER)
-            if doc.desc["filterName"] == "ghost"
+            if os.path.basename(doc.resource) == "ghost_0.parquet"
         ]
         assert len(ghost) == 1
         assert ghost[0].desc["simulation"]["timeList"] == []
@@ -1761,7 +1825,7 @@ class TestGetDataWrappers:
     def recordedGetData(self, monkeypatch):
         calls = []
         monkeypatch.setattr(
-            registeredVTKPipeLine, "getData", lambda self, **kwargs: calls.append(kwargs)
+            RegisteredVTKPipeLine, "getData", lambda self, **kwargs: calls.append(kwargs)
         )
         return calls
 
@@ -1775,18 +1839,18 @@ class TestGetDataWrappers:
 
     def test_get_regular_data_forwards_every_argument_it_takes(self, registered, recordedGetData):
         registered.getRegularData(
-            filterName="f", timeList=[1.0], fieldNames=["U"], overwrite=True
+            filter_name="f", timeList=[1.0], fieldNames=["U"], overwrite=True
         )
         assert recordedGetData[0] == dict(
-            regularMesh=True, filterName="f", timeList=[1.0], fieldNames=["U"], overwrite=True
+            regularMesh=True, filter_name="f", time_list=[1.0], fieldNames=["U"], overwrite=True
         )
 
     def test_get_non_regular_data_forwards_every_argument_it_takes(self, registered, recordedGetData):
         registered.getNonRegularData(
-            filterName="f", timeList=[1.0], fieldNames=["U"], overwrite=True
+            filter_name="f", timeList=[1.0], fieldNames=["U"], overwrite=True
         )
         assert recordedGetData[0] == dict(
-            regularMesh=False, filterName="f", timeList=[1.0], fieldNames=["U"], overwrite=True
+            regularMesh=False, filter_name="f", time_list=[1.0], fieldNames=["U"], overwrite=True
         )
 
     def test_neither_wrapper_exposes_the_latest_time_flag(self, registered, recordedGetData):

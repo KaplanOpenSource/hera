@@ -1,12 +1,17 @@
-import pandas
-import os
 import glob
+import os
+
+import pandas
 import tqdm
-from ....utils.logging import get_classMethod_logger
-from .. import FIELDTYPE_VECTOR,  FIELDTYPE_SCALAR
-from PyFoam.RunDictionary.ParsedParameterFile import ParsedParameterFile,WriteParameterFile
+from PyFoam.Basics.DataStructures import DictProxy, Dimension, Field, Tensor, Vector
 from PyFoam.RunDictionary.BoundaryDict import BoundaryDict
-from PyFoam.Basics.DataStructures import Field,Vector,Tensor,DictProxy,Dimension
+from PyFoam.RunDictionary.ParsedParameterFile import (
+    ParsedParameterFile,
+    WriteParameterFile,
+)
+
+from ....utils.logging import get_classMethod_logger
+from .. import FIELDTYPE_SCALAR, FIELDTYPE_VECTOR
 from .OFObject import OFObject
 from .utils import ParsedParameterFileToDataFrame
 
@@ -301,9 +306,15 @@ class OFField(OFObject):
 
                     self.data[os.path.basename(proc)] = retDict
         except FileNotFoundError as e:
-            err = f"File not found, initializing as an empty field: {e} "
+            err = f"File not found: {e}"
             logger.warning(err)
-            raise ValueError("Field not found")
+            # If reading in parallel mode and the case directory is empty, fall back to a single processor empty field.
+            if readParallel:
+                self.initialize(noOfProc=None)
+                self.parallel = False
+                return
+            # Otherwise, propagate as a missing field error.
+            raise ValueError("Field not found") from e
 
     def readFromCase(self, caseDirectory, timeStep=0, readParallel=True):
         """
@@ -361,9 +372,15 @@ class OFField(OFObject):
                         os.path.join(proc, str(timeStep), self.fileName))})
 
         except FileNotFoundError as e:
-            err = f"File not found, initializing as an empty field: {e} "
+            err = f"File not found: {e}"
             logger.warning(err)
-            raise ValueError("Field not found")
+            # If reading in parallel mode and the case directory is empty, fall back to a single processor empty field.
+            if readParallel:
+                self.initialize(noOfProc=None)
+                self.parallel = False
+                return
+            # Otherwise, propagate as a missing field error.
+            raise ValueError("Field not found") from e
 
     def setFieldFromDataFrame(self,fieldDataFrame):
         """
@@ -378,6 +395,9 @@ class OFField(OFObject):
         logger = get_classMethod_logger(self,"setFieldFromDataFrame")
         if 'processor' in fieldDataFrame.columns:
             logger.info("updating field as parallel")
+            # Reset data to avoid retaining singleProcessor entry from previous state
+            self.data = {}
+            self.parallel = True
             for procName,procData in fieldDataFrame.groupby("processor"):
                 internalData = fieldDataFrame.query(f"processor=={procName}")
                 self.data[f"processor{procName}"] = self._processorToPyFoam(internalData,processorName=f"processor{procName}")
@@ -429,16 +449,29 @@ class OFField(OFObject):
 
         logger.info("Setting boundary field")
         boundaryDict = DictProxy()
-        for boundaryName, boundaryData in self.data[processorName]['boundaryField'].items():
+        existing_boundary = {}
+        if processorName in self.data:
+            proc_obj = self.data[processorName]
+            # WriteParameterFile behaves like a dict for item access but lacks .get()
+            # Use [] access safely; if key missing, default to empty dict
+            try:
+                existing_boundary = proc_obj['boundaryField']
+            except Exception:
+                existing_boundary = {}
+        for boundaryName, boundaryData in existing_boundary.items():
             logger.debug(f"Setting the boundary {boundaryName} to existing value")
             boundaryDict[boundaryName] = boundaryData
 
-        for boundaryName, boundaryData in processordataFrame.query("region=='boundaryField'").groupby("boundary"):
-            logger.debug(f"Setting the boundary {boundaryName} to new  value. data of length {len(boundaryData)}")
-            boundaryValue = DictProxy()
-            boundaryValue['type'] = 'fixedValue'
-            boundaryValue['value'] = dataframeToField(boundaryData)
-            boundaryDict[boundaryName] = boundaryValue
+        # Process boundary fields if present
+        if "boundary" in processordataFrame.columns:
+            for boundaryName, boundaryData in processordataFrame.query("region=='boundaryField'").groupby("boundary"):
+                logger.debug(f"Setting the boundary {boundaryName} to new  value. data of length {len(boundaryData)}")
+                boundaryValue = DictProxy()
+                boundaryValue['type'] = 'fixedValue'
+                boundaryValue['value'] = dataframeToField(boundaryData)
+                boundaryDict[boundaryName] = boundaryValue
+        else:
+            logger.debug("No boundary column present; skipping boundary processing.")
 
         if self.parallel:
             processorValue = DictProxy()

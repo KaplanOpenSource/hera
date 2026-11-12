@@ -22,11 +22,16 @@ RUN python3 -m venv "$VIRTUAL_ENV" && \
 
 # Set working directory and copy project files (exclude .venv, .git via .dockerignore)
 WORKDIR /app
-COPY requirements.txt .
+COPY requirements.txt requirements-minimal.txt scripts/minimal_requirements.py ./
 
-# Install Python dependencies, then the GDAL binding built against the system
-# libgdal (same recipe as `make install-deps`; numpy must already be present).
-RUN python -m pip install --no-cache-dir -r requirements.txt && \
+# Which dependency set to install; requirements-minimal.txt builds much faster.
+ARG REQUIREMENTS=requirements.txt
+
+# Install Python dependencies, with every version taken from requirements.txt,
+# then the GDAL binding built against the system libgdal (same recipe as
+# `make install-deps`; numpy must already be present).
+RUN python minimal_requirements.py requirements.txt "$REQUIREMENTS" > /tmp/req.txt && \
+    python -m pip install --no-cache-dir -r /tmp/req.txt && \
     python -m pip install --no-cache-dir --no-build-isolation GDAL=="$(gdal-config --version)"
 
 # ParaView for the OpenFOAM VTK pipeline: same recipe as `make install-paraview`.

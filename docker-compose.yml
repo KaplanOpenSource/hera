@@ -44,6 +44,8 @@ services:
     build:
       context: .
       dockerfile: dockerfile
+      args:
+        REQUIREMENTS: ${REQUIREMENTS:-requirements.txt}
     image: hera-server
     depends_on:
       mongo:

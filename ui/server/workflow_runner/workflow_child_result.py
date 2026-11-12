@@ -37,7 +37,7 @@ WorkflowMessage = Union[WorkflowOutput, WorkflowDone, WorkflowError]
 
 
 class WorkflowRunResult(NamedTuple):
-    """What ``WorkflowRunner.run`` returns to its caller: the per-task chunks (with
+    """What ``ActiveWorkflowRunOne.run`` returns to its caller: the per-task chunks (with
     the timing line as a final chunk) and the dispatch id (None if unused)."""
 
     dispatch_id: Optional[str]

@@ -30,7 +30,7 @@ lf.presentation.dailyPlots.plotProbContourf(enriched, plotField="TD")
 lf.presentation.seasonalPlots.plotProbContourf_bySeason(enriched, plotField="TD")
 ```
 
-For the full API, see the [API Reference](../../developer_guide/api/measurements.md).
+For the full API, see the [API Reference](../../../developer_guide/api/measurements.md).
 
 ---
 
@@ -41,7 +41,7 @@ For the full API, see the [API Reference](../../developer_guide/api/measurements
 | File format | Parquet (`dataFormat: "parquet"`) |
 | Index | `DatetimeIndex` (time series) |
 | Frequency | 10-minute to hourly |
-| `docType` | `lowFreqMeteorology_LowFreqData` |
+| Document type | `ToolkitDataSource` (registered with `lf.addDataSource(...)`) |
 
 Column names come from the station data itself and are not fixed by the
 toolkit — every analysis and plotting method takes the column to work on as an
@@ -132,20 +132,27 @@ Two groups of plots hang off the presentation layer:
 
 All of them plot the chosen field against hour-of-day (0–24).
 
+Every plot first calls `data.set_index("datetime")`, so the DataFrame must have a
+`datetime` column **or** an index already named `datetime`; otherwise it raises
+`Exception("No column 'datetime' in dataframe.!")`. Dask inputs are computed to
+pandas first.
+
 ### `dailyPlots.plotScatter(data, plotField, ax=None, scatter_properties={}, ax_functions_properties={})`
 
-Scatter of `plotField` against time of day, via `seaborn.scatterplot`.
+Scatter of `plotField` against time of day, via `seaborn.scatterplot`. Returns `ax`.
 `scatter_properties` updates the keyword arguments passed to seaborn;
 `ax_functions_properties` adds or replaces the functions applied to the axes.
 
 ### `dailyPlots.dateLinePlot(data, plotField, date, legend=True, ax=None, line_properties={}, ax_functions_properties={})`
 
 Line plot of `plotField` across a single day. `date` is a `'YYYY-MM-DD'` string.
+Returns `(ax, line)`.
 
 ### `dailyPlots.plotProbContourf(data, plotField, levels=None, scatter=True, withLabels=True, colorbar=True, Cmapname='jet', ax=None, ..., normalization='max_normalized')`
 
 Filled probability contour of `plotField` against hour-of-day. Note that the
 default normalization here is `'max_normalized'`, unlike `calcHourlyDist`.
+Returns `(CS, CFS, ax)` — the contour set, the filled-contour set and the axes.
 
 | Argument | Meaning |
 |----------|---------|
@@ -160,8 +167,8 @@ default normalization here is `'max_normalized'`, unlike `calcHourlyDist`.
 ### `seasonalPlots.plotProbContourf_bySeason(data, plotField, ..., figsize=[15, 10])`
 
 Applies `plotProbContourf` once per season on a shared figure. Takes the same
-arguments plus `figsize`, and requires the `season` column produced by
-`addDatesColumns`.
+arguments plus `figsize`, and splits the data by the `monthonly` column produced by
+`addDatesColumns` (so call it with the default `monthcolumn=None`). Returns `ax`.
 
 ---
 

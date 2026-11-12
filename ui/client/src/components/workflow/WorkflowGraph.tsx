@@ -14,11 +14,13 @@ import { WorkflowFlowNode } from './WorkflowFlowNode';
 import { WorkflowNodeDeleteButton } from './WorkflowNodeDeleteButton';
 import { WorkflowNodeListPanel } from './WorkflowNodeListPanel';
 import { WorkflowNodePinButton } from './WorkflowNodePinButton';
+import { WorkflowNodePopupButton } from './WorkflowNodePopupButton';
+import { WorkflowNodeDialog } from './WorkflowNodeDialog';
 import { WorkflowRequiresEdge } from './WorkflowRequiresEdge';
 import { buildWorkflowEdges } from './workflowEdges';
 import { buildDataflowEdges } from './workflowDataflow';
 import { WorkflowInlineReference } from './WorkflowInlineReference';
-import { displayFlowNodes, flowStructureKey } from './workflowFlowNodesUtils';
+import { displayFlowNodes, FlowNodeHandlers, flowStructureKey } from './workflowFlowNodesUtils';
 import { useInlineReference } from './useInlineReference';
 import { useWorkflowCanvasNodes } from './useWorkflowCanvasNodes';
 import { NodeRunStatusMap } from './nodeRunStatus';
@@ -51,6 +53,8 @@ interface WorkflowGraphProps {
   onAddRequire: (source: string, target: string) => void;
   onRemoveRequire: (source: string, target: string) => void;
   onDeleteNode: (name: string) => void;
+  // A past run's saved graph: shown, never edited.
+  readOnly?: boolean;
 }
 
 // Node graph view of a workflow: one node per workflow node, edges from the
@@ -74,6 +78,7 @@ const WorkflowGraph = ({
   onAddRequire,
   onRemoveRequire,
   onDeleteNode,
+  readOnly,
 }: WorkflowGraphProps) => {
   const theme = useTheme();
   const [menu, setMenu] = useState<WorkflowContextMenuTarget | null>(null);
@@ -82,6 +87,8 @@ const WorkflowGraph = ({
   // Those show their editor; the rest stay small.
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [pinnedNodes, setPinnedNodes] = useState<string[]>([]);
+  // The node shown in the pop-up, if any.
+  const [popupNode, setPopupNode] = useState<string | null>(null);
   // Dataflow dependencies (an input referencing another node's output) — used
   // both to draw the lines and to order the columns, alongside `requires`.
   const dataflowDeps = buildDataflowEdges(nodeNames, nodes, catalog);
@@ -113,6 +120,23 @@ const WorkflowGraph = ({
   // The {…} reference autocomplete on a node's parameter fields.
   const { inline, closeInline, handleInlineEdit, pickInline } = useInlineReference({ nodes, references, onSetNode });
 
+  // What a node's editor reports back, on the canvas and in the pop-up alike.
+  const handlers: FlowNodeHandlers = {
+    onRename: onRenameNode,
+    onChange: onSetNode,
+    onFieldContextMenu: (name, param, x, y, caret) =>
+      setMenu({ kind: WorkflowContextMenuKind.Field, node: name, param, x, y, caret }),
+    onFieldInlineEdit: (name, param, value, caret, el) => handleInlineEdit(name, param, value, caret, el),
+  };
+
+  // A rename from the pop-up keeps the pop-up on the node; a taken name is refused.
+  const renamePopupNode = (oldName: string, newName: string) => {
+    onRenameNode(oldName, newName);
+    if (!nodeNames.includes(newName)) {
+      setPopupNode(newName);
+    }
+  };
+
   const displayNodes = displayFlowNodes({
     rfNodes,
     nodes,
@@ -128,16 +152,11 @@ const WorkflowGraph = ({
     actionButtons: (name: string) => (
       <>
         <WorkflowNodePinButton pinned={pinnedNodes.includes(name)} onToggle={() => togglePin(name)} />
-        <WorkflowNodeDeleteButton onDelete={() => onDeleteNode(name)} />
+        <WorkflowNodePopupButton onOpen={() => setPopupNode(name)} />
+        {!readOnly && <WorkflowNodeDeleteButton onDelete={() => onDeleteNode(name)} />}
       </>
     ),
-    handlers: {
-      onRename: onRenameNode,
-      onChange: onSetNode,
-      onFieldContextMenu: (name, param, x, y, caret) =>
-        setMenu({ kind: WorkflowContextMenuKind.Field, node: name, param, x, y, caret }),
-      onFieldInlineEdit: (name, param, value, caret, el) => handleInlineEdit(name, param, value, caret, el),
-    },
+    handlers,
   });
 
   const rfEdges = useMemo<Edge[]>(() => buildWorkflowEdges(nodeNames, nodes), [flowStructureKey(nodeNames, nodes, dataflowDeps)]);
@@ -154,6 +173,12 @@ const WorkflowGraph = ({
     referenceOptions = references.optionsFor(menu.node);
   }
 
+  // Backspace deletes the picked node or edge, except on a read-only graph.
+  let deleteKeyCode: string | null = 'Backspace';
+  if (readOnly) {
+    deleteKeyCode = null;
+  }
+
   return (
     <Box ref={containerRef} sx={{ flex: 1, minHeight: 200, ml: -2, mr: -2, mb: -2, borderTop: '1px solid', borderColor: 'divider' }}>
       <ReactFlow
@@ -163,6 +188,8 @@ const WorkflowGraph = ({
         nodeTypes={NODE_TYPES}
         edgeTypes={EDGE_TYPES}
         onNodesChange={onNodesChange}
+        nodesConnectable={!readOnly}
+        deleteKeyCode={deleteKeyCode}
         onConnect={connection => edits.connect(connection)}
         onEdgesDelete={deleted => edits.removeEdges(deleted)}
         isValidConnection={connection => edits.canConnect(connection)}
@@ -170,10 +197,18 @@ const WorkflowGraph = ({
         fitViewOptions={{ maxZoom: FIT_MAX_ZOOM }}
         onNodeClick={(_e, node) => onSelectNode(node.id)}
         onPaneClick={() => { onSelectNode(undefined); closeInline(); }}
-        onEdgeMouseEnter={(_e, edge) => setHoveredEdge(edge.id)}
+        onEdgeMouseEnter={(_e, edge) => {
+          // The hovered edge shows its remove button, so a read-only graph never hovers one.
+          if (!readOnly) {
+            setHoveredEdge(edge.id);
+          }
+        }}
         onEdgeMouseLeave={() => setHoveredEdge(null)}
         onNodeContextMenu={(event, node) => {
           event.preventDefault();
+          if (readOnly) {
+            return;
+          }
           setMenu({ kind: WorkflowContextMenuKind.Node, name: node.id, x: event.clientX, y: event.clientY });
         }}
         onNodeMouseEnter={(_event, node) => {
@@ -186,6 +221,9 @@ const WorkflowGraph = ({
         }}
         onEdgeContextMenu={(event, edge) => {
           event.preventDefault();
+          if (readOnly) {
+            return;
+          }
           setMenu({ kind: WorkflowContextMenuKind.Edge, source: edge.source, target: edge.target, x: event.clientX, y: event.clientY });
         }}
       >
@@ -196,15 +234,29 @@ const WorkflowGraph = ({
           onPickNode={name => onPickNode?.(name)}
           onTogglePin={togglePin}
           onDeleteNode={onDeleteNode}
+          readOnly={readOnly}
         />
         <WorkflowCanvasToolbar
           actionButtons={actionButtons}
           onAddNode={onAddNode}
           onApplyTemplate={onApplyTemplate}
+          readOnly={readOnly}
         />
         <Background />
         <Controls />
       </ReactFlow>
+      {popupNode !== null && nodes[popupNode] && (
+        <WorkflowNodeDialog
+          name={popupNode}
+          node={nodes[popupNode]}
+          catalog={catalog}
+          onClose={() => setPopupNode(null)}
+          onRename={newName => renamePopupNode(popupNode, newName)}
+          onChange={updated => onSetNode(popupNode, updated)}
+          onFieldContextMenu={(param, x, y, caret) => handlers.onFieldContextMenu(popupNode, param, x, y, caret)}
+          onFieldInlineEdit={(param, value, caret, el) => handlers.onFieldInlineEdit(popupNode, param, value, caret, el)}
+        />
+      )}
       <WorkflowContextMenu
         menu={menu}
         referenceOptions={referenceOptions}

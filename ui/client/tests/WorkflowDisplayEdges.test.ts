@@ -22,6 +22,14 @@ describe('WorkflowDisplayEdges', () => {
     expect(edges[0].targetHandle).toBe('B:req-in');
   });
 
+  it('labels the ends of a requires edge only', () => {
+    const edges = WorkflowDisplayEdges.hovering(null)
+      .withRequires([requiresEdge], vi.fn())
+      .withDataflow([dataflowEdge], 'blue', vi.fn(), ['B'])
+      .all();
+    expect(edges.map((edge) => { return edge.data!.showDirection; })).toEqual([true, undefined]);
+  });
+
   it('keeps both kinds, requires first', () => {
     const edges = WorkflowDisplayEdges.hovering(null)
       .withRequires([requiresEdge], vi.fn())
@@ -63,24 +71,28 @@ describe('WorkflowDisplayEdges', () => {
     expect(edges[0].targetHandle).toBe('B:in:param');
   });
 
-  // A collapsed node shows no parameter rows, so there is no row handle to land
-  // on; the line goes to the node's own edge instead of vanishing.
   it('keeps the row handles of both ends when both are expanded', () => {
     const edges = WorkflowDisplayEdges.hovering(null).withDataflow([dataflowEdge], 'blue', vi.fn(), ['A', 'B']).all();
     expect(edges[0].sourceHandle).toBe('A:out:out');
     expect(edges[0].targetHandle).toBe('B:in:param');
   });
 
-  it('lands a line on the node edge while its target is collapsed', () => {
+  it('keeps the row handles while both ends are collapsed', () => {
     const edges = WorkflowDisplayEdges.hovering(null).withDataflow([dataflowEdge], 'blue', vi.fn(), []).all();
-    expect(edges[0].targetHandle).toBe('B:req-in');
-    expect(edges[0].sourceHandle).toBe('A:req-out');
+    expect(edges[0].sourceHandle).toBe('A:out:out');
+    expect(edges[0].targetHandle).toBe('B:in:param');
   });
 
-  it('leaves a collapsed source on the node edge while the target is expanded', () => {
-    const edges = WorkflowDisplayEdges.hovering(null).withDataflow([dataflowEdge], 'blue', vi.fn(), ['B']).all();
-    expect(edges[0].sourceHandle).toBe('A:req-out');
-    expect(edges[0].targetHandle).toBe('B:in:param');
+  it('lands a line into a nested value of a collapsed node on its top-level row', () => {
+    const nested = { ...dataflowEdge, targetHandle: 'B:in:Parameters.project_name' };
+    const edges = WorkflowDisplayEdges.hovering(null).withDataflow([nested], 'blue', vi.fn(), []).all();
+    expect(edges[0].targetHandle).toBe('B:in:Parameters');
+  });
+
+  it('keeps the nested row handle while the target is expanded', () => {
+    const nested = { ...dataflowEdge, targetHandle: 'B:in:Parameters.project_name' };
+    const edges = WorkflowDisplayEdges.hovering(null).withDataflow([nested], 'blue', vi.fn(), ['B']).all();
+    expect(edges[0].targetHandle).toBe('B:in:Parameters.project_name');
   });
 
   it('leaves the earlier instance untouched', () => {

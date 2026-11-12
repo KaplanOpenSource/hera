@@ -1,26 +1,15 @@
 import { Tooltip, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
-import { BASEURL } from '../../shared/baseurl';
+import { serverApi } from '../../api/api';
 
 export const CorsIndicator = () => {
   const [origins, setOrigins] = useState<string[] | null>(null);
 
   useEffect(() => {
     (async () => {
-      try {
-        const resp = await fetch(`${BASEURL}/cors`);
-        const text = await resp.text();
-        try {
-          const data = JSON.parse(text);
-          console.log('CORS response:', data);
-          if (data.origins) {
-            setOrigins(data.origins);
-          }
-        } catch {
-          console.log('CORS response is not JSON:', text.replace(/\s+/g, ' '));
-        }
-      } catch (e) {
-        console.log('CORS fetch failed:', e);
+      const data = await serverApi.cors();
+      if (data?.origins) {
+        setOrigins(data.origins);
       }
     })();
   }, []);

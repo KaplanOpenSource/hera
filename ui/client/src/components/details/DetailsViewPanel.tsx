@@ -4,6 +4,7 @@ import { classifyItemId, idFromDocId, idFromRepoId, ItemKind, toolkitNameFromSpl
 import { DetailsViewDocId } from './DetailsViewDocId';
 import { DetailsViewMergedRepo } from './DetailsViewMergedRepo';
 import { DetailsViewRepo } from './DetailsViewRepo';
+import { ProjectFilesView } from './ProjectFilesView';
 import { DetailsViewToolkit } from './toolkit/DetailsViewToolkit';
 
 export { detailsTabName } from '../../shared/tabKind';
@@ -23,6 +24,10 @@ export const DetailsViewPanel = ({
         <DetailsViewMergedRepo />
       </Box>
     )
+  }
+
+  if (kind === ItemKind.Files) {
+    return <ProjectFilesView project={project} />
   }
 
   if (kind === ItemKind.Split) {

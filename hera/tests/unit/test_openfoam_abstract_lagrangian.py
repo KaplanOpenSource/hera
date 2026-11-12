@@ -96,8 +96,9 @@ passing characterisation of what happens today):
   that does not exist anywhere in hera.
 * B331 ``_checkDBConsistency`` calls ``toolkit.compareWorkflowsObj``; the
   real name has no ``s``.
-* B332 the module's star-import shadows the builtin ``min`` with the unum
-  minute unit, killing ``_buildTimeMapping``'s nearest-timestep selection.
+* B332 (fixed upstream by #1137) the module's star-import shadowed the
+  builtin ``min`` with the unum minute unit, killing ``_buildTimeMapping``'s
+  nearest-timestep selection.
 """
 import glob
 import os
@@ -487,12 +488,6 @@ class TestBuildTimeMapping:
             ext.toolkit.TIME_DYNAMIC, [0.0, 5.0, 500.0], None, 100)
         assert timeList == [("0", "0"), ("5", "5"), ("500", "500")]
 
-    def test_a_requested_timestep_is_currently_unusable(self, ext):
-        """Characterisation of B332."""
-        with pytest.raises(TypeError, match="not callable"):
-            ext._buildTimeMapping(
-                ext.toolkit.TIME_STEADYSTATE, [0.0, 100.0, 400.0], 120, 60)
-
     def test_an_unknown_temporal_type_raises_and_names_both_valid_ones(self, ext):
         with pytest.raises(ValueError) as caught:
             ext._buildTimeMapping("someNonsense", [0.0], None, 10)
@@ -502,70 +497,25 @@ class TestBuildTimeMapping:
 
 
 # ===========================================================================
-# B332: the star-import shadows the builtin min
+# B332, fixed upstream: an explicit timeStep snaps to the nearest one
 # ===========================================================================
 
 @pytest.mark.unit
-class TestBuiltinMinIsShadowed:
-    def test_the_module_global_named_min_is_a_unit_not_the_builtin(self):
-        """Characterisation of B332, at its source."""
-        import builtins
+class TestAnExplicitTimestepSnapsToTheNearestOne:
+    """B332: a star-import used to shadow the builtin ``min`` with the unum
+    minute unit, so any explicit ``timeStep`` raised TypeError.  #1137
+    replaced the star-import with ``ureg``."""
 
-        shadowed = vars(mod)["min"]
-        assert shadowed is not builtins.min
-        assert not callable(shadowed)
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B332: the module does `from hera.utils.unitHandler import *`, "
-               "and that module re-exports the unum unit table, whose entry "
-               "for the minute is literally named `min`. It therefore binds a "
-               "unum.Unum over the builtin `min` in this module's globals. "
-               "_buildTimeMapping's only two uses of it -- "
-               "TS[min(range(len(TS)), key=lambda i: abs(TS[i] - timeStep))], "
-               "once in the steadyState branch and once in the dynamic one -- "
-               "are exactly the code that honours an explicit `timeStep` in "
-               "flowData['originalFlow'], so passing one raises "
-               "TypeError: 'Unum' object is not callable and only the "
-               "first/last-timestep defaults can ever be used. See the "
-               "consolidated findings issue.")
-    def test_steady_state_should_snap_to_the_nearest_available_timestep(self, ext):
+    def test_steady_state_snaps_to_the_nearest_available_timestep(self, ext):
         timeList, chosen = ext._buildTimeMapping(
             ext.toolkit.TIME_STEADYSTATE, [0.0, 100.0, 400.0], 120, 60)
         assert chosen == 100.0
         assert timeList == [("100", "0"), ("100", "60")]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B332, second call site: the dynamic branch's nearest-timestep "
-               "selection uses the same shadowed `min`. See the consolidated "
-               "findings issue.")
-    def test_dynamic_should_drop_timesteps_before_the_requested_start(self, ext):
+    def test_dynamic_drops_timesteps_before_the_requested_start(self, ext):
         timeList, _ = ext._buildTimeMapping(
             ext.toolkit.TIME_DYNAMIC, [0.0, 10.0, 20.0], 10, 10)
         assert timeList == [("10", "0"), ("20", "10")]
-
-    def test_the_dynamic_branch_raises_the_same_way(self, ext):
-        """Characterisation of B332, second call site."""
-        with pytest.raises(TypeError, match="not callable"):
-            ext._buildTimeMapping(
-                ext.toolkit.TIME_DYNAMIC, [0.0, 10.0, 20.0], 10, 10)
-
-    def test_a_flow_with_an_explicit_timestep_cannot_be_prepared_at_all(
-            self, ext, tmp_path):
-        """Characterisation of B332, reached through the public entry point."""
-        origin = _makeCase(tmp_path / "myFlow", timeDirs=("0", "400"))
-        flowData = {
-            "originalFlow": {
-                "time": {"temporalType": ext.toolkit.TIME_STEADYSTATE},
-                "timeStep": 400,
-            },
-            "dispersionFields": {},
-        }
-        with pytest.raises(TypeError, match="not callable"):
-            ext.createDispersionFlowField(
-                flowName="a", flowData=flowData, OriginalFlowField=origin,
-                dispersionDuration=60, useDBSupport=False)
 
 
 # ===========================================================================

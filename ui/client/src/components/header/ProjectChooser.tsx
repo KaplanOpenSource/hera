@@ -1,6 +1,5 @@
 import { Autocomplete, TextField } from "@mui/material";
 import { FolderOutlined } from "@mui/icons-material";
-import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { EMPTY_NAME_PROJECT, useProjectStore } from "../../stores/useProjectStore";
 import { useProjectListStore } from "../../stores/useProjectListStore";
@@ -12,12 +11,8 @@ const storeName = (name: string) => name === EMPTY_NAME_PROJECT ? "" : name;
 export const ProjectChooser = () => {
   const { projectNames } = useProjectListStore();
   const { currProjectName } = useProjectStore();
-  const { username, loadServerUser } = useServerUserStore();
+  const { username } = useServerUserStore();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    loadServerUser();
-  }, [loadServerUser]);
 
   const options = projectNames.map(({ name }) => displayName(name));
 

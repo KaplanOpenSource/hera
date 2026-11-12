@@ -9,10 +9,6 @@ import pytest
 # where pytest is run from.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# server.py calls argparse.parse_args() at import time; give it clean args so it
-# doesn't try to parse pytest's argv.
-sys.argv = ["server"]
-
 
 # Source of the generated Luigi module the fake toolkit writes to disk. The child
 # imports it and runs finalnode_xx_0 with luigi.build, exactly as it would for a real

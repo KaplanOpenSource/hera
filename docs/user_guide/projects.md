@@ -29,6 +29,7 @@ From the CLI:
 hera-project project list
 
 # Create a project directory with a caseConfiguration.json
+# (also loads all registered repositories into the project; add --noRepositories to skip)
 hera-project project create WindStudy --directory /data/wind_study
 ```
 
@@ -64,7 +65,17 @@ python my_analysis.py   # Project() picks up "WindStudy" automatically
 
 Toolkits follow the same convention — `toolkitHome.getToolkit("MeteoLowFreq")` without a `projectName` reads from `caseConfiguration.json` too.
 
-If no `caseConfiguration.json` exists and no name is provided, Hera uses a read-only **default project** used internally for repository management.
+If no `caseConfiguration.json` exists and no name is provided, Hera uses the **default project** (`defaultProject`), which is used internally for repository management. It has no config (`getConfig`/`setConfig` raise `ValueError`) and no files directory.
+
+### Files directory
+
+Each project has a files directory (`proj.filesDirectory`, also `proj.FilesDirectory`) where Hera writes the files it creates, for example by `saveData`. It is resolved in this order:
+
+1. The `filesDirectory` argument of `Project(...)` — it is also saved to the project config
+2. The `filesDirectory` key previously saved in the project config
+3. `~/.hera/<projectName>` — saved to the config on first use
+
+The directory is created if it does not exist.
 
 ---
 
@@ -72,26 +83,12 @@ If no `caseConfiguration.json` exists and no name is provided, Hera uses a read-
 
 A typical project goes through these steps:
 
-![Diagram](../images/diagrams/user_guide_projects_0_aac364c3.svg)
-
-<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart LR
     Create["1. Create\nproject directory"] --> Config["2. caseConfiguration.json\ncreated automatically"]
     Config --> Load["3. Load external\ndata (repositories)"]
     Load --> Work["4. Work with\ntoolkits"]
 ```
--->utomatically"]
-    Config --> Load["3. Load external\ndata (repositories)"]
-    Load --> Work["4. Work with\ntoolkits"]
-```
--->
--->utomatically"]
-    Config --> Load["3. Load external\ndata (repositories)"]
-    Load --> Work["4. Work with\ntoolkits"]
-```
--->
--->
 
 **Step 1 — Create a project directory:**
 
@@ -100,7 +97,7 @@ hera-project project create WindStudy --directory /data/wind_study
 cd /data/wind_study
 ```
 
-This creates the directory and a `caseConfiguration.json` file inside it.
+This creates the directory and a `caseConfiguration.json` file inside it. Without `--directory`, the directory is `./WindStudy`. By default it also loads every registered repository into the new project (use `--noRepositories` to skip this, `--dont-overwrite` to keep existing data sources).
 
 **Step 2 — Load external data from repositories:**
 
@@ -110,14 +107,15 @@ A [repository](concepts.md#repositories) is a JSON file that describes a collect
 # Register a repository (one-time setup)
 hera-project repository add /path/to/my_repository.json
 
-# Load all its data sources into the project
-hera-project repository load my_repository WindStudy
+# Load all its data sources into the project (takes the JSON file path)
+hera-project repository load /path/to/my_repository.json WindStudy
 ```
 
 Or load all registered repositories at once:
 
 ```bash
-hera-project project updateRepositories --projectName WindStudy
+hera-project project updateRepositories --projectName WindStudy   # one project (or omit --projectName inside the project directory)
+hera-project project populate                                     # every existing project (--projectName to limit)
 ```
 
 See [Repositories](concepts.md#repositories) in Key Concepts for the JSON format, and [Working with data sources](working_with_data.md#data-sources) for how to interact with them.
@@ -186,7 +184,7 @@ For detailed examples of adding, querying, and loading data, see [Working with D
 
 ## Project configuration
 
-Each project has a **config** — a key-value store persisted in the database as a special cache document. Use it for project-level settings that should survive between sessions.
+Each project has a **config** — a key-value store persisted in the database as a special cache document (`getConfig()` returns its `desc` as a dict). Use it for project-level settings that should survive between sessions.
 
 ```python
 proj = Project(projectName="WindStudy")
@@ -206,6 +204,9 @@ print(config["domainSize"])       # {"width": 5000, "height": 5000}
 
 # Update a single key (other keys are preserved)
 proj.setConfig(outputCRS=4326)
+
+# Replace the whole config with only the given keys
+proj.setConfig(keep_old_values=False, outputCRS=4326)
 ```
 
 **`initConfig`** sets values only if the keys don't already exist — useful for setting defaults without overwriting user choices:
@@ -229,8 +230,8 @@ Projects have built-in **atomic counters** — named integers stored in the data
 ```python
 proj = Project(projectName="WindStudy")
 
-# getCounterAndAdd returns the current value and increments atomically.
-# On first call the counter is created starting at 0.
+# getCounterAndAdd increments atomically and returns the new value.
+# The first call only creates the counter at 0 and returns 0.
 run_id = proj.getCounterAndAdd("simulation_run")  # 0
 output = f"/data/results/run_{run_id}.nc"
 
@@ -238,13 +239,15 @@ run_id = proj.getCounterAndAdd("simulation_run")  # 1
 output = f"/data/results/run_{run_id}.nc"
 ```
 
-This is what `saveData` uses internally to generate unique file names.
+This is what `saveData` uses internally to generate unique file names (`<filesDirectory>/cache/<name>_<counter>.<ext>`). Counter names may not contain `__`; dots are replaced by underscores.
 
 | Method | Description |
 |--------|-------------|
-| `getCounterAndAdd(name, addition=1)` | Return current value and increment. Creates the counter at 0 if it doesn't exist. |
+| `getCounterAndAdd(name, addition=1)` | Add `addition` and return the new value. If the counter doesn't exist, create it at 0 and return 0. |
 | `getCounter(name)` | Return current value without incrementing. Returns `None` if not defined. |
-| `setCounter(name, defaultValue=0)` | Create or reset a counter. |
+| `setCounter(name, defaultValue=0)` | Create or reset a counter to `defaultValue`. |
+| `defineCounter(name, defaultValue=0)` | Create the counter only if it doesn't exist. Returns `True` if it was created. |
+| `addCounter(name, addition=1)` | Deprecated alias of `getCounterAndAdd`. |
 
 Counters are per-project and stored inside the project config document.
 
@@ -261,7 +264,7 @@ Projects provide methods for adding, querying, deleting, and saving data. Here i
 | `addMeasurementsDocument(resource, dataFormat, type, desc)` | Add a measurement document |
 | `addSimulationsDocument(resource, dataFormat, type, desc)` | Add a simulation document |
 | `addCacheDocument(resource, dataFormat, type, desc)` | Add a cache document |
-| `saveData(name, data, desc, kind)` | Auto-detect format, save file to disk, create document |
+| `saveData(name, data, desc, kind, type=None, dataFormat=None)` | Auto-detect format, save file under `<filesDirectory>/cache/`, create a document. `kind` is `"Measurements"`, `"Simulations"` or `"Cache"`; `type` defaults to `name` |
 | `saveMeasurementData(name, data, desc)` | Save as measurement (shorthand) |
 | `saveSimulationData(name, data, desc)` | Save as simulation (shorthand) |
 | `saveCacheData(name, data, desc)` | Save as cache (shorthand) |
@@ -277,7 +280,7 @@ See [Adding data](working_with_data.md#adding-data) for examples.
 | `getCacheDocuments(**filters)` | Query cache documents |
 | `getAllDocuments(**filters)` | Query across all collections |
 | `getDocumentByID(id)` | Get a single document by its MongoDB ID |
-| `getMetadata()` | Return all document descriptions as a DataFrame |
+| `getMetadata()` | Return the `desc` of all project documents as a DataFrame |
 
 See [Querying the database](working_with_data.md#querying) for examples of basic, nested, and structured queries.
 
@@ -293,11 +296,13 @@ See [Querying the database](working_with_data.md#querying) for examples of basic
 
 | Method | Description |
 |--------|-------------|
-| `export(path)` | Export all project documents to a zip file |
-| `Project.load(proj, path, is_hard_import)` | Import documents from an exported zip |
+| `export(path, export_chunk_size=1024, show_progressbar=True)` | Export all project documents to a zip file (pickled chunks) |
+| `Project.load(proj, exported_project_path, is_hard_import, show_progressbar=True)` | Static method: import documents from an exported zip into `proj` (a name or a `Project`). `is_hard_import=True` keeps the original document IDs |
+
+The CLI has a separate, JSON-based dump/load (not the zip format above):
 
 ```bash
-# CLI equivalents
+# Dump the project's documents (optionally filtered by key=value query terms) to JSON
 hera-project project dump WindStudy --format json --fileName backup.json
 hera-project project load WindStudy backup.json
 ```

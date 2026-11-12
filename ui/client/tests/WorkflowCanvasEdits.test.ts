@@ -26,11 +26,21 @@ describe('WorkflowCanvasEdits', () => {
     expect(callbacks.onAddRequire).toHaveBeenCalledWith('A', 'B');
   });
 
-  it('writes a reference for an output-to-input line', () => {
+  it('writes a reference for an output-to-input line, and requires with it', () => {
     const { callbacks, edits } = build();
     edits.connect({ source: 'A', target: 'B', sourceHandle: outputHandleId('A', 'result'), targetHandle: inputHandleId('B', 'cmd') });
-    expect(callbacks.onAddRequire).not.toHaveBeenCalled();
     expect(writtenParams(callbacks.onSetNode).cmd).toContain('{A.output.result}');
+    // The same write carries the requires link; a second write would undo the reference.
+    expect(callbacks.onSetNode.mock.calls.at(-1)![1].requires).toEqual(['A']);
+    expect(callbacks.onAddRequire).not.toHaveBeenCalled();
+  });
+
+  it('adds requires when a field is sent to reference an output', () => {
+    const { callbacks, edits } = build();
+    edits.referenceOutput('B', 'keep', new Reference('A', OUTPUT, 'result'));
+    const written = callbacks.onSetNode.mock.calls.at(-1)![1];
+    expect(written.Execution.input_parameters.keep).toContain('{A.output.result}');
+    expect(written.requires).toEqual(['A']);
   });
 
   it('ignores a line with no ends', () => {

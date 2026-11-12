@@ -1,7 +1,6 @@
 import { Typography } from "@mui/material";
 import { useEffect, useState } from "react";
-import { fetchPython } from "../../io/fetchPython";
-import { LOAD_REPO_JSON_PYTHON } from "../../shared/repoJsonPython";
+import { repositoryApi } from "../../api/api";
 import { RepoJsonMerger } from "./RepoJsonMerger";
 import { RepoTreeDisplay } from "./RepoTreeDisplay";
 
@@ -19,28 +18,12 @@ export const DetailsViewMergedRepo = () => {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const { data } = await fetchPython({
-        results: ['repoJsons'],
-        label: 'merged central repo',
-        code: `
-import os, glob, json
-${LOAD_REPO_JSON_PYTHON}
-folder = os.path.expanduser('${folder}')
-repoJsons = {}
-if os.path.isdir(folder):
-    allFiles = glob.glob(os.path.join(folder, '**', '*.json'), recursive=True)
-    allFiles = [f for f in allFiles if not f.endswith('caseConfiguration.json')]
-    for f in sorted(allFiles):
-        doc = loadRepoJson(f)
-        if doc is not None:
-            repoJsons[f] = doc
-`,
-      });
-      if (data?.repoJsons) {
-        const merger = new RepoJsonMerger(data.repoJsons);
+      const answer = await repositoryApi.jsonsInFolder(folder, true);
+      if (answer) {
+        const merger = new RepoJsonMerger(answer.repoJsons);
         setMerged(merger.merged);
         setOverrides(merger.overrides);
-        setRepoJsons(data.repoJsons);
+        setRepoJsons(answer.repoJsons);
       }
       setLoading(false);
     })();

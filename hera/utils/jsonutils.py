@@ -1,15 +1,18 @@
-import os
+import copy
 import json
 import logging
-import copy
+import os
+import sys
 from itertools import product
 from json.decoder import JSONDecodeError
-import sys
-from hera.utils.logging import get_classMethod_logger
+from typing import Any
+
 from jsonpath_ng import parse
 
+from hera.utils.logging import get_classMethod_logger
 
-def compareJSONS(longFormat=False,changeDotToUnderscore=False,**kwargs):
+
+def compareJSONS(longFormat:bool=False,changeDotToUnderscore:bool=False,**kwargs):
     """Recieves {<name>:<json>} mapping in kwargs and compares the values of all the common fields. Returns pandas df of the result.
 
     Parameters
@@ -21,9 +24,9 @@ def compareJSONS(longFormat=False,changeDotToUnderscore=False,**kwargs):
     -------
         DataFrame: df of the comparison results
     """
-    from hera.utils.dataframeutils import compareDataframeConfigurations
-
     import pandas
+
+    from hera.utils.dataframeutils import compareDataframeConfigurations
     fulldata = pandas.concat([convertJSONtoPandas(data).assign(datasetName=name) for name,data in kwargs.items()])
     return compareDataframeConfigurations(fulldata,datasetName="datasetName",parameterName="parameterNameFullPath",longFormat=longFormat,changeDotToUnderscore=changeDotToUnderscore)
 
@@ -172,7 +175,14 @@ def JSONToConfiguration(valueToProcess,returnUnum=False,returnStandardize=False)
     if isinstance(valueToProcess,dict):
         if ('magnitude' in valueToProcess) and ('units' in valueToProcess) and ('value' in valueToProcess) and len(valueToProcess)==3:
             from pint import Quantity
-            from hera.utils.unitHandler import unumToPint, ureg, pintToUnum, UndefinedUnitError, DimensionalityError
+
+            from hera.utils.unitHandler import (
+                DimensionalityError,
+                UndefinedUnitError,
+                pintToUnum,
+                unumToPint,
+                ureg,
+            )
             ret = ureg(valueToProcess['value']) if not returnStandardize else ureg(valueToProcess['units'])
             ret = pintToUnum(ret) if returnUnum else ret
         else:
@@ -186,7 +196,7 @@ def JSONToConfiguration(valueToProcess,returnUnum=False,returnStandardize=False)
     elif isinstance(valueToProcess,(int, float, bool)):
         ret = valueToProcess
     elif hasattr(valueToProcess, 'asNumber'):  # Unum object — backwards compat
-        from hera.utils.unitHandler import unumToPint, pintToUnum
+        from hera.utils.unitHandler import pintToUnum, unumToPint
         ret = valueToProcess if returnUnum else unumToPint(valueToProcess)
     else:
         # we want to avoid importing pint when unnecessary since it takes a long time to load
@@ -200,7 +210,12 @@ def JSONToConfiguration(valueToProcess,returnUnum=False,returnStandardize=False)
         else:
             logger.debug(f"\t Try to convert {valueToProcess} to pint")
             try:
-                from hera.utils.unitHandler import ureg, pintToUnum, UndefinedUnitError, DimensionalityError
+                from hera.utils.unitHandler import (
+                    DimensionalityError,
+                    UndefinedUnitError,
+                    pintToUnum,
+                    ureg,
+                )
                 ret = ureg(valueToProcess)
                 ret = pintToUnum(ret) if returnUnum else ret
             except (UndefinedUnitError, DimensionalityError, ValueError):
@@ -225,6 +240,7 @@ def stripConfigurationUnits(valueToProcess,returnStandardize=False, ignoreStanda
 
     """
     from pint import Quantity
+
     from hera.utils.unitHandler import unumToPint
 
     logger = logging.getLogger("hera.utils.stripConfigurationUnits")
@@ -253,7 +269,7 @@ def stripConfigurationUnits(valueToProcess,returnStandardize=False, ignoreStanda
 
     return ret
 
-def loadJSON(jsonData):
+def loadJSON(jsonData:Any):
     """Reads the json object to the memory.
     Could be:
     * file object: any file-like object with the property 'read'.
@@ -295,7 +311,7 @@ def loadJSON(jsonData):
 
     return  loadedjson
 
-def processJSONToPandas(jsonData, nameColumn="parameterName", valueColumn="value"):
+def processJSONToPandas(jsonData:dict | list[dict], nameColumn:str="parameterName", valueColumn:str="value"):
     """
         Trnasforms a JSON to pandas, flattens a list items and names them according to their order
 
@@ -408,7 +424,7 @@ def processJSONToPandas(jsonData, nameColumn="parameterName", valueColumn="value
 
     return pnds[[nameColumn,valueColumn]]
 
-def convertJSONtoPandas(jsonData, nameColumn="parameterNameFullPath", valueColumn="value"):
+def convertJSONtoPandas(jsonData:str|dict, nameColumn:str="parameterNameFullPath", valueColumn:str="value"):
     """converts a JSON (either in file or loaded, or json str) to pandas.
     The pandas flattens the JSON using the json path convection.
     e.g
@@ -461,7 +477,7 @@ def convertJSONtoPandas(jsonData, nameColumn="parameterNameFullPath", valueColum
     return pnds1
 
 
-def setJSONPath(base,valuesDict,inPlace=False):
+def setJSONPath(base:dict,valuesDict:dict[str,Any],inPlace:bool=False):
     """
         Sets the variables in the values dict to the base.
         That is the base is a regular JSON file:
@@ -510,7 +526,7 @@ def setJSONPath(base,valuesDict,inPlace=False):
     return base_local
 
 
-def JSONVariations(base,variationJSON,convetToBaseUnits=True):
+def JSONVariations(base:dict,variationJSON:list[dict],convetToBaseUnits:bool=True):
     """The JSONVariations creates variations of the cartesian product of all the values between the variation groups.  Parameters within the variation group change together. Hence, all the members of one variation group must an identical number of values. 
     
     Parameters
@@ -551,7 +567,7 @@ class JSONvariationItem:
     _curIter = None # the ID of the
     _itemCount = None
 
-    def __init__(self,base,variationItem,convetToBaseUnits=True):
+    def __init__(self,base:dict,variationItem:dict,convetToBaseUnits:bool=True):
         """
             The base is the json that will be changes.
 

@@ -1,4 +1,5 @@
 import sys
+from typing import Any
 
 from mongoengine import ValidationError
 
@@ -61,7 +62,7 @@ class AbstractCollection(object):
         dictList = [doc.asDict(with_id=with_id) for doc in self.getDocuments(projectName=projectName, **query)]
         return dict(documents=dictList)
 
-    def getDocuments(self, projectName, resource=None, dataFormat=None, type=None, **desc):
+    def getDocuments(self, projectName:str|None, resource:Any=None, dataFormat:str=None, type:str=None, **desc):
         """
         Get the documents that satisfy the given query.
         If projectName is None search over all projects.

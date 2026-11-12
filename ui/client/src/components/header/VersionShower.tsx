@@ -1,21 +1,11 @@
 import { Box, Tooltip, Typography } from '@mui/material';
 import { buildNumber } from '../../buildNumber';
-import { fetchPythonClean } from '../../io/fetchPython';
-import { useEffect, useState } from 'react';
+import { useServerUserStore } from '../../stores/useServerUserStore';
+import { useState } from 'react';
 
 export const VersionShower = () => {
   const [copied, setCopied] = useState(false);
-  const [heraVersion, setHeraVersion] = useState<string | null>(null);
-
-  useEffect(() => {
-    (async () => {
-      const response = await fetchPythonClean({
-        results: ['version'],
-        code: 'import hera; version = hera.__version__',
-      });
-      if (response.data?.version) setHeraVersion(response.data.version);
-    })();
-  }, []);
+  const { heraVersion } = useServerUserStore();
 
   const versionText = heraVersion
     ? `hera ${heraVersion} | build ${buildNumber}`

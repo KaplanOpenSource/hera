@@ -10,3 +10,6 @@ export const DESC_FIELD = 'desc';
 
 // desc's filesDirectory sub-field, which is shown read-only (can't be renamed).
 export const FILES_DIRECTORY_FIELD = 'filesDirectory';
+
+// The server answers this while hera warms up; wait and retry, do not toast.
+export const WARMING_UP = 'WARMING_UP';

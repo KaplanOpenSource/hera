@@ -10,9 +10,6 @@ Complete pipeline for analyzing low-frequency meteorological station data.
 
 ### Overview
 
-![Diagram](../images/diagrams/examples_workflows_0_d567fe0b.svg)
-
-<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart LR
     subgraph Load ["1. Load Data"]
@@ -24,30 +21,18 @@ flowchart LR
     subgraph Process ["2. Process"]
         Enrich["Enrich with\ndate columns"]
         Calc["Calculate\nhourly distributions"]
-        Stats["Compute\nstatistics"]
     end
 
     subgraph Visualize ["3. Visualize"]
         DailyPlots["Daily cycle\nplots"]
         SeasonalPlots["Seasonal\nanalysis"]
-        Export["Export\nfigures"]
+        Export["Export figures,\ncache results"]
     end
 
     Repo --> LoadData --> GetData
-    GetData --> Enrich --> Calc --> Stats
-    Stats --> DailyPlots --> SeasonalPlots --> Export
+    GetData --> Enrich --> Calc
+    Calc --> DailyPlots --> SeasonalPlots --> Export
 ```
--->> LoadData --> GetData
-    GetData --> Enrich --> Calc --> Stats
-    Stats --> DailyPlots --> SeasonalPlots --> Export
-```
--->
--->> LoadData --> GetData
-    GetData --> Enrich --> Calc --> Stats
-    Stats --> DailyPlots --> SeasonalPlots --> Export
-```
--->
--->
 
 ### Step-by-Step Code
 
@@ -74,21 +59,13 @@ dt.loadAllDatasourcesInRepositoryJSONToProject(
 lf = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName="METEOROLOGY_ANALYSIS")
 df = lf.getDataSourceData("YAVNEEL").compute()  # Materialize dask DataFrame
 
-# Step 3: Enrich with date columns
+# Step 3: Enrich with date columns (datecolumn=None uses the index)
 enriched = lf.analysis.addDatesColumns(df, datecolumn="datetime")
 
-# Step 4: Calculate hourly distributions
-hourly_temp = lf.analysis.calcHourlyDist(
-    enriched,
-    field="T",
-    density=True
-)
-
-hourly_rh = lf.analysis.calcHourlyDist(
-    enriched,
-    field="RH",
-    density=True
-)
+# Step 4: Calculate hourly distributions (2D histogram of hour-of-day vs. value)
+# normalization: "density" (default), "max_normalized" or "y_normalized"
+x_mid, y_mid, hist_T = lf.analysis.calcHourlyDist(enriched, Field="T", normalization="density")
+x_mid, y_mid, hist_RH = lf.analysis.calcHourlyDist(enriched, Field="RH", normalization="density")
 
 # Step 5: Generate visualizations
 import matplotlib.pyplot as plt
@@ -98,25 +75,17 @@ fig, ax = plt.subplots(figsize=(12, 6))
 lf.presentation.dailyPlots.plotScatter(enriched, plotField="RH", ax=ax)
 plt.savefig("daily_rh_scatter.png")
 
-# Seasonal probability contours
-fig, ax = plt.subplots(figsize=(12, 8))
-lf.presentation.seasonalPlots.plotProbContourf_bySeason(
-    enriched,
-    fields=["T", "RH"],
-    ax=ax
-)
-plt.savefig("seasonal_contours.png")
+# Seasonal probability contours (one field per call)
+lf.presentation.seasonalPlots.plotProbContourf_bySeason(enriched, plotField="T")
+plt.savefig("seasonal_contours_T.png")
 
-# Step 6: Save processed results
-proj.addCacheDocument(
-    resource=hourly_temp,
-    dataFormat="parquet",
-    type="ProcessedStatistics",
-    desc={
-        "name": "hourly_temperature_distribution",
-        "station": "YAVNEEL",
-        "processedDate": "2024-11-20"
-    }
+# Step 6: Save processed results to the Cache collection
+# saveCacheData writes the DataFrame to <filesDirectory>/cache/ (parquet) and adds the document
+proj.saveCacheData(
+    name="yavneel_enriched",
+    data=enriched,
+    desc={"station": "YAVNEEL", "processedDate": "2024-11-20"},
+    type="ProcessedStatistics"
 )
 
 print("Analysis complete!")
@@ -124,9 +93,9 @@ print("Analysis complete!")
 
 ### Expected Outputs
 
-- **Daily scatter plot** — Time series of relative humidity
+- **Daily scatter plot** — Relative humidity by hour of day
 - **Seasonal contours** — Probability distributions by season
-- **Cached statistics** — Hourly distributions saved to project cache
+- **Cached data** — The enriched DataFrame saved to the project cache
 
 ---
 
@@ -136,9 +105,6 @@ Generate STL meshes for CFD simulation from GIS data.
 
 ### Overview
 
-![Diagram](../images/diagrams/examples_workflows_1_26b54cb5.svg)
-
-<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TD
     subgraph GIS ["GIS Data Loading"]
@@ -149,20 +115,17 @@ flowchart TD
 
     subgraph Process ["Processing"]
         GetElevation["Get elevation\ngrid"]
-        GetLandCover["Get land cover\nclassification"]
+        GetLandCover["Get roughness\n(z0)"]
         GetBuildings["Get building\nfootprints"]
     end
 
     subgraph Generate ["STL Generation"]
         TopoSTL["Topography\nSTL mesh"]
         BuildingsSTL["Buildings\nSTL mesh"]
-        Combine["Combine meshes\nfor CFD"]
     end
 
     subgraph Sim ["Simulation"]
-        WindProfile["Extract wind\nprofile"]
-        RunOF["Run OpenFOAM\nsimulation"]
-        PostProcess["Post-process\nresults"]
+        RunOF["Run OpenFOAM workflow\n(hera-openFoam / hera-workflows)"]
     end
 
     TopoDS --> GetElevation
@@ -171,32 +134,17 @@ flowchart TD
 
     GetElevation --> TopoSTL
     GetBuildings --> BuildingsSTL
-    TopoSTL --> Combine
-    BuildingsSTL --> Combine
-
-    Combine --> WindProfile --> RunOF --> PostProcess
+    TopoSTL --> RunOF
+    BuildingsSTL --> RunOF
+    GetLandCover --> RunOF
 ```
--->ildingsSTL
-    TopoSTL --> Combine
-    BuildingsSTL --> Combine
-
-    Combine --> WindProfile --> RunOF --> PostProcess
-```
--->
--->ildingsSTL
-    TopoSTL --> Combine
-    BuildingsSTL --> Combine
-
-    Combine --> WindProfile --> RunOF --> PostProcess
-```
--->
--->
 
 ### Step-by-Step Code
 
 ```python
 from hera import Project, toolkitHome
 from hera.utils.data.toolkit import dataToolkit
+from hera.measurements.GIS import WSG84, ITM
 import json
 
 # Step 1: Load GIS repository
@@ -218,309 +166,133 @@ topo = toolkitHome.getToolkit(toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName="CF
 landcover = toolkitHome.getToolkit(toolkitHome.GIS_LANDCOVER, projectName="CFD_SIMULATION")
 buildings = toolkitHome.getToolkit(toolkitHome.GIS_BUILDINGS, projectName="CFD_SIMULATION")
 
-# Step 3: Define simulation domain
+# Step 3: Define simulation domain (WGS84)
 minx, miny = 35.0, 32.0
 maxx, maxy = 35.1, 32.1
 dxdy = 30  # 30m resolution
 
-# Step 4: Get elevation data
-elevation = topo.getElevation(minx, miny, maxx, maxy, dxdy)
+# Step 4: Get elevation data (xarray)
+elevation = topo.getElevation(minx, miny, maxx, maxy, dxdy=dxdy, inputCRS=WSG84)
 
 # Step 5: Get land cover and roughness
-landcover_data = landcover.getLandCover(
-    minx, miny, maxx, maxy, dxdy,
-    roughness=True
-)
+landcover_data = landcover.getLandCover(minx, miny, maxx, maxy, dxdy=dxdy, inputCRS=WSG84)
+roughness = landcover.getRoughness(minx, miny, maxx, maxy, dxdy=dxdy, inputCRS=WSG84)
 
-# Step 6: Get building footprints
+# Step 6: Get building footprints (with ground elevation from the topography toolkit)
 buildings_gdf = buildings.getBuildingsFromRectangle(
     minx, miny, maxx, maxy,
-    withElevation=True  # Add elevation from topography
+    inputCRS=WSG84,
+    withElevation=True
 )
 
 # Step 7: Generate STL meshes
-# Topography STL
-topo_stl = topo.createElevationSTL(
-    elevation,
-    solidName="Terrain",
-    inputCRS=4326,
-    outputCRS=2039
-)
-
+# Topography STL (returns the STL text)
+topo_stl = topo.createElevationSTL(minx, miny, maxx, maxy, dxdy=dxdy, inputCRS=WSG84, solidName="Terrain")
 with open("terrain.stl", "w") as f:
     f.write(topo_stl)
 
-# Buildings STL (if needed)
+# Buildings STL (writes the file directly)
 if len(buildings_gdf) > 0:
-    buildings_stl = buildings.regionToSTL(
-        buildings_gdf,
-        dxdy=dxdy,
-        solidName="Buildings"
+    buildings.buildingsGeopandasToSTLRasterTopography(
+        buildings_gdf, "BLDG_HT", "elevation", "buildings.stl"
     )
-    with open("buildings.stl", "w") as f:
-        f.write(buildings_stl)
 
-# Step 8: Extract wind profile for simulation
-# (Assuming wind profile toolkit is available)
-wind_profile_tk = toolkitHome.getToolkit(toolkitHome.WINDPROFILE, projectName="CFD_SIMULATION")
-wind_profile = wind_profile_tk.getWindProfile(
-    lat=(miny + maxy) / 2,
-    lon=(minx + maxx) / 2
-)
-
-# Step 9: Run OpenFOAM simulation (if toolkit available)
-of_tk = toolkitHome.getToolkit(toolkitHome.SIMULATIONS_OPENFOAM, projectName="CFD_SIMULATION")
-
-# Create case from template
-case = of_tk.createCaseFromTemplate(
-    templateName="simpleFoam_terrain",
-    caseName="terrain_simulation",
-    terrainSTL="terrain.stl",
-    buildingsSTL="buildings.stl",
-    windProfile=wind_profile
-)
-
-# Run simulation
-of_tk.runOFSimulation(case, nproc=4)
-
-# Step 10: Post-process results
-results = of_tk.analysis.extractResults(case)
-proj.addSimulationsDocument(
-    resource=results,
-    dataFormat="netcdf_xarray",
-    type="OpenFOAM_Results",
-    desc={
-        "caseName": "terrain_simulation",
-        "solver": "simpleFoam",
-        "simulationDate": "2024-11-20"
-    }
-)
-
-print("CFD simulation complete!")
+print("STL files ready for the CFD case.")
 ```
+
+**Step 8: Run the OpenFOAM simulation.** Simulations are driven by Hermes workflow JSON files rather than a single Python call. Put the STL files into your workflow (e.g. a `simpleFoam` template) and run it with the CLI:
+
+```bash
+hera-openFoam simpleFoam templates list --projectName CFD_SIMULATION
+hera-openFoam simpleFoam executeWorkflow terrain_1.json --projectName CFD_SIMULATION
+hera-workflows list workflows terrain --projectName CFD_SIMULATION
+```
+
+The workflow results are registered in the Simulations collection by the OpenFOAM toolkit. See the [CLI Reference](../cli/reference.md#hera-openfoam) and the simulation toolkit pages for details.
 
 ### Expected Outputs
 
 - **Terrain STL** — 3D mesh of topography
 - **Buildings STL** — 3D mesh of buildings
-- **Wind profile** — Vertical wind profile data
-- **Simulation results** — OpenFOAM output in NetCDF format
+- **Roughness field** — xarray with the `z0` roughness field
+- **Simulation results** — OpenFOAM workflow documents in the Simulations collection
 
 ---
 
 ## Workflow 3: Risk Assessment Pipeline
 
-Complete risk assessment workflow from population data to casualty estimates.
+Risk assessment from an LSM dispersion simulation, an agent and population data.
 
 ### Overview
 
-![Diagram](../images/diagrams/examples_workflows_2_35cd9575.svg)
-
-<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TD
     subgraph Input ["Input Data"]
         PopData["Population Data\n(Demography Toolkit)"]
-        MeteoData["Meteorological Data\n(MeteoLowFreq Toolkit)"]
-        Hazard["Hazard Source\nDefinition"]
-        Buildings_RA["Buildings Data\n(Buildings Toolkit)"]
+        LSMSim["LSM simulation\n(LSM Toolkit)"]
+        AgentDef["Agent definition\n(RiskAssessment Toolkit)"]
     end
 
     subgraph Process ["Processing"]
-        LoadPop["Load population\nGeoDataFrame"]
-        LoadMeteo["Load meteorological\ntime series"]
-        CreateAgents["Create agent-based\npopulation model"]
-        RunDispersion["Run LSM dispersion\nsimulation"]
+        Conc["Concentration field\ngetConcentration(Q)"]
+        Protect["Protection policy\n(optional)"]
+        ToxicLoads["Toxic loads\neffect.calculateToxicLoads"]
     end
 
     subgraph Risk ["Risk Assessment"]
-        CalculateExposure["Calculate exposure\nfrom concentrations"]
-        ApplyEffects["Apply effects\ncalculators"]
-        ApplyProtection["Apply protection\npolicies"]
-        CalculateCasualties["Calculate\ncasualties"]
+        Contours["Injury contours\nlevel.calculateContours"]
+        Casualties["Project contours on\npopulation"]
     end
 
-    subgraph Output ["Results"]
-        CasualtyMaps["Casualty\nmaps"]
-        Statistics["Statistical\nanalysis"]
-        Reports["Risk\nreports"]
-    end
-
-    PopData --> LoadPop
-    MeteoData --> LoadMeteo
-    Hazard --> RunDispersion
-    Buildings_RA --> CreateAgents
-
-    LoadPop --> CreateAgents
-    LoadMeteo --> RunDispersion
-    CreateAgents --> CalculateExposure
-    RunDispersion --> CalculateExposure
-
-    CalculateExposure --> ApplyEffects --> ApplyProtection --> CalculateCasualties
-
-    CalculateCasualties --> CasualtyMaps
-    CalculateCasualties --> Statistics
-    CalculateCasualties --> Reports
+    LSMSim --> Conc --> Protect --> ToxicLoads
+    AgentDef --> ToxicLoads
+    ToxicLoads --> Contours --> Casualties
+    PopData --> Casualties
 ```
--->s
-
-    CalculateCasualties --> CasualtyMaps
-    CalculateCasualties --> Statistics
-    CalculateCasualties --> Reports
-```
--->
--->s
-
-    CalculateCasualties --> CasualtyMaps
-    CalculateCasualties --> Statistics
-    CalculateCasualties --> Reports
-```
--->
--->
 
 ### Step-by-Step Code
 
 ```python
-from hera import Project, toolkitHome
-from hera.utils.data.toolkit import dataToolkit
-import json
+from hera import toolkitHome
+from hera.utils import ureg
+from hera.riskassessment import ProtectionPolicy
 
-# Step 1: Load all required repositories
-proj = Project(projectName="RISK_ASSESSMENT")
+PROJECT = "RISK_ASSESSMENT"
 
-# Load demography repository
-with open("demography_repository.json") as f:
-    demo_repo = json.load(f)
+# Step 1: Get toolkits
+lsm = toolkitHome.getToolkit(toolkitHome.LSM, projectName=PROJECT)
+risk = toolkitHome.getToolkit(toolkitHome.RISKASSESSMENT, projectName=PROJECT)
+demo = toolkitHome.getToolkit(toolkitHome.GIS_DEMOGRAPHY, projectName=PROJECT)
 
-# Load meteorology repository
-with open("meteo_repository.json") as f:
-    meteo_repo = json.load(f)
+# Step 2: Get an LSM simulation and its concentration field (pint-aware; Q scales the release)
+sim = lsm.getSimulations()[0]
+concentration = sim.getConcentration(Q=500 * ureg.kg)
 
-dt = dataToolkit()
-dt.loadAllDatasourcesInRepositoryJSONToProject(
-    projectName="RISK_ASSESSMENT",
-    repositoryJSON={**demo_repo, **meteo_repo},  # Merge repositories
-    basedir="/path/to/repos",
-    overwrite=True
-)
+# Step 3: (optional) apply a protection policy to the concentration field
+policy = ProtectionPolicy()
+policy.indoor(turnover=2 * ureg.hour, enter="10min", stay="3h")
+protected = policy.compute(concentration.sel(z=10), C="C")
 
-# Step 2: Get toolkits
-demo = toolkitHome.getToolkit(toolkitHome.GIS_DEMOGRAPHY, projectName="RISK_ASSESSMENT")
-meteo = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName="RISK_ASSESSMENT")
-lsm = toolkitHome.getToolkit(toolkitHome.LSM, projectName="RISK_ASSESSMENT")
-risk = toolkitHome.getToolkit(toolkitHome.RISKASSESSMENT, projectName="RISK_ASSESSMENT")
+# Step 4: Load the agent and compute toxic loads
+agent = risk.getAgent("Chlorine")
+effect = agent[agent.effectNames[0]]
+toxic_loads = effect.calculateToxicLoads(protected, field="C")
 
-# Step 3: Load population data
-population_gdf = demo.getDataSourceData("lamas_population")
+# Step 5: Injury contours for one severity level (GeoDataFrame or None)
+level = effect[effect.levelNames[0]]
+contours = level.calculateContours(toxic_loads, time="datetime", x="x", y="y")
 
-# Step 4: Load meteorological data
-meteo_df = meteo.getDataSourceData("YAVNEEL").compute()
-enriched_meteo = meteo.analysis.addDatesColumns(meteo_df, datecolumn="datetime")
-
-# Step 5: Define hazard source
-hazard_source = {
-    "location": {"lat": 32.0853, "lon": 34.7818},
-    "releaseRate": 100.0,  # kg/s
-    "duration": 3600,  # seconds
-    "substance": "chlorine"
-}
-
-# Step 6: Create agent-based population model
-agents = risk.analysis.createAgents(
-    population=population_gdf,
-    agentType="static",  # or "dynamic" for evacuation scenarios
-    desc={"scenario": "baseline"}
-)
-
-# Step 7: Run LSM dispersion simulation
-lsm_results = lsm.runSimulation(
-    hazardSource=hazard_source,
-    meteorology=enriched_meteo,
-    domain={
-        "minx": 34.7, "miny": 32.0,
-        "maxx": 34.9, "maxy": 32.2
-    },
-    resolution=50  # 50m grid
-)
-
-# Step 8: Calculate exposure
-exposure = risk.analysis.calculateExposure(
-    agents=agents,
-    concentrationField=lsm_results["concentration"],
-    exposureTime=3600  # 1 hour
-)
-
-# Step 9: Apply effects calculators
-effects = risk.analysis.applyEffects(
-    exposure=exposure,
-    substance="chlorine",
-    effectsType="toxic"
-)
-
-# Step 10: Apply protection policies
-protected_effects = risk.analysis.applyProtectionPolicy(
-    effects=effects,
-    policy={
-        "sheltering": True,
-        "evacuation": False,
-        "responseTime": 300  # 5 minutes
-    }
-)
-
-# Step 11: Calculate casualties
-casualties = risk.analysis.calculateCasualties(
-    effects=protected_effects,
-    injuryLevels=["fatal", "severe", "moderate", "minor"]
-)
-
-# Step 12: Generate visualizations
-import matplotlib.pyplot as plt
-
-# Casualty map
-fig, ax = plt.subplots(figsize=(12, 10))
-risk.presentation.plotCasualtyMap(
-    casualties,
-    population_gdf,
-    ax=ax
-)
-plt.savefig("casualty_map.png")
-
-# Casualty rose (wind direction analysis)
-fig, ax = plt.subplots(figsize=(10, 10))
-risk.presentation.plotCasualtyRose(
-    casualties,
-    meteo_df,
-    ax=ax
-)
-plt.savefig("casualty_rose.png")
-
-# Statistical summary
-stats = risk.analysis.calculateStatistics(casualties)
-print(f"Total casualties: {stats['total']}")
-print(f"Fatal: {stats['fatal']}")
-print(f"Severe: {stats['severe']}")
-
-# Step 13: Save results
-proj.addSimulationsDocument(
-    resource=casualties,
-    dataFormat="geopandas",
-    type="RiskAssessment_Results",
-    desc={
-        "scenario": "baseline",
-        "hazardSource": hazard_source,
-        "assessmentDate": "2024-11-20"
-    }
-)
-
-print("Risk assessment complete!")
+# Step 6: Population data for the casualty estimate
+population = demo.getDataSourceData("lamas_population")
 ```
+
+For projecting the contours onto the population, casualty roses (`risk.presentation.plotCasualtiesRose(...)`) and the shortcut `risk.analysis.getRiskAreas(tenbergeCoefficient, levels, Q=..., protectionPolicy=..., LSMfile=...)`, see the worked examples in the [Risk Assessment toolkit guide](../toolkits/risk_assessment.md).
 
 ### Expected Outputs
 
-- **Casualty map** — Spatial distribution of casualties
-- **Casualty rose** — Wind direction analysis
-- **Statistics** — Summary of casualty counts by injury level
-- **Results document** — GeoDataFrame saved to Simulations collection
+- **Concentration field** — xarray Dataset with the `C` field
+- **Toxic loads** — xarray of the time-integrated dose
+- **Injury contours** — GeoDataFrame with `TotalPolygon`, `severity`, `ToxicLoad` and `datetime` columns
 
 ---
 
@@ -539,15 +311,17 @@ elevation = topo.getElevation(minx, miny, maxx, maxy, dxdy=30)
 # Get buildings with elevation
 buildings_gdf = buildings.getBuildingsFromRectangle(
     minx, miny, maxx, maxy,
-    withElevation=True  # Uses topography toolkit internally
+    withElevation=True  # Uses the raster topography toolkit internally
 )
 ```
 
 ### Pattern 2: Batch Processing Multiple Datasources
 
 ```python
+import pandas as pd
+
 toolkit = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName="MY_PROJECT")
-sources = toolkit.getDataSourceList()
+sources = toolkit.getDataSourceList()   # list of datasource names
 
 results = {}
 for source_name in sources:

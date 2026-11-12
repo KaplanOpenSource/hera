@@ -8,6 +8,7 @@ export enum NodeRunStatus {
   Running = 'running',
   Success = 'success',
   Failure = 'failure',
+  Stopped = 'stopped',
 }
 
 export type NodeRunStatusMap = { [nodeName: string]: NodeRunStatus };
@@ -26,15 +27,19 @@ const EVENT_LINE = new RegExp(`^${EVENT_PREFIX.replace(/[[\]]/g, '\\$&')} (\\w+)
 // Reads the run's output and says how each node is doing: the last event for a
 // task wins, so a task that started and then failed shows as failed. Nodes with
 // no event yet stay pending. Once the run is over, a task that started but never
-// reported an end is counted as failed - the run stopped on it.
+// reported an end is counted as failed - the run stopped on it - or as stopped
+// when the user stopped the run.
 export const nodeRunStatuses = ({
   chunks,
   nodeNames,
   runFinished,
+  runStopped,
 }: {
   chunks: WorkflowChunk[],
   nodeNames: string[],
   runFinished: boolean,
+  // True when the user stopped the run.
+  runStopped?: boolean,
 }): NodeRunStatusMap => {
   const statuses: NodeRunStatusMap = {};
   for (const chunk of chunks) {
@@ -51,9 +56,13 @@ export const nodeRunStatuses = ({
     }
   }
   if (runFinished) {
+    let endStatus = NodeRunStatus.Failure;
+    if (runStopped) {
+      endStatus = NodeRunStatus.Stopped;
+    }
     for (const nodeName of Object.keys(statuses)) {
       if (statuses[nodeName] === NodeRunStatus.Running) {
-        statuses[nodeName] = NodeRunStatus.Failure;
+        statuses[nodeName] = endStatus;
       }
     }
   }

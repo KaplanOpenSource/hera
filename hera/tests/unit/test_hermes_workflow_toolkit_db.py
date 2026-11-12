@@ -8,8 +8,7 @@ named exactly as ``workflow_Eulerian._requiredNodeList`` demands
 (``controlDict``, ``fvSolution``, ``fvSchemes``, ``fileWriter``,
 ``Parameters``), each a ``general.Parameters`` stub, with only the
 ``Parameters`` node carrying a value.  A ``solver`` is always declared,
-because ``getHermesWorkflowFromJSON`` cannot build a solver-less workflow
-at all -- see B136.
+except in the one test of the solver-less fallback (B136).
 
 Deliberately not covered here:
 
@@ -23,7 +22,6 @@ Deliberately not covered here:
 """
 import json
 import os
-import sys
 
 import pandas
 import pytest
@@ -152,28 +150,10 @@ class TestGetHermesWorkflowFromJSON:
         with pytest.raises(ValueError, match="noSuchSolver"):
             tk.getHermesWorkflowFromJSON(_workflowJSON(solver="noSuchSolver"))
 
-    # B136 depends on the interpreter: up to 3.11 pydoc.locate("hermes.workflow")
-    # happens to return the workflow class; from 3.12 it returns the module.
-    @pytest.mark.xfail(
-        sys.version_info >= (3, 12),
-        strict=True,
-        reason="B136: a workflow with no 'solver' field should fall back to "
-               "the generic hermes workflow class, but the fallback is "
-               "pydoc.locate('hermes.workflow'), which resolves to the "
-               "hermes.workflow *package module* (the class lives at "
-               "hermes.workflow.workflow.workflow), so the call raises "
-               "TypeError: 'module' object is not callable. "
-               "See the consolidated findings issue.",
-    )
-    def test_a_workflow_without_a_solver_should_use_the_generic_hermes_class(self, tk):
+    def test_a_workflow_without_a_solver_uses_the_generic_hermes_class(self, tk):
+        """B136, fixed upstream: the fallback is hermes.workflow itself."""
         workflowObject = tk.getHermesWorkflowFromJSON(_workflowJSON(solver=None))
         assert workflowObject.parametersJSON["Parameters"] == {"alpha": 1.0}
-
-    @pytest.mark.skipif(sys.version_info < (3, 12), reason="B136 only manifests on Python 3.12+")
-    def test_a_workflow_without_a_solver_currently_raises_a_typeerror(self, tk):
-        """Characterisation of B136."""
-        with pytest.raises(TypeError, match="not callable"):
-            tk.getHermesWorkflowFromJSON(_workflowJSON(solver=None))
 
 
 # ---------------------------------------------------------------------------
@@ -289,10 +269,12 @@ class TestAddWorkflowToGroup:
         assert doc.desc["groupName"] == "flow"
         assert doc.desc["groupID"] == 0
 
-    def test_the_stored_document_carries_the_solver_workflow_and_parameters(self, tk):
+    def test_the_stored_document_carries_the_solver_and_workflow_not_the_parameters(self, tk):
+        """7731cab0: the parameters are rebuilt from the workflow, not stored."""
         doc = tk.addWorkflowToGroup(_workflowJSON(2.5), "flow")
         assert doc.desc["solver"] == "simpleFoam"
-        assert doc.desc["parameters"]["Parameters"] == {"alpha": 2.5}
+        assert "parameters" not in doc.desc
+        assert tk.getParamsFromDoc(doc)["Parameters"] == {"alpha": 2.5}
         assert doc.desc["workflow"]["workflow"]["nodeList"] == _REQUIRED_NODES
 
     def test_it_lands_in_the_simulations_collection_as_a_hermes_workflow(self, tk):
@@ -388,7 +370,7 @@ class TestAddWorkflowFileInGroup:
 class TestGetWorkflowDocumentByName:
     def test_an_existing_workflow_is_found_by_its_full_name(self, tk, twoWorkflowsInGroup):
         doc = tk.getWorkflowDocumentByName("flow_0001")
-        assert doc.desc["parameters"]["Parameters"] == {"alpha": 9.0}
+        assert tk.getParamsFromDoc(doc)["Parameters"] == {"alpha": 9.0}
 
     def test_an_unknown_name_gives_none(self, tk, twoWorkflowsInGroup):
         assert tk.getWorkflowDocumentByName("flow_9999") is None
@@ -588,7 +570,7 @@ class TestUpdateDocumentWorkflow:
         tk.updateDocumentWorkflow(first, replacement)
 
         reread = tk.getWorkflowDocumentByName("flow_0000")
-        assert reread.desc["parameters"]["Parameters"] == {"alpha": 42.0}
+        assert tk.getParamsFromDoc(reread)["Parameters"] == {"alpha": 42.0}
 
     def test_the_new_workflow_json_is_persisted_too(self, tk, twoWorkflowsInGroup):
         first, _ = twoWorkflowsInGroup

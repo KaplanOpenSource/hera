@@ -44,6 +44,7 @@ cache/*
 !cache/.gitkeep
 
 .claude/settings.json
+docs/superpowers
 CLAUDE.local.md
 
 # Personal MongoDB config (never commit credentials)
@@ -63,3 +64,8 @@ additional installations/*.conda
 CLAUDE.local.md
 
 ollama-data/
+
+# Claude Code working files — plans, specs and findings written during a
+# session; useful locally, not part of the source tree.
+docs/superpowers/
+.claude/

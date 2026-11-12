@@ -4,15 +4,9 @@ import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockFetchPython = vi.fn();
-vi.mock('../src/io/fetchPython', () => ({
-  fetchPython: (...args: any[]) => mockFetchPython(...args),
-}));
+import { mockApiCall } from './helpers/mockApiCall';
 
-const mockFetchProjectDetails = vi.fn();
-vi.mock('../src/io/FetchProjects', () => ({
-  fetchProjectDetails: (...args: any[]) => mockFetchProjectDetails(...args),
-}));
+let mockPostJson: ReturnType<typeof vi.fn>;
 
 vi.mock('../src/components/project/RepoTreeWhole', () => ({
   RepoTreeWhole: () => null,
@@ -86,6 +80,8 @@ const click = (name: string) => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  const call = mockApiCall();
+  mockPostJson = call.postJson;
   useProjectStore.setState({
     currProjectName: 'TestProject',
     currProject: { name: 'TestProject', documents } as any,
@@ -188,7 +184,9 @@ describe('tree context menu', () => {
   });
 
   it('duplicate copies the selected documents', async () => {
-    mockFetchPython.mockResolvedValueOnce({ data: {} });
+    mockPostJson.mockResolvedValueOnce({
+      document: documents[1], project: { name: 'TestProject', documents }, addedDocId: 'copy1',
+    });
     renderTree();
 
     const menu = await openMenu('doc1');
@@ -197,11 +195,10 @@ describe('tree context menu', () => {
     });
 
     await waitFor(() => {
-      expect(mockFetchPython).toHaveBeenCalledTimes(1);
+      expect(mockPostJson).toHaveBeenCalledTimes(1);
     });
-    const code = mockFetchPython.mock.calls[0][0].code as string;
-    expect(code).toContain("duplicateDocumentByID('doc1')");
-    expect(mockFetchProjectDetails).toHaveBeenCalledWith('TestProject');
+    expect(mockPostJson.mock.calls[0][0]).toBe('/document/create');
+    expect(mockPostJson.mock.calls[0][1].desc.datasourceName).toBe('doc1 copy');
   });
 
   it('the delete question names a single document', async () => {
@@ -229,7 +226,7 @@ describe('tree context menu', () => {
   });
 
   it('delete asks first, then deletes the selected documents', async () => {
-    mockFetchPython.mockResolvedValueOnce({ data: {} });
+    mockPostJson.mockResolvedValueOnce({ project: { name: 'TestProject', documents: [configDoc] } });
     renderTree();
 
     const menu = await openMenu('doc1');
@@ -242,9 +239,10 @@ describe('tree context menu', () => {
     });
 
     await waitFor(() => {
-      expect(mockFetchPython).toHaveBeenCalledTimes(1);
+      expect(mockPostJson).toHaveBeenCalledTimes(1);
     });
-    expect(mockFetchPython.mock.calls[0][0].code).toContain("All.deleteDocumentByID('doc1')");
+    expect(mockPostJson.mock.calls[0][0]).toBe('/document/delete');
+    expect(mockPostJson.mock.calls[0][1]).toEqual({ docIds: ['doc1'] });
   });
 });
 
