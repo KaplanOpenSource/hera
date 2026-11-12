@@ -836,212 +836,212 @@ if __name__ == "__main__":
                             print(data2['data'][0]['channels'][k]['name'],data2['data'][0]['channels'][k]['value'])
                         
 
-ws1218a=np.asarray([1.8,0.8,1.2,1.5,1.0,1.9,0.4,2.5,2.9]) # uni, technion, bialik, shprinzak, galim, ahuza,nosh, checkpost, dgania
-ws1218b=np.asarray([1.6,1.1,1.3,1.4,1.2,1.5,0.3,2.9,2.8]) # E-F
-ws1218c=np.asarray([1.2,1.0,1.4,1.5,1.6,2.1,1.1,2.9,2.6])
-ws1312a=np.asarray([4.9,4.1,2.4,1.9,3.7,2.8,2.8,6.0,3.8])
-ws1312b=np.asarray([5.5,3.6,2.0,2.0,3.9,3.1,3.4,5.5,3.8]) # B-C
-ws1312c=np.asarray([5.5,4.3,2.4,1.7,4.8,3.2,3.0,5.1,3.8])
-ws1316a=np.asarray([2.6,1.5,1.6,1.1,1.0,1.6,1.1,3.2,1.6])
-ws1316b=np.asarray([1.7,1.0,1.3,1.1,1.1,1.1,0.3,2.6,1.1]) # A-B
-ws1316c=np.asarray([1.7,0.6,0.6,0.8,0.6,0.9,0.2,1.2,0.3])
-wd1218a=np.asarray([263,275,277,300,305,273,304,299,287])
-wd1218b=np.asarray([264,296,274,306,298,295,319,306,292])
-wd1218c=np.asarray([267,309,254,304,296,299,332,321,300])
-wd1312a=np.asarray([241,246,312,230,237,248,260,256,300])
-wd1312b=np.asarray([237,225,326,235,225,250,237,243,312])
-wd1312c=np.asarray([239,249,323,227,225,244,242,245,319])
-wd1316a=np.asarray([269,299,245, 30, 14, 62,306,308,296])
-wd1316b=np.asarray([242,276,228, 81, 46, 92,326,314,281])
-wd1316c=np.asarray([173,122,182, 15,156, 69,349,286,226])
-ws1316a=np.asarray([3.5,3.2,0.5,1.1,2.3,1.3,0.3,0.8,0.4])
-ws1300b=np.asarray([3.1,3.1,0.6,0.9,2.5,1.3,0.7,0.5,0.3]) # E-F
-ws1300c=np.asarray([3.0,2.1,0.5,1.0,2.5,1.2,1.0,0.7,0.3])
-wd1300a=np.asarray([228,227, 43,157,206,172,244,226, 41])
-wd1300b=np.asarray([238,227, 42,166,207,173,238,158,353])
-wd1300c=np.asarray([231,220, 86,144,211,169,232,150,222])
+    ws1218a=np.asarray([1.8,0.8,1.2,1.5,1.0,1.9,0.4,2.5,2.9]) # uni, technion, bialik, shprinzak, galim, ahuza,nosh, checkpost, dgania
+    ws1218b=np.asarray([1.6,1.1,1.3,1.4,1.2,1.5,0.3,2.9,2.8]) # E-F
+    ws1218c=np.asarray([1.2,1.0,1.4,1.5,1.6,2.1,1.1,2.9,2.6])
+    ws1312a=np.asarray([4.9,4.1,2.4,1.9,3.7,2.8,2.8,6.0,3.8])
+    ws1312b=np.asarray([5.5,3.6,2.0,2.0,3.9,3.1,3.4,5.5,3.8]) # B-C
+    ws1312c=np.asarray([5.5,4.3,2.4,1.7,4.8,3.2,3.0,5.1,3.8])
+    ws1316a=np.asarray([2.6,1.5,1.6,1.1,1.0,1.6,1.1,3.2,1.6])
+    ws1316b=np.asarray([1.7,1.0,1.3,1.1,1.1,1.1,0.3,2.6,1.1]) # A-B
+    ws1316c=np.asarray([1.7,0.6,0.6,0.8,0.6,0.9,0.2,1.2,0.3])
+    wd1218a=np.asarray([263,275,277,300,305,273,304,299,287])
+    wd1218b=np.asarray([264,296,274,306,298,295,319,306,292])
+    wd1218c=np.asarray([267,309,254,304,296,299,332,321,300])
+    wd1312a=np.asarray([241,246,312,230,237,248,260,256,300])
+    wd1312b=np.asarray([237,225,326,235,225,250,237,243,312])
+    wd1312c=np.asarray([239,249,323,227,225,244,242,245,319])
+    wd1316a=np.asarray([269,299,245, 30, 14, 62,306,308,296])
+    wd1316b=np.asarray([242,276,228, 81, 46, 92,326,314,281])
+    wd1316c=np.asarray([173,122,182, 15,156, 69,349,286,226])
+    ws1316a=np.asarray([3.5,3.2,0.5,1.1,2.3,1.3,0.3,0.8,0.4])
+    ws1300b=np.asarray([3.1,3.1,0.6,0.9,2.5,1.3,0.7,0.5,0.3]) # E-F
+    ws1300c=np.asarray([3.0,2.1,0.5,1.0,2.5,1.2,1.0,0.7,0.3])
+    wd1300a=np.asarray([228,227, 43,157,206,172,244,226, 41])
+    wd1300b=np.asarray([238,227, 42,166,207,173,238,158,353])
+    wd1300c=np.asarray([231,220, 86,144,211,169,232,150,222])
 
 
-el0 = [0,15,30, 45, 60, 75,90,105,120]  #dynamic
-# el4 = [4,19,34, 49, 64, 79,94,109,124]  #dynamic foil pimple
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/aerofoil7/postProcessing/probes/0/", el=el0, ws0=ws1218b, wd0=wd1218b, line= 0)
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/aerofoil7/postProcessing/probes/0/", el=el0, ws0=ws1218b, wd0=wd1218b, line=-1)
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/aerofoil7/postProcessing/probes/0/", el=el0, ws0=(ws1218a+ws1218b+ws1218c)/3., wd0=(wd1218a+wd1218b+wd1218c)/3., line=1)
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/aerofoil7/postProcessing/probes/0/", el=el0, ws0=(ws1218a+ws1218b+ws1218c)/3., wd0=(wd1218a+wd1218b+wd1218c)/3., line=-1)
+    el0 = [0,15,30, 45, 60, 75,90,105,120]  #dynamic
+    # el4 = [4,19,34, 49, 64, 79,94,109,124]  #dynamic foil pimple
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/aerofoil7/postProcessing/probes/0/", el=el0, ws0=ws1218b, wd0=wd1218b, line= 0)
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/aerofoil7/postProcessing/probes/0/", el=el0, ws0=ws1218b, wd0=wd1218b, line=-1)
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/aerofoil7/postProcessing/probes/0/", el=el0, ws0=(ws1218a+ws1218b+ws1218c)/3., wd0=(wd1218a+wd1218b+wd1218c)/3., line=1)
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/aerofoil7/postProcessing/probes/0/", el=el0, ws0=(ws1218a+ws1218b+ws1218c)/3., wd0=(wd1218a+wd1218b+wd1218c)/3., line=-1)
 
-# prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200b2az0rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line= 1, verbose=True)
-# prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200b2az0rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1, verbose=True)
-# prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa//postProcessing/probes/0/", el=el4, ws0=(ws1218a+ws1218b+ws1218c)/3., wd0=(wd1218a+wd1218b+wd1218c)/3., line=1)
-# prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa//postProcessing/probes/0/", el=el4, ws0=(ws1218a+ws1218b+ws1218c)/3., wd0=(wd1218a+wd1218b+wd1218c)/3., line=-1)
+    # prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200b2az0rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line= 1, verbose=True)
+    # prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200b2az0rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1, verbose=True)
+    # prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa//postProcessing/probes/0/", el=el4, ws0=(ws1218a+ws1218b+ws1218c)/3., wd0=(wd1218a+wd1218b+wd1218c)/3., line=1)
+    # prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa//postProcessing/probes/0/", el=el4, ws0=(ws1218a+ws1218b+ws1218c)/3., wd0=(wd1218a+wd1218b+wd1218c)/3., line=-1)
 
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line= 0)
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line=-1)
-# prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600a2rhosimplea/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line=-1)
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line= 0)
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line=-1)
+    # prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600a2rhosimplea/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line=-1)
 
-# prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line= 1)
-# prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line=-1)
+    # prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line= 1)
+    # prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line=-1)
 
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200c2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line= 0)
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200c2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1)
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1)
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2rhosimplenut/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1)
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200c2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line= 0)
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200c2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1)
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1)
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2rhosimplenut/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1)
 
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line= 0)
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1)
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200c2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1)
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line= 0)
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1)
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200c2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1)
 
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306130000a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1300b, wd0=wd1300b, line= 0)
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306130000a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1300b, wd0=wd1300b, line=-1)
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306130000a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1300b, wd0=wd1300b, line= 0)
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306130000a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1300b, wd0=wd1300b, line=-1)
 
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1218b, wd0=wd1218b, line=0, verbose=True)
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1218b, wd0=wd1218b, line=-1, verbose=True)
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1218b, wd0=wd1218b, line=-1, verbose=True)
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1218b, wd0=wd1218b, line=0, verbose=True)
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1218b, wd0=wd1218b, line=-1, verbose=True)
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1218b, wd0=wd1218b, line=-1, verbose=True)
 
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306130000b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1300b, wd0=wd1300b, line=0, verbose=True)
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306130000a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1300b, wd0=wd1300b, line=-1, verbose=True)
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306130000b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1300b, wd0=wd1300b, line=-1, verbose=True)
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306130000b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1300b, wd0=wd1300b, line=0, verbose=True)
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306130000a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1300b, wd0=wd1300b, line=-1, verbose=True)
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306130000b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1300b, wd0=wd1300b, line=-1, verbose=True)
 
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=0, verbose=True)
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1, verbose=True)
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1, verbose=True)
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=0, verbose=True)
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1, verbose=True)
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1, verbose=True)
 
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line=0, verbose=True)
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line=-1, verbose=True)
-prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line=-1, verbose=True)
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line=0, verbose=True)
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line=-1, verbose=True)
+    prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line=-1, verbose=True)
 
-wsm = np.asarray(ws1218b.tolist() + ws1300b.tolist() + ws1312b.tolist() + ws1316b.tolist())
-wdm = np.asarray(wd1218b.tolist() + wd1300b.tolist() + wd1312b.tolist() + wd1316b.tolist())
+    wsm = np.asarray(ws1218b.tolist() + ws1300b.tolist() + ws1312b.tolist() + ws1316b.tolist())
+    wdm = np.asarray(wd1218b.tolist() + wd1300b.tolist() + wd1312b.tolist() + wd1316b.tolist())
 
-ws1 = np.asarray((np.ones(9)*ws1218b[-1]).tolist()+
-                 (np.ones(9)*ws1300b[-1]).tolist()+
-                 (np.ones(9)*ws1312b[-1]).tolist()+
-                 (np.ones(9)*ws1316b[-1]).tolist())
-wd1 = np.asarray((np.ones(9)*wd1218b[-1]).tolist()+
-                 (np.ones(9)*wd1300b[-1]).tolist()+
-                 (np.ones(9)*wd1312b[-1]).tolist()+
-                 (np.ones(9)*wd1316b[-1]).tolist())
-
-
-wss1218r, wds1218r =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/aerofoil7/postProcessing/probes/0/", el=el0, ws0=ws1218b, wd0=wd1218b, line=-1)
-wss1218w, wds1218w =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/aerofoil7/postProcessing/probes/0/", el=el0, ws0=ws1218b, wd0=wd1218b, line=0)
-wss1300r, wds1300r =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306130000a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1300b, wd0=wd1300b, line=-1)
-wss1300w, wds1300w =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306130000a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1300b, wd0=wd1300b, line=0)
-wss1312r, wds1312r =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1)
-wss1312w, wds1312w =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=0)
-wss1316r, wds1316r =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line=-1)
-wss1316w, wds1316w =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line=0)
-
-wss1218r, wds1218r =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1218b, wd0=wd1218b, line=-1)
-wss1218w, wds1218w =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1218b, wd0=wd1218b, line=0)
-wss1300r, wds1300r =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306130000b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1300b, wd0=wd1300b, line=-1)
-wss1300w, wds1300w =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306130000b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1300b, wd0=wd1300b, line=0)
-wss1312r, wds1312r =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1)
-wss1312w, wds1312w =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=0)
-wss1316r, wds1316r =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line=-1)
-wss1316w, wds1316w =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line=0)
-
-wssr=np.asarray(wss1218r+wss1300r+wss1312r+wss1316r)
-wssw=np.asarray(wss1218w+wss1300w+wss1312w+wss1316w)
-wdsr=np.asarray(wds1218r+wds1300r+wds1312r+wds1316r)
-wdsw=np.asarray(wds1218w+wds1300w+wds1312w+wds1316w)
-
-print('s-',stat(wsm, wssr, kind='r2'),stat(wsm, wssr, kind='r'), stat(wsm, wssr, kind='mae'), stat(wsm, wssr, kind='rmse'),'/',round(np.mean(wssr),4),'+-',round(np.std(wssr),4),'>>',round(np.mean(wsm),4),'+-',round(np.std(wsm),4))
-print('d-',stat(wdm, wdsr, kind='r2'),stat(wdm, wdsr, kind='r'), stat(wdm, wdsr, kind='mae'), stat(wdm, wdsr, kind='rmse'),'/',round(np.mean(wdsr),4),'+-',round(np.std(wdsr),4),'>>',round(np.mean(wdm),4),'+-',round(np.std(wdm),4))
-print('s-',stat(wsm, wssw, kind='r2'),stat(wsm, wssw, kind='r'), stat(wsm, wssw, kind='mae'), stat(wsm, wssw, kind='rmse'),'/',round(np.mean(wssw),4),'+-',round(np.std(wssw),4),'>>',round(np.mean(wsm),4),'+-',round(np.std(wsm),4))
-print('d-',stat(wdm, wdsw, kind='r2'),stat(wdm, wdsw, kind='r'), stat(wdm, wdsw, kind='mae'), stat(wdm, wdsw, kind='rmse'),'/',round(np.mean(wdsw),4),'+-',round(np.std(wdsw),4),'>>',round(np.mean(wdm),4),'+-',round(np.std(wdm),4))
-print('s-',stat(wsm, ws1, kind='r2'),stat(wsm, ws1, kind='r'), stat(wsm, ws1, kind='mae'), stat(wsm, ws1, kind='rmse'),'/',round(np.mean(ws1),4),'+-',round(np.std(ws1),4),'>>',round(np.mean(wsm),4),'+-',round(np.std(wsm),4))
-print('d-',stat(wdm, wd1, kind='r2'),stat(wdm, wd1, kind='r'), stat(wdm, wd1, kind='mae'), stat(wdm, wd1, kind='rmse'),'/',round(np.mean(wd1),4),'+-',round(np.std(wd1),4),'>>',round(np.mean(wdm),4),'+-',round(np.std(wdm),4))
-
-distancerx = 0
-distancery = 0
-distancewx = 0
-distancewy = 0
-distance1x = 0
-distance1y = 0
-adistancerx = 0
-adistancery = 0
-adistancewx = 0
-adistancewy = 0
-adistance1x = 0
-adistance1y = 0
-maxr = 0
-maxw = 0
-max1 = 0
-for i in range(len(wsm)):
-    distancerx += (wsm[i]*math.cos(wdm[i]/180*math.pi)-wssr[i]*math.cos(wdsr[i]/180*math.pi))
-    distancery += (wsm[i]*math.sin(wdm[i]/180*math.pi)-wssr[i]*math.sin(wdsr[i]/180*math.pi))
-    distancewx += (wsm[i]*math.cos(wdm[i]/180*math.pi)-wssw[i]*math.cos(wdsw[i]/180*math.pi))
-    distancewy += (wsm[i]*math.sin(wdm[i]/180*math.pi)-wssw[i]*math.sin(wdsw[i]/180*math.pi))
-    distance1x += (wsm[i]*math.cos(wdm[i]/180*math.pi)-ws1[i]*math.cos(wd1[i]/180*math.pi))
-    distance1y += (wsm[i]*math.sin(wdm[i]/180*math.pi)-ws1[i]*math.sin(wd1[i]/180*math.pi))
-    adistancerx += math.fabs(wsm[i]*math.cos(wdm[i]/180*math.pi)-wssr[i]*math.cos(wdsr[i]/180*math.pi))
-    adistancery += math.fabs(wsm[i]*math.sin(wdm[i]/180*math.pi)-wssr[i]*math.sin(wdsr[i]/180*math.pi))
-    adistancewx += math.fabs(wsm[i]*math.cos(wdm[i]/180*math.pi)-wssw[i]*math.cos(wdsw[i]/180*math.pi))
-    adistancewy += math.fabs(wsm[i]*math.sin(wdm[i]/180*math.pi)-wssw[i]*math.sin(wdsw[i]/180*math.pi))
-    adistance1x += math.fabs(wsm[i]*math.cos(wdm[i]/180*math.pi)-ws1[i]*math.cos(wd1[i]/180*math.pi))
-    adistance1y += math.fabs(wsm[i]*math.sin(wdm[i]/180*math.pi)-ws1[i]*math.sin(wd1[i]/180*math.pi))
-    maxr = max(((wsm[i]*math.cos(wdm[i]/180*math.pi)-wssr[i]*math.cos(wdsr[i]/180*math.pi))**2 +
-                 (wsm[i]*math.sin(wdm[i]/180*math.pi)-wssr[i]*math.sin(wdsr[i]/180*math.pi))**2)**.5, maxr)
-    maxw = max(((wsm[i]*math.cos(wdm[i]/180*math.pi)-wssw[i]*math.cos(wdsw[i]/180*math.pi))**2 +
-                 (wsm[i]*math.sin(wdm[i]/180*math.pi)-wssw[i]*math.sin(wdsw[i]/180*math.pi))**2)**.5, maxw)
-    max1 = max(((wsm[i]*math.cos(wdm[i]/180*math.pi)-ws1[i]*math.cos(wd1[i]/180*math.pi))**2 +
-                 (wsm[i]*math.sin(wdm[i]/180*math.pi)-ws1[i]*math.sin(wd1[i]/180*math.pi))**2)**.5, max1)
-print('rho distance (sum, abs, max) = ', (distancerx**2+distancery**2)**.5/len(wsm), (adistancerx**2+adistancery**2)**.5/len(wsm), maxr)
-print('wrf distance (sum, abs, max) = ', (distancewx**2+distancewy**2)**.5, (adistancewx**2+adistancewy**2)**.5, maxw)
-print('1st distance (sum, abs, max) = ', (distance1x**2+distance1y**2)**.5, (adistance1x**2+adistance1y**2)**.5, max1)
+    ws1 = np.asarray((np.ones(9)*ws1218b[-1]).tolist()+
+                     (np.ones(9)*ws1300b[-1]).tolist()+
+                     (np.ones(9)*ws1312b[-1]).tolist()+
+                     (np.ones(9)*ws1316b[-1]).tolist())
+    wd1 = np.asarray((np.ones(9)*wd1218b[-1]).tolist()+
+                     (np.ones(9)*wd1300b[-1]).tolist()+
+                     (np.ones(9)*wd1312b[-1]).tolist()+
+                     (np.ones(9)*wd1316b[-1]).tolist())
 
 
-plt.figure() 
-plt.plot(wssr,wsm,'*b', label='CFD')
-plt.plot(wssw,wsm,'*r', label='WRF')
-xmin=min(wsm.min(),wssr.min())
-xmax=max(wsm.max(),wssr.max())
-ln11 = np.linspace(xmin,xmax)
-plt.plot(ln11,ln11,'k')
-plt.xlabel("simulation")
-plt.ylabel("observaion")
-plt.xlim(xmin,xmax)
-plt.ylim(xmin,xmax)
-plt.legend()
-plt.title('Speed')
+    wss1218r, wds1218r =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/aerofoil7/postProcessing/probes/0/", el=el0, ws0=ws1218b, wd0=wd1218b, line=-1)
+    wss1218w, wds1218w =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/aerofoil7/postProcessing/probes/0/", el=el0, ws0=ws1218b, wd0=wd1218b, line=0)
+    wss1300r, wds1300r =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306130000a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1300b, wd0=wd1300b, line=-1)
+    wss1300w, wds1300w =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306130000a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1300b, wd0=wd1300b, line=0)
+    wss1312r, wds1312r =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1)
+    wss1312w, wds1312w =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=0)
+    wss1316r, wds1316r =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line=-1)
+    wss1316w, wds1316w =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line=0)
 
-plt.figure()
-plt.plot(wdsr,wdm,'*b', label='CFD')
-plt.plot(wdsw,wdm,'*r', label='WRF')
-xmin=min(wdm.min(),wdsr.min())
-xmax=max(wdm.max(),wdsr.max())
-ln11 = np.linspace(xmin,xmax)
-plt.plot(ln11,ln11,'k')
-plt.xlabel("simulation")
-plt.ylabel("observaion")
-plt.xlim(xmin,xmax)
-plt.ylim(xmin,xmax)
-plt.legend()
-plt.title('Direction')
+    wss1218r, wds1218r =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1218b, wd0=wd1218b, line=-1)
+    wss1218w, wds1218w =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1218b, wd0=wd1218b, line=0)
+    wss1300r, wds1300r =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306130000b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1300b, wd0=wd1300b, line=-1)
+    wss1300w, wds1300w =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306130000b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1300b, wd0=wd1300b, line=0)
+    wss1312r, wds1312r =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1)
+    wss1312w, wds1312w =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=0)
+    wss1316r, wds1316r =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line=-1)
+    wss1316w, wds1316w =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line=0)
 
-distancerx = 0
-distancery = 0
-adistancerx = 0
-adistancery = 0
-maxr = 0
-ts0=ws1316b.copy()
-td0=wd1316b.copy()
-ts =np.ones(len(ts0))*ws1316b[-1]
-td =np.ones(len(td0))*wd1316b[-1]
-# ts = forecastedws.copy()
-# td = forecastedwd.copy()
-for i in range(len(ws1218b)):
-    distancerx += (ts0[i]*math.cos(td0[i]/180*math.pi)-ts[i]*math.cos(td[i]/180*math.pi))
-    distancery += (ts0[i]*math.sin(td0[i]/180*math.pi)-ts[i]*math.sin(td[i]/180*math.pi))
-    adistancerx += math.fabs(ts0[i]*math.cos(td0[i]/180*math.pi)-ts[i]*math.cos(td[i]/180*math.pi))
-    adistancery += math.fabs(ts0[i]*math.sin(td0[i]/180*math.pi)-ts[i]*math.sin(td[i]/180*math.pi))
-    maxr = max(((ts0[i]*math.cos(td0[i]/180*math.pi)-ts[i]*math.cos(td[i]/180*math.pi))**2 +
-                 (ts0[i]*math.sin(td0[i]/180*math.pi)-ts[i]*math.sin(td[i]/180*math.pi))**2)**.5, maxr)
-print('distance (sum, abs, max) = ', (distancerx**2+distancery**2)**.5/len(ws1218b), (adistancerx**2+adistancery**2)**.5/len(ws1218b), maxr)
+    wssr=np.asarray(wss1218r+wss1300r+wss1312r+wss1316r)
+    wssw=np.asarray(wss1218w+wss1300w+wss1312w+wss1316w)
+    wdsr=np.asarray(wds1218r+wds1300r+wds1312r+wds1316r)
+    wdsw=np.asarray(wds1218w+wds1300w+wds1312w+wds1316w)
 
-ua=np.linspace(-5,5,3)
-va=np.linspace(-5,5,3)
-for i in range(3):
-    for j in range(3):
-        da = np.arctan2(ua[i],va[j])*180/math.pi + 180
-        print(ua[i],va[j],da, np.round(-5*np.sin(da/180*math.pi),2), np.round(-5*np.cos(da/180*math.pi),2) )
+    print('s-',stat(wsm, wssr, kind='r2'),stat(wsm, wssr, kind='r'), stat(wsm, wssr, kind='mae'), stat(wsm, wssr, kind='rmse'),'/',round(np.mean(wssr),4),'+-',round(np.std(wssr),4),'>>',round(np.mean(wsm),4),'+-',round(np.std(wsm),4))
+    print('d-',stat(wdm, wdsr, kind='r2'),stat(wdm, wdsr, kind='r'), stat(wdm, wdsr, kind='mae'), stat(wdm, wdsr, kind='rmse'),'/',round(np.mean(wdsr),4),'+-',round(np.std(wdsr),4),'>>',round(np.mean(wdm),4),'+-',round(np.std(wdm),4))
+    print('s-',stat(wsm, wssw, kind='r2'),stat(wsm, wssw, kind='r'), stat(wsm, wssw, kind='mae'), stat(wsm, wssw, kind='rmse'),'/',round(np.mean(wssw),4),'+-',round(np.std(wssw),4),'>>',round(np.mean(wsm),4),'+-',round(np.std(wsm),4))
+    print('d-',stat(wdm, wdsw, kind='r2'),stat(wdm, wdsw, kind='r'), stat(wdm, wdsw, kind='mae'), stat(wdm, wdsw, kind='rmse'),'/',round(np.mean(wdsw),4),'+-',round(np.std(wdsw),4),'>>',round(np.mean(wdm),4),'+-',round(np.std(wdm),4))
+    print('s-',stat(wsm, ws1, kind='r2'),stat(wsm, ws1, kind='r'), stat(wsm, ws1, kind='mae'), stat(wsm, ws1, kind='rmse'),'/',round(np.mean(ws1),4),'+-',round(np.std(ws1),4),'>>',round(np.mean(wsm),4),'+-',round(np.std(wsm),4))
+    print('d-',stat(wdm, wd1, kind='r2'),stat(wdm, wd1, kind='r'), stat(wdm, wd1, kind='mae'), stat(wdm, wd1, kind='rmse'),'/',round(np.mean(wd1),4),'+-',round(np.std(wd1),4),'>>',round(np.mean(wdm),4),'+-',round(np.std(wdm),4))
+
+    distancerx = 0
+    distancery = 0
+    distancewx = 0
+    distancewy = 0
+    distance1x = 0
+    distance1y = 0
+    adistancerx = 0
+    adistancery = 0
+    adistancewx = 0
+    adistancewy = 0
+    adistance1x = 0
+    adistance1y = 0
+    maxr = 0
+    maxw = 0
+    max1 = 0
+    for i in range(len(wsm)):
+        distancerx += (wsm[i]*math.cos(wdm[i]/180*math.pi)-wssr[i]*math.cos(wdsr[i]/180*math.pi))
+        distancery += (wsm[i]*math.sin(wdm[i]/180*math.pi)-wssr[i]*math.sin(wdsr[i]/180*math.pi))
+        distancewx += (wsm[i]*math.cos(wdm[i]/180*math.pi)-wssw[i]*math.cos(wdsw[i]/180*math.pi))
+        distancewy += (wsm[i]*math.sin(wdm[i]/180*math.pi)-wssw[i]*math.sin(wdsw[i]/180*math.pi))
+        distance1x += (wsm[i]*math.cos(wdm[i]/180*math.pi)-ws1[i]*math.cos(wd1[i]/180*math.pi))
+        distance1y += (wsm[i]*math.sin(wdm[i]/180*math.pi)-ws1[i]*math.sin(wd1[i]/180*math.pi))
+        adistancerx += math.fabs(wsm[i]*math.cos(wdm[i]/180*math.pi)-wssr[i]*math.cos(wdsr[i]/180*math.pi))
+        adistancery += math.fabs(wsm[i]*math.sin(wdm[i]/180*math.pi)-wssr[i]*math.sin(wdsr[i]/180*math.pi))
+        adistancewx += math.fabs(wsm[i]*math.cos(wdm[i]/180*math.pi)-wssw[i]*math.cos(wdsw[i]/180*math.pi))
+        adistancewy += math.fabs(wsm[i]*math.sin(wdm[i]/180*math.pi)-wssw[i]*math.sin(wdsw[i]/180*math.pi))
+        adistance1x += math.fabs(wsm[i]*math.cos(wdm[i]/180*math.pi)-ws1[i]*math.cos(wd1[i]/180*math.pi))
+        adistance1y += math.fabs(wsm[i]*math.sin(wdm[i]/180*math.pi)-ws1[i]*math.sin(wd1[i]/180*math.pi))
+        maxr = max(((wsm[i]*math.cos(wdm[i]/180*math.pi)-wssr[i]*math.cos(wdsr[i]/180*math.pi))**2 +
+                     (wsm[i]*math.sin(wdm[i]/180*math.pi)-wssr[i]*math.sin(wdsr[i]/180*math.pi))**2)**.5, maxr)
+        maxw = max(((wsm[i]*math.cos(wdm[i]/180*math.pi)-wssw[i]*math.cos(wdsw[i]/180*math.pi))**2 +
+                     (wsm[i]*math.sin(wdm[i]/180*math.pi)-wssw[i]*math.sin(wdsw[i]/180*math.pi))**2)**.5, maxw)
+        max1 = max(((wsm[i]*math.cos(wdm[i]/180*math.pi)-ws1[i]*math.cos(wd1[i]/180*math.pi))**2 +
+                     (wsm[i]*math.sin(wdm[i]/180*math.pi)-ws1[i]*math.sin(wd1[i]/180*math.pi))**2)**.5, max1)
+    print('rho distance (sum, abs, max) = ', (distancerx**2+distancery**2)**.5/len(wsm), (adistancerx**2+adistancery**2)**.5/len(wsm), maxr)
+    print('wrf distance (sum, abs, max) = ', (distancewx**2+distancewy**2)**.5, (adistancewx**2+adistancewy**2)**.5, maxw)
+    print('1st distance (sum, abs, max) = ', (distance1x**2+distance1y**2)**.5, (adistance1x**2+adistance1y**2)**.5, max1)
+
+
+    plt.figure() 
+    plt.plot(wssr,wsm,'*b', label='CFD')
+    plt.plot(wssw,wsm,'*r', label='WRF')
+    xmin=min(wsm.min(),wssr.min())
+    xmax=max(wsm.max(),wssr.max())
+    ln11 = np.linspace(xmin,xmax)
+    plt.plot(ln11,ln11,'k')
+    plt.xlabel("simulation")
+    plt.ylabel("observaion")
+    plt.xlim(xmin,xmax)
+    plt.ylim(xmin,xmax)
+    plt.legend()
+    plt.title('Speed')
+
+    plt.figure()
+    plt.plot(wdsr,wdm,'*b', label='CFD')
+    plt.plot(wdsw,wdm,'*r', label='WRF')
+    xmin=min(wdm.min(),wdsr.min())
+    xmax=max(wdm.max(),wdsr.max())
+    ln11 = np.linspace(xmin,xmax)
+    plt.plot(ln11,ln11,'k')
+    plt.xlabel("simulation")
+    plt.ylabel("observaion")
+    plt.xlim(xmin,xmax)
+    plt.ylim(xmin,xmax)
+    plt.legend()
+    plt.title('Direction')
+
+    distancerx = 0
+    distancery = 0
+    adistancerx = 0
+    adistancery = 0
+    maxr = 0
+    ts0=ws1316b.copy()
+    td0=wd1316b.copy()
+    ts =np.ones(len(ts0))*ws1316b[-1]
+    td =np.ones(len(td0))*wd1316b[-1]
+    # ts = forecastedws.copy()
+    # td = forecastedwd.copy()
+    for i in range(len(ws1218b)):
+        distancerx += (ts0[i]*math.cos(td0[i]/180*math.pi)-ts[i]*math.cos(td[i]/180*math.pi))
+        distancery += (ts0[i]*math.sin(td0[i]/180*math.pi)-ts[i]*math.sin(td[i]/180*math.pi))
+        adistancerx += math.fabs(ts0[i]*math.cos(td0[i]/180*math.pi)-ts[i]*math.cos(td[i]/180*math.pi))
+        adistancery += math.fabs(ts0[i]*math.sin(td0[i]/180*math.pi)-ts[i]*math.sin(td[i]/180*math.pi))
+        maxr = max(((ts0[i]*math.cos(td0[i]/180*math.pi)-ts[i]*math.cos(td[i]/180*math.pi))**2 +
+                     (ts0[i]*math.sin(td0[i]/180*math.pi)-ts[i]*math.sin(td[i]/180*math.pi))**2)**.5, maxr)
+    print('distance (sum, abs, max) = ', (distancerx**2+distancery**2)**.5/len(ws1218b), (adistancerx**2+adistancery**2)**.5/len(ws1218b), maxr)
+
+    ua=np.linspace(-5,5,3)
+    va=np.linspace(-5,5,3)
+    for i in range(3):
+        for j in range(3):
+            da = np.arctan2(ua[i],va[j])*180/math.pi + 180
+            print(ua[i],va[j],da, np.round(-5*np.sin(da/180*math.pi),2), np.round(-5*np.cos(da/180*math.pi),2) )

@@ -71,17 +71,8 @@ class TestGFS:
         requirements = pathlib.Path("requirements.txt").read_text(encoding="utf-8")
         assert "scikit-learn" in requirements
 
-    @pytest.mark.xfail(
-        strict=True,
-        raises=NameError,
-        reason="B333: below its __main__ guard GFS.py keeps module-level scratch "
-               "code (from ~line 860) that calls prob(...) on /data5/NOBACKUP/... "
-               "paths; prob is only defined inside the guard, so importing the "
-               "module raises NameError even with sklearn and GDAL installed. "
-               "Surfaced by the Ubuntu 26.04 image, the first test environment "
-               "with GDAL (#1125).",
-    )
     def test_the_module_imports_when_the_dependency_is_present(self):
+        """B333: the scratch code at the bottom of GFS.py runs only under __main__."""
         pytest.importorskip("sklearn")
         pytest.importorskip("osgeo")
         assert importlib.import_module(
