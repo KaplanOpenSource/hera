@@ -112,7 +112,7 @@ wait_ready() {  # the entrypoint execs mongod as PID 1 only after any init scrip
 
 cleanup() {
     local status=$?
-    docker rm -f "$SRC" "$DST" >/dev/null 2>&1 || true
+    docker rm -fv "$SRC" "$DST" >/dev/null 2>&1 || true
     docker network rm "$NET" >/dev/null 2>&1 || true
     if [ "$status" -ne 0 ] && [ "${switched:-no}" = yes ]; then
         echo "The new server did not come up. Roll back with:"
