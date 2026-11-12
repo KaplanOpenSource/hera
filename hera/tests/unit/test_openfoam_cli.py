@@ -25,66 +25,12 @@ Deliberately not tested:
     not importable as a module.  Where a bug below is about a mismatch
     between handler and parser, the parser side is quoted from that script
     rather than executed;
-  * the first, shadowed definitions of `foam_mesh_blockMesh`,
-    `foam_mesh_setDomainHeight` and `IC_hydrostaticPressure` (CLI.py:259,
-    263, 267).  They are unreachable dead code -- see B166 -- and no
-    test can call them.
 
 Bugs pinned here (each with a strict xfail for the intended behaviour plus
 a passing characterisation of what actually happens):
 
-  * B166: `foam_mesh_blockMesh` and `foam_mesh_setDomainHeight` are each
-    defined twice.  The second definition -- a bare `pass` -- wins, so the
-    `raise NotImplementedError` the author wrote is unreachable and
-    `hera-openFoam <solver> blockMesh setBoundsFromFile ...` silently
-    succeeds while doing nothing.
-  * B167: `if 'projectName' not in arguments` never fires.  argparse
-    declares `--projectName` with `default=None`, so the attribute always
-    exists and the caseConfiguration.json fallback behind that test is
-    dead code; `projectName=None` is forwarded to getToolkit instead.
-    (`stochasticLagrangian_dispersion_create` in the same file gets this
-    right: `('projectName' in arguments) and (arguments.projectName is not
-    None)`.)
-  * B168: `Foam_createEmpty` (and the live `IC_hydrostaticPressure`)
-    catch *any* failure to load caseConfiguration.json, report
-    "Configuration file ... not found", and overwrite the file with
-    `{"projectName": null}` -- so a caseConfiguration.json that merely has
-    a syntax error is destroyed rather than reported.
-  * B169: `stochasticLagrangian_dispersionFlow_create` catches
-    FileExistsError, logs it with `logger.error` and returns normally, so
-    the command exits 0 having created nothing.
-  * B170: `stochasticLagrangian_postProcess_toParquet` computes `cache`
-    on both branches and then never forwards it to `getCaseResults`, whose
-    default is `cache=True` -- the "directory, not in the DB" branch
-    explicitly sets `cache = False` and is ignored.
-  * B171: `..._postProcess_toParquet` / `..._postProcess_toVTK` leave
-    `outputName` unbound when the dispersion name is neither in the DB nor
-    a directory on disk, and die with UnboundLocalError instead of the
-    error message the surrounding code clearly intends.
-  * B172: `foam_solver_simulations_list --format pandas --file out`
-    tries to write a DataFrame *object* to a text file (TypeError).
-  * B173: `stochasticLagrangian_dispersionFlow_list` never assigns
-    `output` in its `--format pandas` branch -- the default -- and then
-    prints it: UnboundLocalError after the groups have been printed.
   * B174: the same handler calls `tk.workflowCompare(...)`, a method
     that exists nowhere in hera; the real name is `compareWorkflows`.
-  * B175: `stochasticLagrangian_dispersion_create --overwrite` bypasses
-    the DB lookup of the *flow field* as well as the removal of the case
-    directory, so re-creating a dispersion whose flow field lives in the
-    DB fails with "<name> not found!".
-  * B176: `stochasticLagrangian_postProcess_toVTK` reads
-    `arguments.outputdir`, but the parser declares `--outputDirectory`
-    (dest `outputDirectory`).  The flag is silently ignored and the VTK
-    files always land under the process cwd.
-  * B177: `stochasticLagrangian_source_makeEscapedMassFile` asks for
-    `toolkitHome.OF_LSM`, which is not a ToolkitHome constant
-    (AttributeError), and passes the project name positionally into
-    getToolkit's `filesDirectory` slot.  Its subparser
-    (`createReleaseRateFile`) declares none of the seven arguments the
-    handler reads, so the command cannot work at all.
-  * B178: `foam_solver_template_buildExecute` and `hermes_buildExecute`
-    turn a missing hermes into `warnings.warn(...)` and then call the name
-    the failed import was supposed to bind: NameError.
 
 Rough edges characterised but not pinned as bugs, because there is no one
 obviously-intended behaviour to xfail against: the live
@@ -289,14 +235,16 @@ class _FakeOFToolkit(_Recorder):
 
 
 class _FakeOFToolkitWithWorkflowCompare(_FakeOFToolkit):
-    """Adds the `workflowCompare` method the real toolkit lacks (B174).
-
-    Needed to reach anything past CLI.py:330 in
-    stochasticLagrangian_dispersionFlow_list.
+    """The pair stochasticLagrangian_dispersionFlow_list drives since B174:
+    getWorkflowListOfSolvers to find the groups, compareWorkflows on them.
     """
 
-    def workflowCompare(self, workflowsType=None):
-        self._record("workflowCompare", workflowsType=workflowsType)
+    def getWorkflowListOfSolvers(self, solver):
+        self._record("getWorkflowListOfSolvers", solver=solver)
+        return [_FakeDocument(groupName="dispersionGroup")]
+
+    def compareWorkflows(self, groupNames, **kwargs):
+        self._record("compareWorkflows", groupNames=tuple(groupNames), **kwargs)
         return self.comparison
 
 
@@ -464,8 +412,8 @@ class TestDispersionFlowWriteEmptyTemplate:
 
 @pytest.mark.unit
 class TestPlaceholderHandlers:
-    """Five handlers whose whole body is `pass`, plus the two that shadow a
-    NotImplementedError (B166)."""
+    """Four handlers whose whole body is `pass`, plus the two that raise
+    NotImplementedError."""
 
     @pytest.mark.parametrize(
         "handler",
@@ -486,32 +434,10 @@ class TestPlaceholderHandlers:
         [foam_mesh_blockMesh, foam_mesh_setDomainHeight],
         ids=["blockMesh", "setDomainHeight"],
     )
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B166: CLI.py defines foam_mesh_blockMesh (line 259) and "
-               "foam_mesh_setDomainHeight (line 263) with a "
-               "`raise NotImplementedError`, then defines both again at "
-               "lines 640 and 654 with a bare `pass`.  The second "
-               "definition wins, so the guard is unreachable and "
-               "`hera-openFoam <solver> blockMesh setBoundsFromFile` -- "
-               "which requires --dx --dy --dz --Z -- exits 0 having done "
-               "nothing.  See the consolidated findings issue.",
-    )
     def test_an_unimplemented_mesh_command_should_say_so(self, handler):
         with pytest.raises(NotImplementedError):
             handler(Namespace(templateName="t", fileName="f", dx=1, dy=1, dz=1,
                               Z=100, projectName=PROJECT, solver=SOLVER))
-
-    @pytest.mark.parametrize(
-        "handler",
-        [foam_mesh_blockMesh, foam_mesh_setDomainHeight],
-        ids=["blockMesh", "setDomainHeight"],
-    )
-    def test_a_mesh_command_currently_succeeds_silently(self, handler):
-        """Characterisation of B166."""
-        assert handler(Namespace(templateName="t", fileName="f", dx=1, dy=1,
-                                 dz=1, Z=100, projectName=PROJECT,
-                                 solver=SOLVER)) is None
 
 
 # ---------------------------------------------------------------------------
@@ -586,18 +512,11 @@ class TestFoamCreateEmpty:
 
 
 @pytest.mark.unit
-class TestFoamCreateEmptyProjectNameFallbackIsDead:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B167: Foam_createEmpty guards its caseConfiguration.json "
-               "fallback with `if 'projectName' not in arguments`, but "
-               "hera/bin/hera-openFoam declares --projectName with "
-               "default=None, so the attribute is always present and the "
-               "fallback is unreachable: projectName=None is handed to "
-               "getToolkit instead of being read from the case "
-               "configuration.  The correct idiom is used a few functions "
-               "down in the same file.  See the consolidated findings issue.",
-    )
+class TestFoamCreateEmptyProjectNameFallback:
+    """argparse declares --projectName with default=None, so the
+    caseConfiguration.json fallback has to fire on None as well as on an
+    absent attribute."""
+
     def test_a_none_project_name_should_fall_back_to_the_case_configuration(
         self, install_toolkit, in_tmp_cwd
     ):
@@ -608,30 +527,20 @@ class TestFoamCreateEmptyProjectNameFallbackIsDead:
         Foam_createEmpty(_createEmptyArgs(projectName=None))
         assert asked[0]["kwargs"]["projectName"] == "FROM_CASE_CONFIG"
 
-    def test_a_none_project_name_is_currently_forwarded_verbatim(
-        self, install_toolkit, in_tmp_cwd
-    ):
-        """Characterisation of B167."""
+    def test_an_explicit_project_name_still_wins(self, install_toolkit, in_tmp_cwd):
         (in_tmp_cwd / "caseConfiguration.json").write_text(
             json.dumps({"projectName": "FROM_CASE_CONFIG"})
         )
         asked = install_toolkit(_FakeOFToolkit())
-        Foam_createEmpty(_createEmptyArgs(projectName=None))
-        assert asked[0]["kwargs"]["projectName"] is None
+        Foam_createEmpty(_createEmptyArgs(projectName=PROJECT))
+        assert asked[0]["kwargs"]["projectName"] == PROJECT
 
 
 @pytest.mark.unit
-class TestFoamCreateEmptyClobbersABrokenConfiguration:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B168: Foam_createEmpty wraps loadJSON in a bare `except:` "
-               "and treats every failure as 'file not found', overwriting "
-               "the existing caseConfiguration.json with "
-               "{'projectName': null}.  A configuration file with a JSON "
-               "syntax error -- or any other read error -- is therefore "
-               "destroyed, and the message misreports why.  See the "
-               "consolidated findings issue.",
-    )
+class TestFoamCreateEmptyBrokenConfiguration:
+    """A caseConfiguration.json that exists but cannot be parsed is
+    reported, not replaced by a stub."""
+
     def test_an_unparsable_configuration_file_should_not_be_overwritten(
         self, install_toolkit, in_tmp_cwd
     ):
@@ -644,17 +553,15 @@ class TestFoamCreateEmptyClobbersABrokenConfiguration:
             Foam_createEmpty(arguments)
         assert "REAL_PROJECT" in configuration.read_text()
 
-    def test_an_unparsable_configuration_file_is_currently_destroyed(
+    def test_a_missing_configuration_file_is_still_stubbed_out_and_reported(
         self, install_toolkit, in_tmp_cwd
     ):
-        """Characterisation of B168."""
-        configuration = in_tmp_cwd / "caseConfiguration.json"
-        configuration.write_text('{"projectName": "REAL_PROJECT",,}')
         arguments = _createEmptyArgs()
         del arguments.projectName
         install_toolkit(_FakeOFToolkit())
         with pytest.raises(ValueError, match="not found"):
             Foam_createEmpty(arguments)
+        configuration = in_tmp_cwd / "caseConfiguration.json"
         assert json.loads(configuration.read_text()) == {"projectName": None}
 
 
@@ -919,10 +826,9 @@ class TestFoamSolverSimulationsList:
     def test_the_message_for_an_empty_project_reports_the_raw_argument(
         self, install_toolkit, capsys
     ):
-        """Characterisation of B167's knock-on effect: the handler prints
-        `projectName`, which is whatever came off the command line -- so a
-        default --projectName prints the word None rather than the project
-        the toolkit actually resolved."""
+        """The handler prints `projectName`, which is whatever came off the
+        command line -- so a default --projectName prints the word None
+        rather than the project the toolkit actually resolved."""
         install_toolkit(_FakeOFToolkit(projectName="RESOLVED", solverDocuments=[]))
         foam_solver_simulations_list(_listArgs(projectName=None))
         assert f"There are no cases for {SOLVER} in None" in capsys.readouterr().out
@@ -930,15 +836,6 @@ class TestFoamSolverSimulationsList:
 
 @pytest.mark.unit
 class TestFoamSolverSimulationsListPandasToFile:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B172: with the default --format pandas, "
-               "foam_solver_simulations_list sets `output = res` -- the "
-               "DataFrame itself -- and then, if --file was given, calls "
-               "outputFile.write(output) on a text-mode file, which raises "
-               "TypeError.  Every other format converts to a string first. "
-               "See the consolidated findings issue.",
-    )
     def test_the_default_format_should_be_writable_to_a_file(
         self, install_toolkit, in_tmp_cwd
     ):
@@ -946,17 +843,7 @@ class TestFoamSolverSimulationsListPandasToFile:
                                  comparison=_comparison())
         install_toolkit(toolkit)
         foam_solver_simulations_list(_listArgs(format="pandas", file="out"))
-        assert (in_tmp_cwd / "out.txt").exists()
-
-    def test_the_default_format_with_a_file_currently_raises_a_type_error(
-        self, install_toolkit, in_tmp_cwd
-    ):
-        """Characterisation of B172."""
-        toolkit = _FakeOFToolkit(solverDocuments=[_FakeDocument(groupName="grp")],
-                                 comparison=_comparison())
-        install_toolkit(toolkit)
-        with pytest.raises(TypeError):
-            foam_solver_simulations_list(_listArgs(format="pandas", file="out"))
+        assert (in_tmp_cwd / "out.txt").read_text() == _comparison().to_string()
 
 
 # ---------------------------------------------------------------------------
@@ -1028,28 +915,12 @@ class TestDispersionFlowCreate:
 
 
 @pytest.mark.unit
-class TestDispersionFlowCreateSwallowsFileExists:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B169: stochasticLagrangian_dispersionFlow_create catches "
-               "the FileExistsError raised for an existing flow field, "
-               "logs it with logger.error and then returns normally, so "
-               "`hera-openFoam stochasticLagrangian dispersionFlow create` "
-               "exits 0 having created nothing -- indistinguishable from "
-               "success for any script that checks the exit status.  See "
-               "the consolidated findings issue.",
-    )
+class TestDispersionFlowCreateOnAnExistingFlowField:
     def test_an_existing_flow_field_should_fail_the_command(self, install_toolkit):
         toolkit = _FakeOFToolkit(createFlowRaises=FileExistsError("already there"))
         install_toolkit(toolkit)
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError, match="Use --overwrite to recreate"):
             stochasticLagrangian_dispersionFlow_create(_dispersionFlowArgs())
-
-    def test_an_existing_flow_field_currently_returns_quietly(self, install_toolkit):
-        """Characterisation of B169."""
-        toolkit = _FakeOFToolkit(createFlowRaises=FileExistsError("already there"))
-        install_toolkit(toolkit)
-        assert stochasticLagrangian_dispersionFlow_create(_dispersionFlowArgs()) is None
         assert "stochasticLagrangian.createDispersionFlowField" in toolkit.names()
 
     def test_other_failures_are_not_swallowed(self, install_toolkit):
@@ -1085,9 +956,10 @@ class TestDispersionFlowList:
         asked = install_toolkit(toolkit)
         stochasticLagrangian_dispersionFlow_list(_dispersionFlowListArgs())
         assert asked[0]["toolkitName"] == "OpenFOAM"
-        assert toolkit.call("workflowCompare")[2] == {
-            "workflowsType": "stochasticLagrangianSolver"
+        assert toolkit.call("getWorkflowListOfSolvers")[2] == {
+            "solver": "stochasticLagrangianSolver"
         }
+        assert toolkit.call("compareWorkflows")[2]["groupNames"] == ("dispersionGroup",)
 
     def test_the_json_format_prints_reindented_json(self, install_toolkit, capsys):
         toolkit = _FakeOFToolkitWithWorkflowCompare(comparison=_groupedComparison())
@@ -1138,81 +1010,58 @@ class TestDispersionFlowList:
         stochasticLagrangian_dispersionFlow_list(arguments)
         assert asked[0]["kwargs"]["projectName"] == "FROM_CASE_CONFIG"
 
-    def test_a_none_project_name_is_forwarded_verbatim(self, install_toolkit, in_tmp_cwd):
-        """Characterisation of B167 in this handler: the caseConfiguration
-        fallback is guarded by `'projectName' not in arguments`, which the
-        argparse default never satisfies."""
+    def test_a_none_project_name_is_read_from_the_case_configuration_too(
+        self, install_toolkit, in_tmp_cwd
+    ):
+        """The argparse default is None, so the fallback has to fire on it."""
         (in_tmp_cwd / "caseConfiguration.json").write_text(
             json.dumps({"projectName": "FROM_CASE_CONFIG"})
         )
         toolkit = _FakeOFToolkitWithWorkflowCompare(comparison=_groupedComparison())
         asked = install_toolkit(toolkit)
         stochasticLagrangian_dispersionFlow_list(_dispersionFlowListArgs(projectName=None))
-        assert asked[0]["kwargs"]["projectName"] is None
+        assert asked[0]["kwargs"]["projectName"] == "FROM_CASE_CONFIG"
 
 
 @pytest.mark.unit
 class TestDispersionFlowListPandasFormat:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B173: the `--format pandas` branch of "
-               "stochasticLagrangian_dispersionFlow_list prints each group "
-               "but never assigns `output`, unlike the other three "
-               "branches.  Execution then falls through to `print(output)` "
-               "and dies with UnboundLocalError -- and pandas is the "
-               "default format, so the subcommand fails whenever it has "
-               "anything to show.  See the consolidated findings issue.",
-    )
     def test_the_default_format_should_list_the_flows_without_crashing(
-        self, install_toolkit
+        self, install_toolkit, capsys
     ):
         toolkit = _FakeOFToolkitWithWorkflowCompare(comparison=_groupedComparison())
         install_toolkit(toolkit)
         stochasticLagrangian_dispersionFlow_list(_dispersionFlowListArgs(format="pandas"))
+        assert "Group name grp" in capsys.readouterr().out
 
-    def test_the_default_format_currently_dies_after_printing_the_groups(
-        self, install_toolkit, capsys
+    def test_the_default_format_can_also_be_written_to_a_file(
+        self, install_toolkit, in_tmp_cwd
     ):
-        """Characterisation of B173."""
         toolkit = _FakeOFToolkitWithWorkflowCompare(comparison=_groupedComparison())
         install_toolkit(toolkit)
-        with pytest.raises(UnboundLocalError, match="output"):
-            stochasticLagrangian_dispersionFlow_list(
-                _dispersionFlowListArgs(format="pandas")
-            )
-        assert "Group name grp" in capsys.readouterr().out
+        stochasticLagrangian_dispersionFlow_list(
+            _dispersionFlowListArgs(format="pandas", file="flows")
+        )
+        assert "Group name grp" in (in_tmp_cwd / "flows.txt").read_text()
 
 
 @pytest.mark.unit
-class TestDispersionFlowListCallsAMethodThatDoesNotExist:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B174: stochasticLagrangian_dispersionFlow_list calls "
-               "tk.workflowCompare(workflowsType=...).  No class in hera "
-               "defines workflowCompare -- the OpenFOAM toolkit's method is "
-               "compareWorkflows(Workflow, longFormat, transpose) -- so the "
-               "subcommand cannot get past that line.  See the consolidated "
-               "findings issue.",
-    )
-    def test_the_openfoam_toolkit_should_have_the_method_the_handler_calls(self):
-        from hera.simulations.openFoam.toolkit import OFToolkit
+class TestDispersionFlowListUsesTheRealCompareMethod:
+    """B174 fixed: the handler was calling workflowCompare, which no class in
+    hera defines.  It now uses the pair its sibling handler already uses --
+    getWorkflowListOfSolvers, then compareWorkflows on the group names."""
 
-        assert hasattr(OFToolkit, "workflowCompare")
-
-    def test_the_openfoam_toolkit_only_has_compareworkflows(self):
-        """Characterisation of B174."""
+    def test_the_openfoam_toolkit_has_compareworkflows_and_not_workflowcompare(self):
         from hera.simulations.openFoam.toolkit import OFToolkit
 
         assert not hasattr(OFToolkit, "workflowCompare")
         assert hasattr(OFToolkit, "compareWorkflows")
 
-    def test_a_toolkit_with_the_real_surface_raises_an_attribute_error(
+    def test_a_toolkit_with_the_real_surface_is_driven_without_error(
         self, install_toolkit
     ):
-        """Characterisation of B174."""
-        install_toolkit(_FakeOFToolkit(comparison=_groupedComparison()))
-        with pytest.raises(AttributeError, match="workflowCompare"):
-            stochasticLagrangian_dispersionFlow_list(_dispersionFlowListArgs())
+        toolkit = _FakeOFToolkit(comparison=_groupedComparison())
+        install_toolkit(toolkit)
+        stochasticLagrangian_dispersionFlow_list(_dispersionFlowListArgs())
 
 
 # ---------------------------------------------------------------------------
@@ -1318,18 +1167,10 @@ class TestDispersionCreate:
 
 
 @pytest.mark.unit
-class TestDispersionCreateOverwriteIgnoresTheDatabase:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B175: stochasticLagrangian_dispersion_create tests "
-               "`if len(doc) == 0 or arguments.overwrite:` before deciding "
-               "how to resolve the dispersion *flow field*, so --overwrite "
-               "-- which is documented as overwriting the dispersion case "
-               "directory -- also discards the DB lookup and insists the "
-               "flow field be a directory on disk.  Recreating a dispersion "
-               "whose flow field lives in the DB therefore fails with "
-               "'<name> not found!'.  See the consolidated findings issue.",
-    )
+class TestDispersionCreateOverwriteAndTheDatabase:
+    """--overwrite governs the dispersion case directory, not how the
+    dispersion flow field is resolved."""
+
     def test_overwrite_should_still_use_a_flow_field_stored_in_the_db(
         self, install_toolkit, in_tmp_cwd
     ):
@@ -1341,12 +1182,10 @@ class TestDispersionCreateOverwriteIgnoresTheDatabase:
         )[2]
         assert kwargs["dispersionFlowDirectory"] == "/data/flow_0"
 
-    def test_overwrite_currently_rejects_a_flow_field_that_is_only_in_the_db(
+    def test_a_flow_field_missing_from_the_db_and_from_disk_is_still_refused(
         self, install_toolkit, in_tmp_cwd
     ):
-        """Characterisation of B175."""
-        toolkit = _FakeOFToolkit(documents=[_FakeDocument(resource="/data/flow_0")])
-        install_toolkit(toolkit)
+        install_toolkit(_FakeOFToolkit(documents=[]))
         with pytest.raises(ValueError, match="myFlow not found"):
             stochasticLagrangian_dispersion_create(_dispersionCreateArgs(overwrite=True))
 
@@ -1458,51 +1297,24 @@ def _massArgs(casePath, **overrides):
 
 @pytest.mark.unit
 class TestSourceMakeEscapedMassFile:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B177: stochasticLagrangian_source_makeEscapedMassFile "
-               "asks for toolkitHome.OF_LSM, which is not a ToolkitHome "
-               "constant (only the internal _toolkits registry has an "
-               "'OF_LSM' key), so the command dies with AttributeError "
-               "before doing anything.  On top of that the project name is "
-               "passed positionally -- getToolkit(toolkitName, "
-               "filesDirectory, **kwargs) -- so 'tmpProject' would land in "
-               "filesDirectory, and the createReleaseRateFile subparser "
-               "declares none of the seven attributes the handler reads. "
-               "See the consolidated findings issue.",
-    )
     def test_the_toolkit_name_constant_the_handler_uses_should_exist(self):
         from hera import toolkitHome
 
         assert hasattr(toolkitHome, "OF_LSM")
 
-    def test_the_handler_currently_dies_on_the_missing_constant(self, tmp_path):
-        """Characterisation of B177."""
-        with pytest.raises(AttributeError, match="OF_LSM"):
-            stochasticLagrangian_source_makeEscapedMassFile(_massArgs(str(tmp_path)))
-
-    def test_the_project_name_is_passed_where_the_files_directory_belongs(
-        self, install_toolkit, monkeypatch, tmp_path
+    def test_the_project_name_reaches_the_project_name_parameter(
+        self, install_toolkit, tmp_path
     ):
-        """Characterisation of B177: with the missing constant supplied,
-        "tmpProject" is consumed by getToolkit's `filesDirectory`
-        parameter."""
-        from hera import toolkitHome
-
-        monkeypatch.setattr(type(toolkitHome), "OF_LSM", "OF_LSM", raising=False)
         (tmp_path / "constant").mkdir()
         asked = install_toolkit(_FakeLSMToolkit(_massLog()))
         stochasticLagrangian_source_makeEscapedMassFile(_massArgs(str(tmp_path)))
         assert asked[0]["toolkitName"] == "OF_LSM"
-        assert asked[0]["filesDirectory"] == "tmpProject"
-        assert "projectName" not in asked[0]["kwargs"]
+        assert asked[0]["filesDirectory"] is None
+        assert asked[0]["kwargs"]["projectName"] == "tmpProject"
 
     def test_the_mass_file_is_written_into_the_constant_directory_of_the_case(
-        self, install_toolkit, monkeypatch, tmp_path
+        self, install_toolkit, tmp_path
     ):
-        from hera import toolkitHome
-
-        monkeypatch.setattr(type(toolkitHome), "OF_LSM", "OF_LSM", raising=False)
         (tmp_path / "constant").mkdir()
         toolkit = _FakeLSMToolkit(_massLog())
         install_toolkit(toolkit)
@@ -1515,11 +1327,8 @@ class TestSourceMakeEscapedMassFile:
         )
 
     def test_an_explicit_mass_file_name_overrides_the_patch_derived_one(
-        self, install_toolkit, monkeypatch, tmp_path, capsys
+        self, install_toolkit, tmp_path, capsys
     ):
-        from hera import toolkitHome
-
-        monkeypatch.setattr(type(toolkitHome), "OF_LSM", "OF_LSM", raising=False)
         (tmp_path / "constant").mkdir()
         install_toolkit(_FakeLSMToolkit(_massLog()))
         stochasticLagrangian_source_makeEscapedMassFile(
@@ -1529,11 +1338,8 @@ class TestSourceMakeEscapedMassFile:
         assert str(tmp_path / "constant" / "customMass") in capsys.readouterr().out
 
     def test_the_record_count_and_the_mass_differences_come_from_the_log(
-        self, install_toolkit, monkeypatch, tmp_path
+        self, install_toolkit, tmp_path
     ):
-        from hera import toolkitHome
-
-        monkeypatch.setattr(type(toolkitHome), "OF_LSM", "OF_LSM", raising=False)
         (tmp_path / "constant").mkdir()
         install_toolkit(_FakeLSMToolkit(_massLog()))
         stochasticLagrangian_source_makeEscapedMassFile(_massArgs(str(tmp_path)))
@@ -1545,11 +1351,8 @@ class TestSourceMakeEscapedMassFile:
         assert [float(value) for value in values[1:]] == [0.0, 10.0, 15.0]
 
     def test_only_the_requested_patch_and_action_are_kept(
-        self, install_toolkit, monkeypatch, tmp_path
+        self, install_toolkit, tmp_path
     ):
-        from hera import toolkitHome
-
-        monkeypatch.setattr(type(toolkitHome), "OF_LSM", "OF_LSM", raising=False)
         (tmp_path / "constant").mkdir()
         data = pandas.concat(
             [
@@ -1632,18 +1435,8 @@ class TestPostProcessToParquet:
 
 
 @pytest.mark.unit
-class TestPostProcessToParquetDropsTheCacheFlag:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B170: stochasticLagrangian_postProcess_toParquet sets "
-               "`cache = False` for a case found only as a directory and "
-               "`cache = True` for one found in the DB, then calls "
-               "getCaseResults without passing cache at all -- and "
-               "getCaseResults defaults to cache=True.  The directory "
-               "branch's decision not to cache is silently discarded.  See "
-               "the consolidated findings issue.",
-    )
-    def test_the_cache_decision_should_reach_the_toolkit(
+class TestPostProcessToParquetCacheFlag:
+    def test_a_case_found_only_as_a_directory_is_not_cached(
         self, install_toolkit, in_tmp_cwd
     ):
         (in_tmp_cwd / "caseOnDisk").mkdir()
@@ -1654,17 +1447,11 @@ class TestPostProcessToParquetDropsTheCacheFlag:
         )
         assert toolkit.call("stochasticLagrangian.getCaseResults")[2]["cache"] is False
 
-    def test_the_cache_decision_is_currently_computed_and_dropped(
-        self, install_toolkit, in_tmp_cwd
-    ):
-        """Characterisation of B170."""
-        (in_tmp_cwd / "caseOnDisk").mkdir()
-        toolkit = _FakeOFToolkit(documents=[], caseResults="data")
+    def test_a_case_found_in_the_database_is_cached(self, install_toolkit, in_tmp_cwd):
+        toolkit = _FakeOFToolkit(documents=[_FakeDocument()], caseResults="data")
         install_toolkit(toolkit)
-        stochasticLagrangian_postProcess_toParquet(
-            _toParquetArgs(dispersionName="caseOnDisk")
-        )
-        assert "cache" not in toolkit.call("stochasticLagrangian.getCaseResults")[2]
+        stochasticLagrangian_postProcess_toParquet(_toParquetArgs())
+        assert toolkit.call("stochasticLagrangian.getCaseResults")[2]["cache"] is True
 
 
 @pytest.mark.unit
@@ -1675,36 +1462,14 @@ class TestPostProcessUnknownDispersionName:
          stochasticLagrangian_postProcess_toVTK],
         ids=["toParquet", "toVTK"],
     )
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B171: both postProcess handlers assign outputName only "
-               "inside `if os.path.isdir(...)` (and, in toParquet, `cache` "
-               "with it).  A dispersion name that is neither a stored "
-               "workflow nor a directory leaves the name unbound, so the "
-               "handler raises UnboundLocalError instead of the 'not found' "
-               "error the surrounding log messages clearly intend.  See the "
-               "consolidated findings issue.",
-    )
     def test_an_unknown_dispersion_name_should_be_reported_clearly(
         self, install_toolkit, in_tmp_cwd, handler
     ):
-        install_toolkit(_FakeOFToolkit(documents=[], caseResults="data"))
-        with pytest.raises(ValueError):
+        toolkit = _FakeOFToolkit(documents=[], caseResults="data")
+        install_toolkit(toolkit)
+        with pytest.raises(ValueError, match="neither a stored workflow nor a directory"):
             handler(_toParquetArgs(dispersionName="nowhere"))
-
-    @pytest.mark.parametrize(
-        "handler",
-        [stochasticLagrangian_postProcess_toParquet,
-         stochasticLagrangian_postProcess_toVTK],
-        ids=["toParquet", "toVTK"],
-    )
-    def test_an_unknown_dispersion_name_currently_raises_unboundlocalerror(
-        self, install_toolkit, in_tmp_cwd, handler
-    ):
-        """Characterisation of B171."""
-        install_toolkit(_FakeOFToolkit(documents=[], caseResults="data"))
-        with pytest.raises(UnboundLocalError, match="outputName"):
-            handler(_toParquetArgs(dispersionName="nowhere"))
+        assert "stochasticLagrangian.getCaseResults" not in toolkit.names()
 
 
 # ---------------------------------------------------------------------------
@@ -1765,41 +1530,22 @@ class TestPostProcessToVTK:
         )
         assert (in_tmp_cwd / "VTK" / "caseOnDisk").is_dir()
 
-    def test_the_attribute_the_handler_actually_reads_does_redirect_the_output(
-        self, install_toolkit, in_tmp_cwd, tmp_path
-    ):
-        """The `outputdir` spelling works -- which is what makes B176 a
-        typo rather than a missing feature."""
-        elsewhere = tmp_path / "elsewhere"
-        toolkit = _FakeOFToolkit(documents=[_FakeDocument()], caseResults="data")
-        install_toolkit(toolkit)
-        arguments = _toParquetArgs()
-        arguments.outputdir = str(elsewhere)
-        stochasticLagrangian_postProcess_toVTK(arguments)
-        assert (elsewhere / "VTK" / "dispersion_0").is_dir()
-
     def test_a_none_output_directory_attribute_falls_back_to_the_cwd(
         self, install_toolkit, in_tmp_cwd
     ):
         toolkit = _FakeOFToolkit(documents=[_FakeDocument()], caseResults="data")
         install_toolkit(toolkit)
         arguments = _toParquetArgs()
-        arguments.outputdir = None
+        arguments.outputDirectory = None
         stochasticLagrangian_postProcess_toVTK(arguments)
         assert (in_tmp_cwd / "VTK" / "dispersion_0").is_dir()
 
 
 @pytest.mark.unit
-class TestPostProcessToVTKIgnoresTheOutputDirectoryFlag:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B176: stochasticLagrangian_postProcess_toVTK reads "
-               "`arguments.outputdir`, but hera/bin/hera-openFoam declares "
-               "the flag as --outputDirectory (dest 'outputDirectory', "
-               "default 'VTK').  The spellings never match, so the branch "
-               "always falls through to os.getcwd() and --outputDirectory "
-               "is silently ignored.  See the consolidated findings issue.",
-    )
+class TestPostProcessToVTKOutputDirectoryFlag:
+    """The parser declares the flag as --outputDirectory (dest
+    'outputDirectory'), so that is the attribute the handler must read."""
+
     def test_the_output_directory_flag_should_be_honoured(
         self, install_toolkit, in_tmp_cwd, tmp_path
     ):
@@ -1809,20 +1555,8 @@ class TestPostProcessToVTKIgnoresTheOutputDirectoryFlag:
         stochasticLagrangian_postProcess_toVTK(
             _toParquetArgs(outputDirectory=str(elsewhere))
         )
-        assert (elsewhere / "VTK" / "dispersion_0").is_dir()
-
-    def test_the_output_currently_always_lands_under_the_working_directory(
-        self, install_toolkit, in_tmp_cwd, tmp_path
-    ):
-        """Characterisation of B176."""
-        elsewhere = tmp_path / "elsewhere"
-        toolkit = _FakeOFToolkit(documents=[_FakeDocument()], caseResults="data")
-        install_toolkit(toolkit)
-        stochasticLagrangian_postProcess_toVTK(
-            _toParquetArgs(outputDirectory=str(elsewhere))
-        )
-        assert not elsewhere.exists()
-        assert (in_tmp_cwd / "VTK" / "dispersion_0").is_dir()
+        assert (elsewhere / "dispersion_0").is_dir()
+        assert not (in_tmp_cwd / "VTK").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -2115,33 +1849,8 @@ class TestBuildExecuteWithoutHermes:
         [foam_solver_template_buildExecute, hermes_buildExecute],
         ids=["foam_solver_template_buildExecute", "hermes_buildExecute"],
     )
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B178: both buildExecute handlers wrap the "
-               "`from hermes.utils.workflowAssembly import "
-               "handler_buildExecute` in a try/except ImportError that only "
-               "calls warnings.warn, and then call handler_buildExecute "
-               "anyway -- so a missing hermes surfaces as "
-               "`NameError: name 'handler_buildExecute' is not defined` "
-               "after a warning, instead of the ImportError the comment in "
-               "the source says was replaced.  See the consolidated "
-               "findings issue.",
-    )
     def test_a_missing_hermes_should_be_reported_as_an_import_error(
         self, no_hermes, recorded_workflow_add, handler
     ):
-        with pytest.raises(ImportError):
+        with pytest.raises(ImportError, match="hermes is not installed"):
             handler(_buildExecuteArgs(noDB=True))
-
-    @pytest.mark.parametrize(
-        "handler",
-        [foam_solver_template_buildExecute, hermes_buildExecute],
-        ids=["foam_solver_template_buildExecute", "hermes_buildExecute"],
-    )
-    def test_a_missing_hermes_currently_warns_and_then_raises_a_name_error(
-        self, no_hermes, recorded_workflow_add, handler
-    ):
-        """Characterisation of B178."""
-        with pytest.warns(UserWarning, match="hermes is not installed"):
-            with pytest.raises(NameError, match="handler_buildExecute"):
-                handler(_buildExecuteArgs(noDB=True))

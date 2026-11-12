@@ -8,10 +8,12 @@ def _setup():
     global _initialized, pd, toolkitHome, WSG84, ITM
     if _initialized:
         return
-    _initialized = True
     import pandas as _pd; pd = _pd
     from hera import toolkitHome as _th; toolkitHome = _th
-    from hera.utils import WSG84 as _w, ITM as _i; WSG84, ITM = _w, _i
+    from hera.measurements.GIS.utils import WSG84 as _w, ITM as _i; WSG84, ITM = _w, _i
+    # Marked done only once every import succeeded, so a failure is retried
+    # (and stays loud) instead of leaving the globals silently unbound.
+    _initialized = True
 
 def _lazy_setup(func):
     @functools.wraps(func)
@@ -174,6 +176,8 @@ def buildings_raster_toSTL(arguments):
                                              miny=arguments.miny,
                                              maxx=arguments.maxx,
                                              maxy=arguments.maxy,
+                                             dataSourceName=dataSourceName,
+                                             inputCRS=inputCRS,
                                              withElevation=True)
     fileName = arguments.fileName
 
@@ -210,7 +214,7 @@ def get_landocver(arguments):
     inputCRS = WSG84 if arguments.inputCRS is None else int(arguments.inputCRS)
     # outputCRS = ITM if arguments.outputCRS is None else int(arguments.outputCRS)
     dataSourceName = None if arguments.dataSourceName is None else arguments.dataSourceName
-    windDirection = None if arguments.windDirection is None else float(arguments.windDirectionis)
+    windDirection = None if arguments.windDirection is None else float(arguments.windDirection)
     resolution = None if arguments.resolution is None else float(arguments.resolution)
 
 

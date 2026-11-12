@@ -79,32 +79,23 @@ class TestNetcdfXarrayHandler:
 
 
 @pytest.mark.unit
-class TestJsonGeopandasHandlerIsBroken:
-    """B87: saveData calls resource.to_json(fileName, **kwargs) -- but
-    geopandas.GeoDataFrame.to_json's first positional parameter is `na`
-    ('null'/'drop'/'keep'), and the method returns a JSON *string*, it
-    never writes to a file at all. fileName lands in the na= slot and
-    always fails validation."""
+class TestJsonGeopandasHandler:
+    """GeoDataFrame.to_json returns a GeoJSON *string* and takes no file name
+    (its first positional parameter is `na`), so saveData has to write it."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B87: to_json's first positional argument is `na`, not a "
-               "file path -- the method returns a string and never writes "
-               "a file. fileName is passed as na= and rejected outright. "
-               "See the consolidated findings issue.",
-    )
     def test_save_data_should_write_a_geojson_file(self, tmp_path):
         target = tmp_path / "data.geojson"
         gdf = geopandas.GeoDataFrame({"name": ["A", "B"], "geometry": [Point(0, 0), Point(1, 1)]}, crs=4326)
         datahandler.DataHandler_JSON_geopandas.saveData(gdf, str(target))
         assert target.exists()
 
-    def test_save_data_currently_raises_for_every_call(self, tmp_path):
-        """Characterisation of B87."""
+    def test_save_data_round_trips_through_get_data(self, tmp_path):
         target = tmp_path / "data.geojson"
         gdf = geopandas.GeoDataFrame({"name": ["A"], "geometry": [Point(0, 0)]}, crs=4326)
-        with pytest.raises(ValueError, match="Unknown na method"):
-            datahandler.DataHandler_JSON_geopandas.saveData(gdf, str(target))
+        meta = datahandler.DataHandler_JSON_geopandas.saveData(gdf, str(target))
+        assert meta["crs"].to_epsg() == 4326
+        restored = datahandler.DataHandler_JSON_geopandas.getData(str(target))
+        assert list(restored["name"]) == ["A"]
 
     def test_get_data_itself_still_works_against_a_hand_written_file(self, tmp_path):
         """getData is independent of the broken saveData -- verified

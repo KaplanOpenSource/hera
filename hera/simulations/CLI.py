@@ -120,7 +120,7 @@ def workflow_delete(arguments):
     with open("completeDelete.py","w") as outfile:
         outfile.write("\n".join(completeRemove))
 
-    print("In order to remove all directories from disk type: python completeRemove.py")
+    print("In order to remove all directories from disk type: python completeDelete.py")
 
 def workflow_export(arguments):
     """
@@ -285,6 +285,7 @@ def create_workflow_variations(arguments):
     # print(f"using workflow {workflow_doc_list}")
     if len(workflow_doc_list) == 0:
         logger.error("workflow not found.")
+        return
     wokflow_doc = workflow_doc_list[0]
     base_workflow_json = wokflow_doc.to_mongo().copy()['desc']['workflow']
     base_workflow_name = str(wokflow_doc['desc']['groupName'])
@@ -292,9 +293,11 @@ def create_workflow_variations(arguments):
     
     logger.info("checking variations file")
     if not os.path.exists(variation_json_path):
-        logger.error(f"{variation_json_path} doesn't point to anything.")    
+        logger.error(f"{variation_json_path} doesn't point to anything.")
+        return
     elif not os.path.isfile(variation_json_path):
         logger.error(f"{variation_json_path} must be a file")
+        return
     
     logger.info("Loading variations file")
     with open(variation_json_path) as varitation_json_file:
@@ -436,7 +439,8 @@ def workflow_list(arguments):
 
     simDocument = wftk.getWorkflowListDocumentFromDB(arguments.group)
     if len(simDocument) == 0:
-        print(f"{arguments.object} is not a simulation, directory, workflow file or a simulation group in project {arguments.projectName} ")
+        print(f"{arguments.group} is not a simulation, directory, workflow file or a simulation group in project {arguments.projectName} ")
+        return
     workflowGroup = simDocument[0].desc[wftk.DESC_GROUPNAME]
 
     listNodes     = arguments.nodes
@@ -595,7 +599,7 @@ def workflow_compare(arguments):
 
 
     if arguments.format == "pandas":
-        output = res
+        output = res.to_string()
         ext = "txt"
     elif arguments.format == "latex":
         output = res.to_latex()

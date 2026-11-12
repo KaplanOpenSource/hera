@@ -1,9 +1,4 @@
-"""Project: the query/save helpers batch 2 didn't reach.
-
-B88: Project.getProjectList (the classmethod) is decorated @staticmethod
-but declares an unused `cls` leading parameter, so the intended call
-`Project.getProjectList()` raises TypeError. See TestClassmethodGetProjectListIsBroken.
-"""
+"""Project: the query/save helpers batch 2 didn't reach."""
 import pandas
 import pytest
 
@@ -127,30 +122,14 @@ class TestGetProjectList:
 
 
 @pytest.mark.unit
-class TestClassmethodGetProjectListIsBroken:
-    """B88: Project.getProjectList is decorated @staticmethod but its
-    signature is (cls, user=None), with `cls` never used in the body.
-    Calling it the intended way -- Project.getProjectList() -- raises
-    TypeError for a missing positional argument."""
+class TestStaticGetProjectList:
+    """Project.getProjectList is a @staticmethod whose only parameter is the
+    optional database name."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B88: decorated @staticmethod but declares an unused `cls` "
-               "leading positional parameter -- Project.getProjectList() "
-               "raises TypeError instead of returning the project list. "
-               "See the consolidated findings issue.",
-    )
     def test_it_should_be_callable_with_no_arguments(self, unit_project):
         assert unit_project.projectName in Project.getProjectList()
 
-    def test_it_currently_raises_for_the_intended_call(self):
-        """Characterisation of B88."""
-        with pytest.raises(TypeError, match="cls"):
-            Project.getProjectList()
-
-    def test_it_only_works_if_the_caller_smuggles_something_into_cls(self, unit_project):
-        """Characterisation of B88: the unused `cls` slot can be filled
-        with anything (even None) and the call proceeds normally."""
+    def test_an_explicit_user_is_accepted_positionally(self, unit_project):
         assert unit_project.projectName in Project.getProjectList(None)
 
 
