@@ -103,7 +103,7 @@ class depositionModels(object):
         muA = 0.0000189
         g = 9.81
         lpm = 0.000000067
-        kb = 1.83E-23
+        kb = 1.380649E-23  # Boltzmann constant, J/K (SI exact)
         kappa = 0.4
         rhoA = 1.2
         cpA = 1000

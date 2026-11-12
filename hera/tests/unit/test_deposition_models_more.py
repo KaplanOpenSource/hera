@@ -38,10 +38,10 @@ Three defects surfaced:
   friction velocity by five orders of magnitude.  The same double
   conversion sat on ``dp*0.000001`` in the leaf-interception term, and
   both now use the metres the constructor stored.
-* B257: the Boltzmann constant in the same block is written
-  ``kb = 1.83E-23``.  Its value is 1.380649e-23 J/K -- the digits are
-  transposed -- so the Brownian diffusivity is 33% too large wherever
-  the model is used.
+* B257 (fixed): the Boltzmann constant in the same block was written
+  ``kb = 1.83E-23``.  Its value is 1.380649e-23 J/K -- the digits were
+  transposed -- so the Brownian diffusivity was 33% too large wherever
+  the model was used.
 """
 import re
 
@@ -155,7 +155,9 @@ class TestGroundDepositionEfficiency:
         Qsol to 0 and vds collapses to u* egb."""
         model = make(diameter=1e-6)
         efficiency = model.depositionRate() / model.ustar
-        assert efficiency == pytest.approx(9.7707e-6, rel=1e-4)
+        # 9.7707e-6 before B257: the corrected Boltzmann constant makes the
+        # Brownian diffusivity 1.33x smaller, and with it the efficiency.
+        assert efficiency == pytest.approx(8.0966e-6, rel=1e-4)
 
     def test_a_deposition_velocity_cannot_exceed_the_friction_velocity(self, make):
         """vds = u* egb/(1 + Qsol) with egb a dimensionless ground transfer
@@ -202,22 +204,8 @@ class TestBoltzmannConstant:
         assert match is not None, "the kb assignment moved"
         return float(match.group(1)) * 1e23
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B257: the Brownian diffusivity uses kb = 1.83E-23 where the "
-               "Boltzmann constant is 1.380649e-23 J/K -- the first two digits "
-               "are transposed. Db = cu kb T / (3 pi muA dpm) is therefore 33% "
-               "too large, and the Schmidt number 33% too small, everywhere the "
-               "Petroff model is used. See the consolidated findings issue.",
-    )
     def test_it_is_the_boltzmann_constant(self):
         assert self._constantInSource() == pytest.approx(1.380649, rel=1e-3)
-
-    def test_it_is_currently_a_transposition_of_it(self):
-        """Characterisation of B257, with the size of the error."""
-        used = self._constantInSource()
-        assert used == pytest.approx(1.83)
-        assert used / 1.380649 == pytest.approx(1.3255, rel=1e-3)
 
     def test_the_other_constants_in_the_block_are_right(self):
         """So B257 is a typo rather than a different unit system: every
