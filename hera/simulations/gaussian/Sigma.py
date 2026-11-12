@@ -111,6 +111,12 @@ class BriggsRural(AbstractSigma):
         """
 
         x = numpy.array([tonumber(y,ureg.m) for y in numpy.atleast_1d(x)])
+        # A standard deviation cannot be negative, and for a large enough
+        # negative x the (1 + b x) factor goes negative under a fractional
+        # power and the formula returns NaN. Reject the input instead of
+        # letting either propagate into a concentration field.
+        if (x < 0).any():
+            raise ValueError("The downwind distance must not be negative.")
         Ax, Bx, Cx = self._coeffX.loc[stability][['A','B','C']]
         Az, Bz, Cz = self._coeffZ.loc[stability][['A', 'B', 'C']]
 
