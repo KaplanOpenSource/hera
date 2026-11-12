@@ -2,9 +2,9 @@ import { Add } from '@mui/icons-material';
 import { Box } from '@mui/material';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { EditAsJsonButton } from './EditAsJsonButton';
+import { calcItemType, ItemTypesEnum } from './ItemTypeSelector';
 
-// Actions shown on a branch (object-valued) row: add a child, or edit the whole
-// subtree as JSON. A child becomes a nested object via its own type chip.
+// Actions on a branch row: add a child, or edit the whole subtree as JSON.
 export const DetailsViewItemBranchActions = ({
   itemValue,
   setItemValue,
@@ -13,6 +13,10 @@ export const DetailsViewItemBranchActions = ({
   setItemValue: (newVal: any) => void,
 }) => {
   const addSubItem = (initialValue: any) => {
+    if (calcItemType(itemValue) === ItemTypesEnum.array) {
+      setItemValue([...itemValue, initialValue]);
+      return;
+    }
     let name = '';
     for (let i = 1; i < 1e5; i++) {
       const key = 'newItem_' + i;

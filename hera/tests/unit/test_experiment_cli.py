@@ -36,6 +36,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from hera import toolkitHome
 from hera.measurements.experiment import CLI
 
 
@@ -174,7 +175,9 @@ def projectList(monkeypatch):
 @pytest.fixture()
 def dataToolkit(monkeypatch):
     _FakeDataToolkit.instances = []
-    monkeypatch.setattr(CLI, "dataToolkit", _FakeDataToolkit)
+    # load_experiment_to_project imports dataToolkit at call time (lazy import
+    # to keep the CLI startup fast), so patch it at its source module.
+    monkeypatch.setattr("hera.utils.data.toolkit.dataToolkit", _FakeDataToolkit)
     return _FakeDataToolkit
 
 
@@ -275,7 +278,7 @@ class TestExperimentsList:
         # the class for the rest of the session and silently defeats any later
         # class-level patch of it. That broke all 64 tests in
         # test_simulations_cli.py whenever this file happened to run first.
-        monkeypatch.setattr(type(CLI.toolkitHome), "getToolkit", _refuse)
+        monkeypatch.setattr(type(toolkitHome), "getToolkit", _refuse)
         CLI.experiments_list(Namespace(projectName="MY_PROJECT"))
         assert len(experimentHome.instances) == 1
 
@@ -438,7 +441,7 @@ class TestCreateRepository:
 
     def test_a_per_device_entity_gets_a_measurement_keyed_by_device_name(self, tmp_path, monkeypatch):
         path = _experimentDirectory(tmp_path, "exp")
-        monkeypatch.setattr(CLI, "ExperimentZipFile", lambda _zip: _FakeZipFile([
+        monkeypatch.setattr("argos.experimentSetup.dataObjects.ExperimentZipFile", lambda _zip: _FakeZipFile([
             dict(entityTypeName="Sonic", entityName="sonic_01", perDevice=True),
         ]))
 
@@ -454,7 +457,7 @@ class TestCreateRepository:
 
     def test_entities_stored_together_share_one_measurement_per_device_type(self, tmp_path, monkeypatch):
         path = _experimentDirectory(tmp_path, "exp")
-        monkeypatch.setattr(CLI, "ExperimentZipFile", lambda _zip: _FakeZipFile([
+        monkeypatch.setattr("argos.experimentSetup.dataObjects.ExperimentZipFile", lambda _zip: _FakeZipFile([
             dict(entityTypeName="Sonic", entityName="sonic_01", perDevice=False),
             dict(entityTypeName="Sonic", entityName="sonic_02", perDevice=False),
         ]))

@@ -1,6 +1,6 @@
 """ToolkitHome: the registry that hands out toolkits and remembers repositories.
 
-CLAUDE.md forbids instantiating toolkits directly, so everything goes through
+Instantiating toolkits directly is forbidden, so everything goes through
 here.  That makes the registry's behaviour -- which class you get, what a bad
 name does, where the repository default lives -- part of the public contract.
 """

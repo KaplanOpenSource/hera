@@ -2,8 +2,7 @@ import { DeleteSweep } from '@mui/icons-material';
 import { Stack } from '@mui/material';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { useConfirm } from '../../elements/useConfirm';
-import { fetchProjectDetails } from '../../io/FetchProjects';
-import { fetchPython } from '../../io/fetchPython';
+import { deleteDocuments } from '../../io/deleteDocuments';
 import { idFromDocId } from '../../shared/idDocId';
 import { useProjectStore } from '../../stores/useProjectStore';
 
@@ -29,19 +28,8 @@ export const DeleteSelectedButton = ({
     });
     if (!confirmed) return;
 
-    const projectName = useProjectStore.getState().currProjectName;
-    const { data } = await fetchPython({
-      results: [],
-      label: `delete ${selectedDocOids.length} documents`,
-      code: [
-        'from hera.datalayer import All',
-        ...selectedDocOids.map(oid => `All.deleteDocumentByID('${oid}')`),
-      ].join('\n'),
-    });
-    if (!data) {
-      return;
-    }
-    await fetchProjectDetails(projectName);
+    const deleted = await deleteDocuments(selectedDocOids);
+    if (!deleted) return;
     onDeleted?.();
   };
 

@@ -91,7 +91,7 @@ They interact only with the Project and Toolkit APIs, exactly as production code
 ### 1. Python Environment
 
 ```bash
-cd /home/ilay/hera
+cd <path-to>/hera
 source heraenv/bin/activate
 pip install pytest   # if not already installed
 ```
@@ -126,7 +126,7 @@ The session-scoped project fixture loads data into MongoDB at startup and cleans
 ### Run All Tests
 
 ```bash
-cd /home/ilay/hera
+cd <path-to>/hera
 source heraenv/bin/activate
 export TEST_HERA=~/hera_unittest_data
 pytest hera/tests/ -v --ignore=hera/tests/unit

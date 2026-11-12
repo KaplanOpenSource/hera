@@ -1,4 +1,4 @@
-import { AccountTree, DescriptionOutlined, FolderOpen, Handyman, MenuBook, Settings, Source, Storage } from '@mui/icons-material';
+import { AccountTree, DescriptionOutlined, Folder, FolderOpen, Handyman, MenuBook, Settings, Source, Storage } from '@mui/icons-material';
 import { SvgIconComponent } from '@mui/icons-material';
 import { TabKind } from './tabKind';
 
@@ -21,6 +21,7 @@ export const TAB_KIND_STYLES: Record<TabKind, TabKindStyle> = {
   [TabKind.Repository]: { icon: Source, color: '#7a5530', darkColor: '#d0a877', bg: '192, 145, 94' },
   [TabKind.CentralRepository]: { icon: FolderOpen, color: '#6e5c30', darkColor: '#cdb87f', bg: '176, 151, 94' },
   [TabKind.Toolkit]: { icon: Handyman, color: '#4a7a6b', darkColor: '#8fcfbc', bg: '94, 176, 152' },
+  [TabKind.ProjectFiles]: { icon: Folder, color: '#5a5f80', darkColor: '#a8acd8', bg: '128, 132, 176' },
 };
 
 export const buildTabKindCss = (dark: boolean) => {

@@ -7,6 +7,7 @@ const ID_PREFIX_SPLIT = 'split_'
 const ID_PREFIX_TOOLKIT = 'split_/toolkit='
 export const TEMP_REPO_NAME = '*Temp Repository*';
 export const CENTRAL_REPO_FOLDER_ID = 'central-repo-folder';
+export const PROJECT_FILES_ID = 'project-files';
 
 export const idDocId = (oid: string) => {
   return ID_PREFIX_DOC + oid;
@@ -22,6 +23,15 @@ export const idRepoId = (repoName: string) => {
 
 export const idFromRepoId = (repoid: string) => {
   return repoid && repoid.startsWith(ID_PREFIX_REPO) ? repoid.replace(ID_PREFIX_REPO, "") : undefined;
+};
+
+// The repository name inside a tree row's DOM id, which MUI builds as `<treeId>-<itemId>`.
+export const idFromRepoDomId = (domId: string) => {
+  const at = domId?.indexOf(ID_PREFIX_REPO) ?? -1;
+  if (at === -1) {
+    return undefined;
+  }
+  return domId.slice(at + ID_PREFIX_REPO.length);
 };
 
 export const idFromToolkitSplitId = (id: string) => {
@@ -41,12 +51,14 @@ export enum ItemKind {
   Document = 'document',
   Repo = 'repo',
   Config = 'config',
+  Files = 'files',
 }
 
 // Classifies a tree/show item id into the kind of thing it refers to.
 // Config is the fallback when the id isn't a central-repo / split / document / repo id.
 export const classifyItemId = (id: string): ItemKind => {
   if (id === CENTRAL_REPO_FOLDER_ID) return ItemKind.CentralRepo;
+  if (id === PROJECT_FILES_ID) return ItemKind.Files;
   if (isSplitId(id)) return ItemKind.Split;
   if (idFromDocId(id)) return ItemKind.Document;
   if (idFromRepoId(id)) return ItemKind.Repo;

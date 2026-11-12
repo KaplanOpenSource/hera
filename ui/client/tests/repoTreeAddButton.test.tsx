@@ -3,18 +3,26 @@ import { render, screen, fireEvent, waitFor, within, cleanup, act } from '@testi
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockFetchPython = vi.fn();
-vi.mock('../src/io/fetchPython', () => ({
-  fetchPython: (...args: any[]) => mockFetchPython(...args),
+const mockPushError = vi.fn();
+const mockPushInfo = vi.fn();
+vi.mock('../src/io/snackbar', () => ({
+  pushError: (...args: any[]) => mockPushError(...args),
+  pushInfo: (...args: any[]) => mockPushInfo(...args),
+  pushRunning: vi.fn(),
+  dismiss: vi.fn(),
 }));
 
 const { RepoTreeAddButton } = await import('../src/components/details/RepoTreeAddButton');
 const { useProjectStore } = await import('../src/stores/useProjectStore');
+const { mockApiCall } = await import('./helpers/mockApiCall');
 
 afterEach(() => { cleanup(); });
 
+let mockPostJson: ReturnType<typeof vi.fn>;
+
 beforeEach(() => {
   vi.clearAllMocks();
+  ({ postJson: mockPostJson } = mockApiCall());
   useProjectStore.setState({
     currProjectName: 'TestProject',
     currProject: {
@@ -51,61 +59,86 @@ describe('RepoTreeAddButton', () => {
     expect((btn as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('calls execPython with repo data on confirm', async () => {
-    mockFetchPython.mockResolvedValueOnce({
-      data: { project: { name: 'TestProject', documents: [] } },
-      problem: undefined,
-    });
+  it('sends the tree to the repository entrypoint on confirm', async () => {
+    mockPostJson.mockResolvedValueOnce({ project: { name: 'TestProject', documents: [] }, added: 1, problems: [] });
 
     render(<RepoTreeAddButton tree={tree} />);
     await clickAddAndConfirm();
 
     await waitFor(() => {
-      expect(mockFetchPython).toHaveBeenCalledTimes(1);
-      const code = mockFetchPython.mock.calls[0][0].code;
-      expect(code).toContain('loadAllDatasourcesInRepositoryJSONToProject');
-      expect(code).toContain("'TestProject'");
+      expect(mockPostJson).toHaveBeenCalledTimes(1);
+    });
+    expect(mockPostJson.mock.calls[0][0]).toBe('/repository/loadIntoProject');
+    expect(mockPostJson.mock.calls[0][1]).toEqual({
+      projectName: 'TestProject',
+      repositoryJSON: tree,
+      baseDir: '/tmp/test',
+      overwrite: true,
     });
   });
 
-  it('updates store on success', async () => {
+  it('sends only what the user left visible', async () => {
+    mockPostJson.mockResolvedValueOnce({ project: { name: 'TestProject', documents: [] }, added: 1, problems: [] });
+
+    render(<RepoTreeAddButton tree={{ ...tree, hidden: { path: '/x' } }} hiddenPaths={new Set(['hidden'])} />);
+    await clickAddAndConfirm();
+
+    await waitFor(() => {
+      expect(mockPostJson.mock.calls[0][1].repositoryJSON).toEqual(tree);
+    });
+  });
+
+  it('stores the project the answer carries, and makes no second call', async () => {
     const updatedProject = {
       name: 'TestProject',
       documents: [
         { _id: { $oid: 'new1' }, desc: {}, type: 'T', _cls: 'M', resource: '', dataFormat: 'string', projectName: 'TestProject' },
       ],
     };
-    mockFetchPython.mockResolvedValueOnce({
-      data: { project: updatedProject },
-      problem: undefined,
-    });
+    mockPostJson.mockResolvedValueOnce({ project: updatedProject, added: 1, problems: [] });
 
     render(<RepoTreeAddButton tree={tree} />);
     await clickAddAndConfirm();
+
+    await waitFor(() => {
+      expect(useProjectStore.getState().currProject).toEqual(updatedProject);
+    });
+    expect(mockPostJson).toHaveBeenCalledTimes(1);
+  });
+
+  it('handles a delayed answer', async () => {
+    let answer!: (v: any) => void;
+    mockPostJson.mockImplementationOnce(() => new Promise(r => { answer = r; }));
+
+    render(<RepoTreeAddButton tree={tree} />);
+    await clickAddAndConfirm();
+
+    expect(mockPostJson).toHaveBeenCalledTimes(1);
+
+    const updatedProject = { name: 'TestProject', documents: [] };
+    await act(async () => {
+      answer({ project: updatedProject, added: 1, problems: [] });
+    });
 
     await waitFor(() => {
       expect(useProjectStore.getState().currProject).toEqual(updatedProject);
     });
   });
 
-  it('handles delayed response', async () => {
-    let resolveExec!: (v: any) => void;
-    mockFetchPython.mockImplementationOnce(() =>
-      new Promise(r => { resolveExec = r; })
-    );
+  it('says nothing was added, and why, when hera skipped the tree', async () => {
+    mockPostJson.mockResolvedValueOnce({
+      project: { name: 'TestProject', documents: [] },
+      added: 0,
+      problems: ['GIS_Tiles: ImportError: Cannot locate class: x.y.TilesToolkit'],
+    });
 
     render(<RepoTreeAddButton tree={tree} />);
     await clickAddAndConfirm();
 
-    expect(mockFetchPython).toHaveBeenCalledTimes(1);
-
-    const updatedProject = { name: 'TestProject', documents: [] };
-    await act(async () => {
-      resolveExec({ data: { project: updatedProject }, problem: undefined });
-    });
-
     await waitFor(() => {
-      expect(useProjectStore.getState().currProject).toEqual(updatedProject);
+      expect(mockPushError).toHaveBeenCalledTimes(1);
     });
+    expect(mockPushError.mock.calls[0][0]).toContain('nothing was added');
+    expect(mockPushError.mock.calls[0][0]).toContain('GIS_Tiles');
   });
 });

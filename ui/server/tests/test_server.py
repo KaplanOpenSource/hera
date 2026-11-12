@@ -1,99 +1,84 @@
 import os
 import time
 
-import server
-from api_models import ExecPayload, RunWorkflowPayload
+import args_settings
+import dependencies
+from api_models import RunWorkflowPayload
+from routers import cors_info, health, workflow
 
 
 def test_healthz():
-    assert server.healthz() == {"status": "ok"}
+    assert health.healthz() == {"status": "ok"}
 
 
 def test_cors_info_shape():
-    info = server.cors_info()
+    info = cors_info.cors_info()
     assert "origins" in info
 
 
-def test_exec_returns_result_value():
-    resp = server.exec_code(ExecPayload(code="result = 1 + 2"))
-    assert resp.problem is None
-    assert resp.data == 3
+def test_cors_info_answers_the_origins_the_server_started_with(monkeypatch):
+    settings = args_settings.parse_args_settings(["--cors", "10.0.0.1", "--port", "9000"])
+    settings.origins()
+    monkeypatch.setattr(args_settings, "_settings", settings)
+
+    assert cors_info.cors_info() == {"origins": ["http://10.0.0.1:9000"]}
 
 
-def test_exec_without_result_is_none():
-    resp = server.exec_code(ExecPayload(code="x = 5"))
-    assert resp.problem is None
-    assert resp.data is None
+def test_cors_info_has_no_origins_without_cors(monkeypatch):
+    settings = args_settings.parse_args_settings([])
+    settings.origins()
+    monkeypatch.setattr(args_settings, "_settings", settings)
 
-
-def test_exec_returns_jsonable_structure():
-    resp = server.exec_code(ExecPayload(code="result = {'a': [1, 2], 'b': 'x'}"))
-    assert resp.problem is None
-    assert resp.data == {"a": [1, 2], "b": "x"}
-
-
-def test_exec_reports_errors():
-    resp = server.exec_code(ExecPayload(code="raise ValueError('boom')"))
-    assert resp.data is None
-    assert "ValueError" in resp.problem.error
-    assert "boom" in resp.problem.error
-    assert "Traceback" in resp.problem.traceback
+    assert cors_info.cors_info() == {"origins": None}
 
 
 def test_start_workflow_delegates_to_runner_start(monkeypatch):
     calls = {}
 
-    def fake_start(project_name, workflow_name):
-        calls["args"] = (project_name, workflow_name)
+    def fake_start(project_name, doc):
+        calls["args"] = (project_name, doc)
         return {"token": "t1"}
 
-    monkeypatch.setattr(server.workflow_runner, "start", fake_start)
+    monkeypatch.setattr(dependencies.workflow_runner, "start", fake_start)
 
-    resp = server.start_workflow(RunWorkflowPayload(projectName="P", workflowName="W"))
+    doc = {"desc": {"workflow": {"solver": "s"}, "workflowName": "W"}, "resource": "/tmp/W.json"}
+    resp = workflow.start_workflow(RunWorkflowPayload(projectName="P", doc=doc))
 
-    assert calls["args"] == ("P", "W")
+    assert calls["args"] == ("P", doc)
     assert resp.token == "t1"
 
 
 def test_workflow_status_delegates_to_runner_poll(monkeypatch):
     monkeypatch.setattr(
-        server.workflow_runner, "poll",
-        lambda token: {"status": "done", "output": "log", "error": ""},
+        dependencies.workflow_runner, "poll",
+        lambda token: {"status": "done", "error": "", "chunks": [{"name": "__between__", "text": "log"}]},
     )
 
-    resp = server.workflow_status("t1")
+    resp = workflow.workflow_status("t1")
 
     assert resp.status == "done"
-    assert resp.output == "log"
+    assert resp.chunks[0].text == "log"
 
 
 def test_run_workflow_endpoint_through_real_runner(install_fake_hera, tmp_path):
     # Exercises the actual WorkflowRunner (not mocked) against a fake hera, so the
     # route + runner + capture path all run together: start, then poll until done.
-    def on_execute(workflow_name, scheduler):
+    def on_execute(workflow_name):
         os.write(1, ("workflow %s done\n" % workflow_name).encode())
         return "dispatch-xyz"
 
     install_fake_hera(str(tmp_path), on_execute)
 
-    start = server.start_workflow(RunWorkflowPayload(projectName="P", workflowName="hello"))
+    hello_doc = {"_id": {"$oid": "doc-hello"}, "desc": {"workflow": {"solver": "s"}, "workflowName": "hello"}, "resource": str(tmp_path / "hello.json")}
+    start = workflow.start_workflow(RunWorkflowPayload(projectName="P", doc=hello_doc))
     assert start.token
 
     deadline = time.time() + 10.0
-    resp = server.workflow_status(start.token)
+    resp = workflow.workflow_status(start.token)
     while resp.status == "running" and time.time() < deadline:
         time.sleep(0.01)
-        resp = server.workflow_status(start.token)
+        resp = workflow.workflow_status(start.token)
 
     assert resp.status == "done"
-    assert "workflow hello done" in resp.output
+    assert "workflow hello done" in "".join(chunk.text for chunk in resp.chunks)
 
-
-def test_truncate_for_log_keeps_short_values():
-    assert server._truncate_for_log("hi") == "'hi'"
-
-
-def test_truncate_for_log_cuts_long_values():
-    truncated = server._truncate_for_log("x" * 1000)
-    assert "truncated" in truncated
-    assert len(truncated) < 1000

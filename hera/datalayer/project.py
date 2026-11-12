@@ -4,6 +4,7 @@ import json
 import os
 import pickle
 import zipfile
+from typing import Any
 
 from deprecated import deprecated
 
@@ -16,7 +17,8 @@ from hera.datalayer.collection import (
 from hera.datalayer.datahandler import datatypes
 from hera.utils.logging import get_classMethod_logger
 
-def getProjectList(connectionName=None):
+
+def getProjectList(connectionName:str|None=None):
     """
         Return the list with the names of the existing projects .
 
@@ -29,7 +31,7 @@ def getProjectList(connectionName=None):
     """
     return list(set(AbstractCollection(connectionName=connectionName).getProjectList()))
 
-def createProjectDirectory(outputPath,projectName=None):
+def createProjectDirectory(outputPath:str,projectName:str|None=None):
     """
         Creates a basic caseConfiguration file
         with the requested project name.
@@ -87,19 +89,13 @@ class Project:
         -  deleteCacheDocuments
 
     """
-    _projectName = None
-    _all          = None
-    _measurements = None
-    _cache     = None
-    _simulations  = None
 
     datatypes = datatypes
 
     DEFAULTPROJECT = "defaultProject"
+    CACHE_SUBDIR = ".cache"
 
     _allowWritingToDefaultProject = None # A flag to allow the update of the default project. Used to add the datasources to it.
-
-    _FilesDirectory = None
 
     @property
     def FilesDirectory(self):
@@ -155,7 +151,7 @@ class Project:
         return self._all
 
     @property
-    def projectName(self):
+    def projectName(self)-> str:
         """
         The name of the current project.
 
@@ -166,7 +162,7 @@ class Project:
         return self._projectName
 
 
-    def setConfig(self,keep_old_values=True, **kwargs):
+    def setConfig(self,keep_old_values:bool=True, **kwargs):
         """
             Create a config document or updates an existing config document.
         """
@@ -199,7 +195,7 @@ class Project:
             doc.update(set__desc=kwargs)
         
 
-    def __init__(self, projectName=None, connectionName=None, configurationPath=None,filesDirectory=None):
+    def __init__(self, projectName:str|None=None, connectionName:str|None=None, configurationPath:str|None=None,filesDirectory:str|None=None):
         """
             Initialize the project class.
 
@@ -252,7 +248,7 @@ class Project:
                 projectName = self.DEFAULTPROJECT
 
         logger.info(f"Initializing with logger {projectName}")
-        self._projectName = projectName
+        self._projectName = str(projectName)
 
         self._measurements  = Measurements_Collection(connectionName=connectionName)
         self._cache      = Cache_Collection(connectionName=connectionName)
@@ -281,10 +277,10 @@ class Project:
 
         if self.projectName != self.DEFAULTPROJECT:
             os.makedirs(os.path.abspath(filesDirectory),exist_ok=True)
-        self._FilesDirectory = filesDirectory
+        self._FilesDirectory = str(filesDirectory)
 
     @staticmethod
-    def _batched_cursor(cur, export_chunk_size):# -> Generator[list, Any, None]:
+    def _batched_cursor(cur, export_chunk_size:int|None):# -> Generator[list, Any, None]:
         """
             turns an iterator to an iterator that returns batches of the original.
             if you cur is a documents list iterator and export_chunk_size=5 then each iteration of  
@@ -304,7 +300,7 @@ class Project:
             else:
                 yield batch
     
-    def export(self, path, export_chunk_size=1024, show_progressbar=True):
+    def export(self, path:str, export_chunk_size:int=1024, show_progressbar:bool=True):
         """
             exports the project in chunks contained to one zip file
 
@@ -338,7 +334,7 @@ class Project:
                 i+=1
 
     @staticmethod
-    def _iter_pickled_docs(zf, return_batched):
+    def _iter_pickled_docs(zf:zipfile.ZipFile, return_batched:bool):
         """
             creates an iterator over the documents in an exported project,
             can either returned the batched data or single documents 
@@ -360,7 +356,7 @@ class Project:
                     for depickled_doc in depickled_docs_batch:
                         yield depickled_doc 
 
-    def updateProjectNameOnDoc(self, doc_son):
+    def updateProjectNameOnDoc(self, doc_json:dict):
         """
             updates the projectName field of a document to be assigned to this project 
 
@@ -369,8 +365,8 @@ class Project:
         doc_son: str
                 the document to be updated
         """
-        doc_son.update({"projectName": self.projectName})
-        return doc_son
+        doc_json.update({"projectName": self.projectName})
+        return doc_json
     
     @staticmethod
     def load(proj, exported_project_path, is_hard_import, show_progressbar=True):
@@ -891,7 +887,7 @@ class Project:
 
         return self.cache.getDocumentsAsDict(projectName=self._projectName, with_id=with_id, **kwargs)
 
-    def getCacheDocuments(self, resource=None, dataFormat=None, type=None, **desc):
+    def getCacheDocuments(self, resource:Any|None=None, dataFormat:str|None=None, type:str|None=None, **desc):
         """
             Querying the DB for cache documents and return the results as a list of dict
 
@@ -958,6 +954,16 @@ class Project:
 
         return self.cache.deleteDocuments(projectName=self._projectName, **kwargs)
 
+
+    def getRetrieveFunction(self, dockind:str):
+        if dockind.lower() in ["simulation", "simulations"]:
+            return self.getSimulationsDocuments
+        elif dockind.lower() in ["cache", "cached"]:
+            return self.getCacheDocuments
+        elif dockind.lower() in ["simulation", "simulations"]:
+            return self.getMeasurementsDocuments
+        raise NotImplementedError(f"Retrieve function for {dockind} isn't implemented, choose one of 'simulations', 'cache', 'measurements")
+
     def saveData(self,name,data,desc,kind,type=None,dataFormat=None,**kwargs):
         """
             Adds a cache document with the data.
@@ -982,7 +988,7 @@ class Project:
         handler = self.datatypes.getHandler(guessedDataFormat)
         file_extension = self.datatypes.getDataFormatExtension(data)
 
-        cacheDirectory = os.path.join(self.filesDirectory, "cache")
+        cacheDirectory = os.path.join(self.filesDirectory, self.CACHE_SUBDIR)
         os.makedirs(cacheDirectory, exist_ok=True)
         fileID = self.getCounterAndAdd(name)
         fileName = os.path.join(cacheDirectory, f"{name}_{fileID}.{file_extension}")

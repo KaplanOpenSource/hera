@@ -1,9 +1,16 @@
 import { Box, Typography } from '@mui/material';
-import { ReactNode, useState } from 'react';
-import { WorkflowBlock, WorkflowData, WorkflowNode } from '../../shared/types';
+import { ReactNode, useEffect, useState } from 'react';
+import { WorkflowBlock, WorkflowData, WorkflowDesc, WorkflowNode } from '../../shared/types';
 import { getWorkflowBlock, isTopLevelBlock, normalizeRequires } from '../../shared/workflow';
+import { useWorkflowFocusStore } from '../../stores/useWorkflowFocusStore';
+import { shownRun, useWorkflowRunStore, WorkflowRunStatus } from '../../stores/useWorkflowRunStore';
+import { mapStrings } from '../../utils/mapStrings';
+import { knownKinds } from './references/knownKinds';
+import { nodeRunStatuses } from './nodeRunStatus';
+import { nodeNameFromTask } from './taskNodeName';
 import { NodeCatalogReader, useNodeCatalog } from './useNodeCatalog';
-import { WorkflowGraph } from './WorkflowGraph';
+import { WorkflowGraphWrapper } from './WorkflowGraph';
+import { WorkflowPastRunBanner } from './WorkflowPastRunBanner';
 
 // Returns the node's `requires` with oldName replaced by newName, preserving
 // its single-name / list shape (or undefined when the node had no requires).
@@ -23,18 +30,47 @@ export const WorkflowEditor = ({
   workflow,
   setWorkflow,
   actionButtons,
+  workflowName,
+  isChanged,
 }: {
   workflow?: WorkflowData,
   setWorkflow: (workflow: WorkflowData) => void,
   actionButtons?: ReactNode,
+  // Set on the canvas tab, so the output tab can point this editor at a node.
+  workflowName?: string,
+  // The shown doc has unsaved edits.
+  isChanged?: boolean,
 }) => {
   const [selectedNode, setSelectedNode] = useState<string | undefined>(undefined);
   const catalog = useNodeCatalog(s => s.catalog);
-  const block = getWorkflowBlock(workflow);
+
+  // A picked past run with a saved doc shows the graph it ran, read-only.
+  const oldRun = useWorkflowRunStore(s => (workflowName ? s.oldRuns[workflowName] : undefined));
+  const showLatestRun = useWorkflowRunStore(s => s.showLatestRun);
+  const pastDoc = oldRun?.doc;
+  const readOnly = Boolean(pastDoc);
+  let shownWorkflow = workflow;
+  if (pastDoc) {
+    shownWorkflow = (pastDoc.desc as WorkflowDesc).workflow;
+  }
+  const block = getWorkflowBlock(shownWorkflow);
+
+  // Copy the past run's graph into the open workflow, unsaved, and leave read-only mode.
+  const restorePastGraph = () => {
+    if (!shownWorkflow) {
+      console.error(`restorePastGraph: the past run of "${workflowName}" has no workflow`);
+      return;
+    }
+    setWorkflow(shownWorkflow);
+    showLatestRun(workflowName!);
+  };
 
   // Preserve the original nesting (the block may be wrapped in an extra
   // { workflow: {...} } level) when writing edits back.
   const setBlock = (newBlock: WorkflowBlock) => {
+    if (readOnly) {
+      return;
+    }
     setWorkflow(isTopLevelBlock(workflow) ? newBlock : { ...workflow, workflow: newBlock });
   };
 
@@ -45,6 +81,38 @@ export const WorkflowEditor = ({
   const nodeNames = block?.nodeList?.length
     ? block.nodeList
     : Object.keys(block?.nodes ?? {});
+
+  // The output tab names a Luigi task; map it back to this workflow's node.
+  const storeFocus = useWorkflowFocusStore(s => s.focus);
+  const hoverNode = useWorkflowFocusStore(s => s.hoverNode);
+  const focusName = storeFocus && storeFocus.workflowName === workflowName
+    ? nodeNameFromTask(storeFocus.nodeName, nodeNames)
+    : undefined;
+  const focus = focusName ? { nodeName: focusName, seq: storeFocus!.seq } : undefined;
+  useEffect(() => {
+    if (focusName) {
+      setSelectedNode(focusName);
+    }
+  }, [focusName, storeFocus?.seq]);
+
+  // A node picked from the canvas's node list goes through the same focus store
+  // the output tab uses, so the canvas centres on it the same way.
+  const focusNodeInStore = useWorkflowFocusStore(s => s.focusNode);
+  const pickNode = (name: string) => {
+    setSelectedNode(name);
+    if (workflowName) {
+      focusNodeInStore(workflowName, name);
+    }
+  };
+
+  // How each node did in the shown run (latest or picked old), so the canvas can outline them.
+  const run = useWorkflowRunStore(s => (workflowName ? shownRun(s, workflowName) : undefined));
+  const nodeStatuses = nodeRunStatuses({
+    chunks: run?.chunks ?? [],
+    nodeNames,
+    runFinished: Boolean(run) && run!.status !== WorkflowRunStatus.Running,
+    runStopped: run?.status === WorkflowRunStatus.Stopped,
+  });
 
   const uniqueNodeName = (): string => {
     let i = nodeNames.length + 1;
@@ -79,7 +147,8 @@ export const WorkflowEditor = ({
       const requires = normalizeRenamed(node.requires, oldName, name);
       nodes[key === oldName ? name : key] = requires === undefined ? node : { ...node, requires };
     }
-    setBlock({ ...block, nodeList: nodeNames.map(n => (n === oldName ? name : n)), nodes });
+    const renamed = mapStrings(nodes, text => knownKinds.renamedNode(text, oldName, name));
+    setBlock({ ...block, nodeList: nodeNames.map(n => (n === oldName ? name : n)), nodes: renamed });
     if (selectedNode === oldName) {
       setSelectedNode(name);
     }
@@ -127,15 +196,27 @@ export const WorkflowEditor = ({
   return (
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <NodeCatalogReader />
+      {oldRun && pastDoc && (
+        <WorkflowPastRunBanner
+          startTime={oldRun.startTime}
+          hasUnsavedEdits={Boolean(isChanged)}
+          onRestore={restorePastGraph}
+          onBack={() => showLatestRun(workflowName!)}
+        />
+      )}
       {!block
         ? <Typography color="text.secondary">No workflow found in this document.</Typography>
         : (
           <>
-            <WorkflowGraph
+            <WorkflowGraphWrapper
               catalog={catalog}
               nodeNames={nodeNames}
               nodes={block.nodes ?? {}}
               selectedNode={selectedNode}
+              nodeStatuses={nodeStatuses}
+              focus={focus}
+              onHoverNode={name => workflowName && hoverNode(workflowName, name ?? null)}
+              onPickNode={pickNode}
               actionButtons={actionButtons}
               onSelectNode={setSelectedNode}
               onAddNode={addNode}
@@ -145,6 +226,7 @@ export const WorkflowEditor = ({
               onAddRequire={addRequire}
               onRemoveRequire={removeRequire}
               onDeleteNode={deleteNode}
+              readOnly={readOnly}
             />
           </>
         )

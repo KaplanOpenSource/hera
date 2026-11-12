@@ -1,6 +1,6 @@
 # Slurm Batch Jobs
 
-The `hera.utils.slurm` module provides `prepareSlurmScriptExecution`, a function that generates a Slurm array-job submission script. Each array task runs a user-provided script from a different working directory, making it straightforward to launch many independent simulations.
+The `hera.utils.slurm` module provides `prepareSlurmScriptExecution`, a function that generates a Slurm array-job submission script. Each array task reads one directory from a list file into the shell variable `$dir` and then runs a user-provided script, making it straightforward to launch many independent simulations. The generated script does **not** change into `$dir` itself; start your script with `cd "$dir"`.
 
 ## Importing
 
@@ -12,7 +12,7 @@ from hera.utils.slurm import prepareSlurmScriptExecution
 
 ### 1. Prepare a Job Directory List
 
-Create a text file with one directory path per line. Each line corresponds to one array task:
+Create a text file with one directory path per line. Each line corresponds to one array task (task `N` reads line `N` with `sed`), so avoid blank lines:
 
 ```text
 /data/runs/case_001
@@ -33,7 +33,9 @@ prepareSlurmScriptExecution(
 )
 ```
 
-This writes `submit_all.sh` with Slurm directives for a 3-task array job.
+This writes `submit_all.sh` with Slurm directives for a 3-task array job (`#SBATCH --array=1-3`), with per-task output in `slurm_%A_%a.out`. The list file path is written into the script as given, so use an absolute path or run `sbatch` from the same directory.
+
+All arguments are keyword-only. On invalid input (both or neither of `script` / `scriptPath`, or a missing list file) the function logs an error and returns `None` without writing anything.
 
 ### 3. Submit
 
@@ -68,7 +70,7 @@ The contents of `run_case.sh` are embedded directly into the generated Slurm scr
 | `allocateProcessorsPerRun` | `int` | Number of CPUs per array task. Omit to use the cluster default. |
 | `memoryInGB` | `int` | Memory limit in GB per task. Omit for no limit. |
 | `exclusive` | `bool` | If `True`, each task gets exclusive access to its node (default: `False`). |
-| `quiet` | `bool` | If `False`, the script echoes the current directory before running (default: `False`). |
+| `quiet` | `bool` | If `False`, the script echoes the job directory (`$dir`) before running (default: `False`). |
 
 ## Full Example with Resource Constraints
 
@@ -96,17 +98,23 @@ The generated script will include:
 #SBATCH --exclusive
 ```
 
-## Integration with LSM Toolkit
+!!! warning "Known issue: memory directive"
+    The memory line is written as `#SBATCH -mem=...` (single dash). The sbatch option is `--mem`, so the memory limit is not applied as intended. Until this is fixed, omit `memoryInGB` and add `#SBATCH --mem=16G` at the top of your `script` text, or edit the generated file.
 
-When using the LSM (Land Surface Model) toolkit, the toolkit can generate the job directory list. You then pass that file to `prepareSlurmScriptExecution` to create the submission script:
+## Integration with Toolkits
+
+Two toolkits call `prepareSlurmScriptExecution` for you, after expanding a base configuration with [`JSONVariations`](json.md):
+
+- **LSM**: `LSMToolkit.prepareSlurmLSMExecution(baseParameters, jsonVariations, templateName, ..., slurmExecutionFileName="submit_all.sh", caseListFileName="cases.txt", allocateProcessorsPerRun=None, memoryInGB=None, jobName="lsm_cases", exclusive=False)` writes one `LSM_Simulation_<i>/run_sim.py` per variation plus `cases.txt` and `submit_all.sh` under `<filesDirectory>/simulationsScripts/`.
+- **OpenFOAM**: `OFToolkit.prepareSlurmWorkflowExecution(baseConfiguration, jsonVariations, slurmExecutionFileName="submit_all.sh", caseListFileName="cases.txt", allocateProcessorsPerRun=None, memoryInGB=None, jobName="foam_cases", exclusive=False, addAllRun=True)` adds each variation as a workflow to the group and writes `cases.txt` and `submit_all.sh` in the toolkit's `filesDirectory`. Each task runs `hera-workflows sync` / `buildExecute` and, when `addAllRun=True`, `bash Allrun`.
 
 ```python
-# After the toolkit creates case directories and writes jobPaths.txt
-prepareSlurmScriptExecution(
-    scriptPath="run_lsm.sh",
-    jobDirListFilePath="jobPaths.txt",
-    slurmExecutionFilePath="submit_lsm.sh",
-    jobName="lsm_batch",
+lsm = toolkitHome.getToolkit(toolkitHome.LSM, projectName="MY_PROJECT")
+lsm.prepareSlurmLSMExecution(
+    baseParameters=base,
+    jsonVariations=variations,
+    templateName="my_template",
     allocateProcessorsPerRun=4,
 )
+# then: cd <filesDirectory>/simulationsScripts && sbatch submit_all.sh
 ```

@@ -50,7 +50,7 @@ The `preposition` argument selects the comparison:
 
 ## Filtering by Index
 
-Omit the `column` argument to filter on the DataFrame index:
+Omit the `column` argument (default `None`) to filter on the DataFrame index:
 
 ```python
 # Keep rows after a certain timestamp
@@ -77,9 +77,11 @@ f = Filter(df, inplace=True)
 f.threshold("gt", 0, column="temperature")
 f.threshold("lt", 20, column="wind_speed")
 
-# f.data has been modified in place
+# f.data now holds the filtered DataFrame
 print(f.data)
 ```
+
+"In place" refers to the `Filter` object: its `data` attribute is replaced and the same instance is returned. The original DataFrame `df` is never modified.
 
 ## Practical Data Cleaning Example
 

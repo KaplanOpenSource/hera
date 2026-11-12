@@ -1,13 +1,14 @@
 /// <reference types="node" />
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import { screen, fireEvent, waitFor, within, cleanup, act } from '@testing-library/react';
-import { createProjectViaUI, renderApp, resetStore } from './integHelpers';
+import { createProjectViaUI, openProjectActions, renderApp, resetStore } from './integHelpers';
 
 vi.mock('../../src/shared/baseurl', async () => (await import('./mockFactories')).createBaseurlMock());
 vi.mock('../../src/stores/useServerConstants', async () => (await import('./mockFactories')).createServerConstantsMock());
 vi.mock('../../src/io/snackbar', async () => (await import('./mockFactories')).createSnackbarMock());
 
 import { useProjectStore } from '../../src/stores/useProjectStore';
+import { useProjectListStore } from '../../src/stores/useProjectListStore';
 
 describe('Delete Project UI integration', () => {
   beforeAll(async () => {
@@ -23,7 +24,7 @@ describe('Delete Project UI integration', () => {
     renderApp('/ProjectToDelete');
 
     await waitFor(() => {
-      const names = useProjectStore.getState().projectNames.map(p => p.name);
+      const names = useProjectListStore.getState().projectNames.map(p => p.name);
       expect(names).toContain('ProjectToKeep');
       expect(names).toContain('ProjectToDelete');
     }, { timeout: 15000 });
@@ -36,7 +37,8 @@ describe('Delete Project UI integration', () => {
       expect(useProjectStore.getState().currProjectName).toBe('ProjectToDelete');
     }, { timeout: 10000 });
 
-    const deleteWrapper = screen.getByLabelText('Delete project');
+    await openProjectActions();
+    const deleteWrapper = await screen.findByLabelText('Delete project');
     await act(async () => {
       fireEvent.click(within(deleteWrapper).getByRole('button'));
     });
@@ -48,7 +50,7 @@ describe('Delete Project UI integration', () => {
     await act(async () => { fireEvent.click(yesBtn); });
 
     await waitFor(() => {
-      const names = useProjectStore.getState().projectNames.map(p => p.name);
+      const names = useProjectListStore.getState().projectNames.map(p => p.name);
       expect(names).not.toContain('ProjectToDelete');
       expect(names).toContain('ProjectToKeep');
     }, { timeout: 15000 });
@@ -65,7 +67,7 @@ describe('Delete Project UI integration', () => {
     renderApp('/ProjectToKeep');
 
     await waitFor(() => {
-      const names = useProjectStore.getState().projectNames.map(p => p.name);
+      const names = useProjectListStore.getState().projectNames.map(p => p.name);
       expect(names).toContain('ProjectToKeep');
       expect(names).not.toContain('ProjectToDelete');
     }, { timeout: 15000 });

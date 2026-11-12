@@ -588,9 +588,11 @@ class TestWorkflowCompareToDisk:
         assert "Simulation wf_0" in printed
         assert "Disk and DB are identical" in printed
 
-    def test_a_changed_parameter_is_printed_as_a_comparison_table(
+    def test_a_changed_parameter_is_printed_as_a_json_patch_table(
         self, install_toolkit, tmp_path, capsys
     ):
+        """#1080 swapped compareJSONS for diffJSONS: the diff is now an
+        RFC 6902 patch (DB -> disk) printed as an op/path/value table."""
         onDisk = tmp_path / "wf_0.json"
         onDisk.write_text(json.dumps({"nodes": {"A": {"value": 2}}}))
         install_toolkit(
@@ -606,7 +608,7 @@ class TestWorkflowCompareToDisk:
         workflow_compareToDisk(Namespace(projectName=PROJECT, workflows=["wf_0"]))
         printed = capsys.readouterr().out
         assert "Disk and DB are identical" not in printed
-        assert "LocalFile" in printed and "DB" in printed
+        assert "replace" in printed and "/nodes/A/value" in printed
 
 
 # ---------------------------------------------------------------------------

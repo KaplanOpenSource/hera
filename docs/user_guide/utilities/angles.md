@@ -16,7 +16,7 @@ from hera.utils import toMeteorologicalAngle, toMathematicalAngle, toAzimuthAngl
 | **Meteorological** | North | Clockwise (wind *from*) | Wind direction reporting |
 | **Azimuth** | North | Clockwise | Navigation, compass bearing |
 
-The mathematical convention is the input for all three functions.
+`toMeteorologicalAngle` and `toAzimuthAngle` take a mathematical angle; `toMathematicalAngle` takes a meteorological angle. All values are in degrees.
 
 ## Functions
 
@@ -57,6 +57,9 @@ toAzimuthAngle(90)   # 0    (North -> 0 deg azimuth)
 toAzimuthAngle(180)  # 270  (West -> 270 deg azimuth)
 toAzimuthAngle(270)  # 180  (South -> 180 deg azimuth)
 ```
+
+!!! note
+    Unlike the other two functions, `toAzimuthAngle` does not wrap with `% 360`, so it only returns a value in `[0, 360)` for inputs in `(-270, 450]`. It also uses a Python `if`, so it accepts scalars only; `toMeteorologicalAngle` / `toMathematicalAngle` also work element-wise on NumPy arrays and pandas Series.
 
 ## Quick Reference Table
 

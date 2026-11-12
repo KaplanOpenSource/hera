@@ -1,9 +1,12 @@
 import json
-import pymongo
+
 import pandas
+import pymongo
+import pymongo.errors
+
 from ... import datalayer
 from ...utils.logging import get_classMethod_logger
-
+from pymongo.errors import OperationFailure
 
 PARQUETHERA = 'parquetDataEngingHera'
 PANDASDB = 'pandasDataEngineDB'
@@ -53,7 +56,7 @@ class pandasDataEngineDB:
     @property
     def DBconfiguration(self):
         """Return the database configuration dictionary."""
-        self._dbConfiguration
+        return self._dbConfiguration
 
     def dbConnect(self):
         """Establish a connection to the MongoDB server."""
@@ -63,7 +66,7 @@ class pandasDataEngineDB:
             self._mongo_client = pymongo.MongoClient(f"mongodb://{self._dbConfiguration['login']['username']}:{self._dbConfiguration['login']['password']}@{self._dbConfiguration['login']['ip']}:{self._dbConfiguration['login']['port']}/")
             try:
                 self._mongo_client.server_info()
-            except OperationFailure as e:
+            except pymongo.errors.OperationFailure as e:
                 return e
         except Exception as e:
             return e
@@ -233,7 +236,7 @@ class daskDataEngineDB:
     @property
     def DBconfiguration(self):
         """Return the database configuration dictionary."""
-        self._dbConfiguration
+        return self._dbConfiguration
 
     @property
     def connectionString(self):

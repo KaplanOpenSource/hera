@@ -33,10 +33,11 @@ class TestTheStubsAreDoingTheWork:
 
         assert "hermes" in sys.modules
 
-    def test_pyfoam_is_stubbed_as_a_namespace_package(self):
+    def test_pyfoam_is_present_as_a_package(self):
+        """Stubbed or real -- `import PyFoam.Basics.DataStructures` needs both."""
         import sys
 
-        assert sys.modules["PyFoam"].__path__ == []
+        assert hasattr(sys.modules["PyFoam"], "__path__")
 
     def test_the_openfoam_toolkit_class_is_reachable(self):
         """Importing is not enough; the class has to be usable as a symbol."""

@@ -8,11 +8,11 @@ This guide walks you through installing Hera and configuring the required servic
 
 | Requirement | Minimum Version | Notes |
 |-------------|----------------|-------|
-| **OS** | Ubuntu 22.04 LTS | Verified with this version |
-| **Python** | 3.9+ | Tested with 3.9, 3.10, 3.11 |
+| **OS** | Ubuntu 22.04 LTS | Linux only (`setup.py` classifier); the Docker image is built on Ubuntu 22.04 |
+| **Python** | 3.9+ | `setup.py` requires `>=3.9`. CI and the Docker image use **Python 3.11** (recommended) |
 | **Git** | 2.x | For cloning the repository |
 | **pip** | 21+ | For installing Python packages |
-| **Docker** | 20+ | Required for quick install only |
+| **Docker** | 20+ | Required for the quick install (MongoDB runs in a container) |
 
 ---
 
@@ -22,9 +22,6 @@ The fastest way to get Hera running. Uses Docker for MongoDB and scripts to auto
 
 ### Installation Flow
 
-![Diagram](../images/diagrams/user_guide_installation_0_653d38cb.svg)
-
-<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TD
     Clone["git clone + cd hera"] --> Init["source init_with_mongo.sh"]
@@ -36,15 +33,6 @@ flowchart TD
     Init --> Config["Creates ~/.pyhera/config.json"]
     Config --> Verify["Verify: python -c\n'from hera import Project'"]
 ```
--->    Init --> Config["Creates ~/.pyhera/config.json"]
-    Config --> Verify["Verify: python -c\n'from hera import Project'"]
-```
--->
--->    Init --> Config["Creates ~/.pyhera/config.json"]
-    Config --> Verify["Verify: python -c\n'from hera import Project'"]
-```
--->
--->
 
 ### Steps
 
@@ -64,22 +52,41 @@ flowchart TD
     This single script will interactively:
 
     - Set up Hera environment variables (`HERA_REPO_ROOT`, `PYHERA_DIR`, `PYTHONPATH`)
-    - Prompt to create a Python virtual environment at `~/.pyhera/environment` with all dependencies installed
+    - Prompt to create a Python virtual environment at `~/.pyhera/environment` (installs `requirements.txt`, then `pip install -e .`)
     - Prompt to persist the environment to `~/.bashrc`
     - Prompt to auto-activate the Hera environment when you `cd` into the project directory
-    - Pull and start a MongoDB 5.0 Docker container with preconfigured credentials
-    - Create the `~/.pyhera/config.json` configuration file automatically
+    - Pull and start a `mongo:5.0` Docker container named `hera-mongo` on `127.0.0.1:27017`, with data in `~/mongo-db-datadir`
+    - Create the MongoDB users from `mongo-init.d/50-create-users.js` on first start: an admin user (`MathAdmin`/`MathAdmin`) and a Hera user (`hera`/`heracles`) with `readWrite` on the `olymp` database
+    - Create `~/.pyhera/config.json` for your OS user, pointing at `127.0.0.1` / `olymp` (skipped if the file already exists)
 
     After running, everything is ready to use.
+
+    !!! note "Credentials"
+        `MONGO_HERA_USER` / `MONGO_HERA_PWD` override the user name and password written to `config.json`, but `init_with_mongo.sh` does not pass them into the container, so the user created in MongoDB stays `hera`/`heracles`. If you change them, create the matching user in MongoDB yourself.
+
+    !!! tip "Alternative: Make targets"
+        Instead of the interactive script you can run `make install-env` (creates the venv at `~/.pyhera/environment` and installs everything) followed by `make install` (starts MongoDB). `make install` does **not** write `~/.pyhera/config.json`; create it as shown in [Step 5](#step-5-mongodb-setup).
+
+    !!! tip "Alternative: Docker Compose (full stack)"
+        `docker compose up` starts MongoDB plus the Hera UI server (API on `127.0.0.1:8000`, Jupyter on `127.0.0.1:8888`) using `docker-compose.yml`. Add `--profile work` for the Vite dev client and `--profile ai` for an Ollama container.
 
 3. **Install system dependencies and third-party tools (optional):**
 
     ```bash
-    make install-deps       # System packages (libcairo, GDAL, etc.)
+    make install-deps       # System packages (libcairo, GDAL, etc.) + GDAL Python binding
     make install-paraview   # ParaView 5.11.0
     make install-freecad    # FreeCad Python3 bindings
     make install-openfoam   # OpenFOAM 10
     make install-deps-all   # All of the above
+    ```
+
+    `make install-deps` runs `pip install GDAL==$(gdal-config --version)` in whatever Python is active, so activate the Hera venv first (`source activate_hera.sh`). GDAL is not in `requirements.txt` because its version must match the system `libgdal`.
+
+4. **Load the registered data repositories (optional):**
+
+    ```bash
+    make populate                       # hera-project project populate --overwrite (all projects)
+    make populate-project PROJECT=name  # a single project
     ```
 
 ### Helper Scripts
@@ -88,7 +95,7 @@ flowchart TD
 |---|---|
 | `source set_hera_environment.sh` | Set environment variables, create venv, configure `.bashrc` (called automatically by `init_with_mongo.sh`) |
 | `source activate_hera.sh` | Activate the Hera venv and environment in the current shell |
-| `init_with_mongo.sh` | Full initialization: environment setup + MongoDB via Docker |
+| `source init_with_mongo.sh` | Full initialization: environment setup + MongoDB via Docker + `config.json` |
 | `./serve_docs.sh` | Start local MkDocs preview server (renders diagrams first) |
 | `python render_diagrams.py` | Render Mermaid diagrams to SVG using Docker (incremental) |
 
@@ -108,16 +115,22 @@ make mongo-up MONGO_DATA=/path/to/data   # Override data directory
 ### Running Tests
 
 ```bash
-make test-setup            # Create test data directory at ~/hera_unittest_data
-make test                  # Run all tests (requires MongoDB + test data)
+make test                  # Run pytest (requires MongoDB); downloads test data first if missing
+make test-ui               # Run the UI client tests (ui/client)
+make test-all              # Python tests, notebook tests, then UI tests
+make test-setup            # Create an empty test data skeleton at ~/hera_unittest_data
 ```
+
+`make test` looks for `$TEST_HERA/test_repository.json` (default `~/hera_unittest_data`). If it is missing, it runs `scripts/s3/bootstrap_unittest_data.sh` to download the test data from the public S3 bucket, then runs `pytest hera/tests/ -m "not notebook"`.
 
 ### Building Documentation
 
 The documentation site can be built and previewed locally. Diagram images are pre-rendered using a Docker-based Mermaid CLI (pulled automatically on first build).
 
 ```bash
+make docs-deps             # Install docs/requirements-docs.txt
 make docs-build            # Full build: render diagrams + build MkDocs site
+make docs-build-strict     # Same, with mkdocs build --strict
 make docs-serve            # Render diagrams + start local preview at localhost:8000
 make docs-deploy           # Render diagrams + deploy to GitHub Pages
 ```
@@ -140,9 +153,6 @@ If you prefer not to use Docker or need more control over each step, follow thes
 
 ### Installation Flow
 
-![Diagram](../images/diagrams/user_guide_installation_1_e0984dfa.svg)
-
-<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TD
     subgraph Step1 ["Step 1: System Packages"]
@@ -151,8 +161,8 @@ flowchart TD
 
     subgraph Step2 ["Step 2: Clone & Install"]
         Clone["git clone + cd hera"]
-        Venv["python3 -m venv heraenv\nsource heraenv/bin/activate"]
-        Install["pip install -e .\npip install -r requirements.txt"]
+        Venv["python3 -m venv ~/.pyhera/environment\nsource activate_hera.sh"]
+        Install["pip install -r requirements.txt\npip install -e ."]
     end
 
     subgraph Step3 ["Step 3: GDAL"]
@@ -165,7 +175,7 @@ flowchart TD
     end
 
     subgraph Step5 ["Step 5: MongoDB"]
-        MongoInstall["Install MongoDB 6.0"]
+        MongoInstall["Install MongoDB"]
         MongoUsers["Create admin +\napplication users"]
         MongoConfig["Create\n~/.pyhera/config.json"]
     end
@@ -181,17 +191,6 @@ flowchart TD
     Dirs --> MongoInstall --> MongoUsers --> MongoConfig
     MongoConfig --> VerifyImport --> VerifyCLI
 ```
--->-> EnvVars --> Dirs
-    Dirs --> MongoInstall --> MongoUsers --> MongoConfig
-    MongoConfig --> VerifyImport --> VerifyCLI
-```
--->
--->-> EnvVars --> Dirs
-    Dirs --> MongoInstall --> MongoUsers --> MongoConfig
-    MongoConfig --> VerifyImport --> VerifyCLI
-```
--->
--->
 
 ### Step 1: System Packages
 
@@ -205,16 +204,23 @@ sudo apt install libcairo2-dev pkg-config python3-dev libgirepository1.0-dev lib
 git clone https://github.com/KaplanOpenSource/hera
 cd hera
 
-# Create and activate a virtual environment
-python3.9 -m venv heraenv
-source heraenv/bin/activate
+# Create the virtual environment where the helper scripts expect it (Python 3.11 recommended)
+python3.11 -m venv ~/.pyhera/environment
+source activate_hera.sh          # activates the venv, sets HERA_REPO_ROOT/PYTHONPATH, adds hera/bin to PATH
+pip install --upgrade pip setuptools wheel
 
-# Install in development mode
-pip install -e .
-
-# Install runtime dependencies
+# Install the pinned runtime dependencies
 pip install -r requirements.txt
+
+# Install Hera in development mode
+pip install -e .
 ```
+
+`make install-env` performs the same venv creation and installation in one step (then `source activate_hera.sh`).
+
+`setup.py` itself declares only a minimal set of dependencies (pandas, numpy, mongoengine, pymongo, pint, scipy, xarray, dask, geopandas, shapely, deprecated); `requirements.txt` holds the full pinned environment, so install it first. The optional AI search dependencies are an extra: `pip install -e .[rag]` (see [AI Search](ai_search.md)).
+
+Some packages are not on PyPI and are installed separately (see the comment block at the end of `requirements.txt`): GDAL (Step 3), ParaView, FreeCAD, and OpenFOAM (`make install-paraview`, `make install-freecad`, `make install-openfoam`). The OpenFOAM workflows also need the `Hermes` package, which is a git submodule of this repository (`git submodule update --init Hermes`, then add the `Hermes` directory to `PYTHONPATH`).
 
 !!! tip "Development Mode"
     Using `pip install -e .` installs Hera in **editable mode**, meaning changes to the source code take effect immediately without reinstalling.
@@ -239,11 +245,12 @@ pip install GDAL==`gdal-config --version`
 Add the following to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.):
 
 ```bash
+export HERA_REPO_ROOT=/path/to/hera
 export PYTHONPATH=$PYTHONPATH:/path/to/hera
 export PATH=$PATH:/path/to/hera/hera/bin
 ```
 
-Create required directories:
+Create required directories (Hera writes its log files to `~/.pyhera/log/`):
 
 ```bash
 mkdir -p ~/.pyhera/log/
@@ -258,10 +265,12 @@ These variables are optional but useful for testing and advanced configurations:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `HOME` | Yes (OS) | OS default | Location of `~/.pyhera/config.json` |
+| `HOME` | Yes (OS) | OS default | Location of `~/.pyhera/config.json` and `~/.pyhera/log/` (the path is fixed; it cannot be moved with an env var) |
+| `HERA_REPO_ROOT` | No | unset | Hera checkout root. Used as a fallback base for relative toolkit paths when registering dynamic toolkits/experiments. Set by `set_hera_environment.sh` / `activate_hera.sh` |
+| `PYHERA_DIR` | No | `~/.pyhera` | Set by the setup scripts and used only by them (venv location, `config.json` creation); the Python code does not read it |
+| `MONGO_HERA_USER` / `MONGO_HERA_PWD` | No | `hera` / `heracles` | Credentials written to `config.json` by `init_with_mongo.sh` and used by `mongo-init.d/50-create-users.js` |
 | `TEST_HERA` | No | `~/hera_unittest_data` | Root directory for test data |
 | `RESULT_SET` | No | `BASELINE` | Name of the expected-output result set for tests |
-| `PREPARE_EXPECTED_OUTPUT` | No | unset | Set to `1` to generate test baselines |
 | `MPLBACKEND` | No | system default | Set to `Agg` for headless matplotlib (no display) |
 | `GDF_TOL_AREA` | No | `1e-7` | Tolerance for geometry comparison in tests |
 | `HERA_FULL_LOGGING_TESTS` | No | unset | Set to enable full logging during tests |
@@ -270,9 +279,9 @@ See the [Environment Variables Reference](../configuration/env_vars.md) for comp
 
 ### Step 5: MongoDB Setup
 
-Install MongoDB 6.0 following the [official instructions](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/) and ensure it runs on port 27017.
+Install MongoDB following the [official instructions](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/) and ensure it runs on port 27017. The Docker setup uses `mongo:5.0`; CI runs against `mongo:latest`.
 
-Start MongoDB with `mongosh` and create users:
+Start MongoDB with `mongosh` and create users. Create them in the `admin` database: Hera authenticates with `authenticationSource='admin'`.
 
 ```javascript
 use admin
@@ -295,7 +304,7 @@ db.createUser(
 )
 ```
 
-Then create `~/.pyhera/config.json`:
+Then create `~/.pyhera/config.json` (or let the CLI write the entry for you: `hera-project db create <connectionName> --username ... --password ... --IP ... --databaseName ...`; this requires the file to already exist):
 
 ```json
 {
@@ -312,10 +321,10 @@ Then create `~/.pyhera/config.json`:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `connectionName` | `str` (top-level key) | A name for this connection. Defaults to the OS username if not specified at runtime. |
+| `connectionName` | `str` (top-level key) | A name for this connection. Hera uses the entry whose key is your OS username when no `connectionName` is given, so you need at least that entry. |
 | `username` | `str` | MongoDB username |
 | `password` | `str` | MongoDB password |
-| `dbIP` | `str` | MongoDB server address (hostname:port) |
+| `dbIP` | `str` | MongoDB server address (`hostname` or `hostname:port`; port defaults to 27017) |
 | `dbName` | `str` | Name of the MongoDB database to use |
 
 !!! note "Multiple Connections"
@@ -330,11 +339,13 @@ Then create `~/.pyhera/config.json`:
 
 #### What Happens on First Run
 
-If `~/.pyhera/config.json` does not exist when Hera is first imported, the system will:
+`import hera` does not touch the database; connections are opened lazily on the first database access (for example `Project(...)`). If `~/.pyhera/config.json` does not exist at that point, Hera will:
 
 1. Automatically create the directory `~/.pyhera/`
-2. Generate a template `config.json` with placeholder values
-3. Raise an `IOError` with a message asking you to fill in the connection details
+2. Generate a template `config.json` with one entry for your OS username and placeholder values (`{username}`, `{password}`, `{databaseIP}`, `{databaseName}`)
+3. Raise an `IOError` asking you to fill in the connection details. The CLI (`hera-project db list`) shows this message directly; from the Python API the error is swallowed during lazy connection setup, and you get `KeyError: user <name> not found` instead.
+
+Fill in the template and restart the Python session.
 
 ### Step 6: Verify Installation
 
@@ -362,17 +373,20 @@ hera-project db list
 # List projects
 hera-project project list
 
-# List available toolkits
-hera-toolkit list --project MY_PROJECT
+# List the dynamic toolkit datasources registered in a project
+hera-project project measurements list --project MY_PROJECT --shortcut ds
 ```
+
+!!! warning
+    `hera-project db list` prints the full connection details, including passwords. Use `hera-project db list --onlyName` to show only the connection names.
 
 #### Expected Output
 
 If everything is configured correctly, you should see:
 
-- No `IOError` about missing config files
+- No `IOError` / `KeyError` about missing config entries
 - A list of database connections
-- A list of registered toolkits (may be empty for a new project)
+- A table of toolkits from `getToolkitTable` (the built-in toolkits are always listed; dynamic ones may be empty for a new project)
 
 ---
 
@@ -380,8 +394,9 @@ If everything is configured correctly, you should see:
 
 | Problem | Cause | Solution |
 |---------|-------|----------|
-| `IOError: config file doesn't exist` | Missing `~/.pyhera/config.json` | Create the file with valid MongoDB connection details |
-| `ConnectionRefusedError` | MongoDB not running | Start MongoDB: `sudo systemctl start mongod` or `make mongo-up` |
+| `IOError: The config file doesn't exist in the default directory` | Missing `~/.pyhera/config.json` | Fill in the template Hera just created with valid MongoDB connection details |
+| `KeyError: user <name> not found. Must be one of: ...` | No `config.json` entry for your OS username (or the file was missing/invalid) | Add an entry keyed by your username, or pass `connectionName=` to `Project` |
+| `ServerSelectionTimeoutError` / connection refused | MongoDB not running | Start MongoDB: `sudo systemctl start mongod` or `make mongo-up` |
 | `ModuleNotFoundError: No module named 'hera'` | Package not installed | Run `pip install -e .` from the hera root |
 | `command not found: hera-project` | `hera/bin/` not in PATH | Run `source activate_hera.sh` or add to PATH manually |
 | `ImportError: mongoengine` | Missing dependencies | Run `pip install -r requirements.txt` |

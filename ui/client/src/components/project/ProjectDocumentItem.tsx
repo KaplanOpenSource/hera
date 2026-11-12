@@ -1,4 +1,4 @@
-import { Stack, Typography } from "@mui/material";
+import { Stack, Tooltip, Typography } from "@mui/material";
 import { TreeItem } from "@mui/x-tree-view";
 import { ProjectDocument, ProjectEntire } from "@shared/types";
 import { idDocId } from "../../shared/idDocId";
@@ -11,11 +11,13 @@ import { DocumentKindIcon } from "./DocumentKindIcon";
 export const ProjectDocumentItem = ({
   document,
   kind,
+  onRowContextMenu,
 }: {
   project: ProjectEntire,
   document: ProjectDocument,
   kind: TabKind,
   onDocumentDeleted?: () => void,
+  onRowContextMenu?: (event: React.MouseEvent, itemId: string) => void,
 }) => {
   const { viewSettings } = useViewSettingsStore();
 
@@ -25,20 +27,23 @@ export const ProjectDocumentItem = ({
   return (
     <TreeItem
       key={id} itemId={id}
+      onContextMenu={event => onRowContextMenu?.(event, id)}
       label={
-        <Stack direction='column' justifyContent="start" alignItems=''>
-          <Stack direction='row' spacing={1} justifyContent="start" alignItems='center'>
-            <DocumentKindIcon kind={kind} fontSize="small" sx={{ color: 'text.secondary' }} />
-            <Typography>
-              {name}
-            </Typography>
+        <Tooltip title='Click to select, double click to open'>
+          <Stack direction='column' justifyContent="start" alignItems=''>
+            <Stack direction='row' spacing={1} justifyContent="start" alignItems='center'>
+              <DocumentKindIcon kind={kind} fontSize="small" sx={{ color: 'text.secondary' }} />
+              <Typography>
+                {name}
+              </Typography>
+            </Stack>
+            {viewSettings.showDocumentPreview && document?.resource && typeof (document?.resource) == 'string' && (
+              <Typography sx={{ fontSize: 10 }}>
+                resource: {document.resource.substring(0, 80)}
+              </Typography>
+            )}
           </Stack>
-          {viewSettings.showDocumentPreview && document?.resource && typeof (document?.resource) == 'string' && (
-            <Typography sx={{ fontSize: 10 }}>
-              resource: {document.resource.substring(0, 80)}
-            </Typography>
-          )}
-        </Stack>
+        </Tooltip>
       }
     >
     </TreeItem>

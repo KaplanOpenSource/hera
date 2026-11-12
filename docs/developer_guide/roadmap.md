@@ -74,7 +74,7 @@ Currently, Hera's internal interfaces rely on duck typing and dictionaries. Func
 Currently, toolkits are discovered from two different sources:
 
 1. **Internal (built-in):** Hardcoded Python dict in `ToolkitHome.__init__` — requires source code edit to add/remove
-2. **Dynamic (external):** Registered in MongoDB via `registerToolkit` CLI — no source code change needed
+2. **Dynamic (external):** Registered in MongoDB via `ToolkitHome.registerToolkit(toolkit_name, toolkit_path)` or the `hera-project addToolkit <name> <path>` CLI (stored as `ToolkitDataSource` documents in the default project) — no source code change needed
 
 This creates:
 - Two code paths for toolkit resolution (dict lookup vs DB query)
@@ -104,7 +104,7 @@ This creates:
 
 4. **Single resolution path** — `getToolkit(name)` always queries the DB. No hardcoded fallback dict.
 
-5. **Populate command** — `make populate` loads all repositories into all projects (already implemented)
+5. **Populate command** — `make populate` loads all repositories into all projects (already implemented; runs `hera-project project populate --overwrite`)
 
 ### Flow after unification
 
@@ -121,7 +121,7 @@ Adding a new built-in toolkit:
 
 Adding an external toolkit:
     1. Create the class anywhere on disk
-    2. Run: hera-project addToolkit myToolkit /path/to/toolkit
+    2. Run: hera-project addToolkit myToolkit /path/to/toolkit   ← already available today
     3. Run: make populate (optional, to propagate to all projects)
 ```
 
@@ -145,7 +145,7 @@ Adding an external toolkit:
 
 ### Environment variable configuration for MongoDB
 
-Support `HERA_DB_*` environment variables as an override for `~/.pyhera/config.json`, enabling container and CI deployments without config files.
+Support `HERA_DB_*` environment variables as an override for `~/.pyhera/config.json`, enabling container and CI deployments without config files. (Not implemented in master: connections are read only from `~/.pyhera/config.json`.)
 
 ### Async support
 

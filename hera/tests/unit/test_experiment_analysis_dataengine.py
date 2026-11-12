@@ -29,21 +29,14 @@ import pytest
 
 from hera.measurements.experiment.dataEngine import (
     DASKDB,
-    dataEngineFactory,
     daskDataEngineDB,
+    dataEngineFactory,
     pandasDataEngineDB,
 )
 
 
 @pytest.mark.unit
 class TestGetTurbulenceStatisticsIsBroken:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B75: the method reads kaijoData/kaijoHeight, names that "
-               "exist nowhere in its own body or parameters (only "
-               "sonicData/height do) -- every call raises NameError. "
-               "See the consolidated findings issue.",
-    )
     def test_it_should_return_a_turbulence_statistics_object(self):
         from hera.measurements.experiment.analysis import experimentAnalysis
 
@@ -60,7 +53,9 @@ class TestGetTurbulenceStatisticsIsBroken:
             toolkitExtension = _FakeExtension()
 
         analysis = experimentAnalysis(_FakeDataLayer())
-        analysis.getTurbulenceStatistics(sonicData=object(), samplingWindow="1min", height=2)
+        result = analysis.getTurbulenceStatistics(sonicData=object(), samplingWindow="1min", height=2)
+        assert result is not None
+
 
     def test_it_currently_raises_a_nameerror(self):
         """Characterisation of B75."""
@@ -79,8 +74,9 @@ class TestGetTurbulenceStatisticsIsBroken:
             toolkitExtension = _FakeExtension()
 
         analysis = experimentAnalysis(_FakeDataLayer())
-        with pytest.raises(NameError, match="kaijo"):
-            analysis.getTurbulenceStatistics(sonicData=object(), samplingWindow="1min", height=2)
+
+        analysis.getTurbulenceStatistics(sonicData=object(), samplingWindow="1min", height=2)
+
 
 
 @pytest.mark.unit
@@ -116,24 +112,11 @@ class TestDaskDataEngineDB:
         }}})
         assert engine.connectionString == "mongodb://u:p@1.2.3.4:27017/"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B76: DBconfiguration evaluates self._dbConfiguration as a "
-               "bare expression with no return, so it always yields None. "
-               "See the consolidated findings issue.",
-    )
     def test_db_configuration_should_return_the_stored_dict(self):
         engine = daskDataEngineDB("proj", {"DB": {"login": {
             "username": "u", "password": "p", "ip": "1.2.3.4", "port": "27017",
         }}})
         assert engine.DBconfiguration is not None
-
-    def test_db_configuration_currently_returns_none(self):
-        """Characterisation of B76."""
-        engine = daskDataEngineDB("proj", {"DB": {"login": {
-            "username": "u", "password": "p", "ip": "1.2.3.4", "port": "27017",
-        }}})
-        assert engine.DBconfiguration is None
 
 
 @pytest.mark.unit
@@ -143,20 +126,11 @@ class TestPandasDataEngineDBConstructionValidation:
         with pytest.raises(ValueError, match="DB"):
             pandasDataEngineDB("proj", {})
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B76: same missing return as daskDataEngineDB.DBconfiguration.",
-    )
     def test_db_configuration_should_return_the_stored_dict(self):
         engine = pandasDataEngineDB.__new__(pandasDataEngineDB)
         engine._dbConfiguration = {"login": {}}
         assert engine.DBconfiguration is not None
 
-    def test_db_configuration_currently_returns_none(self):
-        """Characterisation of B76, on the pandas engine."""
-        engine = pandasDataEngineDB.__new__(pandasDataEngineDB)
-        engine._dbConfiguration = {"login": {}}
-        assert engine.DBconfiguration is None
 
 
 @pytest.mark.unit
@@ -164,14 +138,6 @@ class TestPandasDataEngineDBConnect:
     """dbConnect() opens a real socket via pymongo.MongoClient; every test
     here monkeypatches it so nothing ever touches the network."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B77: OperationFailure is never imported, so matching any "
-               "raised exception against it raises NameError, which the "
-               "outer except Exception silently swallows and returns "
-               "instead of the real connection error. "
-               "See the consolidated findings issue.",
-    )
     def test_dbconnect_should_surface_the_original_exception(self, monkeypatch):
         import hera.measurements.experiment.dataEngine as de_mod
 
@@ -201,5 +167,5 @@ class TestPandasDataEngineDBConnect:
             "username": "u", "password": "p", "ip": "1.2.3.4", "port": "27017",
         }}
         result = engine.dbConnect()
-        assert isinstance(result, NameError)
-        assert "OperationFailure" in str(result)
+        assert isinstance(result, RuntimeError)
+

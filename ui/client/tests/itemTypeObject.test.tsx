@@ -28,7 +28,8 @@ describe('calcItemType', () => {
   it('classifies objects, arrays, null, numbers and strings', () => {
     expect(calcItemType({})).toBe(ItemTypesEnum.object);
     expect(calcItemType({ a: 1 })).toBe(ItemTypesEnum.object);
-    expect(calcItemType([])).toBe(ItemTypesEnum.object);
+    expect(calcItemType([])).toBe(ItemTypesEnum.array);
+    expect(calcItemType([1, 2])).toBe(ItemTypesEnum.array);
     expect(calcItemType(null)).toBe(ItemTypesEnum.null);
     expect(calcItemType(42)).toBe(ItemTypesEnum.number);
     expect(calcItemType('hi')).toBe(ItemTypesEnum.string);
@@ -93,5 +94,135 @@ describe('object as a field type', () => {
     pickType('string', 'object');
     // a is now an empty object AND auto-expanded, so its "(empty)" label shows
     expect(screen.getByText('(empty)')).toBeDefined();
+  });
+});
+
+describe('list as a field type', () => {
+  it('shows the array type and numeric order on a list field', () => {
+    render(
+      <SimpleTreeView defaultExpandedItems={['config', 'config/a']}>
+        <DetailsViewItem itemKey='config' itemValue={{ a: ['x', 'y', 'z'] }} setItemValue={vi.fn()} parentKey={undefined} />
+      </SimpleTreeView>
+    );
+    expect(screen.getByText('array')).toBeDefined();
+    const names = screen.getAllByText(/^\d+$/).map(el => el.textContent);
+    expect(names).toEqual(['0', '1', '2']);
+  });
+
+  it('sorts indices numerically, not as text', () => {
+    const many = Array.from({ length: 11 }, (_, i) => 'v' + i);
+    render(
+      <SimpleTreeView defaultExpandedItems={['config', 'config/a']}>
+        <DetailsViewItem itemKey='config' itemValue={{ a: many }} setItemValue={vi.fn()} parentKey={undefined} />
+      </SimpleTreeView>
+    );
+    const names = screen.getAllByText(/^\d+$/).map(el => el.textContent);
+    expect(names).toEqual(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10']);
+  });
+
+  it('keeps a list a list when an element is edited', () => {
+    const setItemValue = vi.fn();
+    render(
+      <SimpleTreeView defaultExpandedItems={['config', 'config/a']}>
+        <DetailsViewItem itemKey='config' itemValue={{ a: ['x', 'y'] }} setItemValue={setItemValue} parentKey={undefined} />
+      </SimpleTreeView>
+    );
+    const boxes = screen.getAllByRole('textbox');
+    fireEvent.change(boxes[boxes.length - 1], { target: { value: 'changed' } });
+    expect(setItemValue).toHaveBeenCalledWith({ a: ['x', 'changed'] });
+  });
+
+  it('appends when adding an item to a list', () => {
+    const setItemValue = vi.fn();
+    render(
+      <SimpleTreeView defaultExpandedItems={['config', 'config/a']}>
+        <DetailsViewItem itemKey='config' itemValue={{ a: ['x'] }} setItemValue={setItemValue} parentKey={undefined} />
+      </SimpleTreeView>
+    );
+    // The tooltip label sits on a wrapper box, so click the button inside.
+    const adds = screen.getAllByLabelText('Add item');
+    fireEvent.click(adds[adds.length - 1].querySelector('button')!);
+    expect(setItemValue).toHaveBeenCalledWith({ a: ['x', ''] });
+  });
+
+  it('removes an element and shifts the rest on delete', () => {
+    const setItemValue = vi.fn();
+    render(
+      <SimpleTreeView defaultExpandedItems={['config', 'config/a']}>
+        <DetailsViewItem itemKey='config' itemValue={{ a: ['x', 'y', 'z'] }} setItemValue={setItemValue} parentKey={undefined} />
+      </SimpleTreeView>
+    );
+    fireEvent.click(screen.getByLabelText('Delete 1').querySelector('button')!);
+    expect(setItemValue).toHaveBeenCalledWith({ a: ['x', 'z'] });
+  });
+
+  it('does not let an index be renamed', () => {
+    render(
+      <SimpleTreeView defaultExpandedItems={['config', 'config/a']}>
+        <DetailsViewItem itemKey='config' itemValue={{ a: ['x'] }} setItemValue={vi.fn()} parentKey={undefined} />
+      </SimpleTreeView>
+    );
+    const before = screen.getAllByRole('textbox').length;
+    fireEvent.click(screen.getByText('0'));
+    expect(screen.getAllByRole('textbox').length).toBe(before);
+  });
+
+  it('converts a list to an object and back, keeping the values', () => {
+    const setItemValue = vi.fn();
+    render(
+      <SimpleTreeView defaultExpandedItems={['config']}>
+        <DetailsViewItem itemKey='config' itemValue={{ a: ['x', 'y'] }} setItemValue={setItemValue} parentKey={undefined} />
+      </SimpleTreeView>
+    );
+    pickType('array', 'object');
+    expect(setItemValue).toHaveBeenCalledWith({ a: { '0': 'x', '1': 'y' } });
+    cleanup();
+
+    const setItemValue2 = vi.fn();
+    render(
+      <SimpleTreeView defaultExpandedItems={['config']}>
+        <DetailsViewItem itemKey='config' itemValue={{ a: { p: 'x', q: 'y' } }} setItemValue={setItemValue2} parentKey={undefined} />
+      </SimpleTreeView>
+    );
+    pickType('object', 'array');
+    expect(setItemValue2).toHaveBeenCalledWith({ a: ['x', 'y'] });
+  });
+});
+
+describe('converting to and from a list', () => {
+  it('keeps the order the tree shows when an object becomes a list', () => {
+    const setItemValue = vi.fn();
+    renderTree({ a: { b: 'B', a: 'A' } }, setItemValue);
+    pickType('object', 'array');
+    expect(setItemValue).toHaveBeenCalledWith({ a: ['A', 'B'] });
+  });
+
+  it('gives zero, not the first element, when a list becomes a number', () => {
+    const setItemValue = vi.fn();
+    renderTree({ a: ['5', '6'] }, setItemValue);
+    pickType('array', 'number');
+    expect(setItemValue).toHaveBeenCalledWith({ a: 0 });
+  });
+
+  it('gives empty text when a list becomes a string', () => {
+    const setItemValue = vi.fn();
+    renderTree({ a: ['5', '6'] }, setItemValue);
+    pickType('array', 'string');
+    expect(setItemValue).toHaveBeenCalledWith({ a: '' });
+  });
+});
+
+describe('reordering a list by dragging its index', () => {
+  it('gives every element a drag handle on its index', () => {
+    render(
+      <SimpleTreeView defaultExpandedItems={['config', 'config/a']}>
+        <DetailsViewItem itemKey='config' itemValue={{ a: ['x', 'y', 'z'] }} setItemValue={vi.fn()} parentKey={undefined} />
+      </SimpleTreeView>
+    );
+    for (const index of [0, 1, 2]) {
+      const handle = screen.getByTestId('list-index-' + index);
+      expect(handle.getAttribute('role')).toBe('button');
+      expect(handle.getAttribute('aria-roledescription')).toBe('sortable');
+    }
   });
 });

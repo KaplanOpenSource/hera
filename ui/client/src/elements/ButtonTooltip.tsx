@@ -19,8 +19,9 @@ export const ButtonTooltip = ({
     onClick(e);
   };
 
+  // Plain text needs no hovering into; rich content may hold links.
   return (
-    <Tooltip title={title}>
+    <Tooltip title={title} disableInteractive={typeof title === 'string'}>
       <Box>
         {button
           ? (
