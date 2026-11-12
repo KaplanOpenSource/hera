@@ -1,17 +1,17 @@
-"""openFoam/postProcess/pvOpenFOAMBase.py: ``paraviewOpenFOAM``.
+"""openFoam/postprocess/pvopenfoam.py: ``ParaviewOpenFOAM``.
 
 What the environment allows
 --------------------------
 Neither ``paraview`` nor ``vtkmodules`` can be installed here (paraview
 ships as a binary, and ``vtkmodules`` is not in requirements.txt).  The
-module's whole VTK import block is wrapped in ``try/except ImportError``,
-so under the unit layer it fails on its **first** line and the module ends
-up with *none* of ``dsa``, ``vtkMultiBlockDataSet``, ``pvsimple``,
-``servermanager``, ``Proxy`` or ``ProxyProperty`` defined -- every method
-that touches them raises ``NameError`` as imported.  (The ``paraview`` /
-``paraview.simple`` entries in ``_stubs.py`` are bare namespace modules,
-not MagicMocks, and they are never reached because
-``import vtkmodules...`` on the line above them raises first.)
+module's whole VTK import block is wrapped in ``try/except ImportError``.
+Its first line, ``import paraview.simple as pvsimple``, binds the bare
+namespace module from ``_stubs.py`` (not a MagicMock); the next line,
+``import vtkmodules...``, raises, so the module ends up with *none* of
+``dsa``, ``vtkMultiBlockDataSet``, ``servermanager``, ``Proxy`` or
+``ProxyProperty`` defined and with a ``pvsimple`` that has no attributes --
+every method that touches them fails as imported.  Since #1137 that
+includes the constructor, which builds the reader itself.
 
 The tests therefore inject those six names as module globals with
 ``monkeypatch.setattr(module, name, value, raising=False)``.  No production
@@ -21,27 +21,27 @@ Covered *deeply* -- real numpy / pandas / xarray / dask, no mock in the
 assertion path, because these methods are pure Python over data structures
 the test supplies:
 
-  ``__init__`` (component-name map), ``_parsePointSet``, ``_parseTable``,
+  ``__init__`` (component-name map), ``_parse_point_set``, ``_parseTable``,
   ``_getBlockName``, ``_assignBlockName``, ``_parseMultiBlockDataSet``,
   ``_parseVTKData`` (branch dispatch), ``_resolveTimeList``,
   ``_removeOldOutputs``, ``_ensureOutputDirs``, ``_collectTmpFiles``,
   ``_atomicReplace``, ``_cleanupTmpFiles``, ``_writeTimeStepBlocks``
   (block arithmetic), ``writeList`` (parquet branch, written to and read
-  back from ``tmp_path``), ``_mergeParquet`` (real parquet round-trip).
+  back from ``tmp_path``), ``_merge_parquet`` (real parquet round-trip).
 
 Covered *shallowly* -- these methods exist only to hand arguments to
 paraview / VTK / zarr, so the honest test is an argument-forwarding and
 call-order test against the stand-ins.  Nothing numerical is asserted,
 because a stand-in would happily fabricate any number asked of it:
 
-  ``initializeReader``   -> ``pvsimple.OpenFOAMReader`` args + reader wiring
-  ``readTimeSteps``      -> ``pvsimple.FindSource`` lookup, the ``Proxy``
+  ``initialize_reader``   -> ``pvsimple.OpenFOAMReader`` args + reader wiring
+  ``read_time_steps``      -> ``pvsimple.FindSource`` lookup, the ``Proxy``
                             assertion, ``None``-skipping, and the nested
                             ``debug_proxy_data`` walk
   ``_readTimeStep``      -> ``UpdatePipeline(t)`` then ``servermanager.Fetch``
   ``writeCase``          -> which helper runs, in which order
   ``_mergeToFinalOutput``-> zarr/parquet dispatch
-  ``_mergeZarr`` and ``writeList``'s regularMesh branch -> ``zarr`` is not
+  ``_merge_zarr`` and ``writeList``'s regularMesh branch -> ``zarr`` is not
                             installed either, so ``xarray`` is replaced by a
                             recording stand-in and only the arguments the
                             method builds itself (paths, ``dim="time"``,
@@ -49,17 +49,18 @@ because a stand-in would happily fabricate any number asked of it:
                             fallback) are asserted.
   the six ``@deprecated`` aliases -> forwarded positional arguments.
 
-Not covered: nothing in the class is skipped.
+Not covered: ``get_data_fields`` (added in #1137, after these tests were written).
 
-Four defects are pinned, each provable by reading the source rather than by
-watching a stand-in: B310 (``__init__``'s ``name`` argument is discarded),
-B311 (``readTimeSteps``'s ``timelist=None`` default is iterated unguarded),
+Four defects were pinned, each provable by reading the source rather than by
+watching a stand-in: B310 (``__init__``'s ``name`` argument is discarded --
+fixed in #1137, which removed the parameter), B311 (``read_time_steps``'s ``timelist=None`` default is iterated unguarded),
 B312 (``_ensureOutputDirs`` calls ``os.makedirs('')``) and B313
-(``_parsePointSet``'s ``squeeze()`` cannot tell one point from no points).
-Each has a strict xfail for the intended behaviour plus passing
+(``_parse_point_set``'s ``squeeze()`` cannot tell one point from no points).
+Each open one has a strict xfail for the intended behaviour plus passing
 characterisation tests of what actually happens today.
 """
 import importlib
+import itertools
 import os
 import types
 from unittest.mock import MagicMock
@@ -69,7 +70,7 @@ import pandas
 import pytest
 import xarray
 
-PV_MODULE = "hera.simulations.openFoam.postProcess.pvOpenFOAMBase"
+PV_MODULE = "hera.simulations.openFoam.postprocess.pvopenfoam"
 
 
 # ---------------------------------------------------------------------------
@@ -238,7 +239,9 @@ def pv(pvmod, monkeypatch):
     )
     reader = FakeReader()
     pvsimple = MagicMock()
-    pvsimple.OpenFOAMReader.return_value = reader
+    # The constructor builds the first reader (``pv.reader``); like real
+    # paraview, every later ``OpenFOAMReader`` call makes a new proxy.
+    pvsimple.OpenFOAMReader.side_effect = itertools.chain([reader], iter(FakeReader, None))
     servermanager = MagicMock()
 
     injected = dict(
@@ -254,7 +257,7 @@ def pv(pvmod, monkeypatch):
 
     return types.SimpleNamespace(
         module=pvmod,
-        cls=pvmod.paraviewOpenFOAM,
+        cls=pvmod.ParaviewOpenFOAM,
         dsa=dsa,
         pvsimple=pvsimple,
         servermanager=servermanager,
@@ -263,9 +266,13 @@ def pv(pvmod, monkeypatch):
 
 
 @pytest.fixture()
-def base(pvmod):
-    """A ``paraviewOpenFOAM`` needing no paraview at all (servername=None)."""
-    return pvmod.paraviewOpenFOAM(casePath="/cases/demo")
+def base(pv):
+    """A ``ParaviewOpenFOAM`` on the stand-ins (servername=None).
+
+    The constructor now builds the reader itself, so even a "plain"
+    instance needs the injected ``pvsimple``.
+    """
+    return pv.cls(case_path="/cases/demo")
 
 
 def fake_xarray(**overrides):
@@ -291,18 +298,18 @@ def fake_xarray(**overrides):
 
 @pytest.mark.unit
 class TestConstruction:
-    def test_it_stores_the_case_path_and_case_type(self, pvmod):
-        obj = pvmod.paraviewOpenFOAM(casePath="/cases/demo", caseType="Reconstructed Case")
+    def test_it_stores_the_case_path_and_case_type(self, pv):
+        obj = pv.cls(case_path="/cases/demo", case_type="Reconstructed Case")
         assert obj.casePath == "/cases/demo"
         assert obj.caseType == "Reconstructed Case"
 
-    def test_the_case_type_defaults_to_the_decomposed_constant(self, pvmod):
+    def test_the_case_type_defaults_to_the_decomposed_constant(self, pv):
         from hera.simulations.openFoam import CASETYPE_DECOMPOSED
 
-        assert pvmod.paraviewOpenFOAM(casePath="/c").caseType == CASETYPE_DECOMPOSED
+        assert pv.cls(case_path="/c").caseType == CASETYPE_DECOMPOSED
 
     def test_it_builds_a_component_suffix_for_every_scalar_vector_and_tensor_index(self, base):
-        names = base._componentsNames
+        names = base._components_names
         assert len(names) == 13
         assert names[()] == ""
         assert [names[(i,)] for i in range(3)] == ["_x", "_y", "_z"]
@@ -310,67 +317,58 @@ class TestConstruction:
         assert names[(1, 2)] == "_yz"
         assert names[(2, 0)] == "_zx"
 
-    def test_the_component_map_is_per_instance_not_shared_on_the_class(self, pvmod):
-        first = pvmod.paraviewOpenFOAM(casePath="/a")
-        second = pvmod.paraviewOpenFOAM(casePath="/b")
-        assert first._componentsNames is not second._componentsNames
-        assert pvmod.paraviewOpenFOAM._componentsNames is None
+    def test_the_component_map_is_per_instance_not_shared_on_the_class(self, pv):
+        first = pv.cls(case_path="/a")
+        second = pv.cls(case_path="/b")
+        assert first._components_names is not second._components_names
+        assert pv.cls._components_names is None
 
     def test_it_does_not_connect_to_a_server_when_no_servername_is_given(self, pv):
-        pv.cls(casePath="/c", servername=None)
+        pv.cls(case_path="/c", servername=None)
         assert pv.pvsimple.Connect.call_count == 0
 
     def test_it_connects_to_the_named_paraview_server(self, pv):
-        pv.cls(casePath="/c", servername="cs://host:11111")
+        pv.cls(case_path="/c", servername="cs://host:11111")
         pv.pvsimple.Connect.assert_called_once_with("cs://host:11111")
 
 
 # ---------------------------------------------------------------------------
-# B310: __init__'s `name` argument is accepted and thrown away
+# B310 (fixed in #1137): __init__ no longer accepts a `name` it threw away
 # ---------------------------------------------------------------------------
 
 @pytest.mark.unit
 class TestConstructorNameArgument:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B310: paraviewOpenFOAM.__init__ declares name='mainreader' "
-               "but its body never reads it -- the parameter is bound and "
-               "immediately discarded (source: lines 39-91 assign only "
-               "_componentsNames, casePath and caseType). Callers who name "
-               "the pipeline at construction time are silently ignored, and "
-               "initializeReader falls back to its own unrelated default "
-               "readerName='reader'. See the consolidated findings issue.",
-    )
-    def test_the_constructor_name_becomes_the_readers_default_pipeline_name(self, pv):
-        obj = pv.cls(casePath="/cases/demo", name="myPipeline")
-        obj.initializeReader()
-        assert obj.readerName == "myPipeline"
+    def test_the_constructor_refuses_a_name_instead_of_silently_discarding_it(self, pv):
+        """B310 used to bind ``name='mainreader'`` and never read it; #1137
+        dropped the parameter, so a caller naming the pipeline now hears
+        about it instead of being ignored."""
+        with pytest.raises(TypeError, match="name"):
+            pv.cls(case_path="/cases/demo", name="myPipeline")
 
-    def test_the_constructor_name_is_not_recorded_anywhere_on_the_instance(self, pvmod):
-        """Characterisation of B310."""
-        obj = pvmod.paraviewOpenFOAM(casePath="/cases/demo", name="myPipeline")
-        assert "myPipeline" not in vars(obj).values()
-        assert not hasattr(obj, "name")
-        assert sorted(vars(obj)) == ["_componentsNames", "casePath", "caseType"]
-
-    def test_the_reader_name_comes_only_from_initialize_reader(self, pv):
-        """Characterisation of B310."""
-        obj = pv.cls(casePath="/cases/demo", name="myPipeline")
-        obj.initializeReader()
-        assert obj.readerName == "reader"
+    def test_the_reader_built_by_the_constructor_is_named_reader(self, pv):
+        obj = pv.cls(case_path="/cases/demo")
+        assert obj.reader_name == "reader"
         assert pv.pvsimple.OpenFOAMReader.call_args.kwargs["guiName"] == "reader"
 
 
 # ---------------------------------------------------------------------------
-# initializeReader -- shallow: argument forwarding to pvsimple
+# initialize_reader -- shallow: argument forwarding to pvsimple
 # ---------------------------------------------------------------------------
 
 @pytest.mark.unit
 class TestInitializeReader:
-    def test_it_asks_paraview_for_a_reader_on_the_cases_tmp_foam_file(self, pv):
-        obj = pv.cls(casePath="/cases/demo", caseType="Reconstructed Case")
-        obj.initializeReader(readerName="myReader")
+    def test_the_constructor_asks_paraview_for_a_reader_on_the_cases_tmp_foam_file(self, pv):
+        pv.cls(case_path="/cases/demo", case_type="Reconstructed Case")
         pv.pvsimple.OpenFOAMReader.assert_called_once_with(
+            FileName="/cases/demo/tmp.foam",
+            CaseType="Reconstructed Case",
+            guiName="reader",
+        )
+
+    def test_an_explicit_call_forwards_its_reader_name(self, pv):
+        obj = pv.cls(case_path="/cases/demo", case_type="Reconstructed Case")
+        obj.initialize_reader(reader_name="myReader")
+        pv.pvsimple.OpenFOAMReader.assert_called_with(
             FileName="/cases/demo/tmp.foam",
             CaseType="Reconstructed Case",
             guiName="myReader",
@@ -378,25 +376,25 @@ class TestInitializeReader:
 
     def test_it_selects_every_mesh_region_and_writes_the_list_back(self, pv):
         pv.reader.MeshRegions = FakeMeshRegions(["internalMesh", "patch/inlet"])
-        obj = pv.cls(casePath="/c")
-        reader = obj.initializeReader()
+        reader = pv.cls(case_path="/c").reader
         assert reader.MeshRegions == ["internalMesh", "patch/inlet"]
         assert not isinstance(reader.MeshRegions, FakeMeshRegions)
 
     def test_it_updates_the_pipeline_once_with_no_time_argument(self, pv):
-        pv.cls(casePath="/c").initializeReader()
+        pv.cls(case_path="/c")
         assert pv.reader.updatePipelineCalls == [None]
 
     def test_it_returns_the_reader_and_remembers_it_with_its_name(self, pv):
-        obj = pv.cls(casePath="/c")
-        reader = obj.initializeReader(readerName="pipe1")
-        assert reader is pv.reader
+        obj = pv.cls(case_path="/c")
         assert obj.reader is pv.reader
-        assert obj.readerName == "pipe1"
+        reader = obj.initialize_reader(reader_name="pipe1")
+        assert reader is not pv.reader
+        assert obj.reader is reader
+        assert obj.reader_name == "pipe1"
 
 
 # ---------------------------------------------------------------------------
-# readTimeSteps -- shallow: source lookup, Proxy guard, None-skipping
+# read_time_steps -- shallow: source lookup, Proxy guard, None-skipping
 # ---------------------------------------------------------------------------
 
 @pytest.mark.unit
@@ -407,16 +405,16 @@ class TestReadTimeSteps:
             pv.cls, "_readTimeStep",
             lambda self, datasource, timeslice, fieldnames, regularMesh: f"data@{timeslice}",
         )
-        obj = pv.cls(casePath="/c")
-        result = list(obj.readTimeSteps({"slice1": "/out/a.parquet"}, timelist=[0.0, 1.0]))
+        obj = pv.cls(case_path="/c")
+        result = list(obj.read_time_steps({"slice1": "/out/a.parquet"}, timelist=[0.0, 1.0]))
         assert result == [{"slice1": "data@0.0"}, {"slice1": "data@1.0"}]
 
     def test_it_looks_each_filter_up_by_name_in_the_paraview_pipeline(self, pv, monkeypatch):
         monkeypatch.setattr(pv.pvsimple, "FindSource",
                             MagicMock(side_effect=lambda name: FakeProxy()))
         monkeypatch.setattr(pv.cls, "_readTimeStep", lambda *a, **k: "x")
-        obj = pv.cls(casePath="/c")
-        list(obj.readTimeSteps({"a": "/out/a", "b": "/out/b"}, timelist=[1.0]))
+        obj = pv.cls(case_path="/c")
+        list(obj.read_time_steps({"a": "/out/a", "b": "/out/b"}, timelist=[1.0]))
         assert [c.args[0] for c in pv.pvsimple.FindSource.call_args_list] == ["a", "b"]
 
     def test_it_omits_filters_whose_timestep_produced_no_data(self, pv, monkeypatch):
@@ -425,14 +423,14 @@ class TestReadTimeSteps:
             pv.cls, "_readTimeStep",
             lambda self, datasource, timeslice, fieldnames, regularMesh: None if timeslice == 1.0 else 7,
         )
-        obj = pv.cls(casePath="/c")
-        assert list(obj.readTimeSteps({"a": "/o/a"}, timelist=[0.0, 1.0])) == [{"a": 7}, {}]
+        obj = pv.cls(case_path="/c")
+        assert list(obj.read_time_steps({"a": "/o/a"}, timelist=[0.0, 1.0])) == [{"a": 7}, {}]
 
     def test_it_refuses_a_pipeline_object_that_is_not_a_paraview_proxy(self, pv, monkeypatch):
         monkeypatch.setattr(pv.pvsimple, "FindSource", lambda name: object())
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         with pytest.raises(AssertionError):
-            list(obj.readTimeSteps({"a": "/o/a"}, timelist=[0.0]))
+            list(obj.read_time_steps({"a": "/o/a"}, timelist=[0.0]))
 
     def test_it_walks_nested_proxy_properties_before_computing_the_filter(self, pv, monkeypatch):
         """debug_proxy_data must visit plain properties, proxy properties
@@ -445,28 +443,28 @@ class TestReadTimeSteps:
         })
         monkeypatch.setattr(pv.pvsimple, "FindSource", lambda name: source)
         monkeypatch.setattr(pv.cls, "_readTimeStep", lambda *a, **k: "x")
-        obj = pv.cls(casePath="/c")
-        list(obj.readTimeSteps({"a": "/o/a"}, timelist=[0.0]))
+        obj = pv.cls(case_path="/c")
+        list(obj.read_time_steps({"a": "/o/a"}, timelist=[0.0]))
         assert source.getPropertyCalls == ["PlainProperty", "DataProperty", "NestedProxy"]
         assert nested.getPropertyCalls == ["Radius"]
 
     def test_the_filters_output_paths_are_never_read_only_their_names(self, pv, monkeypatch):
-        """readTimeSteps takes filtername -> path but only uses the keys."""
+        """read_time_steps takes filtername -> path but only uses the keys."""
         monkeypatch.setattr(pv.pvsimple, "FindSource", lambda name: FakeProxy())
         monkeypatch.setattr(pv.cls, "_readTimeStep", lambda *a, **k: "x")
-        obj = pv.cls(casePath="/c")
-        assert list(obj.readTimeSteps({"a": None}, timelist=[0.0])) == [{"a": "x"}]
+        obj = pv.cls(case_path="/c")
+        assert list(obj.read_time_steps({"a": None}, timelist=[0.0])) == [{"a": "x"}]
 
 
 # ---------------------------------------------------------------------------
-# B311: readTimeSteps declares timelist=None but iterates it unguarded
+# B311: read_time_steps declares timelist=None but iterates it unguarded
 # ---------------------------------------------------------------------------
 
 @pytest.mark.unit
 class TestReadTimeStepsDefaultTimeList:
     @pytest.mark.xfail(
         strict=True,
-        reason="B311: readTimeSteps(datasourcenamedict, timelist=None, ...) "
+        reason="B311: read_time_steps(datasourcenamedict, timelist=None, ...) "
                "iterates `for timeslice in timelist:` with no None guard, so "
                "the declared default is unusable -- it raises TypeError: "
                "'NoneType' object is not iterable. The same class already "
@@ -481,27 +479,27 @@ class TestReadTimeStepsDefaultTimeList:
     def test_a_missing_time_list_means_every_timestep_the_reader_knows(self, pv, monkeypatch):
         monkeypatch.setattr(pv.pvsimple, "FindSource", lambda name: FakeProxy())
         monkeypatch.setattr(pv.cls, "_readTimeStep", lambda *a, **k: "x")
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         obj.reader = FakeReader(timesteps=[0.0, 1.0, 2.0])
-        assert list(obj.readTimeSteps({"a": "/o/a"}, timelist=None)) == [{"a": "x"}] * 3
+        assert list(obj.read_time_steps({"a": "/o/a"}, timelist=None)) == [{"a": "x"}] * 3
 
     def test_a_missing_time_list_raises_a_type_error(self, pv):
         """Characterisation of B311."""
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         obj.reader = FakeReader(timesteps=[0.0, 1.0])
         with pytest.raises(TypeError, match="not iterable"):
-            list(obj.readTimeSteps({"a": "/o/a"}))
+            list(obj.read_time_steps({"a": "/o/a"}))
 
     @pytest.mark.parametrize("alias", ["to_pandas", "to_xarray", "to_dataFrame", "to_dataArray"])
     def test_the_deprecated_read_aliases_inherit_the_same_type_error(self, pv, alias):
         """Characterisation of B311."""
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         with pytest.raises(TypeError, match="not iterable"):
             list(getattr(obj, alias)({"a": "/o/a"}))
 
 
 # ---------------------------------------------------------------------------
-# _parsePointSet -- deep: real numpy in, real pandas/xarray out
+# _parse_point_set -- deep: real numpy in, real pandas/xarray out
 # ---------------------------------------------------------------------------
 
 POINTS_3 = [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
@@ -510,122 +508,122 @@ POINTS_3 = [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
 @pytest.mark.unit
 class TestParsePointSet:
     def test_a_filter_with_no_points_at_all_produces_nothing(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         pointSet = FakePointSet(points=FakeVTKNoneArray())
-        assert obj._parsePointSet(pointSet, 1.0, None, False) is None
+        assert obj._parse_point_set(pointSet, 1.0, None, False) is None
 
     def test_it_turns_the_point_coordinates_into_x_y_z_and_time_columns(self, pv):
-        obj = pv.cls(casePath="/c")
-        result = obj._parsePointSet(FakePointSet(vtkarray(POINTS_3)), 2.5, None, False)
+        obj = pv.cls(case_path="/c")
+        result = obj._parse_point_set(FakePointSet(vtkarray(POINTS_3)), 2.5, None, False)
         assert list(result.columns) == ["x", "y", "z", "time"]
         assert result.x.tolist() == [1.0, 4.0, 7.0]
         assert result.z.tolist() == [3.0, 6.0, 9.0]
         assert result.time.tolist() == [2.5, 2.5, 2.5]
 
     def test_it_rounds_the_coordinates_and_the_time_to_seven_decimals(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         points = vtkarray([[1.123456789, 2.0, 3.0], [0.0, 0.0, 0.0]])
-        result = obj._parsePointSet(FakePointSet(points), 0.123456789, None, False)
+        result = obj._parse_point_set(FakePointSet(points), 0.123456789, None, False)
         assert result.x.tolist() == [1.1234568, 0.0]
         assert result.time.tolist() == [0.1234568, 0.1234568]
 
     def test_it_stitches_together_the_point_arrays_of_a_composite_data_set(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         points = FakeCompositeArray([
             numpy.array([[1.0, 1.0, 1.0]]),
             numpy.array([[2.0, 2.0, 2.0]]),
         ])
-        result = obj._parsePointSet(FakePointSet(points), 0.0, None, False)
+        result = obj._parse_point_set(FakePointSet(points), 0.0, None, False)
         assert result.x.tolist() == [1.0, 2.0]
 
     def test_a_scalar_field_keeps_its_bare_name(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         pointSet = FakePointSet(vtkarray(POINTS_3), {"T": vtkarray([300.0, 301.0, 302.0])})
-        result = obj._parsePointSet(pointSet, 0.0, None, False)
+        result = obj._parse_point_set(pointSet, 0.0, None, False)
         assert result["T"].tolist() == [300.0, 301.0, 302.0]
 
     def test_a_vector_field_is_split_into_underscore_x_y_z_columns(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         velocity = vtkarray([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])
         pointSet = FakePointSet(vtkarray(POINTS_3), {"U": velocity})
-        result = obj._parsePointSet(pointSet, 0.0, None, False)
+        result = obj._parse_point_set(pointSet, 0.0, None, False)
         assert [c for c in result.columns if c.startswith("U")] == ["U_x", "U_y", "U_z"]
         assert result["U_y"].tolist() == [2.0, 5.0, 8.0]
 
     def test_a_tensor_field_is_split_into_all_nine_named_components(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         tensor = vtkarray(numpy.arange(3 * 3 * 3, dtype=float).reshape(3, 3, 3))
         pointSet = FakePointSet(vtkarray(POINTS_3), {"R": tensor})
-        result = obj._parsePointSet(pointSet, 0.0, None, False)
+        result = obj._parse_point_set(pointSet, 0.0, None, False)
         assert [c for c in result.columns if c.startswith("R")] == [
             "R_xx", "R_xy", "R_xz", "R_yx", "R_yy", "R_yz", "R_zx", "R_zy", "R_zz",
         ]
         assert result["R_zy"].tolist() == tensor[:, 2, 1].tolist()
 
     def test_it_stitches_together_the_field_arrays_of_a_composite_data_set(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         field = FakeCompositeArray([numpy.array([1.0, 2.0]), numpy.array([3.0])])
         pointSet = FakePointSet(vtkarray(POINTS_3), {"T": field})
-        result = obj._parsePointSet(pointSet, 0.0, None, False)
+        result = obj._parse_point_set(pointSet, 0.0, None, False)
         assert result["T"].tolist() == [1.0, 2.0, 3.0]
 
     def test_absent_sub_arrays_are_dropped_before_stitching_a_composite_field(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         field = FakeCompositeArray([
             numpy.array([1.0, 2.0]), FakeVTKNoneArray(), numpy.array([3.0]),
         ])
         pointSet = FakePointSet(vtkarray(POINTS_3), {"T": field})
-        result = obj._parsePointSet(pointSet, 0.0, None, False)
+        result = obj._parse_point_set(pointSet, 0.0, None, False)
         assert result["T"].tolist() == [1.0, 2.0, 3.0]
 
     def test_a_field_that_is_absent_for_this_filter_is_skipped(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         pointSet = FakePointSet(vtkarray(POINTS_3), {"T": FakeVTKNoneArray()})
-        result = obj._parsePointSet(pointSet, 0.0, None, False)
+        result = obj._parse_point_set(pointSet, 0.0, None, False)
         assert "T" not in result.columns
 
     def test_an_explicit_field_list_wins_over_everything_the_filter_carries(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         pointSet = FakePointSet(vtkarray(POINTS_3), {
             "T": vtkarray([1.0, 2.0, 3.0]),
             "p": vtkarray([4.0, 5.0, 6.0]),
         })
-        result = obj._parsePointSet(pointSet, 0.0, ["p"], False)
+        result = obj._parse_point_set(pointSet, 0.0, ["p"], False)
         assert "p" in result.columns
         assert "T" not in result.columns
 
     def test_a_field_whose_length_disagrees_with_the_point_count_is_omitted(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         pointSet = FakePointSet(vtkarray(POINTS_3), {"T": vtkarray([1.0, 2.0])})
-        result = obj._parsePointSet(pointSet, 0.0, None, False)
+        result = obj._parse_point_set(pointSet, 0.0, None, False)
         assert "T" not in result.columns
         assert list(result.columns) == ["x", "y", "z", "time"]
 
     def test_an_integrated_filter_with_a_single_point_row_carries_only_time(self, pv):
         """Filters such as IntegrateVariables squeeze away the point axis."""
-        obj = pv.cls(casePath="/c")
-        result = obj._parsePointSet(FakePointSet(vtkarray([1.0, 2.0, 3.0])), 4.0, None, False)
+        obj = pv.cls(case_path="/c")
+        result = obj._parse_point_set(FakePointSet(vtkarray([1.0, 2.0, 3.0])), 4.0, None, False)
         assert list(result.columns) == ["time"]
         assert result.time.tolist() == [4.0]
 
     def test_an_integrated_zero_dimensional_field_becomes_one_scalar_column(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         pointSet = FakePointSet(vtkarray([1.0, 2.0, 3.0]), {"Volume": vtkarray(12.5)})
-        result = obj._parsePointSet(pointSet, 4.0, None, False)
+        result = obj._parse_point_set(pointSet, 4.0, None, False)
         assert result["Volume"].tolist() == [12.5]
 
     def test_a_regular_mesh_is_indexed_by_time_and_the_three_coordinates(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         pointSet = FakePointSet(vtkarray(POINTS_3), {"T": vtkarray([1.0, 2.0, 3.0])})
-        result = obj._parsePointSet(pointSet, 0.0, None, True)
+        result = obj._parse_point_set(pointSet, 0.0, None, True)
         assert isinstance(result, xarray.Dataset)
         assert list(result.dims) == ["time", "x", "y", "z"]
         assert "T" in result.data_vars
 
     def test_a_regular_mesh_without_coordinates_is_indexed_by_time_alone(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         pointSet = FakePointSet(vtkarray([1.0, 2.0, 3.0]), {"Volume": vtkarray(12.5)})
-        result = obj._parsePointSet(pointSet, 4.0, None, True)
+        result = obj._parse_point_set(pointSet, 4.0, None, True)
         assert isinstance(result, xarray.Dataset)
         assert list(result.dims) == ["time"]
         assert result["Volume"].values.tolist() == [12.5]
@@ -639,7 +637,7 @@ class TestParsePointSet:
 class TestParsePointSetSinglePoint:
     @pytest.mark.xfail(
         strict=True,
-        reason="B313: _parsePointSet does "
+        reason="B313: _parse_point_set does "
                "points = numpy.array(pointSet.Points).squeeze() and then "
                "keeps the x/y/z columns only `if len(points.shape)==2`, with "
                "the comment 'it means that there are no points'. That "
@@ -652,32 +650,32 @@ class TestParsePointSetSinglePoint:
                "test. See the consolidated findings issue.",
     )
     def test_a_filter_with_exactly_one_point_keeps_that_points_coordinates(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         pointSet = FakePointSet(vtkarray([[1.0, 2.0, 3.0]]))
-        result = obj._parsePointSet(pointSet, 0.0, None, False)
+        result = obj._parse_point_set(pointSet, 0.0, None, False)
         assert list(result.columns) == ["x", "y", "z", "time"]
         assert result.x.tolist() == [1.0]
 
     def test_a_single_point_filter_comes_back_with_only_a_time_column(self, pv):
         """Characterisation of B313."""
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         pointSet = FakePointSet(vtkarray([[1.0, 2.0, 3.0]]))
-        result = obj._parsePointSet(pointSet, 0.0, None, False)
+        result = obj._parse_point_set(pointSet, 0.0, None, False)
         assert list(result.columns) == ["time"]
 
     def test_a_single_point_scalar_field_still_survives_as_a_scalar(self, pv):
         """Characterisation of B313: the field value is kept, its place is not."""
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         pointSet = FakePointSet(vtkarray([[1.0, 2.0, 3.0]]), {"T": vtkarray([300.0])})
-        result = obj._parsePointSet(pointSet, 0.0, None, False)
+        result = obj._parse_point_set(pointSet, 0.0, None, False)
         assert result["T"].tolist() == [300.0]
         assert "x" not in result.columns
 
     def test_two_points_are_enough_for_the_coordinates_to_be_kept(self, pv):
         """Characterisation of B313: the boundary is exactly one point."""
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         pointSet = FakePointSet(vtkarray([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]))
-        result = obj._parsePointSet(pointSet, 0.0, None, False)
+        result = obj._parse_point_set(pointSet, 0.0, None, False)
         assert list(result.columns) == ["x", "y", "z", "time"]
 
 
@@ -688,7 +686,7 @@ class TestParsePointSetSinglePoint:
 @pytest.mark.unit
 class TestParseTable:
     def test_every_row_data_key_becomes_a_column_plus_a_time_column(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         table = FakeTable({"a": [1, 2], "b": [3.0, 4.0]})
         result = obj._parseTable(table, 7.0, False)
         assert list(result.columns) == ["a", "b", "time"]
@@ -696,13 +694,13 @@ class TestParseTable:
         assert result.time.tolist() == [7.0, 7.0]
 
     def test_an_empty_table_still_gets_a_time_column(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         result = obj._parseTable(FakeTable({}), 7.0, False)
         assert list(result.columns) == ["time"]
         assert len(result) == 0
 
     def test_a_regular_mesh_table_comes_back_as_an_xarray_dataset(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         result = obj._parseTable(FakeTable({"a": [1, 2]}), 7.0, True)
         assert isinstance(result, xarray.Dataset)
         assert result["a"].values.tolist() == [1, 2]
@@ -715,17 +713,17 @@ class TestParseTable:
 @pytest.mark.unit
 class TestGetBlockName:
     def test_a_block_with_no_metadata_has_no_name(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         multiBlock = FakeMultiBlockDataSet(blocks=["b"], metadata=[None])
         assert numpy.isnan(obj._getBlockName(multiBlock, 0))
 
     def test_metadata_that_does_not_carry_the_name_key_yields_no_name(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         multiBlock = FakeMultiBlockDataSet(blocks=["b"], metadata=[FakeMetaData({"Other": 1})])
         assert numpy.isnan(obj._getBlockName(multiBlock, 0))
 
     def test_it_reads_the_name_the_block_metadata_advertises(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         multiBlock = FakeMultiBlockDataSet(
             blocks=["b0", "b1"], metadata=[named_block("inlet"), named_block("outlet")],
         )
@@ -739,18 +737,18 @@ class TestGetBlockName:
 @pytest.mark.unit
 class TestAssignBlockName:
     def test_a_pandas_block_gets_the_name_as_a_broadcast_column(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         frame = pandas.DataFrame({"x": [1, 2, 3]})
         result = obj._assignBlockName(False, "inlet", frame)
         assert result["blockName"].tolist() == ["inlet"] * 3
 
     def test_a_pandas_block_is_annotated_in_place_and_returned(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         frame = pandas.DataFrame({"x": [1]})
         assert obj._assignBlockName(False, "inlet", frame) is frame
 
     def test_an_xarray_block_gets_the_name_as_a_variable_over_all_its_dims(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         dataset = xarray.Dataset({"T": (("time", "x"), numpy.zeros((2, 3)))})
         result = obj._assignBlockName(True, "inlet", dataset)
         assert result["blockName"].dims == ("time", "x")
@@ -758,19 +756,19 @@ class TestAssignBlockName:
         assert set(numpy.unique(result["blockName"].values)) == {"inlet"}
 
     def test_an_xarray_data_array_block_is_promoted_to_a_dataset_first(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         array = xarray.DataArray(numpy.zeros((2,)), dims=("time",), name="T")
         result = obj._assignBlockName(True, "inlet", array)
         assert isinstance(result, xarray.Dataset)
         assert set(result.data_vars) == {"T", "blockName"}
 
     def test_a_regular_mesh_block_that_is_not_xarray_is_rejected(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         with pytest.raises(AssertionError, match="instead of xarray"):
             obj._assignBlockName(True, "inlet", pandas.DataFrame({"x": [1]}))
 
     def test_a_non_regular_mesh_block_that_is_not_a_data_frame_is_rejected(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         with pytest.raises(AssertionError, match="instead of pandas.DataFrame"):
             obj._assignBlockName(False, "inlet", xarray.Dataset({"T": (("time",), [0.0])}))
 
@@ -782,11 +780,11 @@ class TestAssignBlockName:
 @pytest.mark.unit
 class TestParseMultiBlockDataSet:
     def test_a_multi_block_with_no_blocks_produces_an_empty_list(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         assert obj._parseMultiBlockDataSet(FakeMultiBlockDataSet(), 0.0, None, False) == []
 
     def test_a_single_block_is_returned_unwrapped_and_unnamed(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         block = FakePointSet(vtkarray(POINTS_3))
         result = obj._parseMultiBlockDataSet(
             FakeMultiBlockDataSet([block], [named_block("only")]), 0.0, None, False,
@@ -795,7 +793,7 @@ class TestParseMultiBlockDataSet:
         assert "blockName" not in result.columns
 
     def test_several_blocks_come_back_as_a_list_each_tagged_with_its_name(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         blocks = [FakePointSet(vtkarray(POINTS_3)), FakePointSet(vtkarray(POINTS_3))]
         result = obj._parseMultiBlockDataSet(
             FakeMultiBlockDataSet(blocks, [named_block("inlet"), named_block("outlet")]),
@@ -806,7 +804,7 @@ class TestParseMultiBlockDataSet:
         assert result[1]["blockName"].unique().tolist() == ["outlet"]
 
     def test_a_nested_multi_block_is_flattened_rather_than_tagged_again(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         inner = FakeMultiBlockDataSet(
             [FakePointSet(vtkarray(POINTS_3)), FakePointSet(vtkarray(POINTS_3))],
             [named_block("a"), named_block("b")],
@@ -819,7 +817,7 @@ class TestParseMultiBlockDataSet:
         assert [frame["blockName"].unique()[0] for frame in result] == ["a", "b", "c"]
 
     def test_a_block_the_data_set_cannot_hand_over_is_a_runtime_error(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         multiBlock = FakeMultiBlockDataSet(
             [FakePointSet(vtkarray(POINTS_3)), None], [named_block("a"), named_block("b")],
         )
@@ -834,18 +832,18 @@ class TestParseMultiBlockDataSet:
 @pytest.mark.unit
 class TestParseVTKData:
     def test_raw_vtk_data_is_handed_to_the_numpy_wrapper_first(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         raw = FakePointSet(vtkarray(POINTS_3))
         obj._parseVTKData(raw, 0.0, None, False)
         pv.dsa.WrapDataObject.assert_called_once_with(raw)
 
     def test_an_already_composite_data_set_is_not_wrapped_again(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         obj._parseVTKData(FakeMultiBlockDataSet(), 0.0, None, False)
         assert pv.dsa.WrapDataObject.call_count == 0
 
     def test_a_wrapped_composite_data_set_is_unwrapped_back_to_its_vtk_object(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         blocks = [FakePointSet(vtkarray(POINTS_3)), FakePointSet(vtkarray(POINTS_3))]
         multiBlock = FakeMultiBlockDataSet(blocks, [named_block("a"), named_block("b")])
         result = obj._parseVTKData(FakeCompositeDataSet(multiBlock), 0.0, None, False)
@@ -853,18 +851,18 @@ class TestParseVTKData:
 
     @pytest.mark.parametrize("pointSetClass", [FakePointSet, FakePolyData, FakeUnstructuredGrid])
     def test_every_point_bearing_data_set_flavour_goes_to_the_point_set_parser(self, pv, pointSetClass):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         result = obj._parseVTKData(pointSetClass(vtkarray(POINTS_3)), 1.0, None, False)
         assert isinstance(result, pandas.DataFrame)
         assert result.x.tolist() == [1.0, 4.0, 7.0]
 
     def test_table_data_goes_to_the_table_parser(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         result = obj._parseVTKData(FakeTable({"a": [1]}), 1.0, None, False)
         assert list(result.columns) == ["a", "time"]
 
     def test_an_unsupported_vtk_type_is_reported_as_not_implemented(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         with pytest.raises(NotImplementedError, match="doesn't implement parsing of"):
             obj._parseVTKData(object(), 1.0, None, False)
 
@@ -876,7 +874,7 @@ class TestParseVTKData:
 @pytest.mark.unit
 class TestReadTimeStep:
     def test_it_advances_the_filter_to_the_requested_time_before_fetching(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         datasource = FakeReader()
         pv.servermanager.Fetch.return_value = FakeTable({"a": [1]})
         obj._readTimeStep(datasource, 3.5)
@@ -884,13 +882,13 @@ class TestReadTimeStep:
         pv.servermanager.Fetch.assert_called_once_with(datasource)
 
     def test_it_parses_whatever_the_server_hands_back(self, pv):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         pv.servermanager.Fetch.return_value = FakePointSet(vtkarray(POINTS_3))
         result = obj._readTimeStep(FakeReader(), 3.5)
         assert result.time.tolist() == [3.5, 3.5, 3.5]
 
     def test_the_field_list_and_mesh_flag_reach_the_parser(self, pv, monkeypatch):
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         pv.servermanager.Fetch.return_value = "raw"
         seen = {}
         monkeypatch.setattr(
@@ -926,8 +924,8 @@ class TestResolveTimeList:
         assert base._resolveTimeList(None, True) == []
 
     def test_the_reader_is_never_consulted_when_a_time_list_is_given(self, base):
+        base.reader = object()  # any TimestepValues lookup would raise
         assert base._resolveTimeList([1.0], False) == [1.0]
-        assert not hasattr(base, "reader")
 
 
 # ---------------------------------------------------------------------------
@@ -1113,20 +1111,20 @@ class TestCleanupTmpFiles:
 # ---------------------------------------------------------------------------
 
 def _blockRecorder(monkeypatch, cls, produced):
-    """Replace readTimeSteps with a canned stream and record writeList calls."""
+    """Replace read_time_steps with a canned stream and record writeList calls."""
     written = []
 
-    def fakeReadTimeSteps(self, datasourcenamedict, timelist, fieldnames, regularMesh):
+    def fakeReadTimeSteps(self, datasourcenamedict, timelist, fieldnames, regular_mesh):
         written.append(("read", dict(
             filters=sorted(datasourcenamedict), timelist=list(timelist),
-            fieldnames=fieldnames, regularMesh=regularMesh,
+            fieldnames=fieldnames, regular_mesh=regular_mesh,
         )))
         return iter(produced)
 
     def fakeWriteList(self, theList, blockID, filtersDict, regularMesh, fileExt):
         written.append(("write", blockID, list(theList), fileExt))
 
-    monkeypatch.setattr(cls, "readTimeSteps", fakeReadTimeSteps)
+    monkeypatch.setattr(cls, "read_time_steps", fakeReadTimeSteps)
     monkeypatch.setattr(cls, "writeList", fakeWriteList)
     return written
 
@@ -1135,7 +1133,7 @@ def _blockRecorder(monkeypatch, cls, produced):
 class TestWriteTimeStepBlocks:
     def test_a_full_block_is_flushed_and_the_block_counter_advances(self, base, monkeypatch, pvmod):
         produced = [{"a": i} for i in range(4)]
-        written = _blockRecorder(monkeypatch, pvmod.paraviewOpenFOAM, produced)
+        written = _blockRecorder(monkeypatch, pvmod.ParaviewOpenFOAM, produced)
         base._writeTimeStepBlocks({"a": "/o/a"}, [0, 1, 2, 3], None, False, "parquet", 2)
         blocks = [entry for entry in written if entry[0] == "write"]
         assert [entry[1] for entry in blocks] == [0, 1]
@@ -1143,7 +1141,7 @@ class TestWriteTimeStepBlocks:
 
     def test_a_partial_trailing_block_is_still_flushed(self, base, monkeypatch, pvmod):
         produced = [{"a": i} for i in range(5)]
-        written = _blockRecorder(monkeypatch, pvmod.paraviewOpenFOAM, produced)
+        written = _blockRecorder(monkeypatch, pvmod.ParaviewOpenFOAM, produced)
         base._writeTimeStepBlocks({"a": "/o/a"}, list(range(5)), None, False, "parquet", 2)
         blocks = [entry for entry in written if entry[0] == "write"]
         assert [entry[1] for entry in blocks] == [0, 1, 2]
@@ -1151,24 +1149,24 @@ class TestWriteTimeStepBlocks:
 
     def test_an_exactly_full_stream_does_not_flush_an_empty_extra_block(self, base, monkeypatch, pvmod):
         produced = [{"a": i} for i in range(4)]
-        written = _blockRecorder(monkeypatch, pvmod.paraviewOpenFOAM, produced)
+        written = _blockRecorder(monkeypatch, pvmod.ParaviewOpenFOAM, produced)
         base._writeTimeStepBlocks({"a": "/o/a"}, list(range(4)), None, False, "parquet", 4)
         assert [entry[1] for entry in written if entry[0] == "write"] == [0]
 
     def test_no_timesteps_means_nothing_is_written_at_all(self, base, monkeypatch, pvmod):
-        written = _blockRecorder(monkeypatch, pvmod.paraviewOpenFOAM, [])
+        written = _blockRecorder(monkeypatch, pvmod.ParaviewOpenFOAM, [])
         base._writeTimeStepBlocks({"a": "/o/a"}, [], None, False, "parquet", 50)
         assert [entry for entry in written if entry[0] == "write"] == []
 
     def test_the_field_list_mesh_flag_and_time_list_reach_the_reader(self, base, monkeypatch, pvmod):
-        written = _blockRecorder(monkeypatch, pvmod.paraviewOpenFOAM, [])
+        written = _blockRecorder(monkeypatch, pvmod.ParaviewOpenFOAM, [])
         base._writeTimeStepBlocks({"a": "/o/a"}, [1.0, 2.0], ["T"], True, "zarr", 50)
         assert written[0] == ("read", dict(
-            filters=["a"], timelist=[1.0, 2.0], fieldnames=["T"], regularMesh=True,
+            filters=["a"], timelist=[1.0, 2.0], fieldnames=["T"], regular_mesh=True,
         ))
 
     def test_the_file_extension_is_passed_through_to_every_block_write(self, base, monkeypatch, pvmod):
-        written = _blockRecorder(monkeypatch, pvmod.paraviewOpenFOAM, [{"a": 0}])
+        written = _blockRecorder(monkeypatch, pvmod.ParaviewOpenFOAM, [{"a": 0}])
         base._writeTimeStepBlocks({"a": "/o/a"}, [0], None, True, "zarr", 50)
         assert [entry[3] for entry in written if entry[0] == "write"] == ["zarr"]
 
@@ -1250,7 +1248,7 @@ class TestWriteListZarr:
 
 
 # ---------------------------------------------------------------------------
-# _mergeParquet -- deep round trip;  _mergeZarr / _mergeToFinalOutput -- shallow
+# _merge_parquet -- deep round trip;  _merge_zarr / _mergeToFinalOutput -- shallow
 # ---------------------------------------------------------------------------
 
 def _writeParquetBlock(path, frame):
@@ -1270,7 +1268,7 @@ class TestMergeParquet:
             _writeParquetBlock(tmp_path / "t1.parquet", pandas.DataFrame({"time": [1.0], "T": [2.0]})),
         ]
         output = str(tmp_path / "final.parquet")
-        base._mergeParquet(output, blocks, append=False)
+        base._merge_parquet(output, blocks, append_to_output=False)
         result = dd.read_parquet(output + ".final").compute()
         assert result.index.name == "time"
         assert sorted(result["T"].tolist()) == [1.0, 2.0]
@@ -1283,7 +1281,7 @@ class TestMergeParquet:
         blocks = [_writeParquetBlock(
             tmp_path / "t0.parquet", pandas.DataFrame({"time": [0.0], "T": [1.0]}),
         )]
-        base._mergeParquet(output, blocks, append=True)
+        base._merge_parquet(output, blocks, append_to_output=True)
         result = dd.read_parquet(output + ".final").compute()
         assert sorted(result["T"].tolist()) == [1.0, 99.0]
 
@@ -1295,7 +1293,7 @@ class TestMergeParquet:
         blocks = [_writeParquetBlock(
             tmp_path / "t0.parquet", pandas.DataFrame({"time": [0.0], "T": [1.0]}),
         )]
-        base._mergeParquet(output, blocks, append=False)
+        base._merge_parquet(output, blocks, append_to_output=False)
         result = dd.read_parquet(output + ".final").compute()
         assert result["T"].tolist() == [1.0]
 
@@ -1306,7 +1304,7 @@ class TestMergeParquet:
         blocks = [_writeParquetBlock(
             tmp_path / "t0.parquet", pandas.DataFrame({"time": [0.0], "T": [1.0]}),
         )]
-        base._mergeParquet(output, blocks, append=True)
+        base._merge_parquet(output, blocks, append_to_output=True)
         assert dd.read_parquet(output + ".final").compute()["T"].tolist() == [1.0]
 
 
@@ -1318,7 +1316,7 @@ class TestMergeZarr:
         lazy = MagicMock()
         fake = fake_xarray(open_mfdataset=MagicMock(return_value=lazy))
         monkeypatch.setattr(pvmod, "xarray", fake)
-        base._mergeZarr(str(tmp_path / "out.zarr"), ["b0.zarr", "b1.zarr"], append=False)
+        base._merge_zarr(str(tmp_path / "out.zarr"), ["b0.zarr", "b1.zarr"], append=False)
         fake.open_mfdataset.assert_called_once_with(
             ["b0.zarr", "b1.zarr"], chunks="auto", engine="zarr",
         )
@@ -1336,7 +1334,7 @@ class TestMergeZarr:
             concat=MagicMock(),
         )
         monkeypatch.setattr(pvmod, "xarray", fake)
-        base._mergeZarr(str(output), ["b0.zarr"], append=True)
+        base._merge_zarr(str(output), ["b0.zarr"], append=True)
         assert fake.concat.call_args.args[0] == [lazy, old]
         assert fake.concat.call_args.kwargs == {"dim": "time"}
         fake.concat.return_value.sortby.assert_called_once_with("time")
@@ -1349,7 +1347,7 @@ class TestMergeZarr:
     ):
         fake = fake_xarray(open_mfdataset=MagicMock())
         monkeypatch.setattr(pvmod, "xarray", fake)
-        base._mergeZarr(str(tmp_path / "absent.zarr"), ["b0.zarr"], append=True)
+        base._merge_zarr(str(tmp_path / "absent.zarr"), ["b0.zarr"], append=True)
         assert fake.open_mfdataset.call_count == 1
         assert fake.concat.call_count == 0
 
@@ -1360,7 +1358,7 @@ class TestMergeZarr:
         lazy.to_zarr.side_effect = NotImplementedError("cannot write chunks")
         fake = fake_xarray(open_mfdataset=MagicMock(return_value=lazy))
         monkeypatch.setattr(pvmod, "xarray", fake)
-        base._mergeZarr(str(tmp_path / "out.zarr"), ["b0.zarr"], append=False)
+        base._merge_zarr(str(tmp_path / "out.zarr"), ["b0.zarr"], append=False)
         lazy.chunk.assert_called_once_with("auto")
         lazy.chunk.return_value.to_zarr.assert_called_once_with(
             str(tmp_path / "out.zarr") + ".final", mode="w",
@@ -1371,18 +1369,18 @@ class TestMergeZarr:
 class TestMergeToFinalOutput:
     def test_a_regular_mesh_is_merged_as_zarr(self, base, pvmod, monkeypatch):
         calls = []
-        monkeypatch.setattr(pvmod.paraviewOpenFOAM, "_mergeZarr",
+        monkeypatch.setattr(pvmod.ParaviewOpenFOAM, "_merge_zarr",
                             lambda self, *a: calls.append(("zarr",) + a))
-        monkeypatch.setattr(pvmod.paraviewOpenFOAM, "_mergeParquet",
+        monkeypatch.setattr(pvmod.ParaviewOpenFOAM, "_merge_parquet",
                             lambda self, *a: calls.append(("parquet",) + a))
         base._mergeToFinalOutput("/o/out", ["b0"], True, False)
         assert calls == [("zarr", "/o/out", ["b0"], False)]
 
     def test_an_unstructured_mesh_is_merged_as_parquet(self, base, pvmod, monkeypatch):
         calls = []
-        monkeypatch.setattr(pvmod.paraviewOpenFOAM, "_mergeZarr",
+        monkeypatch.setattr(pvmod.ParaviewOpenFOAM, "_merge_zarr",
                             lambda self, *a: calls.append(("zarr",) + a))
-        monkeypatch.setattr(pvmod.paraviewOpenFOAM, "_mergeParquet",
+        monkeypatch.setattr(pvmod.ParaviewOpenFOAM, "_merge_parquet",
                             lambda self, *a: calls.append(("parquet",) + a))
         base._mergeToFinalOutput("/o/out", ["b0"], False, True)
         assert calls == [("parquet", "/o/out", ["b0"], True)]
@@ -1396,7 +1394,7 @@ class TestMergeToFinalOutput:
 def writeCaseSpy(pvmod, monkeypatch):
     """Replace every writeCase helper with a recorder on the class."""
     calls = []
-    cls = pvmod.paraviewOpenFOAM
+    cls = pvmod.ParaviewOpenFOAM
 
     def recorder(name, result=None):
         def _call(self, *args, **kwargs):
@@ -1488,7 +1486,7 @@ class TestWriteCaseEndToEnd:
     ):
         import dask.dataframe as dd
 
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         obj.reader = FakeReader(timesteps=[0.0, 1.0])
         monkeypatch.setattr(pv.pvsimple, "FindSource", lambda name: FakeProxy())
         monkeypatch.setattr(
@@ -1511,7 +1509,7 @@ class TestWriteCaseEndToEnd:
     ):
         import dask.dataframe as dd
 
-        obj = pv.cls(casePath="/c")
+        obj = pv.cls(case_path="/c")
         monkeypatch.setattr(pv.pvsimple, "FindSource", lambda name: FakeProxy())
         monkeypatch.setattr(
             pv.cls, "_readTimeStep",
@@ -1535,7 +1533,7 @@ class TestDeprecatedWriteAliases:
     @pytest.fixture()
     def spy(self, pvmod, monkeypatch):
         recorded = []
-        monkeypatch.setattr(pvmod.paraviewOpenFOAM, "writeCase",
+        monkeypatch.setattr(pvmod.ParaviewOpenFOAM, "writeCase",
                             lambda self, *args, **kwargs: recorded.append((args, kwargs)))
         return recorded
 
@@ -1566,19 +1564,19 @@ class TestDeprecatedReadAliases:
     @pytest.fixture()
     def spy(self, pvmod, monkeypatch):
         recorded = []
-        monkeypatch.setattr(pvmod.paraviewOpenFOAM, "readTimeSteps",
+        monkeypatch.setattr(pvmod.ParaviewOpenFOAM, "read_time_steps",
                             lambda self, *args, **kwargs: recorded.append((args, kwargs)))
         return recorded
 
     @pytest.mark.parametrize("alias", ["to_pandas", "to_dataFrame"])
     def test_the_pandas_aliases_ask_for_an_unstructured_read(self, base, spy, alias):
         getattr(base, alias)({"a": "/o/a"}, [1.0], ["T"])
-        assert spy == [((({"a": "/o/a"}), [1.0], ["T"]), {"regularMesh": False})]
+        assert spy == [((({"a": "/o/a"}), [1.0], ["T"]), {"regular_mesh": False})]
 
     @pytest.mark.parametrize("alias", ["to_xarray", "to_dataArray"])
     def test_the_xarray_aliases_ask_for_a_regular_mesh_read(self, base, spy, alias):
         getattr(base, alias)({"a": "/o/a"}, [1.0], ["T"])
-        assert spy == [((({"a": "/o/a"}), [1.0], ["T"]), {"regularMesh": True})]
+        assert spy == [((({"a": "/o/a"}), [1.0], ["T"]), {"regular_mesh": True})]
 
     @pytest.mark.parametrize(
         "alias", ["to_pandas", "to_dataFrame", "to_xarray", "to_dataArray"],
@@ -1586,7 +1584,7 @@ class TestDeprecatedReadAliases:
     def test_every_read_alias_returns_whatever_read_time_steps_returned(
         self, base, pvmod, monkeypatch, alias,
     ):
-        monkeypatch.setattr(pvmod.paraviewOpenFOAM, "readTimeSteps",
+        monkeypatch.setattr(pvmod.ParaviewOpenFOAM, "read_time_steps",
                             lambda self, *args, **kwargs: "the-generator")
         assert getattr(base, alias)({"a": "/o/a"}, [1.0]) == "the-generator"
 

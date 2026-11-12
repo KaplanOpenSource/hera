@@ -261,7 +261,7 @@ class TestGetWindSpeedDirectionWithNoUsableStations:
         """Characterisation of B251: two stations answer, both readings are
         out of range, and the empty list reaches max()."""
         _fixedResponse(monkeypatch, _reading(ws=25.0))
-        with pytest.raises(ValueError, match="max\\(\\) iterable argument is empty"):
+        with pytest.raises(ValueError, match="max\\(\\) (iterable argument is empty|arg is an empty sequence)"):
             tk._getWindSpeedDirection([_station(1), _station(2)], TOKEN)
 
 
