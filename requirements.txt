@@ -22,7 +22,6 @@ backcall==0.2.0
 backoff==2.2.1
 beautifulsoup4==4.13.3
 bleach==6.2.0
-bleak==1.0.0
 blinker==1.9.0
 branca==0.8.1
 cachetools==5.5.2
@@ -146,8 +145,9 @@ libpysal==4.8.1
 llvmlite==0.46.0
 locket==1.0.0
 lockfile==0.12.2
-# luigi: every release up to 3.8.1 declares Requires-Python <3.14; spotify/luigi#3433
-# (merged 2026-07-01) lifts it but is unreleased. Replace with luigi>=3.9 once published.
+# luigi: every release up to 3.8.1 declares Requires-Python <3.14. Python 3.14 support
+# (https://github.com/spotify/luigi/pull/3433) is merged but unreleased; the 3.9.0 release
+# is https://github.com/spotify/luigi/pull/3471. Replace with luigi==3.9.0 once published.
 luigi @ git+https://github.com/spotify/luigi@f5feb7a4655ad73ef56f0ab04d7903ab43b63e12
 lxml==6.1.0
 mapclassify==2.8.1

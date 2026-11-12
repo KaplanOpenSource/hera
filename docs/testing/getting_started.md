@@ -95,7 +95,7 @@ make install-env          # creates ~/.pyhera/environment and installs requireme
 source activate_hera.sh   # activates it and puts the repository on PYTHONPATH
 ```
 
-See [Installation & Setup](../user_guide/installation.md) for the full procedure. CI runs the suite on **Python 3.11**.
+See [Installation & Setup](../user_guide/installation.md) for the full procedure. CI runs the suite on **Python 3.14**.
 
 Some modules need packages that are not pip-installable and are only importable when their clone is on `PYTHONPATH`:
 
@@ -260,9 +260,9 @@ currently compares against expected files (see [Expected Output Management](flow
 
 `.github/workflows/ci.yml` runs on every pull request to `master`. The Python job (`test`):
 
-- Ubuntu, **Python 3.11**, `libgdal-dev gdal-bin`, `pip install -r requirements.txt` and `pip install -e . --no-deps`
-- A `mongo:latest` service on port 27017 (root user `hera` / `heracles`); a step writes `~/.pyhera/config.json` for the runner user (database `hera_ci`)
-- Checks out `KaplanOpenSource/hermes` and `KaplanOpenSource/pyargos` into `_vendor/` and puts them on `PYTHONPATH`
+- Ubuntu 26.04, **Python 3.14**, `libgdal-dev gdal-bin`, `pip install -r requirements.txt` and `pip install -e . --no-deps`
+- A `mongo:9.0` service on port 27017 (root user `hera` / `heracles`); a step writes `~/.pyhera/config.json` for the runner user (database `hera_ci`)
+- Checks out the `Hermes` submodule and `KaplanOpenSource/pyargos` (into `_vendor/`, at a pinned commit) and puts them on `PYTHONPATH`
 - `TEST_HERA=/home/runner/hera_unittest_data`; the data is cached by the version in the bucket's `latest.json` and fetched with `bootstrap_unittest_data.sh` on a cache miss
 - Runs `pytest hera/tests/ -v -m "not notebook"` with `MPLBACKEND=Agg` (and `JUPYTER_PLATFORM_DIRS=1` to silence a jupyter_client warning)
 

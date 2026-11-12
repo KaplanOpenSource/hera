@@ -24,12 +24,12 @@
 
 ### Prerequisites
 *   **OS:** Ubuntu 26.04 LTS (verified; 24.04 also works)
-*   **Python:** 3.11+ (3.14, the Ubuntu 26.04 system Python, is the reference)
+*   **Python:** 3.14 (the Ubuntu 26.04 system Python; development is based on it)
 *   **Docker:** Required for quick install (MongoDB runs in a container)
 
 ### Quick Install (recommended)
 
-The fastest way to get Hera running. Requires Docker and Python 3.11+.
+The fastest way to get Hera running. Requires Docker and Python 3.14.
 
 1. **Clone the repository:**
    ```bash
@@ -49,7 +49,7 @@ The fastest way to get Hera running. Requires Docker and Python 3.11+.
    - Pull and start a MongoDB 9.0 Docker container with preconfigured credentials
    - Create the `~/.pyhera/config.json` configuration file automatically
 
-> **MongoDB 9 and kernel >= 6.19:** MongoDB 9.0.2 refuses to start on Linux kernels 6.19 and newer, which includes Ubuntu 26.04's 7.0 kernel ([SERVER-136848](https://jira.mongodb.org/browse/SERVER-136848)). Until MongoDB ships the fix, use `MONGO_IMAGE=mongo:7.0` on such hosts. A data directory created by an older server must be migrated with dump/restore (issue #1126); MongoDB 9 will not open it in place.
+> **Upgrading an existing MongoDB:** MongoDB 9 does not open a data directory written by 5.0 or 6.0 in place; migrate it with dump/restore (#1126).
 
    After running, everything is ready to use.
 
