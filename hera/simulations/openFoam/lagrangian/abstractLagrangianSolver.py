@@ -885,8 +885,9 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         return self.toolkit.getMesh(originalFlowField.getData())
 
 
-    def getCaseResults(self, caseDescriptor, timeList=None, withVelocity=True, withReleaseTimes=False, withMass=True,
-                       cloudName="kinematicCloud", forceSingleProcessor=False, cache=True, overwrite=False):
+    def getCaseResults(self, caseDescriptor, timeList=None, withVelocity=True,
+                       withReleaseTimes=False, withMass=True, withTurbProperties=False,
+                       cloudName="kinematicCloud", forceSingleProcessor=False, cache=True, overwrite=False, useDask=True):
         """
         Read Lagrangian cloud data from disk, with caching support.
 
@@ -906,6 +907,8 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             Include particle age.
         withMass : bool
             Include particle mass.
+        withTurbProperties : bool
+            Include turbulent properties at particle position.
         cloudName : str
             OpenFOAM cloud name (default: ``"kinematicCloud"``).
         forceSingleProcessor : bool
@@ -938,20 +941,20 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         loader = lambda timeName: readLagrangianRecord(
             timeName, casePath=finalCasePath,
             withVelocity=withVelocity, withReleaseTimes=withReleaseTimes,
-            cloudName=cloudName, withMass=withMass
+            cloudName=cloudName, withMass=withMass, withTurbProperties=withTurbProperties
         )
 
-        # Step 5: Discover timesteps and load data via Dask.
-        
-        ret = self._loadCaseDataViaDask(
-            finalCasePath, loader, timeList, forceSingleProcessor
+        # Step 5: Discover timesteps and load data.
+
+        ret = self._loadCaseData(
+            finalCasePath, loader, timeList, forceSingleProcessor, useDask=useDask
         )
 
         # Step 6: Cache results if requested.
         if cache:
             ret = self._saveToCacheParquet(
                 ret, cacheDoc, caseDescriptor, workflowName,
-                cloudName, self.DOCTYPE_LAGRANGIAN_CACHE, datatypes.PARQUET
+                cloudName, self.DOCTYPE_LAGRANGIAN_CACHE, datatypes.PARQUET, useDask=useDask
             )
 
         return ret
@@ -1072,11 +1075,11 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             key=lambda x: int(x)
         )
 
-    def _loadCaseDataViaDask(self, casePath, loader, timeList, forceSingleProcessor):
-        """Load OpenFOAM case data using Dask distributed map.
+    def _loadCaseData(self, casePath, loader, timeList, forceSingleProcessor, useDask=True):
+        """Load OpenFOAM case data using either Dask or Pandas.
 
         Detects parallel vs serial case, discovers timesteps if needed,
-        builds the loader argument list, and returns a Dask DataFrame.
+        builds the loader argument list, and returns a DataFrame.
 
         Parameters
         ----------
@@ -1088,12 +1091,15 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             Specific timesteps. If None, discover all.
         forceSingleProcessor : bool
             Force serial read.
+        useDask : bool, optional
+            If True, returns a Dask DataFrame. If False, returns a Pandas DataFrame.
+            Defaults to True.
 
         Returns
         -------
-        dask.dataframe.DataFrame
+        dask.dataframe.DataFrame or pandas.DataFrame
         """
-        logger = get_classMethod_logger(self, "_loadCaseDataViaDask")
+        logger = get_classMethod_logger(self, "_loadCaseData")
 
         isParallel = (os.path.exists(os.path.join(casePath, "processor0"))
                       and not forceSingleProcessor)
@@ -1114,14 +1120,18 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             loaderList = list(timeList)
 
         logger.debug(f"Loading {len(loaderList)} items")
-        # Use dask.delayed to create a lazy graph instead of Client.map (which returns Futures).
-        # This avoids hangs and allows the scheduler to optimize execution during .to_parquet().
-        delayed_results = [delayed(loader)(item) for item in loaderList]
-        return dask_dataframe.from_delayed(delayed_results)
+        if useDask:
+            # Use dask.delayed to create a lazy graph instead of Client.map (which returns Futures).
+            # This avoids hangs and allows the scheduler to optimize execution during .to_parquet().
+            delayed_results = [delayed(loader)(item) for item in loaderList]
+            return dask_dataframe.from_delayed(delayed_results)
+        else:
+            results = [loader(item) for item in loaderList]
+            return pandas.concat(results, ignore_index=True)
 
     def _saveToCacheParquet(self, data, cacheDoc, caseDescriptor,
-                             workflowName, cloudName, doctype, dataFormat):
-        """Save Dask DataFrame to parquet cache and register in DB."""
+                             workflowName, cloudName, doctype, dataFormat, useDask=True):
+        """Save DataFrame to parquet cache and register in DB."""
         logger = get_classMethod_logger(self, "_saveToCacheParquet")
 
         if cacheDoc is not None:
@@ -1139,8 +1149,12 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             )
 
         logger.info(f"Writing to parquet: {fullname}")
-        data.repartition(partition_size="100MB").to_parquet(fullname)
-        return dask.dataframe.read_parquet(fullname, engine='pyarrow')
+        if useDask:
+            data.repartition(partition_size="100MB").to_parquet(fullname)
+            return dask.dataframe.read_parquet(fullname, engine='pyarrow')
+        else:
+            data.to_parquet(fullname)
+            return pandas.read_parquet(fullname, engine='pyarrow')
 
     def _saveToCacheNetCDF(self, data, cacheDoc, caseDescriptor,
                             workflowName, cloudName, doctype):
@@ -1340,9 +1354,9 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             timeName, casePath=finalCasePath, cloudName=cloudName
         )
 
-        # Step 5: Load data via Dask.
-        ret = self._loadCaseDataViaDask(
-            finalCasePath, loader, timeList, forceSingleProcessor
+        # Step 5: Load data.
+        ret = self._loadCaseData(
+            finalCasePath, loader, timeList, forceSingleProcessor, useDask=True
         )
 
         # Step 6: Cache as netCDF (group by grid cell, sum concentrations).
@@ -1823,7 +1837,7 @@ def robustOpenFOAMFileValuesParser(path, columnNames):
 
 
 def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTimes=False, withMass=True,
-                         cloudName="kinematicCloud"):
+                         withTurbProperties=False, cloudName="kinematicCloud"):
     """Read a single Lagrangian time step record from the case directory."""
     columnsDict = dict(x=[], y=[], z=[], id=[], procId=[], globalID=[],datetime=[])
     if withVelocity:
@@ -1835,6 +1849,10 @@ def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTime
         columnsDict['age'] = []
     if withMass:
         columnsDict['mass'] = []
+    if withTurbProperties:
+        columnsDict['TL'] = []
+        columnsDict['sigma'] = []
+        columnsDict['epsilon'] = []
 
     newData = pandas.DataFrame(columnsDict, dtype=numpy.float64)
 
@@ -1868,8 +1886,12 @@ def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTime
     if withVelocity:
         dataU = robustOpenFOAMFileValuesParser(os.path.join(casePath, timeName, "lagrangian", cloudName, "U"),
                             ['U_x', 'U_y', 'U_z'])
+        dataUturb = robustOpenFOAMFileValuesParser(os.path.join(casePath, timeName, "lagrangian", cloudName, "UTurb"),
+                            ['U_x', 'U_y', 'U_z'])
+        for col, name in zip(['U_x', 'U_y', 'U_z'], ["U", "V", "W"]):
+            newData[name] = dataU[col] - dataUturb[col]
         for col in ['U_x', 'U_y', 'U_z']:
-            newData[col] = dataU[col]
+            newData[col] = dataUturb[col]
 
     if withReleaseTimes:
         dataM = robustOpenFOAMFileValuesParser(os.path.join(casePath, timeName, "lagrangian", cloudName, "age"),
@@ -1884,6 +1906,12 @@ def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTime
         except:
             newData = newData.compute()
             newData["mass"] = dataM["mass"]
+    if withTurbProperties:
+        for prop in ["TL","sigma","epsilon"]:
+            dataTurb = robustOpenFOAMFileValuesParser(os.path.join(casePath, timeName, "lagrangian", cloudName, prop),
+                                [prop])
+            newData[prop] = dataTurb[prop]
+
     return newData.dropna()
 
 def readEulerianConcentration(timeName, casePath,cloudName="kinematicCloud"):

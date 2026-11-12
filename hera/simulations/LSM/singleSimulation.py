@@ -111,7 +111,6 @@ class SingleSimulation(object):
 
         if 'STD' in finalxarray:
             dDosage['STD'] = finalxarray['STD']
-
         if 'OccupiedVolume' in finalxarray:
             dDosage['OccupiedVolume'] = finalxarray['OccupiedVolume']
 
