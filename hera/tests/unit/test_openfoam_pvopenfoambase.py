@@ -51,13 +51,7 @@ because a stand-in would happily fabricate any number asked of it:
 
 Not covered: ``get_data_fields`` (added in #1137, after these tests were written).
 
-Four defects were pinned, each provable by reading the source rather than by
-watching a stand-in: B310 (``__init__``'s ``name`` argument is discarded --
-fixed in #1137, which removed the parameter), B311 (``read_time_steps``'s ``timelist=None`` default is iterated unguarded),
-B312 (``_ensureOutputDirs`` calls ``os.makedirs('')``) and B313
-(``_parse_point_set``'s ``squeeze()`` cannot tell one point from no points).
-Each open one has a strict xfail for the intended behaviour plus passing
-characterisation tests of what actually happens today.
+Nothing is pinned here any more.
 """
 import importlib
 import itertools
@@ -457,25 +451,11 @@ class TestReadTimeSteps:
 
 
 # ---------------------------------------------------------------------------
-# B311: read_time_steps declares timelist=None but iterates it unguarded
+# read_time_steps(timelist=None) means every timestep the reader knows
 # ---------------------------------------------------------------------------
 
 @pytest.mark.unit
 class TestReadTimeStepsDefaultTimeList:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B311: read_time_steps(datasourcenamedict, timelist=None, ...) "
-               "iterates `for timeslice in timelist:` with no None guard, so "
-               "the declared default is unusable -- it raises TypeError: "
-               "'NoneType' object is not iterable. The same class already "
-               "shows the intended handling in _resolveTimeList "
-               "('self.reader.TimestepValues if timeList is None else "
-               "timeList') and writeCase documents 'None = all available "
-               "from the reader'. Four deprecated aliases (to_pandas, "
-               "to_xarray, to_dataFrame, to_dataArray) forward the same "
-               "None default straight through. See the consolidated "
-               "findings issue.",
-    )
     def test_a_missing_time_list_means_every_timestep_the_reader_knows(self, pv, monkeypatch):
         monkeypatch.setattr(pv.pvsimple, "FindSource", lambda name: FakeProxy())
         monkeypatch.setattr(pv.cls, "_readTimeStep", lambda *a, **k: "x")
@@ -483,19 +463,13 @@ class TestReadTimeStepsDefaultTimeList:
         obj.reader = FakeReader(timesteps=[0.0, 1.0, 2.0])
         assert list(obj.read_time_steps({"a": "/o/a"}, timelist=None)) == [{"a": "x"}] * 3
 
-    def test_a_missing_time_list_raises_a_type_error(self, pv):
-        """Characterisation of B311."""
+    @pytest.mark.parametrize("alias", ["to_pandas", "to_xarray", "to_dataFrame", "to_dataArray"])
+    def test_the_deprecated_read_aliases_inherit_the_same_default(self, pv, alias, monkeypatch):
+        monkeypatch.setattr(pv.pvsimple, "FindSource", lambda name: FakeProxy())
+        monkeypatch.setattr(pv.cls, "_readTimeStep", lambda *a, **k: "x")
         obj = pv.cls(case_path="/c")
         obj.reader = FakeReader(timesteps=[0.0, 1.0])
-        with pytest.raises(TypeError, match="not iterable"):
-            list(obj.read_time_steps({"a": "/o/a"}))
-
-    @pytest.mark.parametrize("alias", ["to_pandas", "to_xarray", "to_dataFrame", "to_dataArray"])
-    def test_the_deprecated_read_aliases_inherit_the_same_type_error(self, pv, alias):
-        """Characterisation of B311."""
-        obj = pv.cls(case_path="/c")
-        with pytest.raises(TypeError, match="not iterable"):
-            list(getattr(obj, alias)({"a": "/o/a"}))
+        assert list(getattr(obj, alias)({"a": "/o/a"})) == [{"a": "x"}] * 2
 
 
 # ---------------------------------------------------------------------------
@@ -630,25 +604,11 @@ class TestParsePointSet:
 
 
 # ---------------------------------------------------------------------------
-# B313: squeeze() cannot tell "no points" from "exactly one point"
+# One point is not the same thing as no points
 # ---------------------------------------------------------------------------
 
 @pytest.mark.unit
 class TestParsePointSetSinglePoint:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B313: _parse_point_set does "
-               "points = numpy.array(pointSet.Points).squeeze() and then "
-               "keeps the x/y/z columns only `if len(points.shape)==2`, with "
-               "the comment 'it means that there are no points'. That "
-               "inference is wrong for a filter with exactly ONE point (e.g. "
-               "ProbeLocation / a one-point PointSource): numpy.squeeze "
-               "drops every length-1 axis, so an (1, 3) point array becomes "
-               "(3,) and the branch silently throws the probe's coordinates "
-               "away, returning a row that carries only `time`. The point "
-               "count is available un-squeezed and is what the guard should "
-               "test. See the consolidated findings issue.",
-    )
     def test_a_filter_with_exactly_one_point_keeps_that_points_coordinates(self, pv):
         obj = pv.cls(case_path="/c")
         pointSet = FakePointSet(vtkarray([[1.0, 2.0, 3.0]]))
@@ -656,27 +616,25 @@ class TestParsePointSetSinglePoint:
         assert list(result.columns) == ["x", "y", "z", "time"]
         assert result.x.tolist() == [1.0]
 
-    def test_a_single_point_filter_comes_back_with_only_a_time_column(self, pv):
-        """Characterisation of B313."""
-        obj = pv.cls(case_path="/c")
-        pointSet = FakePointSet(vtkarray([[1.0, 2.0, 3.0]]))
-        result = obj._parse_point_set(pointSet, 0.0, None, False)
-        assert list(result.columns) == ["time"]
-
-    def test_a_single_point_scalar_field_still_survives_as_a_scalar(self, pv):
-        """Characterisation of B313: the field value is kept, its place is not."""
+    def test_a_single_point_scalar_field_keeps_both_value_and_place(self, pv):
         obj = pv.cls(case_path="/c")
         pointSet = FakePointSet(vtkarray([[1.0, 2.0, 3.0]]), {"T": vtkarray([300.0])})
         result = obj._parse_point_set(pointSet, 0.0, None, False)
         assert result["T"].tolist() == [300.0]
-        assert "x" not in result.columns
+        assert result.x.tolist() == [1.0]
 
-    def test_two_points_are_enough_for_the_coordinates_to_be_kept(self, pv):
-        """Characterisation of B313: the boundary is exactly one point."""
+    def test_two_points_are_handled_the_same_way(self, pv):
         obj = pv.cls(case_path="/c")
         pointSet = FakePointSet(vtkarray([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]))
         result = obj._parse_point_set(pointSet, 0.0, None, False)
         assert list(result.columns) == ["x", "y", "z", "time"]
+
+    def test_a_flat_point_array_is_still_read_as_no_points(self, pv):
+        """An integrate-style result has no point axis at all, only three
+        coordinates' worth of values; that stays a time-only row."""
+        obj = pv.cls(case_path="/c")
+        result = obj._parse_point_set(FakePointSet(vtkarray([1.0, 2.0, 3.0])), 0.0, None, False)
+        assert list(result.columns) == ["time"]
 
 
 # ---------------------------------------------------------------------------
@@ -982,34 +940,13 @@ class TestEnsureOutputDirs:
 
 @pytest.mark.unit
 class TestEnsureOutputDirsBareFilename:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B312: _ensureOutputDirs does "
-               "outputPath = os.path.dirname(outputFile) and then "
-               "`if not os.path.isdir(outputPath): os.makedirs(outputPath)`. "
-               "For a bare relative output name os.path.dirname returns '', "
-               "os.path.isdir('') is False, and os.makedirs('') raises "
-               "FileNotFoundError -- so the guard admits the one value "
-               "makedirs cannot take. The directory in that case is the cwd, "
-               "which already exists, so the correct behaviour is a no-op. "
-               "See the consolidated findings issue.",
-    )
     def test_an_output_name_relative_to_the_working_directory_needs_no_new_directory(
         self, base, tmp_path, monkeypatch,
     ):
         monkeypatch.chdir(tmp_path)
         base._ensureOutputDirs({"a": "a.parquet"})
 
-    def test_an_output_name_with_no_directory_part_raises_file_not_found(
-        self, base, tmp_path, monkeypatch,
-    ):
-        """Characterisation of B312."""
-        monkeypatch.chdir(tmp_path)
-        with pytest.raises(FileNotFoundError):
-            base._ensureOutputDirs({"a": "a.parquet"})
-
-    def test_prefixing_the_same_name_with_dot_slash_makes_it_work(self, base, tmp_path, monkeypatch):
-        """Characterisation of B312: the workaround."""
+    def test_the_same_name_prefixed_with_dot_slash_behaves_the_same(self, base, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         base._ensureOutputDirs({"a": "./a.parquet"})
         assert tmp_path.is_dir()

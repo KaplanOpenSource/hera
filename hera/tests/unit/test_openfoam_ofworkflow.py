@@ -25,12 +25,10 @@ tests use a document produced by the real workflow toolkit against the
 in-memory datalayer, so ``document.save()`` in the setters is exercised for
 real.
 
-Bugs pinned here: B145 (``controlDict`` reads the wrong node name), B146
-(``fvScheme`` reads the wrong node name), B147 (``__setitem__`` calls a
-misspelt, name-mangled super method), B148 and B149 (``set_blockMesh_blockHeight``
-moves the bottom face instead of the top one, and then derives a zero cell
-count from the vertex it has just overwritten) and B150 (``workflowGroupID``'s
-setter rejects the integer type its own getter yields).
+Still pinned here: one defect in ``hermes.workflow.__setitem__`` -- it
+replaces the whole ``nodes`` mapping instead of storing the new node under
+its key -- which hera's ``abstractWorkflow.__setitem__`` used to mask
+behind an AttributeError (B147, since fixed).
 
 Deliberately not covered here:
 
@@ -205,68 +203,38 @@ class TestNodeAccessors:
 
 @pytest.mark.unit
 class TestControlDictAccessor:
-    """B145: the accessor and the required-node list disagree on the casing."""
+    """The accessor and the required-node list agree on the casing."""
 
     def test_the_required_node_is_spelt_with_a_lowercase_c(self, eulerian):
         """Baseline: the node really is there under the name the class
-        validates against, so the failure below is about the accessor's key,
-        not about a missing node."""
+        validates against."""
         assert "controlDict" in eulerian.nodes
         assert eulerian["controlDict"].name == "controlDict"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B145: abstractWorkflow.controlDict returns self['ControlDict'] "
-               "(capital C), but _requiredNodeList -- which workflow_Eulerian "
-               "enforces at construction -- names the node 'controlDict', as do "
-               "all the flow templates under hera/doc. hermes' __getitem__ "
-               "answers None for an unknown node instead of raising, so the "
-               "accessor silently yields None on every workflow that has just "
-               "passed the class's own validation. "
-               "See the consolidated findings issue.",
-    )
-    def test_the_control_dict_node_should_be_reachable_through_the_accessor(self, eulerian):
+    def test_the_control_dict_node_is_reachable_through_the_accessor(self, eulerian):
         assert eulerian.controlDict.name == "controlDict"
 
-    def test_the_control_dict_accessor_is_currently_always_none(self, eulerian):
-        """Characterisation of B145."""
-        assert eulerian.controlDict is None
-
-    def test_the_accessor_only_answers_for_a_node_named_with_a_capital_c(
+    def test_the_accessor_does_not_answer_for_a_node_named_with_a_capital_c(
         self, workingDirectory
     ):
-        """Characterisation of B145: the accessor is not broken outright, it
-        reads a name that only the Lagrangian dispersion templates use."""
+        """'ControlDict' is an openFOAM *type* name, never a node name; a
+        workflow that only carries a node so spelt has no controlDict."""
         workflowObject = abstractWorkflow(
             _workflowJSON(extraNodes=["ControlDict"]), WD_path=workingDirectory
         )
-        assert workflowObject.controlDict.name == "ControlDict"
+        assert workflowObject["ControlDict"].name == "ControlDict"
 
 
 @pytest.mark.unit
 class TestFvSchemeAccessor:
-    """B146: the accessor reads a node name that exists nowhere."""
+    """The accessor reads the node name the required-node list demands."""
 
     def test_the_required_node_is_spelt_in_the_plural(self, eulerian):
         """Baseline: the node is present under the validated name."""
         assert eulerian["fvSchemes"].name == "fvSchemes"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B146: abstractWorkflow.fvScheme returns self['fvScheme'], "
-               "singular, while the node is named 'fvSchemes' in "
-               "_requiredNodeList and in every workflow template in the "
-               "repository -- no node named 'fvScheme' exists anywhere. Since "
-               "hermes' __getitem__ answers None for an unknown node, the "
-               "accessor can never return anything but None. "
-               "See the consolidated findings issue.",
-    )
-    def test_the_fvschemes_node_should_be_reachable_through_the_accessor(self, eulerian):
+    def test_the_fvschemes_node_is_reachable_through_the_accessor(self, eulerian):
         assert eulerian.fvScheme.name == "fvSchemes"
-
-    def test_the_fvscheme_accessor_is_currently_always_none(self, eulerian):
-        """Characterisation of B146."""
-        assert eulerian.fvScheme is None
 
 
 # ---------------------------------------------------------------------------
@@ -362,30 +330,21 @@ class TestWorkflowGroupWithADocument:
             workflowObject.workflowGroup = ["flow"]
         assert workflowObject.workflowGroup == "flow"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B150: the workflowGroupID getter yields whatever "
-               "addWorkflowToGroup stored, which is an int (the group counter), "
-               "but its setter demands isinstance(value,str) and raises "
-               "ValueError('Group name must be a string' -- the group-name "
-               "message, copy-pasted) for anything else. So the property cannot "
-               "round-trip its own value: `wf.workflowGroupID = "
-               "wf.workflowGroupID` raises, and writing the id back needs a "
-               "string, which then makes the stored type disagree with every "
-               "other document in the group. "
-               "See the consolidated findings issue.",
-    )
-    def test_the_group_id_should_accept_the_type_its_getter_yields(self, documentBacked):
+    def test_the_group_id_accepts_the_type_its_getter_yields(self, documentBacked):
         _, _, workflowObject = documentBacked
         workflowObject.workflowGroupID = workflowObject.workflowGroupID
         assert workflowObject.workflowGroupID == 0
 
-    def test_the_group_id_setter_currently_refuses_an_integer(self, documentBacked):
-        """Characterisation of B150."""
+    def test_the_group_id_setter_accepts_an_integer(self, documentBacked):
         _, _, workflowObject = documentBacked
         assert isinstance(workflowObject.workflowGroupID, int)
-        with pytest.raises(ValueError, match="Group name must be a string"):
-            workflowObject.workflowGroupID = 1
+        workflowObject.workflowGroupID = 1
+        assert workflowObject.workflowGroupID == 1
+
+    def test_the_group_id_setter_still_refuses_an_unrelated_type(self, documentBacked):
+        _, _, workflowObject = documentBacked
+        with pytest.raises(ValueError, match="Group ID must be"):
+            workflowObject.workflowGroupID = ["0007"]
 
 
 # ---------------------------------------------------------------------------
@@ -394,7 +353,7 @@ class TestWorkflowGroupWithADocument:
 
 @pytest.mark.unit
 class TestSetItem:
-    """B147: adding a node through the mapping interface cannot work."""
+    """Adding a node through the mapping interface."""
 
     @staticmethod
     def _newNodeValue():
@@ -406,39 +365,36 @@ class TestSetItem:
 
     @pytest.mark.xfail(
         strict=True,
-        reason="B147: abstractWorkflow.__setitem__ ends with "
-               "super().__setitem(key=key,value=value) -- the trailing "
-               "'__setitem' is a typo for '__setitem__', and because it starts "
-               "with two underscores inside a class body it is name-mangled to "
-               "_abstractWorkflow__setitem, which exists on nothing. Every node "
-               "assignment therefore raises AttributeError: 'super' object has "
-               "no attribute '_abstractWorkflow__setitem'. "
-               "See the consolidated findings issue.",
+        reason="hermes.workflow.__setitem__ ends with "
+               "self.workflowJSON['nodes'] = value['node'] -- it replaces the "
+               "whole nodes mapping with the single node's payload instead of "
+               "storing it under the key. hera's own line was fixed (B147), so "
+               "the assignment now reaches hermes, but the node still does not "
+               "land in workflow.nodes. The remaining defect is in hermes, "
+               "outside this repository.",
     )
     def test_assigning_a_node_should_add_it_to_the_workflow(self, eulerian):
         eulerian["myNewNode"] = self._newNodeValue()
         assert "myNewNode" in eulerian.nodes
 
-    def test_assigning_a_node_currently_raises_an_attributeerror(self, eulerian):
-        """Characterisation of B147."""
-        with pytest.raises(AttributeError, match="_abstractWorkflow__setitem"):
-            eulerian["myNewNode"] = self._newNodeValue()
+    def test_assigning_a_node_no_longer_raises(self, eulerian):
+        eulerian["myNewNode"] = self._newNodeValue()
 
-    def test_the_failed_assignment_has_already_mutated_buildallrun_and_filewriter(
+    def test_the_assignment_records_the_buildallrun_and_filewriter_entries(
         self, eulerian
     ):
-        """Characterisation of B147: the two side effects happen before the
-        failing call, so a caught AttributeError leaves the workflow with an
-        execution entry and a file-writer entry for a node that was never
-        added."""
-        with pytest.raises(AttributeError):
-            eulerian["myNewNode"] = self._newNodeValue()
+        # Held on to before the assignment: the hermes defect pinned above
+        # replaces workflow.nodes, so the accessors stop resolving afterwards.
+        buildAllRun = eulerian.buildAllRun
+        fileWriter = eulerian.fileWriter
 
-        assert eulerian.buildAllRun["myNewNode"] == {
+        eulerian["myNewNode"] = self._newNodeValue()
+
+        assert buildAllRun["myNewNode"] == {
             "name": "myCommand", "couldRunInParallel": False,
         }
-        assert eulerian.fileWriter["myNewNode"] == {"myFile": "content"}
-        assert "myNewNode" not in eulerian.nodes
+        assert fileWriter["myNewNode"] == {"myFile": "content"}
+        assert "myNewNode" in eulerian.nodeList
 
     def test_a_value_without_a_buildallrun_entry_fails_on_that_key_first(self, eulerian):
         with pytest.raises(KeyError, match="buildAllRun"):
@@ -608,8 +564,7 @@ class TestSetBlockMeshBlockBoundaries:
 
 @pytest.mark.unit
 class TestSetBlockMeshBlockHeight:
-    """B148 and B149: raising the block moves the wrong face, and then computes
-    the cell count from the vertex it has just overwritten."""
+    """Raising the block moves the top face and recounts the cells in z."""
 
     @pytest.fixture()
     def raised(self, eulerian):
@@ -619,26 +574,9 @@ class TestSetBlockMeshBlockHeight:
         eulerian.set_blockMesh_blockHeight(Z=100, dz=5)
         return eulerian
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B148: set_blockMesh_blockHeight is meant to lift the top face of "
-               "the block to Z, but it writes "
-               "`for i in range(len(verticsList[4:])): verticsList[i][2] = Z`. "
-               "The slice is only used for its length (4), while the assignment "
-               "indexes i itself -- so vertices 0-3, the *bottom* face, are "
-               "moved to Z and the top face keeps its old height. The block ends "
-               "up inverted. The index should be i+4. "
-               "See the consolidated findings issue.",
-    )
-    def test_raising_the_block_should_move_the_top_face(self, raised):
+    def test_raising_the_block_moves_the_top_face(self, raised):
         assert [vertex[2] for vertex in raised.blockMesh["vertices"]] == [
             0, 0, 0, 0, 100, 100, 100, 100,
-        ]
-
-    def test_raising_the_block_currently_moves_the_bottom_face(self, raised):
-        """Characterisation of B148."""
-        assert [vertex[2] for vertex in raised.blockMesh["vertices"]] == [
-            100, 100, 100, 100, 30, 30, 30, 30,
         ]
 
     def test_the_x_and_y_coordinates_are_left_untouched(self, raised):
@@ -647,22 +585,11 @@ class TestSetBlockMeshBlockHeight:
             [0, 0], [10, 0], [10, 20], [0, 20],
         ]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B149: after moving the vertices, set_blockMesh_blockHeight reads "
-               "minZ = verticsList[0][2] -- but vertex 0 is one of the four it "
-               "has just overwritten with Z (see B148), so minZ == Z and "
-               "cellCount[2] = (Z-minZ)/dz is always exactly 0. A zero cell "
-               "count in z makes the mesh unbuildable. It is also a float, "
-               "unlike the ints set_blockMesh_blockBoundaries writes. "
-               "See the consolidated findings issue.",
-    )
-    def test_raising_the_block_should_recount_the_cells_in_z(self, raised):
+    def test_raising_the_block_recounts_the_cells_in_z(self, raised):
         assert raised.blockMesh["cellCount"][2] == 20
 
-    def test_the_z_cell_count_currently_collapses_to_zero(self, raised):
-        """Characterisation of B149."""
-        assert raised.blockMesh["cellCount"][2] == 0.0
+    def test_the_z_cell_count_is_an_integer_like_the_other_two(self, raised):
+        assert isinstance(raised.blockMesh["cellCount"][2], int)
 
     def test_the_x_and_y_cell_counts_are_left_untouched(self, raised):
         assert raised.blockMesh["cellCount"][:2] == [10, 10]

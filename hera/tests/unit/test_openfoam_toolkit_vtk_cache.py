@@ -49,24 +49,14 @@ class TestVTKPipelineCache:
         table = of.getVTKPipelineCacheTable()
         assert list(table.iloc[0][["filterName", "workflowName", "groupName"]]) == ["f1", "wf1", "g1"]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B101: clearVTKPipelineCache's debug log line reads "
-               "doc['desc']['pipeline']['filters'] unconditionally (an "
-               "f-string is built eagerly regardless of log level), but "
-               "'pipeline' is not a required/documented desc key -- any "
-               "cache doc without one (e.g. one built via addCacheDocument "
-               "directly, matching this toolkit's own documented schema for "
-               "regularMesh/filterName/simulation) crashes with KeyError. "
-               "See the consolidated findings issue.",
-    )
     def test_clear_removes_the_matching_cache_documents(self, of):
         _add_filter_doc(of, regularMesh=True)
         of.clearVTKPipelineCache(regularMesh=True)
         assert list(of.getVTKPipelineCacheDocuments(regularMesh=True)) == []
 
-    def test_clear_currently_raises_without_a_pipeline_key(self, of):
-        """Characterisation of B101."""
-        _add_filter_doc(of, regularMesh=True)
-        with pytest.raises(KeyError, match="pipeline"):
-            of.clearVTKPipelineCache(regularMesh=True)
+    def test_clear_works_for_a_document_that_carries_a_pipeline_too(self, of):
+        """'pipeline' is optional in this toolkit's documented desc schema;
+        clearing has to cope either way."""
+        _add_filter_doc(of, regularMesh=True, pipeline=dict(filters={"f1": {}}))
+        of.clearVTKPipelineCache(regularMesh=True)
+        assert list(of.getVTKPipelineCacheDocuments(regularMesh=True)) == []

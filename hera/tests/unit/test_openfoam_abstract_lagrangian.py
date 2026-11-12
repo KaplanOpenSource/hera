@@ -37,8 +37,7 @@ reached mongomock, what was raised):
     ``_copyOrLinkTimestep``, ``_finalizeDispersionInDB``,
     ``createDispersionFlowField`` (the ``useDBSupport=False`` orchestration,
     end to end on a real case tree), ``_resolveDirectoryConflict``,
-    ``_syncDispersionToDB`` (its add branch; its update branch runs into
-    B330), ``createAndLinkDispersionCaseDirectory``,
+    ``_syncDispersionToDB``, ``createAndLinkDispersionCaseDirectory``,
     ``_resolveCaseDescriptorName``, ``_checkCache``,
     ``_locateCaseDirectory``, ``_discoverTimesteps``,
     ``_loadCaseDataViaDask``, ``_saveToCacheParquet``,
@@ -56,17 +55,9 @@ Covered shallowly, with the reason:
     is a single forwarding call, so what is asserted is the arguments that
     crossed the seam and the object that came back, nothing more.
     ``_resolveDispersionFlowField``, ``_checkDBConsistency`` and
-    ``createDispersionCaseDirectory`` -- their first DB statement calls a
-    method that does not exist anywhere in hera (B330), so only the
-    argument validation that precedes it and the resulting
-    ``AttributeError`` can be observed.
-    ``getDispersionFlowDocument`` / ``getOriginalFlowDocument`` -- the two
-    reachable branches are asserted on the forwarded query; the third is
-    B327.
-    ``getMassFromLog``, ``getOriginalFlowFieldExtentAsDict``,
-    ``analysis.calcDocumentConcentrationPointWise`` and
-    ``analysis.getConcentrationField`` -- each dies on a defect pinned
-    below, so only the failure and the pre-failure behaviour are asserted.
+    ``createDispersionCaseDirectory`` -- only the DB lookup and the
+    argument validation that precedes it are observable without a case
+    tree.
 
 Not covered:
     ``analysis.calcConcentrationPointWise`` -- see above.
@@ -81,21 +72,9 @@ passing characterisation of what happens today):
 * B324 (fixed upstream by a4597eb6, #1082) ``getCaseConcentrationsEulerian``
   passed five positional arguments to the four-parameter
   ``_loadCaseDataViaDask``.
-* B325 ``getOriginalFlowFieldExtentAsDict`` reads ``zmax`` off the *y*
-  column.
 * B326 (fixed upstream by a4597eb6, #1082)
   ``analysis.calcConcentrationFieldFullMesh``'s first statement called a
   method that lives on the other class.
-* B327 ``getDispersionFlowDocument`` / ``getOriginalFlowDocument`` build a
-  type-error message and never raise it.
-* B328 ``getMassFromLog`` reads ``self._datalayer``, which this class never
-  defines.
-* B329 ``analysis.calcDocumentConcentrationPointWise`` /
-  ``analysis.getConcentrationField`` call the cache API on the wrong object.
-* B330 four call sites use ``toolkit.getCaseListDocumentFromDB``, a method
-  that does not exist anywhere in hera.
-* B331 ``_checkDBConsistency`` calls ``toolkit.compareWorkflowsObj``; the
-  real name has no ``s``.
 * B332 (fixed upstream by #1137) the module's star-import shadowed the
   builtin ``min`` with the unum minute unit, killing ``_buildTimeMapping``'s
   nearest-timestep selection.
@@ -983,25 +962,16 @@ class TestCreateAndLinkDispersionCaseDirectory:
 
 
 # ===========================================================================
-# B330: getCaseListDocumentFromDB does not exist
+# The workflow-list lookup goes through getWorkflowListDocumentFromDB
 # ===========================================================================
 
 @pytest.mark.unit
-class TestGetCaseListDocumentFromDBDoesNotExist:
-    def test_the_method_the_module_calls_is_absent_from_the_toolkit(self, ext):
-        """Characterisation of B330, at its source."""
-        assert not hasattr(ext.toolkit, "getCaseListDocumentFromDB")
+class TestWorkflowListLookup:
+    def test_the_method_the_module_calls_exists_on_the_toolkit(self, ext):
         assert hasattr(ext.toolkit, "getWorkflowListDocumentFromDB")
+        assert not hasattr(ext.toolkit, "getCaseListDocumentFromDB")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B330: _resolveDispersionFlowField calls "
-               "self.toolkit.getCaseListDocumentFromDB, a name defined nowhere "
-               "in hera -- the only four occurrences in the repository are the "
-               "call sites in this module. The real name is "
-               "getWorkflowListDocumentFromDB. See the consolidated findings "
-               "issue.")
-    def test_resolving_a_registered_dispersion_flow_field_should_work(self, ext, tmp_path):
+    def test_resolving_a_registered_dispersion_flow_field_works(self, ext, tmp_path):
         ext.toolkit.addSimulationsDocument(
             resource=str(tmp_path / "dff"), dataFormat=datatypes.STRING,
             type=ext.toolkit.DOCTYPE_OF_FLOWDISPERSION,
@@ -1009,52 +979,37 @@ class TestGetCaseListDocumentFromDBDoesNotExist:
         name, directory = ext._resolveDispersionFlowField(
             _StandInWorkflow(dispersionFlowFieldName="GROUP_DFF_a"))
         assert name == "GROUP_DFF_a"
+        assert directory == str(tmp_path / "dff")
 
-    def test_resolving_a_dispersion_flow_field_currently_raises(self, ext):
-        """Characterisation of B330."""
-        with pytest.raises(AttributeError, match="getCaseListDocumentFromDB"):
+    def test_an_unregistered_dispersion_flow_field_is_refused(self, ext):
+        with pytest.raises(ValueError, match="not found in DB"):
             ext._resolveDispersionFlowField(
                 _StandInWorkflow(dispersionFlowFieldName="anything"))
 
-    def test_checking_db_consistency_currently_raises(self, ext):
-        """Characterisation of B330, at the second call site."""
-        with pytest.raises(AttributeError, match="getCaseListDocumentFromDB"):
-            ext._checkDBConsistency(_StandInWorkflow(name="GROUP_1"),
-                                    True, False, False)
+    def test_checking_db_consistency_against_an_empty_db_is_a_no_op(self, ext):
+        workflow, updateWorkflow, needDBAdd, inconsistency = ext._checkDBConsistency(
+            _StandInWorkflow(name="GROUP_1"), True, False, False)
+        assert workflow.name == "GROUP_1"
+        assert (updateWorkflow, needDBAdd, inconsistency) == (False, False, None)
 
 
-def _supplyMissingCaseListLookup(ext, monkeypatch):
-    """Simulate the fix for B330 so that B331 becomes reachable.
-
-    Both are patched on the toolkit CLASS, never on the instance.
-    """
-    monkeypatch.setattr(
-        type(ext.toolkit), "getCaseListDocumentFromDB",
-        lambda self, name, **query: self.getWorkflowListDocumentFromDB(name, **query),
-        raising=False)
+def _standInWorkflowFromDocument(ext, monkeypatch):
+    """Rebuilding a hermes workflow from a document needs a real workflow
+    JSON, which the stand-in has none of; hand back the stand-in instead."""
     monkeypatch.setattr(
         type(ext.toolkit), "getHemresWorkflowFromDocument",
         lambda self, documentList, **kwargs: _StandInWorkflow(name="GROUP_1"))
 
 
 @pytest.mark.unit
-class TestCompareWorkflowsObjIsMisspelled:
+class TestCompareWorkflowObj:
     def test_only_the_singular_name_exists_on_the_toolkit(self, ext):
-        """Characterisation of B331, at its source."""
         assert not hasattr(ext.toolkit, "compareWorkflowsObj")
         assert hasattr(ext.toolkit, "compareWorkflowObj")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B331: _checkDBConsistency calls "
-               "self.toolkit.compareWorkflowsObj([...]); the method on "
-               "hermesWorkflowToolkit is compareWorkflowObj, without the 's'. "
-               "Even with B330's getCaseListDocumentFromDB supplied, the "
-               "same-name branch cannot run. See the consolidated findings "
-               "issue.")
-    def test_the_same_name_branch_should_compare_the_two_workflows(
+    def test_the_same_name_branch_compares_the_two_workflows(
             self, ext, tmp_path, monkeypatch):
-        _supplyMissingCaseListLookup(ext, monkeypatch)
+        _standInWorkflowFromDocument(ext, monkeypatch)
         ext.toolkit.addSimulationsDocument(
             resource=str(tmp_path / "c"), dataFormat=datatypes.STRING,
             type=ext.toolkit.DOCTYPE_WORKFLOW,
@@ -1063,22 +1018,10 @@ class TestCompareWorkflowsObjIsMisspelled:
             _StandInWorkflow(name="GROUP_1"), True, False, False)
         assert workflow.name == "GROUP_1"
 
-    def test_the_same_name_branch_currently_raises_on_the_misspelling(
-            self, ext, tmp_path, monkeypatch):
-        """Characterisation of B331."""
-        _supplyMissingCaseListLookup(ext, monkeypatch)
-        ext.toolkit.addSimulationsDocument(
-            resource=str(tmp_path / "c"), dataFormat=datatypes.STRING,
-            type=ext.toolkit.DOCTYPE_WORKFLOW,
-            desc=dict(workflowName="GROUP_1", groupName="GROUP"))
-        with pytest.raises(AttributeError, match="compareWorkflowsObj"):
-            ext._checkDBConsistency(_StandInWorkflow(name="GROUP_1"),
-                                    True, False, False)
-
 
 @pytest.mark.unit
 class TestCreateDispersionCaseDirectoryValidation:
-    """Only the argument validation ahead of B330 is observable."""
+    """The argument validation that precedes the DB lookup."""
 
     def test_updatedb_and_exportfromdb_are_mutually_exclusive(self, ext):
         with pytest.raises(ValueError, match="both updateDB and exportFromDB"):
@@ -1090,15 +1033,16 @@ class TestCreateDispersionCaseDirectoryValidation:
             ext.createDispersionCaseDirectory(_StandInWorkflow(name=None),
                                               updateDB=False)
 
-    def test_a_valid_call_still_dies_inside_bzzz_g(self, ext, unit_files_directory):
-        """Characterisation of B330, reached through the public entry point."""
-        with pytest.raises(AttributeError, match="getCaseListDocumentFromDB"):
-            ext.createDispersionCaseDirectory(_StandInWorkflow(name="GROUP_1"),
-                                              updateDB=False)
+    def test_an_unregistered_flow_field_is_refused(self, ext, unit_files_directory):
+        with pytest.raises(ValueError, match="not found in DB"):
+            ext.createDispersionCaseDirectory(
+                _StandInWorkflow(name="GROUP_1",
+                                 dispersionFlowFieldName="NOT_IN_DB"),
+                updateDB=False)
 
 
 # ===========================================================================
-# getMassFromLog -- B328
+# getMassFromLog
 # ===========================================================================
 
 _SOLVER_LOG = "\n".join([
@@ -1122,41 +1066,30 @@ _SOLVER_LOG = "\n".join([
 
 @pytest.mark.unit
 class TestGetMassFromLog:
-    def test_the_attribute_the_parser_reads_is_defined_nowhere_in_the_class(self):
-        """Characterisation of B328, at its source."""
+    def test_the_cloud_name_is_a_parameter_and_not_an_attribute(self):
+        """The extension class holds toolkit/analysis/presentation/daskClient
+        and no cloud name of its own, so the parser takes one, exactly like
+        every other method on the class."""
         assert not hasattr(Extension, "_datalayer")
         assert hasattr(Extension, "toolkit")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B328: getMassFromLog reads self._datalayer.cloudName, but it "
-               "is defined on absractStochasticLagrangianSolver_toolkitExtension, "
-               "whose attributes are toolkit/analysis/presentation/daskClient -- "
-               "no class in the hierarchy defines _datalayer. (The near-identical "
-               "copy on OFLSMToolkit.Analysis does have one; this one is a copy "
-               "that lost its owner.) Every call raises AttributeError before a "
-               "single line of the log is parsed. See the consolidated findings "
-               "issue.")
-    def test_it_should_parse_release_and_parcel_fate_records(self, ext, tmp_path):
+    def test_it_parses_release_and_parcel_fate_records(self, ext, tmp_path):
         logFile = tmp_path / "solver.log"
         logFile.write_text(_SOLVER_LOG)
         frame = ext.getMassFromLog(str(logFile))
         assert sorted(frame["action"].unique()) == ["escape", "release", "stick"]
+        assert set(frame["cloudName"]) == {"kinematicCloud"}
 
-    def test_it_currently_raises_before_reading_any_record(self, ext, tmp_path):
-        """Characterisation of B328."""
-        logFile = tmp_path / "solver.log"
-        logFile.write_text(_SOLVER_LOG)
-        with pytest.raises(AttributeError, match="_datalayer"):
-            ext.getMassFromLog(str(logFile))
-
-    def test_even_a_log_with_no_timestep_block_cannot_be_parsed(self, ext, tmp_path):
-        """Characterisation of B328: the frame it builds at the end reads
-        the same missing attribute, so no input reaches a return."""
+    def test_a_log_with_no_timestep_block_yields_an_empty_frame(self, ext, tmp_path):
         logFile = tmp_path / "empty.log"
         logFile.write_text("Exec   : StochasticLagrangianSolver\na\nb\nEnd\n")
-        with pytest.raises(AttributeError):
-            ext.getMassFromLog(str(logFile))
+        assert len(ext.getMassFromLog(str(logFile))) == 0
+
+    def test_a_different_cloud_name_is_honoured(self, ext, tmp_path):
+        logFile = tmp_path / "other.log"
+        logFile.write_text(_SOLVER_LOG.replace("kinematicCloud", "myCloud"))
+        frame = ext.getMassFromLog(str(logFile), cloudName="myCloud")
+        assert set(frame["cloudName"]) == {"myCloud"}
 
 
 # ===========================================================================
@@ -1651,28 +1584,13 @@ class TestGetOriginalFlowDocument:
 
 
 @pytest.mark.unit
-class TestTypeErrorIsBuiltButNeverRaised:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B327: getDispersionFlowDocument's else branch assigns the "
-               "message to a local named err and never raises it, so execution "
-               "falls through to logger.info(f'... {dffname}') with dffname "
-               "bound in neither of the two taken branches. The caller gets "
-               "UnboundLocalError instead of the TypeError the message "
-               "describes. getOriginalFlowDocument has the identical defect. "
-               "See the consolidated findings issue.")
-    def test_a_bad_type_should_raise_the_error_the_message_describes(self, ext):
-        with pytest.raises(TypeError):
+class TestABadTypeIsRejected:
+    def test_a_bad_type_raises_the_error_the_message_describes(self, ext):
+        with pytest.raises(TypeError, match="must be of type str"):
             ext.getDispersionFlowDocument(17)
 
-    def test_a_bad_type_currently_raises_unboundlocalerror(self, ext):
-        """Characterisation of B327."""
-        with pytest.raises(UnboundLocalError, match="dffname"):
-            ext.getDispersionFlowDocument(17)
-
-    def test_the_original_flow_variant_has_the_same_defect(self, ext):
-        """Characterisation of B327, at the second site."""
-        with pytest.raises(UnboundLocalError, match="dffname"):
+    def test_the_original_flow_variant_rejects_it_too(self, ext):
+        with pytest.raises(TypeError, match="must be of type str"):
             ext.getOriginalFlowDocument(17)
 
 
@@ -1751,25 +1669,10 @@ class TestGetOriginalFlowFieldExtentAsDict:
         assert limits["zmin"].magnitude == 1.0
         assert str(limits["xmin"].units) == "meter"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B325: getOriginalFlowFieldExtentAsDict builds zmax from "
-               "lims.Cy.loc['max'] instead of lims.Cz.loc['max']. The other "
-               "five keys all read their own axis (zmin reads Cz), so this is "
-               "a copy-paste slip, and it silently truncates the vertical "
-               "extent of every concentration mesh built from it. See the "
-               "consolidated findings issue.")
-    def test_zmax_should_come_from_the_z_column(self, ext, meshSeam):
+    def test_zmax_comes_from_the_z_column(self, ext, meshSeam):
         meshSeam(ext)
         limits = ext.getOriginalFlowFieldExtentAsDict("SOME_NAME")
         assert limits["zmax"].magnitude == 7.0
-
-    def test_zmax_currently_repeats_ymax(self, ext, meshSeam):
-        """Characterisation of B325."""
-        meshSeam(ext)
-        limits = ext.getOriginalFlowFieldExtentAsDict("SOME_NAME")
-        assert limits["zmax"].magnitude == 3.0
-        assert limits["zmax"] == limits["ymax"]
 
 
 # ===========================================================================
@@ -2075,48 +1978,27 @@ class TestCalcConcentrationFieldFullMesh:
 
 
 # ===========================================================================
-# B329: the cache API is called on the extension instead of the toolkit
+# The cache API is reached through the toolkit, not through the extension
 # ===========================================================================
 
 @pytest.mark.unit
-class TestCacheApiIsCalledOnTheWrongObject:
+class TestCacheApiIsCalledOnTheToolkit:
     def test_the_extension_exposes_no_cache_api(self, ext):
-        """Characterisation of B329, at its source."""
+        """The cache API belongs to the Project the toolkit inherits from,
+        so every cache call has to go through self.datalayer.toolkit."""
         assert not hasattr(ext, "getCacheDocuments")
         assert not hasattr(ext, "addCacheDocument")
         assert hasattr(ext.toolkit, "getCacheDocuments")
         assert hasattr(ext.toolkit, "addCacheDocument")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B329: analysis.calcDocumentConcentrationPointWise and "
-               "analysis.getConcentrationField call "
-               "self.datalayer.getCacheDocuments(...) / "
-               "self.datalayer.addCacheDocument(...), but self.datalayer is an "
-               "absractStochasticLagrangianSolver_toolkitExtension, which "
-               "defines neither -- the cache API belongs to the Project the "
-               "toolkit inherits from. The sibling "
-               "calcConcentrationFieldFullMesh in the same class correctly "
-               "writes self.datalayer.toolkit.getCacheDocuments. See the "
-               "consolidated findings issue.")
-    def test_looking_up_a_concentration_field_should_query_the_cache(self, ana):
+    def test_looking_up_a_concentration_field_queries_the_cache(self, ana):
         class _Doc:
             id = "abc123"
 
         assert ana.getConcentrationField(_Doc()) is None
 
-    def test_looking_up_a_concentration_field_currently_raises(self, ana):
-        """Characterisation of B329."""
+    def test_an_empty_cache_yields_an_empty_list_when_not_returning_first(self, ana):
         class _Doc:
             id = "abc123"
 
-        with pytest.raises(AttributeError, match="getCacheDocuments"):
-            ana.getConcentrationField(_Doc())
-
-    def test_the_pointwise_document_calculator_has_the_same_defect(self, ana):
-        """Characterisation of B329, at the second site."""
-        class _Doc:
-            id = "abc123"
-
-        with pytest.raises(AttributeError, match="getCacheDocuments"):
-            ana.calcDocumentConcentrationPointWise(_Doc(), dxdydz=1)
+        assert len(ana.getConcentrationField(_Doc(), returnFirst=False)) == 0

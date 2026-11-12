@@ -1,52 +1,32 @@
-"""openFoam/lagrangian/LSM/toolkit.py: OFLSMToolkit.
-
-B103: __init__ always crashes -- it references
-toolkitHome.GIS_TOPOGRAPHY, a constant that does not exist (the real ones
-are GIS_RASTER_TOPOGRAPHY/GIS_VECTOR_TOPOGRAPHY). No instance of
-OFLSMToolkit can ever be constructed via toolkitHome.getToolkit. The
-property tests below use __new__ to bypass the broken constructor and
-verify the properties work correctly once B103 is fixed.
-"""
+"""openFoam/lagrangian/LSM/toolkit.py: OFLSMToolkit."""
 import pytest
 
 from hera.simulations.openFoam.lagrangian.LSM.toolkit import OFLSMToolkit
 
 
 @pytest.mark.unit
-class TestConstructorIsBroken:
-    def test_gis_topography_constant_does_not_exist(self):
-        """Characterisation of B103, at its exact source."""
-        from hera import toolkitHome
-
-        assert not hasattr(toolkitHome, "GIS_TOPOGRAPHY")
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B103: __init__ references toolkitHome.GIS_TOPOGRAPHY, a "
-               "constant that does not exist (the real ones are "
-               "GIS_RASTER_TOPOGRAPHY/GIS_VECTOR_TOPOGRAPHY). No instance "
-               "can ever be constructed. See the consolidated findings issue.",
-    )
-    def test_it_should_be_constructible(self, unit_files_directory):
+class TestConstructor:
+    def test_it_is_constructible(self, unit_files_directory):
         from hera import toolkitHome
 
         toolkitHome.getToolkit(
             toolkitName="OF_LSM", projectName="OFLSM_TEST", filesDirectory=unit_files_directory,
         )
 
-    def test_it_currently_raises_on_every_construction(self, unit_files_directory):
-        """Characterisation of B103."""
+    def test_it_holds_the_vector_topography_toolkit(self, unit_files_directory):
+        """The only uses of self.topography in this module call
+        analysis.addHeight, which lives on the vector topography toolkit."""
         from hera import toolkitHome
 
-        with pytest.raises(AttributeError, match="GIS_TOPOGRAPHY"):
-            toolkitHome.getToolkit(
-                toolkitName="OF_LSM", projectName="OFLSM_TEST", filesDirectory=unit_files_directory,
-            )
+        lsm = toolkitHome.getToolkit(
+            toolkitName="OF_LSM", projectName="OFLSM_TEST", filesDirectory=unit_files_directory,
+        )
+        assert hasattr(lsm.topography.analysis, "addHeight")
 
 
 @pytest.mark.unit
 class TestPropertiesViaBypass:
-    """Verified independently of the broken constructor, via __new__."""
+    """Verified via __new__, independently of the datalayer."""
 
     @pytest.fixture()
     def t(self):

@@ -481,9 +481,14 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         flowFieldRef = hermes_dispersionWorkflow.dispersionFlowFieldName
 
         # Try the name first, then the absolute path as fallback.
-        docList = self.toolkit.getCaseListDocumentFromDB(flowFieldRef)
+        # The dispersion flow field is registered as a DOCTYPE_OF_FLOWDISPERSION
+        # document (see _checkAndRegisterDispersionInDB), exactly as the sibling
+        # getDispersionFlowDocument looks it up.
+        docList = self.toolkit.getWorkflowDocumentFromDB(
+            flowFieldRef, doctype=self.toolkit.DOCTYPE_OF_FLOWDISPERSION)
         if len(docList) == 0:
-            docList = self.toolkit.getCaseListDocumentFromDB(os.path.abspath(flowFieldRef))
+            docList = self.toolkit.getWorkflowDocumentFromDB(
+                os.path.abspath(flowFieldRef), doctype=self.toolkit.DOCTYPE_OF_FLOWDISPERSION)
             if len(docList) == 0:
                 raise ValueError(
                     f"Dispersion flow field '{flowFieldRef}' not found in DB. Add it first."
@@ -510,12 +515,12 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         needDBAdd = False
 
         # Check 1: Does a workflow with the same NAME exist in DB?
-        doc_nameQueryList = self.toolkit.getCaseListDocumentFromDB(workflow.name)
+        doc_nameQueryList = self.toolkit.getWorkflowListDocumentFromDB(workflow.name)
 
         if len(doc_nameQueryList) > 0:
             # Same name found — compare parameters to detect inconsistency.
             doc_similarWorkflow = self.toolkit.getHemresWorkflowFromDocument(doc_nameQueryList[0])
-            res = self.toolkit.compareWorkflowsObj([doc_similarWorkflow, workflow])
+            res = self.toolkit.compareWorkflowObj([doc_similarWorkflow, workflow])
 
             if len(res.columns) == 1:
                 # Identical — no action needed.
@@ -590,7 +595,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             )
         elif updateWorkflow:
             # Existing workflow — update parameters in DB.
-            docList = self.toolkit.getCaseListDocumentFromDB(workflow.name)
+            docList = self.toolkit.getWorkflowListDocumentFromDB(workflow.name)
             if len(docList) > 0:
                 doc = docList[0]
                 doc.desc['workflow'] = workflow.json
@@ -785,7 +790,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             zs.append(z + zdist[i])
         return pandas.DataFrame({"x": xs, "y": ys, "z": zs})
 
-    def getMassFromLog(self, logFile, solver="StochasticLagrangianSolver"):
+    def getMassFromLog(self, logFile, solver="StochasticLagrangianSolver", cloudName="kinematicCloud"):
         """Parse mass and parcel fate information from a solver log file.
 
         The log file has a repeating structure per timestep:
@@ -827,7 +832,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             if "Time" in Lines[count]:
                 time = float(Lines[count].split()[-1])
                 # Scan forward to the cloud name line.
-                while f"{self._datalayer.cloudName}\n" not in Lines[count]:
+                while f"{cloudName}\n" not in Lines[count]:
                     count += 1
                 count += 1
                 # Parse cloud output: each source has release info + parcel fate.
@@ -852,7 +857,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                     count += 1
             count += 1
         return pandas.DataFrame(
-            {"time": times, "cloudName": self._datalayer.cloudName, "name": names, "action": actions,
+            {"time": times, "cloudName": cloudName, "name": names, "action": actions,
              "parcels": parcels,
              "mass": mass})
 
@@ -1204,7 +1209,9 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         elif isinstance(nameOrDispersionWorkflow,workflow_StochasticLagrangianSolver):
             dffname = nameOrDispersionWorkflow.dispersionFlowFieldName
         else:
-            logger.error(f"{nameOrDispersionWorkflow} must be of type str or workflow_StochasticLagrangianSolver, got {type(nameOrDispersionWorkflow)}")
+            err = f"{nameOrDispersionWorkflow} must be of type str or workflow_StochasticLagrangianSolver, got {type(nameOrDispersionWorkflow)}"
+            logger.error(err)
+            raise TypeError(err)
 
         logger.info(f"Trying to retireve the document for {dffname}")
         ret = self.toolkit.getWorkflowDocumentFromDB(dffname, doctype=self.toolkit.DOCTYPE_OF_FLOWDISPERSION)
@@ -1231,7 +1238,9 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         elif isinstance(nameOrDispersionWorkflow,workflow_StochasticLagrangianSolver):
             dffname = nameOrDispersionWorkflow.originalFlowFieldName
         else:
-            logger.error(f"{nameOrDispersionWorkflow} must be of type str or workflow_StochasticLagrangianSolver, got {type(nameOrDispersionWorkflow)}")
+            err = f"{nameOrDispersionWorkflow} must be of type str or workflow_StochasticLagrangianSolver, got {type(nameOrDispersionWorkflow)}"
+            logger.error(err)
+            raise TypeError(err)
 
         ret = self.toolkit.getWorkflowDocumentFromDB(dffname, doctype=self.toolkit.DOCTYPE_WORKFLOW)
         return ret[0] if len(ret) > 0 else None
@@ -1279,7 +1288,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             ymin = lims.Cy.loc['min']*ureg.m,
             ymax = lims.Cy.loc['max']*ureg.m,
             zmin = lims.Cz.loc['min']*ureg.m,
-            zmax = lims.Cy.loc['max']*ureg.m
+            zmax = lims.Cz.loc['max']*ureg.m
         )
 
 
@@ -1441,7 +1450,7 @@ class analysis:
         """
         simID = str(dataDocument.id) if simulationID is None else simulationID
 
-        docList = self.datalayer.getCacheDocuments(simID=simID, dxdydz=dxdydz, **metadata)
+        docList = self.datalayer.toolkit.getCacheDocuments(simID=simID, dxdydz=dxdydz, **metadata)
         if len(docList) == 0 or overwrite:
 
             data = dataDocument.getData()
@@ -1454,10 +1463,10 @@ class analysis:
                 desc = dict(simID=simID, dxdydz=dxdydz)
                 desc.update(metadata)
 
-                doc = self.datalayer.addCacheDocument(dataFormat=datatypes.PARQUET,
-                                                      type=self.DOCTYPE_CONCENTRATION_POINTWISE,
-                                                      resource="",
-                                                      desc=desc)
+                doc = self.datalayer.toolkit.addCacheDocument(dataFormat=datatypes.PARQUET,
+                                                              type=self.DOCTYPE_CONCENTRATION_POINTWISE,
+                                                              resource="",
+                                                              desc=desc)
 
                 outputDirectory = os.path.join(self.datalayer.toolkit.filesDirectory, str(doc.id))
                 os.makedirs(outputDirectory, exist_ok=True)
@@ -1730,7 +1739,7 @@ class analysis:
 
         """
         dataID = str(dataDocument.id)
-        docList = self.datalayer.getCacheDocuments(dataID=dataID, type=self.DOCTYPE_CONCENTRATION, **metadata)
+        docList = self.datalayer.toolkit.getCacheDocuments(dataID=dataID, type=self.DOCTYPE_CONCENTRATION, **metadata)
 
         if returnFirst:
             if len(docList) > 0:

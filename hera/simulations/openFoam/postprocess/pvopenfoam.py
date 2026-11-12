@@ -180,6 +180,7 @@ class ParaviewOpenFOAM:
                     A map datasourcename -> pandas
         """
         logger = get_classMethod_logger(self, "readTimeSteps")
+        timelist = self._resolveTimeList(timelist, latestTimestamp=False)
         for timeslice in timelist:
             # read the timestep.
             logger.info("\r Reading time step %s" % timeslice)
@@ -227,9 +228,16 @@ class ParaviewOpenFOAM:
             logger.debug("No data exists for filter... return with None")
             return None
         elif isinstance(point_set.Points, dsa.VTKArray):
-            points = numpy.array(point_set.Points).squeeze()
+            raw_points = numpy.array(point_set.Points)
         else:
-            points = numpy.concatenate([numpy.array(x) for x in point_set.Points.GetArrays()]).squeeze()
+            raw_points = numpy.concatenate([numpy.array(x) for x in point_set.Points.GetArrays()])
+
+        points = raw_points.squeeze()
+        # squeeze() drops the length-1 axis of a filter that holds exactly one
+        # point (ProbeLocation, a one-point PointSource), which the guard below
+        # would then read as "no points at all". Put that axis back.
+        if raw_points.ndim == 2 and points.ndim == 1:
+            points = raw_points
 
         dims = ", ".join(f"{i}: {shape}" for i, shape in enumerate(points.shape))
         if len(points.shape) == 0:
@@ -499,7 +507,8 @@ class ParaviewOpenFOAM:
         for filterName, outputFile in filtersDict.items():
             outputPath = os.path.dirname(outputFile)
             logger.debug(f"{filterName} for directory {outputPath}")
-            if not os.path.isdir(outputPath):
+            # An empty dirname means the output is relative to the cwd, which exists.
+            if outputPath and not os.path.isdir(outputPath):
                 logger.debug(f"\t Does not exist. Creating {outputPath}")
                 os.makedirs(outputPath)
 

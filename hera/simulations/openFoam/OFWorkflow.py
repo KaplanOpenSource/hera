@@ -75,8 +75,8 @@ class abstractWorkflow(hermes.workflow):
     def workflowGroupID(self, value):
         """Set the workflow group ID and save to the hera document."""
         ret = None
-        if not isinstance(value,str):
-            raise ValueError("Group name must be a string")
+        if not isinstance(value,(int,str)):
+            raise ValueError("Group ID must be an integer or a string")
         if self.workflowHeraDocument:
             self.workflowHeraDocument['desc']['groupID'] = value
             self.workflowHeraDocument.save()
@@ -84,8 +84,8 @@ class abstractWorkflow(hermes.workflow):
 
     @property
     def controlDict(self):
-        """Return the ControlDict workflow node."""
-        return self['ControlDict']
+        """Return the controlDict workflow node."""
+        return self['controlDict']
 
     @property
     def fvSolution(self):
@@ -95,8 +95,8 @@ class abstractWorkflow(hermes.workflow):
 
     @property
     def fvScheme(self):
-        """Return the fvScheme workflow node."""
-        return self['fvScheme']
+        """Return the fvSchemes workflow node."""
+        return self['fvSchemes']
 
     @property
     def fileWriter(self):
@@ -155,7 +155,7 @@ class abstractWorkflow(hermes.workflow):
         self.buildAllRun[key] = value['buildAllRun']
         self.fileWriter[key] = value['fileWriter']
 
-        super().__setitem(key=key,value=value)
+        super().__setitem__(key=key,value=value)
 
 ##############################################################################
 ##                          Workflow Eulerian/Lagrangian
@@ -316,11 +316,12 @@ class workflow_Eulerian(abstractWorkflow):
         """
         blockMesh = self.blockMesh
         verticsList=  blockMesh['vertices']
+        # Vertices 4-7 are the top face (OpenFOAM blockMesh convention).
         for i in range(len(verticsList[4:])):
-            verticsList[i][2] = Z
+            verticsList[i+4][2] = Z
 
         minZ = verticsList[0][2]
-        blockMesh["cellCount"][2] = (Z-minZ)/dz
+        blockMesh["cellCount"][2] = int(numpy.ceil((Z-minZ)/dz))
 
 
     def foam_snappyhexmesh_addobject(self,dataOrFile,objectFile):

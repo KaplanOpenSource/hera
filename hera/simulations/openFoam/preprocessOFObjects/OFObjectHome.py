@@ -237,7 +237,7 @@ class OFObjectHome:
         return f"[{kg} {m} {s} {K} {mol} {A} {cd}]"
 
     @staticmethod
-    def pandasToFoamFormat(self,data):
+    def pandasToFoamFormat(data, componentNames=None):
         """
             Converts pandas to a list of values in OF style.
             i.e
@@ -256,6 +256,9 @@ class OFObjectHome:
         data: pandas.DataFrame
             The data to convert
 
+        componentNames: None|list
+            The component columns of the field (see OFObject.componentNames).
+
         Returns
         -------
             str.
@@ -263,7 +266,7 @@ class OFObjectHome:
         # If componentNames is set (i.e. vector/tensor field), select only those
         # columns from the DataFrame; for scalar fields (componentNames is None)
         # use the full DataFrame as-is.
-        D = data if self.componentNames is None else data[self.componentNames]
+        D = data if componentNames is None else data[componentNames]
 
         # Build the OpenFOAM list format:
         #   <numberOfEntries>

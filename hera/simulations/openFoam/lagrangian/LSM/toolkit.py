@@ -14,6 +14,7 @@ from hera.simulations.openFoam.toberewritten.utils import getCellDataAndGroundDa
 from hera.simulations.utils import coordinateHandler
 from hera.datalayer import nonDBMetadataFrame
 from hera import toolkit, toolkitHome
+from hera.utils.logging import get_classMethod_logger
 from .sourcesFactoryTool import sourcesFactoryTool
 from itertools import product
 
@@ -94,7 +95,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         self._sourcesFactory = sourcesFactoryTool()
         self._cloudName = cloudName
         self._parallelCase = parallelCase
-        self._topography = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_TOPOGRAPHY,projectName=projectName)
+        self._topography = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_VECTOR_TOPOGRAPHY,projectName=projectName)
         self._analysis = Analysis(self)
 
     def _extractFile(self, path, columnNames, vector=True):
@@ -118,6 +119,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         -------
             Pandas with the data.
         """
+        logger = get_classMethod_logger(self, "_extractFile")
         skiphead = 20
         skipend = 4
 
@@ -134,7 +136,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                                       converters=cnvrtDict,
                                       names=columnNames)
         except ValueError:
-            self.logger.execute(f"{path} is not a cvs, going to a specialized parser")
+            logger.debug(f"{path} is not a cvs, going to a specialized parser")
             newData = []
 
         if len(newData) == 0:
@@ -187,6 +189,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             columnsDict['U_y'] = []
             columnsDict['U_z'] = []
 
+        logger = get_classMethod_logger(self, "_readRecord")
         newData = pandas.DataFrame(columnsDict, dtype=numpy.float64)
         try:
             newData = self._extractFile(
@@ -234,11 +237,11 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                     newData["mass"] = dataM["mass"]
 
         except:
-            self.logger.debug(f"No data at time {timeName}")
+            logger.debug(f"No data at time {timeName}")
 
         theTime = os.path.split(timeName)[-1]
         newData['time'] = float(theTime)
-        self.logger.debug(f"The output is {newData}")
+        logger.debug(f"The output is {newData}")
         return newData
 
     @property
@@ -296,18 +299,15 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             document of the data.
         """
 
-        if saveMode not in [toolkit.TOOLKIT_SAVEMODE_NOSAVE,
-                            toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
-                            toolkit.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,
-                            toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
-                            toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
-                            ]:
-            optins = ",".join([toolkit.TOOLKIT_SAVEMODE_NOSAVE,
-                               toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
-                               toolkit.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,
-                               toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
-                               toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
-                               ])
+        validSaveModeList = [toolkit.TOOLKIT_SAVEMODE_NOSAVE,
+                             toolkit.TOOLKIT_SAVEMODE_ONLYFILE,
+                             toolkit.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,
+                             toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
+                             toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
+                             ]
+        if saveMode not in validSaveModeList:
+            # TOOLKIT_SAVEMODE_NOSAVE is None, so the names have to be stringified.
+            optins = ",".join([str(mode) for mode in validSaveModeList])
 
             raise ValueError(f"saveMode must be one of [{optins}]. Got {saveMode}")
 
@@ -343,7 +343,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         else:
 
             timeList = sorted([x for x in os.listdir(finalCasePath) if (
-                    os.path.isdir(x) and
+                    os.path.isdir(os.path.join(finalCasePath, x)) and
                     x.isdigit() and
                     (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
                               key=lambda x: int(x))
@@ -358,18 +358,23 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             data.to_parquet(finalFileName, compression="GZIP")
 
             if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB, toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
-                doc = self.getSimulationsDocuments(type=self.doctype, casePath=self.casePath, cloudName=self.cloudName)
+                # getSimulationsDocuments returns a (possibly empty) list, never None.
+                docList = self.getSimulationsDocuments(type=self.doctype, casePath=self.casePath, cloudName=self.cloudName)
 
-                if doc is not None and saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
+                if len(docList) > 0 and saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
                     raise FileExistsError(f"Data already in the DB. save mode is set to no replace")
-                elif doc is None:
-                    self.addSimulationsDocument(resource=finalFileName,
-                                                dataFormat=toolkit.datatypes.PARQUET,
-                                                type=self.doctype,
-                                                desc=dict(casePath=self.casePath, cloudName=self.cloudName, **kwargs))
+                elif len(docList) == 0:
+                    doc = self.addSimulationsDocument(resource=finalFileName,
+                                                      dataFormat=toolkit.datatypes.PARQUET,
+                                                      type=self.doctype,
+                                                      desc=dict(casePath=self.casePath, cloudName=self.cloudName, **kwargs))
                 else:
+                    doc = docList[0]
                     doc.resource = finalFileName
                     doc.save()
+            else:
+                doc = nonDBMetadataFrame(data=data, type=self.doctype, casePath=self.casePath,
+                                         cloudName=self.cloudName)
         else:
             doc = nonDBMetadataFrame(data=data, type=self.doctype, casePath=self.casePath, cloudName=self.cloudName)
 
@@ -410,7 +415,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                  "|    \\/     M anipulation  |                                                 |\n" \
                  "\\*---------------------------------------------------------------------------*/\n" \
                  "FoamFile\n{    version     2.0;\n    format      ascii;\n    class       vectorField;\n" \
-                 "    object      kinematicCloudPositions;\n}\n" \
+                 f"    object      {fileName};\n}}\n" \
                  "// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //\n\n" \
             f"{nParticles}\n(\n"
         source = self.sourcesFactory.makeSource(x=x, y=y, z=z, nParticles=nParticles, type=type, **kwargs)
@@ -606,16 +611,18 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         OpenFOAM vectors are stored as ``(u v w)`` — strip parentheses
         and compute |U| = sqrt(u² + v² + w²).
         """
+        # Only the nCells value lines are read: the boundary section below them has
+        # lines of more than three tokens, which the three column parser cannot take.
         Ufield = pandas.read_csv(
             os.path.join(self.casePath, str(time), "U"),
-            skiprows=cellStart, skipfooter=0,
+            skiprows=cellStart, nrows=nCells, skipfooter=0,
             engine='python', header=None,
             sep=r'\s+', names=['u', 'v', 'w']
         )
         # Strip leading '(' from u and trailing ')' from w.
         Ufield['u'] = Ufield['u'].str[1:]
         Ufield['w'] = Ufield['w'].str[:-1]
-        Ufield = Ufield.head(nCells).astype(float)
+        Ufield = Ufield.astype(float)
         Ufield["U"] = numpy.sqrt(Ufield['u'] ** 2 + Ufield['v'] ** 2 + Ufield['w'] ** 2)
         return cellData.join(Ufield)
 
@@ -712,16 +719,25 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         :param parallel:
         :return:
         """
+        logger = get_classMethod_logger(self, "createRootCaseMeshLink")
         for fl in glob.glob(os.path.join(rootCase, "processor*")):
-            print(fl)
-            fullpath = os.path.join(os.path.abspath(fl), lastTS)
-
+            logger.info(f"Processing {fl}")
             proc = os.path.split(fl)[-1]
-            destination = os.path.join(os.path.abspath(proc), "3600")
-            os.makedirs(os.path.dirname(destination), exist_ok=True)
-            if os.path.exists(destination):
-                shutil.rmtree(destination)
-            shutil.copytree(fullpath, destination)
+
+            # The time step to copy is the last one the root case was run to.
+            timeList = sorted([timeName for timeName in os.listdir(fl) if
+                               timeName.isdigit() and os.path.isdir(os.path.join(fl, timeName))], key=int)
+            if len(timeList) == 0:
+                logger.info(f"There are no time steps in {fl}, linking the mesh only")
+            else:
+                lastTS = timeList[-1]
+                fullpath = os.path.join(os.path.abspath(fl), lastTS)
+
+                destination = os.path.join(os.path.abspath(proc), lastTS)
+                os.makedirs(os.path.dirname(destination), exist_ok=True)
+                if os.path.exists(destination):
+                    shutil.rmtree(destination)
+                shutil.copytree(fullpath, destination)
 
             fullpath = os.path.abspath(os.path.join(fl, "constant", "polyMesh"))
             destination = os.path.join(os.path.abspath(proc), "constant", "polyMesh")
@@ -819,7 +835,9 @@ class OFLSMToolkit(toolkit.abstractToolkit):
 
             X, Y, Z = numpy.meshgrid(fulldata.xI, fulldata.yI, fulldata.zI)
 
-            C = numpy.ascontiguousarray(fulldata.transpose("yI", "xI", "zI").values)
+            # calcConcentrationTimeStepFullMesh returns the single time step as a dimension
+            # of its own; the grid written here is the 3D mesh of that one step.
+            C = numpy.ascontiguousarray(fulldata.isel(time=0).transpose("yI", "xI", "zI").values)
 
             data = dict(C_kg_m3=C)  # 1kg/m**3=160000ppm
             structuredToVTK(finalFile, X, Y, Z, pointData=data)
@@ -943,10 +961,11 @@ class Analysis:
                 finalFileName = doc.resource
 
             C.to_parquet(finalFileName, compression="GZIP")
-            ret = doc
 
+        else:
+            doc = docList[0]
 
-
+        return doc
 
     def calcConcentrationTimeStepFullMesh(self, timeData, extents, dxdydz, xfield="globalX", yfield="globalY",
                                           zfield="globalZ"):
@@ -993,7 +1012,6 @@ class Analysis:
         dH = dxdydz ** 3
 
         fulldata = xarray.DataArray(coords=dict(xI=x_full, yI=y_full, zI=z_full), dims=['xI', 'yI', 'zI']).fillna(0)
-        fulldata.filterType = "C"
 
         C = timeData.assign(xI=dxdydz * (timeData[xfield] // dxdydz), yI=dxdydz * (timeData[yfield] // dxdydz),
                             zI=dxdydz * (timeData[zfield] // dxdydz)).groupby(["xI", "yI", "zI", "time"])[
@@ -1096,7 +1114,7 @@ class Analysis:
 
                 outFile_Final = os.path.join(self.datalayer.filesDirectory, str(xryDoc.id),
                                              f"Concentrations{partitionID}.nc")
-                pxry.transpose("yI", "xI", "zI", "time ").to_dataset(name="C").to_netcdf(outFile_Final)
+                pxry.transpose("yI", "xI", "zI", "time").to_dataset(name="C").to_netcdf(outFile_Final)
 
         else:
             xryDoc = docList[0]
@@ -1135,7 +1153,7 @@ class Analysis:
                 data =  None
 
         else:
-            data = docList[0].getData(usePandas=True)
+            data = docList
 
         return data
 

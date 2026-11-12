@@ -268,10 +268,10 @@ class RegisteredVTKPipeLine:
             logger.debug(f"Removing {filter_name}")
 
             qry = self._buildFilterQuery(filter_name=filter_name,**paramDict)
-            docList = self.datalayer.deleteSimulationsDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
+            docList = self.datalayer.deleteCacheDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
             logger.info(f"Found {len(docList)} documents to delete. ")
             for doc in docList:
-                logger.debug(f"Deleting resource {doc['desc']['workflowName']} : {doc['desc']['pipeline']['filters']} ")
+                logger.debug(f"Deleting resource {doc['desc']['simulation']['workflowName']} : {doc['desc']['pipeline']['filters']} ")
                 outputFile = doc['resource']
 
                 if os.path.exists(outputFile):
@@ -400,6 +400,7 @@ class RegisteredVTKPipeLine:
         filtersToProcess = []
         filtersOutputFilename = dict()
         DBDocumentsDict = dict()
+        requiredTimes = set()
 
         for fName in requestedFilters:
             qry = self._buildFilterQuery(filter_name=fName, regularMesh=regularMesh)
@@ -411,7 +412,9 @@ class RegisteredVTKPipeLine:
                 cached_filter = docList[0]
                 filtersOutputFilename[fName] = cached_filter.resource
                 dbTimeList = cached_filter['desc']['simulation']['timeList']
-                timeList = [ts for ts in timeList if ts not in dbTimeList]
+                # Per filter: subtracting here must not shorten the list of any
+                # other filter in this loop.
+                filterTimeList = [ts for ts in timeList if ts not in dbTimeList]
                 DBDocumentsDict[fName] = cached_filter
             else:
                 # Cache miss — generate a fresh output file path.
@@ -420,16 +423,20 @@ class RegisteredVTKPipeLine:
                 _ = self.datalayer.getCounterAndAdd(counter_name)
                 outputFilePath = self.getFilterOutputFilePath(fName, filext)
                 filtersOutputFilename[fName] = outputFilePath
+                filterTimeList = [ts for ts in timeList]
 
             # A filter needs computation if: forced overwrite, no cache, or
             # there are timesteps not yet in the cache.
             logger.debug(
                 "Compute the filter if you need to overwrite the results, it is not in the DB, or there are times not in the DB")
-            if overwrite or len(docList) == 0 or len(timeList) > 0:
+            if overwrite or len(docList) == 0 or len(filterTimeList) > 0:
                 logger.debug(f"{fName} added to process because overwrite=True or filter not in DB")
                 filtersToProcess.append(fName)
+                requiredTimes.update(filterTimeList)
 
-        return timeList, filtersToProcess, filtersOutputFilename, DBDocumentsDict
+        # The timesteps any filter that will be computed still needs, in the
+        # order they were requested.
+        return [ts for ts in timeList if ts in requiredTimes], filtersToProcess, filtersOutputFilename, DBDocumentsDict
 
     def _buildAndExecuteParaViewPipeline(self, filtersToProcess, filtersOutputFilename,
                                           timeList, field_names, overwrite, regularMesh, mesh_regions=None):
@@ -544,7 +551,8 @@ class RegisteredVTKPipeLine:
 
     def _buildFilterQuery(self, filter_name, regularMesh=None):
         """Build a database query dict for a specific filter."""
-        qry = dict(simulation=self.simulationParams,
+        # A copy: callers (and _updateCacheDB) write into qry['simulation'].
+        qry = dict(simulation=dict(self.simulationParams),
                    pipeline=self.vtkpipeline.to_json())
 
         if regularMesh is not None:
@@ -670,9 +678,9 @@ class VTKFilter:
 
         def traverse(filter):
             """Traverse up the filter tree to build the full path."""
-            if filter.father is not None:
-                fatherName = filter.father.fullName()
-            return [fatherName, self.name]
+            if filter.father is None:
+                return [filter.name]
+            return [filter.father.fullName, filter.name]
 
         return ".".join(traverse(self))
 
@@ -871,4 +879,5 @@ class vtkFilter_IntegrateVariables(VTKFilter):
 
     def __init__(self, name, write, **kwargs):
         """Initialize an IntegrateVariables filter."""
+        kwargs.setdefault("params",[])
         super().__init__(name=name, filterType="IntegrateVariables", write=write, **kwargs)
