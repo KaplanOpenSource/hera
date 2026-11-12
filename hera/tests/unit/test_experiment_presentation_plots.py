@@ -92,11 +92,10 @@ Bugs pinned here
   ``plot_kwargs = plot_kwargs or {}``, reading a local before it was
   assigned -- the parameter is spelled ``plotkwargs`` -- so with the
   default ``ax=None`` it raised ``UnboundLocalError``. That name is
-  fixed. The method is still dead one statement later on
-  ``self.trialSet`` (B219's mistake again) and, behind that, on
-  ``row.stationName``, a column argos does not produce -- neither of
-  which is pinned as a defect of its own, and the second of which needs
-  a decision about what a device's station is.
+  fixed, and so is the ``self.trialSet`` lookup right after it (B219's
+  mistake again; it now reads ``self.datalayer.trialSet``). The method is
+  still dead on ``row.stationName``, a column argos does not produce,
+  which needs a decision about what a device's station is.
 * B222 (fixed): ``plotDevicesOnImage`` read ``row.containedIn`` for every
   device, but argos's ``fillContained`` only creates that column when at
   least one device on the trial declares containment. For the ordinary
@@ -756,7 +755,7 @@ class TestPlotEntityLocationHelpers:
 
 @pytest.mark.unit
 class TestPlotDevices:
-    """B221: the misspelled local is gone; B219's mistake is next."""
+    """B221 and the trial-set lookup are fixed; stationName is next."""
 
     def test_the_body_now_reads_the_parameter_it_was_given(self):
         """B221: the body used to read an unassigned plot_kwargs."""
@@ -767,31 +766,28 @@ class TestPlotDevices:
 
     @pytest.mark.xfail(
         strict=True,
-        reason="plotDevices is still dead one statement after the B221 fix: "
-               "it reads self.trialSet, but trialSet lives on the datalayer "
-               "(B219's mistake again), and behind that it reads "
-               "row.stationName, a column argos does not produce. Neither is "
-               "pinned as a defect of its own and the second needs a product "
-               "decision. See the consolidated findings issue.",
+        reason="plotDevices reads row.stationName, a column argos does not "
+               "produce; what a device's station is needs a product decision. "
+               "See the consolidated findings issue.",
     )
     def test_it_should_plot_the_devices_of_the_trial(self, presentation):
         fig, ax = presentation.plotDevices("Measurements", "T1", "sonic", "map1")
         assert len(ax.collections) == 2
 
-    def test_it_now_gets_as_far_as_the_trial_set_lookup(self, presentation):
-        """B221: this used to be an UnboundLocalError on plot_kwargs."""
-        with pytest.raises(AttributeError, match="trialSet"):
+    def test_it_now_gets_as_far_as_the_station_name(self, presentation):
+        """B221 and the trial-set lookup are fixed; it now reaches stationName."""
+        with pytest.raises(AttributeError, match="stationName"):
             presentation.plotDevices("Measurements", "T1", "sonic", "map1")
 
     def test_passing_an_axes_reaches_the_same_statement(self, presentation):
         _, ax = plt.subplots()
-        with pytest.raises(AttributeError, match="trialSet"):
+        with pytest.raises(AttributeError, match="stationName"):
             presentation.plotDevices("Measurements", "T1", "sonic", "map1", ax=ax)
 
     def test_the_plot_keywords_argument_reaches_the_subplot_call(self, presentation):
         """B221: naming the real parameter now reaches plt.subplots, which
         is what it is meant to configure."""
-        with pytest.raises(AttributeError, match="trialSet"):
+        with pytest.raises(AttributeError, match="stationName"):
             presentation.plotDevices("Measurements", "T1", "sonic", "map1",
                                      plotkwargs=dict(figsize=(3, 4)))
         assert plt.gcf().get_size_inches().tolist() == [3.0, 4.0]

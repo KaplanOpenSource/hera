@@ -483,7 +483,7 @@ class experimentPresentation:
         else:
             fig = ax.figure
 
-        devices_df = self.trialSet[trialSetName][trialName].entitiesTable.query("deviceTypeName==@deviceType")
+        devices_df = self.datalayer.trialSet[trialSetName][trialName].entitiesTable.query("deviceTypeName==@deviceType")
 
         devices_df[['ITM_Latitude', 'ITM_Longitude']] = devices_df.apply(self.datalayer._process_row, axis=1)
         minx,miny,maxx,maxy = self.datalayer.get_devices_image_coordinates(trialSetName,trialName,deviceType)

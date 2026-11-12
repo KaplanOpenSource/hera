@@ -214,19 +214,19 @@ class TestGenerateLatexTable:
 
     @pytest.mark.xfail(
         strict=True,
-        reason="B221: plotDevices reads `plot_kwargs` where its parameter is "
-               "named `plotkwargs`, so it raises UnboundLocalError before it "
-               "draws anything and the LaTeX export still cannot complete. "
-               "B114, the wrong keyword names at this call site, is fixed. "
+        reason="B114 and B221 are fixed, but the export still stops in "
+               "plotDevices on row.stationName, a column argos does not "
+               "produce (see test_experiment_presentation_plots.py). "
                "See the consolidated findings issue.",
     )
     def test_it_should_write_a_tex_document(self, presentation, tmp_path):
         presentation.generateLatexTable("{{ trialSets }}", str(tmp_path / "out"))
         assert (tmp_path / "out" / "latex_document.tex").is_file()
 
-    def test_it_now_fails_inside_plotdevices_instead(self, presentation, tmp_path):
-        """Characterisation of what is left: B221, not B114."""
-        with pytest.raises(UnboundLocalError, match="plot_kwargs"):
+    def test_it_now_gets_into_plotdevices_trial_lookup(self, presentation, tmp_path):
+        """B114 is fixed: the call reaches plotDevices, whose trial-set lookup
+        then finds no "TS" in this fixture's datalayer."""
+        with pytest.raises(KeyError, match="TS"):
             presentation.generateLatexTable("{{ trialSets }}", str(tmp_path / "out"))
 
     def test_plotdevices_really_has_no_device_or_display_parameter(self):
