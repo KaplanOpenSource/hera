@@ -197,9 +197,9 @@ class TestListHermesSolverTemplates:
 @pytest.mark.unit
 class TestComponentFilteredTemplateLookups:
     """getHermesFlowTemplate / getHermesNodeTemplate / listHermesNodesTemplates
-    all filter on the datasource's ``component`` field -- and all pass the
-    filter as ``desc__component``, which the datalayer prefixes with ``desc``
-    a second time. See B137."""
+    all filter on the datasource's ``component`` field.  B137: they used to
+    pass the filter as ``desc__component``, which the datalayer prefixed
+    with ``desc`` a second time, so none of them ever matched."""
 
     def test_the_component_field_is_queryable_when_it_is_not_double_prefixed(
         self, tk, templateDatasources
@@ -210,50 +210,34 @@ class TestComponentFilteredTemplateLookups:
         assert len(tk.getDataSourceDocumentsList(component="Flow")) == 1
         assert len(tk.getDataSourceDocumentsList(component="Node")) == 1
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B137: the component filter is passed as desc__component=..., "
-               "but collection.getDocuments feeds every extra kwarg through "
-               "dictToMongoQuery(prefix='desc'), producing the query field "
-               "desc__desc__component -- which matches nothing. So "
-               "getHermesFlowTemplate always returns None. "
-               "See the consolidated findings issue.",
-    )
-    def test_a_registered_flow_template_should_be_retrievable(self, tk, templateDatasources):
+    def test_a_registered_flow_template_is_retrievable(self, tk, templateDatasources):
         assert tk.getHermesFlowTemplate("myFlowTemplate") == {"template": True}
 
-    def test_a_registered_flow_template_is_currently_never_found(self, tk, templateDatasources):
-        """Characterisation of B137."""
-        assert tk.getHermesFlowTemplate("myFlowTemplate") is None
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B137: getHermesNodeTemplate filters on desc__component, which "
-               "the datalayer re-prefixes into desc__desc__component and so "
-               "matches nothing. See the consolidated findings issue.",
-    )
-    def test_a_registered_node_template_should_be_retrievable(self, tk, templateDatasources):
+    def test_a_registered_node_template_is_retrievable(self, tk, templateDatasources):
         assert tk.getHermesNodeTemplate("myNodeTemplate") == {"template": True}
 
-    def test_a_registered_node_template_is_currently_never_found(self, tk, templateDatasources):
-        """Characterisation of B137."""
-        assert tk.getHermesNodeTemplate("myNodeTemplate") is None
+    def test_a_flow_template_is_not_served_as_a_node_template(
+        self, tk, templateDatasources
+    ):
+        """The component filter does filter, now that it reaches the query."""
+        assert tk.getHermesNodeTemplate("myFlowTemplate") is None
+        assert tk.getHermesFlowTemplate("myNodeTemplate") is None
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B137: listHermesNodesTemplates filters on desc__component, "
-               "re-prefixed into desc__desc__component, so the listing is "
-               "always empty. (Its body would then fail a second time: it "
-               "reads doc.desc['desc'], a nesting addDataSource never "
-               "creates.) See the consolidated findings issue.",
-    )
-    def test_a_registered_node_template_should_appear_in_the_node_listing(
+    def test_a_registered_node_template_appears_in_the_node_listing(
         self, tk, templateDatasources
     ):
         assert "myNodeTemplate" in list(tk.listHermesNodesTemplates().index)
 
-    def test_the_node_listing_is_currently_always_empty(self, tk, templateDatasources):
-        """Characterisation of B137."""
+    def test_the_node_listing_holds_only_node_components(
+        self, tk, templateDatasources
+    ):
+        """B137's second half: the body read doc.desc['desc'], a nesting
+        addDataSource never creates, which the empty listing hid."""
+        listing = tk.listHermesNodesTemplates()
+        assert list(listing.index) == ["myNodeTemplate"]
+        assert set(listing["component"]) == {"Node"}
+
+    def test_a_project_with_no_node_templates_gives_an_empty_frame(self, tk):
         assert tk.listHermesNodesTemplates().empty
 
 
@@ -536,26 +520,21 @@ class TestGetHermesWorkflowFromDB:
     def test_nothing_found_gives_none(self, tk, twoWorkflowsInGroup):
         assert tk.getHermesWorkflowFromDB(["flow_9999"]) is None
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B138: for a non-list identifier getWorkflowListDocumentFromDB "
-               "returns the mongoengine QuerySet from getWorkflowDocumentFromDB "
-               "unchanged, and getHemresWorkflowFromDocument then tests "
-               "isinstance(documentList, list) -- false for a QuerySet -- so it "
-               "wraps the whole QuerySet in a one-element list and reads .desc "
-               "off it: AttributeError. Only the list-input path works. "
-               "See the consolidated findings issue.",
-    )
-    def test_a_plain_workflow_name_should_also_yield_a_workflow(self, tk, twoWorkflowsInGroup):
+    def test_a_plain_workflow_name_also_yields_a_workflow(self, tk, twoWorkflowsInGroup):
+        """B138: the non-list branch used to hand back the mongoengine
+        QuerySet itself, which getHemresWorkflowFromDocument then wrapped in
+        a one-element list and read .desc off."""
         workflowObject = tk.getHermesWorkflowFromDB("flow_0001")
         assert workflowObject.parametersJSON["Parameters"] == {"alpha": 9.0}
 
-    def test_a_plain_workflow_name_currently_raises_an_attributeerror(
+    def test_a_plain_group_name_returns_every_workflow_of_the_group(
         self, tk, twoWorkflowsInGroup
     ):
-        """Characterisation of B138."""
-        with pytest.raises(AttributeError, match="QuerySet"):
-            tk.getHermesWorkflowFromDB("flow_0001")
+        workflowObjects = tk.getHermesWorkflowFromDB("flow", returnFirst=False)
+        assert sorted(w.name for w in workflowObjects) == ["flow_0000", "flow_0001"]
+
+    def test_a_plain_name_that_matches_nothing_gives_none(self, tk, twoWorkflowsInGroup):
+        assert tk.getHermesWorkflowFromDB("flow_9999") is None
 
 
 # ---------------------------------------------------------------------------
@@ -675,26 +654,13 @@ class TestCompareWorkflows:
         with pytest.raises(ValueError, match="No objects to concatenate"):
             tk.compareWorkflows(["noSuchWorkflow"])
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B140: every DB-backed comparison rebuilds the hermes objects "
-               "with workflow(..., resource=simulationDoc['resource']), but "
-               "hermes.workflow.__init__ takes Resource_path, not resource -- so "
-               "compareWorkflows, compareWorkflowInGroup and workflowTable all "
-               "raise TypeError: unexpected keyword argument 'resource' as soon "
-               "as a matching document exists. "
-               "See the consolidated findings issue.",
-    )
-    def test_a_group_name_should_compare_the_workflows_stored_in_that_group(
+    def test_a_group_name_compares_the_workflows_stored_in_that_group(
         self, tk, twoWorkflowsInGroup
     ):
+        """B140: the rebuild used to pass resource= where hermes.workflow
+        takes Resource_path."""
         table = tk.compareWorkflows("flow")
         assert sorted(table.columns) == ["flow_0000", "flow_0001"]
-
-    def test_a_group_name_currently_raises_a_typeerror(self, tk, twoWorkflowsInGroup):
-        """Characterisation of B140."""
-        with pytest.raises(TypeError, match="unexpected keyword argument 'resource'"):
-            tk.compareWorkflows("flow")
 
 
 @pytest.mark.unit
@@ -705,27 +671,13 @@ class TestCompareWorkflowInGroupAndWorkflowTable:
     def test_an_empty_group_gives_the_same_answer_through_workflowtable(self, tk):
         assert tk.workflowTable("noSuchGroup") is None
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B140: compareWorkflowInGroup rebuilds each stored workflow "
-               "with workflow(..., resource=...) while hermes.workflow.__init__ "
-               "expects Resource_path, so any non-empty group raises TypeError. "
-               "See the consolidated findings issue.",
-    )
-    def test_a_populated_group_should_be_comparable(self, tk, twoWorkflowsInGroup):
+    def test_a_populated_group_is_comparable(self, tk, twoWorkflowsInGroup):
         table = tk.compareWorkflowInGroup("flow")
         assert sorted(table.index) == ["flow_0000", "flow_0001"]
 
-    def test_a_populated_group_currently_raises_a_typeerror(self, tk, twoWorkflowsInGroup):
-        """Characterisation of B140."""
-        with pytest.raises(TypeError, match="unexpected keyword argument 'resource'"):
-            tk.compareWorkflowInGroup("flow")
-
-    def test_workflowtable_inherits_the_same_failure(self, tk, twoWorkflowsInGroup):
-        """Characterisation of B140: workflowTable is a thin delegation to
-        compareWorkflowInGroup, so it cannot behave any better."""
-        with pytest.raises(TypeError, match="unexpected keyword argument 'resource'"):
-            tk.workflowTable("flow")
+    def test_workflowtable_gives_the_same_table(self, tk, twoWorkflowsInGroup):
+        """workflowTable is a thin delegation to compareWorkflowInGroup."""
+        assert sorted(tk.workflowTable("flow").index) == ["flow_0000", "flow_0001"]
 
 
 # ---------------------------------------------------------------------------
@@ -846,23 +798,21 @@ class TestFindAvailableName:
         newID, name = tk.findAvailableName("brandNew")
         assert name == tk.getworkFlowName("brandNew", newID)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B141: findAvailableName draws from the counter "
-               "'simulations_<group>', while addWorkflowToGroup draws from the "
-               "counter '<group>'. The two never agree, so the 'available' name "
-               "it returns can be -- and for a group populated the normal way "
-               "always is -- the name of a workflow that already exists. "
-               "See the consolidated findings issue.",
-    )
-    def test_the_available_name_should_not_already_be_taken(self, tk, twoWorkflowsInGroup):
+    def test_the_available_name_is_not_already_taken(self, tk, twoWorkflowsInGroup):
+        """B141: it used to draw from the counter 'simulations_<group>' while
+        addWorkflowToGroup drew from '<group>', so the two never agreed."""
         _, name = tk.findAvailableName("flow")
         assert tk.getWorkflowDocumentByName(name) is None
 
-    def test_the_available_name_currently_collides_with_an_existing_workflow(
+    def test_it_continues_the_numbering_the_group_already_has(
         self, tk, twoWorkflowsInGroup
     ):
-        """Characterisation of B141."""
-        newID, name = tk.findAvailableName("flow")
-        assert (newID, name) == (0, "flow_0000")
-        assert tk.getWorkflowDocumentByName("flow_0000") is not None
+        assert tk.findAvailableName("flow") == (2, "flow_0002")
+
+    def test_the_next_added_workflow_takes_the_name_after_it(
+        self, tk, twoWorkflowsInGroup
+    ):
+        """The two share one counter, so reserving a name advances it."""
+        tk.findAvailableName("flow")
+        doc = tk.addWorkflowToGroup(_workflowJSON(7.0), "flow")
+        assert doc.desc["workflowName"] == "flow_0003"

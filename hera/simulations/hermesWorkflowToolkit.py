@@ -157,7 +157,7 @@ class hermesWorkflowToolkit(abstractToolkit):
         -------
 
         """
-        return self.getDataSourceData(hermesFlowName, desc__component="Flow")
+        return self.getDataSourceData(hermesFlowName, component="Flow")
 
     def listHermesNodesTemplates(self) -> pandas.DataFrame:
         """
@@ -173,8 +173,8 @@ class hermesWorkflowToolkit(abstractToolkit):
 
         """
         retList = []
-        for doc in self.getDataSourceDocumentsList(desc__component="Node"):
-            data = dict(doc.desc['desc'])
+        for doc in self.getDataSourceDocumentsList(component="Node"):
+            data = dict(doc.desc)
             data['nodeName'] = doc.desc['datasourceName']
             retList.append(data)
 
@@ -194,7 +194,7 @@ class hermesWorkflowToolkit(abstractToolkit):
         -------
 
         """
-        return self.getDataSourceData(hermesNodeName, desc__component="Node")
+        return self.getDataSourceData(hermesNodeName, component="Node")
 
     def getHemresWorkflowFromDocument(self, documentList, returnFirst=True)->hermes.workflow|list[hermes.workflow]:
         """
@@ -497,7 +497,9 @@ class hermesWorkflowToolkit(abstractToolkit):
             for simulationItem in nameOrWorkflowFileOrJSONOrResource:
                 docList += self.getWorkflowDocumentFromDB(simulationItem)
         else:
-            docList = self.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+            # list(...) because getWorkflowDocumentFromDB returns a mongoengine
+            # QuerySet, and every caller treats the result as a list.
+            docList = list(self.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource))
 
         return docList
 
@@ -571,7 +573,7 @@ class hermesWorkflowToolkit(abstractToolkit):
             The new ID,
             The name.
         """
-        newID = self.getCounterAndAdd(f"simulations_{simulationGroup}")
+        newID = self.getCounterAndAdd(simulationGroup)
         return newID, self.getworkFlowName(simulationGroup, newID)
 
     @staticmethod
@@ -608,7 +610,7 @@ class hermesWorkflowToolkit(abstractToolkit):
         """
         if "_" in workflow_name:
             split_name = workflow_name.split("_")
-            return "".join(split_name[:-1]), split_name[-1]
+            return "_".join(split_name[:-1]), split_name[-1]
         return workflow_name, None
 
     @staticmethod
@@ -778,6 +780,7 @@ class hermesWorkflowToolkit(abstractToolkit):
             # does not deduplicate distinct executions of the same workflow.
             pythonPath = os.path.join(self.FilesDirectory, f"{workflowName}")
             executionStr = buildLuigiExecutionCommand(os.path.basename(pythonPath),
+                                                      dispatch_id=dispatch_id,
                                                       scheduler=scheduler,
                                                       schedulerHost=schedulerHost,
                                                       schedulerPort=schedulerPort)
@@ -909,7 +912,7 @@ class hermesWorkflowToolkit(abstractToolkit):
                     logger.error(err)
             else:
                 groupworkflowList = [hermes.workflow(simulationDoc['desc']['workflow'], WD_path=self.FilesDirectory,
-                                              name=simulationDoc.desc[self.DESC_WORKFLOWNAME], resource=simulationDoc['resource']) for simulationDoc in
+                                              name=simulationDoc.desc[self.DESC_WORKFLOWNAME], Resource_path=simulationDoc['resource']) for simulationDoc in
                                      simulationList]
                 workflowList += groupworkflowList
 
@@ -940,7 +943,7 @@ class hermesWorkflowToolkit(abstractToolkit):
         """
         simulationList = self.getWorkflowDocumentsInGroup(groupName=workflowGroup)
         workflowList = [hermes.workflow(simulationDoc['desc']['workflow'], WD_path=self.FilesDirectory,
-                                 name=simulationDoc.desc[self.DESC_WORKFLOWNAME], resource=simulationDoc['resource']) for simulationDoc in simulationList]
+                                 name=simulationDoc.desc[self.DESC_WORKFLOWNAME], Resource_path=simulationDoc['resource']) for simulationDoc in simulationList]
         if len(workflowList) == 0:
             ret = None
         else:

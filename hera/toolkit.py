@@ -149,8 +149,7 @@ class abstractToolkit(Project):
 
         See ``Project.addCacheDocument`` for parameter details.
         """
-        if desc is None:
-            desc = {}
+        desc = {} if desc is None else dict(desc)
         if self.toolkitName is not None:
             desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName)
         return super().addCacheDocument(resource, dataFormat, type, desc)
@@ -161,8 +160,7 @@ class abstractToolkit(Project):
 
         See ``Project.addMeasurementsDocument`` for parameter details.
         """
-        if desc is None:
-            desc = {}
+        desc = {} if desc is None else dict(desc)
         if self.toolkitName is not None:
             desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName)
         return super().addMeasurementsDocument(resource, dataFormat, type, desc)
@@ -173,8 +171,7 @@ class abstractToolkit(Project):
 
         See ``Project.addSimulationsDocument`` for parameter details.
         """
-        if desc is None:
-            desc = {}
+        desc = {} if desc is None else dict(desc)
         if self.toolkitName is not None:
             desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName)
         return super().addSimulationsDocument(resource, dataFormat, type, desc, save=save)
@@ -202,7 +199,7 @@ class abstractToolkit(Project):
             toolkit=self.toolkitName,
             **filters,
         )
-        return [doc['desc']['datasourceName'] for doc in docList]
+        return list(dict.fromkeys(doc['desc']['datasourceName'] for doc in docList))
 
     def getDataSourceMap(self, **filters) -> List[Dict[str, Any]]:
         """
@@ -694,13 +691,14 @@ class ToolkitHome(abstractToolkit):
     # Internal helper for repository config (uses generic dataToolkit)
     # ------------------------------------------------------------------
 
-    def _get_data_toolkit(self, projectName: str = None):
+    def _get_data_toolkit(self):
         """
         Helper that returns a dataToolkit instance.
 
         We import dataToolkit lazily here to avoid circular imports
         between hera.toolkit and hera.utils.data.toolkit.
-        dataToolkit itself works on the DEFAULT project internally.
+        dataToolkit always works on the DEFAULT project, so callers that
+        need per-project data must scope it themselves.
         """
         from hera.utils.data.toolkit import dataToolkit
         return dataToolkit()
@@ -946,16 +944,18 @@ class ToolkitHome(abstractToolkit):
 
         # Register (idempotent if overwrite=True)
         self.registerToolkit(
-            toolkitclass=toolkit_cls,
-            datasource_name=toolkitName,
+            toolkit_name=toolkitName,
+            toolkit_path=mod.__file__,
             params=params,
             version=version,
             overwrite=True,
             repositoryName=repo_to_use,
         )
 
-        # Return an instance
-        return self.getToolkit(toolkitName=toolkitName)
+        # Return an instance of the class the hint resolved to. getToolkit is
+        # not used here because its dynamic branch resolves by the
+        # <name>.<name> package convention, not by classpath.
+        return toolkit_cls(projectName=projectName)
 
     # ------------------------------------------------------------------
     # Listing toolkits (static + dynamic)
@@ -1171,32 +1171,21 @@ class ToolkitHome(abstractToolkit):
         if not repositoryName:
             raise ValueError("setDefaultRepository: 'repositoryName' is required")
 
-        dt = self._get_data_toolkit(projectName=projectName)
+        dt = self._get_data_toolkit()
+        dt._allowWritingToDefaultProject = True
 
-        # delete previous config if exists (by type)
+        # delete previous config of that project if exists
         if overwrite:
-            old = dt.getMeasurementsDocuments(type="RepositoryConfig")
+            old = dt.getMeasurementsDocuments(type="RepositoryConfig", targetProjectName=projectName)
             for d in old:
                 d.delete()
 
-        desc = {"defaultRepository": repositoryName}
-
-        df_arg = {}
-        try:
-            from hera.datalayer import datatypes as _dt
-            dfmt = getattr(_dt, "JSON", None) or getattr(_dt, "json", None) or getattr(
-                _dt, "TEXT", None
-            )
-            if dfmt is not None:
-                df_arg["dataFormat"] = dfmt
-        except Exception:
-            pass
+        desc = {"targetProjectName": projectName, "defaultRepository": repositoryName}
 
         return dt.addMeasurementsDocument(
             type="RepositoryConfig",
             resource=".",
             desc=desc,
-            **df_arg,
         )
 
     def getDefaultRepository(self, *, projectName: str) -> str:
@@ -1206,8 +1195,8 @@ class ToolkitHome(abstractToolkit):
         if not projectName:
             raise ValueError("getDefaultRepository: 'projectName' is required")
 
-        dt = self._get_data_toolkit(projectName=projectName)
-        docs = dt.getMeasurementsDocuments(type="RepositoryConfig")
+        dt = self._get_data_toolkit()
+        docs = dt.getMeasurementsDocuments(type="RepositoryConfig", targetProjectName=projectName)
         if not docs:
             return ""
         return docs[0].desc.get("defaultRepository", "") or ""
@@ -1293,6 +1282,7 @@ class ToolkitHome(abstractToolkit):
         Read a JSON file and register all Toolkits it declares into the given project.
         (Uses registerToolkit -> datasource interface.)
         """
+        import inspect
         import json
         from pydoc import locate
 
@@ -1329,12 +1319,12 @@ class ToolkitHome(abstractToolkit):
                 raise ImportError(f"Cannot locate class by classpath: {classpath}")
 
             self.registerToolkit(
-                toolkitclass=tk_class,
-                repositoryName=repo_to_use,
-                datasource_name=name,
+                toolkit_name=name,
+                toolkit_path=inspect.getfile(tk_class),
                 params=params,
                 version=tuple(int(x) for x in version),
                 overwrite=overwrite,
+                repositoryName=repo_to_use,
             )
             registered.append(name)
 

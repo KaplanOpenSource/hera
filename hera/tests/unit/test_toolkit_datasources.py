@@ -224,13 +224,6 @@ class TestListingDataSources:
     def test_documents_helper_returns_empty_for_a_miss(self, toolkit):
         assert toolkit.getDataSourceDocuments("NOTHERE") == []
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B18: getDataSourceList is documented as returning 'data source "
-               "names' but yields one entry per document, so a source with four "
-               "versions appears four times. getDataSourceMap is the one "
-               "documented as covering versions. See the consolidated findings issue.",
-    )
     def test_list_reports_each_name_once(self, toolkit):
         for version in [(0, 0, 1), (0, 0, 2), (0, 0, 3)]:
             toolkit.addDataSource("SRC", f"/data/{version}.tif", "GeoTIFF", version=version)

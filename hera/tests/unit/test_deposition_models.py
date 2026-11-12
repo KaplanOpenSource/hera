@@ -1,9 +1,10 @@
 """Dry-deposition models.
 
-Three of this class's properties are tangled together by two copy-paste
-errors, and one of them corrupts the friction velocity that the deposition
-rate is computed from.  The tests below establish what each property does
-today and assert what it should do.
+Two copy-paste errors used to tangle three of this class's properties
+together, one of them corrupting the friction velocity the deposition rate
+is computed from (B46, B47).  Both are fixed; the tests below keep each
+property pinned to its own backing field, and go on to cover the rate
+dispatch.
 """
 import pytest
 
@@ -57,71 +58,43 @@ class TestConstruction:
 
 
 @pytest.mark.unit
-class TestTangledProperties:
-    r"""Two copy-paste errors leave three properties reading each other.
-
-        @heatFlux.setter
-        def heatFlux(self, newheatFlux):
-            self._ustar = newheatFlux     # writes ustar, not heatFlux
+class TestProperties:
+    r"""B46: the diameter setter used to be named `ustar`,
 
         @diameter.setter
-        def ustar(self, newdiameter):     # named ustar, so it REPLACES the
+        def ustar(self, newdiameter):     # named ustar, so it REPLACED the
             self._diameter = newdiameter  # ustar property defined above
+
+    which left diameter with no setter and made obj.ustar read _diameter.
     """
 
-    def test_ustar_currently_reads_the_diameter(self, model):
-        """Characterisation: the diameter setter's name replaced the property."""
-        model._ustar = 111
-        model._diameter = 999
-        assert model.ustar == 999
-
-    def test_diameter_has_no_setter_at_all(self, model):
-        """Because @diameter.setter produced a property named ustar instead."""
-        with pytest.raises(AttributeError):
-            model.diameter = 7
-
-    def test_assigning_heat_flux_currently_writes_ustar(self, model):
-        model._ustar = 111
-        model.heatFlux = 42
-        assert model._ustar == 42
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B46: the diameter setter is named `ustar`, so @diameter.setter "
-               "builds a new property under that name and replaces the real ustar "
-               "property. Reading obj.ustar returns _diameter. ustar is the "
-               "central parameter of the deposition calculation. "
-               "See the consolidated findings issue.",
-    )
     def test_ustar_reads_the_friction_velocity(self, model):
         model._ustar = 111
         model._diameter = 999
         assert model.ustar == 111
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B46: assigning ustar writes _diameter. "
-               "See the consolidated findings issue.",
-    )
+    def test_diameter_reads_the_diameter(self, model):
+        model._ustar = 111
+        model._diameter = 999
+        assert model.diameter == 999
+
     def test_assigning_ustar_writes_the_friction_velocity(self, model):
         model.ustar = 5
         assert model._ustar == 5
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B47: the heatFlux setter assigns self._ustar, so heatFlux never "
-               "changes and the friction velocity is silently overwritten. "
-               "See the consolidated findings issue.",
-    )
+    def test_assigning_diameter_writes_the_diameter(self, model):
+        model.diameter = 7
+        assert model._diameter == 7
+
+    def test_assigning_ustar_leaves_the_diameter_alone(self, model):
+        model._diameter = 999
+        model.ustar = 5
+        assert model._diameter == 999
+
     def test_assigning_heat_flux_writes_the_heat_flux(self, model):
         model.heatFlux = 42
         assert model._heatFlux == 42
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B47: and it leaves ustar alone. "
-               "See the consolidated findings issue.",
-    )
     def test_assigning_heat_flux_leaves_ustar_alone(self, model):
         model._ustar = 111
         model.heatFlux = 42
@@ -158,15 +131,10 @@ class TestDepositionRateDispatch:
 
     @staticmethod
     def _rateAt(project, effectiveUstar=0.3, **kwargs):
-        """Rate at a realistic friction velocity, working around B46.
-
-        obj.ustar reads _diameter, so the only way to feed the calculation a
-        plausible u* is to write that field.  Doing it here keeps the
-        sensitivity tests below about roughness and density rather than about
-        B46.
-        """
+        """Rate at a realistic friction velocity, so that the sensitivity
+        tests below are about roughness and density and nothing else."""
         built = depositionModels(projectName=project.projectName, **kwargs)
-        built._diameter = effectiveUstar
+        built._ustar = effectiveUstar
         return built.depositionRate()
 
     @pytest.mark.xfail(
@@ -203,22 +171,11 @@ class TestDepositionRateDispatch:
         assert smooth == rough == light == heavy
 
     def test_the_friction_velocity_path_itself_works(self, unit_project):
-        """Feeding u* through the backing field DOES change the rate.
-
-        Which localises B46: the calculation uses u* correctly, it is only
-        handed the wrong value by the broken property.
-        """
+        """The deposition velocity scales with u*."""
         calm = self._rateAt(unit_project, effectiveUstar=0.1)
         windy = self._rateAt(unit_project, effectiveUstar=2.0)
         assert windy > calm
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B46 in effect: depositionRate_Petroff reads `ustar = self.ustar`, "
-               "which returns the particle DIAMETER. Passing a real u* to the "
-               "constructor therefore changes nothing -- a length is substituted "
-               "for a velocity. See the consolidated findings issue.",
-    )
     def test_the_constructor_ustar_reaches_the_calculation(self, unit_project):
         calm = depositionModels(
             projectName=unit_project.projectName, ustar=0.1

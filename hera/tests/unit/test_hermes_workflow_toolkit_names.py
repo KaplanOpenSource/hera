@@ -1,9 +1,9 @@
 """hermesWorkflowToolkit: the pure name-manipulation static methods.
 
-B102: splitWorkflowName joins the base-name parts with "".join(...)
-instead of "_".join(...), so any base name containing its own underscore
-gets mangled -- not the inverse of getworkFlowName, which always
-reconstructs as f"{baseName}_{formatted_number}".
+B102, fixed: splitWorkflowName joined the base-name parts with
+"".join(...) instead of "_".join(...), so any base name containing its own
+underscore got mangled -- it was not the inverse of getworkFlowName, which
+always reconstructs as f"{baseName}_{formatted_number}".
 """
 import pytest
 
@@ -28,22 +28,15 @@ class TestSplitWorkflowName:
         name = hermesWorkflowToolkit.getworkFlowName("myflow", 7)
         assert hermesWorkflowToolkit.splitWorkflowName(name) == ("myflow", "0007")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B102: joins base-name parts with ''.join instead of "
-               "'_'.join, so a base name containing its own underscore "
-               "is not reconstructed correctly. "
-               "See the consolidated findings issue.",
-    )
-    def test_a_base_name_with_its_own_underscore_should_round_trip(self):
+    def test_a_base_name_with_its_own_underscore_round_trips(self):
         name = hermesWorkflowToolkit.getworkFlowName("my_flow", 7)
         assert hermesWorkflowToolkit.splitWorkflowName(name) == ("my_flow", "0007")
 
-    def test_a_base_name_with_its_own_underscore_currently_loses_it(self):
-        """Characterisation of B102."""
-        base, flow_id = hermesWorkflowToolkit.splitWorkflowName("my_flow_0007")
-        assert base == "myflow"
-        assert flow_id == "0007"
+    def test_every_underscore_of_the_base_name_is_kept(self):
+        """B102: the parts used to be joined with "" instead of "_"."""
+        assert hermesWorkflowToolkit.splitWorkflowName("a_b_c_0007") == (
+            "a_b_c", "0007",
+        )
 
 
 @pytest.mark.unit

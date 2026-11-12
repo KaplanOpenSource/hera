@@ -105,7 +105,7 @@ class WindProfileToolkit(toolkit.abstractToolkit):
     def getSpatialWind(self,minlat,minlon,maxlat,maxlon,IMS_TOKEN,dxdy=30,inputCRS=WSG84,landcover_DataSource=None):
         landcover_tk = toolkitHome.getToolkit(toolkitHome.GIS_LANDCOVER,projectName=self.projectName)
         xarray = landcover_tk.getLandCover(minlat,minlon,maxlat,maxlon, dxdy,inputCRS=inputCRS,dataSourceName=landcover_DataSource)
-        xarray = landcover_tk.getRoughnessFromLandcover(xarray,dxdy)       #For now is simple - only with dictionary
+        xarray = landcover_tk.getRoughnessFromLandcover(xarray,resolution=dxdy)       #For now is simple - only with dictionary
         with open(f'{os.path.dirname(os.path.abspath(__file__))}/wind_stations.json', 'r') as json_file:
             wind_stations = json.load(json_file)
         stations = [station for station in wind_stations]
@@ -115,7 +115,7 @@ class WindProfileToolkit(toolkit.abstractToolkit):
     def _getStationsInRegion(self,minlon,minlat,maxlon,maxlat,inputCRS):
         min_pp = convertCRS(points=[[minlon, minlat]], inputCRS=inputCRS, outputCRS=ITM)[0]
         max_pp = convertCRS(points=[[maxlon, maxlat]], inputCRS=inputCRS, outputCRS=ITM)[0]
-        with open('wind_stations.json', 'r') as json_file:
+        with open(f'{os.path.dirname(os.path.abspath(__file__))}/wind_stations.json', 'r') as json_file:
             wind_stations = json.load(json_file)
         stations_in_region = []
         for station in wind_stations:
@@ -143,24 +143,29 @@ class WindProfileToolkit(toolkit.abstractToolkit):
                 try:
                     url = f'https://api.ims.gov.il/v1/envista/stations/{station_id}/data/latest'
                     response = requests.request('GET', url, headers=headers)
-                    data = json.loads(response.text.encode('utf8'))
-                    datetime_str = data['data'][0]['datetime']
+                    payload = json.loads(response.text.encode('utf8'))
+                    datetime_str = payload['data'][0]['datetime']
+                    data = payload
                     break
                 except Exception:
                     trials += 1
                     # print(f"Trial {trials} for Station {station_id}")
             if data:
+                ws = None
+                wd = None
                 for channel in data['data'][0]['channels']:
                     if channel['name'] == 'WS':
                         ws = channel['value']
                     if channel['name'] == 'WD':
                         wd = channel['value']
 
-                if abs(ws) < 20 and abs(wd) <= 360:
+                if ws is not None and wd is not None and abs(ws) < 20 and abs(wd) <= 360:
                     stations_with_data.append([lat, lon, height, [ws, wd]])
                     stations_datetimes.append(datetime_str)
 
         datetime_objects = [datetime.fromisoformat(dt) for dt in stations_datetimes]
+        if not datetime_objects:
+            return []
         max_datetime = max(datetime_objects)
         threshold = timedelta(minutes=15)
         filtered_stations = [

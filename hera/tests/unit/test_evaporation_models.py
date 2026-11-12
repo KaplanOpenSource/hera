@@ -25,6 +25,9 @@ AGENT = {
     "physicalProperties": {
         "molecularWeight": "100 g/mol",
         "molecularVolume": 80.0,
+        # Antoine constants for water, 273-303 K, in the form the code
+        # evaluates: log10(P/bar) = A - B/(T - C).
+        "vaporPressure": {"A": 5.40221, "B": 1838.675, "C": 31.737, "units": "bar"},
     },
     "effects": {
         "inhalation": {
@@ -43,14 +46,13 @@ AGENT = {
 
 @pytest.fixture()
 def models():
-    """Built around the broken constructor (B50).
+    """Assembled field by field rather than through the constructor.
 
-    evaporationModels.__init__ calls RiskToolkit.getAgent(agent) on the CLASS,
-    but getAgent is an instance method (self, nameOrDesc, version=None), so the
-    agent lands in `self` and nameOrDesc is missing.  The class cannot be
-    constructed at all.  Every correlation in it is nonetheless a pure function
-    of the fields, so the object is assembled directly here and the constructor
-    is pinned separately in TestConstruction.
+    Every correlation in the class is a pure function of these fields, so
+    building the object directly keeps the tests off the database and off
+    the `molecularVolume` fallback (AGENT's value is a bare number, which
+    the constructor cannot convert, so it would silently switch the model
+    to EPA).  The constructor itself is covered in TestConstruction.
     """
     from hera.riskassessment.agents.Agents import Agent
 
@@ -82,7 +84,7 @@ class TestConstruction:
         assert models.molecularDiffusionModel == "EPA"
 
     def test_getagent_is_an_instance_method(self):
-        """Characterisation of B50's mechanism."""
+        """B50's mechanism: __init__ used to call it on the class."""
         import inspect
 
         from hera.riskassessment import RiskToolkit
@@ -91,17 +93,15 @@ class TestConstruction:
         assert parameters[0] == "self"
         assert "nameOrDesc" in parameters
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B50: __init__ calls RiskToolkit.getAgent(agent) on the class, but "
-               "getAgent is an instance method (self, nameOrDesc, version=None). "
-               "The agent is bound to self and nameOrDesc is missing, so every "
-               "construction raises TypeError -- the class cannot be instantiated "
-               "at all. Undetected until now because the module was unimportable "
-               "(B31). See the consolidated findings issue.",
-    )
-    def test_the_class_can_be_constructed(self):
-        assert evaporationModels(AGENT) is not None
+    def test_the_class_can_be_constructed(self, unit_project):
+        assert (
+            evaporationModels(AGENT, projectName=unit_project.projectName)
+            is not None
+        )
+
+    def test_the_descriptor_becomes_the_agent(self, unit_project):
+        built = evaporationModels(AGENT, projectName=unit_project.projectName)
+        assert built.agent.effectNames == ["inhalation"]
 
 
 @pytest.mark.unit
@@ -239,28 +239,29 @@ class TestDimensionlessGroups:
 
 @pytest.mark.unit
 class TestEvaporativeFlux:
-    """B51: flux cannot run at all.
+    """B51, fixed: flux could not run at all.
 
     flux_US strips the units off its temperature with
-    `temperature = tonumber(temperature, ureg.K)` and then hands the bare float
-    to agent.physicalproperties.vaporPressure, which starts with
+    `temperature = tonumber(temperature, ureg.K)` and then handed the bare
+    float to agent.physicalproperties.vaporPressure, which starts with
     `unumToPint(temperature).m_as(ureg.kelvin)`.  A plain number is
-    dimensionless, so that raises DimensionalityError for every input.
-    Undetected until now because the module was unimportable (B31) and its
-    constructor is broken (B50).
+    dimensionless, so that raised DimensionalityError for every input.
+    The kelvin the number is in is now re-attached at the call.
+    Undetected until then because the module was unimportable (B31) and its
+    constructor was broken (B50).
     """
 
     ARGS = dict(
         diameter=1 * ureg.m, velocity=2 * ureg.m / ureg.s, temperature=300 * ureg.K
     )
 
-    def test_the_temperature_is_stripped_before_being_passed_on(self):
-        """Characterisation of the mechanism, read off the source."""
+    def test_the_stripped_temperature_gets_its_kelvin_back(self):
+        """B51's mechanism, read off the source."""
         import inspect
 
         source = inspect.getsource(evaporationModels.flux_US)
         assert "temperature = tonumber(temperature, ureg.K)" in source
-        assert "vaporPressure(temperature)" in source
+        assert "vaporPressure(temperature*ureg.K)" in source
 
     def test_vapour_pressure_requires_units(self):
         import inspect
@@ -270,26 +271,12 @@ class TestEvaporativeFlux:
         source = inspect.getsource(PhysicalPropeties.vaporPressure)
         assert "unumToPint(temperature).m_as(ureg.kelvin)" in source
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B51: flux_US passes a unit-stripped temperature to vaporPressure, "
-               "which requires units, so every call raises DimensionalityError. "
-               "See the consolidated findings issue.",
-    )
     def test_it_is_positive(self, models):
         assert models.flux(**self.ARGS).magnitude > 0
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B51: same cause. See the consolidated findings issue.",
-    )
     def test_it_carries_flux_units(self, models):
         assert models.flux(**self.ARGS).check("[mass]/([length]**2*[time])")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B51: same cause. See the consolidated findings issue.",
-    )
     def test_a_faster_wind_evaporates_more(self, models):
         slow = models.flux(diameter=1 * ureg.m, velocity=1 * ureg.m / ureg.s,
                            temperature=300 * ureg.K)
@@ -297,10 +284,6 @@ class TestEvaporativeFlux:
                            temperature=300 * ureg.K)
         assert fast > slow
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B51: same cause. See the consolidated findings issue.",
-    )
     def test_the_output_units_are_configurable(self, models):
         assert models.flux(units=ureg.mg / (ureg.m**2 * ureg.s), **self.ARGS) is not None
 

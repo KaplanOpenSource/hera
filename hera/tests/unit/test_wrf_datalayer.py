@@ -6,8 +6,8 @@ a fractional index along the matching WRF dimension, so that xarray's
 ``interp`` can be pointed at it.  On a WRF grid the projected coordinate
 varies along *both* horizontal dimensions, so each index ``i`` of
 ``west_east`` covers a *range* of longitudes; the function scans for the
-index whose range brackets the request and then interpolates linearly
-between that column's mean and the next one's:
+index whose mean the request sits at or past and then interpolates
+linearly between that column's mean and the next one's:
 
     find_i(request) = i + (request - mean(XLONG_i)) / (mean(XLONG_i+1) - mean(XLONG_i))
 
@@ -18,27 +18,34 @@ must return is arithmetic rather than guesswork.
 
 Four defects surfaced:
 
-* B246: ``delta`` and ``request_delta`` are assigned only inside the
-  matching branch, and the ``return`` statement uses them unconditionally.
-  A request that falls between two columns' extents -- which on a tilted
-  grid is most of the domain, since each column covers only its own
-  spread -- exits the loop with the names unbound and raises
-  ``UnboundLocalError`` instead of an index or a clear error.
-* B247: the scan reads ``i + 1`` without a bounds check, so a request
-  inside the *last* column of the dimension raises ``IndexError: index 4
-  is out of bounds for axis 2 with size 4``.  The last row/column of every
-  WRF domain is therefore unaddressable.
-* B248: ``import geopandas`` is commented out at the top of the module
-  (line 6), but ``getPandas`` calls ``geopandas.GeoDataFrame`` and
+* B246, fixed: ``delta`` and ``request_delta`` were assigned only inside
+  the matching branch while the ``return`` statement used them
+  unconditionally, and the branch tested the request against one column's
+  *extent*.  A request falling between two columns' extents -- which on a
+  tilted grid is most of the domain, since each column covers only its own
+  spread -- exited the loop with the names unbound and raised
+  ``UnboundLocalError``.  The bracket is now taken between consecutive
+  column means, which do tile the axis, and a request outside the
+  dimension altogether raises a ``ValueError`` that says so.
+* B247, fixed: the scan read ``i + 1`` without a bounds check, so a
+  request inside the *last* column of the dimension raised ``IndexError:
+  index 4 is out of bounds for axis 2 with size 4`` -- the last row and
+  column of every WRF domain were unaddressable.  The spacing for the last
+  index is now read from the pair that ends at it.
+* B248, fixed: ``import geopandas`` was commented out at the top of the
+  module, but ``getPandas`` calls ``geopandas.GeoDataFrame`` and
   ``geopandas.points_from_xy`` in three places.  Passing an ITM
   coordinate -- the documented input, and the whole reason for the
-  ``> 360`` branch -- raises ``NameError: name 'geopandas' is not
+  ``> 360`` branch -- raised ``NameError: name 'geopandas' is not
   defined``.  The final GeoDataFrame construction at the end of the
-  function is dead for the same reason, so ``getPandas`` cannot return.
-* B249: ``import wrf`` is wrapped in ``try/except ImportError`` that
-  only ``print``s.  With python-wrf absent the name is never bound, so
-  ``getPandas`` dies with ``NameError: name 'wrf' is not defined``
-  half-way through instead of the ``ImportError`` the message promises.
+  function was dead for the same reason, so ``getPandas`` could not
+  return.  The import is back.
+* B249, fixed: ``import wrf`` was wrapped in a ``try/except ImportError``
+  that only ``print``ed.  With python-wrf absent the name was never bound,
+  so ``getPandas`` died with ``NameError: name 'wrf' is not defined``
+  half-way through instead of the ``ImportError`` the message promised.
+  The name is now bound to a stand-in whose every attribute raises that
+  ImportError, so the first ``wrf.`` reference says what is missing.
 
 Not covered: ``getPandas``'s successful path.  It needs python-wrf
 (``wrf.getvar``), which is not installed in this environment and is not
@@ -161,32 +168,24 @@ class TestFindIndex:
 class TestFindIndexBetweenColumns:
     """B246: see the module docstring."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B246: find_i assigns delta and request_delta only inside the "
-               "branch that matched, but returns `i + request_delta / delta` "
-               "unconditionally. A request that lands between two columns' "
-               "extents -- 34.07, between column 0's [34.00, 34.04] and column "
-               "1's [34.10, 34.14] -- falls off the end of the loop with both "
-               "names unbound and raises UnboundLocalError. On a tilted WRF grid "
-               "most of the domain is in such a gap. "
-               "See the consolidated findings issue.",
-    )
     def test_a_request_inside_the_domain_resolves_to_an_index(self, datalayer, grid):
         """34.07 lies well inside the domain's longitude span
         [34.00, 34.34], so it has to map to some index."""
         index = datalayer.find_i(34.07, grid, "west_east", "XLONG")
         assert 0.0 <= index <= NI - 1
 
-    def test_a_request_between_columns_currently_raises(self, datalayer, grid):
-        """Characterisation of B246."""
-        with pytest.raises(UnboundLocalError, match="request_delta"):
-            datalayer.find_i(34.07, grid, "west_east", "XLONG")
+    def test_a_request_between_columns_interpolates_from_the_lower_mean(
+        self, datalayer, grid
+    ):
+        """34.07 is half a column spacing past column 0's mean of 34.02."""
+        assert datalayer.find_i(34.07, grid, "west_east", "XLONG") == pytest.approx(
+            0.5
+        )
 
-    def test_a_request_outside_the_domain_raises_the_same_way(self, datalayer, grid):
-        """Characterisation of B246: an out-of-domain request is not
-        reported as such either, it takes the same unbound-name path."""
-        with pytest.raises(UnboundLocalError):
+    def test_a_request_outside_the_domain_is_reported_as_such(self, datalayer, grid):
+        """B246: an out-of-domain request used to take the same unbound-name
+        path as a gap; it now names the coordinate and the dimension."""
+        with pytest.raises(ValueError, match="outside the west_east dimension"):
             datalayer.find_i(-120.0, grid, "west_east", "XLONG")
 
     def test_the_columns_really_do_leave_gaps(self, grid):
@@ -201,23 +200,17 @@ class TestFindIndexBetweenColumns:
 class TestFindIndexAtTheLastColumn:
     """B247: see the module docstring."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B247: the scan evaluates isel(<dimension>=i+1) to form delta "
-               "without checking the bound, so a request inside the last column "
-               "of the dimension raises IndexError ('index 4 is out of bounds for "
-               "axis 2 with size 4'). The last row and column of every WRF domain "
-               "is unaddressable. See the consolidated findings issue.",
-    )
     def test_the_last_column_is_addressable(self, datalayer, grid):
         """34.32 is the mean of the last column, squarely inside the domain."""
         index = datalayer.find_i(34.32, grid, "west_east", "XLONG")
         assert index == pytest.approx(NI - 1)
 
-    def test_the_last_column_currently_raises_indexerror(self, datalayer, grid):
-        """Characterisation of B247."""
-        with pytest.raises(IndexError, match="out of bounds"):
-            datalayer.find_i(34.32, grid, "west_east", "XLONG")
+    def test_the_last_column_keeps_the_dimension_spacing(self, datalayer, grid):
+        """B247: the spacing for the last index comes from the pair before
+        it, so a request past its mean still advances by the same step."""
+        assert datalayer.find_i(34.33, grid, "west_east", "XLONG") == pytest.approx(
+            NI - 1 + 0.1
+        )
 
     def test_the_request_really_is_inside_the_last_column(self, grid):
         """The premise: 34.32 is bracketed by the last column's own extents."""
@@ -234,70 +227,47 @@ class TestGetPandasArgumentHandling:
 
 
 @pytest.mark.unit
-class TestGetPandasMissingGeopandas:
+class TestGetPandasGeopandas:
     """B248: see the module docstring."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B248: `#import geopandas` is commented out on line 6 of the "
-               "module, yet getPandas calls geopandas.GeoDataFrame and "
-               "geopandas.points_from_xy in three places -- the two ITM->WGS84 "
-               "conversions and the GeoDataFrame it builds before returning. An "
-               "ITM latitude, the documented input, raises NameError: name "
-               "'geopandas' is not defined. See the consolidated findings issue.",
-    )
-    def test_an_itm_coordinate_is_converted(self, datalayer, wrfFile):
-        """lat > 360 is the documented signal for an ITM coordinate."""
-        assert datalayer.getPandas(wrfFile, lat=650000.0) is not None
-
-    def test_an_itm_coordinate_currently_raises_a_nameerror(self, datalayer, wrfFile):
-        """Characterisation of B248."""
-        with pytest.raises(NameError, match="geopandas"):
+    def test_an_itm_coordinate_no_longer_fails_on_geopandas(self, datalayer, wrfFile):
+        """lat > 360 is the documented signal for an ITM coordinate.  The
+        conversion itself runs now; whatever stops the call further on, it is
+        no longer the missing name."""
+        with pytest.raises(Exception) as raised:
             datalayer.getPandas(wrfFile, lat=650000.0)
+        assert "geopandas" not in str(raised.value)
 
-    def test_the_module_never_binds_geopandas(self):
-        """Characterisation of B248's mechanism."""
-        import hera.simulations.WRF.wrfDatalayer as module
+    def test_the_module_binds_geopandas(self):
+        """B248's mechanism: the import was commented out.  Note the module
+        has to be fetched from sys.modules -- the package's __init__ rebinds
+        the name `wrfDatalayer` to the class."""
+        import sys
 
-        assert not hasattr(module, "geopandas")
+        module = sys.modules["hera.simulations.WRF.wrfDatalayer"]
+        assert hasattr(module, "geopandas")
 
 
 @pytest.mark.unit
-class TestGetPandasMissingWrf:
+class TestGetPandasWithoutWrf:
     """B249: see the module docstring."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B249: the module catches ImportError for `import wrf` and only "
-               "prints 'You must install python-wrf to use this package', leaving "
-               "the name unbound. getPandas then runs a long way in -- opening the "
-               "file, resolving the horizontal indices -- before dying on "
-               "`wrf.getvar(data, 'ter')` with NameError: name 'wrf' is not "
-               "defined, which names neither the package nor the remedy. "
-               "See the consolidated findings issue.",
-    )
     def test_a_missing_dependency_is_reported_as_such(self, datalayer, wrfFile):
+        if _wrfInstalled():
+            pytest.skip("python-wrf is installed here, so nothing is missing")
         with pytest.raises(ImportError, match="python-wrf"):
             datalayer.getPandas(wrfFile, lat=32.12)
 
-    def test_it_currently_raises_a_bare_nameerror(self, datalayer, wrfFile):
-        """Characterisation of B249, and proof the horizontal index lookup
-        upstream of it succeeded."""
-        pytest.importorskip(
-            "netCDF4", reason="getPandas opens the file with netCDF4.Dataset"
-        )
-        if _wrfInstalled():
-            pytest.skip("python-wrf is installed here, so the name is bound")
-        with pytest.raises(NameError, match="wrf"):
-            datalayer.getPandas(wrfFile, lat=32.12)
+    def test_the_module_binds_wrf_even_when_it_is_absent(self):
+        """B249's mechanism: the except branch only printed, leaving the
+        name unbound for every later reference."""
+        import sys
 
-    def test_the_module_never_binds_wrf(self):
-        """Characterisation of B249's mechanism."""
-        import hera.simulations.WRF.wrfDatalayer as module
-
-        if _wrfInstalled():
-            pytest.skip("python-wrf is installed here, so the name is bound")
-        assert not hasattr(module, "wrf")
+        module = sys.modules["hera.simulations.WRF.wrfDatalayer"]
+        assert hasattr(module, "wrf")
+        if not _wrfInstalled():
+            with pytest.raises(ImportError, match="python-wrf"):
+                module.wrf.getvar
 
     def test_the_documented_happy_path_needs_python_wrf(self, datalayer, wrfFile):
         """Skipped unless python-wrf is present; it is not installed here and

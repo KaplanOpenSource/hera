@@ -35,14 +35,14 @@ class depositionModels(object):
 
     @heatFlux.setter
     def heatFlux(self,newheatFlux):
-        self._ustar=newheatFlux
+        self._heatFlux=newheatFlux
 
     @property
     def diameter(self):
         return self._diameter
 
     @diameter.setter
-    def ustar(self,newdiameter):
+    def diameter(self,newdiameter):
         self._diameter=newdiameter
 
     @property
@@ -84,7 +84,13 @@ class depositionModels(object):
         self._ustar = ustar
         self._density = density
         self._temperature = tonumber(tounit(temperature, ureg.K), ureg.K)
-        self._surface = surface if type(surface)==dict else p.getCacheDocuments(type="surface",surface=surface)[0].asDict()["desc"]
+        if type(surface)==dict:
+            self._surface = surface
+        else:
+            surfaceDocumentList = p.getCacheDocuments(type="surface",surface=surface)
+            if len(surfaceDocumentList)==0:
+                raise ValueError(f"The surface {surface} is not registered in project {projectName}. Register it as a cache document of type 'surface', or pass the surface as a dict.")
+            self._surface = surfaceDocumentList[0].asDict()["desc"]
         self._diameter = tonumber(tounit(diameter, ureg.m), ureg.m)
         self._heatFlux = tonumber(tounit(heatFlux, ureg.W/ureg.m**2), ureg.W/ureg.m**2)
 
@@ -97,7 +103,7 @@ class depositionModels(object):
         muA = 0.0000189
         g = 9.81
         lpm = 0.000000067
-        kb = 1.83E-23
+        kb = 1.380649E-23  # Boltzmann constant, J/K (SI exact)
         kappa = 0.4
         rhoA = 1.2
         cpA = 1000
@@ -122,7 +128,7 @@ class depositionModels(object):
                 raise KeyError("PhiH is out of stability range!")
             return ret
 
-        dpm = 0.000001*dp
+        dpm = dp   # already in metres, see the constructor
         cu = 1+2*lpm/dpm*(1.257+0.4*numpy.exp(-1.1*dpm/(2*lpm))) # Cunningham slip factor
         Db = (cu*kb*Tpe)/(3*numpy.pi*muA*dpm)# Brownian diffusivity
         Sc = nuA/Db # Schmidt number
@@ -168,7 +174,7 @@ class depositionModels(object):
 
             eb = {"leaf": (xb * 0.664 * (nuA / Db) ** (-2 / 3) * (Uh * ObstacleSize / nuA) ** (-0.5)),
                   "needle":(xb * 0.467 * (nuA / Db) ** (-2 / 3) * (Uh * ObstacleSize / nuA) ** (-0.5))}
-            ein = {"leaf": (xin*kx/2*dp*0.000001/ObstacleSize*(2+numpy.log(4*ObstacleSize/(dp*0.000001))))}
+            ein = {"leaf": (xin*kx/2*dpm/ObstacleSize*(2+numpy.log(4*ObstacleSize/dpm)))}
             eim = {"leaf": (xim*kx/(1+0.47*ObstacleSize/(trel*Uh))**2)}
             eit = {"leaf": xit*0.14}
             Qveg = hcanop/lm*lai*(Uh/ustar*eb[obstacleShape]+ein[obstacleShape]+eim[obstacleShape]+eit[obstacleShape])

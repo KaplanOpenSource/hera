@@ -75,17 +75,11 @@ class TestAutomaticTagging:
 class TestCallerDictIsNotMutated:
     """The overrides must not write into the dict they were handed.
 
-    This is not style: because the tag is applied with setdefault, a mutated
-    dict carries the first toolkit's name into every later call, and the
-    document ends up attributed to the wrong toolkit.
+    This is not style: a mutated dict would carry the first toolkit's name
+    into every later call (setdefault will not overwrite it), and the second
+    document would end up attributed to the wrong toolkit.
     """
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B19: addCacheDocument/addMeasurementsDocument/addSimulationsDocument "
-               "call desc.setdefault on the caller's dict, injecting a 'toolkit' key "
-               "into it. See the consolidated findings issue.",
-    )
     def test_the_supplied_dict_is_left_alone(self, toolkit):
         metadata = {"station": "A"}
         toolkit.addCacheDocument(
@@ -93,23 +87,13 @@ class TestCallerDictIsNotMutated:
         )
         assert metadata == {"station": "A"}
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B19: a metadata dict reused across two toolkits keeps the first "
-               "toolkit's tag, because setdefault will not overwrite the key the "
-               "first call injected. The second toolkit's document is stored under "
-               "the wrong toolkit name. See the consolidated findings issue.",
-    )
     def test_reusing_a_metadata_dict_does_not_misattribute_documents(
         self, unit_toolkit_factory
     ):
-        """The scenario, verified: two toolkits, one shared metadata dict.
+        """The scenario: two toolkits, one shared metadata dict.
 
-            topography.addCacheDocument(desc=metadata)   # injects 'TopographyToolkit'
-            landcover.addCacheDocument(desc=metadata)    # keeps  'TopographyToolkit'
-
-        The landcover document is then invisible to landcover's own queries and
-        shows up in topography's instead.
+        Each call now tags a copy, so the landcover document is stored under
+        landcover's own name and stays visible to landcover's queries.
         """
         topography = unit_toolkit_factory(TOPOGRAPHY)
         landcover = unit_toolkit_factory(LANDCOVER)
