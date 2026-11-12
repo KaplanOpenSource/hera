@@ -323,7 +323,13 @@ def stochasticLagrangian_dispersionFlow_list(arguments):
 
     logger.info(f"Listing all dispersion flows in project {projectName}")
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-    res = tk.workflowCompare(workflowsType="stochasticLagrangianSolver")
+    # No class in hera defines workflowCompare. The sibling handler
+    # foam_solver_simulations_list, ~150 lines above, already shows the real
+    # pair: getWorkflowListOfSolvers to find the groups, then compareWorkflows
+    # on their names.
+    solverDocuments = tk.getWorkflowListOfSolvers("stochasticLagrangianSolver")
+    groupNames = sorted({document.desc['groupName'] for document in solverDocuments})
+    res = tk.compareWorkflows(groupNames)
 
     if arguments.format == "pandas":
         # Rendered into `output` like the other formats, so the common print
@@ -490,7 +496,11 @@ def stochasticLagrangian_source_makeEscapedMassFile(args):
         timesteps = numpy.arange(data.time.min(), data.time.max(), float(dt))
         times = pandas.DataFrame({"time": timesteps})
         data = data.set_index("time").join(times.set_index("time"), how="outer").reset_index()
-        data = data.interpolate()
+        # Interpolate only the numeric columns: the outer join leaves NaN in
+        # the label columns too (filterType, action), and pandas refuses to
+        # interpolate a str dtype.
+        numericColumns = data.select_dtypes(include="number").columns
+        data[numericColumns] = data[numericColumns].interpolate()
     newstr = "/*--------------------------------*- C++ -*----------------------------------*\n" \
              "| =========                 |                                                 |\n" \
              "| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |\n" \
@@ -499,9 +509,9 @@ def stochasticLagrangian_source_makeEscapedMassFile(args):
              "|    \\/     M anipulation  |                                                 |\n" \
              "\\*---------------------------------------------------------------------------*/\n" \
              "FoamFile\n{    version     2.0;\n    format      ascii;\n    class       scalarField;\n    object      kinematicCloudPositions;\n}\n" \
-             f"// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //\n\n{len(data)}\n(\n"
+             f"// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //\n\n{len(timesteps)}\n(\n"
     for time in timesteps:
-        newstr += f"{float(data.loc[data.time == time].diffMass)}\n"
+        newstr += f"{float(data.loc[data.time == time].diffMass.iloc[0])}\n"
     newstr += ")"
     print("saving in ", os.path.join(case, "constant", massFileName))
     f = open(os.path.join(case, "constant", massFileName), "w")

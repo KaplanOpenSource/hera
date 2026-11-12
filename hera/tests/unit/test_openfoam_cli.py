@@ -235,14 +235,16 @@ class _FakeOFToolkit(_Recorder):
 
 
 class _FakeOFToolkitWithWorkflowCompare(_FakeOFToolkit):
-    """Adds the `workflowCompare` method the real toolkit lacks (B174).
-
-    Needed to reach anything past CLI.py:330 in
-    stochasticLagrangian_dispersionFlow_list.
+    """The pair stochasticLagrangian_dispersionFlow_list drives since B174:
+    getWorkflowListOfSolvers to find the groups, compareWorkflows on them.
     """
 
-    def workflowCompare(self, workflowsType=None):
-        self._record("workflowCompare", workflowsType=workflowsType)
+    def getWorkflowListOfSolvers(self, solver):
+        self._record("getWorkflowListOfSolvers", solver=solver)
+        return [_FakeDocument(groupName="dispersionGroup")]
+
+    def compareWorkflows(self, groupNames, **kwargs):
+        self._record("compareWorkflows", groupNames=tuple(groupNames), **kwargs)
         return self.comparison
 
 
@@ -954,9 +956,10 @@ class TestDispersionFlowList:
         asked = install_toolkit(toolkit)
         stochasticLagrangian_dispersionFlow_list(_dispersionFlowListArgs())
         assert asked[0]["toolkitName"] == "OpenFOAM"
-        assert toolkit.call("workflowCompare")[2] == {
-            "workflowsType": "stochasticLagrangianSolver"
+        assert toolkit.call("getWorkflowListOfSolvers")[2] == {
+            "solver": "stochasticLagrangianSolver"
         }
+        assert toolkit.call("compareWorkflows")[2]["groupNames"] == ("dispersionGroup",)
 
     def test_the_json_format_prints_reindented_json(self, install_toolkit, capsys):
         toolkit = _FakeOFToolkitWithWorkflowCompare(comparison=_groupedComparison())
@@ -1042,35 +1045,23 @@ class TestDispersionFlowListPandasFormat:
 
 
 @pytest.mark.unit
-class TestDispersionFlowListCallsAMethodThatDoesNotExist:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B174: stochasticLagrangian_dispersionFlow_list calls "
-               "tk.workflowCompare(workflowsType=...).  No class in hera "
-               "defines workflowCompare -- the OpenFOAM toolkit's method is "
-               "compareWorkflows(Workflow, longFormat, transpose) -- so the "
-               "subcommand cannot get past that line.  See the consolidated "
-               "findings issue.",
-    )
-    def test_the_openfoam_toolkit_should_have_the_method_the_handler_calls(self):
-        from hera.simulations.openFoam.toolkit import OFToolkit
+class TestDispersionFlowListUsesTheRealCompareMethod:
+    """B174 fixed: the handler was calling workflowCompare, which no class in
+    hera defines.  It now uses the pair its sibling handler already uses --
+    getWorkflowListOfSolvers, then compareWorkflows on the group names."""
 
-        assert hasattr(OFToolkit, "workflowCompare")
-
-    def test_the_openfoam_toolkit_only_has_compareworkflows(self):
-        """Characterisation of B174."""
+    def test_the_openfoam_toolkit_has_compareworkflows_and_not_workflowcompare(self):
         from hera.simulations.openFoam.toolkit import OFToolkit
 
         assert not hasattr(OFToolkit, "workflowCompare")
         assert hasattr(OFToolkit, "compareWorkflows")
 
-    def test_a_toolkit_with_the_real_surface_raises_an_attribute_error(
+    def test_a_toolkit_with_the_real_surface_is_driven_without_error(
         self, install_toolkit
     ):
-        """Characterisation of B174."""
-        install_toolkit(_FakeOFToolkit(comparison=_groupedComparison()))
-        with pytest.raises(AttributeError, match="workflowCompare"):
-            stochasticLagrangian_dispersionFlow_list(_dispersionFlowListArgs())
+        toolkit = _FakeOFToolkit(comparison=_groupedComparison())
+        install_toolkit(toolkit)
+        stochasticLagrangian_dispersionFlow_list(_dispersionFlowListArgs())
 
 
 # ---------------------------------------------------------------------------
