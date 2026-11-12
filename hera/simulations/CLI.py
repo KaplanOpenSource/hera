@@ -458,7 +458,7 @@ def workflow_list(arguments):
                     print(f"\t\t + {node}")
 
         if parameters:
-            for nodeName,nodeData in wftk.getParamsFromDoc(doc).items():
+            for nodeName,nodeData in doc['parameters'].items():
 
                 print(f"\t\t + {nodeName}")
                 for pname,pvalue in nodeData.items():

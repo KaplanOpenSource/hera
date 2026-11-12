@@ -278,3 +278,10 @@ class TestChainedPolicy:
         data = policy.compute(_dataset(value=7.0))
         assert numpy.allclose(data["outdoor_0"].values, 7.0)
         assert data.attrs["0"] == {"type": "outdoor"}
+
+
+@pytest.mark.unit
+class TestAbstractActionHdfkeyIsUnimplemented:
+    def test_the_base_class_hdfkey_is_a_no_op_stub(self):
+        action = abstractAction(actionID=1, actiontype="x", policy=None)
+        assert action.hdfkey is None
