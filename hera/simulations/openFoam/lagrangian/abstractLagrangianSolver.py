@@ -933,7 +933,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
         # Step 4: Build the record loader for Lagrangian particle data.
         def loader(timeName):
-            readLagrangianRecord(
+            return readLagrangianRecord(
                 timeName, casePath=finalCasePath,
                 withVelocity=withVelocity, withReleaseTimes=withReleaseTimes,
                 cloudName=cloudName, withMass=withMass
@@ -1333,7 +1333,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
         # Step 4: Build Eulerian concentration loader.
         def loader(timeName):
-            readEulerianConcentration(
+            return readEulerianConcentration(
                 timeName, casePath=finalCasePath, cloudName=cloudName
             )
 

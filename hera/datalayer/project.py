@@ -277,7 +277,7 @@ class Project:
 
         if self.projectName != self.DEFAULTPROJECT:
             os.makedirs(os.path.abspath(filesDirectory),exist_ok=True)
-        self._FilesDirectory = str(filesDirectory)
+        self._FilesDirectory = filesDirectory
 
     @staticmethod
     def _batched_cursor(cur, export_chunk_size:int|None):# -> Generator[list, Any, None]:
@@ -960,7 +960,7 @@ class Project:
             return self.getSimulationsDocuments
         elif dockind.lower() in ["cache", "cached"]:
             return self.getCacheDocuments
-        elif dockind.lower() in ["simulation", "simulations"]:
+        elif dockind.lower() in ["measurement", "measurements"]:
             return self.getMeasurementsDocuments
         raise NotImplementedError(f"Retrieve function for {dockind} isn't implemented, choose one of 'simulations', 'cache', 'measurements")
 
