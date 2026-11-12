@@ -268,8 +268,9 @@ class TestGetLandCover:
 
 
 @pytest.mark.unit
-class TestGetLandCoverIgnoresTheRasterCRS:
-    """B185: getLandCover never reprojects, unlike getLandCoverAtPoint."""
+class TestGetLandCoverHandlesTheRasterCRS:
+    """B185: getLandCover projects the grid into the raster's CRS, like
+    getLandCoverAtPoint."""
 
     @staticmethod
     def _itm_raster(tmp_path):
@@ -284,26 +285,8 @@ class TestGetLandCoverIgnoresTheRasterCRS:
         array, path = self._itm_raster(tmp_path)
         assert lc.getLandCoverAtPoint(lon=35.001, lat=32.001, dataSourceName=path) == 13
 
-    def test_the_grid_lookup_raises_on_an_itm_raster(self, lc, tmp_path):
-        """Characterisation of B185."""
-        _, path = self._itm_raster(tmp_path)
-        with pytest.raises(IndexError, match="out of bounds for axis 0"):
-            lc.getLandCover(dxdy=100, dataSourceName=path, **_BOX)
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B185: getLandCover indexes the raster with the grid's WGS84 "
-               "degrees directly -- it reads src.transform but never compares "
-               "src.crs to the input CRS, unlike getLandCoverAtPoint, which "
-               "builds a pyproj Transformer when they differ. On a landcover "
-               "raster in any projected CRS (ITM is the project's own second "
-               "constant) degrees-as-metres produce indices in the thousands "
-               "and the call dies with IndexError; a raster whose projected "
-               "extent happened to contain small index values would instead "
-               "return silently wrong classes. See the consolidated findings "
-               "issue.",
-    )
     def test_the_grid_lookup_agrees_with_the_point_lookup_on_an_itm_raster(self, lc, tmp_path):
+        """B185."""
         _, path = self._itm_raster(tmp_path)
         grid = lc.getLandCover(dxdy=100, dataSourceName=path, **_BOX)
         assert set(np.unique(grid.landcover.values)) == {13}
@@ -498,7 +481,8 @@ class TestGetRoughness:
 
 @pytest.mark.unit
 class TestRoughnessDtypeFromTheHandler:
-    """B187: np.vectorize with no otypes infers the dtype from cell (0, 0)."""
+    """B187: np.vectorize now pins otypes=[float], so the dtype no longer
+    depends on which class happens to sit in cell (0, 0)."""
 
     # The five forest classes are the only ones _handleType1 spells as the
     # Python int 1 rather than a float; every other class is a float literal.
@@ -524,40 +508,27 @@ class TestRoughnessDtypeFromTheHandler:
         assert result.z0.dtype.kind == "f"
         np.testing.assert_allclose(result.z0.values, 0.12)
 
-    def test_a_leading_forest_cell_makes_the_whole_field_integer(self, lc, landcover_grid, typed_source):
-        """Characterisation of B187."""
+    def test_a_leading_forest_cell_keeps_the_field_floating_point(self, lc, landcover_grid, typed_source):
+        """B187."""
         grid = self._grid_starting_with(landcover_grid, self.FOREST, self.GRASSLAND)
         result = lc.getRoughnessFromLandcover(grid, dataSourceName=typed_source)
-        assert result.z0.dtype.kind == "i"
+        assert result.z0.dtype.kind == "f"
 
-    def test_the_truncation_zeroes_every_sub_metre_roughness(self, lc, landcover_grid, typed_source):
-        """Characterisation of B187: 0.12 m grassland becomes exactly 0."""
+    def test_sub_metre_roughness_survives_a_leading_forest_cell(self, lc, landcover_grid, typed_source):
+        """B187: grassland stays 0.12 m instead of truncating to 0."""
         grid = self._grid_starting_with(landcover_grid, self.FOREST, self.GRASSLAND)
         result = lc.getRoughnessFromLandcover(grid, dataSourceName=typed_source)
-        assert result.z0.values[0, 0] == 1
-        assert set(np.unique(result.z0.values[result.z0.values != 1])) == {0}
+        assert result.z0.values[0, 0] == pytest.approx(1.0)
+        others = result.z0.values.copy()
+        others[0, 0] = 0.12
+        np.testing.assert_allclose(others, 0.12)
 
-    def test_it_also_zeroes_urban_roughness(self, lc, landcover_grid, typed_source):
-        """Characterisation of B187: urban 0.8 m -> 0, i.e. a smooth city."""
+    def test_urban_roughness_survives_too(self, lc, landcover_grid, typed_source):
+        """B187: urban stays 0.8 m."""
         grid = self._grid_starting_with(landcover_grid, self.FOREST, 13)
         result = lc.getRoughnessFromLandcover(grid, dataSourceName=typed_source)
-        assert result.z0.values[0, 1] == 0
+        assert result.z0.values[0, 1] == pytest.approx(0.8)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B187: getRoughnessFromLandcover computes z0 with "
-               "np.vectorize(handlerFunction) and passes no otypes, so numpy "
-               "infers the output dtype by calling the handler on the FIRST "
-               "element only. _handleType1's table mixes types -- the five "
-               "forest classes (1..5) are the Python int 1, every other class "
-               "is a float -- so whenever grid cell (0, 0) is a forest, numpy "
-               "picks int64 and silently truncates every other cell: "
-               "grassland 0.12 -> 0, urban 0.8 -> 0, water 0.0001 -> 0. A "
-               "zero z0 makes the log wind profile singular. Fixing either the "
-               "table's literals (1 -> 1.0) or the vectorize call "
-               "(otypes=[float]) would do. See the consolidated findings "
-               "issue.",
-    )
     def test_a_leading_forest_cell_does_not_change_the_other_cells(self, lc, landcover_grid, typed_source):
         grid = self._grid_starting_with(landcover_grid, self.FOREST, self.GRASSLAND)
         result = lc.getRoughnessFromLandcover(grid, dataSourceName=typed_source)
@@ -778,7 +749,7 @@ class TestUrbanRoughnessFromLandCover:
 
 @pytest.mark.unit
 class TestUrbanRoughnessOutsideTheBuildings:
-    """B183: cells with no buildings get a land-cover CODE in z0."""
+    """B183: cells with no buildings get the land cover's roughness in z0."""
 
     @pytest.fixture()
     def setup(self, lc, tmp_path, monkeypatch):
@@ -806,29 +777,12 @@ class TestUrbanRoughnessOutsideTheBuildings:
         for field in ("dd", "lambdaF", "lambdaP", "hc", "ll"):
             np.testing.assert_allclose(result[field].values, 0.0)
 
-    def test_z0_is_the_land_cover_class_code(self, setup):
-        """Characterisation of B183."""
+    def test_z0_is_the_roughness_of_the_underlying_class(self, lc, setup):
+        """B183: the class code goes through the roughness handler."""
         grid, result = setup
-        np.testing.assert_allclose(result["z0"].values, grid.landcover.values.astype(float))
+        expected = np.vectorize(lc._handleType1, otypes=[float])(grid.landcover.values)
+        np.testing.assert_allclose(result["z0"].values, expected)
 
-    def test_z0_exceeds_any_physical_roughness_length(self, setup):
-        """Characterisation of B183: class codes run to 16, z0 does not."""
-        _, result = setup
-        assert result["z0"].values.max() > 3.0
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B183: in _getUrbanRoughnessFromLandCover, a grid cell that "
-               "intersects no lambda polygon is filled with "
-               "self.getLandCoverAtPoint(...) -- the IGBP CLASS CODE (0..16) -- "
-               "assigned straight into the z0 field, with no roughness lookup. "
-               "Every other assignment in the same block writes a real z0 "
-               "(lambdas['zz0']). So the rural cells of an urban domain get z0 "
-               "= 12 m or 14 m instead of 0.15 m, an error of two orders of "
-               "magnitude in the field that sets the wind profile. The fix is "
-               "presumably getRoughnessAtPoint / _handleType1 rather than "
-               "getLandCoverAtPoint. See the consolidated findings issue.",
-    )
     def test_z0_outside_the_buildings_is_a_roughness_length(self, setup):
         _, result = setup
         assert result["z0"].values.max() <= 3.0
@@ -999,8 +953,9 @@ class TestPresentationPlots:
 
 
 @pytest.mark.unit
-class TestPlotLambdasNormalisesOnZ0:
-    """B186: plotLambdas' colour bar is built from z0, not from `field`."""
+class TestPlotLambdasNormalisesOnTheField:
+    """B186: plotLambdas' colour bar is built from `field`, like its
+    rectangles -- not from z0, which a non-urban landcover does not carry."""
 
     @pytest.fixture()
     def grid_without_z0(self, landcover_grid):
@@ -1013,37 +968,26 @@ class TestPlotLambdasNormalisesOnZ0:
         rectangles = lc.presentation._getLambdasRectangles("lambdaF", grid_without_z0)
         assert len(rectangles) == grid_without_z0.size
 
-    def test_plotting_a_lambda_field_without_z0_raises(self, lc, grid_without_z0, axes_image):
-        """Characterisation of B186."""
-        _, image = axes_image
-        with pytest.raises(AttributeError, match="z0"):
-            lc.presentation.plotLambdas("lambdaF", image, grid_without_z0, figsize=(2, 2))
+    def test_plotting_a_lambda_field_without_z0_works(self, lc, grid_without_z0, axes_image):
+        """B186: the non-urban case, which carries no z0 at all."""
+        import matplotlib.pyplot as plt
 
-    def test_the_colour_bar_range_comes_from_z0_not_from_the_field(self, lc, landcover_grid, axes_image):
-        """Characterisation of B186: the bar's limits track z0's values."""
+        _, image = axes_image
+        lc.presentation.plotLambdas("lambdaF", image, grid_without_z0, figsize=(2, 2))
+        assert plt.gcf().axes[1].get_ylim() == pytest.approx((0.05, 0.4))
+
+    def test_the_colour_bar_ignores_z0_when_it_is_present(self, lc, landcover_grid, axes_image):
+        """B186: a z0 with a different range does not move the bar."""
         import matplotlib.pyplot as plt
 
         grid = landcover_grid.assign_coords(
-            lambdaF=(("i", "j"), np.full(landcover_grid.shape, 0.3)),
+            lambdaF=(("i", "j"), np.linspace(0.05, 0.4, landcover_grid.size).reshape(landcover_grid.shape)),
             z0=(("i", "j"), np.linspace(1.0, 5.0, landcover_grid.size).reshape(landcover_grid.shape)),
         )
         _, image = axes_image
         lc.presentation.plotLambdas("lambdaF", image, grid, figsize=(2, 2))
-        colorbar_axes = plt.gcf().axes[1]
-        assert colorbar_axes.get_ylim() == pytest.approx((1.0, 5.0))
+        assert plt.gcf().axes[1].get_ylim() == pytest.approx((0.05, 0.4))
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B186: presentation.plotLambdas colours its rectangles by "
-               "normalising landcover[field] (in _getLambdasRectangles) but "
-               "builds its colour bar by normalising landcover.z0, then labels "
-               "that bar f'{field} Value'. The legend therefore describes the "
-               "wrong variable whenever field and z0 have different ranges, and "
-               "the call fails outright with AttributeError on a landcover that "
-               "carries lambda fields but no z0 -- which is exactly the "
-               "non-urban case. Both norms should use landcover[field]. See the "
-               "consolidated findings issue.",
-    )
     def test_the_colour_bar_range_matches_the_field_being_plotted(self, lc, landcover_grid, axes_image):
         import matplotlib.pyplot as plt
 

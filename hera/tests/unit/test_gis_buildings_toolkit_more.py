@@ -29,9 +29,8 @@ the nesting the repository loader produces and the one
 ``VectorToolkit.cutRegionFromSource`` reads (see the fixture's own note).
 
 *STL.*  FreeCAD is not installed here.  The conftest stubs the name
-``FreeCAD`` with a MagicMock, but the module's import block is
-``import FreeCAD; import Part; import Mesh`` inside a single ``try`` -- so
-``Part`` and ``Mesh`` are never bound at all (see B238).  The tests therefore
+``FreeCAD`` with a MagicMock, but ``Part`` and ``Mesh`` are missing, so the
+module's import block clears all three to None (see B238).  The tests therefore
 install small *recording* stand-ins for all three over the module globals with
 ``monkeypatch``, and assert on what the production code asks FreeCAD to build:
 how many sketches, at what placement altitude, with what extrusion length, and
@@ -41,24 +40,26 @@ method owns; the mesh kernel itself is not under test.
 Bugs pinned (each has an xfail(strict) for the intended behaviour plus a
 passing characterisation of what actually happens)
 --------------------------------------------------------------------------
-* **B236** -- ``getBuildingHeightFromRasterTopographyToolkit`` takes a
-  ``topographyDataSource`` argument, documents it as "the name of the
-  datasource in the topography toolkit", and then never passes it to
-  ``getPointListElevation``.  The configured default datasource is used no
-  matter what the caller asks for, silently.
-* **B237** -- ``buildingsGeopandasToSTLRasterTopography`` lowers each building
-  by ``nonFlatTopographyShift`` and compensates by extruding
+* **B236** (fixed) -- ``getBuildingHeightFromRasterTopographyToolkit`` took a
+  ``topographyDataSource`` argument, documented it as "the name of the
+  datasource in the topography toolkit", and then never passed it to
+  ``getPointListElevation``, so the configured default was used no matter what
+  the caller asked for.
+* **B237** (fixed) -- ``buildingsGeopandasToSTLRasterTopography`` lowers each
+  building by ``nonFlatTopographyShift`` and compensates by extruding
   ``height + nonFlatTopographyShift``.  In the ``flatTerrain=True`` branch the
   building is *not* lowered (the placement is ``referenceTopography``
-  exactly), but the extrusion still adds the shift -- so every flat-terrain
-  building comes out ``nonFlatTopographyShift`` metres too tall.
-* **B238** -- the module's guarded import is
+  exactly), but the extrusion still added the shift -- so every flat-terrain
+  building came out ``nonFlatTopographyShift`` metres too tall.  The extrusion
+  length now follows the branch.
+* **B238** (fixed) -- the module's guarded import is
   ``try: import FreeCAD; import Part; import Mesh except ImportError``.  When
-  FreeCAD is importable but ``Part`` is not (the case here, and the case for
-  any partial install), ``FreeCAD`` is left bound while ``Part`` and ``Mesh``
-  are not -- so the ``try: FreeCAD.newDocument(...) except: raise ValueError``
-  guard that exists precisely to give a clear "install FreeCAD" message is
-  bypassed, and the method dies much later with a bare ``NameError``.
+  FreeCAD was importable but ``Part`` was not (the case here, and the case for
+  any partial install), ``FreeCAD`` was left bound while ``Part`` and ``Mesh``
+  were not -- so the ``try: FreeCAD.newDocument(...) except: raise ValueError``
+  guard that exists precisely to give a clear "install FreeCAD" message was
+  bypassed and the method died much later with a bare ``NameError``.  The
+  handler now clears all three names.
 
 Deliberately not tested, and why
 --------------------------------
@@ -239,34 +240,18 @@ class TestGetBuildingHeightFromRasterTopographyToolkit:
         expected = [_expected_elevation(lat, lon) for lat, lon in _CENTROIDS]
         assert list(result["elevation"]) == pytest.approx(expected, rel=1e-3)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B236: getBuildingHeightFromRasterTopographyToolkit accepts "
-               "topographyDataSource, documents it as the datasource to read "
-               "the topography from, and never forwards it to "
-               "getPointListElevation -- the configured default is always "
-               "used. See the consolidated findings issue.",
-    )
     def test_the_requested_topography_datasource_is_used(self, buildings_toolkit, ramp_srtm, flat_srtm):
+        """B236."""
         result = buildings_toolkit.getBuildingHeightFromRasterTopographyToolkit(
             _buildings(), topographyDataSource=flat_srtm
         )
         assert list(result["elevation"]) == pytest.approx([7.0] * len(_CENTROIDS))
 
-    def test_the_topography_datasource_argument_is_ignored(self, buildings_toolkit, ramp_srtm, flat_srtm):
-        """Characterisation of B236: the default wins even when another is named."""
-        result = buildings_toolkit.getBuildingHeightFromRasterTopographyToolkit(
-            _buildings(), topographyDataSource=flat_srtm
-        )
+    def test_omitting_it_falls_back_to_the_configured_default(self, buildings_toolkit, ramp_srtm, flat_srtm):
+        """B236: None still means 'use the topography toolkit's default'."""
+        result = buildings_toolkit.getBuildingHeightFromRasterTopographyToolkit(_buildings())
         expected = [_expected_elevation(lat, lon) for lat, lon in _CENTROIDS]
         assert list(result["elevation"]) == pytest.approx(expected)
-
-    def test_even_a_datasource_that_does_not_exist_is_ignored(self, buildings_toolkit, ramp_srtm):
-        """Characterisation of B236: no validation, no error, no effect."""
-        result = buildings_toolkit.getBuildingHeightFromRasterTopographyToolkit(
-            _buildings(), topographyDataSource="NO_SUCH_DATASOURCE"
-        )
-        assert "elevation" in result.columns
 
     def test_a_missing_default_datasource_is_reported(self, buildings_toolkit, raster_topography):
         """No defaultSRTM configured -> the topography toolkit complains."""
@@ -521,30 +506,16 @@ def _call(toolkit, data=None, **kwargs):
 
 @pytest.mark.unit
 class TestBuildingsGeopandasToSTLModuleImports:
-    def test_freecad_is_bound_but_part_and_mesh_are_not(self):
-        """Characterisation of B238: the guarded import binds only the first name."""
-        assert hasattr(buildings_module, "FreeCAD")
-        assert not hasattr(buildings_module, "Part")
-        assert not hasattr(buildings_module, "Mesh")
+    def test_a_partial_install_leaves_none_of_the_three_bound(self):
+        """B238: FreeCAD is no longer left bound on its own."""
+        assert buildings_module.FreeCAD is None
+        assert buildings_module.Part is None
+        assert buildings_module.Mesh is None
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B238: the module's 'try: import FreeCAD; import Part; import "
-               "Mesh' leaves FreeCAD bound when only Part/Mesh are missing, "
-               "so the method's own 'FreeCAD not found. Install before using "
-               "this function' guard never fires and the failure surfaces "
-               "later as a bare NameError on Part. See the consolidated "
-               "findings issue.",
-    )
     def test_a_partial_freecad_install_is_reported_as_such(self, buildings_toolkit):
+        """B238."""
         with pytest.raises(ValueError, match="FreeCAD not found"):
             _call(buildings_toolkit)
-
-    def test_a_partial_install_dies_on_an_unbound_name_instead(self, buildings_toolkit):
-        """Characterisation of B238."""
-        with pytest.raises(NameError) as excinfo:
-            _call(buildings_toolkit)
-        assert "Part" in str(excinfo.value)
 
 
 @pytest.mark.unit
@@ -661,16 +632,8 @@ class TestBuildingsGeopandasToSTLAltitudes:
         for sketch in freecad.documents[0].sketches:
             assert (sketch.Placement.vector.x, sketch.Placement.vector.y) == (0.0, 0.0)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B237: buildingsGeopandasToSTLRasterTopography extrudes "
-               "'wallsheight + nonFlatTopographyShift' unconditionally, but "
-               "the flatTerrain branch places the sketch at "
-               "referenceTopography without lowering it by the shift -- so "
-               "every flat-terrain building is nonFlatTopographyShift metres "
-               "too tall. See the consolidated findings issue.",
-    )
     def test_on_flat_terrain_the_building_top_is_reference_plus_height(self, buildings_toolkit, freecad):
+        """B237."""
         _call(buildings_toolkit, flatTerrain=True, referenceTopography=0.0,
               nonFlatTopographyShift=10)
         document = freecad.documents[0]
@@ -680,27 +643,17 @@ class TestBuildingsGeopandasToSTLAltitudes:
         ]
         assert tops == pytest.approx([10.0, 25.0])
 
-    def test_flat_terrain_buildings_are_too_tall_by_the_shift(self, buildings_toolkit, freecad):
-        """Characterisation of B237."""
-        _call(buildings_toolkit, flatTerrain=True, referenceTopography=0.0,
-              nonFlatTopographyShift=10)
-        document = freecad.documents[0]
-        tops = [
-            sketch.Placement.vector.z + pad.LengthFwd
-            for sketch, pad in zip(document.sketches, document.pads)
-        ]
-        assert tops == pytest.approx([10.0 + 10.0, 25.0 + 10.0])
-
-    def test_the_extrusion_length_ignores_the_terrain_flag_entirely(self, buildings_toolkit, freecad):
-        """Characterisation of B237: identical LengthFwd in both branches."""
+    def test_the_extrusion_length_follows_the_terrain_flag(self, buildings_toolkit, freecad):
+        """B237: only the lowered, real-terrain branch makes up the shift."""
         _call(buildings_toolkit, flatTerrain=True, nonFlatTopographyShift=10)
         flat = [pad.LengthFwd for pad in freecad.documents[0].pads]
         _call(buildings_toolkit, flatTerrain=False, nonFlatTopographyShift=10)
         real = [pad.LengthFwd for pad in freecad.documents[1].pads]
-        assert flat == real == pytest.approx([20.0, 35.0])
+        assert flat == pytest.approx([10.0, 25.0])
+        assert real == pytest.approx([20.0, 35.0])
 
     def test_a_zero_shift_makes_the_two_branches_agree(self, buildings_toolkit, freecad):
-        """Characterisation of B237: nonFlatTopographyShift=0 is the safe case."""
+        """B237: nonFlatTopographyShift=0 was the one case already correct."""
         _call(buildings_toolkit, flatTerrain=True, referenceTopography=0.0,
               nonFlatTopographyShift=0)
         document = freecad.documents[0]

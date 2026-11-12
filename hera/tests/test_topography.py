@@ -316,9 +316,9 @@ class TestGetElevationSTL:
 class TestCalculateStatistics:
     def test_basic(self, topo_toolkit):
         elevation = xr.Dataset({
-            "X": (["i", "j"], np.array([[100, 200], [100, 200]])),
-            "Y": (["i", "j"], np.array([[300, 300], [400, 400]])),
-            "Elevation": (["i", "j"], np.array([[10, 20], [30, 40]])),
+            "lon": (["i", "j"], np.array([[100, 200], [100, 200]])),
+            "lat": (["i", "j"], np.array([[300, 300], [400, 400]])),
+            "elevation": (["i", "j"], np.array([[10, 20], [30, 40]])),
         })
         stats = topo_toolkit._analysis.calculateStastics(elevation)
         assert stats["mean"] == 25.0

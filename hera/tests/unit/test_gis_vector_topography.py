@@ -26,32 +26,33 @@ passing characterisation of what actually happens)
   ``datasourceDocument`` / ``shape`` / ``inputCRS``).  Every call raises
   ``TypeError`` on the very first statement, so the method is unreachable in
   its entirety -- and with it ``regionToSTL``, whose only job is to call it.
-* **B228** -- ``geoPandasToSTL`` accepts a ``solidName`` argument and then
-  forwards the hard-coded literal ``"Topography"`` instead of it, so the
-  caller's solid name is silently discarded.
-* **B229** -- ``toDEM`` calls ``self.getDatasourceData`` (lower-case ``s``);
-  the toolkit only defines ``getDataSourceData``, so passing a datasource name
-  -- the documented first parameter -- raises ``AttributeError``.  The same
-  typo makes the geoJSON-string fallback on the next line dead code.
-* **B230** -- ``toDEM`` reads ``Nx`` and ``Ny`` from ``grid_x.shape[0]`` /
-  ``[1]``, then emits ``rasterized['height'][j, i]`` with ``i`` ranging over
-  ``Nx`` and ``j`` over ``Ny`` -- the two subscripts are swapped.  On a
-  non-square grid this raises ``IndexError``; on a square one it silently
-  transposes the DEM.
-* **B231** -- ``analysis.addHeight`` calls
+* **B228** (fixed) -- ``geoPandasToSTL`` accepted a ``solidName`` argument and
+  then forwarded the hard-coded literal ``"Topography"`` instead of it, so the
+  caller's solid name was silently discarded.
+* **B229** (fixed) -- ``toDEM`` called ``self.getDatasourceData`` (lower-case
+  ``s``); the toolkit only defines ``getDataSourceData``, so passing a
+  datasource name -- the documented first parameter -- raised
+  ``AttributeError``, which also made the geoJSON-string fallback on the next
+  line dead code.
+* **B230** (fixed) -- ``toDEM`` reads ``Nx`` and ``Ny`` from
+  ``grid_x.shape[0]`` / ``[1]`` but emitted ``rasterized['height'][j, i]`` with
+  ``i`` ranging over ``Nx`` and ``j`` over ``Ny`` -- the two subscripts were
+  swapped.  On a non-square grid that raised ``IndexError``; on a square one it
+  silently transposed the DEM.
+* **B231** (fixed) -- ``analysis.addHeight`` called
   ``coordinateHandler.regularizeTimeSteps(...)``, but the module-level
-  ``from hera.simulations.utils import coordinateHandler`` binds the *module*
+  ``from hera.simulations.utils import coordinateHandler`` bound the *module*
   of that name, not the class inside it (``hera/simulations/utils/__init__.py``
-  is empty).  Every call raises ``AttributeError``.
-* **B232** -- a second, independent defect further down ``addHeight``: the
-  save-mode comparisons read ``toolkit.TOOLKIT_SAVEMODE_FILEANDDB`` etc., but
-  the module-level ``toolkit`` name was rebound by
-  ``from hera.measurements.GIS.vector import toolkit`` to the *vector* toolkit
-  module, which defines no ``TOOLKIT_SAVEMODE_*`` constants.  The list
-  literal is built before the membership test, so *every* save mode fails --
-  ``TOOLKIT_SAVEMODE_NOSAVE`` included -- and ``addHeight`` can never return.
-  Reached in the test by neutralising B231 only (the coordinate handler), so
-  the second fault is pinned independently of the first.
+  is empty), so every call raised ``AttributeError``.
+* **B232** (fixed) -- a second, independent defect further down
+  ``addHeight``: the save-mode comparisons read
+  ``toolkit.TOOLKIT_SAVEMODE_FILEANDDB`` etc., but the module-level ``toolkit``
+  name was rebound by ``from hera.measurements.GIS.vector import toolkit`` to
+  the *vector* toolkit module, which defines no ``TOOLKIT_SAVEMODE_*``
+  constants.  The list literal is built before the membership test, so *every*
+  save mode failed -- ``TOOLKIT_SAVEMODE_NOSAVE`` included -- and ``addHeight``
+  could never return.  The constants are now imported from ``hera.toolkit`` by
+  name.
 
 Deliberately not tested, and why
 --------------------------------
@@ -208,21 +209,15 @@ class TestGeoPandasToSTL:
     def test_the_default_resolution_is_fifty_metres(self, topo, contours):
         assert topo.geoPandasToSTL(contours) == topo.geoPandasToSTL(contours, dxdy=50)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B228: geoPandasToSTL accepts solidName but forwards the literal "
-               "'Topography' to stlFactory.vectorToSTL, so the caller's solid "
-               "name is discarded. See the consolidated findings issue.",
-    )
     def test_the_requested_solid_name_reaches_the_stl(self, topo, contours):
+        """B228."""
         stl = topo.geoPandasToSTL(contours, dxdy=200, solidName="MyHill")
         assert stl.startswith("solid MyHill")
+        assert stl.rstrip().endswith("endsolid MyHill")
 
-    def test_the_solid_name_argument_is_ignored(self, topo, contours):
-        """Characterisation of B228."""
-        stl = topo.geoPandasToSTL(contours, dxdy=200, solidName="MyHill")
+    def test_the_default_solid_name_is_topography(self, topo, contours):
+        stl = topo.geoPandasToSTL(contours, dxdy=200)
         assert stl.startswith("solid Topography")
-        assert "MyHill" not in stl
 
 
 # --------------------------------------------------------------------------
@@ -306,16 +301,8 @@ class TestToDEMInputDispatch:
         with pytest.raises(ValueError, match="regionNameOrData must be"):
             topo.toDEM(Polygon([(0, 0), (1, 0), (1, 1)]))
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B229: toDEM resolves a datasource name through "
-               "self.getDatasourceData (lower-case 's'); the toolkit defines "
-               "only getDataSourceData, so the documented 'region name in the "
-               "DB' input raises AttributeError -- which also makes the "
-               "readGeoJSONString fallback on the next line dead code. "
-               "See the consolidated findings issue.",
-    )
     def test_a_registered_datasource_name_is_resolved(self, topo, contours, tmp_path):
+        """B229."""
         path = tmp_path / "contours.geojson"
         contours.to_file(str(path), driver="GeoJSON")
         topo.addDataSource("CONTOURS", str(path), "geopandas", version=(0, 0, 1), crs=ITM)
@@ -323,21 +310,14 @@ class TestToDEMInputDispatch:
 
         assert topo.toDEM("CONTOURS", dxdy=200).startswith(str(_X0))
 
-    def test_a_string_input_dies_on_the_misspelled_accessor(self, topo):
-        """Characterisation of B229."""
-        with pytest.raises(AttributeError) as excinfo:
-            topo.toDEM("CONTOURS")
-        assert "getDatasourceData" in str(excinfo.value)
-
-    def test_even_a_valid_geojson_string_never_reaches_the_fallback(self, topo, contours):
-        """Characterisation of B229: the fallback branch is dead code."""
-        with pytest.raises(AttributeError):
-            topo.toDEM(contours.to_json())
+    def test_a_geojson_string_reaches_the_fallback(self, topo, contours):
+        """B229: an unknown name falls through to readGeoJSONString."""
+        assert topo.toDEM(contours.to_json(), dxdy=200).startswith(str(_X0))
 
 
 @pytest.mark.unit
 class TestToDEMSquareGrid:
-    """A square grid is the only shape B230 does not turn into an IndexError."""
+    """The square case: Nx == Ny, so the body is unambiguously square."""
 
     @staticmethod
     def _square_contours():
@@ -353,7 +333,7 @@ class TestToDEMSquareGrid:
         assert (ymin, ymax) == (660000.0, 660200.0)
         assert shape.split() == ["2", "2"]
 
-    def test_the_body_has_one_line_per_column_of_the_grid(self, topo):
+    def test_the_body_has_one_line_per_easting_of_the_grid(self, topo):
         dem = topo.toDEM(self._square_contours(), dxdy=200)
         body = [line for line in dem.splitlines()[2:] if line.strip()]
         assert len(body) == 2
@@ -366,12 +346,15 @@ class TestToDEMSquareGrid:
         assert all(min(_HEIGHTS) <= v <= max(_HEIGHTS) for v in values)
 
     def test_the_heights_follow_the_linear_ramp_of_the_contours(self, topo):
-        """0.1 m of height per metre of northing, from the 100/120/140 lines."""
+        """0.1 m of height per metre of northing, from the 100/120/140 lines.
+
+        B230: one line per easting, the northings running along it, so each
+        line walks up the ramp 100 -> 120 and every line is identical.
+        """
         dem = topo.toDEM(self._square_contours(), dxdy=200)
         rows = [line.split() for line in dem.splitlines()[2:] if line.strip()]
-        # y = 660000 -> 100 m ; y = 660200 -> 120 m, for both x columns.
-        assert [float(v) for v in rows[0]] == pytest.approx([100.0, 100.0])
-        assert [float(v) for v in rows[1]] == pytest.approx([120.0, 120.0])
+        assert [float(v) for v in rows[0]] == pytest.approx([100.0, 120.0])
+        assert [float(v) for v in rows[1]] == pytest.approx([100.0, 120.0])
 
 
 @pytest.mark.unit
@@ -382,29 +365,19 @@ class TestToDEMNonSquareGrid:
         return _contours(x0=_X0, x1=_X0 + 800.0,
                          ys=(660000.0, 660200.0, 660400.0))
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B230: toDEM sets Nx=grid_x.shape[0] and Ny=grid_x.shape[1], "
-               "then indexes rasterized['height'][j, i] with i over Nx and j "
-               "over Ny -- the subscripts are swapped, so any grid whose two "
-               "dimensions differ raises IndexError (and a square one is "
-               "silently transposed). See the consolidated findings issue.",
-    )
     def test_a_grid_wider_than_it_is_tall_still_produces_a_dem(self, topo):
+        """B230."""
         dem = topo.toDEM(self._wide_contours(), dxdy=200)
         assert dem.splitlines()[1].split() == ["4", "2"]
 
-    def test_a_non_square_grid_raises_indexerror(self, topo):
-        """Characterisation of B230."""
-        with pytest.raises(IndexError):
-            topo.toDEM(self._wide_contours(), dxdy=200)
-
-    def test_the_header_is_correct_even_though_the_body_cannot_be_written(self, topo):
-        """Characterisation of B230: only the body loop is wrong."""
+    def test_the_body_matches_the_header_shape(self, topo):
+        """B230: Nx lines of Ny values, in the order the header announces."""
         rasterized = topo.stlFactory.rasterizeGeopandas(self._wide_contours(), dxdy=200)
         assert rasterized["x"].shape == (4, 2)
-        with pytest.raises(IndexError):
-            topo.toDEM(self._wide_contours(), dxdy=200)
+        body = [line.split() for line in topo.toDEM(self._wide_contours(), dxdy=200).splitlines()[2:]
+                if line.strip()]
+        assert len(body) == 4
+        assert all(len(line) == 2 for line in body)
 
 
 @pytest.mark.unit
@@ -455,16 +428,8 @@ def _ground(n=6):
 
 @pytest.mark.unit
 class TestAddHeight:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B231: addHeight calls coordinateHandler.regularizeTimeSteps, "
-               "but 'from hera.simulations.utils import coordinateHandler' "
-               "binds the submodule of that name -- the class lives inside it "
-               "and hera/simulations/utils/__init__.py is empty -- so the "
-               "call raises AttributeError on the module. See the "
-               "consolidated findings issue.",
-    )
     def test_it_adds_ground_and_height_columns_to_the_mesh(self, topo):
+        """B231."""
         result = topo._analysis.addHeight(
             _mesh(), _ground(), resolution=2,
             saveMode="nosave",
@@ -472,82 +437,25 @@ class TestAddHeight:
         assert "ground" in result.columns
         assert "height" in result.columns
 
-    def test_it_raises_attributeerror_on_the_coordinate_handler_module(self, topo):
-        """Characterisation of B231."""
-        with pytest.raises(AttributeError) as excinfo:
-            topo._analysis.addHeight(_mesh(), _ground(), resolution=2)
-        message = str(excinfo.value)
-        assert "regularizeTimeSteps" in message
-        assert "coordinateHandler" in message
-
-    def test_the_imported_name_is_a_module_not_the_class(self):
-        """Characterisation of B231: the root cause, stated directly."""
-        import types
-
-        assert isinstance(vector_topography_module.coordinateHandler, types.ModuleType)
-        assert not hasattr(vector_topography_module.coordinateHandler, "regularizeTimeSteps")
-        assert hasattr(vector_topography_module.coordinateHandler, "coordinateHandler")
+    def test_the_imported_name_is_the_class_not_the_module(self):
+        """B231: the root cause, stated directly."""
+        assert isinstance(vector_topography_module.coordinateHandler, type)
+        assert hasattr(vector_topography_module.coordinateHandler, "regularizeTimeSteps")
 
 
 @pytest.mark.unit
-class TestAddHeightSaveModeConstants:
-    """B232, reached by neutralising B231 and nothing else."""
+class TestAddHeightSaveModes:
+    """B232: every save mode gets past the constant lookup."""
 
-    @staticmethod
-    def _working_handler(monkeypatch):
-        """Bind the *class* the module meant to import, leaving B232 exposed."""
-        from hera.simulations.utils.coordinateHandler import coordinateHandler
-
-        monkeypatch.setattr(
-            vector_topography_module, "coordinateHandler", coordinateHandler()
-        )
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B232: addHeight compares saveMode against "
-               "toolkit.TOOLKIT_SAVEMODE_FILEANDDB and friends, but the "
-               "module-level name 'toolkit' was rebound by 'from "
-               "hera.measurements.GIS.vector import toolkit' to the vector "
-               "toolkit module, which defines no TOOLKIT_SAVEMODE_* "
-               "constants -- so the save block raises AttributeError. "
-               "See the consolidated findings issue.",
-    )
-    def test_the_default_save_mode_writes_the_cell_data_parquet(self, topo, monkeypatch):
-        self._working_handler(monkeypatch)
+    def test_the_default_save_mode_writes_the_cell_data_parquet(self, topo):
+        """B232."""
         topo._analysis.addHeight(_mesh(), _ground(), resolution=2)
         assert os.path.exists(os.path.join(topo.filesDirectory, "cellData.parquet"))
 
-    def test_the_save_block_raises_attributeerror_on_the_rebound_module(self, topo, monkeypatch):
-        """Characterisation of B232."""
-        self._working_handler(monkeypatch)
-        with pytest.raises(AttributeError) as excinfo:
-            topo._analysis.addHeight(_mesh(), _ground(), resolution=2)
-        assert "TOOLKIT_SAVEMODE_FILEANDDB" in str(excinfo.value)
-
-    def test_the_rebound_toolkit_module_has_none_of_the_save_constants(self):
-        """Characterisation of B232: the root cause, stated directly."""
-        module = vector_topography_module.toolkit
-        assert module.__name__ == "hera.measurements.GIS.vector.toolkit"
-        for name in (
-            "TOOLKIT_SAVEMODE_ONLYFILE",
-            "TOOLKIT_SAVEMODE_ONLYFILE_REPLACE",
-            "TOOLKIT_SAVEMODE_FILEANDDB",
-            "TOOLKIT_SAVEMODE_FILEANDDB_REPLACE",
-        ):
-            assert not hasattr(module, name)
-
-    def test_the_columns_are_computed_before_the_save_block_fails(self, topo, monkeypatch):
-        """Characterisation of B232: the arithmetic itself is sound.
-
-        addHeight mutates the frame it is given, so the ground/height columns
-        it computed survive the AttributeError and can be inspected.  Ground
-        rises 1 m per metre of x, so at x=0 the ground is 0 and at x=10 it is
-        10; height is clamped at 0 from below.
-        """
-        self._working_handler(monkeypatch)
+    def test_the_computed_ground_and_height_are_sound(self, topo):
+        """B232: ground rises 1 m per metre of x; height is clamped at 0."""
         mesh = _mesh()
-        with pytest.raises(AttributeError):
-            topo._analysis.addHeight(mesh, _ground(), resolution=2)
+        topo._analysis.addHeight(mesh, _ground(), resolution=2, saveMode="nosave")
 
         assert list(mesh["ground"]) == pytest.approx([0.0, 0.0, 10.0, 10.0], abs=1e-6)
         assert list(mesh["height"]) == pytest.approx([5.0, 15.0, 0.0, 5.0], abs=1e-6)
@@ -556,38 +464,27 @@ class TestAddHeightSaveModeConstants:
         "saveMode",
         ["nosave", "onlyFile", "onlyFileReplace", "fileAndDB", "anything at all"],
     )
-    def test_no_save_mode_escapes_the_broken_constant_lookup(self, topo, monkeypatch, saveMode):
-        """Characterisation of B232: even NOSAVE fails.
+    def test_every_save_mode_gets_past_the_constant_lookup(self, topo, saveMode):
+        """B232: the ``if saveMode in [...]`` list literal used to raise for
+        every mode, NOSAVE included, so addHeight could never return."""
+        result = topo._analysis.addHeight(
+            _mesh(), _ground(), resolution=2, saveMode=saveMode
+        )
+        assert "height" in result.columns
 
-        The fault is in the ``if saveMode in [...]`` *list literal*, which is
-        built before the membership test runs, so no value of ``saveMode`` --
-        not even one meant to skip saving -- can get past it.  addHeight can
-        therefore never return at all.
-        """
-        self._working_handler(monkeypatch)
-        with pytest.raises(AttributeError, match="TOOLKIT_SAVEMODE_FILEANDDB"):
-            topo._analysis.addHeight(
-                _mesh(), _ground(), resolution=2, saveMode=saveMode
-            )
-
-    def test_the_height_is_clamped_at_zero_below_the_ground(self, topo, monkeypatch):
-        """Characterisation of B232: cells below ground get height 0, not a negative.
+    def test_the_height_is_clamped_at_zero_below_the_ground(self, topo):
+        """B232: cells below ground get height 0, not a negative.
 
         Ground rises 1 m per metre of x, so at x=10 the ground is 10 m and a
-        cell at z=1 sits 9 m below it.  The clamp runs before the save block,
-        so the mutated frame still shows the result.
+        cell at z=1 sits 9 m below it.
         """
-        self._working_handler(monkeypatch)
         mesh = pandas.DataFrame({"x": [10.0], "y": [0.0], "z": [1.0]})
-        with pytest.raises(AttributeError):
-            topo._analysis.addHeight(mesh, _ground(), resolution=2)
+        topo._analysis.addHeight(mesh, _ground(), resolution=2, saveMode="nosave")
         assert mesh["ground"].iloc[0] == pytest.approx(10.0, abs=1e-6)
         assert mesh["height"].iloc[0] == 0.0
 
-    def test_the_computed_columns_are_appended_in_order(self, topo, monkeypatch):
-        """Characterisation of B232: 'ground' then 'height', after the input columns."""
-        self._working_handler(monkeypatch)
+    def test_the_computed_columns_are_appended_in_order(self, topo):
+        """B232: 'ground' then 'height', after the input columns."""
         mesh = _mesh()
-        with pytest.raises(AttributeError):
-            topo._analysis.addHeight(mesh, _ground(), resolution=2)
+        topo._analysis.addHeight(mesh, _ground(), resolution=2, saveMode="nosave")
         assert list(mesh.columns) == ["x", "y", "z", "ground", "height"]

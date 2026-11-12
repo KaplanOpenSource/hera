@@ -137,7 +137,9 @@ class analysis():
             raise ValueError(err)
 
         desc = {
-                 "bounds" : data.total_bounds,
+                 # a plain list, not the numpy array: an array-valued descriptor
+                 # field makes the cache lookup below raise on its truth value.
+                 "bounds" : list(data.total_bounds),
                  BUILDINGS_LAMBDA_WIND_DIRECTION: windMeteorologicalDirection,
                  BUILDINGS_LAMBDA_RESOLUTION : resolution,
                  "crs":data.crs.to_epsg()
@@ -566,17 +568,15 @@ class Blocks(object):
     def getHc(self):
         """Return the average building height for this block.
 
+        It is set by :meth:`_LambdaP`, which must be called first; until then
+        it is 0.
+
         Returns
         -------
-        float or None
-            Average building height, or None if lambda_P is not set.
+        float
+            Average building height.
         """
-        if self._LambdaP is not None:
-
-            return self._hc
-        else:
-
-            return None
+        return self._hc
 
     def Lambda(self, buildings, windDirection):
         """

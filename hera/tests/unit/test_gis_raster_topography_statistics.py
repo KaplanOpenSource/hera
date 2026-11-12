@@ -9,28 +9,26 @@ Covered here
 
 How the inputs were produced
 ----------------------------
-``calculateStastics`` indexes its argument with ``['X']``, ``['Y']`` and
-``['Elevation']`` and then uses ``.values``, so anything supporting those --
-a pandas DataFrame or an xarray Dataset -- fits.  The tabular form is what the
-repo's own test factory produces (``hera/tests/unit/_factories.py``
-``elevation_grid``, whose columns are exactly ``X``/``Y``/``Elevation``), so
-that shape is used here.  ``_grid`` below lays out a 3x2 grid whose elevation
+``calculateStastics`` indexes its argument with ``['lon']``, ``['lat']`` and
+``['elevation']`` -- the names ``TopographyToolkit.getElevation`` emits -- and
+then uses ``.values``, so anything supporting those -- a pandas DataFrame or an
+xarray Dataset -- fits.  The tabular form is used here.
+``_grid`` below lays out a 3x2 grid whose elevation
 is ``100 + 50*i + 10*j``: the minimum and maximum sit at known, *distinct*
-corners so a swapped argmin/argmax or a swapped X/Y readout would show, and
+corners so a swapped argmin/argmax or a swapped lon/lat readout would show, and
 mean and standard deviation are computed independently with ``statistics``
 from the same six numbers rather than with numpy.
 
-Bug pinned (xfail(strict) for the intended behaviour plus a passing
-characterisation of what actually happens)
---------------------------------------------------------------------------
-* **B241** -- ``calculateStastics`` and the toolkit's only elevation producer
-  disagree on their column names.  ``TopographyToolkit.getElevation`` returns
-  an ``xarray.Dataset`` carrying ``lat``, ``lon`` and an ``elevation``
-  coordinate; ``calculateStastics`` reads ``X``, ``Y`` and ``Elevation``.
-  Feeding the documented producer's output to the documented consumer raises
-  ``KeyError: 'X'``.  The docstring's own worked example cannot be followed
-  either: it calls ``tk.getDomainElevation(...)``, a method that does not
-  exist anywhere in the codebase.
+Bug covered
+-----------
+* **B241** (fixed) -- ``calculateStastics`` and the toolkit's only elevation
+  producer disagreed on their column names.  ``TopographyToolkit.getElevation``
+  returns an ``xarray.Dataset`` carrying ``lat``, ``lon`` and an ``elevation``
+  coordinate; ``calculateStastics`` read ``X``, ``Y`` and ``Elevation``, so
+  feeding the documented producer's output to the documented consumer raised
+  ``KeyError: 'X'``.  Its worked example named ``tk.getDomainElevation(...)``,
+  a method that does not exist anywhere in the codebase.  The consumer now
+  reads the producer's names and the example calls ``getElevation``.
 
 Deliberately not tested, and why
 --------------------------------
@@ -51,7 +49,7 @@ from hera import toolkitHome
 from hera.measurements.GIS.raster.topography import TopographyToolkit, topographyAnalysis
 from hera.measurements.GIS.utils import WSG84
 
-# 3 columns of X, 2 rows of Y; elevation = 100 + 50*i + 10*j.
+# 3 columns of lon, 2 rows of lat; elevation = 100 + 50*i + 10*j.
 _XS = (1.0, 2.0, 3.0)
 _YS = (10.0, 20.0)
 _ELEVATIONS = [100.0 + 50.0 * i + 10.0 * j
@@ -63,7 +61,7 @@ def _grid():
     for j, y in enumerate(_YS):
         for i, x in enumerate(_XS):
             rows.append((x, y, 100.0 + 50.0 * i + 10.0 * j))
-    return pandas.DataFrame(rows, columns=["X", "Y", "Elevation"])
+    return pandas.DataFrame(rows, columns=["lon", "lat", "elevation"])
 
 
 @pytest.fixture()
@@ -94,10 +92,10 @@ class TestAnalysisLayerWiring:
 
 @pytest.mark.unit
 class TestCalculateStatisticsBounds:
-    def test_the_x_bounds_come_from_the_x_column(self, stats):
+    def test_the_x_bounds_come_from_the_lon_column(self, stats):
         assert (stats["xmin"], stats["xmax"]) == (min(_XS), max(_XS))
 
-    def test_the_y_bounds_come_from_the_y_column(self, stats):
+    def test_the_y_bounds_come_from_the_lat_column(self, stats):
         assert (stats["ymin"], stats["ymax"]) == (min(_YS), max(_YS))
 
     def test_x_and_y_are_not_swapped(self, stats):
@@ -110,7 +108,7 @@ class TestCalculateStatisticsBounds:
         assert stats["size"] == pytest.approx(2.0 * 10.0)
 
     def test_a_single_point_domain_has_zero_size(self, topo):
-        one = pandas.DataFrame([(5.0, 6.0, 7.0)], columns=["X", "Y", "Elevation"])
+        one = pandas.DataFrame([(5.0, 6.0, 7.0)], columns=["lon", "lat", "elevation"])
         assert topo.analysis.calculateStastics(one)["size"] == 0.0
 
 
@@ -127,7 +125,7 @@ class TestCalculateStatisticsMoments:
         assert stats["std"] != pytest.approx(statistics.stdev(_ELEVATIONS))
 
     def test_a_flat_domain_has_zero_standard_deviation(self, topo):
-        flat = _grid().assign(Elevation=42.0)
+        flat = _grid().assign(elevation=42.0)
         result = topo.analysis.calculateStastics(flat)
         assert result["std"] == 0.0
         assert result["mean"] == 42.0
@@ -141,15 +139,15 @@ class TestCalculateStatisticsExtrema:
     def test_the_minimum_is_the_smallest_elevation(self, stats):
         assert stats["domainmin"] == min(_ELEVATIONS)
 
-    def test_the_maximum_is_located_at_its_own_x_and_y(self, stats):
-        """100 + 50*i + 10*j peaks at the last x and the last y."""
+    def test_the_maximum_is_located_at_its_own_lon_and_lat(self, stats):
+        """100 + 50*i + 10*j peaks at the last lon and the last lat."""
         assert stats["domainmaxlocation"] == (max(_XS), max(_YS))
 
-    def test_the_minimum_is_located_at_its_own_x_and_y(self, stats):
+    def test_the_minimum_is_located_at_its_own_lon_and_lat(self, stats):
         assert stats["domainminlocation"] == (min(_XS), min(_YS))
 
     def test_the_two_locations_are_reported_as_x_y_pairs_not_y_x(self, stats):
-        """X spans 1..3 and Y spans 10..20, so a swap is unambiguous."""
+        """lon spans 1..3 and lat spans 10..20, so a swap is unambiguous."""
         for key in ("domainmaxlocation", "domainminlocation"):
             x, y = stats[key]
             assert min(_XS) <= x <= max(_XS)
@@ -158,10 +156,10 @@ class TestCalculateStatisticsExtrema:
     def test_the_extrema_locations_follow_the_data_when_it_is_reshuffled(self, topo):
         """A hand-placed peak must be found where it was put."""
         grid = _grid()
-        grid.loc[1, "Elevation"] = 9999.0
+        grid.loc[1, "elevation"] = 9999.0
         result = topo.analysis.calculateStastics(grid)
         assert result["domainmax"] == 9999.0
-        assert result["domainmaxlocation"] == (grid.loc[1, "X"], grid.loc[1, "Y"])
+        assert result["domainmaxlocation"] == (grid.loc[1, "lon"], grid.loc[1, "lat"])
 
 
 @pytest.mark.unit
@@ -181,7 +179,7 @@ class TestCalculateStatisticsContract:
 
     def test_a_frame_without_the_elevation_column_is_rejected(self, topo):
         with pytest.raises(KeyError):
-            topo.analysis.calculateStastics(_grid().rename(columns={"Elevation": "z"}))
+            topo.analysis.calculateStastics(_grid().rename(columns={"elevation": "z"}))
 
 
 # --------------------------------------------------------------------------
@@ -206,48 +204,24 @@ def _get_elevation_shaped_dataset(topo):
 @pytest.mark.unit
 class TestStatisticsOfTheToolkitsOwnElevationOutput:
     def test_the_producer_emits_lowercase_lat_lon_elevation(self, topo):
-        """Characterisation of B241: the producer's side of the mismatch."""
+        """B241: the producer's side of the (now agreed) naming."""
         dataset = _get_elevation_shaped_dataset(topo)
         assert {"lat", "lon"} <= set(dataset.variables)
         assert "elevation" in dataset.coords
-        for name in ("X", "Y", "Elevation"):
-            assert name not in dataset.variables
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B241: calculateStastics reads ['X'], ['Y'] and ['Elevation'], "
-               "but TopographyToolkit.getElevation -- the toolkit's only "
-               "elevation producer -- returns lat/lon plus an 'elevation' "
-               "coordinate, so the documented consumer cannot read the "
-               "documented producer's output and raises KeyError: 'X'.  The "
-               "method's own docstring example is unusable too: it calls "
-               "tk.getDomainElevation(), which does not exist. "
-               "See the consolidated findings issue.",
-    )
     def test_the_statistics_can_be_taken_of_a_getelevation_result(self, topo):
+        """B241."""
         stats = topo.analysis.calculateStastics(_get_elevation_shaped_dataset(topo))
         assert "mean" in stats
 
-    def test_feeding_the_producers_output_in_raises_a_keyerror(self, topo):
-        """Characterisation of B241."""
-        with pytest.raises(KeyError) as excinfo:
-            topo.analysis.calculateStastics(_get_elevation_shaped_dataset(topo))
-        assert "X" in str(excinfo.value)
-
-    def test_the_documented_worked_example_names_a_method_that_does_not_exist(self):
-        """Characterisation of B241: the docstring example cannot be run."""
-        assert "getDomainElevation" in topographyAnalysis.calculateStastics.__doc__
-        assert not hasattr(TopographyToolkit, "getDomainElevation")
-
-    def test_renaming_the_variables_makes_the_same_dataset_work(self, topo):
-        """Characterisation of B241: nothing else is wrong -- only the names.
-
-        The same dataset, with lat/lon/elevation renamed to X/Y/Elevation,
-        goes straight through, which locates the defect precisely at the
-        naming boundary rather than in the statistics themselves.
-        """
+    def test_the_extrema_of_a_getelevation_result_are_the_elevations(self, topo):
+        """B241: the whole dataset goes straight through, unrenamed."""
         dataset = _get_elevation_shaped_dataset(topo)
-        renamed = dataset.rename({"lat": "Y", "lon": "X", "elevation": "Elevation"})
-        stats = topo.analysis.calculateStastics(renamed)
+        stats = topo.analysis.calculateStastics(dataset)
         assert stats["domainmin"] == 0.0
         assert stats["domainmax"] == float(numpy.prod(dataset["lat"].shape) - 1)
+
+    def test_the_documented_worked_example_names_a_method_that_exists(self):
+        """B241: the docstring example calls the real producer."""
+        assert "getElevation" in topographyAnalysis.calculateStastics.__doc__
+        assert hasattr(TopographyToolkit, "getElevation")

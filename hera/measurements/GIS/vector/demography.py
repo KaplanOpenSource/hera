@@ -6,11 +6,10 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import numpy as np
 from hera.measurements.GIS.utils import WSG84, ITM
-from hera import toolkit
 from hera.measurements.GIS.vector import toolkit
 from hera.datalayer import datatypes, nonDBMetadataFrame
 from hera import toolkitHome
-from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE, get_classMethod_logger  # ✅ FIXED: added missing import
+from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE, TOOLKIT_DATASOURCE_NAME, TOOLKIT_DATASOURCE_TYPE, TOOLKIT_TOOLKITNAME_FIELD, get_classMethod_logger  # ✅ FIXED: added missing import
 from ._io_utils import readGeoJSONString
 
 class DemographyToolkit(toolkit.VectorToolkit):
@@ -22,6 +21,7 @@ class DemographyToolkit(toolkit.VectorToolkit):
     _populationTypes = None # A dictionary with the names of the population types.
 
     _buildings = None
+    _shapes = None
     _analysis = None
     _presentation = None
 
@@ -32,7 +32,7 @@ class DemographyToolkit(toolkit.VectorToolkit):
 
     @property
     def shapes(self):
-        """ShapesToolKit : The shapes toolkit instance."""
+        """The shapes toolkit instance, or None when it was not set."""
         return self._shapes
 
     @property
@@ -298,18 +298,20 @@ class analysis:
         if saveMode != TOOLKIT_SAVEMODE_NOSAVE:
             filename = regionName if "." in regionName else f"{regionName}.shp"
             fullname = os.path.join(self.datalayer.filesDirectory, filename)
+            if saveMode == TOOLKIT_SAVEMODE_ONLYFILE and os.path.exists(fullname):
+                raise FileExistsError(f"saveMode was set to no replace and file {fullname} already exists")
             newData.to_file(fullname)
 
-            if saveMode == TOOLKIT_SAVEMODE_FILEANDDB:
+            if saveMode in [TOOLKIT_SAVEMODE_FILEANDDB, TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
                 desc = {
-                    toolkit.TOOLKIT_DATASOURCE_NAME: regionName,
-                    toolkit.TOOLKIT_TOOLKITNAME_FIELD: self.datalayer.toolkitName
+                    TOOLKIT_DATASOURCE_NAME: regionName,
+                    TOOLKIT_TOOLKITNAME_FIELD: self.datalayer.toolkitName
                 }
                 desc.update(**metadata)
                 doc = self.datalayer.addCacheDocument(
                     desc=desc,
                     resource=fullname,
-                    type=toolkit.TOOLKIT_DATASOURCE_TYPE,
+                    type=TOOLKIT_DATASOURCE_TYPE,
                     dataFormat=datatypes.GEOPANDAS
                 )
 
