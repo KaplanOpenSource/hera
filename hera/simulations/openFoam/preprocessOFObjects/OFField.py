@@ -306,11 +306,10 @@ class OFField(OFObject):
 
                     self.data[os.path.basename(proc)] = retDict
         except FileNotFoundError as e:
-            err = f"File not found, initializing as an empty field: {e} "
+            err = f"File not found: {e}"
             logger.warning(err)
-            # Initialize as empty single processor field
-            self.initialize(noOfProc=None)
-            return
+            # Wrap as ValueError to indicate missing field
+            raise ValueError("Field not found") from e
 
     def readFromCase(self, caseDirectory, timeStep=0, readParallel=True):
         """
@@ -368,11 +367,10 @@ class OFField(OFObject):
                         os.path.join(proc, str(timeStep), self.fileName))})
 
         except FileNotFoundError as e:
-            err = f"File not found, initializing as an empty field: {e} "
+            err = f"File not found: {e}"
             logger.warning(err)
-            # Initialize as empty single processor field
-            self.initialize(noOfProc=None)
-            return
+            # Wrap as ValueError to indicate missing field
+            raise ValueError("Field not found") from e
 
     def setFieldFromDataFrame(self,fieldDataFrame):
         """
@@ -387,6 +385,9 @@ class OFField(OFObject):
         logger = get_classMethod_logger(self,"setFieldFromDataFrame")
         if 'processor' in fieldDataFrame.columns:
             logger.info("updating field as parallel")
+            # Reset data to avoid retaining singleProcessor entry from previous state
+            self.data = {}
+            self.parallel = True
             for procName,procData in fieldDataFrame.groupby("processor"):
                 internalData = fieldDataFrame.query(f"processor=={procName}")
                 self.data[f"processor{procName}"] = self._processorToPyFoam(internalData,processorName=f"processor{procName}")
@@ -438,7 +439,15 @@ class OFField(OFObject):
 
         logger.info("Setting boundary field")
         boundaryDict = DictProxy()
-        existing_boundary = self.data.get(processorName, {}).get('boundaryField', {})
+        existing_boundary = {}
+        if processorName in self.data:
+            proc_obj = self.data[processorName]
+            # WriteParameterFile behaves like a dict for item access but lacks .get()
+            # Use [] access safely; if key missing, default to empty dict
+            try:
+                existing_boundary = proc_obj['boundaryField']
+            except Exception:
+                existing_boundary = {}
         for boundaryName, boundaryData in existing_boundary.items():
             logger.debug(f"Setting the boundary {boundaryName} to existing value")
             boundaryDict[boundaryName] = boundaryData
