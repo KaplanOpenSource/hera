@@ -1,9 +1,9 @@
 """Which meteorology modules can be imported.
 
-Two of them cannot, for reasons that have nothing to do with a missing
-optional dependency: one names a datalayer class that no longer exists, and
-one reads a hard-coded absolute path belonging to a particular developer's
-home directory at import time.
+Three of them used to fail for reasons that had nothing to do with a missing
+optional dependency: one named a datalayer class that no longer exists (B40),
+one read a hard-coded absolute path belonging to a particular developer's home
+directory at import time (B41), and one ran module-level scratch code (B333).
 """
 import importlib
 import pathlib
@@ -31,31 +31,29 @@ def test_the_module_imports(moduleName):
 
 @pytest.mark.unit
 class TestRadiosonde:
-    """B40: it subclasses a datalayer class that was removed."""
+    """B40, fixed: it used to subclass a datalayer class that was removed."""
 
     def test_the_named_base_class_is_gone(self):
         import hera.datalayer as datalayer
 
         assert not hasattr(datalayer, "ProjectMultiDBPublic")
 
-    def test_the_source_still_refers_to_it(self):
+    def test_the_source_no_longer_refers_to_it(self):
         source = pathlib.Path(
             "hera/measurements/meteorology/radiosonde.py"
         ).read_text(encoding="utf-8")
-        assert "ProjectMultiDBPublic" in source
+        assert "ProjectMultiDBPublic" not in source
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B40: radiosonde.py declares "
-               "`class DataLayer(datalayer.ProjectMultiDBPublic)`, but that class "
-               "no longer exists in hera.datalayer, so the module raises "
-               "AttributeError on import. It is dead in any installation. "
-               "See the consolidated findings issue.",
-    )
     def test_the_module_imports(self):
         assert importlib.import_module(
             "hera.measurements.meteorology.radiosonde"
         ) is not None
+
+    def test_the_datalayer_is_a_project(self):
+        import hera.datalayer as datalayer
+        from hera.measurements.meteorology import radiosonde
+
+        assert issubclass(radiosonde.DataLayer, datalayer.Project)
 
 
 @pytest.mark.unit

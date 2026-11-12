@@ -20,38 +20,41 @@ the documented conventions rather than from the implementation:
 * the seasons and their bracket codes come from ``seasonsdict``, so the
   four subplot titles are fixed by the module's own declaration.
 
-Five defects surfaced:
+Five defects surfaced; all five are fixed and the tests below assert the
+corrected behaviour.
 
-* B296: ``Plots._scatterdict`` passes ``size=0.5`` to
+* B296: ``Plots._scatterdict`` passed ``size=0.5`` to
   ``seaborn.scatterplot``.  seaborn's marker-area parameter is ``s``;
-  ``size`` is the name of a *semantic grouping variable*.  A scalar is
-  accepted and silently ignored, so every marker is drawn at matplotlib's
+  ``size`` is the name of a *semantic grouping variable*.  A scalar was
+  accepted and silently ignored, so every marker was drawn at matplotlib's
   default area instead of the requested 0.5 -- and because the stale
-  ``size`` key stays in the dict, an explicit ``s`` from the caller is
+  ``size`` key stayed in the dict, an explicit ``s`` from the caller was
   masked too.
-* B297: ``dateLinePlot`` applies the field-specific ``set_ylabel`` from
-  ``_plotfieldaxfuncdict`` and then unconditionally overwrites it with the
+* B297: ``dateLinePlot`` applied the field-specific ``set_ylabel`` from
+  ``_plotfieldaxfuncdict`` and then unconditionally overwrote it with the
   bare column name.  Its two sibling methods (``plotScatter`` and
-  ``plotProbContourf``) keep the readable label, so the same field is
+  ``plotProbContourf``) keep the readable label, so the same field was
   labelled ``'Wind Speed [m/s]'`` on a scatter plot and ``'WS'`` on a line
-  plot.  A caller-supplied ``set_ylabel`` is discarded the same way.
+  plot.  A caller-supplied ``set_ylabel`` was discarded the same way.  The
+  column name is the fallback now.
 * B298: ``_labelsdict['levels']`` is computed once in ``Plots.__init__``
-  from the *default* ``_contourvalsdict`` and is never rebuilt from the
-  levels actually drawn, so any ``contour_values`` override leaves the
-  clabel levels outside ``CS.levels`` and ``ax.clabel`` raises
+  from the *default* ``_contourvalsdict`` and was never rebuilt from the
+  levels actually drawn, so any ``contour_values`` override left the
+  clabel levels outside ``CS.levels`` and ``ax.clabel`` raised
   ``ValueError``.  ``withLabels`` defaults to ``True``, so passing
-  ``contour_values`` at all is enough to break the call.
+  ``contour_values`` at all was enough to break the call.  The label
+  levels follow the effective contour levels now.
 * B299: in ``plotProbContourf``'s ``y_normalized`` branch, the
-  "Contour levels must be increasing" stability clamp is applied to the
-  contour and contourf levels but *not* to the clabel levels, which are
+  "Contour levels must be increasing" stability clamp reached the
+  contour and contourf levels but *not* the clabel levels, which were
   rebuilt from the un-clamped ``M_hist.max()``.  For a histogram whose
-  maximum falls below ``under_value`` the label levels come out decreasing
-  and are not a subset of the contour levels, so ``ax.clabel`` raises.
+  maximum falls below ``under_value`` the label levels came out decreasing
+  and were not a subset of the contour levels, so ``ax.clabel`` raised.
 * B300: ``plotProbContourf_bySeason`` documents an optional ``ax``, but
   it both indexes ``ax.shape``/``ax[i, j]`` (so it needs a 2x2 array) and
-  hands the same object to ``plt.sca`` (which takes a single Axes).  An
-  array fails in ``plt.sca``, a lone Axes fails on ``.shape``: the
-  parameter cannot be used at all.
+  handed the same object to ``plt.sca`` (which takes a single Axes).  An
+  array failed in ``plt.sca``, so the parameter could not be used at all.
+  That ``plt.sca`` call is gone; a 2x2 grid works.
 """
 import matplotlib.pyplot as plt
 import numpy
@@ -189,36 +192,18 @@ class TestPlotScatterProperties:
         daily.plotScatter(_frame([1.0], [3.0]), "WS", scatter_properties=dict(color="red"))
         assert daily._scatterdict["color"] == "k"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B296: Plots._scatterdict asks seaborn.scatterplot for "
-               "size=0.5, but seaborn's marker-area parameter is `s` -- "
-               "`size` names a semantic grouping variable, so the scalar is "
-               "accepted and ignored and the markers keep matplotlib's "
-               "default area. See the consolidated findings issue.",
-    )
-    def test_the_markers_should_be_drawn_at_the_requested_half_point_size(self, daily):
+    def test_the_markers_are_drawn_at_the_requested_half_point_size(self, daily):
+        """B296: the key used to be `size`, seaborn's semantic grouping
+        variable, so the scalar was accepted, ignored, and the markers kept
+        matplotlib's default area."""
         ax = daily.plotScatter(_frame([1.0, 2.0], [3.0, 4.0]), "WS")
-        assert ax.collections[0].get_sizes().tolist() == [0.5, 0.5]
-
-    def test_the_markers_currently_keep_the_matplotlib_default_size(self, daily):
-        """Characterisation of B296."""
-        ax = daily.plotScatter(_frame([1.0, 2.0], [3.0, 4.0]), "WS")
-        sizes = ax.collections[0].get_sizes().tolist()
-        assert sizes == [MATPLOTLIB_DEFAULT_MARKER_AREA] * 2
-
-    def test_an_explicit_marker_area_is_masked_by_the_default_size_semantic(self, daily):
-        """Characterisation of B296: `s` loses to the stale `size` key."""
-        ax = daily.plotScatter(_frame([1.0, 2.0], [3.0, 4.0]), "WS",
-                               scatter_properties=dict(s=0.5))
-        assert ax.collections[0].get_sizes().tolist() == [
-            MATPLOTLIB_DEFAULT_MARKER_AREA] * 2
-
-    def test_clearing_the_size_semantic_lets_the_marker_area_through(self, daily):
-        """Characterisation of B296: the fix would be `s` and no `size`."""
-        ax = daily.plotScatter(_frame([1.0, 2.0], [3.0, 4.0]), "WS",
-                               scatter_properties=dict(size=None, s=0.5))
         assert ax.collections[0].get_sizes().tolist() == [0.5]
+
+    def test_an_explicit_marker_area_now_reaches_the_markers(self, daily):
+        ax = daily.plotScatter(_frame([1.0, 2.0], [3.0, 4.0]), "WS",
+                               scatter_properties=dict(s=12.0))
+        assert ax.collections[0].get_sizes().tolist() == [12.0]
+        assert ax.collections[0].get_sizes().tolist() != [MATPLOTLIB_DEFAULT_MARKER_AREA]
 
 
 # ---------------------------------------------------------------------------
@@ -287,30 +272,23 @@ class TestDateLinePlot:
         with pytest.raises(Exception, match="No column 'datetime'"):
             daily.dateLinePlot(pandas.DataFrame({"WS": [1.0]}), "WS", "2020-06-15")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B297: dateLinePlot applies the field-specific set_ylabel "
-               "from _plotfieldaxfuncdict and then unconditionally "
-               "overwrites it with the bare column name, so the same field "
-               "is labelled 'Wind Speed [m/s]' by plotScatter and "
-               "plotProbContourf but 'WS' here. See the consolidated "
-               "findings issue.",
-    )
-    def test_the_value_axis_should_keep_the_readable_field_label(self, daily, two_days):
+    def test_the_value_axis_keeps_the_readable_field_label(self, daily, two_days):
+        """B297: the field-specific set_ylabel was applied and then
+        unconditionally overwritten with the bare column name, so the same
+        field read 'Wind Speed [m/s]' in plotScatter but 'WS' here."""
         ax, _ = daily.dateLinePlot(two_days, "WS", "2020-06-15")
         assert ax.get_ylabel() == "Wind Speed [m/s]"
 
-    def test_the_value_axis_is_currently_labelled_with_the_raw_column_name(self, daily,
-                                                                          two_days):
-        """Characterisation of B297."""
-        ax, _ = daily.dateLinePlot(two_days, "WS", "2020-06-15")
-        assert ax.get_ylabel() == "WS"
-
-    def test_an_explicit_ylabel_is_still_overwritten(self, daily, two_days):
-        """Characterisation of B297: even ax_functions_properties loses."""
+    def test_an_explicit_ylabel_wins(self, daily, two_days):
         ax, _ = daily.dateLinePlot(two_days, "WS", "2020-06-15",
                                    ax_functions_properties=dict(set_ylabel="mine"))
-        assert ax.get_ylabel() == "WS"
+        assert ax.get_ylabel() == "mine"
+
+    def test_a_field_with_no_declared_label_falls_back_to_the_column_name(self, daily):
+        data = _frame([1.0, 6.5], [2.0, 4.0])
+        data = data.rename(columns={"WS": "TD"})
+        ax, _ = daily.dateLinePlot(data, "TD", "2020-06-15")
+        assert ax.get_ylabel() == "TD"
 
 
 # ---------------------------------------------------------------------------
@@ -343,29 +321,21 @@ class TestPlotProbContourf:
             contour_values=dict(under_value=0.0, max_value=0.5, contourfnum=6))
         assert numpy.allclose(CFS.levels, [0.0, 0.1, 0.2, 0.3, 0.4, 0.5])
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B298: _labelsdict['levels'] is frozen in Plots.__init__ "
-               "from the *default* _contourvalsdict and is never rebuilt "
-               "from the effective levels, so any contour_values override "
-               "leaves the clabel levels outside CS.levels and ax.clabel "
-               "raises. withLabels defaults to True, so overriding "
-               "contour_values at all is enough to break the call. See the "
-               "consolidated findings issue.",
-    )
-    def test_overriding_the_contour_values_should_still_label_the_lines(self, daily):
-        daily.plotProbContourf(
+    def test_overriding_the_contour_values_still_labels_the_lines(self, daily):
+        """B298: _labelsdict['levels'] was frozen in Plots.__init__ from the
+        *default* _contourvalsdict and never rebuilt, so any contour_values
+        override left the clabel levels outside CS.levels and clabel raised --
+        and withLabels defaults to True."""
+        CS, _, _ = daily.plotProbContourf(
             _scattered(), "WS",
             contour_values=dict(under_value=0.0, max_value=0.5, contourfnum=6))
+        assert numpy.allclose(CS.levels, [0.0, 0.2, 0.4])
 
-    def test_overriding_the_contour_values_currently_breaks_the_labels(self, daily):
-        """Characterisation of B298."""
-        with pytest.raises(ValueError, match="don't match available levels"):
-            daily.plotProbContourf(
-                _scattered(), "WS",
-                contour_values=dict(under_value=0.0, max_value=0.5, contourfnum=6))
+    def test_the_default_label_levels_are_the_default_line_levels(self, daily):
+        CS, _, _ = daily.plotProbContourf(_scattered(), "WS")
+        assert numpy.allclose(CS.levels, LINE_LEVELS)
 
-    def test_labels_properties_can_repair_the_mismatch(self, daily):
+    def test_labels_properties_still_override_the_levels(self, daily):
         CS, _, _ = daily.plotProbContourf(
             _scattered(), "WS",
             contour_values=dict(under_value=0.0, max_value=0.5, contourfnum=6),
@@ -443,28 +413,24 @@ class TestPlotProbContourfYNormalized:
         expected = numpy.linspace(0.1, 0.2, 10)[::2]
         assert numpy.allclose(CS.levels, expected)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B299: plotProbContourf's y_normalized stability clamp is "
-               "applied to the contour and contourf levels but not to the "
-               "clabel levels, which are rebuilt from the un-clamped "
-               "M_hist.max(). When the histogram maximum falls below "
-               "under_value the label levels come out decreasing and are "
-               "not a subset of the contour levels, so ax.clabel raises -- "
-               "and withLabels defaults to True. See the consolidated "
-               "findings issue.",
-    )
-    def test_a_low_variance_histogram_should_still_be_labelled(self, daily):
-        daily.plotProbContourf(self._spread_thinly(), "WS",
-                               normalization="y_normalized", colorbar=False)
+    def test_a_low_variance_histogram_is_still_labelled(self, daily):
+        """B299: the stability clamp reached the contour and contourf levels
+        but not the clabel levels, which were rebuilt from the un-clamped
+        M_hist.max(). With the maximum below under_value those came out
+        decreasing and outside CS.levels, so clabel raised -- and withLabels
+        defaults to True."""
+        CS, _, _ = daily.plotProbContourf(self._spread_thinly(), "WS",
+                                          normalization="y_normalized",
+                                          colorbar=False)
+        assert numpy.allclose(CS.levels, numpy.linspace(0.1, 0.2, 10)[::2])
 
-    def test_a_low_variance_histogram_currently_fails_to_label(self, daily):
-        """Characterisation of B299."""
-        with pytest.raises(ValueError, match="don't match available levels"):
-            daily.plotProbContourf(self._spread_thinly(), "WS",
-                                   normalization="y_normalized", colorbar=False)
+    def test_the_label_levels_are_the_clamped_contour_levels(self, daily):
+        CS, _, _ = daily.plotProbContourf(_scattered(), "WS",
+                                          normalization="y_normalized",
+                                          colorbar=False)
+        assert (numpy.diff(CS.levels) > 0).all()
 
-    def test_supplying_the_label_levels_explicitly_works_around_it(self, daily):
+    def test_supplying_the_label_levels_explicitly_still_works(self, daily):
         CS, _, _ = daily.plotProbContourf(self._spread_thinly(), "WS",
                                           normalization="y_normalized",
                                           labels_properties=dict(levels=[0.1]),
@@ -513,31 +479,18 @@ class TestPlotProbContourfBySeason:
         ax = seasonal.plotProbContourf_bySeason(self._year(), "WS", colorbar=False)
         assert len(ax[0, 0].figure.axes) == 4
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B300: plotProbContourf_bySeason documents an optional `ax` "
-               "but needs a 2x2 grid (it indexes ax.shape and "
-               "ax[i, j]) while feeding that same argument to plt.sca, "
-               "which only accepts a single Axes. An array raises "
-               "AttributeError in plt.sca and a lone Axes raises "
-               "AttributeError on .shape, so the parameter cannot be used "
-               "at all. See the consolidated findings issue.",
-    )
-    def test_it_should_draw_into_a_supplied_grid_of_axes(self, seasonal):
+    def test_it_draws_into_a_supplied_grid_of_axes(self, seasonal):
+        """B300: the documented `ax` used to be unusable -- the method needs a
+        2x2 grid (it indexes ax.shape and ax[i, j]) but also fed that same
+        argument to plt.sca, which only accepts a single Axes."""
         _, target = plt.subplots(2, 2)
         ax = seasonal.plotProbContourf_bySeason(self._year(), "WS", ax=target,
                                                 colorbar=False)
         assert ax is target
+        assert target[0, 0].get_title().startswith("Winter")
 
-    def test_a_supplied_grid_currently_breaks_in_plt_sca(self, seasonal):
-        """Characterisation of B300."""
-        _, target = plt.subplots(2, 2)
-        with pytest.raises(AttributeError, match="no attribute '(get_)?figure'"):
-            seasonal.plotProbContourf_bySeason(self._year(), "WS", ax=target,
-                                               colorbar=False)
-
-    def test_a_supplied_single_axes_currently_breaks_on_shape(self, seasonal):
-        """Characterisation of B300."""
+    def test_a_supplied_single_axes_is_still_rejected(self, seasonal):
+        """The method needs four panels; a lone Axes has no .shape."""
         _, target = plt.subplots()
         with pytest.raises(AttributeError, match="shape"):
             seasonal.plotProbContourf_bySeason(self._year(), "WS", ax=target,

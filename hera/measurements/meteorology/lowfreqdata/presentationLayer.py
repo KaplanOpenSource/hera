@@ -103,7 +103,7 @@ class Plots(object):
         self._scatterdict=dict(zorder=1,
                                color='k',
                                marker='.',
-                               size=0.5,
+                               s=0.5,
                                edgecolors='k',
                                alpha=0.55,
                                legend=False
@@ -252,8 +252,6 @@ class SeasonalPlots(Plots):
 
         if ax is None:
             fig, ax = plt.subplots(2,2,figsize=figsize)
-        else:
-            plt.sca(ax)
 
         curdata=data.assign(curdate=data.index)
         curdata.curdate = pd.to_datetime(curdata.curdate,utc=True)
@@ -452,7 +450,8 @@ class DailyPlots(Plots):
         for func in ax_func_props:
             getattr(ax, func)(ax_func_props[func])
 
-        ax.set_ylabel(f'{plotField}')
+        if 'set_ylabel' not in ax_func_props:
+            ax.set_ylabel(f'{plotField}')
         ax.set_title(f'{plotField} for {date}')
 
         return ax, line
@@ -598,10 +597,10 @@ class DailyPlots(Plots):
         # Read and update levels and labels properties #
 
         labels_props = dict(self._labelsdict)
-        if normalization == 'y_normalized':
-            labels_props.update(dict(levels= numpy.linspace(conrourvals_props['under_value'],
-                                                            numpy.ceil(M_hist.max() * 100) / 100,
-                                                            conrourvals_props['contourfnum'])[::conrourvals_props['contourskip']]))
+        # The label levels must be a subset of the levels the contour is drawn
+        # with, so take them from the effective levels rather than from the
+        # defaults _labelsdict was frozen with in __init__.
+        labels_props['levels'] = countour_levels
 
         if levels is not None:
             countour_levels = levels

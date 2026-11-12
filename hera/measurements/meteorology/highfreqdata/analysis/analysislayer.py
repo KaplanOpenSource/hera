@@ -111,6 +111,7 @@ class RawdataAnalysis:
                       'averagedHeight': averagedHeight,
                       'start': start,
                       'end': end,
+                      "inmemory": inmemory,
                       "isMissingData": isMissingData,
                       "filters": None,
                       "dataSource1": None,
@@ -172,6 +173,7 @@ class RawdataAnalysis:
                       'averagedHeight': averagedHeight,
                       'start': start,
                       'end': end,
+                      "isMissingData": isMissingData,
                       "filters": None,
                       "dataSource1": None,
                       "dataSource2": None

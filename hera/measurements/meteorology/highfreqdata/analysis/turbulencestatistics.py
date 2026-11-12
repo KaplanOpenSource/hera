@@ -965,7 +965,7 @@ uStarOverWindSpeed
         i = 1
 
         while 'zoL_Sonic%s' % i in self._TemporaryData.columns:
-            if ['zoL_Sonic%s' % i, {'zmd': zmd}] in self._AllCalculatedParams:
+            if ['zoL_Sonic%s' % i, {'zmd': zmd}] in self._CalculatedParams:
                 return self
             i += 1
 
@@ -1257,9 +1257,9 @@ uStarOverWindSpeed
             self.StrucFunDir(tau_range=tau_range, dir1_data=ubar_new, u_dir1="y_hat1", v_dir1="y_hat2", w_dir1="y_hat3",
                              dir2_data = ubar_new, u_dir2="z_hat1", v_dir2="z_hat2", w_dir2="z_hat3",title="23" + title_additions)
         else:
-            raise("mode must be either MeanDir or 3dMeanDir")
+            raise ValueError("mode must be either MeanDir or 3dMeanDir")
 
-        if "u_mag" not in self.TemporaryData.columns:
+        if "u_mag" + title_additions not in self.TemporaryData.columns:
             self._TemporaryData["u_mag" + title_additions] = ((ubar_data[u_bar] ** 2 + ubar_data[v_bar] ** 2 + ubar_data[w_bar] ** 2) ** 0.5).loc[(ubar_data.index >=
                                     self.metaData["start"]) & (ubar_data.index < self.metaData["end"])]
             self._TemporaryData["u_mag" + title_additions] = self._TemporaryData["u_mag" + title_additions].ffill()
@@ -1342,7 +1342,7 @@ uStarOverWindSpeed
                                                         .resample(self.SamplingWindow).mean()
                 self._CalculatedParams.append([col_names[tau],{}])
 
-        if "u_mag" not in self.TemporaryData.columns:
+        if "u_mag" + title_additions not in self.TemporaryData.columns:
             self._TemporaryData["u_mag" + title_additions] = dir_data["u_mag"]
             self._TemporaryData["u_mag" + title_additions] = self._TemporaryData["u_mag" + title_additions].ffill()
             self._CalculatedParams.append(["u_mag" + title_additions,{}])
@@ -1402,7 +1402,7 @@ class SinglePointStatisticsSpark(singlePointTurbulenceStatistics):
             avg['wind_dir_bar'] = avg['wind_dir_bar'].apply(toMeteorologicalAngle)
 
             self._TemporaryData = avg
-            self._CalculatedParams += [['u_bar',{}], ['v_bar',{}], ['w_bar',{}], ['T_bar',{}]]
+            self._CalculatedParams += [['u_bar',{}], ['v_bar',{}], ['w_bar',{}], ['T_bar',{}], ['wind_dir_bar', {}]]
 
             # correcting the first index to be the same as the avg.
             self._RawData = self._RawData.reset_index()
@@ -1422,6 +1422,8 @@ class SinglePointStatisticsSpark(singlePointTurbulenceStatistics):
             self._RawData['wp'] = self._RawData['w'] - self._RawData['w_bar']
             self._RawData['Tp'] = self._RawData['T'] - self._RawData['T_bar']
             self._RawData['wind_dir_p'] = (180 - (180 - (self._RawData['wind_dir'] - self._RawData['wind_dir_bar']).abs()).abs()).abs()
+
+            self.data = self._RawData
 
         return self
 
@@ -1475,7 +1477,7 @@ class InMemoryRawData(pandas.DataFrame):
             A new ``InMemoryRawData`` instance containing the combined rows and
             merged attributes.
         """
-        ret = super(InMemoryRawData, self).append(other, ignore_index=ignore_index, verify_integrity=verify_integrity)
+        ret = pandas.concat([self, other], ignore_index=ignore_index, verify_integrity=verify_integrity)
         ret = InMemoryRawData(ret)
         ret._Attrs = other._Attrs
         ret._Attrs.update(self._Attrs)
@@ -1533,9 +1535,9 @@ class InMemoryRawData(pandas.DataFrame):
             ``pandas.DataFrame.to_hdf``.
         """
         pandasCopy = self.copy()
-        path_or_buf = '%s%s' % (path_or_buf.rpartition('.')[0], '.hdf')
+        path_or_buf = '%s%s' % (os.path.splitext(path_or_buf)[0], '.hdf')
         pandasCopy.to_hdf(path_or_buf, key, **kwargs)
-        path_or_buf = '%s%s' % (path_or_buf.rpartition('.')[0], '.json')
+        path_or_buf = '%s%s' % (os.path.splitext(path_or_buf)[0], '.json')
         attrsToSave = self._Attrs
 
         if len(self._Attrs) > 0:
