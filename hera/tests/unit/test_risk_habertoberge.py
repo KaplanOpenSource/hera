@@ -114,14 +114,21 @@ class TestPlotGuess:
     E50 = 18.0
     PROBIT = 4.0
 
-    @pytest.fixture()
-    def drawn(self, monkeypatch):
+    @pytest.fixture(autouse=True)
+    def shown(self, monkeypatch):
+        """plotGuess ends with plt.show().  Under Agg, matplotlib warns
+        "non-interactive" only when a display exists, so CI and containers
+        stay silent; show is replaced with a recorder instead of relied on."""
         import matplotlib.pyplot as plt
 
-        # plotGuess ends with plt.show(); whether that warns under Agg depends on
-        # the matplotlib version, so it is replaced rather than relied on.
-        shown = []
-        monkeypatch.setattr(plt, "show", lambda *args, **kwargs: shown.append(True))
+        calls = []
+        monkeypatch.setattr(plt, "show", lambda *args, **kwargs: calls.append(True))
+        return calls
+
+    @pytest.fixture()
+    def drawn(self, shown):
+        import matplotlib.pyplot as plt
+
         estimator = EstimateTBProbit(1.5)
         returned = estimator.plotGuess(self.NEW_PROBIT, self.E50, self.PROBIT)
         assert shown == [True]
@@ -175,8 +182,7 @@ class TestPlotGuess:
 
     def test_the_transformed_ld50_is_printed(self, capsys):
         estimator = EstimateTBProbit(1.5)
-        with pytest.warns(UserWarning):
-            estimator.plotGuess(self.NEW_PROBIT, self.E50, self.PROBIT)
+        estimator.plotGuess(self.NEW_PROBIT, self.E50, self.PROBIT)
 
         printed = capsys.readouterr().out
         assert "New LD50 %s" % estimator.transform(self.E50) in printed
@@ -185,8 +191,7 @@ class TestPlotGuess:
         """Documented in the module comments: the probit divides by n and the
         geometric standard deviation multiplies by it."""
         estimator = EstimateTBProbit(1.5)
-        with pytest.warns(UserWarning):
-            estimator.plotGuess(self.NEW_PROBIT, self.E50, self.PROBIT)
+        estimator.plotGuess(self.NEW_PROBIT, self.E50, self.PROBIT)
 
         printed = capsys.readouterr().out
         assert "New gStd %s probit %s" % (self.PROBIT / estimator.n,
@@ -199,8 +204,7 @@ class TestPlotGuess:
         import matplotlib.pyplot as plt
 
         estimator = EstimateTBProbit(1.5)
-        with pytest.warns(UserWarning):
-            estimator.plotGuess(self.NEW_PROBIT, self.E50, self.PROBIT)
+        estimator.plotGuess(self.NEW_PROBIT, self.E50, self.PROBIT)
 
         correct = plt.gca().lines[0]
         crossing = numpy.interp(0.5, correct.get_ydata(), correct.get_xdata())
@@ -213,8 +217,7 @@ class TestPlotGuess:
         import matplotlib.pyplot as plt
 
         estimator = EstimateTBProbit(1.0)
-        with pytest.warns(UserWarning):
-            estimator.plotGuess(self.PROBIT, self.E50, self.PROBIT)
+        estimator.plotGuess(self.PROBIT, self.E50, self.PROBIT)
 
         correct, guess = plt.gca().lines
         assert guess.get_ydata() == pytest.approx(correct.get_ydata())
