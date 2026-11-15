@@ -35,6 +35,9 @@ from hera.simulations.hermesWorkflowToolkit import (
 _REQUIRED_NODES = ["controlDict", "fvSolution", "fvSchemes", "fileWriter", "Parameters"]
 
 
+ALPHA_PATH = "/Parameters/alpha"  # the JSON pointer of the one parameter _workflowJSON varies
+
+
 def _workflowJSON(alpha=1.0, solver="simpleFoam"):
     """A minimal hermes workflow whose only varying parameter is Parameters.alpha."""
     nodes = {
@@ -605,46 +608,35 @@ class TestUpdateDocumentWorkflow:
 
 @pytest.mark.unit
 class TestCompareWorkflowObj:
-    def test_the_differing_parameter_is_reported_per_workflow(self, tk):
+    """Each workflow is reported as the RFC 6902 patch from the base workflow
+    (the first one unless another is named) to it (#565)."""
+
+    def test_each_workflow_is_reported_as_its_patch_from_the_first(self, tk):
         first = tk.getHermesWorkflowFromJSON(_workflowJSON(1.0), name="w1")
         second = tk.getHermesWorkflowFromJSON(_workflowJSON(9.0), name="w2")
         table = tk.compareWorkflowObj([first, second])
-        assert list(table.columns) == ["w1", "w2"]
-        assert table.loc["Parameters_alpha"].tolist() == [1.0, 9.0]
+        assert table.to_dict("records") == [
+            dict(datasetName="w2", op="replace", path=ALPHA_PATH, value=9.0)]
 
-    def test_the_parameter_path_has_its_dots_replaced_by_underscores(self, tk):
-        """So the result can be handed to DataFrame.query, which rejects dots."""
+    def test_a_chosen_base_is_compared_against_the_others(self, tk):
         first = tk.getHermesWorkflowFromJSON(_workflowJSON(1.0), name="w1")
         second = tk.getHermesWorkflowFromJSON(_workflowJSON(9.0), name="w2")
-        assert list(tk.compareWorkflowObj([first, second]).index) == ["Parameters_alpha"]
+        table = tk.compareWorkflowObj([first, second], base="w2")
+        assert table.to_dict("records") == [
+            dict(datasetName="w1", op="replace", path=ALPHA_PATH, value=1.0)]
 
     def test_identical_workflows_have_nothing_to_report(self, tk):
         first = tk.getHermesWorkflowFromJSON(_workflowJSON(1.0), name="w1")
         second = tk.getHermesWorkflowFromJSON(_workflowJSON(1.0), name="w2")
         assert tk.compareWorkflowObj([first, second]).empty
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B139: compareWorkflowObj always passes "
-               "changeDotToUnderscore=True, and compareDataframeConfigurations "
-               "combines that with longFormat by calling .replace('.','_') on "
-               "ret.T.columns -- which in long format is the integer row index, "
-               "so every longFormat=True comparison dies with "
-               "AttributeError: 'int' object has no attribute 'replace'. "
-               "See the consolidated findings issue.",
-    )
-    def test_the_long_format_should_give_one_row_per_workflow(self, tk):
-        first = tk.getHermesWorkflowFromJSON(_workflowJSON(1.0), name="w1")
-        second = tk.getHermesWorkflowFromJSON(_workflowJSON(9.0), name="w2")
-        table = tk.compareWorkflowObj([first, second], longFormat=True)
-        assert sorted(table["datasetName"]) == ["w1", "w2"]
-
-    def test_the_long_format_currently_raises_an_attributeerror(self, tk):
-        """Characterisation of B139."""
-        first = tk.getHermesWorkflowFromJSON(_workflowJSON(1.0), name="w1")
-        second = tk.getHermesWorkflowFromJSON(_workflowJSON(9.0), name="w2")
-        with pytest.raises(AttributeError, match="'int' object has no attribute 'replace'"):
-            tk.compareWorkflowObj([first, second], longFormat=True)
+    def test_workflows_that_share_a_name_are_rejected(self, tk):
+        """The workflows are keyed by name, so a shared name would silently
+        drop one of them from the comparison."""
+        first = tk.getHermesWorkflowFromJSON(_workflowJSON(1.0), name="same")
+        second = tk.getHermesWorkflowFromJSON(_workflowJSON(9.0), name="same")
+        with pytest.raises(ValueError, match="share a name"):
+            tk.compareWorkflowObj([first, second])
 
 
 @pytest.mark.unit
@@ -657,22 +649,25 @@ class TestCompareWorkflows:
         second.write_text(json.dumps(_workflowJSON(9.0)))
         return str(first), str(second)
 
-    def test_two_workflow_files_are_compared_column_per_file(self, tk, twoFiles):
-        table = tk.compareWorkflows(list(twoFiles))
-        assert list(table.columns) == list(twoFiles)
-        assert table.loc["Parameters_alpha"].tolist() == [1.0, 9.0]
+    def test_two_workflow_files_are_compared_against_the_first(self, tk, twoFiles):
+        first, second = twoFiles
+        table = tk.compareWorkflows([first, second])
+        assert table.to_dict("records") == [
+            dict(datasetName=second, op="replace", path=ALPHA_PATH, value=9.0)]
 
-    def test_transposing_puts_the_workflows_in_the_rows(self, tk, twoFiles):
-        table = tk.compareWorkflows(list(twoFiles), transpose=True)
-        assert list(table.index) == list(twoFiles)
-        assert list(table.columns) == ["Parameters_alpha"]
+    def test_any_compared_file_can_be_the_base(self, tk, twoFiles):
+        first, second = twoFiles
+        table = tk.compareWorkflows([first, second], base=second)
+        assert table.to_dict("records") == [
+            dict(datasetName=first, op="replace", path=ALPHA_PATH, value=1.0)]
 
     def test_an_identifier_that_is_neither_in_the_db_nor_a_file_leaves_nothing_to_compare(
         self, tk
     ):
         """The failure is logged and the name skipped, so the comparison ends
-        up with no workflows at all and pandas refuses to concatenate."""
-        with pytest.raises(ValueError, match="No objects to concatenate"):
+        up with no workflows at all -- an error, not an empty "no differences"
+        table."""
+        with pytest.raises(ValueError, match="at least one"):
             tk.compareWorkflows(["noSuchWorkflow"])
 
     @pytest.mark.xfail(
@@ -689,7 +684,7 @@ class TestCompareWorkflows:
         self, tk, twoWorkflowsInGroup
     ):
         table = tk.compareWorkflows("flow")
-        assert sorted(table.columns) == ["flow_0000", "flow_0001"]
+        assert table["datasetName"].tolist() == ["flow_0001"]
 
     def test_a_group_name_currently_raises_a_typeerror(self, tk, twoWorkflowsInGroup):
         """Characterisation of B140."""
@@ -714,7 +709,7 @@ class TestCompareWorkflowInGroupAndWorkflowTable:
     )
     def test_a_populated_group_should_be_comparable(self, tk, twoWorkflowsInGroup):
         table = tk.compareWorkflowInGroup("flow")
-        assert sorted(table.index) == ["flow_0000", "flow_0001"]
+        assert table["datasetName"].tolist() == ["flow_0001"]
 
     def test_a_populated_group_currently_raises_a_typeerror(self, tk, twoWorkflowsInGroup):
         """Characterisation of B140."""

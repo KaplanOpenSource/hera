@@ -103,7 +103,7 @@ def installToolkit(monkeypatch):
 
 def _simulationsArguments(**overrides):
     arguments = dict(projectName="UNIT_OPENFOAM", solver="simpleFoam",
-                     longFormat=False, transpose=False, format="json", file=None)
+                     format="json", file=None)
     arguments.update(overrides)
     return Namespace(**arguments)
 
@@ -172,8 +172,7 @@ class TestSolverSimulationsListAsJson:
         toolkit = _Toolkit(_Comparison())
         installToolkit(toolkit)
         foam_solver_simulations_list(_simulationsArguments())
-        assert ("compareWorkflows", ("runA",),
-                dict(longFormat=False, transpose=False)) in toolkit.calls
+        assert ("compareWorkflows", ("runA",), {}) in toolkit.calls
 
 
 @pytest.mark.unit

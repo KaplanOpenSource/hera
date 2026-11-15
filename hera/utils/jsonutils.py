@@ -12,30 +12,51 @@ from jsonpath_ng import parse
 from hera.utils.logging import get_classMethod_logger
 
 
-def compareJSONS(longFormat:bool=False,changeDotToUnderscore:bool=False,**kwargs):
-    """Recieves {<name>:<json>} mapping in kwargs and compares the values of all the common fields. Returns pandas df of the result.
+def compareJSONS(base: str | None = None, **kwargs):
+    """Compare named JSON documents: each one as the RFC 6902 patch from a base document.
 
     Parameters
     ----------
-        longFormat (bool, optional): Return in long/wide format. Defaults to False.
-        changeDotToUnderscore (bool, optional): instead of showing fields as x.y.z uses x_y_z. This allows using pandas.query function. Defaults to False.
+        base (str, optional): The name of the document the others are compared
+            against. Defaults to the first one.
+        **kwargs: The documents to compare, as {<name>: <dict or list>}.
 
     Returns
     -------
-        DataFrame: df of the comparison results
+        DataFrame: one row per patch operation, with columns `datasetName`
+            (the document the operation leads to), `op`, `path` and `value`,
+            plus `from` when the patch moves or copies. The base has no rows,
+            so an empty table means every document equals the base.
+
+    Examples
+    --------
+        >>> compareJSONS(run1={"dt": 0.1}, run2={"dt": 0.2})
+          datasetName       op path  value
+        0        run2  replace  /dt    0.2
     """
     import pandas
 
-    from hera.utils.dataframeutils import compareDataframeConfigurations
-    fulldata = pandas.concat([convertJSONtoPandas(data).assign(datasetName=name) for name,data in kwargs.items()])
-    return compareDataframeConfigurations(fulldata,datasetName="datasetName",parameterName="parameterNameFullPath",longFormat=longFormat,changeDotToUnderscore=changeDotToUnderscore)
+    if not kwargs:
+        raise ValueError("compareJSONS needs at least one document")
+    notDocuments = [name for name, doc in kwargs.items() if not isinstance(doc, (dict, list))]
+    if notDocuments:
+        raise TypeError(f"compareJSONS compares JSON documents (dict or list); not a document: {', '.join(notDocuments)}")
+    base = next(iter(kwargs)) if base is None else base
+    if base not in kwargs:
+        raise ValueError(f"The base '{base}' is not one of the compared documents: {', '.join(kwargs)}")
+
+    rows = [dict(datasetName=name, **operation)
+            for name, doc in kwargs.items() if name != base
+            for operation in diffJSONS(kwargs[base], doc)]
+    columns = ["datasetName", "op", "path", "value"] + (["from"] if any("from" in row for row in rows) else [])
+    return pandas.DataFrame(rows, columns=columns)
 
 
 def diffJSONS(source, target):
     """Return the RFC 6902 JSON Patch that turns `source` into `target`.
 
-    Use this for the two-document case; `compareJSONS` stays the tool for
-    comparing three or more documents as a table.
+    For more than two documents, `compareJSONS` tabulates the patches from one
+    base document to each of the others.
 
     Parameters
     ----------

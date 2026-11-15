@@ -102,6 +102,27 @@ class TestOutputShapes:
         )
         assert result.index.tolist() == ["x_b"]
 
+    @pytest.mark.xfail(
+        strict=True,
+        reason="B139: with longFormat=True, changeDotToUnderscore calls "
+               ".replace('.','_') on ret.T.columns -- the integer row index in "
+               "long format -- so the combination dies with AttributeError: "
+               "'int' object has no attribute 'replace'. "
+               "See the consolidated findings issue.",
+    )
+    def test_change_dot_to_underscore_should_rewrite_the_long_format_names(self, first, second):
+        result = compareDataframeConfigurations(
+            [("s1", first), ("s2", second)], longFormat=True, changeDotToUnderscore=True
+        )
+        assert set(result["parameterName"]) == {"x_b"}
+
+    def test_change_dot_to_underscore_in_long_format_currently_raises(self, first, second):
+        """Characterisation of B139."""
+        with pytest.raises(AttributeError, match="'int' object has no attribute 'replace'"):
+            compareDataframeConfigurations(
+                [("s1", first), ("s2", second)], longFormat=True, changeDotToUnderscore=True
+            )
+
 
 @pytest.mark.unit
 class TestErrorHandling:

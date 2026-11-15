@@ -80,8 +80,8 @@ wftk.listGroups(solver=None, workflowName=True)
 # List the workflows of a group: list of dicts with workflowName (+ nodes / parameters)
 wftk.listWorkflows("wind_study", listNodes=True, listParameters=False)
 
-# DataFrame of the parameters that differ between workflows
-wftk.compareWorkflows(["wind_study_0001", "wind_study_0002"], longFormat=False, transpose=False)
+# DataFrame of the RFC 6902 patches from the base workflow (default: the first) to each other one
+wftk.compareWorkflows(["wind_study_0001", "wind_study_0002"], base=None)
 wftk.compareWorkflowInGroup("wind_study")     # all workflows of a group (same as workflowTable)
 ```
 
@@ -153,7 +153,7 @@ hera-workflows buildExecute wind_study_0001 --projectName MY_PROJECT \
 
 # Compare workflows (names, group names or files)
 hera-workflows compare wind_study --projectName MY_PROJECT \
-    [--longTable] [--transpose] [--format pandas|json|latex|csv] [--file out]
+    [--base WORKFLOW] [--format pandas|json|latex|csv] [--file out]
 
 # Export workflows to <workflowName>.json in the current directory
 hera-workflows export wind_study_0001 --projectName MY_PROJECT [--overwrite]

@@ -185,9 +185,8 @@ class _FakeWorkflowToolkit:
                      listNodes=listNodes, listParameters=listParameters)
         return self.workflows
 
-    def compareWorkflows(self, Workflow, longFormat=False, transpose=False):
-        self._record("compareWorkflows", Workflow, longFormat=longFormat,
-                     transpose=transpose)
+    def compareWorkflows(self, Workflow, base=None):
+        self._record("compareWorkflows", Workflow, base=base)
         return self.comparison
 
     def deleteWorkflowInGroup(self, workflowGroup, deepDelete=False,
@@ -1132,12 +1131,12 @@ class TestWorkflowNodesListParameters:
 # ---------------------------------------------------------------------------
 
 def _comparison():
-    return pandas.DataFrame({"wf_0": [1], "wf_1": [2]}, index=["nodes.A.value"])
+    return pandas.DataFrame([dict(datasetName="wf_1", op="replace", path="/nodes/A/value", value=2)])
 
 
 def _compareArgs(**overrides):
-    arguments = dict(projectName=PROJECT, workflows=["wf_0", "wf_1"], longFormat=False,
-                     transpose=False, format="pandas", file=None)
+    arguments = dict(projectName=PROJECT, workflows=["wf_0", "wf_1"], base=None,
+                     format="pandas", file=None)
     arguments.update(overrides)
     return Namespace(**arguments)
 
@@ -1147,17 +1146,17 @@ class TestWorkflowCompare:
     def test_the_comparison_arguments_are_forwarded_to_the_toolkit(self, install_toolkit, capsys):
         toolkit = _FakeWorkflowToolkit(comparison=_comparison())
         install_toolkit(toolkit)
-        workflow_compare(_compareArgs(longFormat=True, transpose=True))
+        workflow_compare(_compareArgs(base="wf_1"))
         capsys.readouterr()
         name, args, kwargs = toolkit.call("compareWorkflows")
         assert args == (["wf_0", "wf_1"],)
-        assert kwargs == dict(longFormat=True, transpose=True)
+        assert kwargs == dict(base="wf_1")
 
     def test_the_default_pandas_format_prints_the_table(self, install_toolkit, capsys):
         install_toolkit(_FakeWorkflowToolkit(comparison=_comparison()))
         workflow_compare(_compareArgs())
         printed = capsys.readouterr().out
-        assert "nodes.A.value" in printed and "wf_0" in printed
+        assert "/nodes/A/value" in printed and "wf_1" in printed
 
     def test_the_csv_format_is_written_to_the_requested_file(
         self, install_toolkit, in_tmp_cwd, capsys

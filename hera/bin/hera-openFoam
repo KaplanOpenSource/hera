@@ -74,10 +74,6 @@ def addSolverTemplateOptions(subparser, solverName, incompressible):
 
     parser_list = subparser.add_parser('list', help=f'Lists the groups and simulations of solver {solverName}')
     parser_list.add_argument('--projectName', dest="projectName", default=None, type=str, help=projectNameHelpDesc)
-    parser_list.add_argument('--longTable', dest="longFormat", action="store_true", default=False,
-                             help='If exsists, list the parameters as a long table. If does not exist data is pivoted')
-    parser_list.add_argument('--transpose', dest="transpose", action="store_true", default=False,
-                             help='If exsists, list the simulations as rows and the variables as columns')
 
     parser_list.add_argument('--format', dest="format", default="pandas", choices=["pandas", "json", "latex", "csv"],
                              help='The output format: pandas (print the pandas), json, latex')
