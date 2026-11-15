@@ -44,7 +44,7 @@ graph LR
 |--------|-------------|
 | `getEmptyTorchModelContainer()` | New `torchLightingModelContainer` bound to the toolkit |
 | `getTorchModelFromJSON(modelJSON)` | Container initialised from a model JSON |
-| `listTorchModels(modelObjectOrName=None, longFormat=True, **qry)` | Compare stored models' JSONs (`compareJSONS`), optionally filtered by model class (path or object) |
+| `listTorchModels(modelObjectOrName=None, base=None, **qry)` | Compare stored models' JSONs (`compareJSONS`, patches from the base model), optionally filtered by model class (path or object) |
 | `getTorchModelContainerByID(modelID, **qry)` | Loaded container for a `modelID`, or `None` |
 | `packTorchModel(modelContainerOrListContainers, packFileName)` | Zip the model output directories plus one `<modelName>_<modelID>.json` per model (class `filepath` keys removed, `pathToData` made relative to `filesDirectory`) |
 | `packTorchModelByID(modelIDorListID, packFileName)` | Same, by ID |

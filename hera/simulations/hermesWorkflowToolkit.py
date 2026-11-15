@@ -852,27 +852,32 @@ class hermesWorkflowToolkit(abstractToolkit):
 
     def compareWorkflowObj(self,
                            workflowList,
-                           longFormat: bool = False):
+                           base: str = None):
         """
             Compares the parameters of the Workflow to each other.
-
 
         Parameters
         ----------
         workflowList : list of hermes workflow objects
-                The list of Workflow to compare.
+                The list of Workflow to compare. Their names must be distinct.
+        base : str
+                The name of the workflow the others are compared against.
+                Defaults to the first one.
+
         Returns
         -------
-
+            pandas.DataFrame: the RFC 6902 patch from the base's parameters to each
+            other workflow's, one row per operation (see hera.utils.compareJSONS).
         """
-        return compareJSONS(**dict([(wf.name, wf.parametersJSON) for wf in workflowList]),
-                            longFormat=longFormat,changeDotToUnderscore=True)
+        parameters = dict([(wf.name, wf.parametersJSON) for wf in workflowList])
+        if len(parameters) < len(workflowList):
+            raise ValueError(f"Cannot compare workflows that share a name: {[wf.name for wf in workflowList]}")
+        return compareJSONS(base=base, **parameters)
 
 
     def compareWorkflows(self,
                          Workflow: Union[list, str],
-                         longFormat: bool = False,
-                         transpose: bool = False) -> Union[dict, pandas.DataFrame]:
+                         base: str = None) -> pandas.DataFrame:
         """
             Compares two or more hermes Workflow.
 
@@ -882,16 +887,14 @@ class hermesWorkflowToolkit(abstractToolkit):
                 A single input uses it as a group name,
                 a list is the list of Workflow names to compare.
 
-        diffParams: bool
-                If true display only differences.
-
-        JSON: bool
-                If true, return the results as a JSON and not pandas.DataFrame.
+        base : str
+                The name of the workflow the others are compared against.
+                Defaults to the first one.
 
         Returns
         -------
-            pandas.DataFrame, json (depends on the input flags).
-            Return the differences between the parametrs of the requested Workflow.
+            pandas.DataFrame: the RFC 6902 patch from the base's parameters to each
+            other workflow's, one row per operation (see hera.utils.compareJSONS).
         """
         logger = get_classMethod_logger(self, "compareWorkflow")
         if Workflow is None:
@@ -913,30 +916,26 @@ class hermesWorkflowToolkit(abstractToolkit):
                                      simulationList]
                 workflowList += groupworkflowList
 
-        res = self.compareWorkflowObj(workflowList, longFormat=longFormat)
-
-        return res.T if transpose else res
+        return self.compareWorkflowObj(workflowList, base=base)
 
 
-    def compareWorkflowInGroup(self, workflowGroup, longFormat=False, transpose=False):
+    def compareWorkflowInGroup(self, workflowGroup, base=None):
         """
             Compares all the Workflow in the group name
-
-            Each parameter that has different value across the workgroup is in the row, each simulation
-            is in the column.
 
         Parameters
         ----------
         workflowGroup : str
             The group name.
-        longFormat : bool
-            If True, return the results in long format rather than in a wide table.
-        transpose : bool
-            If True return the simulation names as rows
+        base : str
+            The name of the workflow the others are compared against.
+            Defaults to the first one in the group.
 
         Returns
         -------
-            Pandas with the difference in the parameter names.
+            pandas.DataFrame: the RFC 6902 patch from the base's parameters to each
+            other workflow's, one row per operation (see hera.utils.compareJSONS).
+            None if the group is empty.
         """
         simulationList = self.getWorkflowDocumentsInGroup(groupName=workflowGroup)
         workflowList = [hermes.workflow(simulationDoc['desc']['workflow'], WD_path=self.FilesDirectory,
@@ -944,8 +943,7 @@ class hermesWorkflowToolkit(abstractToolkit):
         if len(workflowList) == 0:
             ret = None
         else:
-            res = self.compareWorkflowObj(workflowList, longFormat=longFormat).T
-            ret =  res.T if transpose else res
+            ret = self.compareWorkflowObj(workflowList, base=base)
 
         return ret
 
@@ -1090,27 +1088,11 @@ class hermesWorkflowToolkit(abstractToolkit):
                         print(f"\t\t + {simName}")
 
 
-    def workflowTable(self, workflowGroup, longFormat=False, transpose=False):
+    def workflowTable(self, workflowGroup, base=None):
         """
-            Compares all the Workflow in the group name
-
-            Each parameter that has different value across the workgroup is in the row, each simulation
-            is in the column.
+            Compares all the Workflow in the group name.
 
             Identical to the method compareWorkflowInGroup.
-
-        Parameters
-        ----------
-        workflowGroup : str
-            The group name.
-        longFormat : bool
-            If True, return the results in long format rather than in a wide table.
-        transpose : bool
-            If True return the simulation names as rows
-
-        Returns
-        -------
-            Pandas with the difference in the parameter names.
         """
 
-        return self.compareWorkflowInGroup(workflowGroup, longFormat, transpose)
+        return self.compareWorkflowInGroup(workflowGroup, base)

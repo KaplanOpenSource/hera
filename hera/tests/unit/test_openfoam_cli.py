@@ -273,9 +273,8 @@ class _FakeOFToolkit(_Recorder):
         self._record("getWorkflowListOfSolvers", solverName, **query)
         return self.solverDocuments
 
-    def compareWorkflows(self, Workflow, longFormat=False, transpose=False):
-        self._record("compareWorkflows", Workflow, longFormat=longFormat,
-                     transpose=transpose)
+    def compareWorkflows(self, Workflow, base=None):
+        self._record("compareWorkflows", Workflow, base=base)
         return self.comparison
 
     def getWorkflowDocumentFromDB(self, nameOrWorkflow, doctype=None, **query):
@@ -819,8 +818,7 @@ class TestFoamTemplatesNodeList:
 # ---------------------------------------------------------------------------
 
 def _listArgs(**overrides):
-    arguments = dict(projectName=PROJECT, solver=SOLVER, longFormat=False,
-                     transpose=False, format="pandas", file=None)
+    arguments = dict(projectName=PROJECT, solver=SOLVER, format="pandas", file=None)
     arguments.update(overrides)
     return Namespace(**arguments)
 
@@ -838,16 +836,16 @@ class TestFoamSolverSimulationsList:
         foam_solver_simulations_list(_listArgs())
         assert f"There are no cases for {SOLVER} in {PROJECT}" in capsys.readouterr().out
 
-    def test_the_group_of_every_document_is_compared_with_the_table_flags(
+    def test_the_group_of_every_document_is_compared_against_its_first_workflow(
         self, install_toolkit, capsys
     ):
         toolkit = _FakeOFToolkit(solverDocuments=[_FakeDocument(groupName="grp")],
                                  comparison=_comparison())
         install_toolkit(toolkit)
-        foam_solver_simulations_list(_listArgs(longFormat=True, transpose=True))
+        foam_solver_simulations_list(_listArgs())
         name, args, kwargs = toolkit.call("compareWorkflows")
         assert args == (["grp"],)
-        assert kwargs == dict(longFormat=True, transpose=True)
+        assert kwargs == dict(base=None)
         assert "Group name: grp" in capsys.readouterr().out
 
     def test_every_distinct_group_is_compared_once(self, install_toolkit):
@@ -1190,7 +1188,7 @@ class TestDispersionFlowListCallsAMethodThatDoesNotExist:
         reason="B174: stochasticLagrangian_dispersionFlow_list calls "
                "tk.workflowCompare(workflowsType=...).  No class in hera "
                "defines workflowCompare -- the OpenFOAM toolkit's method is "
-               "compareWorkflows(Workflow, longFormat, transpose) -- so the "
+               "compareWorkflows(Workflow, base) -- so the "
                "subcommand cannot get past that line.  See the consolidated "
                "findings issue.",
     )

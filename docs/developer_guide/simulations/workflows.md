@@ -264,10 +264,11 @@ The `finalnode_xx` is a synthetic terminal node that depends on all actual nodes
 ```python
 # Compare all workflows in a group
 diff = toolkit.compareWorkflowInGroup("dispersion")
-# Returns DataFrame: rows = differing parameters, columns = workflow names
+# Returns DataFrame: the RFC 6902 patch from the first workflow's parameters to each
+# other workflow's, one row per operation (columns datasetName, op, path, value)
 
-# Compare specific workflows
-diff = toolkit.compareWorkflows(["dispersion_0001", "dispersion_0002"])
+# Compare specific workflows, against a chosen base
+diff = toolkit.compareWorkflows(["dispersion_0001", "dispersion_0002"], base="dispersion_0002")
 
 # List all workflows in a group (returns a list of dicts)
 toolkit.listWorkflows("dispersion", listNodes=True, listParameters=True)
@@ -390,12 +391,12 @@ See the [CLI reference](../../cli/reference.md#hera-workflows) for arguments.
 
 | Method | Purpose |
 |--------|---------|
-| `compareWorkflows(Workflow, longFormat=False, transpose=False)` | Compare workflows by name, group, file or list |
-| `compareWorkflowInGroup(workflowGroup, longFormat=False, transpose=False)` | Compare all in a group (`None` if the group is empty) |
-| `compareWorkflowObj(workflowList, longFormat=False)` | Compare workflow objects directly |
+| `compareWorkflows(Workflow, base=None)` | Compare workflows by name, group, file or list |
+| `compareWorkflowInGroup(workflowGroup, base=None)` | Compare all in a group (`None` if the group is empty) |
+| `compareWorkflowObj(workflowList, base=None)` | Compare workflow objects directly (names must be distinct) |
 | `listWorkflows(workflowGroup, listNodes=False, listParameters=False)` | List workflows (list of dicts) with optional details |
 | `listGroups(solver=None, workflowName=True)` | Print all groups in the project (grouped by solver) |
-| `workflowTable(workflowGroup, longFormat=False, transpose=False)` | Alias for `compareWorkflowInGroup` |
+| `workflowTable(workflowGroup, base=None)` | Alias for `compareWorkflowInGroup` |
 
 ### Execution and cleanup
 

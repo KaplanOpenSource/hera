@@ -1,6 +1,6 @@
 # JSON Utilities
 
-The `hera.utils.jsonutils` module provides functions for serializing configurations that contain physical units, comparing JSON structures side by side, generating parameter sweeps, and manipulating values by JSON path.
+The `hera.utils.jsonutils` module provides functions for serializing configurations that contain physical units, comparing JSON structures, generating parameter sweeps, and manipulating values by JSON path.
 
 ## Importing
 
@@ -112,28 +112,27 @@ for variant in JSONVariations(base, variations):
 # resolution=200, viscosity=0.0001
 ```
 
-## compareJSONS -- Side-by-Side Comparison
+## compareJSONS -- Compare Several Documents Against a Base
 
-Compare multiple JSON configurations and see only the fields that differ:
+Compare named JSON configurations. Each one is shown as the RFC 6902 JSON Patch that turns the base document into it, one row per operation:
 
 ```python
 from hera.utils import compareJSONS
 
 config_a = {"solver": {"dt": 0.1, "maxIter": 100}}
 config_b = {"solver": {"dt": 0.2, "maxIter": 100}}
+config_c = {"solver": {"dt": 0.1, "maxIter": 100, "tolerance": 1e-6}}
 
-diff = compareJSONS(run1=config_a, run2=config_b)
-print(diff)
-# Shows a DataFrame with solver.dt differing between run1 and run2
+print(compareJSONS(run1=config_a, run2=config_b, run3=config_c))
 ```
 
 ```
-datasetName            run1  run2
-parameterNameFullPath
-solver.dt               0.1   0.2
+  datasetName       op               path     value
+0        run2  replace         /solver/dt  0.200000
+1        run3      add  /solver/tolerance  0.000001
 ```
 
-The JSONs are flattened with `convertJSONtoPandas` (list items become `name_0`, `name_1`, ...) and compared with [`compareDataframeConfigurations`](dataframes.md). Pass `longFormat=True` to get long-format output. Use `changeDotToUnderscore=True` to make the parameter names compatible with `pandas.query()`.
+The base is the first document unless you name another with `base="run2"`. It has no rows of its own, so an empty table means every document equals the base. A `from` column appears when a patch moves or copies a value.
 
 ## diffJSONS -- JSON Patch Between Two Documents
 
@@ -146,7 +145,7 @@ diffJSONS({"a": 1}, {"a": 2})
 # [{'op': 'replace', 'path': '/a', 'value': 2}]
 ```
 
-`diffJSONS` imports the `jsonpatch` package, which is not pinned in `requirements.txt` or `setup.py` (it usually arrives as a transitive dependency); if it is missing, run `pip install jsonpatch`.
+Both functions use the `jsonpatch` package (pinned in `requirements.txt`).
 
 ## loadJSON and convertJSONtoPandas
 

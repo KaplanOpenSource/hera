@@ -294,7 +294,7 @@ of.listWorkflows("wind_study", listNodes=True, listParameters=True)
 # Compare parameters across workflows in a group
 diff_table = of.compareWorkflowInGroup("wind_study")
 print(diff_table)
-# Shows a DataFrame with rows = parameters that differ, columns = workflow names
+# Shows the RFC 6902 patch from the group's first workflow to each other one
 ```
 
 ### Batch runs with Slurm
@@ -787,9 +787,9 @@ hera-openFoam simpleFoam templates get myTemplate \
 hera-openFoam simpleFoam executeWorkflow wind_study_1.json --projectName MY_PROJECT \
     [--noDB] [--scheduler local|central] [--scheduler-host HOST] [--scheduler-port PORT] [--dispatch-id ID]
 
-# List the groups/workflows of this solver, with a table of the parameters that differ
+# List the groups/workflows of this solver; each group as the patches from its first workflow
 hera-openFoam simpleFoam list --projectName MY_PROJECT \
-    [--longTable] [--transpose] [--format pandas|json|latex|csv] [--file out]
+    [--format pandas|json|latex|csv] [--file out]
 
 # Delete workflows (optionally exporting them to disk first)
 hera-openFoam simpleFoam delete wind_study_0001 wind_study_0002 --projectName MY_PROJECT [--export] [--overwrite]

@@ -1,10 +1,9 @@
-"""utils/jsonutils.py: JSON<->pandas flattening, variation generation, and
-cross-dataset comparison."""
+"""utils/jsonutils.py: JSON<->pandas flattening and variation generation.
+compareJSONS is covered in test_diffJSONS.py."""
 import pytest
 
 from hera.utils.jsonutils import (
     JSONVariations,
-    compareJSONS,
     convertJSONtoPandas,
     processJSONToPandas,
 )
@@ -48,11 +47,3 @@ class TestJSONVariations:
         results = list(JSONVariations({"a": 1, "untouched": "x"}, [{"a": [10]}]))
         assert results[0]["untouched"] == "x"
 
-
-@pytest.mark.unit
-class TestCompareJSONS:
-    def test_it_compares_common_fields_across_datasets(self):
-        result = compareJSONS(one={"a": 1}, two={"a": 2})
-        assert list(result.columns) == ["one", "two"]
-        assert result.loc["a", "one"] == 1
-        assert result.loc["a", "two"] == 2

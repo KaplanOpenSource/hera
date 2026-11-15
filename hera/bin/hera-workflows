@@ -78,10 +78,8 @@ if __name__ == "__main__":
     compare_parser.add_argument('workflows', nargs="+", type=str,
                                 help='[groupName] - compare all the simulations in the group, [sim1,sim2,..] compare the different simulations.old. simX is either a simulation name in the DB or a file on the disk')
     compare_parser.add_argument('--projectName', dest="projectName", default=None, type=str, help=PROJECT_NAME_HELP_DESC)
-    compare_parser.add_argument('--longTable', dest="longFormat", action="store_true", default=False,
-                                        help='If exsists, list the parameters as a long table. If does not exist data is pivoted')
-    compare_parser.add_argument('--transpose', dest="transpose", action="store_true", default=False,
-                                        help='If exsists, list the simulations as rows and the variables as columns')
+    compare_parser.add_argument('--base', dest="base", default=None,
+                                        help='The workflow the others are compared against (default: the first one)')
 
     compare_parser.add_argument('--format', dest="format", default="pandas", choices=["pandas","json","latex","csv"],
                                         help='The output format: pandas (print the pandas), json, latex')

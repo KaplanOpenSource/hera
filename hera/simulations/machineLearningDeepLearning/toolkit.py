@@ -74,7 +74,7 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
         return newModel
 
 
-    def listTorchModels(self, modelObjectOrName=None, longFormat=True, **qry):
+    def listTorchModels(self, modelObjectOrName=None, base=None, **qry):
         qryMongo = dictToMongoQuery(qry)
         if modelObjectOrName is not None:
             if isinstance(modelObjectOrName, str):
@@ -82,8 +82,8 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
             else:
                 qryMongo["model__model__classpath"] = self.get_model_fullname(modelObjectOrName)
         docList = self.getSimulationsDocuments(type=torchLightingModelContainer.MODEL, **qryMongo)
-        return compareJSONS(**dict([(f"{mdl.desc['modelID']}", mdl.desc['model']) for mdl in docList]),
-                            longFormat=longFormat,changeDotToUnderscore=True).rename(columns=dict(datasetName="modelID"))
+        return compareJSONS(base=base, **dict([(f"{mdl.desc['modelID']}", mdl.desc['model']) for mdl in docList]))\
+            .rename(columns=dict(datasetName="modelID"))
 
     def getTorchModelContainerByID(self, modelID, **qry):
         qryModngo = dictToMongoQuery(qry,prefix="model")
