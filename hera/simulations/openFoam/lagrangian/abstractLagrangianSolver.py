@@ -21,6 +21,7 @@ from hera.simulations.openFoam.OFWorkflow import workflow_StochasticLagrangianSo
 from hera.utils import (
     ConfigurationToJSON,
     dictToMongoQuery,
+    diffJSONS,
     get_classMethod_logger,
     tonumber,
 )
@@ -520,9 +521,10 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         if len(doc_nameQueryList) > 0:
             # Same name found — compare parameters to detect inconsistency.
             doc_similarWorkflow = self.toolkit.getHemresWorkflowFromDocument(doc_nameQueryList[0])
-            res = self.toolkit.compareWorkflowObj([doc_similarWorkflow, workflow])
+            # A pair that shares its name: compareWorkflowObj keys by name and would compare nothing.
+            res = diffJSONS(doc_similarWorkflow.parametersJSON, workflow.parametersJSON)
 
-            if len(res.columns) == 1:
+            if not res:
                 # Identical — no action needed.
                 logger.info("Workflow in DB is identical to input.")
             else:

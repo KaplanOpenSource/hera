@@ -115,8 +115,10 @@ class _StandInWorkflow(workflow_StochasticLagrangianSolver):
     """
 
     def __init__(self, name=None, dispersionFlowFieldName=None,
-                 originalFlowFieldName=None, dispersionDuration=None):
+                 originalFlowFieldName=None, dispersionDuration=None,
+                 parametersJSON=None):
         self._name = name
+        self._parametersJSON = {"b": 2} if parametersJSON is None else parametersJSON
         self._dispersionFlowFieldName = dispersionFlowFieldName
         self._originalFlowFieldName = originalFlowFieldName
         self._dispersionDuration = dispersionDuration
@@ -155,7 +157,7 @@ class _StandInWorkflow(workflow_StochasticLagrangianSolver):
 
     @property
     def parametersJSON(self):
-        return {"b": 2}
+        return self._parametersJSON
 
 
 class _StandInMesh:
@@ -993,12 +995,13 @@ class TestWorkflowListLookup:
         assert (updateWorkflow, needDBAdd, inconsistency) == (False, False, None)
 
 
-def _standInWorkflowFromDocument(ext, monkeypatch):
+def _standInWorkflowFromDocument(ext, monkeypatch, parametersJSON=None):
     """Rebuilding a hermes workflow from a document needs a real workflow
     JSON, which the stand-in has none of; hand back the stand-in instead."""
     monkeypatch.setattr(
         type(ext.toolkit), "getHemresWorkflowFromDocument",
-        lambda self, documentList, **kwargs: _StandInWorkflow(name="GROUP_1"))
+        lambda self, documentList, **kwargs: _StandInWorkflow(
+            name="GROUP_1", parametersJSON=parametersJSON))
 
 
 @pytest.mark.unit
@@ -1017,6 +1020,34 @@ class TestCompareWorkflowObj:
         workflow, updateWorkflow, needDBAdd, inconsistency = ext._checkDBConsistency(
             _StandInWorkflow(name="GROUP_1"), True, False, False)
         assert workflow.name == "GROUP_1"
+
+    @pytest.fixture()
+    def storedAlphaOne(self, ext, tmp_path, monkeypatch):
+        """GROUP_1 is in the DB with parameters {"alpha": 1}."""
+        _standInWorkflowFromDocument(ext, monkeypatch, parametersJSON={"alpha": 1})
+        ext.toolkit.addSimulationsDocument(
+            resource=str(tmp_path / "c"), dataFormat=datatypes.STRING,
+            type=ext.toolkit.DOCTYPE_WORKFLOW,
+            desc=dict(workflowName="GROUP_1", groupName="GROUP"))
+
+    def test_an_identical_workflow_in_the_db_needs_no_action(self, ext, storedAlphaOne):
+        """The two workflows share their name, so they must be compared as a
+        pair: keyed by name, one of them would vanish from the comparison."""
+        _, updateWorkflow, needDBAdd, inconsistency = ext._checkDBConsistency(
+            _StandInWorkflow(name="GROUP_1", parametersJSON={"alpha": 1}), False, False, False)
+        assert (updateWorkflow, needDBAdd, inconsistency) == (False, False, None)
+
+    def test_a_differing_workflow_is_marked_for_update_with_the_patch(self, ext, storedAlphaOne):
+        _, updateWorkflow, _, inconsistency = ext._checkDBConsistency(
+            _StandInWorkflow(name="GROUP_1", parametersJSON={"alpha": 2}), True, False, False)
+        assert updateWorkflow is True
+        assert inconsistency == [{"op": "replace", "path": "/alpha", "value": 2}]
+
+    def test_a_differing_workflow_without_updatedb_or_exportfromdb_is_refused(
+            self, ext, storedAlphaOne):
+        with pytest.raises(ValueError, match="different parameters"):
+            ext._checkDBConsistency(
+                _StandInWorkflow(name="GROUP_1", parametersJSON={"alpha": 2}), False, False, False)
 
 
 @pytest.mark.unit
