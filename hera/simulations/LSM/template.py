@@ -80,7 +80,7 @@ class LSMTemplate:
     def modelFolder(self):
         dir_path= self._document['desc']['modelFolder']
         if not os.path.isabs(dir_path):
-            dir_path = self.Toolkit.filesDirectory + dir_path
+            dir_path = os.path.join(self.dirPath, dir_path)
         return dir_path
 
     def run(self,topography=None, stations=None,canopy=None,params=dict(),depositionRates=None, saveMode=toolkit.TOOLKIT_SAVEMODE_FILEANDDB,simulationName=None, saveDir=None,**descriptor):
