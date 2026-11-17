@@ -78,6 +78,56 @@ jobs:
           path: .coverage.unit
           include-hidden-files: true
 
+  openfoam:
+    name: OpenFOAM 10 system test (fields written and read by Hera)
+    runs-on: ubuntu-24.04
+    needs: unit
+
+    steps:
+      - name: Checkout hera
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - name: Checkout pyargos (internal dependency — provides the `argos` package)
+        uses: actions/checkout@v6
+        with:
+          repository: KaplanOpenSource/pyargos
+          path: _vendor/pyargos
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements.txt
+            requirements-test.txt
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgdal-dev gdal-bin
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+          pip install -e . --no-deps
+
+      # OpenFOAM itself runs in the openfoam.org image; the test calls it with
+      # `docker run` on the case directories it creates.
+      - name: Pull OpenFOAM 10
+        run: docker pull openfoam/openfoam10-paraview56
+
+      - name: Run the OpenFOAM system test
+        run: pytest hera/tests/test_openfoam_fields_system.py -m openfoam -v
+        env:
+          MPLBACKEND: Agg
+          HERA_OPENFOAM_DOCKER_IMAGE: openfoam/openfoam10-paraview56
+          PYTHONPATH: ${{ github.workspace }}/Hermes:${{ github.workspace }}/_vendor/pyargos
+
   test:
     name: Run full test suite
     runs-on: ubuntu-24.04
