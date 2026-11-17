@@ -45,7 +45,15 @@ DROPPED_CATCH_ALL = {
 }
 
 # Scenarios that raised with PyFoam and are fixed now: name -> the bug.
-FIXED = {}
+_SCALAR_ROWS = "a scalar field could not become a DataFrame: atleast_2d turned a list into one row"
+_SCALAR_LEN = "a scalar field could not become a DataFrame: a uniform patch value has no len()"
+FIXED = {
+    "extract_p": _SCALAR_ROWS,
+    "getDataFrame_scalar_from_dataframe": _SCALAR_ROWS,
+    "readFieldAsDataFrame_parallel_p": _SCALAR_ROWS,
+    "extract_T": _SCALAR_LEN,
+    "getDataFrame_single_T": _SCALAR_LEN,
+}
 
 _KEYWORD = re.compile(r"nonuniform\s+List<\w+>|(?<!non)uniform")
 
@@ -186,3 +194,49 @@ def test_frame_scenarios_that_failed_with_pyfoam_still_fail(name, home):
     with pytest.raises(Exception) as caught:
         FRAME_SCENARIOS[name](home)
     assert type(caught.value).__name__ == _goldenError("frames", name)
+
+
+# --------------------------------------------------------------------------- #
+#  Scalar fields as DataFrames (raised with PyFoam)                            #
+# --------------------------------------------------------------------------- #
+def _values(df, region, column, boundary=None):
+    rows = df[df["region"] == region]
+    if boundary is not None:
+        rows = rows[rows["boundary"] == boundary]
+    return rows.sort_values("processorIndex")[column].tolist()
+
+
+def test_a_nonuniform_scalar_field_gives_one_row_per_cell_and_face(home):
+    df = FRAME_SCENARIOS["extract_p"](home)
+    assert _values(df, "internalField", "p") == [0.5, 0.25, -0.125, 1e-05]
+    assert _values(df, "boundaryField", "p", "outlet") == [0.0, 0.5, 1.0]
+    for patch in ("inlet", "walls", "sym", "frontAndBack"):
+        assert numpy.isnan(_values(df, "boundaryField", "p", patch)).all()
+
+
+def test_a_uniform_scalar_field_gives_one_row_per_region(home):
+    df = FRAME_SCENARIOS["extract_T"](home)
+    assert _values(df, "internalField", "T") == [300.0]
+    assert _values(df, "boundaryField", "T", "inlet") == [310.0]
+    assert _values(df, "boundaryField", "T", "outlet") == [300.0]
+
+
+def test_a_scalar_field_read_from_a_case_gives_the_same_frame_as_extractFieldFile(home):
+    viaField = readCSV(frameToCSV(FRAME_SCENARIOS["getDataFrame_single_T"](home)))
+    viaFile = readCSV(frameToCSV(FRAME_SCENARIOS["extract_T"](home)))
+    assert compare_outputs(viaField, viaFile, "dataframe")
+
+
+def test_a_scalar_field_set_from_a_dataframe_gives_the_values_back(home):
+    df = FRAME_SCENARIOS["getDataFrame_scalar_from_dataframe"](home)
+    assert _values(df, "internalField", "p") == [1.0, 2.0, 3.0, 4.0]
+    assert _values(df, "boundaryField", "p", "inlet") == [5.0, 6.0]
+    assert _values(df, "boundaryField", "p", "outlet") == [7.0, 8.0, 9.0]
+
+
+def test_a_decomposed_scalar_field_is_read_per_processor(home):
+    df = FRAME_SCENARIOS["readFieldAsDataFrame_parallel_p"](home)
+    assert _values(df[df["processor"] == 0], "internalField", "p") == [0.5, 0.25]
+    assert _values(df[df["processor"] == 1], "internalField", "p") == [-0.125, 1e-05]
+    assert _values(df[df["processor"] == 1], "boundaryField", "p", "outlet") == [0.0, 0.5, 1.0]
+    assert _values(df[df["processor"] == 0], "boundaryField", "p", "procBoundary0to1") == [-0.125, 1e-05]

@@ -20,10 +20,15 @@ def extractFieldFile(casePath, columnNames, patchNameList=None,filterInternalPat
         raise ValueError(f"Cannot read the OpenFOAM field file {casePath}: {e}") from e
     return ParsedParameterFileToDataFrame(dataParsedFile=dataParsedFile,columnNames=columnNames, patchNameList=patchNameList,filterInternalPatches=filterInternalPatches, **kwargs)
 
+def _rows(value, columnNames):
+    """One row per cell/face: a uniform value is one row, a list is one row per item."""
+    return numpy.reshape(value, (-1, len(columnNames)))
+
+
 def ParsedParameterFileToDataFrame(dataParsedFile,columnNames, patchNameList=None,filterInternalPatches=True, **kwargs):
     """Convert a parsed OpenFOAM field (the dict that readFieldFile returns) to a pandas DataFrame."""
     ret = []
-    pndsData = pandas.DataFrame(numpy.atleast_2d(dataParsedFile['internalField']),
+    pndsData = pandas.DataFrame(_rows(dataParsedFile['internalField'], columnNames),
                                 columns=columnNames).assign(**kwargs, region='internalField')
 
     ret.append(pndsData)
@@ -40,9 +45,9 @@ def ParsedParameterFileToDataFrame(dataParsedFile,columnNames, patchNameList=Non
 
         if addPatch:
             if 'value' in dataParsedFile['boundaryField'][patchName]:
-                if len(dataParsedFile['boundaryField'][patchName]['value']) >0:
+                if numpy.size(dataParsedFile['boundaryField'][patchName]['value']) >0:
                     pndsData = pandas.DataFrame(
-                        numpy.atleast_2d(dataParsedFile['boundaryField'][patchName]['value']),
+                        _rows(dataParsedFile['boundaryField'][patchName]['value'], columnNames),
                         columns=columnNames).assign(**kwargs, region='boundaryField', boundary=patchName,type=dataParsedFile['boundaryField'][patchName]['type'])
                 else:
                     continue # skip that boundary
