@@ -67,14 +67,14 @@ in-memory store.
 
 ### 2. `sys.modules` stubs for packages CI cannot install (`_stubs.py`)
 
-The module docstring says nineteen Hera modules import PyFoam, paraview, FreeCAD, hermes, argos or evtk
+Hera modules import paraview, FreeCAD, hermes, argos or evtk
 at module level. `_stubs.install()` registers placeholder modules before those imports run, so
 the pure-Python logic around them can be tested:
 
 | Group | Modules | How it is stubbed |
 |---|---|---|
-| Namespace packages (always) | `PyFoam`, `PyFoam.RunDictionary`, `PyFoam.Basics`, `paraview`, `paraview.simple` | `types.ModuleType` with `__path__ = []`, so `import a.b` works |
-| Leaf mocks (always) | `PyFoam.RunDictionary.ParsedParameterFile`, `PyFoam.RunDictionary.BoundaryDict`, `PyFoam.Basics.DataStructures`, `evtk`, `evtk.hl`, `dask.distributed` | `unittest.mock.MagicMock()` |
+| Namespace packages (always) | `paraview`, `paraview.simple` | `types.ModuleType` with `__path__ = []`, so `import a.b` works |
+| Leaf mocks (always) | `evtk`, `evtk.hl`, `dask.distributed` | `unittest.mock.MagicMock()` |
 | Only if absent | `argos`, `argos.experimentSetup`, `argos.experimentSetup.dataObjects` | namespace packages, plus **real empty classes** `ExperimentZipFile`, `TrialSet`, `Trial`, `EntityType`, `Entity` |
 | Only if absent | `hermes` | module whose `workflow` attribute is a real empty class |
 | Only if absent | `FreeCAD` | `MagicMock()` |
@@ -90,9 +90,10 @@ another MagicMock, and later `isinstance()` calls fail with a confusing `TypeErr
     - **GDAL / `osgeo`**: not stubbed. CI installs `libgdal-dev gdal-bin`. Tests that need `osgeo`
       or `sklearn` use `pytest.importorskip` (for example, the `GFS.py` import test).
 
-    Because PyFoam/paraview are MagicMocks, code that really *writes* OpenFOAM files can only be
-    smoke-tested. Batch 33's commit message says this directly: much of that batch checks argument
-    forwarding and branch selection, not physics.
+    OpenFOAM field files are read and written with foamlib, which CI installs, so that code is
+    tested against real files (`test_openfoam_field_golden.py` compares it with what the PyFoam
+    implementation wrote before #1169). paraview is still a MagicMock, so the VTK pipeline only gets
+    argument-forwarding and branch-selection tests.
 
 ### 3. A fixed bootstrap order (`conftest.py`)
 

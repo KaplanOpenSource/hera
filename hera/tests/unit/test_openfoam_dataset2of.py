@@ -33,13 +33,12 @@ import pytest
 
 pytest.importorskip("foamlib", reason="datasetToOF reads and writes the case with foamlib")
 
-# hera.simulations.openFoam needs hermes at import time, and its
-# preprocessOFObjects package needs PyFoam -- neither is pip-installable.  The
-# hermetic layer satisfies both through hera/tests/unit/_stubs.py; outside it,
-# the real packages have to be present (CI puts them on PYTHONPATH).  Same
-# guard, and for the same reason, as hera/tests/test_of_lsm_flow.py.
+# hera.simulations.openFoam needs hermes at import time, and hermes is not
+# pip-installable.  The hermetic layer satisfies it through
+# hera/tests/unit/_stubs.py; outside it, the real package has to be present
+# (CI puts it on PYTHONPATH).  Same guard, and for the same reason, as
+# hera/tests/test_of_lsm_flow.py.
 pytest.importorskip("hermes", reason="hera.simulations.openFoam imports hermes at import time")
-pytest.importorskip("PyFoam", reason="preprocessOFObjects imports PyFoam at import time")
 
 import xarray
 from foamlib import FoamFieldFile, FoamFile

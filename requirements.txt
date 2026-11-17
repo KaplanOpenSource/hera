@@ -225,7 +225,6 @@ pyasn1==0.6.2
 pyasn1_modules==0.4.1
 pycparser==2.22
 pyevtk==1.6.0
-PyFoam==2023.7
 Pygments==2.19.1
 PyJWT==2.6.0
 pymongo==4.11.2

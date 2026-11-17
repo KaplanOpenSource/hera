@@ -33,16 +33,9 @@ def _mock_pkg(name: str) -> types.ModuleType:
     return mod
 
 
-for _pkg in ["PyFoam", "PyFoam.RunDictionary", "PyFoam.Basics", "paraview", "paraview.simple"]:
+for _pkg in ["paraview", "paraview.simple"]:
     if _pkg not in sys.modules:
         _mock_pkg(_pkg)
-for _sub in [
-    "PyFoam.RunDictionary.ParsedParameterFile",
-    "PyFoam.RunDictionary.BoundaryDict",
-    "PyFoam.Basics.DataStructures",
-]:
-    if _sub not in sys.modules:
-        sys.modules[_sub] = MagicMock()
 
 for _ext in ["evtk", "evtk.hl"]:
     if _ext not in sys.modules:
