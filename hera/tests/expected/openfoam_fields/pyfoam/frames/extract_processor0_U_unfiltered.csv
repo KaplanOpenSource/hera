@@ -1,0 +1,9 @@
+processorIndex,Ux,Uy,Uz,processor,region,boundary,type
+0,,,,0,boundaryField,frontAndBack,empty
+0,1.0,0.0,0.0,0,boundaryField,inlet,fixedValue
+0,0.3,0.0,-0.01,0,boundaryField,procBoundary0to1,processor
+1,0.4,0.02,0.0,0,boundaryField,procBoundary0to1,processor
+0,,,,0,boundaryField,sym,symmetry
+0,,,,0,boundaryField,walls,noSlip
+0,0.1,0.0,0.0,0,internalField,,
+1,0.2,0.01,0.0,0,internalField,,
