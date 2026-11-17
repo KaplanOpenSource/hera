@@ -1,12 +1,15 @@
 from decimal import Decimal
 import h5py
+import warnings
 import time
 import numpy as np
 import os
+import pandas as pd
 from hera.toolkit import abstractToolkit
 from hera import toolkitHome
 from hera.datalayer.datahandler import getHandler
 import pandas as pd
+from calculator import volumetricParticleCalculator
 
 class volumetricParticleAnalysis:
     """
@@ -23,8 +26,9 @@ class volumetricParticleAnalysis:
             toolkit (VolumetricParticle): The parent toolkit instance.
         """
         self.toolkit = toolkit
+        self.calculator = volumetricParticleCalculator()
 
-    def getParticles(self, t):
+    def _getParticles(self, t, i):
         """
         Retrieve particle data for a given time step.
         Dispatches to the appropriate source-specific method (e.g., getParticles_openFOAM).
@@ -35,9 +39,9 @@ class volumetricParticleAnalysis:
         Returns:
             tuple: A tuple containing (active_ids, positions, mass, age, sigma, TL, epsilon).
         """
-        return self.__getattribute__(f"getParticles_{self.toolkit.source}")(t)
+        return self.__getattribute__(f"_getParticles_{self.toolkit.source}")(t=t, timestep = i)
 
-    def getParticles_openFOAM(self, t):
+    def _getParticles_openFOAM(self, t, **kwargs):
         """
         Retrieve particle data from an OpenFOAM simulation via the OpenFOAM toolkit.
 
@@ -61,6 +65,25 @@ class volumetricParticleAnalysis:
                data['mass'].values, data['age'].values, \
                data['sigma'].values, data['TL'].values, \
                data['epsilon'].values
+
+    def _getParticles_FORTRAN(self, timestep, **kwargs):
+        """
+        Retrieve particle data from a FORTRAN simulation.
+
+        Args:
+            t (float): The time step.
+
+        Returns:
+            tuple: (ids, positions, mass, age, sigma, TL, epsilon) as numpy arrays.
+        """
+        data = pd.read_csv(os.path.join(self.toolkit.path, f"tozaot/machsan/OUTP3d03_3_{timestep:05d}"),
+                           names = ["id","mass","age","x","y","z"], delim_whitespace=True)
+        data_turb = pd.read_csv(os.path.join(self.toolkit.path, f"tozaot/machsan/OUTTurbProp03_3_{timestep:05d}"),
+                           names = ["sigma","TL","epsilon"], delim_whitespace=True)
+        return data['id'].values.astype(int), data[['x', 'y', 'z']].values, \
+               data['mass'].values, data['age'].values, \
+               data_turb['sigma'].values, data_turb['TL'].values, \
+               data_turb['epsilon'].values
 
     def get_uniform_grid(self, domain_edges, dxdydz, overwrite=False, **kwargs):
         """
@@ -96,15 +119,20 @@ class volumetricParticleAnalysis:
         else:
             dx, dy, dz = dxdydz
 
-        nx = max(1, int(np.round((xmax - xmin) / dx)))
-        ny = max(1, int(np.round((ymax - ymin) / dy)))
-        nz = max(1, int(np.round((zmax - zmin) / dz)))
+        # Use a fixed resolution by aligning to multiples of dx/dy/dz and extending beyond maxes
+        ox = np.floor(xmin / dx) * dx
+        nx = int(np.ceil((xmax - ox) / dx))
+        x_edges = ox + np.arange(nx + 1) * dx
 
-        grid_data = [
-            np.linspace(xmin, xmax, nx + 1),
-            np.linspace(ymin, ymax, ny + 1),
-            np.linspace(zmin, zmax, nz + 1)
-        ]
+        oy = np.floor(ymin / dy) * dy
+        ny = int(np.ceil((ymax - oy) / dy))
+        y_edges = oy + np.arange(ny + 1) * dy
+
+        oz = np.floor(zmin / dz) * dz
+        nz = int(np.ceil((zmax - oz) / dz))
+        z_edges = oz + np.arange(nz + 1) * dz
+
+        grid_data = [x_edges, y_edges, z_edges]
 
         # 4. Resolve unique path and save via Handler
         default_path = os.path.join(self.toolkit.path, self.toolkit.uniformGridFileName)
@@ -159,11 +187,14 @@ class volumetricParticleAnalysis:
 
         global_origin = np.floor(np.array([global_x_min, global_y_min, global_z_min]) / dx) * dx
 
-        # Define a global X grid with resolution dx, then partition it into N blocks
-        nx = max(1, int(np.round((global_x_max - global_x_min) / dx)))
-        global_x_edges = np.linspace(global_x_min, global_x_max, nx + 1)
+        # Define a global X grid with resolution dx, extending beyond xmax if needed
+        nx = int(np.ceil((global_x_max - global_origin[0]) / dx))
+        global_x_edges = global_origin[0] + np.arange(nx + 1) * dx
 
         # Indices to split the nx cells into n_blocks_x blocks
+        if n_blocks_x > nx:
+            warnings.warn(f"n_blocks_x ({n_blocks_x}) is larger than the total number of cells nx ({nx}). Reducing n_blocks_x to {nx}.")
+            n_blocks_x = nx
         split_indices = np.linspace(0, nx, n_blocks_x + 1).astype(int)
         block_boundaries = global_x_edges[split_indices]
 
@@ -239,304 +270,7 @@ class volumetricParticleAnalysis:
             )]
         return docs
 
-    def calculateConcentration(self, original_positions, mass, grid):
-        """
-        Calculate the mass concentration across the grid.
-        Dispatches to either uniform or non-uniform calculation based on the grid type.
-
-        Args:
-            original_positions (np.ndarray): Array of particle positions [x, y, z].
-            mass (np.ndarray): Array of particle masses.
-            grid (list|tuple|list[dict]): The grid definition (edges for uniform, master_grid for non-uniform).
-
-        Returns:
-            tuple: (concentration_grid, original_order_concentrations)
-        """
-        is_uniform = (isinstance(grid, (list, tuple)) and len(grid) == 3 and not isinstance(grid[0], dict))
-        return self.calculateConcentration_uniform(original_positions, mass, grid) \
-            if is_uniform else self.calculateConcentration_nonuniform(original_positions, mass, grid)
-
-    def calculateConcentration_uniform(self, original_positions, mass, grid):
-        """
-        Calculate concentration for a uniform grid using histogramdd.
-
-        Args:
-            original_positions (np.ndarray): Array of particle positions [x, y, z].
-            mass (np.ndarray): Array of particle masses.
-            grid (list): A list of 3 arrays containing the edges for x, y, and z.
-
-        Returns:
-            tuple: (concentration_grid, original_order_concentrations)
-        """
-        original_positions = np.asarray(original_positions)
-        mass = np.asarray(mass)
-        
-        # Unpack grid edges
-        x_edges, y_edges, z_edges = grid
-        nx = len(x_edges) - 1
-        ny = len(y_edges) - 1
-        nz = len(z_edges) - 1
-        
-        # 1. 3D Histogram with weights (mass) across all dimensions simultaneously
-        mass_grid, _ = np.histogramdd(
-            original_positions,
-            bins=[x_edges, y_edges, z_edges],
-            weights=mass
-        )
-        
-        # 2. Compute 3D cell volumes for rectilinear grids (supports non-cubic or stretched grids)
-        dx = np.diff(x_edges)
-        dy = np.diff(y_edges)
-        dz = np.diff(z_edges)
-        cell_volumes = dx[:, None, None] * dy[None, :, None] * dz[None, None, :]
-        
-        # 3. Convert mass to concentration (Mass / Cell Volume)
-        concentration_grid = mass_grid / cell_volumes
-        
-        # 4. Look up concentrations for each particle in original order
-        px = original_positions[:, 0]
-        py = original_positions[:, 1]
-        pz = original_positions[:, 2]
-        
-        ix = np.searchsorted(x_edges, px, side='right') - 1
-        iy = np.searchsorted(y_edges, py, side='right') - 1
-        iz = np.searchsorted(z_edges, pz, side='right') - 1
-        
-        # Check which particles fall inside the grid bounds
-        valid_mask = (
-            (ix >= 0) & (ix < nx) &
-            (iy >= 0) & (iy < ny) &
-            (iz >= 0) & (iz < nz)
-        )
-        
-        original_order_concentrations = np.zeros_like(mass)
-        
-        if np.any(valid_mask):
-            v_idx = np.where(valid_mask)[0]
-            original_order_concentrations[v_idx] = concentration_grid[
-                ix[v_idx], iy[v_idx], iz[v_idx]
-            ]
-            
-        return concentration_grid, original_order_concentrations
-
-    def calculateConcentration_nonuniform(self, original_positions, mass, master_grid):
-        """
-        Calculate concentration for a non-uniform (adaptive) grid using 3D blocks.
-        Returns: (list of 3D concentration grids, per-particle concentrations)
-        """
-        positions = np.asarray(original_positions)
-        mass = np.asarray(mass)
-
-        results = []
-        original_order_concentrations = np.zeros_like(mass)
-
-        for idx, block in enumerate(master_grid):
-            x_edges, y_edges, z_edges = block['x_edges'], block['y_edges'], block['z_edges']
-            dx = x_edges[1] - x_edges[0]
-            dy = y_edges[1] - y_edges[0]
-            dz = z_edges[1] - z_edges[0]
-            cell_volume = dx * dy * dz
-
-            # 1. Filter particles in this block
-            # Using the same boundaries as get_adaptive_grid (inclusive end for last block)
-            if idx == len(master_grid) - 1:
-                mask = (positions[:, 0] >= x_edges[0]) & (positions[:, 0] <= x_edges[-1])
-            else:
-                mask = (positions[:, 0] >= x_edges[0]) & (positions[:, 0] < x_edges[-1])
-
-            block_pos = positions[mask]
-            block_mass = mass[mask]
-
-            # 2. 3D Histogram for the block
-            mass_grid, _ = np.histogramdd(
-                block_pos,
-                bins=[x_edges, y_edges, z_edges],
-                weights=block_mass
-            )
-
-            concentration_grid = mass_grid / cell_volume
-            results.append(concentration_grid)
-
-            # 3. Look up concentrations for particles in this block
-            if len(block_pos) > 0:
-                # Vectorized index lookup
-                ix = np.searchsorted(x_edges, block_pos[:, 0], side='right') - 1
-                iy = np.searchsorted(y_edges, block_pos[:, 1], side='right') - 1
-                iz = np.searchsorted(z_edges, block_pos[:, 2], side='right') - 1
-
-                # Clamp to avoid boundary errors
-                ix = np.clip(ix, 0, concentration_grid.shape[0] - 1)
-                iy = np.clip(iy, 0, concentration_grid.shape[1] - 1)
-                iz = np.clip(iz, 0, concentration_grid.shape[2] - 1)
-
-                original_order_concentrations[mask] = concentration_grid[ix, iy, iz]
-
-        return results, original_order_concentrations
-
-    def calculateSecondMoment(self, positions, mass, volume, grid):
-        """
-        Calculate the second moment of mass across the grid.
-        Dispatches to either uniform or non-uniform calculation based on the grid type.
-
-        Args:
-            positions (np.ndarray): Array of particle positions [x, y, z].
-            mass (np.ndarray): Array of particle masses.
-            volume (np.ndarray): Array of particle volumes.
-            grid (list|tuple|list[dict]): The grid definition.
-
-        Returns:
-            np.ndarray|list: The second moment grid (or list of grids for non-uniform).
-        """
-        is_uniform = (isinstance(grid, (list, tuple)) and len(grid) == 3 and not isinstance(grid[0], dict))
-        return self.calculateSecondMoment_uniform(positions, mass, volume, grid) \
-            if is_uniform else self.calculateSecondMoment_nonuniform(positions, mass, volume, grid)
-
-    def calculateSecondMoment_uniform(self, positions, mass, volume, grid):
-        """
-        Calculate the second moment for a uniform grid.
-
-        Args:
-            positions (np.ndarray): Array of particle positions [x, y, z].
-            mass (np.ndarray): Array of particle masses.
-            volume (np.ndarray): Array of particle volumes.
-            grid (list): A list of 3 arrays containing the edges for x, y, and z.
-
-        Returns:
-            np.ndarray: The second moment grid.
-        """
-        positions = np.asarray(positions)
-        mass = np.asarray(mass)
-        volume = np.asarray(volume)
-        
-        # Unpack grid edges
-        x_edges, y_edges, z_edges = grid
-        
-        # 1. Compute custom weights: mass^2 / volume
-        custom_weights = (mass ** 2) / volume
-        
-        # 2. 3D Histogram with weights across all dimensions simultaneously
-        sum_grid, _ = np.histogramdd(
-            positions,
-            bins=[x_edges, y_edges, z_edges],
-            weights=custom_weights
-        )
-        
-        # 3. Compute 3D cell volumes for rectilinear grids
-        dx = np.diff(x_edges)
-        dy = np.diff(y_edges)
-        dz = np.diff(z_edges)
-        cell_volumes = dx[:, None, None] * dy[None, :, None] * dz[None, None, :]
-        
-        # 4. Divide by cell volume to get second moment grid
-        second_moment_grid = sum_grid / cell_volumes
-        
-        return second_moment_grid
-
-    def calculateSecondMoment_nonuniform(self, positions, mass, volume, master_grid):
-        """
-        Calculate the second moment for a non-uniform (adaptive) grid using 3D blocks.
-        """
-        positions = np.asarray(positions)
-        mass = np.asarray(mass)
-        volume = np.asarray(volume)
-
-        second_moment_results = []
-        for idx, block in enumerate(master_grid):
-            x_edges, y_edges, z_edges = block['x_edges'], block['y_edges'], block['z_edges']
-            dx = x_edges[1] - x_edges[0]
-            dy = y_edges[1] - y_edges[0]
-            dz = z_edges[1] - z_edges[0]
-            cell_volume = dx * dy * dz
-
-            if idx == len(master_grid) - 1:
-                mask = (positions[:, 0] >= x_edges[0]) & (positions[:, 0] <= x_edges[-1])
-            else:
-                mask = (positions[:, 0] >= x_edges[0]) & (positions[:, 0] < x_edges[-1])
-
-            block_pos = positions[mask]
-            # Weights: mass^2 / volume
-            weights = (mass[mask] ** 2) / volume[mask]
-
-            sum_grid, _ = np.histogramdd(
-                block_pos,
-                bins=[x_edges, y_edges, z_edges],
-                weights=weights
-            )
-            second_moment_results.append(sum_grid / cell_volume)
-
-        return second_moment_results
-
-    def calculateOccupiedVolume(self, positions, volumes, grid):
-        """
-        Calculate the occupied volume fraction across the grid.
-        Dispatches to either uniform or non-uniform calculation based on the grid type.
-
-        Args:
-            positions (np.ndarray): Array of particle positions [x, y, z].
-            volumes (np.ndarray): Array of particle volumes.
-            grid (list|tuple|list[dict]): The grid definition.
-
-        Returns:
-            np.ndarray|list: The occupied volume grid (or list of grids for non-uniform).
-        """
-        is_uniform = (isinstance(grid, (list, tuple)) and len(grid) == 3 and not isinstance(grid[0], dict))
-        return self.calculateOccupiedVolume_uniform(positions, volumes, grid) \
-            if is_uniform else self.calculateOccupiedVolume_nonuniform(positions, volumes, grid)
-
-    def calculateOccupiedVolume_uniform(self, positions, volumes, grid):
-        """
-        Calculate occupied volume for a uniform grid.
-
-        Args:
-            positions (np.ndarray): Array of particle positions [x, y, z].
-            volumes (np.ndarray): Array of particle volumes.
-            grid (list): A list of 3 arrays containing the edges for x, y, and z.
-
-        Returns:
-            np.ndarray: The occupied volume grid.
-        """
-        x_edges, y_edges, z_edges = grid
-        
-        # 3D histogram for uniform grid
-        sum_vol, _ = np.histogramdd(positions, bins=grid, weights=volumes)
-        
-        dx = np.diff(x_edges)
-        dy = np.diff(y_edges)
-        dz = np.diff(z_edges)
-        cell_volumes = dx[:, None, None] * dy[None, :, None] * dz[None, None, :]
-        
-        return sum_vol / cell_volumes
-
-    def calculateOccupiedVolume_nonuniform(self, positions, volumes, master_grid):
-        """
-        Calculate occupied volume for a non-uniform (adaptive) grid using 3D blocks.
-        """
-        positions = np.asarray(positions)
-        volumes = np.asarray(volumes)
-
-        occupied_volumes_list = []
-        for idx, block in enumerate(master_grid):
-            x_edges, y_edges, z_edges = block['x_edges'], block['y_edges'], block['z_edges']
-            dx = x_edges[1] - x_edges[0]
-            dy = y_edges[1] - y_edges[0]
-            dz = z_edges[1] - z_edges[0]
-            cell_volume = dx * dy * dz
-
-            if idx == len(master_grid) - 1:
-                mask = (positions[:, 0] >= x_edges[0]) & (positions[:, 0] <= x_edges[-1])
-            else:
-                mask = (positions[:, 0] >= x_edges[0]) & (positions[:, 0] < x_edges[-1])
-
-            sum_vol, _ = np.histogramdd(
-                positions[mask],
-                bins=[x_edges, y_edges, z_edges],
-                weights=volumes[mask]
-            )
-            occupied_volumes_list.append(sum_vol / cell_volume)
-
-        return occupied_volumes_list
-
-    def scaleExceedingVolumes(self, positions, vol_active, occupied_volumes, grid):
+    def _scaleExceedingVolumes(self, positions, vol_active, occupied_volumes, grid):
         """
         Scales down particle volumes if the occupied volume fraction in their
         respective grid cell exceeds 1.0. Also clamps the occupied volume grid to [0, 1].
@@ -690,10 +424,9 @@ class volumetricParticleAnalysis:
         sum_concentration, sum_second_moment, sum_occupied_volume, steps_accumulated = None, None, None, 0
 
         # 2. Loop over timesteps starting from start_step
-        for i in range(start_step, nTimesteps):
+        for i in range(start_step, nTimesteps+1):
             t = Decimal(format(i * self.toolkit.dt, '.12g')).normalize()
-            active_ids, positions, mass, age, particlesSigma, particlesTL, particlesEpsilon = self.getParticles(t)
-            sigma_sqrd = particlesSigma ** 2
+            active_ids, positions, mass, age, sigma_sqrd, particlesTL, particlesEpsilon = self._getParticles(t, i)
 
             if len(active_ids) == 0: continue
 
@@ -704,7 +437,7 @@ class volumetricParticleAnalysis:
                 volume[active_ids], d_r_sqrd[active_ids], sigma_r_sqrd[active_ids], t0[active_ids]
 
             # --- STEP 1: CONCENTRATION MUST BE CALCULATED BEFORE VOLUME UPDATE ---
-            results, phi_mean = self.calculateConcentration(positions, mass, grid)
+            results, phi_mean = self.calculator.calculateConcentration(positions, mass, grid)
             zero_mask = (t0_active == 0)
 
             # --- STEP 2: PHYSICS & VOLUME EVOLUTION UPDATES ---
@@ -719,16 +452,17 @@ class volumetricParticleAnalysis:
             tm = np.maximum(np.minimum(mu * np.sqrt(sig_r_active / sigma_ur_sqrd), k / particlesEpsilon / Cphi), 
                 self.toolkit.dt + 1e-10) # Cassiani 2013, Eq. 34
             phi = mass / vol_active
+
             delta_phi = - self.toolkit.dt * (phi - phi_mean) / tm # Cassiani 2013, Eq. 6
             vol_active = vol_active * phi / (phi + delta_phi) # Cassiani 2013, Eq. 7
 
             # --- STEP 3: OCCUPIED VOLUME & VOLUME SCALING ---
-            occupied_volumes = self.calculateOccupiedVolume(positions, vol_active, grid)
+            occupied_volumes = self.calculator.calculateOccupiedVolume(positions, vol_active, grid)
             if scale_exceeding_volumes:
-                occupied_volumes = self.scaleExceedingVolumes(positions, vol_active, occupied_volumes, grid)
+                occupied_volumes = self._scaleExceedingVolumes(positions, vol_active, occupied_volumes, grid)
 
             # --- STEP 4: SECOND MOMENT (Using scaled vol_active) ---
-            second_moments = self.calculateSecondMoment(positions, mass, vol_active, grid)
+            second_moments = self.calculator.calculateSecondMoment(positions, mass, vol_active, grid)
 
             # --- WRITE UPDATED STATES BACK VECTORIALLY ---
             volume[active_ids], d_r_sqrd[active_ids], sigma_r_sqrd[active_ids], t0[active_ids] = \
@@ -1242,7 +976,6 @@ class volumetricParticleAnalysis:
                 results_list.append(timestep_res)
 
         return results_list
-
 
 class volumetricParticle(abstractToolkit):
     toolkitName = "VolumetricParticle"
