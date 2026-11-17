@@ -7,11 +7,8 @@ is not decomposed, ``processor0``, ``processor1``, ... for one that is).
 
 Both are one-liners that delegate straight to ``self.data``, so what is
 asserted is the delegation and the key set -- which OFObjectHome/OFField
-decide -- never the contents of a value.  PyFoam is the conftest's
-``MagicMock`` stub (see ``_stubs.py``), so each ``WriteParameterFile(...)``
-returns the *same* shared mock object; identity of a value is therefore not
-a usable assertion, but identity against ``field.data[key]`` is, because
-that is exactly what the dunder must return.
+decide -- and identity against ``field.data[key]``, because that is exactly
+what the dunder must return.
 
 No bugs found in either.
 """

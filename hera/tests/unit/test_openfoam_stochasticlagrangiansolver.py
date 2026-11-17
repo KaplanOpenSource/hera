@@ -9,7 +9,7 @@ fields the solver cannot run without -- ``ustar`` and
 defaulting to 0, before delegating to the base implementation.
 
 The base implementation copies an OpenFOAM case directory tree, links or
-copies its mesh, writes dispersion fields with PyFoam and registers a
+copies its mesh, writes dispersion fields with foamlib and registers a
 document in MongoDB; it is covered elsewhere.  Here it is monkeypatched on
 the *base class* (never on an instance) and used as a seam: what the
 override put into ``flowData``, which keyword arguments crossed, and what

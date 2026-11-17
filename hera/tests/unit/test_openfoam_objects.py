@@ -1,7 +1,7 @@
 """OpenFOAM preprocessing objects.
 
 The heaviest area in hera and the least tested -- 257 public callables, of
-which 2 were exercised before this file.  It imports PyFoam and evtk at module
+which 2 were exercised before this file.  It imports evtk at module
 level, so everything here runs on the Phase 0 stub layer.
 
 The parts covered are the ones that are genuine string and dictionary
@@ -10,6 +10,7 @@ zero values for scalar, vector and tensor fields.  OpenFOAM's dimension vector
 is [kg m s K mol A cd], which makes those assertions checkable against the
 format rather than against current output.
 """
+import numpy
 import pandas as pd
 import pytest
 
@@ -125,18 +126,9 @@ class TestEmptyFieldConstruction:
         field = home.getEmptyField("p", flowType="incompressible")
         assert field.getZeroValue() == 0
 
-    def test_a_vector_field_zero_comes_from_pyfoam_vector(self, home):
-        """The value itself is a PyFoam Vector, which is stubbed here.
-
-        So the assertion is about the dispatch -- a vector field must not get
-        the scalar zero -- rather than about the three components, which only a
-        real PyFoam install could show.
-        """
+    def test_a_vector_field_zero_has_three_components(self, home):
         vectorZero = home.getEmptyField("U", flowType="incompressible").getZeroValue()
-        scalarZero = home.getEmptyField("p", flowType="incompressible").getZeroValue()
-        assert scalarZero == 0
-        assert vectorZero != 0
-        assert type(vectorZero).__name__ != "int"
+        assert numpy.array_equal(vectorZero, [0, 0, 0])
 
     def test_the_field_remembers_its_name(self, home):
         assert home.getEmptyField("p", flowType="incompressible").name == "p"
