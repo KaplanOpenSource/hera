@@ -38,6 +38,10 @@ BAD_INTERNAL_FIELD = {
     "documented_api": "PyFoam wrote 'internalField (5 0 0);' without the 'uniform' keyword",
     "boundaries_from_case_single_internal_value": "PyFoam wrote 'internalField uniform 3(5 0 0);'",
 }
+# PyFoam-era readBoundariesFromCase gave the 'empty' patch zeroGradient, which
+# OpenFOAM rejects ("inconsistent patch and patchField types").
+EMPTY_PATCH = {"boundaries_from_case_single", "boundaries_from_case_single_internal_value",
+               "boundaries_from_case_parallel"}
 DROPPED_CATCH_ALL = {
     "scalar_from_dataframe": "PyFoam's DictProxy leaves regex keys out of items(), so merging the "
                              "existing boundaryField dropped the '\".*\"' zeroGradient entry",
@@ -128,6 +132,9 @@ def test_written_files_hold_the_values_pyfoam_wrote(name, home, tmp_path):
             newContent.pop("internalField")
         if name in DROPPED_CATCH_ALL:
             newContent["boundaryField"].pop('".*"')
+        if name in EMPTY_PATCH:
+            assert newContent["boundaryField"]["frontAndBack"] == {"type": "empty"}
+            oldContent["boundaryField"]["frontAndBack"] = {"type": "empty"}
         _assertSameValue(newContent, oldContent, f"{name}/{rel}")
 
         if name not in BAD_INTERNAL_FIELD:

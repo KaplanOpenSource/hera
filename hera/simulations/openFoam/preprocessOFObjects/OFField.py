@@ -246,8 +246,9 @@ class OFField(OFObject):
             internalValue = self.getZeroValue()
             logger.debug(f"Internal value is None, getting the zero of the current field: {internalValue}")
 
-        boundaryTypeDict = dict(processor='processor',
-                                symmetry='symmetry')
+        # A constraint patch accepts only a field condition of its own type.
+        constraintTypes = {'empty', 'wedge', 'symmetry', 'symmetryPlane', 'cyclic', 'cyclicAMI',
+                           'cyclicSlip', 'processor', 'processorCyclic'}
 
         try:
             if readSingle:
@@ -268,7 +269,7 @@ class OFField(OFObject):
                     boundaryType = boundaryData['type']
                     interiorBoundary = True if boundaryType =='processor' else False
                     logger.debug(f"... boundary {boundaryName}. An interior boundary ? {interiorBoundary}")
-                    boundaryDict[boundaryName] = {'type': boundaryTypeDict.get(boundaryType,'zeroGradient')}
+                    boundaryDict[boundaryName] = {'type': boundaryType if boundaryType in constraintTypes else 'zeroGradient'}
 
                 self.data = dict(singleProcessor=retDict)
                 self.parallel = False
@@ -284,7 +285,7 @@ class OFField(OFObject):
                         boundaryType = boundaryData['type']
                         interiorBoundary = True if boundaryType == 'processor' else False
                         logger.debug(f"... boundary {boundaryName}. An interior boundary ? {interiorBoundary}")
-                        retDict['boundaryField'][boundaryName] = {'type': boundaryTypeDict.get(boundaryType,'zeroGradient')}
+                        retDict['boundaryField'][boundaryName] = {'type': boundaryType if boundaryType in constraintTypes else 'zeroGradient'}
 
                     self.data[os.path.basename(proc)] = retDict
         except FileNotFoundError as e:

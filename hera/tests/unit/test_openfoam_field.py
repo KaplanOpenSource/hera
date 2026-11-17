@@ -174,3 +174,26 @@ class TestSetFieldFromDataFrame:
         }))
         assert sorted(field.data) == ["processor0", "processor1"]
         assert numpy.allclose(field.data["processor0"]["internalField"], [0.5, 0.25])
+
+
+@pytest.mark.unit
+class TestBoundariesFromTheMesh:
+    """A constraint patch (empty, wedge, cyclic, symmetry, processor, ...) only
+    accepts a field condition of its own type; OpenFOAM refuses anything else."""
+
+    def test_each_patch_gets_a_condition_its_type_accepts(self, home):
+        from hera.tests.unit._openfoam_golden import INPUT_CASE
+
+        field = home.getEmptyFieldFromCase("U", flowType="incompressible", caseDirectory=INPUT_CASE,
+                                           readParallel=False)
+        types = {name: patch["type"] for name, patch in field.data["singleProcessor"]["boundaryField"].items()}
+        assert types == {"inlet": "zeroGradient", "outlet": "zeroGradient", "walls": "zeroGradient",
+                         "sym": "symmetry", "frontAndBack": "empty"}
+
+    def test_processor_patches_of_a_decomposed_case_keep_their_type(self, home):
+        from hera.tests.unit._openfoam_golden import INPUT_CASE
+
+        field = home.getEmptyFieldFromCase("p", flowType="incompressible", caseDirectory=INPUT_CASE)
+        processor0 = field.data["processor0"]["boundaryField"]
+        assert processor0["procBoundary0to1"] == {"type": "processor"}
+        assert processor0["frontAndBack"] == {"type": "empty"}
