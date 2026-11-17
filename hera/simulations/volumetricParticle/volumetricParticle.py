@@ -449,8 +449,10 @@ class volumetricParticleAnalysis:
             L_sqrd = ((1.5 * sigma_sqrd) ** 3) / (particlesEpsilon ** 2)
             sigma_ur_sqrd = np.minimum(sigma_sqrd, sigma_sqrd * (sig_r_active / L_sqrd)**(1./3.)) # Cassiani 2013, Eq. 35
             k = 1.5 * sigma_sqrd
-            tm = np.maximum(np.minimum(mu * np.sqrt(sig_r_active / sigma_ur_sqrd), k / particlesEpsilon / Cphi), 
-                self.toolkit.dt + 1e-10) # Cassiani 2013, Eq. 34
+            tm = np.minimum(mu * np.sqrt(sig_r_active / sigma_ur_sqrd), k / particlesEpsilon / Cphi) # Cassiani 2013, Eq. 34
+            if tm.min() < self.toolkit.dt:
+                print(f"Warning: minimum calculated tm {tm.min()} < dt!")
+            tm = np.maximum(tm, self.toolkit.dt + 1e-10) 
             phi = mass / vol_active
 
             delta_phi = - self.toolkit.dt * (phi - phi_mean) / tm # Cassiani 2013, Eq. 6
