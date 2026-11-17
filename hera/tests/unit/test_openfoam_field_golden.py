@@ -9,9 +9,8 @@ compared with what the PyFoam implementation produced for it
   raw text, because a 3-long scalar list and a uniform vector parse to the
   same array;
 * returned DataFrames: compared with ``compare_outputs``;
-* scenarios that raised with PyFoam (``<name>.error``) must still raise the
-  same exception, unless the bug was fixed on purpose (``FIXED`` below,
-  each with its own test of the corrected values).
+* scenarios that raised with PyFoam (``<name>.error``) are bugs fixed on
+  purpose: each is listed in ``FIXED`` and has its own test of the values.
 """
 import collections
 import os
@@ -106,10 +105,6 @@ def _cases(scenarios, kind):
     return [name for name in sorted(scenarios) if _goldenError(kind, name) is None]
 
 
-def _failedCases(scenarios, kind):
-    return [name for name in sorted(scenarios) if _goldenError(kind, name) is not None and name not in FIXED]
-
-
 @pytest.fixture()
 def home():
     return OFObjectHome()
@@ -139,13 +134,6 @@ def test_written_files_hold_the_values_pyfoam_wrote(name, home, tmp_path):
             newKeywords = collections.Counter(_KEYWORD.findall(_read(os.path.join(tmp_path, rel))))
             oldKeywords = collections.Counter(_KEYWORD.findall(_read(os.path.join(golden, rel))))
             assert newKeywords == oldKeywords, f"{name}/{rel}"
-
-
-@pytest.mark.parametrize("name", _failedCases(WRITE_SCENARIOS, "write"))
-def test_write_scenarios_that_failed_with_pyfoam_still_fail(name, home, tmp_path):
-    with pytest.raises(Exception) as caught:
-        WRITE_SCENARIOS[name](home, str(tmp_path))
-    assert type(caught.value).__name__ == _goldenError("write", name)
 
 
 def test_the_documented_uniform_internal_value_is_written_with_the_uniform_keyword(home, tmp_path):
@@ -192,11 +180,12 @@ def test_dataframes_match_pyfoam(name, home):
     assert compare_outputs(result, expected, "dataframe"), f"{name}:\n{result}\n!=\n{expected}"
 
 
-@pytest.mark.parametrize("name", _failedCases(FRAME_SCENARIOS, "frames"))
-def test_frame_scenarios_that_failed_with_pyfoam_still_fail(name, home):
-    with pytest.raises(Exception) as caught:
-        FRAME_SCENARIOS[name](home)
-    assert type(caught.value).__name__ == _goldenError("frames", name)
+def test_every_scenario_that_raised_with_pyfoam_is_fixed_and_listed():
+    """A scenario with a <name>.error golden has no values to compare with, so it
+    must be in FIXED, which points at the test that checks its values."""
+    raised = ({name for name in WRITE_SCENARIOS if _goldenError("write", name)}
+              | {name for name in FRAME_SCENARIOS if _goldenError("frames", name)})
+    assert raised == set(FIXED)
 
 
 # --------------------------------------------------------------------------- #

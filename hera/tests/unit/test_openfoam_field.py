@@ -147,3 +147,30 @@ class TestSetFieldFromDataFrame:
         # Should initialize parallel data structures
         assert sorted(scalar_field.data.keys()) == ["processor0", "processor1"]
 
+
+    def test_a_parallel_update_with_only_boundary_rows_keeps_the_internal_field(self, home):
+        """Same as the single-processor branch: a region missing from the frame keeps its value."""
+        from hera.tests.unit._openfoam_golden import INPUT_CASE
+
+        field = home.readFieldFromCase("p", flowType="incompressible", caseDirectory=INPUT_CASE)
+        field.setFieldFromDataFrame(pandas.DataFrame({
+            "processor": [1, 1, 1],
+            "region": ["boundaryField"] * 3,
+            "boundary": ["outlet"] * 3,
+            "processorIndex": [0, 1, 2],
+            "p": [7.0, 8.0, 9.0],
+        }))
+        processor1 = field.data["processor1"]
+        assert numpy.allclose(processor1["internalField"], [-0.125, 1e-05])
+        assert numpy.allclose(processor1["boundaryField"]["outlet"]["value"], [7.0, 8.0, 9.0])
+
+    def test_a_processor_the_frame_does_not_mention_is_kept(self, home):
+        from hera.tests.unit._openfoam_golden import INPUT_CASE
+
+        field = home.readFieldFromCase("p", flowType="incompressible", caseDirectory=INPUT_CASE)
+        field.setFieldFromDataFrame(pandas.DataFrame({
+            "processor": [1], "region": ["internalField"], "boundary": [None],
+            "processorIndex": [0], "p": [3.0],
+        }))
+        assert sorted(field.data) == ["processor0", "processor1"]
+        assert numpy.allclose(field.data["processor0"]["internalField"], [0.5, 0.25])

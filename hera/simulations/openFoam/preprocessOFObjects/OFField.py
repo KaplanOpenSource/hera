@@ -371,17 +371,18 @@ class OFField(OFObject):
         logger = get_classMethod_logger(self,"setFieldFromDataFrame")
         if 'processor' in fieldDataFrame.columns:
             logger.info("updating field as parallel")
-            # Reset data to avoid retaining singleProcessor entry from previous state
-            self.data = {}
+            # A singleProcessor entry does not survive a parallel update; processors
+            # the frame does not mention keep their data.
+            previous = self.data
+            self.data = {name: data for name, data in previous.items() if name != 'singleProcessor'}
             self.parallel = True
             for procName,procData in fieldDataFrame.groupby("processor"):
-                internalData = fieldDataFrame.query(f"processor=={procName}")
-                self.data[f"processor{procName}"] = self._processorToFoam(internalData,processorName=f"processor{procName}")
+                self.data[f"processor{procName}"] = self._processorToFoam(procData,processorName=f"processor{procName}",previous=previous)
         else:
             logger.info("updating field as singleProcessor")
-            self.data = dict(singleProcessor = self._processorToFoam(fieldDataFrame,processorName='singleProcessor'))
+            self.data = dict(singleProcessor = self._processorToFoam(fieldDataFrame,processorName='singleProcessor',previous=self.data))
 
-    def _processorToFoam(self,processordataFrame,processorName):
+    def _processorToFoam(self,processordataFrame,processorName,previous):
         """
             Converts the data of a single processor to the dict of an OpenFOAM field file.
 
@@ -408,11 +409,11 @@ class OFField(OFObject):
             retDict['internalField'] = dataframeToField(internalField)
         else:
             logger.debug("Getting the existing internal field")
-            retDict['internalField'] = self.data[processorName]['internalField']
+            retDict['internalField'] = previous[processorName]['internalField']
 
         logger.info("Setting boundary field")
         boundaryDict = {}
-        existing_boundary = self.data.get(processorName, {}).get('boundaryField', {})
+        existing_boundary = previous.get(processorName, {}).get('boundaryField', {})
         for boundaryName, boundaryData in existing_boundary.items():
             logger.debug(f"Setting the boundary {boundaryName} to existing value")
             boundaryDict[boundaryName] = boundaryData
