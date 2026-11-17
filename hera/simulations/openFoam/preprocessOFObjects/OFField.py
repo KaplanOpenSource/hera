@@ -1,4 +1,5 @@
 import glob
+import logging
 import os
 
 import numpy
@@ -342,13 +343,7 @@ class OFField(OFObject):
                 self.parallel = False
             else:
                 self.parallel = True
-
-                effective_level_int = logger.getEffectiveLevel()
-                if effective_level_int == logger.DEBUG:
-                    itrObj = tqdm.tqdm(procPaths)
-                else:
-                    itrObj = procPaths
-                for proc in procPaths:
+                for proc in tqdm.tqdm(procPaths) if logger.isEnabledFor(logging.DEBUG) else procPaths:
                     self.data.update({os.path.basename(proc): readFieldFile(
                         os.path.join(proc, str(timeStep), self.fileName))})
 

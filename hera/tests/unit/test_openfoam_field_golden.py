@@ -53,6 +53,9 @@ FIXED = {
     "readFieldAsDataFrame_parallel_p": _SCALAR_ROWS,
     "extract_T": _SCALAR_LEN,
     "getDataFrame_single_T": _SCALAR_LEN,
+    "getDataFrame_parallel_U": "B290: readFromCase read logger.DEBUG and raised on every decomposed case",
+    "roundtrip_parallel_U": "B290",
+    "roundtrip_parallel_p": "B290",
 }
 
 _KEYWORD = re.compile(r"nonuniform\s+List<\w+>|(?<!non)uniform")
@@ -240,3 +243,24 @@ def test_a_decomposed_scalar_field_is_read_per_processor(home):
     assert _values(df[df["processor"] == 1], "internalField", "p") == [-0.125, 1e-05]
     assert _values(df[df["processor"] == 1], "boundaryField", "p", "outlet") == [0.0, 0.5, 1.0]
     assert _values(df[df["processor"] == 0], "boundaryField", "p", "procBoundary0to1") == [-0.125, 1e-05]
+
+
+# --------------------------------------------------------------------------- #
+#  Decomposed cases (B290, raised with PyFoam)                                 #
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize("name, fileName", [("roundtrip_parallel_U", "U"), ("roundtrip_parallel_p", "p")])
+def test_a_decomposed_field_read_and_written_back_keeps_its_values(name, fileName, home, tmp_path):
+    WRITE_SCENARIOS[name](home, str(tmp_path))
+    from hera.tests.unit._openfoam_golden import INPUT_CASE
+    for processor in ("processor0", "processor1"):
+        _, written = _parse(os.path.join(tmp_path, processor, "0", fileName))
+        _, original = _parse(os.path.join(INPUT_CASE, processor, "0", fileName))
+        _assertSameValue(written, original, f"{name}/{processor}")
+
+
+def test_a_decomposed_field_gives_the_same_frame_as_reading_each_processor(home):
+    viaField = FRAME_SCENARIOS["getDataFrame_parallel_U"](home)
+    viaFiles = FRAME_SCENARIOS["readFieldAsDataFrame_parallel_U"](home)
+    viaFiles = viaFiles[~viaFiles["boundary"].fillna("").str.startswith("proc")]
+    assert compare_outputs(readCSV(frameToCSV(viaField)), readCSV(frameToCSV(viaFiles)).drop(columns="time"),
+                           "dataframe")
