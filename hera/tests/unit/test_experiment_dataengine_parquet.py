@@ -27,22 +27,22 @@ Deliberately not covered
 connections to a real server, and their defects are already pinned as
 B76/B77 in ``test_experiment_analysis_dataengine.py``.
 
-Bugs pinned here
-----------------
-* B165: ``parquetDataEngineHera.getDataFromTrial`` is dead code. It
-  reads ``self.experimentObj.experimentSetup.trialSet[trialSet][trialName]``,
+Bugs fixed here
+---------------
+* B165: ``parquetDataEngineHera.getDataFromTrial`` was dead code. It
+  read ``self.experimentObj.experimentSetup.trialSet[trialSet][trialName]``,
   but the object it is given -- ``experimentSetupWithData`` -- has no
   ``experimentSetup`` attribute at all (it *is* the experiment setup, and
-  exposes the trial sets directly as ``.trialSet``), so every call raises
-  ``AttributeError`` on the very first statement that uses the argument.
-  Two further defects sit behind it on the same code path: the
-  ``trialSet=None`` default assigns ``self.experimentObj.trialSet``, i.e.
+  exposes the trial sets directly as ``.trialSet``), so every call raised
+  ``AttributeError`` on the very first statement that used the argument.
+  Two further defects sat behind it on the same code path: the
+  ``trialSet=None`` default assigned ``self.experimentObj.trialSet``, i.e.
   the whole *dict* of trial sets, where a trial-set *name* is required
-  (an unhashable key), and the ``withMetadata`` branch calls
+  (an unhashable key), and the ``withMetadata`` branch called
   ``entitiesTable()`` although ``entitiesTable`` is a property, which
-  would raise ``TypeError``. The same three defects are copy-pasted into
+  would raise ``TypeError``. The same three defects were copy-pasted into
   ``pandasDataEngineDB.getDataFromTrial`` and
-  ``daskDataEngineDB.getDataFromTrial``.
+  ``daskDataEngineDB.getDataFromTrial`` and are fixed there too.
 """
 import pandas
 import pytest
@@ -238,11 +238,12 @@ class _FakeExperiment:
 
     def __init__(self):
         self.trialSet = {"Measurements": {"T1": _FakeTrial()}}
+        self.defaultTrialSet = "Measurements"
 
 
 @pytest.mark.unit
 class TestGetDataFromTrial:
-    """B165: the method reaches for an attribute that does not exist."""
+    """B165: the method reads the trial sets straight off the experiment."""
 
     @pytest.fixture()
     def trialEngine(self, unit_project):
@@ -250,40 +251,20 @@ class TestGetDataFromTrial:
             UNIT_PROJECT_NAME, CONFIGURATION, experimentObj=_FakeExperiment())
 
     def test_the_experiment_class_has_no_experiment_setup_attribute(self):
-        """Characterisation of B165: the attribute the method reads."""
+        """Why .trialSet is read directly: there is no experimentSetup."""
         from hera.measurements.experiment.experiment import experimentSetupWithData
 
         assert not hasattr(experimentSetupWithData, "experimentSetup")
         assert hasattr(experimentSetupWithData, "trialSet")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B165: getDataFromTrial reads "
-               "self.experimentObj.experimentSetup.trialSet[...], but the "
-               "experiment object it is handed (experimentSetupWithData) has "
-               "no experimentSetup attribute -- it exposes .trialSet "
-               "directly -- so every call raises AttributeError. "
-               "See the consolidated findings issue.",
-    )
-    def test_it_should_read_the_trials_data(self, trialEngine, sharedFileData):
+    def test_it_reads_the_trials_data(self, trialEngine, sharedFileData):
         data = trialEngine.getDataFromTrial(
             deviceType="sonic", trialName="T1", trialSet="Measurements",
             withMetadata=False)
         assert len(data) == 10
 
-    def test_it_currently_raises_an_attribute_error(self, trialEngine, sharedFileData):
-        """Characterisation of B165."""
-        with pytest.raises(AttributeError, match="experimentSetup"):
-            trialEngine.getDataFromTrial(
-                deviceType="sonic", trialName="T1", trialSet="Measurements",
-                withMetadata=False)
-
-    def test_the_default_trial_set_is_the_dict_of_trial_sets_not_a_name(self, trialEngine, sharedFileData):
-        """Characterisation of B165: omitting trialSet is dead too.
-
-        ``trialSet = self.experimentObj.trialSet if trialSet is None`` puts
-        the whole mapping where a key is expected; the AttributeError on the
-        next line is simply reached first.
-        """
-        with pytest.raises(AttributeError, match="experimentSetup"):
-            trialEngine.getDataFromTrial(deviceType="sonic", trialName="T1")
+    def test_omitting_the_trial_set_falls_back_to_the_default_trial_set(self, trialEngine, sharedFileData):
+        """B165: the default is a trial-set *name*, not the whole mapping."""
+        data = trialEngine.getDataFromTrial(
+            deviceType="sonic", trialName="T1", withMetadata=False)
+        assert len(data) == 10

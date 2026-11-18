@@ -450,12 +450,12 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile, toolkit.abstra
 
     def _process_row(self, row):
         """
-        Helper for coordinate conversion of a single row (Longitude, Latitude).
+        Helper for coordinate conversion of a single row (longitude, latitude).
         """
         import pandas as pd
         from hera.measurements.GIS.utils import convertCRS
-        pp = convertCRS([[row.Longitude, row.Latitude]], inputCRS=WSG84, outputCRS=ITM)
-        return pd.Series([pp.x[0], pp.y[0]])
+        pp = convertCRS([[row.longitude, row.latitude]], inputCRS=WSG84, outputCRS=ITM)
+        return pd.Series([pp[0].x, pp[0].y])
 
     def get_devices_image_coordinates(
         self,
@@ -482,8 +482,8 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile, toolkit.abstra
             latitudes = devices_df["ITM_Latitude"]
             longitudes = devices_df["ITM_Longitude"]
         else:
-            latitudes = devices_df["Latitude"]
-            longitudes = devices_df["Longitude"]
+            latitudes = devices_df["latitude"]
+            longitudes = devices_df["longitude"]
 
         min_latitude, max_latitude = min(latitudes), max(latitudes)
         min_longitude, max_longitude = min(longitudes), max(longitudes)
@@ -497,7 +497,7 @@ class TrialSetWithData(argosDataObjects.TrialSet):
 
     def _initTrials(self):
         """Initialize trials from trial set metadata with data engine links."""
-        for trial in self._metadata["trials"]:
+        for trial in self._metadata.get("trials", []):
             self[trial["name"]] = TrialWithdata(
                 trialSet=self,
                 metadata=trial,
@@ -552,7 +552,7 @@ class TrialWithdata(argosDataObjects.Trial):
                     .merge(
                         devicemetadata,
                         left_on="deviceName",
-                        right_on="entityName",
+                        right_on="deviceItemName",
                     )
                     .set_index("timestamp")
                 )
@@ -587,7 +587,7 @@ class EntityTypeWithData(argosDataObjects.EntityType):
 
     def _initEntities(self):
         """Initialize entities from entity type metadata with data engine links."""
-        for entity in self._metadata["entities"]:
+        for entity in self._metadata.get("entities", []):
             self[entity["name"]] = EntityWithData(
                 entityType=self,
                 metadata=entity,

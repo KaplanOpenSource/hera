@@ -51,25 +51,22 @@ already pinned as B76/B77/B165.
 
 Bugs pinned here
 ----------------
-* B212: ``getDeviceLocations`` and ``addMetadata`` both write
+* B212 (fixed): ``getDeviceLocations`` and ``addMetadata`` both wrote
   ``...[trialName].entitiesTable()``, but ``argos.Trial.entitiesTable``
   is a ``property`` returning a ``DataFrame``. Every call therefore
-  raises ``TypeError: 'DataFrame' object is not callable``, so both
-  methods are dead. (``experiment.py`` gets this right -- it reads
+  raised ``TypeError: 'DataFrame' object is not callable``, so both
+  methods were dead. (``experiment.py`` gets this right -- it reads
   ``.entitiesTable`` without the parentheses.)
-* B213: ``getDeviceLocations`` filters with
+* B213 (fixed): ``getDeviceLocations`` filtered with
   ``query("entityType==@entityTypeName")``, but a *trial's* entities
   table has no ``entityType`` column -- argos names it
   ``deviceTypeName`` there, and ``entityType`` exists only on
-  ``Experiment.entitiesTable`` / ``EntityType.entitiesTable``. Even with
-  B212 fixed the query raises
-  ``pandas.errors.UndefinedVariableError: name 'entityType' is not
-  defined``.
-* B214: ``addMetadata`` merges the trial metadata with
+  ``Experiment.entitiesTable`` / ``EntityType.entitiesTable``.
+* B214 (fixed): ``addMetadata`` merged the trial metadata with
   ``right_on="entityName"``, a column that likewise does not exist on
   ``Trial.entitiesTable`` (argos spells it ``deviceItemName``). This is
   the same mismatch as B162 in ``experiment.py``, copy-pasted into the
-  analysis layer, and it is what would break next once B212 is fixed.
+  analysis layer.
 * B215: ``getDeviceTypePlannedMessageCount`` calls
   ``self.getOptimalFrequencyHz(deviceType)``, a method that does not
   exist on ``experimentAnalysis`` or anywhere else in hera, so it always
@@ -77,28 +74,30 @@ Bugs pinned here
   ``getDeviceTypeTransmissionFrequencyOfTrial`` calls it whenever
   ``normalize=True`` -- its default -- the normalised frequency, which is
   what the docstring advertises, can never be produced.
-* B216: the recompute branch of
-  ``getDeviceTypeTransmissionFrequencyOfTrial`` reads
+* B216 (fixed): the recompute branch of
+  ``getDeviceTypeTransmissionFrequencyOfTrial`` read
   ``experimentData.trialSet[trialSetName].trials.query("trialName == @trialName")``,
   but argos's ``TrialSet.trials`` is a **dict** of serialised trials, not
   a table (``TrialSet.trialsTable`` is the DataFrame, and it is indexed
-  by trial name and has no ``trialName`` column either). Every call
-  raises ``AttributeError: 'dict' object has no attribute 'query'``.
-  Since ``recalculate`` defaults to ``True``, the method can only ever
+  by trial name and has no ``trialName`` column either), so every call
+  raised ``AttributeError: 'dict' object has no attribute 'query'``.
+  Since ``recalculate`` defaults to ``True``, the method could only ever
   return anything at all on an explicit ``recalculate=False`` against an
-  already-populated cache -- which nothing can populate. Two further
-  defects sit on the same dead path: ``freq.set_index('timestamp')``
-  discards its result, and the ``groupby(...).resample("1min")`` hard-codes
-  a one-minute bin instead of using the ``samplingWindow`` argument that
-  the cache key and the normalisation both honour.
-* B217: ``addTrialProperties`` reads
+  already-populated cache -- which nothing could populate. Two further
+  defects sat on the same dead path: ``freq.set_index('timestamp')``
+  discarded its result, and the ``groupby(...).resample("1min")``
+  hard-coded a one-minute bin instead of using the ``samplingWindow``
+  argument that the cache key and the normalisation both honour. The
+  trial start/end now come from the trial's own properties.
+* B217 (fixed): ``addTrialProperties`` reads
   ``properties.get("ReleaseStart", None)`` -- deliberately tolerating a
-  trial with no release -- and then unconditionally computes
-  ``tmp.timestamp - releaseTime``, which raises ``TypeError:
+  trial with no release -- and then unconditionally computed
+  ``tmp.timestamp - releaseTime``, which raised ``TypeError:
   unsupported operand type(s) for -: 'DatetimeArray' and 'NoneType'``.
   Every trial without a ``ReleaseStart`` property (the ordinary case for
-  a measurement trial) therefore cannot get its ``fromStart`` columns
-  either, although those do not depend on the release at all.
+  a measurement trial) therefore could not get its ``fromStart`` columns
+  either, although those do not depend on the release at all. The
+  release columns are now added only when there is a release.
 """
 import inspect
 import json
@@ -340,10 +339,9 @@ class TestSplitName:
 @pytest.mark.unit
 class TestGetDeviceLocationsTrialSetResolution:
     def test_an_omitted_trial_set_name_falls_back_to_the_default(self, analysis):
-        """The default is used, so the failure is the one from the table
-        access -- not the 'trialSetName is None' guard."""
-        with pytest.raises(TypeError, match="not callable"):
-            analysis.getDeviceLocations("sonic", "T1")
+        """The default trial set is used, so the lookup succeeds."""
+        locations = analysis.getDeviceLocations("sonic", "T1")
+        assert sorted(locations.deviceItemName) == ["sonic 1", "sonic 2"]
 
     def test_no_trial_set_name_and_no_default_raises_value_error(self, experimentFactory):
         analysis = experimentFactory(defaultTrialSetName=None).analysis
@@ -356,61 +354,38 @@ class TestGetDeviceLocationsTrialSetResolution:
 
 
 @pytest.mark.unit
-class TestGetDeviceLocationsCallsAProperty:
-    """B212: ``entitiesTable()`` on a property."""
+class TestGetDeviceLocationsReadsTheProperty:
+    """B212: ``entitiesTable`` is a property, not a method."""
 
     def test_the_trial_entities_table_is_a_property_not_a_method(self, experiment):
-        """Characterisation of B212: this is what the method calls."""
+        """Why the method reads it without parentheses."""
         trial = experiment.trialSet["Measurements"]["T1"]
         assert isinstance(inspect.getattr_static(trial, "entitiesTable"), property)
         assert isinstance(trial.entitiesTable, pandas.DataFrame)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B212: getDeviceLocations writes entitiesTable(), but "
-               "argos.Trial.entitiesTable is a property returning a "
-               "DataFrame, so every call raises TypeError: 'DataFrame' "
-               "object is not callable. See the consolidated findings issue.",
-    )
-    def test_it_should_return_the_rows_of_the_requested_device_type(self, analysis):
+    def test_it_returns_the_rows_of_the_requested_device_type(self, analysis):
         locations = analysis.getDeviceLocations("sonic", "T1", trialSetName="Measurements")
         assert sorted(locations.deviceItemName) == ["sonic 1", "sonic 2"]
 
-    def test_it_currently_raises_a_type_error(self, analysis):
-        """Characterisation of B212."""
-        with pytest.raises(TypeError, match="'DataFrame' object is not callable"):
-            analysis.getDeviceLocations("sonic", "T1", trialSetName="Measurements")
+    def test_an_unknown_device_type_yields_an_empty_table(self, analysis):
+        assert len(analysis.getDeviceLocations("noSuchType", "T1",
+                                               trialSetName="Measurements")) == 0
 
 
 @pytest.mark.unit
-class TestGetDeviceLocationsFiltersOnAMissingColumn:
-    """B213: the filter column does not exist on a trial's entities table."""
+class TestGetDeviceLocationsFiltersOnTheTrialColumn:
+    """B213: the trial's table spells the device type ``deviceTypeName``."""
 
     def test_the_trial_entities_table_names_the_type_column_devicetypename(self, experiment):
-        """Characterisation of B213: this is the table the query is given."""
+        """Why the query filters on deviceTypeName."""
         table = experiment.trialSet["Measurements"]["T1"].entitiesTable
         assert "deviceTypeName" in table.columns
         assert "entityType" not in table.columns
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B213: the query filters on entityType, a column argos only "
-               "puts on Experiment.entitiesTable / EntityType.entitiesTable; "
-               "on a trial's table the device type lives in deviceTypeName, "
-               "so the filter raises UndefinedVariableError even once B212 "
-               "is fixed. See the consolidated findings issue.",
-    )
-    def test_the_query_the_method_builds_should_select_the_device_type(self, experiment):
+    def test_the_query_the_method_builds_selects_the_device_type(self, experiment):
         table = experiment.trialSet["Measurements"]["T1"].entitiesTable
         entityTypeName = "sonic"
-        assert len(table.query("entityType==@entityTypeName")) == 2
-
-    def test_the_query_the_method_builds_currently_raises(self, experiment):
-        """Characterisation of B213, applied to the real table."""
-        table = experiment.trialSet["Measurements"]["T1"].entitiesTable
-        entityTypeName = "sonic"
-        with pytest.raises(pandas.errors.UndefinedVariableError, match="entityType"):
-            table.query("entityType==@entityTypeName")
+        assert len(table.query("deviceTypeName==@entityTypeName")) == 2
 
 
 # ---------------------------------------------------------------------------
@@ -428,8 +403,8 @@ def _dataToMerge():
 @pytest.mark.unit
 class TestAddMetadataTrialSetResolution:
     def test_an_omitted_trial_set_name_falls_back_to_the_default(self, analysis):
-        with pytest.raises(TypeError, match="not callable"):
-            analysis.addMetadata(_dataToMerge(), "T1")
+        merged = analysis.addMetadata(_dataToMerge(), "T1")
+        assert "height" in merged.columns
 
     def test_no_default_trial_set_makes_the_lookup_fail_on_none(self, experimentFactory):
         """Unlike getDeviceLocations, addMetadata has no None guard, so the
@@ -444,54 +419,31 @@ class TestAddMetadataTrialSetResolution:
 
 
 @pytest.mark.unit
-class TestAddMetadataCallsAProperty:
+class TestAddMetadataReadsTheProperty:
     """B212 again, at its second call site."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B212: addMetadata writes entitiesTable() on the same argos "
-               "property, so every call raises TypeError: 'DataFrame' object "
-               "is not callable. See the consolidated findings issue.",
-    )
-    def test_it_should_join_the_trial_device_metadata_onto_the_data(self, analysis):
+    def test_it_joins_the_trial_device_metadata_onto_the_data(self, analysis):
         merged = analysis.addMetadata(_dataToMerge(), "T1", trialSetName="Measurements")
         assert "height" in merged.columns
-
-    def test_it_currently_raises_a_type_error(self, analysis):
-        """Characterisation of B212 at the addMetadata call site."""
-        with pytest.raises(TypeError, match="'DataFrame' object is not callable"):
-            analysis.addMetadata(_dataToMerge(), "T1", trialSetName="Measurements")
+        assert len(merged) == 2
+        assert merged.index.name == "timestamp"
 
 
 @pytest.mark.unit
-class TestAddMetadataMergesOnAMissingColumn:
-    """B214: the merge key does not exist on a trial's entities table."""
+class TestAddMetadataMergesOnTheTrialColumn:
+    """B214: the trial's table spells the device name ``deviceItemName``."""
 
     def test_the_trial_entities_table_names_the_device_column_deviceitemname(self, experiment):
-        """Characterisation of B214: this is the table the merge is given."""
+        """Why the merge joins on deviceItemName."""
         table = experiment.trialSet["Measurements"]["T1"].entitiesTable
         assert "deviceItemName" in table.columns
         assert "entityName" not in table.columns
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B214: addMetadata merges right_on='entityName', but argos's "
-               "Trial.entitiesTable names that column deviceItemName -- the "
-               "same mismatch as B162 in experiment.py, copy-pasted here. "
-               "See the consolidated findings issue.",
-    )
-    def test_the_merge_the_method_builds_should_join_on_the_device_name(self, experiment):
+    def test_the_merge_the_method_builds_joins_on_the_device_name(self, experiment):
         table = experiment.trialSet["Measurements"]["T1"].entitiesTable
         merged = _dataToMerge().reset_index().merge(
-            table, left_on="deviceName", right_on="entityName")
+            table, left_on="deviceName", right_on="deviceItemName")
         assert len(merged) == 2
-
-    def test_the_merge_the_method_builds_currently_raises(self, experiment):
-        """Characterisation of B214, applied to the real table."""
-        table = experiment.trialSet["Measurements"]["T1"].entitiesTable
-        with pytest.raises(KeyError, match="entityName"):
-            _dataToMerge().reset_index().merge(
-                table, left_on="deviceName", right_on="entityName")
 
 
 # ---------------------------------------------------------------------------
@@ -570,61 +522,63 @@ class TestTransmissionFrequencyFromTheCache:
     def test_a_cache_document_for_another_sampling_window_is_not_a_hit(
             self, analysis, cachedFrequency, deviceData):
         """The window is part of the cache key, so the lookup misses and the
-        (dead, see B216) recompute branch is entered instead."""
+        table is recomputed from the raw data instead."""
         cachedFrequency(samplingWindow="5min")
-        with pytest.raises(AttributeError, match="'dict' object has no attribute 'query'"):
-            analysis.getDeviceTypeTransmissionFrequencyOfTrial(
-                "sonic", "T1", trialSetName="Measurements",
-                normalize=False, recalculate=False)
+        pvt = analysis.getDeviceTypeTransmissionFrequencyOfTrial(
+            "sonic", "T1", trialSetName="Measurements",
+            normalize=False, recalculate=False)
+        assert len(pvt) == 10
 
 
 @pytest.mark.unit
-class TestTransmissionFrequencyRecomputeIsDead:
-    """B216: ``TrialSet.trials`` is a dict, not a table."""
+class TestTransmissionFrequencyRecompute:
+    """B216: the trial start/end come from the trial, not from a query."""
 
     def test_the_trial_set_exposes_its_trials_as_a_dict(self, experiment):
-        """Characterisation of B216: what the method calls .query() on."""
+        """Why the method cannot .query() TrialSet.trials."""
         trialSet = experiment.trialSet["Measurements"]
         assert isinstance(trialSet.trials, dict)
         assert not hasattr(trialSet.trials, "query")
 
     def test_the_trials_table_has_no_trialname_column_either(self, experiment):
-        """Characterisation of B216: the obvious substitute is also wrong --
-        trialsTable is indexed by the trial name."""
+        """The obvious substitute is also wrong -- trialsTable is indexed
+        by the trial name."""
         table = experiment.trialSet["Measurements"].trialsTable
         assert "trialName" not in table.columns
         assert list(table.index) == ["T1"]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B216: the recompute branch reads "
-               "trialSet[trialSetName].trials.query('trialName == @trialName'), "
-               "but argos's TrialSet.trials is a dict of serialised trials "
-               "(trialsTable is the DataFrame, and it carries no trialName "
-               "column), so every recompute raises AttributeError: 'dict' "
-               "object has no attribute 'query'. As recalculate defaults to "
-               "True, no call can ever populate the cache. "
-               "See the consolidated findings issue.",
-    )
-    def test_it_should_compute_the_frequency_table_from_the_raw_data(self, analysis, deviceData):
+    def test_it_computes_the_frequency_table_from_the_raw_data(self, analysis, deviceData):
         pvt = analysis.getDeviceTypeTransmissionFrequencyOfTrial(
             "sonic", "T1", trialSetName="Measurements", normalize=False)
         assert sorted(pvt.columns) == ["sonic 1", "sonic 2"]
+        # one row per minute of the trial window, TrialStart..TrialEnd
+        assert len(pvt) == 10
 
-    def test_it_currently_raises_an_attribute_error(self, analysis, deviceData):
-        """Characterisation of B216."""
-        with pytest.raises(AttributeError, match="'dict' object has no attribute 'query'"):
-            analysis.getDeviceTypeTransmissionFrequencyOfTrial(
-                "sonic", "T1", trialSetName="Measurements", normalize=False)
+    def test_the_recompute_populates_the_cache(self, analysis, deviceData):
+        """B216: nothing could write the cache before, so recalculate=False
+        had nothing to read."""
+        analysis.getDeviceTypeTransmissionFrequencyOfTrial(
+            "sonic", "T1", trialSetName="Measurements", normalize=False)
+        cached = analysis.datalayer.getCacheDocuments(
+            type=analysis.TECHNICALDOC_FREQUENCY, **_cacheKey())
+        assert len(cached) == 1
+        assert sorted(cached[0].getData().columns) == ["sonic 1", "sonic 2"]
 
-    def test_recalculate_is_true_by_default_so_a_cache_hit_is_ignored(
+    def test_the_sampling_window_sets_the_bin_width(self, analysis, deviceData):
+        """B216: the bin used to be hard-coded to one minute."""
+        pvt = analysis.getDeviceTypeTransmissionFrequencyOfTrial(
+            "sonic", "T1", trialSetName="Measurements",
+            samplingWindow="5min", normalize=False)
+        assert len(pvt) == 2
+
+    def test_recalculate_is_true_by_default_so_a_cache_hit_is_refreshed(
             self, analysis, cachedFrequency, deviceData):
-        """Characterisation of B216: even a valid cache entry does not save
-        the caller, because the default recomputes."""
+        """The default recomputes and overwrites the stored table."""
         cachedFrequency()
-        with pytest.raises(AttributeError, match="'dict' object has no attribute 'query'"):
-            analysis.getDeviceTypeTransmissionFrequencyOfTrial(
-                "sonic", "T1", trialSetName="Measurements", normalize=False)
+        pvt = analysis.getDeviceTypeTransmissionFrequencyOfTrial(
+            "sonic", "T1", trialSetName="Measurements", normalize=False)
+        assert len(pvt) == 10
+        assert len(pvt) != len(CACHED_FREQUENCY)
 
     def test_the_recompute_branch_fails_earlier_when_there_is_no_raw_data(self, analysis):
         """Without documents the trial read raises before B216 is reached."""
@@ -735,29 +689,21 @@ class TestAddTrialProperties:
 
 @pytest.mark.unit
 class TestAddTrialPropertiesWithoutARelease:
-    """B217: the optional release time is subtracted unconditionally."""
+    """B217: the optional release time is only subtracted when it exists."""
 
     def test_a_trial_without_a_release_has_no_releasestart_property(self, experiment):
-        """Characterisation of B217: the value the method fetches is None."""
+        """The value the method fetches is None."""
         properties = experiment.trialSet["Measurements"]["T1"].properties
         assert "TrialStart" in properties
         assert properties.get("ReleaseStart", None) is None
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B217: addTrialProperties fetches ReleaseStart with "
-               ".get(..., None) -- explicitly tolerating a trial with no "
-               "release -- and then computes tmp.timestamp - releaseTime "
-               "unconditionally, so a trial without a ReleaseStart raises "
-               "TypeError and cannot obtain even the fromStart columns, "
-               "which do not depend on the release. "
-               "See the consolidated findings issue.",
-    )
-    def test_it_should_still_add_the_columns_measured_from_the_start(self, analysis):
+    def test_it_still_adds_the_columns_measured_from_the_start(self, analysis):
         result = analysis.addTrialProperties(_deviceFrame(), "T1")
         assert result.fromStartSeconds.iloc[0] == 0
+        assert result.fromStartSeconds.iloc[3] == 180
 
-    def test_it_currently_raises_a_type_error_on_the_none_release_time(self, analysis):
-        """Characterisation of B217."""
-        with pytest.raises(TypeError, match="unsupported operand type"):
-            analysis.addTrialProperties(_deviceFrame(), "T1")
+    def test_the_release_columns_are_omitted(self, analysis):
+        """There is no release to measure from, so no release columns."""
+        result = analysis.addTrialProperties(_deviceFrame(), "T1")
+        assert "fromRelease" not in result.columns
+        assert "fromReleaseSeconds" not in result.columns

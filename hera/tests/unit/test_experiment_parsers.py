@@ -82,7 +82,7 @@ class TestParserModuleIsOrphaned:
 
 @pytest.mark.unit
 class TestTOA5Stub:
-    """B44: Parser_TOA5.parse is an empty body that silently returns None."""
+    """B44: Parser_TOA5.parse refuses instead of silently returning None."""
 
     def test_the_class_can_be_constructed(self):
         assert Parser_TOA5() is not None
@@ -94,23 +94,15 @@ class TestTOA5Stub:
         assert hasattr(ASCIIParser, "getPandasFromFile")
         assert hasattr(ASCIIParser, "getPandasFromDir")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B44: Parser_TOA5.parse has an empty body, so it returns None for "
-               "any input instead of parsing or refusing. Its docstring documents "
-               "the `file` parameter and promises nothing about the return, and a "
-               "real TOA5 parser exists at "
-               "meteorology/highfreqdata/parsers/TOA5.ASCIIParser. "
-               "See the consolidated findings issue.",
-    )
-    def test_parsing_either_returns_data_or_refuses(self, tmp_path):
-        """A stub should raise NotImplementedError, not hand back None."""
+    def test_parsing_refuses_instead_of_handing_back_none(self, tmp_path):
+        """A stub raises NotImplementedError, it does not return None."""
         target = tmp_path / "sample.dat"
         target.write_text("TOA5,station\n", encoding="utf-8")
 
-        result = Parser_TOA5().parse(str(target))
-        assert result is not None
+        with pytest.raises(NotImplementedError, match="ASCIIParser"):
+            Parser_TOA5().parse(str(target))
 
-    def test_it_returns_none_even_for_a_path_that_does_not_exist(self):
-        """Confirms the body is unreachable code rather than a silent failure path."""
-        assert Parser_TOA5().parse("/no/such/file.dat") is None
+    def test_it_refuses_a_path_that_does_not_exist_too(self):
+        """The refusal does not depend on the file at all."""
+        with pytest.raises(NotImplementedError):
+            Parser_TOA5().parse("/no/such/file.dat")

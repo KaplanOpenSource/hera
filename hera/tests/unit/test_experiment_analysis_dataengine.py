@@ -2,20 +2,20 @@
 
 Three defects surfaced here:
 
-* B75: ``experimentAnalysis.getTurbulenceStatistics`` references
+* B75 (fixed): ``experimentAnalysis.getTurbulenceStatistics`` referenced
   ``kaijoData``/``kaijoHeight`` -- names that do not exist anywhere in the
-  method, which only takes ``sonicData``/``height``. Every call raises
-  ``NameError`` before it can even reach the toolkit it is trying to call.
-* B76: both ``pandasDataEngineDB.DBconfiguration`` and
-  ``daskDataEngineDB.DBconfiguration`` are missing a ``return`` statement
+  method, which only takes ``sonicData``/``height`` -- so every call raised
+  ``NameError`` before it could even reach the toolkit it is trying to call.
+* B76 (fixed): both ``pandasDataEngineDB.DBconfiguration`` and
+  ``daskDataEngineDB.DBconfiguration`` were missing a ``return`` statement
   (``self._dbConfiguration`` as a bare expression), so the property always
-  returns ``None`` regardless of what was actually configured.
-* B77: ``pandasDataEngineDB.dbConnect`` catches
-  ``except OperationFailure as e:``, but ``OperationFailure`` is never
-  imported in this module. When a real connection attempt fails with any
+  returned ``None`` regardless of what was actually configured.
+* B77 (fixed): ``pandasDataEngineDB.dbConnect`` catches
+  ``except OperationFailure as e:``, but ``OperationFailure`` was never
+  imported in this module. When a real connection attempt failed with any
   other exception, Python's own attempt to match it against
-  ``OperationFailure`` raises ``NameError`` -- which the outer
-  ``except Exception as e: return e`` then silently swallows and returns
+  ``OperationFailure`` raised ``NameError`` -- which the outer
+  ``except Exception as e: return e`` then silently swallowed and returned
   in place of the real connection error.
 
 Note: constructing ``pandasDataEngineDB`` for real calls ``dbConnect()``,
@@ -36,7 +36,7 @@ from hera.measurements.experiment.dataEngine import (
 
 
 @pytest.mark.unit
-class TestGetTurbulenceStatisticsIsBroken:
+class TestGetTurbulenceStatistics:
     def test_it_should_return_a_turbulence_statistics_object(self):
         from hera.measurements.experiment.analysis import experimentAnalysis
 
@@ -57,14 +57,17 @@ class TestGetTurbulenceStatisticsIsBroken:
         assert result is not None
 
 
-    def test_it_currently_raises_a_nameerror(self):
-        """Characterisation of B75."""
+    def test_it_forwards_its_own_arguments_to_the_toolkit(self):
+        """B75: sonicData/height reach the toolkit, not undefined names."""
         from hera.measurements.experiment.analysis import experimentAnalysis
+
+        seen = {}
 
         class _FakeHighFreqToolkit:
             class analysis:
                 @staticmethod
                 def singlePointTurbulenceStatistics(**kwargs):
+                    seen.update(kwargs)
                     return object()
 
         class _FakeExtension:
@@ -73,10 +76,12 @@ class TestGetTurbulenceStatisticsIsBroken:
         class _FakeDataLayer:
             toolkitExtension = _FakeExtension()
 
+        sonicData = object()
         analysis = experimentAnalysis(_FakeDataLayer())
-
-        analysis.getTurbulenceStatistics(sonicData=object(), samplingWindow="1min", height=2)
-
+        analysis.getTurbulenceStatistics(sonicData=sonicData, samplingWindow="1min", height=2)
+        assert seen["sonicData"] is sonicData
+        assert seen["height"] == 2
+        assert seen["samplingWindow"] == "1min"
 
 
 @pytest.mark.unit
@@ -112,11 +117,12 @@ class TestDaskDataEngineDB:
         }}})
         assert engine.connectionString == "mongodb://u:p@1.2.3.4:27017/"
 
-    def test_db_configuration_should_return_the_stored_dict(self):
+    def test_db_configuration_returns_the_stored_dict(self):
         engine = daskDataEngineDB("proj", {"DB": {"login": {
             "username": "u", "password": "p", "ip": "1.2.3.4", "port": "27017",
         }}})
-        assert engine.DBconfiguration is not None
+        assert engine.DBconfiguration == engine._dbConfiguration
+        assert engine.DBconfiguration["login"]["ip"] == "1.2.3.4"
 
 
 @pytest.mark.unit
@@ -126,11 +132,10 @@ class TestPandasDataEngineDBConstructionValidation:
         with pytest.raises(ValueError, match="DB"):
             pandasDataEngineDB("proj", {})
 
-    def test_db_configuration_should_return_the_stored_dict(self):
+    def test_db_configuration_returns_the_stored_dict(self):
         engine = pandasDataEngineDB.__new__(pandasDataEngineDB)
         engine._dbConfiguration = {"login": {}}
-        assert engine.DBconfiguration is not None
-
+        assert engine.DBconfiguration == {"login": {}}
 
 
 @pytest.mark.unit
@@ -138,7 +143,7 @@ class TestPandasDataEngineDBConnect:
     """dbConnect() opens a real socket via pymongo.MongoClient; every test
     here monkeypatches it so nothing ever touches the network."""
 
-    def test_dbconnect_should_surface_the_original_exception(self, monkeypatch):
+    def test_dbconnect_surfaces_the_original_exception(self, monkeypatch):
         import hera.measurements.experiment.dataEngine as de_mod
 
         class _FakeClient:
@@ -153,13 +158,13 @@ class TestPandasDataEngineDBConnect:
         result = engine.dbConnect()
         assert isinstance(result, RuntimeError)
 
-    def test_dbconnect_currently_masks_it_with_a_nameerror(self, monkeypatch):
-        """Characterisation of B77."""
+    def test_dbconnect_returns_an_operation_failure_as_is(self, monkeypatch):
+        """B77: the OperationFailure branch is now reachable."""
         import hera.measurements.experiment.dataEngine as de_mod
 
         class _FakeClient:
             def server_info(self):
-                raise RuntimeError("connection refused")
+                raise de_mod.OperationFailure("auth failed")
 
         monkeypatch.setattr(de_mod.pymongo, "MongoClient", lambda uri: _FakeClient())
         engine = pandasDataEngineDB.__new__(pandasDataEngineDB)
@@ -167,5 +172,4 @@ class TestPandasDataEngineDBConnect:
             "username": "u", "password": "p", "ip": "1.2.3.4", "port": "27017",
         }}
         result = engine.dbConnect()
-        assert isinstance(result, RuntimeError)
-
+        assert isinstance(result, de_mod.OperationFailure)

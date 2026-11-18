@@ -135,7 +135,7 @@ class experimentPresentation:
         if ax is None:
             fig, ax = plt.subplots(1, 1)
 
-        plt.scatter(0, 0, s=s, marker='X', c='xkcd:lavender')
+        ax.scatter(0, 0, s=s, marker='X', c='xkcd:lavender')
 
         return ax
 
@@ -180,10 +180,10 @@ class experimentPresentation:
         metadata = self.datalayer.getImageMetadata(imageName)
         img = self.datalayer.getImage(imageName)
 
-        plt.imshow(img, extent=[metadata['xleft'],
-                                metadata['xright'],
-                                metadata['ybottom'],
-                                metadata['ytop']]
+        plt.imshow(img, extent=[metadata['left'],
+                                metadata['right'],
+                                metadata['lower'],
+                                metadata['upper']]
                    )
 
         for fnc,values in plt_kwargs.items():
@@ -201,8 +201,8 @@ class experimentPresentation:
             plt.grid(which='major', linestyle='-')
             plt.grid(which='minor', linestyle='--')
 
-            yLocatorSpacing = (metadata['ytop']-metadata['ybottom'])//majorLocator
-            xLocatorSpacing = (metadata['xright'] - metadata['xleft']) // majorLocator
+            yLocatorSpacing = (metadata['upper']-metadata['lower'])//majorLocator
+            xLocatorSpacing = (metadata['right'] - metadata['left']) // majorLocator
 
             locatorSpacing = numpy.min([yLocatorSpacing,xLocatorSpacing])
 
@@ -231,7 +231,7 @@ class experimentPresentation:
 
         """
         import matplotlib.pyplot as plt
-        devices_df = self.trialSet[trialSetName][trialName].entitiesTable
+        devices_df = self.datalayer.trialSet[trialSetName][trialName].entitiesTable
 
         if ax is None:
             plot_kwargs = plot_kwargs or {}
@@ -277,7 +277,7 @@ class experimentPresentation:
         """
         import matplotlib.pyplot as plt
 
-        data = self.datalayer.experimentSetup.trialSet[trialSet][trialName].entitiesTable(status).query("locationName==@floorName and entityType==@entityTypeName")
+        data = self.datalayer.trialSet[trialSet][trialName].entitiesTable(status).query("locationName==@floorName and entityType==@entityTypeName")
 
         if ax is None:
             fig, ax = plt.subplots(1, 1)
@@ -339,7 +339,7 @@ class experimentPresentation:
             axis
         """
         import matplotlib.pyplot as plt
-        entities = self.datalayer.experimentSetup.trialSet[trialSet][trialName].entitiesTable(status)
+        entities = self.datalayer.trialSet[trialSet][trialName].entitiesTable(status)
         if len(entities) > 0:
             data = entities.query("locationName==@floorName and entityType==@entityTypeName")
         else:
@@ -417,6 +417,7 @@ class experimentPresentation:
             ax
         """
         import matplotlib.pyplot as plt
+        scatterkwargs = dict(scatterkwargs)
         scatterkwargs.setdefault("s",50)
         scatterkwargs.setdefault("c", "r")
         devices_df = self.datalayer.trialSet[trialSetName][trialName].entitiesTable.query("deviceTypeName==@deviceType and mapName==@mapName")
@@ -426,18 +427,23 @@ class experimentPresentation:
         else:
             fig = ax.figure
 
-        maxx = devices_df.max().longitude
-        maxy = devices_df.max().latitude
+        maxx = devices_df.longitude.max()
+        maxy = devices_df.latitude.max()
 
-        minx = devices_df.min().longitude
-        miny = devices_df.min().latitude
+        minx = devices_df.longitude.min()
+        miny = devices_df.latitude.min()
         for row in devices_df.itertuples():
-            x = row.latitude
-            y = row.longitude
-            if isinstance(row.containedIn,float):
+            # plotImage puts the longitudes on x (left/right) and the
+            # latitudes on y (lower/upper); the markers follow it.
+            x = row.longitude
+            y = row.latitude
+            # argos only adds containedIn when some device on the trial
+            # declares containment; NaN means this one does not.
+            containedIn = getattr(row, "containedIn", None)
+            if containedIn is None or isinstance(containedIn, float):
                 deviceName = row.deviceItemName
             else:
-                deviceName = row.containedIn
+                deviceName = containedIn
 
             ax.scatter(x, y,**scatterkwargs)  # 's' controls size
             ax.text(x+textDeltaX, y + (maxy - miny) * textDeltaY, f"{deviceName}", color='red', fontsize=14, ha='center',
@@ -472,12 +478,12 @@ class experimentPresentation:
         """
         import matplotlib.pyplot as plt
         if ax is None:
-            plot_kwargs = plot_kwargs or {}
-            fig, ax = plt.subplots(1, 1, **plot_kwargs)
+            plotkwargs = plotkwargs or {}
+            fig, ax = plt.subplots(1, 1, **plotkwargs)
         else:
             fig = ax.figure
 
-        devices_df = self.trialSet[trialSetName][trialName].entitiesTable.query("deviceTypeName==@deviceType")
+        devices_df = self.datalayer.trialSet[trialSetName][trialName].entitiesTable.query("deviceTypeName==@deviceType")
 
         devices_df[['ITM_Latitude', 'ITM_Longitude']] = devices_df.apply(self.datalayer._process_row, axis=1)
         minx,miny,maxx,maxy = self.datalayer.get_devices_image_coordinates(trialSetName,trialName,deviceType)
@@ -673,7 +679,8 @@ class experimentPresentation:
                 trial_dict['devices'] = []
                 for device_name in devices_df['deviceTypeName'].unique():
                     device_dict = {}
-                    fig , _ = self.plotDevices(trialSetName=trialSet['name'], trialName=trial['name'], device=device_name, display=False)
+                    # mapName is required by plotDevices' signature but unused by its body.
+                    fig , _ = self.plotDevices(trialSetName=trialSet['name'], trialName=trial['name'], deviceType=device_name, mapName=None)
                     image_path = os.path.join(folder_path,f"{device_name}.png")
                     fig.savefig(image_path)
                     device_dict['device_name'] = device_name

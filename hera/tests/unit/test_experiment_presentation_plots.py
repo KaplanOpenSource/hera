@@ -47,76 +47,94 @@ Deliberately not covered
 ``plotOrigin``, ``generateLatexTable``, ``_splitName``,
 ``_scatter_height_color`` and ``_get_continuous_cmap`` -- all already
 covered in ``test_experiment_presentation.py``.
-``plotImage``'s ``withGrid`` / ``plt_kwargs`` / ``majorLocator``
-arguments, and ``plotDevicesOnImage``'s never-plotted background image:
-unreachable while B218 stands.
+``plotImage``'s ``plt_kwargs`` / ``majorLocator`` arguments, and
+``plotDevicesOnImage``'s never-plotted background image. ``withGrid`` is
+reachable now that B218 is fixed, but ``(upper - lower) // majorLocator``
+floors to 0 on a map smaller than ``majorLocator`` units and matplotlib
+refuses a zero-step locator -- a separate, unpinned defect.
 
 Bugs pinned here
 ----------------
-* B218: ``plotImage`` builds the ``imshow`` extent from
+* B218 (fixed): ``plotImage`` built the ``imshow`` extent from
   ``metadata['xleft']``, ``['xright']``, ``['ybottom']``, ``['ytop']``,
   but ``argos.Experiment.getImageMetadata`` returns the raw
   ``imageStandalone`` entry, whose bounding-box keys are ``left``,
-  ``right``, ``lower`` and ``upper``. Every call raises
-  ``KeyError: 'xleft'`` -- after the image itself has been decoded, so the
-  method is dead for every experiment.
-* B219: ``plotMap`` reads ``self.trialSet[trialSetName][trialName]``, but
-  ``trialSet`` lives on the datalayer, not on the presentation layer
-  (``self.datalayer.trialSet``), so the first statement raises
-  ``AttributeError``. Three further defects sit behind it: ``ax`` and
+  ``right``, ``lower`` and ``upper``. Every call raised
+  ``KeyError: 'xleft'`` -- after the image itself had been decoded, so the
+  method was dead for every experiment. The grid locator read the same
+  four keys and is fixed with it.
+* B219 (partly fixed): ``plotMap`` read
+  ``self.trialSet[trialSetName][trialName]``, but ``trialSet`` lives on
+  the datalayer, not on the presentation layer
+  (``self.datalayer.trialSet``), so the first statement raised
+  ``AttributeError``. That is fixed. The method is still dead -- its own
+  docstring says "NOT COMPLETE!!" -- and the three defects behind it all
+  need a decision about what its signature should be: ``ax`` and
   ``plot_kwargs`` are read although neither is a parameter of the method
   (its only parameters are ``trialSetName`` and ``trialName``),
   ``deviceType`` and ``toolkitDataSource`` are undefined names, and the
   method returns nothing at all.
-* B220: ``_plotEntityLocationScatter`` and ``_plotEntityLocationNames``
-  both start from ``self.datalayer.experimentSetup.trialSet[...]``, but
+* B220 (partly fixed): ``_plotEntityLocationScatter`` and
+  ``_plotEntityLocationNames`` both started from
+  ``self.datalayer.experimentSetup.trialSet[...]``, but
   ``experimentSetupWithData`` has no ``experimentSetup`` attribute -- it
   *is* the experiment setup and exposes ``.trialSet`` directly (the same
-  mistake as B165 in ``dataEngine.py``), so both raise ``AttributeError``
-  immediately. Behind that: ``entitiesTable(status)`` calls an argos
-  property, ``self._entityMarkers`` is never defined on the class, and
-  ``FLOOR_PLATFORM``/``FLOOR_CONCOURSE`` are undefined names in the
-  module.
-* B221: ``plotDevices`` opens with ``plot_kwargs = plot_kwargs or {}``,
-  reading a local before it is assigned -- the parameter is spelled
-  ``plotkwargs`` -- so with the default ``ax=None`` it raises
-  ``UnboundLocalError``; passing an ``ax`` skips that line only to hit
-  ``self.trialSet`` (B219's mistake again) and, behind it,
-  ``self.datalayer._process_row`` (dead per B160) and ``row.stationName``,
-  a column argos does not produce.
-* B222: ``plotDevicesOnImage`` reads ``row.containedIn`` for every device,
-  but argos's ``fillContained`` only creates that column when at least one
-  device on the trial declares containment. For the ordinary experiment
-  whose devices sit directly on the map the loop raises
-  ``AttributeError: 'Pandas' object has no attribute 'containedIn'``.
-* B223: ``plotDevicesOnImage`` computes its bounding box as
+  mistake as B165 in ``dataEngine.py``), so both raised
+  ``AttributeError`` immediately. That is fixed. Both are still dead on
+  the next statement and beyond, and none of it is pinned as a defect of
+  its own: ``entitiesTable(status)`` calls an argos property with an
+  argument it does not take, the query filters on ``locationName`` and
+  ``entityType`` where a trial's table has ``mapName`` and
+  ``deviceTypeName``, ``self._entityMarkers`` is never defined on the
+  class, and ``FLOOR_PLATFORM``/``FLOOR_CONCOURSE`` are undefined names
+  in the module.
+* B221 (partly fixed): ``plotDevices`` opened with
+  ``plot_kwargs = plot_kwargs or {}``, reading a local before it was
+  assigned -- the parameter is spelled ``plotkwargs`` -- so with the
+  default ``ax=None`` it raised ``UnboundLocalError``. That name is
+  fixed, and so is the ``self.trialSet`` lookup right after it (B219's
+  mistake again; it now reads ``self.datalayer.trialSet``). The method is
+  still dead on ``row.stationName``, a column argos does not produce,
+  which needs a decision about what a device's station is.
+* B222 (fixed): ``plotDevicesOnImage`` read ``row.containedIn`` for every
+  device, but argos's ``fillContained`` only creates that column when at
+  least one device on the trial declares containment. For the ordinary
+  experiment whose devices sit directly on the map the loop raised
+  ``AttributeError: 'Pandas' object has no attribute 'containedIn'``,
+  although the method already had a fallback branch meant for exactly
+  that case. The column is now read with ``getattr``.
+* B223 (fixed): ``plotDevicesOnImage`` computed its bounding box as
   ``devices_df.max().longitude`` / ``devices_df.min().latitude`` -- an
   aggregate over the *whole* mixed-dtype frame rather than over the two
-  coordinate columns. As soon as any string column holds a NaN (which is
+  coordinate columns. As soon as any string column held a NaN (which is
   exactly what a mix of contained and uncontained devices produces in
-  ``containedIn``) the aggregate raises ``TypeError: '>=' not supported
-  between instances of 'str' and 'float'``. Together with B222 this leaves
+  ``containedIn``) the aggregate raised ``TypeError: '>=' not supported
+  between instances of 'str' and 'float'``. Together with B222 that left
   a single layout -- every device of the type contained in another device
-  -- in which the method runs at all.
-* B224: ``plotDevicesOnImage`` scatters ``x=row.latitude, y=row.longitude``,
-  transposing the two axes: the image these devices are meant to sit on is
-  drawn by ``plotImage`` with the longitudes (``left``/``right``) on x and
-  the latitudes (``lower``/``upper``) on y. The text offset compounds it,
-  shifting a longitude value by ``(maxy - miny) * textDeltaY`` where
-  ``maxy``/``miny`` are latitudes.
-* B225: ``plotDevicesOnImage`` mutates its own mutable default argument --
-  ``scatterkwargs.setdefault("s", 50)`` / ``setdefault("c", "r")`` on a
-  ``scatterkwargs={}`` default -- so after the first call that omits the
-  argument the shared default dict permanently carries ``s``/``c`` for the
-  rest of the process, and a later caller can no longer get an unstyled
-  scatter by omitting it.
-* B226: ``plotDeviceTypeFunctionality`` cannot run, because it calls
-  ``analysis.getDeviceTypeTransmissionFrequencyOfTrial`` with
-  ``normalize=True`` and without ``recalculate=False``, so it always
-  enters the recompute branch killed by B216 (and would then hit B215's
-  missing ``getOptimalFrequencyHz``). Both are pinned in
-  ``test_experiment_analysis.py``; the tests here record that the
-  presentation entry point inherits their deadness.
+  -- in which the method ran at all. It now aggregates the two coordinate
+  columns.
+* B224 (fixed): ``plotDevicesOnImage`` scattered ``x=row.latitude,
+  y=row.longitude``, transposing the two axes: the image these devices are
+  meant to sit on is drawn by ``plotImage`` with the longitudes
+  (``left``/``right``) on x and the latitudes (``lower``/``upper``) on y.
+  The text offset compounded it, shifting a longitude value by
+  ``(maxy - miny) * textDeltaY`` where ``maxy``/``miny`` are latitudes.
+  The markers now follow the image.
+* B225 (fixed): ``plotDevicesOnImage`` mutated its own mutable default
+  argument -- ``scatterkwargs.setdefault("s", 50)`` / ``setdefault("c",
+  "r")`` on a ``scatterkwargs={}`` default -- so after the first call that
+  omitted the argument the shared default dict permanently carried
+  ``s``/``c`` for the rest of the process, and a later caller could no
+  longer get an unstyled scatter by omitting it. It now copies the dict
+  before filling in the defaults.
+* B226 (half resolved): ``plotDeviceTypeFunctionality`` has no defect of
+  its own -- it calls ``analysis.getDeviceTypeTransmissionFrequencyOfTrial``
+  with ``normalize=True`` and without ``recalculate=False``, so it took
+  both of that method's dead branches. The recompute branch (B216) is
+  fixed, so the call now gets as far as ``normalize=True`` and dies on
+  B215's missing ``getOptimalFrequencyHz``, which is still open and is
+  pinned in ``test_experiment_analysis.py``. The tests here record that
+  the presentation entry point inherits that deadness.
 """
 import inspect
 import json
@@ -448,42 +466,32 @@ class TestPlotDevicesOnImage:
 
 
 @pytest.mark.unit
-class TestPlotDevicesOnImageNeedsContainment:
-    """B222: an optional argos column is read unconditionally."""
+class TestPlotDevicesOnImageWithoutContainment:
+    """B222: an optional argos column used to be read unconditionally."""
 
     def test_an_uncontained_trial_has_no_containedin_column(self, experiment):
-        """Characterisation of B222: the table the loop is given."""
+        """The table the loop is given."""
         table = experiment.trialSet["Measurements"]["T1"].entitiesTable
         assert "deviceItemName" in table.columns
         assert "containedIn" not in table.columns
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B222: plotDevicesOnImage reads row.containedIn for every "
-               "device, but argos's fillContained only adds that column "
-               "when some device on the trial declares containment, so the "
-               "ordinary map-positioned experiment raises AttributeError -- "
-               "even though the method already has a fallback branch meant "
-               "for exactly that case. See the consolidated findings issue.",
-    )
-    def test_it_should_label_uncontained_devices_by_their_own_name(self, presentation):
+    def test_it_labels_uncontained_devices_by_their_own_name(self, presentation):
         _, ax = presentation.plotDevicesOnImage(
             "Measurements", "T1", "sonic", "map1", scatterkwargs=dict())
         assert sorted(text.get_text() for text in ax.texts) == ["sonic 1", "sonic 2"]
 
-    def test_it_currently_raises_an_attribute_error(self, presentation):
-        """Characterisation of B222."""
-        with pytest.raises(AttributeError, match="containedIn"):
-            presentation.plotDevicesOnImage(
-                "Measurements", "T1", "sonic", "map1", scatterkwargs=dict())
+    def test_every_device_still_gets_its_marker(self, presentation):
+        _, ax = presentation.plotDevicesOnImage(
+            "Measurements", "T1", "sonic", "map1", scatterkwargs=dict())
+        assert len(ax.collections) == 2
 
 
 @pytest.mark.unit
-class TestPlotDevicesOnImageAggregatesTheWholeFrame:
-    """B223: min/max over every column, not just the coordinates."""
+class TestPlotDevicesOnImageAggregatesTheCoordinates:
+    """B223: min/max over the coordinate columns, not over every column."""
 
     def test_a_mixed_trial_leaves_a_nan_in_a_string_column(self, experimentFactory):
-        """Characterisation of B223: the frame the aggregate is given."""
+        """The frame the aggregate is given."""
         experiment = experimentFactory("mixed")
         table = experiment.trialSet["Measurements"]["T1"].entitiesTable
         sonics = table.query("deviceTypeName=='sonic'")
@@ -492,41 +500,33 @@ class TestPlotDevicesOnImageAggregatesTheWholeFrame:
             sonics.max()
 
     def test_aggregating_only_the_coordinates_works_on_the_same_frame(self, experimentFactory):
-        """Characterisation of B223: what the method actually needs."""
+        """What the method needs, and now does."""
         experiment = experimentFactory("mixed")
         sonics = experiment.trialSet["Measurements"]["T1"].entitiesTable.query(
             "deviceTypeName=='sonic'")
         assert sonics.latitude.max() == pytest.approx(SONIC_2[1])
         assert sonics.longitude.min() == pytest.approx(SONIC_1[0])
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B223: plotDevicesOnImage takes its bounding box from "
-               "devices_df.max()/min() over the whole mixed-dtype frame "
-               "rather than the latitude/longitude columns, so a trial "
-               "mixing contained and uncontained devices (a NaN in the "
-               "containedIn string column) raises TypeError. "
-               "See the consolidated findings issue.",
-    )
-    def test_it_should_plot_a_trial_mixing_contained_and_uncontained_devices(
+    def test_it_plots_a_trial_mixing_contained_and_uncontained_devices(
             self, mixedPresentation):
         _, ax = mixedPresentation.plotDevicesOnImage(
             "Measurements", "T1", "sonic", "map1", scatterkwargs=dict())
         assert len(ax.collections) == 2
 
-    def test_it_currently_raises_a_type_error(self, mixedPresentation):
-        """Characterisation of B223."""
-        with pytest.raises(TypeError, match="'>=' not supported"):
-            mixedPresentation.plotDevicesOnImage(
-                "Measurements", "T1", "sonic", "map1", scatterkwargs=dict())
+    def test_the_uncontained_device_of_a_mixed_trial_keeps_its_own_name(
+            self, mixedPresentation):
+        """The NaN in containedIn takes the deviceItemName branch."""
+        _, ax = mixedPresentation.plotDevicesOnImage(
+            "Measurements", "T1", "sonic", "map1", scatterkwargs=dict())
+        assert len(ax.texts) == 2
 
 
 @pytest.mark.unit
-class TestPlotDevicesOnImageSwapsTheAxes:
-    """B224: x gets the latitude and y gets the longitude."""
+class TestPlotDevicesOnImageFollowsTheImageAxes:
+    """B224: x used to get the latitude and y the longitude."""
 
     def test_the_image_these_devices_sit_on_is_longitude_by_latitude(self, experiment):
-        """Characterisation of B224: the map's own orientation.
+        """The map's own orientation.
 
         ``left``/``right`` bound the same values as the device longitudes
         and ``lower``/``upper`` the latitudes, so x is longitude.
@@ -538,70 +538,47 @@ class TestPlotDevicesOnImageSwapsTheAxes:
         assert metadata["left"] <= table.longitude.min()
         assert metadata["lower"] <= table.latitude.min()
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B224: plotDevicesOnImage scatters x=row.latitude, "
-               "y=row.longitude, transposing the devices with respect to "
-               "the image plotImage draws (x from left/right, i.e. "
-               "longitudes; y from lower/upper, i.e. latitudes). The label "
-               "offset compounds it, shifting a longitude by the latitude "
-               "spread. See the consolidated findings issue.",
-    )
-    def test_the_markers_should_land_at_longitude_by_latitude(self, containedPresentation):
+    def test_the_markers_land_at_longitude_by_latitude(self, containedPresentation):
         _, ax = containedPresentation.plotDevicesOnImage(
             "Measurements", "T1", "sonic", "map1", scatterkwargs=dict())
         offsets = sorted(tuple(c.get_offsets().tolist()[0]) for c in ax.collections)
         assert offsets == [SONIC_1, SONIC_2]
 
-    def test_the_markers_currently_land_transposed(self, containedPresentation):
-        """Characterisation of B224."""
-        _, ax = containedPresentation.plotDevicesOnImage(
-            "Measurements", "T1", "sonic", "map1", scatterkwargs=dict())
-        offsets = sorted(tuple(c.get_offsets().tolist()[0]) for c in ax.collections)
-        assert offsets == [(SONIC_1[1], SONIC_1[0]), (SONIC_2[1], SONIC_2[0])]
-
-    def test_the_label_offset_is_taken_from_the_latitude_spread(self, containedPresentation):
-        """Characterisation of B224: the offset applied to the y (longitude)
-        coordinate is a fraction of the latitude range."""
+    def test_the_label_offset_shifts_the_latitude_by_the_latitude_spread(
+            self, containedPresentation):
+        """B224: the offset used to be applied to a longitude."""
         _, ax = containedPresentation.plotDevicesOnImage(
             "Measurements", "T1", "sonic", "map1", scatterkwargs=dict(),
             textDeltaX=0, textDeltaY=1.0)
         latitudeSpread = SONIC_2[1] - SONIC_1[1]
         label = sorted(text.get_position() for text in ax.texts)[0]
-        assert label[1] == pytest.approx(SONIC_1[0] + latitudeSpread)
+        assert label[0] == pytest.approx(SONIC_1[0])
+        assert label[1] == pytest.approx(SONIC_1[1] + latitudeSpread)
 
 
 @pytest.mark.unit
-class TestPlotDevicesOnImageMutatesItsDefault:
-    """B225: ``setdefault`` on a mutable default argument."""
+class TestPlotDevicesOnImageLeavesItsDefaultAlone:
+    """B225: ``setdefault`` used to run on the mutable default argument."""
 
     def test_the_scatter_keywords_default_to_a_shared_dictionary(self):
-        """Characterisation of B225: the object that gets mutated."""
+        """The object that used to get mutated."""
         parameter = inspect.signature(
             experimentPresentation.plotDevicesOnImage).parameters["scatterkwargs"]
         assert isinstance(parameter.default, dict)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B225: plotDevicesOnImage calls setdefault on its "
-               "scatterkwargs={} default, so a call that omits the argument "
-               "permanently writes s=50 and c='r' into the shared default "
-               "dict and no later caller can obtain an unstyled scatter by "
-               "omitting it. See the consolidated findings issue.",
-    )
-    def test_omitting_the_scatter_keywords_should_leave_the_default_empty(
+    def test_omitting_the_scatter_keywords_leaves_the_default_empty(
             self, containedPresentation):
         containedPresentation.plotDevicesOnImage("Measurements", "T1", "sonic", "map1")
         assert inspect.signature(
             experimentPresentation.plotDevicesOnImage).parameters["scatterkwargs"].default == {}
 
-    def test_omitting_the_scatter_keywords_currently_pollutes_the_default(
+    def test_a_caller_supplied_dictionary_is_not_written_to_either(
             self, containedPresentation):
-        """Characterisation of B225."""
-        containedPresentation.plotDevicesOnImage("Measurements", "T1", "sonic", "map1")
-        assert inspect.signature(
-            experimentPresentation.plotDevicesOnImage
-        ).parameters["scatterkwargs"].default == {"s": 50, "c": "r"}
+        """B225: the defaults go into a copy, not into the caller's dict."""
+        supplied = dict(marker="x")
+        containedPresentation.plotDevicesOnImage(
+            "Measurements", "T1", "sonic", "map1", scatterkwargs=supplied)
+        assert supplied == {"marker": "x"}
 
 
 # ---------------------------------------------------------------------------
@@ -610,10 +587,10 @@ class TestPlotDevicesOnImageMutatesItsDefault:
 
 @pytest.mark.unit
 class TestPlotImage:
-    """B218: the extent is built from keys argos does not use."""
+    """B218: the extent is built from the keys argos actually uses."""
 
     def test_the_image_metadata_bounds_the_box_with_left_right_lower_upper(self, experiment):
-        """Characterisation of B218: the dict the method indexes."""
+        """The dict the method indexes."""
         metadata = experiment.getImageMetadata("map1")
         assert sorted(k for k in metadata if k in
                       ("left", "right", "lower", "upper",
@@ -625,31 +602,23 @@ class TestPlotImage:
         image = experiment.getImage("map1")
         assert image.shape[:2] == (4, 4)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B218: plotImage builds the imshow extent from "
-               "metadata['xleft'/'xright'/'ybottom'/'ytop'], but argos's "
-               "getImageMetadata returns the imageStandalone entry, whose "
-               "bounding-box keys are left/right/lower/upper, so every call "
-               "raises KeyError: 'xleft'. "
-               "See the consolidated findings issue.",
-    )
-    def test_it_should_draw_the_image_over_its_geographic_extent(self, presentation):
+    def test_it_draws_the_image_over_its_geographic_extent(self, presentation):
         ax = presentation.plotImage("map1", withGrid=False)
         assert len(ax.images) == 1
-        assert ax.images[0].get_extent() == (MAP_LEFT, MAP_RIGHT, MAP_LOWER, MAP_UPPER)
+        assert list(ax.images[0].get_extent()) == [MAP_LEFT, MAP_RIGHT, MAP_LOWER, MAP_UPPER]
 
-    def test_it_currently_raises_a_key_error(self, presentation):
-        """Characterisation of B218."""
-        with pytest.raises(KeyError, match="xleft"):
-            presentation.plotImage("map1", withGrid=False)
-
-    def test_a_caller_supplied_axes_reaches_the_same_failure(self, presentation):
-        """Characterisation of B218: the ax branch is no better off."""
+    def test_a_caller_supplied_axes_is_drawn_on(self, presentation):
         _, ax = plt.subplots()
-        with pytest.raises(KeyError, match="xleft"):
-            presentation.plotImage("map1", ax=ax, withGrid=False)
-        assert len(ax.images) == 0
+        assert presentation.plotImage("map1", ax=ax, withGrid=False) is ax
+        assert len(ax.images) == 1
+
+    def test_the_grid_locator_reads_the_same_four_keys(self, presentation):
+        """B218: withGrid used the xleft/ytop spelling too, so it now gets
+        as far as the locator -- which, on a map this small, floors its
+        spacing to 0 and is refused by matplotlib. That is a separate
+        defect in the locator arithmetic, not part of B218."""
+        with pytest.raises(ValueError, match="'step' must be positive"):
+            presentation.plotImage("map1", withGrid=True)
 
     def test_an_unknown_image_name_raises_on_the_lookup_instead(self, presentation):
         with pytest.raises(KeyError, match="noSuchMap"):
@@ -662,15 +631,16 @@ class TestPlotImage:
 
 @pytest.mark.unit
 class TestPlotMap:
-    """B219: the trial sets are read off the wrong object."""
+    """B219: the trial sets come off the datalayer now; the rest of the
+    method is still unwritten."""
 
     def test_the_presentation_layer_has_no_trial_sets_of_its_own(self, presentation):
-        """Characterisation of B219: the attribute the method reads."""
+        """Why the method reads self.datalayer.trialSet."""
         assert not hasattr(presentation, "trialSet")
         assert hasattr(presentation.datalayer, "trialSet")
 
     def test_it_reads_names_that_are_not_its_parameters(self):
-        """Characterisation of B219: ax, plot_kwargs, deviceType and
+        """What is still in the way: ax, plot_kwargs, deviceType and
         toolkitDataSource are all read but never passed or defined."""
         parameters = list(inspect.signature(experimentPresentation.plotMap).parameters)
         assert parameters == ["self", "trialSetName", "trialName"]
@@ -680,20 +650,20 @@ class TestPlotMap:
 
     @pytest.mark.xfail(
         strict=True,
-        reason="B219: plotMap reads self.trialSet, but trialSet lives on the "
-               "datalayer, so the first statement raises AttributeError. "
-               "Behind it: ax/plot_kwargs are read although neither is a "
-               "parameter, deviceType and toolkitDataSource are undefined "
-               "names, and the method returns nothing. "
-               "See the consolidated findings issue.",
+        reason="plotMap is still dead after the B219 fix, and its own "
+               "docstring says NOT COMPLETE: ax and plot_kwargs are read "
+               "although neither is a parameter, deviceType and "
+               "toolkitDataSource are undefined names, and the method "
+               "returns nothing. Completing it is a design decision, not a "
+               "typo fix. See the consolidated findings issue.",
     )
     def test_it_should_plot_the_devices_of_the_trial_on_a_tile_map(self, presentation):
         result = presentation.plotMap("Measurements", "T1")
         assert result is not None
 
-    def test_it_currently_raises_an_attribute_error(self, presentation):
-        """Characterisation of B219."""
-        with pytest.raises(AttributeError, match="trialSet"):
+    def test_it_now_gets_past_the_trial_set_lookup(self, presentation):
+        """B219: this used to be an AttributeError on self.trialSet."""
+        with pytest.raises(NameError, match="ax"):
             presentation.plotMap("Measurements", "T1")
 
 
@@ -703,19 +673,27 @@ class TestPlotMap:
 
 @pytest.mark.unit
 class TestPlotEntityLocationHelpers:
-    """B220: both start from a datalayer attribute that does not exist."""
+    """B220: the datalayer attribute is fixed; the rest of both helpers
+    is still unwritten."""
 
     def test_the_experiment_is_the_setup_and_has_no_experiment_setup_attribute(self, experiment):
-        """Characterisation of B220: the attribute both methods read."""
+        """Why both methods read .trialSet directly now."""
         assert not hasattr(experiment, "experimentSetup")
         assert hasattr(experiment, "trialSet")
 
+    def test_a_trial_table_has_no_location_name_or_entity_type_column(self, experiment):
+        """The next thing standing in the way: the query's two columns."""
+        table = experiment.trialSet["Measurements"]["T1"].entitiesTable
+        assert {"mapName", "deviceTypeName"}.issubset(table.columns)
+        assert "locationName" not in table.columns
+        assert "entityType" not in table.columns
+
     def test_the_presentation_layer_defines_no_entity_markers(self):
-        """Characterisation of B220: the next attribute the scatter needs."""
+        """The next attribute the scatter needs."""
         assert not hasattr(experimentPresentation, "_entityMarkers")
 
     def test_the_module_defines_no_floor_constants(self):
-        """Characterisation of B220: the names the label branch indexes."""
+        """The names the label branch indexes."""
         import hera.measurements.experiment.presentation as presentationModule
 
         assert not hasattr(presentationModule, "FLOOR_PLATFORM")
@@ -723,13 +701,13 @@ class TestPlotEntityLocationHelpers:
 
     @pytest.mark.xfail(
         strict=True,
-        reason="B220: _plotEntityLocationScatter reads "
-               "self.datalayer.experimentSetup.trialSet[...], but "
-               "experimentSetupWithData has no experimentSetup attribute -- "
-               "it exposes .trialSet directly (the same mistake as B165). "
-               "Behind it: entitiesTable(status) calls an argos property, "
+        reason="_plotEntityLocationScatter is still dead after the B220 "
+               "fix: entitiesTable(status) calls an argos property with an "
+               "argument, the query filters on locationName/entityType "
+               "where a trial's table has mapName/deviceTypeName, "
                "self._entityMarkers is never defined, and FLOOR_PLATFORM / "
-               "FLOOR_CONCOURSE are undefined names. "
+               "FLOOR_CONCOURSE are undefined names. None of those is "
+               "pinned as a defect of its own. "
                "See the consolidated findings issue.",
     )
     def test_the_scatter_should_draw_the_entities_of_the_type(self, presentation):
@@ -737,17 +715,17 @@ class TestPlotEntityLocationHelpers:
             "sonic", "Measurements", "T1", None, "map1")
         assert len(ax.collections) == 1
 
-    def test_the_scatter_currently_raises_an_attribute_error(self, presentation):
-        """Characterisation of B220."""
-        with pytest.raises(AttributeError, match="experimentSetup"):
+    def test_the_scatter_now_gets_as_far_as_the_entities_table(self, presentation):
+        """B220: this used to be an AttributeError on experimentSetup."""
+        with pytest.raises(TypeError, match="'DataFrame' object is not callable"):
             presentation._plotEntityLocationScatter(
                 "sonic", "Measurements", "T1", None, "map1")
 
     @pytest.mark.xfail(
         strict=True,
-        reason="B220: _plotEntityLocationNames reads the same non-existent "
-               "self.datalayer.experimentSetup, so it raises AttributeError "
-               "before it can label anything. "
+        reason="_plotEntityLocationNames is still dead after the B220 fix, "
+               "on the same entitiesTable(status) call and the same two "
+               "missing query columns. "
                "See the consolidated findings issue.",
     )
     def test_the_names_helper_should_label_the_entities(self, presentation):
@@ -756,16 +734,16 @@ class TestPlotEntityLocationHelpers:
             plotNameMode=experimentPresentation.NAMES_LONG, text_kw=dict())
         assert len(ax.texts) == 2
 
-    def test_the_names_helper_currently_raises_an_attribute_error(self, presentation):
-        """Characterisation of B220."""
-        with pytest.raises(AttributeError, match="experimentSetup"):
+    def test_the_names_helper_now_gets_as_far_as_the_entities_table(self, presentation):
+        """B220: this used to be an AttributeError on experimentSetup."""
+        with pytest.raises(TypeError, match="'DataFrame' object is not callable"):
             presentation._plotEntityLocationNames(
                 "sonic", "Measurements", "T1", None, "map1",
                 plotNameMode=experimentPresentation.NAMES_LONG, text_kw=dict())
 
     def test_an_invalid_plot_name_mode_is_never_reached(self, presentation):
-        """Characterisation of B220: the documented ValueError is dead too."""
-        with pytest.raises(AttributeError, match="experimentSetup"):
+        """The documented ValueError is still unreachable."""
+        with pytest.raises(TypeError, match="'DataFrame' object is not callable"):
             presentation._plotEntityLocationNames(
                 "sonic", "Measurements", "T1", None, "map1",
                 plotNameMode="neither short nor long", text_kw=dict())
@@ -777,45 +755,42 @@ class TestPlotEntityLocationHelpers:
 
 @pytest.mark.unit
 class TestPlotDevices:
-    """B221: a misspelled local, then B219's mistake again."""
+    """B221 and the trial-set lookup are fixed; stationName is next."""
 
-    def test_the_keyword_parameter_is_spelled_without_an_underscore(self):
-        """Characterisation of B221: the name the body reads does not exist."""
+    def test_the_body_now_reads_the_parameter_it_was_given(self):
+        """B221: the body used to read an unassigned plot_kwargs."""
         parameters = inspect.signature(experimentPresentation.plotDevices).parameters
         assert "plotkwargs" in parameters
         assert "plot_kwargs" not in parameters
-        assert "plot_kwargs" in inspect.getsource(experimentPresentation.plotDevices)
+        assert "plot_kwargs" not in inspect.getsource(experimentPresentation.plotDevices)
 
     @pytest.mark.xfail(
         strict=True,
-        reason="B221: plotDevices opens with plot_kwargs = plot_kwargs or {} "
-               "while its parameter is spelled plotkwargs, so with the "
-               "default ax=None it raises UnboundLocalError. Behind it: "
-               "self.trialSet (B219's mistake), self.datalayer._process_row "
-               "(dead per B160) and row.stationName, a column argos does not "
-               "produce. See the consolidated findings issue.",
+        reason="plotDevices reads row.stationName, a column argos does not "
+               "produce; what a device's station is needs a product decision. "
+               "See the consolidated findings issue.",
     )
     def test_it_should_plot_the_devices_of_the_trial(self, presentation):
         fig, ax = presentation.plotDevices("Measurements", "T1", "sonic", "map1")
         assert len(ax.collections) == 2
 
-    def test_it_currently_raises_an_unbound_local_error(self, presentation):
-        """Characterisation of B221."""
-        with pytest.raises(UnboundLocalError, match="plot_kwargs"):
+    def test_it_now_gets_as_far_as_the_station_name(self, presentation):
+        """B221 and the trial-set lookup are fixed; it now reaches stationName."""
+        with pytest.raises(AttributeError, match="stationName"):
             presentation.plotDevices("Measurements", "T1", "sonic", "map1")
 
-    def test_passing_an_axes_skips_that_line_and_fails_on_the_trial_sets(self, presentation):
-        """Characterisation of B221: the second defect on the same path."""
+    def test_passing_an_axes_reaches_the_same_statement(self, presentation):
         _, ax = plt.subplots()
-        with pytest.raises(AttributeError, match="trialSet"):
+        with pytest.raises(AttributeError, match="stationName"):
             presentation.plotDevices("Measurements", "T1", "sonic", "map1", ax=ax)
 
-    def test_the_plot_keywords_argument_cannot_be_used_either(self, presentation):
-        """Characterisation of B221: naming the real parameter does not help,
-        because the body still reads the misspelled local."""
-        with pytest.raises(UnboundLocalError, match="plot_kwargs"):
+    def test_the_plot_keywords_argument_reaches_the_subplot_call(self, presentation):
+        """B221: naming the real parameter now reaches plt.subplots, which
+        is what it is meant to configure."""
+        with pytest.raises(AttributeError, match="stationName"):
             presentation.plotDevices("Measurements", "T1", "sonic", "map1",
                                      plotkwargs=dict(figsize=(3, 4)))
+        assert plt.gcf().get_size_inches().tolist() == [3.0, 4.0]
 
 
 # ---------------------------------------------------------------------------
@@ -824,11 +799,11 @@ class TestPlotDevices:
 
 @pytest.mark.unit
 class TestPlotDeviceTypeFunctionality:
-    """B226: dead because of the analysis defects B216 and B215."""
+    """B226: dead because of the analysis defect B215 (B216 is fixed)."""
 
     def test_it_asks_the_analysis_layer_to_recompute_and_normalise(self):
-        """Characterisation of B226: neither recalculate=False nor
-        normalize=False is ever passed, so both dead branches are taken."""
+        """B226: neither recalculate=False nor normalize=False is ever
+        passed, so the method takes both branches of the analysis call."""
         source = inspect.getsource(experimentPresentation.plotDeviceTypeFunctionality)
         assert "getDeviceTypeTransmissionFrequencyOfTrial" in source
         assert "normalize=True" in source
@@ -837,11 +812,11 @@ class TestPlotDeviceTypeFunctionality:
     @pytest.mark.xfail(
         strict=True,
         reason="B226: plotDeviceTypeFunctionality calls "
-               "getDeviceTypeTransmissionFrequencyOfTrial with normalize=True "
-               "and without recalculate=False, so it always enters the "
-               "recompute branch killed by B216 ('dict' object has no "
-               "attribute 'query') and would then hit B215's missing "
-               "getOptimalFrequencyHz. See the consolidated findings issue.",
+               "getDeviceTypeTransmissionFrequencyOfTrial with "
+               "normalize=True, which still divides by "
+               "getDeviceTypePlannedMessageCount and so hits B215's missing "
+               "getOptimalFrequencyHz. B216, the other branch it used to "
+               "die in, is fixed. See the consolidated findings issue.",
     )
     def test_it_should_return_the_heatmap_axes_and_the_frequency_table(
             self, presentation, deviceData):
@@ -849,10 +824,11 @@ class TestPlotDeviceTypeFunctionality:
         assert sorted(pvt.columns) == ["sonic 1", "sonic 2"]
         assert ax.get_xlabel() == "Device name"
 
-    def test_it_currently_raises_the_attribute_error_of_the_recompute_branch(
+    def test_it_currently_raises_the_attribute_error_of_the_normalisation(
             self, presentation, deviceData):
-        """Characterisation of B226."""
-        with pytest.raises(AttributeError, match="'dict' object has no attribute 'query'"):
+        """Characterisation of B226: the recompute branch now succeeds and
+        the call dies one step later, in B215's normalisation."""
+        with pytest.raises(AttributeError, match="getOptimalFrequencyHz"):
             presentation.plotDeviceTypeFunctionality("sonic", "T1")
 
     def test_without_raw_data_it_fails_even_earlier(self, presentation):

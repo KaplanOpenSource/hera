@@ -23,10 +23,9 @@ TOA5 stub (B44) and the fact that the module is orphaned;
   branches of ``_getFormat``, and the multi-height branches of
   ``_getColumnNames`` / ``_getColumnIndexes`` / ``heights``.
 * ``Parser_OldStyleMetaDataParquet.getExperimentDict`` / ``_getLists`` --
-  reached only through a raising ``parse`` in the existing file.  They are
-  exercised here on the one station-locations orientation the code does
-  accept (attribute-major: ``{"lat": {station: value}, ...}``), which is
-  the flip side of B90.
+  exercised here on the station-major station-locations shape
+  (``{station: {"lat": value, ...}, ...}``) that a real campaign
+  description carries, which is what B90 made readable.
 
 Fixtures are hand-built TOB1 files (five ASCII header lines, then packed
 binary records), following ``test_meteorology_campbellbinary.py``; no real
@@ -37,32 +36,34 @@ Bugs pinned here (all in the binary reader, and all present in the
 highfreqdata copy of the same code too, since the two files are
 independent duplicates):
 
-* B115: ``getRecordByIndex`` turns the record's integer SECONDS field
-  into a timestamp with ``pandas.Timedelta(days=lastSec / 86400.0)``.
+* B115 (fixed): ``getRecordByIndex`` turned the record's integer SECONDS
+  field into a timestamp with ``pandas.Timedelta(days=lastSec / 86400.0)``.
   The float division does not round-trip: a record stamped SECONDS=11
-  decodes to ``1990-01-01 00:00:10.999999999``.  77 of the first 600
-  integer second values are affected, so roughly one record in eight is
+  decoded to ``1990-01-01 00:00:10.999999999``.  77 of the first 600
+  integer second values were affected, so roughly one record in eight was
   off by a nanosecond.  ``getRecordIndexByTime`` compares timestamps for
   *exact* equality, so asking for the record at the second it is actually
-  stamped with raises ``IndexError`` for those records.
-  ``pandas.Timedelta(seconds=lastSec)`` is exact.
-* B116: ``_getDataFromStream``'s conversion loop is
+  stamped with raised ``IndexError`` for those records.
+  ``pandas.Timedelta(seconds=lastSec)`` is exact, and is what both copies
+  of the reader now use.
+* B116 (fixed): ``_getDataFromStream``'s conversion loop was
   ``for i in range(3, len(retval))``, but ``retval[0]`` and ``retval[1]``
   are the two timestamp fields, so the first *data* field is ``retval[2]``
-  and is skipped.  The first data column of every record is therefore
-  returned unconverted -- a raw FP2 ``uint16`` instead of a float, or raw
-  ``bytes`` instead of a string.  Two identical raw FP2 values decode to
-  two different numbers depending only on which column they sit in.
-* B117: ``_newfloatConvert`` calls
+  and was skipped.  The first data column of every record came back
+  unconverted -- a raw FP2 ``uint16`` instead of a float, or raw ``bytes``
+  instead of a string -- so two identical raw FP2 values decoded to two
+  different numbers depending only on which column they sat in. The loop
+  now starts at 2, in both copies of the reader.
+* B117 (fixed): ``_newfloatConvert`` called
   ``self._floatConvert(int(key % 256), key / 256)``.  ``_floatConvert``
   documents its second argument as the low byte, but ``/`` is true
-  division, so the value passed is ``lowbyte + hbyte/256`` -- the high
-  byte leaks back in as a fractional part and every FP2 value comes out
+  division, so the value passed was ``lowbyte + hbyte/256`` -- the high
+  byte leaked back in as a fractional part and every FP2 value came out
   with a spurious offset of up to ``1/factor``.  ``key // 256`` is the
-  low byte.
-* B118: the ``key == 65183`` NaN-sentinel branch of
-  ``_newfloatConvert`` stores ``float('nan')`` in the cache but returns
-  ``None`` instead of it, so the first call for that key disagrees with
+  low byte, in both copies of the reader.
+* B118 (fixed): the ``key == 65183`` NaN-sentinel branch of
+  ``_newfloatConvert`` stored ``float('nan')`` in the cache but returned
+  ``None`` instead of it, so the first call for that key disagreed with
   every later (cached) call.  This is the same defect already pinned as
   B107 against the highfreqdata copy; it is repeated here verbatim, and
   fixing one file will not fix the other.
@@ -406,7 +407,7 @@ class TestMultipleHeightColumnLayouts:
         )
         cbi = CampbellBinaryInterface(file=str(path))
 
-        assert cbi.columnsIndexes == [[1, 5], [5, 9], [9, 13]]
+        assert cbi.columnsIndexes == [[0, 4], [4, 8], [8, 12]]
 
     def test_three_thermocouple_groups_put_the_humidity_pair_on_the_last_one(
         self, tmp_path
@@ -439,7 +440,7 @@ class TestMultipleHeightColumnLayouts:
         )
         cbi = CampbellBinaryInterface(file=str(path))
 
-        assert cbi.columnsIndexes == [[1, 2], [2, 3], [3, 6]]
+        assert cbi.columnsIndexes == [[0, 1], [1, 2], [2, 5]]
 
 
 @pytest.mark.unit
@@ -511,75 +512,36 @@ class TestRecordNavigation:
 
 
 @pytest.mark.unit
-class TestRecordTimestampsLoseTheirLastNanosecond:
-    """B115: seconds are converted through a float number of days."""
+class TestRecordTimestampsKeepTheirLastNanosecond:
+    """B115: seconds used to be converted through a float number of days."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B115: getRecordByIndex builds the timestamp with "
-               "pandas.Timedelta(days=lastSec / 86400.0); the float "
-               "division does not round-trip, so a record stamped with "
-               "SECONDS=11 decodes to 1990-01-01 00:00:10.999999999 "
-               "instead of ...:11. pandas.Timedelta(seconds=lastSec) is "
-               "exact. See the consolidated findings issue.",
-    )
     def test_an_integer_seconds_field_decodes_to_that_exact_second(self, sonic_file):
         cbi = CampbellBinaryInterface(file=str(sonic_file))
 
         assert cbi.getRecordByIndex(1)[0] == pandas.Timestamp(1990, 1, 1) + \
             pandas.Timedelta(seconds=11)
 
-    def test_the_eleventh_second_currently_decodes_a_nanosecond_early(self, sonic_file):
-        """Characterisation of B115."""
+    def test_every_record_decodes_to_its_own_whole_second(self, sonic_file):
+        """B115 hit some seconds values and not others -- 11 was one of the
+        bad ones, 10/12/13 were not -- which is what made it hard to see."""
         cbi = CampbellBinaryInterface(file=str(sonic_file))
 
-        assert cbi.getRecordByIndex(1)[0] == pandas.Timestamp(
-            "1990-01-01 00:00:10.999999999"
-        )
-
-    def test_neighbouring_records_are_not_affected(self, sonic_file):
-        """Characterisation of B115: the error depends on the value of
-        the seconds field, so it hits some records and not others -- which
-        is what makes it hard to notice."""
-        cbi = CampbellBinaryInterface(file=str(sonic_file))
-
-        for index, second in ((0, 10), (2, 12), (3, 13)):
+        for index, second in ((0, 10), (1, 11), (2, 12), (3, 13)):
             assert cbi.getRecordByIndex(index)[0] == pandas.Timestamp(1990, 1, 1) + \
                 pandas.Timedelta(seconds=second)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B115: getRecordIndexByTime matches timestamps exactly, so "
-               "a record whose seconds field decoded inexactly cannot be "
-               "found by the time it is actually stamped with. "
-               "See the consolidated findings issue.",
-    )
     def test_a_record_can_be_looked_up_by_its_own_wall_clock_second(self, sonic_file):
+        """getRecordIndexByTime matches exactly, so an inexact decode made
+        the record unfindable by the second it is stamped with."""
         cbi = CampbellBinaryInterface(file=str(sonic_file))
 
         assert cbi.getRecordIndexByTime(pandas.Timestamp("1990-01-01 00:00:11")) == 1
 
-    def test_looking_that_record_up_currently_raises(self, sonic_file):
-        """Characterisation of B115."""
-        cbi = CampbellBinaryInterface(file=str(sonic_file))
-
-        with pytest.raises(IndexError, match="There is no record at"):
-            cbi.getRecordIndexByTime(pandas.Timestamp("1990-01-01 00:00:11"))
-
 
 @pytest.mark.unit
-class TestFirstDataColumnIsNeverConverted:
-    """B116: the conversion loop starts one field too late."""
+class TestFirstDataColumnIsConverted:
+    """B116: the conversion loop used to start one field too late."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B116: _getDataFromStream converts retval[3:] but the data "
-               "starts at retval[2] (retval[0]/[1] are SECONDS and "
-               "NANOSECONDS), so the first data field of every record is "
-               "returned unconverted. Two identical raw FP2 values decode "
-               "to two different numbers. See the consolidated findings "
-               "issue.",
-    )
     def test_two_identical_raw_fp2_fields_decode_to_the_same_value(self, fp2_file):
         cbi = CampbellBinaryInterface(file=str(fp2_file))
 
@@ -587,25 +549,23 @@ class TestFirstDataColumnIsNeverConverted:
 
         assert line[0] == line[1]
 
-    def test_the_first_fp2_field_is_still_a_raw_integer(self, fp2_file):
-        """Characterisation of B116: 0x001f comes back as the integer 31
-        rather than the FP2 value 7936 it encodes."""
+    def test_the_first_fp2_field_is_converted_not_a_raw_integer(self, fp2_file):
+        """B116: 0x001f used to come back as the integer 31."""
         cbi = CampbellBinaryInterface(file=str(fp2_file))
 
         _, line = cbi.getRecordByIndex(0)
 
-        assert line[0] == 0x001F
-        assert isinstance(line[0], int)
-        assert line[1] != 0x001F
+        assert line[0] != 0x001F
+        assert line[0] == cbi._newfloatConvert(0x001F)
 
-    def test_the_first_ascii_field_is_still_raw_bytes(self, ascii_file):
-        """Characterisation of B116: the same off-by-one skips the
-        bytes-to-string decode, not just the FP2 conversion."""
+    def test_the_first_ascii_field_is_decoded_too(self, ascii_file):
+        """B116: the same off-by-one skipped the bytes-to-string decode,
+        not just the FP2 conversion."""
         cbi = CampbellBinaryInterface(file=str(ascii_file))
 
         _, line = cbi.getRecordByIndex(0)
 
-        assert line[0] == b"AB\x00\x00"
+        assert line[0] == "AB"
         assert line[1] == "AB"
 
 
@@ -645,54 +605,34 @@ class TestFp2ConversionHelpers:
 
 
 @pytest.mark.unit
-class TestFp2LowByteIsDividedInsteadOfShifted:
-    """B117: ``key / 256`` where ``key // 256`` is the low byte."""
+class TestFp2LowByteIsShiftedNotDivided:
+    """B117: ``key // 256`` is the low byte, not ``key / 256``."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B117: _newfloatConvert passes key / 256 as _floatConvert's "
-               "lowbyte, but true division leaves the high byte in as a "
-               "fractional part, so every FP2 value is offset by "
-               "(key mod 256) / 256 / factor. key // 256 is the low byte. "
-               "See the consolidated findings issue.",
-    )
     def test_a_raw_fp2_key_converts_to_the_value_its_two_bytes_encode(self, sonic_file):
         cbi = CampbellBinaryInterface(file=str(sonic_file))
 
         assert cbi._newfloatConvert(0x001F) == cbi._floatConvert(0x1F, 0x00)
 
-    def test_the_high_byte_currently_leaks_into_the_low_byte(self, sonic_file):
-        """Characterisation of B117: 0x001f encodes 7936, but the low
-        byte is passed as 31/256 rather than 0."""
+    def test_the_high_byte_no_longer_leaks_into_the_low_byte(self, sonic_file):
+        """B117: 0x001f encodes 7936; the low byte used to come through as
+        31/256 rather than 0."""
         cbi = CampbellBinaryInterface(file=str(sonic_file))
 
-        assert cbi._newfloatConvert(0x001F) == pytest.approx(7936 + 31 / 256)
+        assert cbi._newfloatConvert(0x001F) == pytest.approx(7936.0)
 
-    def test_the_offset_shrinks_with_the_decimal_locator(self, sonic_file):
-        """Characterisation of B117: the spurious term is divided by the
-        same factor as the value, so it is 1/1000 of a count for a
-        three-decimal reading and a whole count for an integer one."""
+    def test_the_decimal_locator_still_scales_the_value(self, sonic_file):
+        """The spurious term used to be divided by the same factor as the
+        value, so it was a whole count for an integer reading and 1/1000
+        of one for a three-decimal reading."""
         cbi = CampbellBinaryInterface(file=str(sonic_file))
 
-        assert cbi._newfloatConvert(0x0061) == pytest.approx(
-            (1 * 256 + 0x61 / 256) / 1000.0
-        )
+        assert cbi._newfloatConvert(0x0061) == pytest.approx(256 / 1000.0)
 
 
 @pytest.mark.unit
-class TestNanSentinelDoesNotReturnItsOwnCachedValue:
-    """B118: the same defect as B107, duplicated in this module."""
+class TestNanSentinelReturnsItsOwnCachedValue:
+    """B118: the same defect as B107, in this module's copy."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B118: the key == 65183 branch of _newfloatConvert stores "
-               "float('nan') in the cache but returns None instead of it, "
-               "so the first call disagrees with every cached call that "
-               "follows. Identical to B107 in "
-               "meteorology/highfreqdata/parsers/CampbellBinary.py, which "
-               "is an independent copy of this code. See the consolidated "
-               "findings issue.",
-    )
     def test_the_sentinel_converts_to_nan_on_the_first_call_too(self, sonic_file):
         cbi = CampbellBinaryInterface(file=str(sonic_file))
 
@@ -700,19 +640,14 @@ class TestNanSentinelDoesNotReturnItsOwnCachedValue:
 
         assert value is not None and math.isnan(value)
 
-    def test_the_first_call_currently_returns_none(self, sonic_file):
-        """Characterisation of B118."""
+    def test_the_cached_call_agrees_with_the_first_one(self, sonic_file):
+        """The value used to be computed and stored but not handed back,
+        so the second call answered differently."""
         cbi = CampbellBinaryInterface(file=str(sonic_file))
 
-        assert cbi._newfloatConvert(65183) is None
+        first = cbi._newfloatConvert(65183)
 
-    def test_the_cache_holds_nan_all_the_same(self, sonic_file):
-        """Characterisation of B118: the value is computed and stored,
-        just not handed back, so the second call answers differently."""
-        cbi = CampbellBinaryInterface(file=str(sonic_file))
-
-        cbi._newfloatConvert(65183)
-
+        assert math.isnan(first)
         assert math.isnan(cbi._lut[65183])
         assert math.isnan(cbi._newfloatConvert(65183))
 
@@ -732,13 +667,11 @@ CAMPAIGN_METADATA = {
     }
 }
 
-# The only orientation _getLists can consume: attribute-major, so that
-# DataFrame.from_dict's default orient="columns" puts the station names in
-# the index and the attribute names in the columns.  See B90.
+# Station-major, the shape a real campaign description carries and the one
+# _getLists consumes now that it passes orient="index".  See B90.
 STATION_LOCATIONS = {
-    "lat": {"STN1": 32.1, "STN2": 32.2},
-    "lon": {"STN1": 34.8, "STN2": 34.9},
-    "station_code": {"STN1": "S1", "STN2": "S2"},
+    "STN1": {"lat": 32.1, "lon": 34.8, "station_code": "S1"},
+    "STN2": {"lat": 32.2, "lon": 34.9, "station_code": "S2"},
 }
 
 

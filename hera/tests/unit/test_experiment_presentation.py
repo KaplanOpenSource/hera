@@ -12,18 +12,21 @@ directory and map tiles, which is integration-shaped and out of scope.
 
 Two defects surfaced:
 
-* B113: ``plotOrigin`` accepts an ``ax`` argument and returns it, but
-  draws with the module-level ``plt.scatter(...)`` instead of
-  ``ax.scatter(...)``. When the caller passes an axes that is not the
-  current one, the marker silently lands on whichever axes matplotlib
-  happens to consider current, and the returned axes stays empty.
-* B114: ``generateLatexTable`` calls
+* B113 (fixed): ``plotOrigin`` accepts an ``ax`` argument and returns it,
+  but drew with the module-level ``plt.scatter(...)`` instead of
+  ``ax.scatter(...)``. When the caller passed an axes that was not the
+  current one, the marker silently landed on whichever axes matplotlib
+  happened to consider current, and the returned axes stayed empty.
+* B114 (fixed): ``generateLatexTable`` called
   ``self.plotDevices(trialSetName=..., trialName=..., device=...,
   display=False)``, but ``plotDevices``'s signature is
   ``(trialSetName, trialName, deviceType, mapName, ax=None,
   plotkwargs=None)`` -- there is no ``device`` or ``display`` parameter
-  and ``mapName`` is mandatory. Every call raises ``TypeError`` before
-  producing anything, so the whole LaTeX export path is dead.
+  and ``mapName`` is mandatory, so every call raised ``TypeError`` before
+  producing anything. The call now matches the signature. The export path
+  is still dead, but one step further down and for a different reason:
+  ``plotDevices`` itself reads ``plot_kwargs`` where its parameter is
+  named ``plotkwargs`` (B221), which is fixed elsewhere.
 """
 import matplotlib.pyplot as plt
 import pandas
@@ -165,7 +168,7 @@ class TestGetContinuousCmap:
 
 
 @pytest.mark.unit
-class TestPlotOriginIgnoresItsAxes:
+class TestPlotOriginUsesItsAxes:
     """B113: see the module docstring."""
 
     def test_it_returns_the_axes_it_was_given(self, presentation):
@@ -175,46 +178,55 @@ class TestPlotOriginIgnoresItsAxes:
     def test_it_creates_axes_when_given_none(self, presentation):
         assert presentation.plotOrigin() is not None
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B113: plotOrigin draws with plt.scatter instead of "
-               "ax.scatter, so the marker lands on the current axes rather "
-               "than the one passed in. See the consolidated findings issue.",
-    )
-    def test_the_marker_should_land_on_the_axes_that_was_passed_in(self, presentation):
+    def test_the_marker_lands_on_the_axes_that_was_passed_in(self, presentation):
         _, target = plt.subplots()
         plt.subplots()  # a second figure becomes the current axes
         presentation.plotOrigin(ax=target)
         assert len(target.collections) == 1
 
-    def test_the_marker_currently_lands_on_the_current_axes_instead(self, presentation):
-        """Characterisation of B113."""
+    def test_the_current_axes_is_left_alone(self, presentation):
+        """B113: the marker used to land here instead."""
         _, target = plt.subplots()
         _, current = plt.subplots()
         presentation.plotOrigin(ax=target)
-        assert len(target.collections) == 0
-        assert len(current.collections) == 1
+        assert len(current.collections) == 0
 
 
 @pytest.mark.unit
-class TestGenerateLatexTableIsDead:
+class TestGenerateLatexTable:
     """B114: see the module docstring."""
+
+    def test_the_plotdevices_call_matches_its_signature(self, presentation):
+        """B114: `device=` and `display=` do not exist on plotDevices, and
+        `mapName` is mandatory. Read off the source rather than run, because
+        the call itself still dies inside plotDevices (B221)."""
+        import inspect
+        import re
+
+        source = inspect.getsource(type(presentation).generateLatexTable)
+        call = re.search(r"self\.plotDevices\((.*?)\)\n", source, re.S).group(1)
+        passed = set(re.findall(r"(\w+)\s*=", call))
+        accepted = set(
+            inspect.signature(type(presentation).plotDevices).parameters
+        )
+        assert passed <= accepted
+        assert {"deviceType", "mapName"} <= passed
 
     @pytest.mark.xfail(
         strict=True,
-        reason="B114: generateLatexTable calls plotDevices with `device=` "
-               "and `display=`, neither of which exists in its signature "
-               "(the real parameters are deviceType and a mandatory "
-               "mapName), so it always raises TypeError. See the "
-               "consolidated findings issue.",
+        reason="B114 and B221 are fixed, but the export still stops in "
+               "plotDevices on row.stationName, a column argos does not "
+               "produce (see test_experiment_presentation_plots.py). "
+               "See the consolidated findings issue.",
     )
     def test_it_should_write_a_tex_document(self, presentation, tmp_path):
         presentation.generateLatexTable("{{ trialSets }}", str(tmp_path / "out"))
         assert (tmp_path / "out" / "latex_document.tex").is_file()
 
-    def test_it_currently_raises_typeerror_on_the_plotdevices_call(self, presentation, tmp_path):
-        """Characterisation of B114."""
-        with pytest.raises(TypeError, match="device"):
+    def test_it_now_gets_into_plotdevices_trial_lookup(self, presentation, tmp_path):
+        """B114 is fixed: the call reaches plotDevices, whose trial-set lookup
+        then finds no "TS" in this fixture's datalayer."""
+        with pytest.raises(KeyError, match="TS"):
             presentation.generateLatexTable("{{ trialSets }}", str(tmp_path / "out"))
 
     def test_plotdevices_really_has_no_device_or_display_parameter(self):
