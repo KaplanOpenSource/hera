@@ -66,6 +66,13 @@ jobs:
           # exits 1 and would fail the job.
           COVERAGE_FILE: .coverage.unit
 
+      # Hermes has no test CI of its own; reverseOpenFOAM is compared there with
+      # the PyFoam goldens (#1169).
+      - name: Run the Hermes reverseOpenFOAM tests
+        run: pytest Hermes/tests/test_reverse_openfoam.py -q
+        env:
+          PYTHONPATH: ${{ github.workspace }}/Hermes:${{ github.workspace }}/_vendor/pyargos
+
       - name: Report unit coverage
         run: coverage report
         env:
