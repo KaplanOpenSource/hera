@@ -2,7 +2,7 @@ import pandas
 from ... import datalayer
 
 
-class DataLayer(datalayer.ProjectMultiDBPublic):
+class DataLayer(datalayer.Project):
     _columnsDescDict = None
 
     @property
@@ -10,28 +10,17 @@ class DataLayer(datalayer.ProjectMultiDBPublic):
         return self._columnsDescDict
 
 
-    def __init__(self, projectName, databaseNameList=None, useAll=False):
+    def __init__(self, projectName):
         """
             Initializes a datalayer for the Radiosonde data.
-
-            Also looks up the 'RadiosondeData' in the public database.
 
         Parameters
         ----------
 
         projectName: str
                 The project name
-        databaseNameList: list
-            The list of database naems to look for data.
-            if None, uses the database with the name of the user.
-
-        useAll: bool
-            Whether or not to return the query results after found in one DB.
         """
-        super().__init__(projectName=projectName,
-                         publicProjectName="RadiosondeData",
-                         databaseNameList= databaseNameList,
-                         useAll = useAll)
+        super().__init__(projectName=projectName)
 
         self._columnsDescDict = dict(RH='Relative humidity',
                                      Latitude='Latitude',

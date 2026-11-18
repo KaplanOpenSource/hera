@@ -1,16 +1,20 @@
 """abstractcalculator.py: AbstractCalculator's properties, save-properties
 setter, and the DB-touching compute modes.
 
-B105: every DB-touching code path (``_compute_from_db_and_save``,
+B105, fixed: every DB-touching code path (``_compute_from_db_and_save``,
 ``_compute_from_db_and_not_save``, ``_save_to_db`` -- and so
-``_compute_not_from_db_and_save``, which calls it) does
+``_compute_not_from_db_and_save``, which calls it) did
 ``from hera.datalayer import collection as datalayer`` then
 ``datalayer.Cache.getDocuments(...)``/``datalayer.Cache.addDocument(...)``.
 ``hera.datalayer.collection`` only defines the ``Cache_Collection`` class,
 not a ``Cache`` singleton instance -- that instance lives at
-``hera.datalayer.Cache`` (package level), one import path up. Every mode
-except the default ('not_from_db_and_not_save') is therefore permanently
-dead code: it always raises ``AttributeError`` before doing anything useful.
+``hera.datalayer.Cache`` (package level), one import path up.  The module now
+imports the package, so the singleton resolves and the save path works.
+
+Separate, still-open defect surfaced by that fix: the two ``_compute_from_db_*``
+methods pop ``projectName`` out of the query dict and then never pass it to
+``Cache.getDocuments``, whose first parameter is positional and required, so
+they raise ``TypeError`` instead.  Characterised below; not part of B105.
 """
 import pandas
 import pytest
@@ -18,19 +22,6 @@ import pytest
 from hera.measurements.meteorology.highfreqdata.analysis.abstractcalculator import (
     AbstractCalculator,
 )
-
-
-@pytest.fixture(autouse=True)
-def _reset_shared_save_properties():
-    """B106: _saveProperties is a class-level mutable dict that __init__
-    never copies into the instance, so set_saveProperties on any instance
-    mutates it for every instance (existing or future) that hasn't
-    shadowed it. Reset the shared dict around each test so this file's
-    own tests stay isolated from each other and from any other test
-    module that touches this class."""
-    AbstractCalculator._saveProperties = {"dataFormat": None}
-    yield
-    AbstractCalculator._saveProperties = {"dataFormat": None}
 
 
 @pytest.fixture()
@@ -72,60 +63,80 @@ class TestSetSaveProperties:
 
 
 @pytest.mark.unit
-class TestSaveSharedAcrossInstancesIsBroken:
-    """B106: `_saveProperties = {'dataFormat': None}` is declared on the
-    class body, and __init__ never assigns a fresh instance-level copy --
-    so every instance shares (and mutates) the exact same dict until one
-    happens to shadow it. set_saveProperties() on one calculator leaks
-    into every other one, including calculators constructed afterwards."""
+class TestSavePropertiesArePerInstance:
+    """B106, fixed: `_saveProperties = {'dataFormat': None}` is still declared
+    on the class body, but __init__ now assigns a fresh instance-level dict,
+    so set_saveProperties() on one calculator no longer leaks into any other
+    one -- existing or constructed afterwards."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B106: _saveProperties is a class-level mutable dict, never "
-               "copied per-instance in __init__, so set_saveProperties on "
-               "one AbstractCalculator mutates the save properties seen by "
-               "every other instance. See the consolidated findings issue.",
-    )
-    def test_a_second_instance_should_be_unaffected_by_the_first(self, calc):
+    def test_a_second_instance_is_unaffected_by_the_first(self, calc):
         calc.set_saveProperties(dataFormat="JSON_pandas")
         other = AbstractCalculator(calc.RawData, calc.metaData)
         assert other._saveProperties["dataFormat"] is None
+        assert other._saveProperties is not calc._saveProperties
 
-    def test_a_second_instance_currently_leaks_the_first_ones_save_format(self, calc):
-        """Characterisation of B106."""
-        calc.set_saveProperties(dataFormat="JSON_pandas")
-        other = AbstractCalculator(calc.RawData, calc.metaData)
-        assert other._saveProperties["dataFormat"] == "JSON_pandas"
-        assert other._saveProperties is calc._saveProperties
+    def test_the_class_level_default_is_never_mutated(self, calc):
+        calc.set_saveProperties(dataFormat="JSON_pandas", path="/tmp/x")
+        assert AbstractCalculator._saveProperties == {"dataFormat": None}
 
 
 @pytest.mark.unit
-class TestSaveToDbIsUnreachable:
+class TestSaveToDb:
     def test_with_no_save_properties_set_it_raises_before_touching_the_db(self, calc_with_params):
         """Documented, pre-existing guard: unrelated to B105."""
         with pytest.raises(AttributeError, match="save properties"):
             calc_with_params._save_to_db(["x"])
 
-    def test_compute_not_from_db_and_save_hits_b105(self, calc_with_params):
+    def test_the_cache_singleton_resolves(self):
+        """B105: the name the module reaches for now exists."""
+        from hera.measurements.meteorology.highfreqdata.analysis import (
+            abstractcalculator,
+        )
+        from hera.datalayer.collection import Cache_Collection
+
+        assert isinstance(abstractcalculator.datalayer.Cache, Cache_Collection)
+
+    def test_compute_not_from_db_and_save_writes_a_cache_document(self, calc_with_params):
+        from hera import datalayer
+
         calc_with_params.set_saveProperties(dataFormat="JSON_pandas")
-        with pytest.raises(AttributeError, match="Cache"):
-            calc_with_params._compute_not_from_db_and_save()
+        calc_with_params._compute_not_from_db_and_save()
 
-    def test_compute_from_db_and_save_hits_b105(self, calc_with_params):
+        docs = list(datalayer.Cache.getDocuments(projectName="P"))
+        assert len(docs) == 1
+        assert docs[0].desc["samplingWindow"] == "30min"
+
+    def test_compute_dispatches_to_the_saving_mode(self, calc_with_params):
+        from hera import datalayer
+
         calc_with_params.set_saveProperties(dataFormat="JSON_pandas")
-        with pytest.raises(AttributeError, match="Cache"):
-            calc_with_params._compute_from_db_and_save()
+        result = calc_with_params.compute(mode="not_from_db_and_save")
 
-    def test_compute_from_db_and_not_save_hits_b105(self, calc_with_params):
-        with pytest.raises(AttributeError, match="Cache"):
-            calc_with_params._compute_from_db_and_not_save()
+        assert list(result.columns) == ["x"]
+        assert len(list(datalayer.Cache.getDocuments(projectName="P"))) == 1
 
-    def test_compute_dispatches_to_the_broken_mode_and_fails_the_same_way(self, calc_with_params):
-        calc_with_params._AllCalculatedParams = []
-        calc_with_params.set_saveProperties(dataFormat="JSON_pandas")
-        with pytest.raises(AttributeError, match="Cache"):
-            calc_with_params.compute(mode="not_from_db_and_save")
-
-    def test_only_the_default_mode_actually_works(self, calc_with_params):
+    def test_the_default_mode_still_works(self, calc_with_params):
         result = calc_with_params.compute(mode="not_from_db_and_not_save")
         assert list(result.columns) == ["x"]
+
+
+@pytest.mark.unit
+class TestReadingBackFromTheCacheIsStillBroken:
+    """Not B105: a second defect the B105 fix made reachable.
+
+    ``_compute_from_db_and_save``/``_compute_from_db_and_not_save`` do
+    ``query.pop("projectName")`` and then call
+    ``Cache.getDocuments(params__all=..., **query)``.  ``getDocuments``
+    declares ``projectName`` as its first positional parameter, so the name
+    they deliberately removed from the query is never handed over and the
+    call raises TypeError before any document is read.
+    """
+
+    def test_from_db_and_save_cannot_query(self, calc_with_params):
+        calc_with_params.set_saveProperties(dataFormat="JSON_pandas")
+        with pytest.raises(TypeError, match="projectName"):
+            calc_with_params._compute_from_db_and_save()
+
+    def test_from_db_and_not_save_cannot_query(self, calc_with_params):
+        with pytest.raises(TypeError, match="projectName"):
+            calc_with_params._compute_from_db_and_not_save()

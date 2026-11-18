@@ -18,12 +18,10 @@ data source rather than a stub.
 Two defects surfaced, both of the same shape -- a documented parameter that
 the body never reads:
 
-* B301: ``singlePointTurbulenceStatistics`` and ``AveragingCalculator``
-  both accept ``inmemory`` and document it as "Whether to use pandas
-  (in-memory) mode", but neither body mentions it again.  It reaches
-  neither the identifier nor the calculator, so the two modes are
-  indistinguishable and a caller asking for in-memory silently gets
-  whatever the frame already was.
+* B301 (fixed): ``singlePointTurbulenceStatistics`` and
+  ``AveragingCalculator`` both accepted ``inmemory`` and documented it as
+  "Whether to use pandas (in-memory) mode", but neither body read it, so
+  the two modes were indistinguishable.  It now reaches the identifier.
 * B302: ``AveragingCalculator`` accepts and documents ``isMissingData``
   but -- unlike its sibling ``singlePointTurbulenceStatistics``, whose
   identifier does carry it -- drops it on the floor.  The resulting
@@ -54,7 +52,7 @@ GEOMETRY = dict(samplingWindow="30s", start=pandas.Timestamp("2020-01-01"),
                 height=10.0, buildingHeight=5.0, averagedHeight=3.0)
 
 IDENTIFIER_KEYS = {"projectName", "samplingWindow", "height", "buildingHeight",
-                   "averagedHeight", "start", "end", "filters",
+                   "averagedHeight", "start", "end", "isMissingData", "filters",
                    "dataSource1", "dataSource2"}
 
 
@@ -209,7 +207,7 @@ class TestSinglePointTurbulenceStatisticsFactory:
 
     def test_the_identifier_carries_exactly_the_declared_keys(self, analyser, sonic):
         meta = self._build(analyser, sonic).metaData
-        assert set(meta) == IDENTIFIER_KEYS | {"isMissingData"}
+        assert set(meta) == IDENTIFIER_KEYS | {"inmemory"}  # inmemory since B301
 
     def test_extra_keywords_are_added_to_the_identifier(self, analyser, sonic):
         meta = self._build(analyser, sonic, station="YAVNEEL", instrument="CSAT3").metaData
@@ -232,26 +230,10 @@ class TestSinglePointTurbulenceStatisticsFactory:
         calculator.fluctuations()
         assert "up" in calculator.getData().columns
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B301: `inmemory` is a documented parameter of "
-               "RawdataAnalysis.singlePointTurbulenceStatistics but the body "
-               "never reads it -- it reaches neither the identifier nor the "
-               "calculator, so asking for in-memory mode has no effect at "
-               "all. See the consolidated findings issue.",
-    )
     def test_asking_for_in_memory_mode_should_change_something(self, analyser, sonic):
         default = self._build(analyser, sonic, inmemory=False)
         requested = self._build(analyser, sonic, inmemory=True)
         assert requested.metaData != default.metaData
-
-    def test_the_in_memory_flag_currently_leaves_no_trace(self, analyser, sonic):
-        """Characterisation of B301."""
-        default = self._build(analyser, sonic, inmemory=False)
-        requested = self._build(analyser, sonic, inmemory=True)
-        assert requested.metaData == default.metaData
-        assert "inmemory" not in requested.metaData
-
 
 @pytest.mark.unit
 class TestAveragingCalculatorFactory:
@@ -289,31 +271,16 @@ class TestAveragingCalculatorFactory:
         averaged = self._build(analyser, sonic, samplingWindow="60s")
         assert len(averaged.getData()) == 2
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B302: RawdataAnalysis.AveragingCalculator accepts and "
-               "documents `isMissingData` but, unlike its sibling "
-               "singlePointTurbulenceStatistics, never puts it in the "
-               "identifier -- so a gappy run is indistinguishable from a "
-               "complete one and the two collide in the Cache query "
-               "AbstractCalculator builds from that metadata. See the "
-               "consolidated findings issue.",
-    )
-    def test_the_missing_data_flag_should_reach_the_identifier(self, analyser, sonic):
+    def test_the_missing_data_flag_reaches_the_identifier(self, analyser, sonic):
+        """B302: it used to be dropped, colliding with a complete run in the
+        Cache query AbstractCalculator builds from this metadata."""
         assert self._build(analyser, sonic, isMissingData=True).metaData["isMissingData"] is True
 
-    def test_the_missing_data_flag_is_currently_dropped(self, analyser, sonic):
-        """Characterisation of B302."""
+    def test_a_gappy_run_is_distinguishable_from_a_complete_one(self, analyser, sonic):
         gappy = self._build(analyser, sonic, isMissingData=True)
         complete = self._build(analyser, sonic, isMissingData=False)
-        assert "isMissingData" not in gappy.metaData
-        assert gappy.metaData == complete.metaData
-
-    def test_the_in_memory_flag_currently_leaves_no_trace(self, analyser, sonic):
-        """Characterisation of B301 on the averaging factory."""
-        assert self._build(analyser, sonic, inmemory=True).metaData == \
-               self._build(analyser, sonic, inmemory=False).metaData
-
+        assert gappy.metaData != complete.metaData
+        assert complete.metaData["isMissingData"] is False
 
 @pytest.mark.unit
 class TestMeanDataCalculatorFactory:

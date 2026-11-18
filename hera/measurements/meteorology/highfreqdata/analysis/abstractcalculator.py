@@ -1,7 +1,7 @@
 import dask
 import pandas
 from copy import deepcopy
-from hera.datalayer import collection as datalayer
+from hera import datalayer
 
 
 class AbstractCalculator(object):
@@ -56,6 +56,7 @@ class AbstractCalculator(object):
         self._TemporaryData = pandas.DataFrame()
         self._CalculatedParams = []
         self._AllCalculatedParams = []
+        self._saveProperties = {'dataFormat': None}
         self._joinmethod = "left"
 
     @property
@@ -260,7 +261,7 @@ class SaveDataHandler(object):
         dict
             ``{'path': path, 'key': key}``.
         """
-        data.to_HDF(path, key)
+        data.to_hdf(path, key=key)
         return dict(path=path,
                     key=key
                     )

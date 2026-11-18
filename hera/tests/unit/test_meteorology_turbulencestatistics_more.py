@@ -35,40 +35,44 @@ it, by patching ``pandas.read_hdf`` and ``pandas.DataFrame.to_hdf``.
 
 Defects surfaced
 ----------------
-* B303: ``StrucFun`` rejects an unknown ``mode`` with
+All but B305 are fixed; the tests below now assert the corrected behaviour.
+
+* B303 (fixed): ``StrucFun`` rejected an unknown ``mode`` with
   ``raise("mode must be either MeanDir or 3dMeanDir")`` -- raising the
-  *string*, not an exception.  Python replaces it with
+  *string*, not an exception.  Python replaced it with
   ``TypeError: exceptions must derive from BaseException``, so the caller
-  never sees the diagnostic that was written for them.
-* B304: ``StrucFun`` and ``ThirdStrucFun`` guard the ``u_mag`` column
-  with ``if "u_mag" not in self.TemporaryData.columns`` but then write and
-  register ``"u_mag" + title_additions``.  With a non-empty
-  ``title_additions`` the guard inspects a name that is never created, so
-  every repeated call appends another ``["u_mag<additions>", {}]`` to
+  never saw the diagnostic that was written for them.  It raises
+  ``ValueError`` now.
+* B304 (fixed): ``StrucFun`` and ``ThirdStrucFun`` guarded the ``u_mag``
+  column with ``if "u_mag" not in self.TemporaryData.columns`` but then
+  wrote and registered ``"u_mag" + title_additions``.  With a non-empty
+  ``title_additions`` the guard inspected a name that is never created, so
+  every repeated call appended another ``["u_mag<additions>", {}]`` to
   ``_CalculatedParams`` -- and ``AbstractCalculator._compute`` selects
-  ``_TemporaryData`` by that list, so the duplicate propagates into the
-  computed result.
-* B305: the whole structure-function family is dask-only although the
+  ``_TemporaryData`` by that list, so the duplicate propagated into the
+  computed result.  The guard uses the same name as the write now.
+* B305 (open): the whole structure-function family is dask-only although the
   class documents ``rawData`` as "pandas.DataFrame or
   dask.dataframe.DataFrame" and every other method honours that.
   ``StrucFunDir`` calls ``.repartition(freq=...)`` and ``StrucFun``/
   ``ThirdStrucFun`` call ``.compute()``, none of which pandas has, so a
   pandas-backed calculator dies with ``AttributeError``.
-* B306: ``SinglePointStatisticsSpark.fluctuations`` never sets
+* B306 (fixed): ``SinglePointStatisticsSpark.fluctuations`` never set
   ``self.data``, which the base implementation does as its last act.
-  ``getData()`` therefore still answers ``None`` after the override has
+  ``getData()`` therefore still answered ``None`` after the override had
   computed everything -- and its own docstring says ``None`` means "no
   computations have been performed yet".
-* B307: the same override puts ``wind_dir_bar`` into ``_TemporaryData``
-  but -- unlike the base implementation -- leaves it out of
+* B307 (fixed): the same override put ``wind_dir_bar`` into
+  ``_TemporaryData`` but -- unlike the base implementation -- left it out of
   ``_CalculatedParams``.  Since ``compute()`` projects ``_TemporaryData``
-  onto that list, the mean wind direction is silently dropped from the
+  onto that list, the mean wind direction was silently dropped from the
   result.
-* B308: ``InMemoryRawData.to_hdf`` derives both output paths with
+* B308 (fixed): ``InMemoryRawData.to_hdf`` derived both output paths with
   ``path_or_buf.rpartition('.')[0]``.  For a path with no extension that
   prefix is the empty string, so a request to write
-  ``/data/station/rawdata`` writes ``.hdf`` and ``.json`` into the *current
-  working directory* instead of into ``/data/station``.
+  ``/data/station/rawdata`` wrote ``.hdf`` and ``.json`` into the *current
+  working directory* instead of into ``/data/station``.  It uses
+  ``os.path.splitext`` now.
 """
 import json
 import os
@@ -382,22 +386,11 @@ class TestStrucFunThreeDimensionalBasis:
 
 @pytest.mark.unit
 class TestStrucFunRejectsAnUnknownMode:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B303: StrucFun rejects an unknown mode with "
-               "raise(\"mode must be either MeanDir or 3dMeanDir\") -- it "
-               "raises the string rather than an exception, so Python "
-               "substitutes TypeError('exceptions must derive from "
-               "BaseException') and the diagnostic never reaches the "
-               "caller. See the consolidated findings issue.",
-    )
-    def test_the_error_should_explain_which_modes_exist(self, lazy):
-        with pytest.raises(Exception, match="mode must be either"):
-            lazy.StrucFun(tau_range=[1.0], ubar_data=_mean_wind(), mode="sideways")
-
-    def test_the_error_currently_says_nothing_about_modes(self, lazy):
-        """Characterisation of B303."""
-        with pytest.raises(TypeError, match="must derive from BaseException"):
+    def test_the_error_explains_which_modes_exist(self, lazy):
+        """B303: it used to `raise` the message string itself, so Python
+        substituted TypeError('exceptions must derive from BaseException')
+        and the diagnostic never reached the caller."""
+        with pytest.raises(ValueError, match="mode must be either MeanDir or 3dMeanDir"):
             lazy.StrucFun(tau_range=[1.0], ubar_data=_mean_wind(), mode="sideways")
 
 
@@ -411,33 +404,26 @@ class TestUMagGuard:
         lazy.StrucFun(tau_range=[1.0], ubar_data=ubar)
         assert _param_names(lazy).count("u_mag") == 1
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B304: StrucFun guards the magnitude column with "
-               "`if \"u_mag\" not in self.TemporaryData.columns` but writes "
-               "and registers `\"u_mag\" + title_additions`, so with a "
-               "non-empty title_additions the guard inspects a name that is "
-               "never created and every repeated call appends another "
-               "duplicate entry to _CalculatedParams. See the consolidated "
-               "findings issue.",
-    )
-    def test_with_title_additions_the_magnitude_should_also_be_registered_once(
+    def test_with_title_additions_the_magnitude_is_also_registered_once(
             self, lazy, monkeypatch):
+        """B304: the guard used to inspect the bare "u_mag" while the write
+        and the registration both used "u_mag" + title_additions, so every
+        repeat call appended another entry for a column that already existed."""
         _record_delegations(monkeypatch)
         ubar = _mean_wind()
         lazy.StrucFun(tau_range=[1.0], ubar_data=ubar, title_additions="X")
         lazy.StrucFun(tau_range=[1.0], ubar_data=ubar, title_additions="X")
         assert _param_names(lazy).count("u_magX") == 1
+        assert list(lazy.TemporaryData.columns).count("u_magX") == 1
 
-    def test_with_title_additions_it_is_currently_registered_twice(self, lazy,
-                                                                   monkeypatch):
-        """Characterisation of B304."""
+    def test_two_different_title_additions_each_get_their_own_magnitude(
+            self, lazy, monkeypatch):
         _record_delegations(monkeypatch)
         ubar = _mean_wind()
         lazy.StrucFun(tau_range=[1.0], ubar_data=ubar, title_additions="X")
-        lazy.StrucFun(tau_range=[1.0], ubar_data=ubar, title_additions="X")
-        assert _param_names(lazy).count("u_magX") == 2
-        assert list(lazy.TemporaryData.columns).count("u_magX") == 1
+        lazy.StrucFun(tau_range=[1.0], ubar_data=ubar, title_additions="Y")
+        assert _param_names(lazy).count("u_magX") == 1
+        assert _param_names(lazy).count("u_magY") == 1
 
 
 # ---------------------------------------------------------------------------
@@ -616,44 +602,22 @@ class TestSparkFluctuations:
         assert len(calculator.TemporaryData) == 1
         assert numpy.allclose(calculator.RawData["u_bar"], raw["u"].mean())
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B306: SinglePointStatisticsSpark.fluctuations never sets "
-               "self.data, which the base implementation does as its last "
-               "act, so getData() still answers None after the override has "
-               "computed everything -- and getData's docstring says None "
-               "means no computation has happened yet. See the consolidated "
-               "findings issue.",
-    )
-    def test_the_computed_frame_should_be_reachable_through_get_data(self):
+    def test_the_computed_frame_is_reachable_through_get_data(self):
+        """B306: the override never set self.data, which the base
+        implementation does as its last act, so getData() answered None --
+        which its docstring defines as "no computation has happened yet"."""
         calculator = _spark(_raw()).fluctuations()
-        assert calculator.getData() is not None
+        assert calculator.getData() is calculator.RawData
+        assert "up" in calculator.getData().columns
 
-    def test_get_data_currently_stays_empty(self):
-        """Characterisation of B306."""
-        calculator = _spark(_raw()).fluctuations()
-        assert calculator.getData() is None
-        assert "up" in calculator.RawData.columns
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B307: the Spark override adds wind_dir_bar to "
-               "_TemporaryData but, unlike the base implementation, leaves "
-               "it out of _CalculatedParams. compute() projects "
-               "_TemporaryData onto that list, so the mean wind direction is "
-               "silently dropped from the result. See the consolidated "
-               "findings issue.",
-    )
-    def test_the_mean_wind_direction_should_survive_compute(self):
-        calculator = _spark(_raw()).fluctuations()
-        assert "wind_dir_bar" in calculator.compute().columns
-
-    def test_the_mean_wind_direction_is_currently_dropped_by_compute(self):
-        """Characterisation of B307."""
+    def test_the_mean_wind_direction_survives_compute(self):
+        """B307: the override wrote wind_dir_bar into _TemporaryData but left
+        it out of _CalculatedParams, which compute() projects onto, so the
+        mean wind direction was silently dropped from the result."""
         calculator = _spark(_raw()).fluctuations()
         assert "wind_dir_bar" in calculator.TemporaryData.columns
-        assert _param_names(calculator) == ["u_bar", "v_bar", "w_bar", "T_bar"]
-        assert "wind_dir_bar" not in calculator.compute().columns
+        assert _param_names(calculator) == ["u_bar", "v_bar", "w_bar", "T_bar", "wind_dir_bar"]
+        assert "wind_dir_bar" in calculator.compute().columns
 
     def test_the_base_implementation_does_register_it(self):
         raw = _raw()
@@ -738,37 +702,28 @@ class TestToHdf:
         second.to_hdf(target, "raw")
         assert json.loads((tmp_path / "sonic.json").read_text()) == {"height": 20}
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B308: to_hdf derives both output paths with "
-               "path_or_buf.rpartition('.')[0], which is the empty string "
-               "for a path that has no extension, so a request to write "
-               "<dir>/rawdata writes '.hdf' and '.json' into the current "
-               "working directory instead of into <dir>. See the "
-               "consolidated findings issue.",
-    )
-    def test_an_extensionless_path_should_still_write_beside_the_data(
+    def test_an_extensionless_path_still_writes_beside_the_data(
             self, recorded_hdf_writes, tmp_path, monkeypatch):
+        """B308: both paths came from path_or_buf.rpartition('.')[0], which is
+        the empty string when there is no extension, so <dir>/rawdata wrote
+        '.hdf' and '.json' into the working directory instead of into <dir>."""
         monkeypatch.chdir(tmp_path)
         target = tmp_path / "station"
         target.mkdir()
         data = InMemoryRawData(pandas.DataFrame({"u": [1.0]}))
         data._Attrs = {"height": 10}
         data.to_hdf(str(target / "rawdata"), "raw")
+        assert recorded_hdf_writes[0]["path"] == str(target / "rawdata.hdf")
         assert (target / "rawdata.json").exists()
+        assert not (tmp_path / ".json").exists()
 
-    def test_an_extensionless_path_currently_writes_into_the_working_directory(
-            self, recorded_hdf_writes, tmp_path, monkeypatch):
-        """Characterisation of B308."""
-        monkeypatch.chdir(tmp_path)
-        target = tmp_path / "station"
+    def test_a_dot_in_a_parent_directory_is_not_mistaken_for_an_extension(
+            self, recorded_hdf_writes, tmp_path):
+        target = tmp_path / "station.2020"
         target.mkdir()
         data = InMemoryRawData(pandas.DataFrame({"u": [1.0]}))
-        data._Attrs = {"height": 10}
         data.to_hdf(str(target / "rawdata"), "raw")
-        assert recorded_hdf_writes[0]["path"] == ".hdf"
-        assert (tmp_path / ".json").exists()
-        assert not (target / "rawdata.json").exists()
+        assert recorded_hdf_writes[0]["path"] == str(target / "rawdata.hdf")
 
 
 @pytest.fixture()
