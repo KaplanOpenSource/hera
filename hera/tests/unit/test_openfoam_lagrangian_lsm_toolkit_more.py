@@ -1,16 +1,12 @@
 """openFoam/lagrangian/LSM/toolkit.py: OFLSMToolkit and its Analysis layer,
-beyond the four properties already pinned in
-``test_openfoam_lagrangian_lsm_toolkit.py`` (which also pins B103, the
-constructor that can never run).
+beyond the four properties already covered in
+``test_openfoam_lagrangian_lsm_toolkit.py``.
 
 Two construction routes are used here, both deliberate:
 
-* ``lsm`` -- a real, DB-backed toolkit from ``unit_toolkit_factory``,
-  obtained by patching the missing constant ``ToolkitHome.GIS_TOPOGRAPHY``
-  onto the *class* for the duration of a test, i.e. by simulating the fix
-  for B103. That is the only way to exercise ``__init__``, the topography
-  wiring and everything that talks to the datalayer; B103 itself stays
-  pinned, unpatched, in the sibling file.
+* ``lsm`` -- a real, DB-backed toolkit from ``unit_toolkit_factory``, which
+  exercises ``__init__``, the topography wiring and everything that talks
+  to the datalayer.
 * ``OFLSMToolkit.__new__(OFLSMToolkit)`` -- the technique the sibling file
   introduced -- for the parsers and writers that touch nothing but the
   filesystem, so that no unrelated failure can be blamed on them.
@@ -42,23 +38,19 @@ Deliberately not covered:
 Bugs pinned below (each with an xfail for the intended behaviour and a
 passing characterisation of what happens today):
 
-* B201 ``_extractFile`` / ``_readRecord`` use ``self.logger``, which no
-  toolkit has.
-* B202 ``loadData``'s saveMode guard rejects a documented mode and its
-  error message crashes.
-* B203 ``loadData``'s non-parallel branch finds no time steps.
-* B204 ``loadData``'s DB branch treats a QuerySet as a document.
-* B205 ``loadData`` with ONLYFILE_REPLACE returns an unbound name.
-* B206 ``makeSource`` writes the wrong object name into the header.
-* B207 ``createRootCaseMeshLink`` references an undefined name.
-* B208 ``calcConcentrationTimeStepFullMesh`` sets an attribute xarray
-  refuses.
-* B209 ``calcDocumentConcentrationPointWise`` never returns.
-* B210 ``getConcentrationField(returnFirst=False)`` indexes an empty list.
-* B211 ``_extractVelocityField`` cannot read a field file with a real
-  boundary section.
+* B204 (fixed) ``loadData``'s DB branch treated a QuerySet as a document.
+* B206 (fixed) ``makeSource`` wrote the wrong object name into the header.
+* B207 (fixed) ``createRootCaseMeshLink`` referenced an undefined name.
+* B208 (fixed) ``calcConcentrationTimeStepFullMesh`` set an attribute
+  xarray refuses.
+* B209 (fixed) ``calcDocumentConcentrationPointWise`` never returned.
+* B210 (fixed) ``getConcentrationField(returnFirst=False)`` indexed an empty list.
+* B211 (fixed) ``_extractVelocityField`` could not read a field file with
+  a real boundary section.
 """
+import glob
 import os
+import shutil
 
 import pandas
 import pytest
@@ -71,17 +63,8 @@ _EXTENTS = dict(xmin=0, xmax=2, ymin=0, ymax=2, zmin=0, zmax=2)
 
 
 @pytest.fixture()
-def lsm(unit_toolkit_factory, monkeypatch):
-    """A real OF_LSM toolkit, with B103's missing constant supplied.
-
-    The constant is patched onto the ToolkitHome *class* (never onto the
-    toolkitHome instance, which monkeypatch would then "restore" as a
-    permanent instance attribute) and disappears again after the test.
-    """
-    from hera import ToolkitHome, toolkitHome
-
-    monkeypatch.setattr(ToolkitHome, "GIS_TOPOGRAPHY", toolkitHome.GIS_RASTER_TOPOGRAPHY,
-                        raising=False)
+def lsm(unit_toolkit_factory):
+    """A real, DB-backed OF_LSM toolkit."""
     return unit_toolkit_factory("OF_LSM")
 
 
@@ -199,49 +182,36 @@ class TestExtractFile:
         _lagrangianFile(path, ["(0.5 -1.5 2.5)"])
         assert bare._extractFile(str(path), ["U_x", "U_y", "U_z"]).iloc[0].tolist() == [0.5, -1.5, 2.5]
 
-    def test_the_specialised_parser_is_unreachable(self, bare, tmp_path):
-        """Characterisation of B201.
+    def test_a_file_the_csv_reader_rejects_falls_through_to_the_openfoam_parser(
+        self, bare, tmp_path
+    ):
+        """The hand-written parser reads the uniform record off line 18."""
+        path = tmp_path / "notACsv"
+        path.write_text("\n".join([f"// header line {index}" for index in range(17)]
+                                  + ["3{(1 2 3)}", ")", ";", "//"]) + "\n")
+        frame = bare._extractFile(str(path), ["x", "y", "z"])
+        assert frame["x"].tolist() == [1.0, 1.0, 1.0]
+        assert frame["z"].tolist() == [3.0, 3.0, 3.0]
 
-        A file the csv reader rejects is meant to fall through to the
-        hand-written OpenFOAM parser, but the fall-through starts with
-        self.logger.execute(...) -- and no toolkit has a `logger` attribute,
-        so that branch can only ever raise.
-        """
+    def test_the_fall_through_no_longer_raises_for_an_unexpected_layout(
+        self, bare, tmp_path
+    ):
         path = tmp_path / "notACsv"
         _lagrangianFile(path, ["3{(1 2 3)}"])
-        with pytest.raises(AttributeError, match="logger"):
-            bare._extractFile(str(path), ["x", "y", "z"])
+        assert len(bare._extractFile(str(path), ["x", "y", "z"])) == 0
 
 
 @pytest.mark.unit
 class TestReadRecord:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B201: _readRecord ends with self.logger.debug(...) (and "
-               "its except branch starts with one), but neither "
-               "abstractToolkit nor Project defines a `logger` attribute -- "
-               "they all build a local logger with "
-               "get_classMethod_logger(self, ...). Every call therefore ends "
-               "in AttributeError, whether or not the time step holds data, "
-               "which also makes loadData unusable with the real reader. "
-               "See the consolidated findings issue.",
-    )
-    def test_a_time_step_should_be_read_into_a_frame(self, bare, tmp_path):
+    def test_a_time_step_is_read_into_a_frame(self, bare, tmp_path):
         _cloudDirectory(tmp_path)
         frame = bare._readRecord("100", casePath=str(tmp_path))
         assert frame["globalX"].tolist() == [10.0]
         assert frame["time"].tolist() == [100.0]
 
-    def test_reading_a_time_step_currently_raises(self, bare, tmp_path):
-        """Characterisation of B201."""
-        _cloudDirectory(tmp_path)
-        with pytest.raises(AttributeError, match="logger"):
-            bare._readRecord("100", casePath=str(tmp_path))
-
-    def test_an_empty_time_step_also_raises(self, bare, tmp_path):
-        """Characterisation of B201: the except branch logs too."""
-        with pytest.raises(AttributeError, match="logger"):
-            bare._readRecord("100", casePath=str(tmp_path))
+    def test_an_empty_time_step_yields_an_empty_frame(self, bare, tmp_path):
+        frame = bare._readRecord("100", casePath=str(tmp_path))
+        assert len(frame) == 0
 
 
 # ---------------------------------------------------------------------------
@@ -301,117 +271,62 @@ class TestLoadData:
 
     def test_the_parquet_is_named_after_the_cloud(self, lsm, parallelCase, readSeam):
         lsm.cloudName = "myCloud"
-        # The file is written before the method trips over B205.
-        with pytest.raises(UnboundLocalError):
-            lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE)
+        lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE)
         assert os.path.exists(os.path.join(lsm.FilesDirectory, "myCloudData.parquet"))
 
     # -- B202: the saveMode guard -----------------------------------------
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B202: an unknown saveMode is meant to raise ValueError "
-               "listing the valid modes, but the message is built with "
-               "','.join(...) over a list that contains "
-               "TOOLKIT_SAVEMODE_NOSAVE, which is None -- so the guard "
-               "itself dies with TypeError before the ValueError is raised. "
-               "The same list omits TOOLKIT_SAVEMODE_ONLYFILE (and repeats "
-               "FILEANDDB twice), so that documented mode is rejected even "
-               "though the body below handles it explicitly. "
-               "See the consolidated findings issue.",
-    )
-    def test_an_unknown_savemode_should_be_reported_as_a_valueerror(self, lsm):
+    def test_an_unknown_savemode_is_reported_as_a_valueerror(self, lsm):
         with pytest.raises(ValueError, match="saveMode must be one of"):
             lsm.loadData(saveMode="noSuchMode")
 
-    def test_an_unknown_savemode_currently_raises_typeerror(self, lsm):
-        """Characterisation of B202."""
-        with pytest.raises(TypeError, match="expected str instance"):
-            lsm.loadData(saveMode="noSuchMode")
-
-    def test_the_onlyfile_mode_is_rejected_by_the_guard(self, lsm, parallelCase, readSeam):
-        """Characterisation of B202: a documented, handled mode is refused
-        because it is missing from the guard's list of valid modes."""
-        with pytest.raises(TypeError, match="expected str instance"):
-            lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_ONLYFILE)
+    def test_the_onlyfile_mode_is_accepted_by_the_guard(self, lsm, parallelCase, readSeam):
+        """A documented mode the body handles explicitly."""
+        lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_ONLYFILE)
+        assert os.path.exists(os.path.join(lsm.FilesDirectory, "kinematicCloudData.parquet"))
 
     # -- B203: the non-parallel branch ------------------------------------
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B203: the single-processor branch filters the case's "
-               "entries with os.path.isdir(x) on the bare name instead of "
-               "os.path.join(finalCasePath, x), so it tests the cwd rather "
-               "than the case. Every time directory fails the test, the "
-               "delayed list comes out empty and dask raises 'Must supply at "
-               "least one delayed object'. Same root cause as B83 in "
-               "openFoam/toolkit.py's getTimeList. "
-               "See the consolidated findings issue.",
-    )
-    def test_a_single_processor_case_should_be_read(self, lsm, tmp_path, readSeam):
+    def test_a_single_processor_case_is_read(self, lsm, tmp_path, readSeam):
         case = tmp_path / "case"
         (case / "100").mkdir(parents=True)
         lsm.casePath = str(case)
         lsm.loadData().getData().compute()
-        assert readSeam.calls != []
-
-    def test_a_single_processor_case_currently_finds_no_time_steps(self, lsm, tmp_path, readSeam):
-        """Characterisation of B203."""
-        case = tmp_path / "case"
-        (case / "100").mkdir(parents=True)
-        lsm.casePath = str(case)
-        with pytest.raises(TypeError, match="at least one delayed object"):
-            lsm.loadData()
+        assert {call[0][0] for call in readSeam.calls} == {"100"}
 
     # -- B204: the DB branch ----------------------------------------------
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B204: the FILEANDDB branch does `doc = "
-               "self.getSimulationsDocuments(...)`, which returns a QuerySet "
-               "-- never None -- and then tests `if doc is not None`. So the "
-               "'already in the DB' error fires even for the very first "
-               "save, the `elif doc is None` branch that would call "
-               "addSimulationsDocument is dead code, and no LSMRuns document "
-               "is ever registered. FILEANDDB_REPLACE reaches the else "
-               "branch instead and dies on QuerySet.resource/save. "
-               "See the consolidated findings issue.",
-    )
     def test_saving_to_the_db_should_register_a_document(self, lsm, parallelCase, readSeam):
         lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_FILEANDDB)
         assert len(lsm.getSimulationsDocuments(type="LSMRuns")) == 1
 
-    def test_saving_to_the_db_currently_claims_the_data_is_already_there(self, lsm, parallelCase,
-                                                                        readSeam):
-        """Characterisation of B204."""
+    def test_saving_to_the_db_returns_the_document_it_registered(self, lsm, parallelCase, readSeam):
+        document = lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_FILEANDDB)
+        assert document.resource == os.path.join(lsm.FilesDirectory, "kinematicCloudData.parquet")
+
+    def test_an_existing_db_entry_is_refused_without_replace(self, lsm, parallelCase, readSeam):
+        """The parquet guard fires first, so the DB guard is only reachable
+        once the file it points at is gone."""
+        lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE)
+        shutil.rmtree(os.path.join(lsm.FilesDirectory, "kinematicCloudData.parquet"))
         with pytest.raises(FileExistsError, match="already in the DB"):
             lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_FILEANDDB)
-        assert len(lsm.getSimulationsDocuments(type="LSMRuns")) == 0
-        # The parquet was written before the DB step, so the data is on disk.
-        assert os.path.exists(os.path.join(lsm.FilesDirectory, "kinematicCloudData.parquet"))
 
-    def test_replacing_in_the_db_currently_dies_on_the_queryset(self, lsm, parallelCase, readSeam):
-        """Characterisation of B204."""
-        with pytest.raises(AttributeError, match="QuerySet"):
-            lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE)
+    def test_replacing_in_the_db_updates_the_single_document(self, lsm, parallelCase, readSeam):
+        lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE)
+        lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE)
+        documentList = lsm.getSimulationsDocuments(type="LSMRuns")
+        assert len(documentList) == 1
+        assert documentList[0].resource == os.path.join(lsm.FilesDirectory,
+                                                        "kinematicCloudData.parquet")
 
     # -- B205: ONLYFILE_REPLACE -------------------------------------------
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B205: with ONLYFILE_REPLACE the parquet is written but no "
-               "document is built -- `doc` is only bound in the DB branches "
-               "and in the else that handles NOSAVE -- so `return doc` "
-               "raises UnboundLocalError after the file has already been "
-               "written. See the consolidated findings issue.",
-    )
-    def test_saving_only_to_a_file_should_return_something(self, lsm, parallelCase, readSeam):
-        assert lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE) is not None
+    def test_saving_only_to_a_file_returns_the_frame_and_writes_it(self, lsm, parallelCase, readSeam):
+        from hera.datalayer import nonDBMetadataFrame
 
-    def test_saving_only_to_a_file_writes_it_and_then_raises(self, lsm, parallelCase, readSeam):
-        """Characterisation of B205."""
-        with pytest.raises(UnboundLocalError, match="doc"):
-            lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE)
+        document = lsm.loadData(saveMode=toolkitModule.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE)
+        assert isinstance(document, nonDBMetadataFrame)
         assert os.path.exists(os.path.join(lsm.FilesDirectory, "kinematicCloudData.parquet"))
 
 
@@ -459,22 +374,14 @@ class TestMakeSource:
         with pytest.raises(ValueError, match="The type must be"):
             bare.makeSource(x=0, y=0, z=0, nParticles=1, type="noSuchGeometry")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B206: the FoamFile header is a single hard-coded string "
-               "whose `object` entry is always kinematicCloudPositions, even "
-               "when fileName says otherwise -- so a source written under any "
-               "other name declares the wrong object to OpenFOAM. "
-               "See the consolidated findings issue.",
-    )
-    def test_the_header_should_name_the_file_it_is_in(self, bare, case):
+    def test_the_header_names_the_file_it_is_in(self, bare, case):
         bare.makeSource(x=0, y=0, z=0, nParticles=1, fileName="mySource")
         assert "object      mySource;" in (case / "constant" / "mySource").read_text()
 
-    def test_the_header_currently_always_names_the_kinematic_cloud(self, bare, case):
-        """Characterisation of B206."""
-        bare.makeSource(x=0, y=0, z=0, nParticles=1, fileName="mySource")
-        assert "object      kinematicCloudPositions;" in (case / "constant" / "mySource").read_text()
+    def test_the_default_file_name_keeps_the_kinematic_cloud_header(self, bare, case):
+        bare.makeSource(x=0, y=0, z=0, nParticles=1)
+        header = (case / "constant" / "kinematicCloudPositions").read_text()
+        assert "object      kinematicCloudPositions;" in header
 
 
 # ---------------------------------------------------------------------------
@@ -538,8 +445,7 @@ class TestFieldFileHelpers:
 class TestExtractVelocityField:
     @pytest.fixture()
     def case(self, bare, tmp_path):
-        """A case whose boundary section has at most three tokens per line --
-        the only shape the reader survives (see B211 below)."""
+        """A case with a minimal boundary section."""
         case = tmp_path / "case"
         (case / "50").mkdir(parents=True)
         _writeVectorField(case / "50" / "U", boundary=("    ground", "    {", "    }"))
@@ -559,19 +465,7 @@ class TestExtractVelocityField:
         cellData = pandas.DataFrame(dict(x=[0.0, 1.0], y=[0.0, 0.0], height=[1.0, 1.5]))
         assert len(bare._extractVelocityField(cellData, cellStart, 2, 50)) == 2
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B211: the U field is read with pandas.read_csv over the "
-               "WHOLE file (skipfooter=0, no nrows) into exactly three "
-               "columns, and only trimmed to nCells afterwards with "
-               ".head(nCells). Any line below the values that has more than "
-               "three whitespace-separated tokens -- i.e. an ordinary "
-               "boundary entry such as 'value uniform (0 0 0);' -- makes "
-               "pandas raise ParserError, so the reader cannot handle a "
-               "real OpenFOAM field file. nrows=nCells would be the fix. "
-               "See the consolidated findings issue.",
-    )
-    def test_a_realistic_boundary_section_should_be_tolerated(self, bare, tmp_path):
+    def test_a_realistic_boundary_section_is_tolerated(self, bare, tmp_path):
         case = tmp_path / "realistic"
         (case / "50").mkdir(parents=True)
         _writeVectorField(case / "50" / "U",
@@ -582,20 +476,6 @@ class TestExtractVelocityField:
         cellData = pandas.DataFrame(dict(x=[0.0, 1.0, 2.0], y=[0.0, 0.0, 0.0],
                                          height=[1.0, 1.5, 2.0]))
         assert bare._extractVelocityField(cellData, cellStart, nCells, 50)["U"].tolist() == [1.0, 2.0, 3.0]
-
-    def test_a_realistic_boundary_section_currently_raises(self, bare, tmp_path):
-        """Characterisation of B211."""
-        case = tmp_path / "realistic"
-        (case / "50").mkdir(parents=True)
-        _writeVectorField(case / "50" / "U",
-                          boundary=("    inlet", "    {", "        type fixedValue;",
-                                    "        value uniform (0 0 0);", "    }"))
-        bare._casePath = str(case)
-        _, cellStart, nCells = OFLSMToolkit._parseOFFieldHeader(str(case / "50" / "U"))
-        cellData = pandas.DataFrame(dict(x=[0.0, 1.0, 2.0], y=[0.0, 0.0, 0.0],
-                                         height=[1.0, 1.5, 2.0]))
-        with pytest.raises(pandas.errors.ParserError, match="Expected 3 fields"):
-            bare._extractVelocityField(cellData, cellStart, nCells, 50)
 
 
 # ---------------------------------------------------------------------------
@@ -654,23 +534,38 @@ class TestMakeUstarFromCache:
 
 @pytest.mark.unit
 class TestCreateRootCaseMeshLink:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B207: the body reads `lastTS`, a name that is never "
-               "defined anywhere in the module (and hard-codes '3600' as "
-               "the destination time step), so the method raises NameError "
-               "for any root case that has at least one processor "
-               "directory. See the consolidated findings issue.",
-    )
-    def test_it_should_link_the_mesh_of_every_processor(self, bare, tmp_path):
-        (tmp_path / "processor0" / "constant" / "polyMesh").mkdir(parents=True)
-        bare.createRootCaseMeshLink(str(tmp_path))
+    @pytest.fixture()
+    def runDirectory(self, tmp_path, monkeypatch):
+        """The method writes the new case relative to the working directory."""
+        directory = tmp_path / "run"
+        directory.mkdir()
+        monkeypatch.chdir(directory)
+        return directory
 
-    def test_it_currently_raises_nameerror(self, bare, tmp_path):
-        """Characterisation of B207."""
-        (tmp_path / "processor0").mkdir()
-        with pytest.raises(NameError, match="lastTS"):
-            bare.createRootCaseMeshLink(str(tmp_path))
+    def test_it_links_the_mesh_of_every_processor(self, bare, tmp_path, runDirectory):
+        rootCase = tmp_path / "rootCase"
+        (rootCase / "processor0" / "constant" / "polyMesh").mkdir(parents=True)
+        bare.createRootCaseMeshLink(str(rootCase))
+        meshLink = runDirectory / "processor0" / "constant" / "polyMesh"
+        assert meshLink.is_symlink()
+        assert os.path.realpath(meshLink) == os.path.realpath(rootCase / "processor0" / "constant" / "polyMesh")
+
+    def test_the_last_time_step_is_copied_under_its_own_name(self, bare, tmp_path, runDirectory):
+        rootCase = tmp_path / "rootCase"
+        (rootCase / "processor0" / "constant" / "polyMesh").mkdir(parents=True)
+        for timeName in ["100", "900", "200"]:
+            (rootCase / "processor0" / timeName).mkdir()
+        (rootCase / "processor0" / "900" / "U").write_text("the last time step")
+        bare.createRootCaseMeshLink(str(rootCase))
+        assert (runDirectory / "processor0" / "900" / "U").read_text() == "the last time step"
+        assert not (runDirectory / "processor0" / "200").exists()
+
+    def test_a_processor_without_time_steps_still_gets_its_mesh_link(self, bare, tmp_path,
+                                                                    runDirectory):
+        rootCase = tmp_path / "rootCase"
+        (rootCase / "processor0" / "constant" / "polyMesh").mkdir(parents=True)
+        bare.createRootCaseMeshLink(str(rootCase))
+        assert sorted(os.listdir(runDirectory / "processor0")) == ["constant"]
 
     def test_a_root_case_without_processors_does_nothing(self, bare, tmp_path):
         assert bare.createRootCaseMeshLink(str(tmp_path)) is None
@@ -728,17 +623,16 @@ class TestToUnstructuredVTK:
 
 @pytest.mark.unit
 class TestToStructuredVTK:
-    def test_it_currently_cannot_run(self, bare, tmp_path, monkeypatch):
-        """Characterisation of B208, from its caller.
-
-        toStructuredVTK is blocked by the same DataArray attribute
-        assignment as calcConcentrationTimeStepFullMesh.
-        """
-        monkeypatch.setattr(lsmModule, "structuredToVTK", _Recorder())
+    def test_one_structured_grid_is_written_per_time_step(self, bare, tmp_path, monkeypatch):
+        """B208 blocked this through calcConcentrationTimeStepFullMesh."""
+        vtkSeam = _Recorder()
+        monkeypatch.setattr(lsmModule, "structuredToVTK", vtkSeam)
         bare._analysis = Analysis(bare)
-        with pytest.raises(AttributeError, match="filterType"):
-            bare.toStructuredVTK(_particleData(), str(tmp_path), "concentration",
-                                 extents=_EXTENTS, dxdydz=1)
+        bare.toStructuredVTK(_particleData(), str(tmp_path), "concentration",
+                             extents=_EXTENTS, dxdydz=1)
+        assert [call[0][0] for call in vtkSeam.calls] == [str(tmp_path / "concentration_1"),
+                                                          str(tmp_path / "concentration_2")]
+        assert list(vtkSeam.calls[0][1]["pointData"]) == ["C_kg_m3"]
 
 
 # ---------------------------------------------------------------------------
@@ -767,38 +661,21 @@ class TestAnalysisConcentration:
                                      globalZ=[0.5, 0.5], mass=[1.0, 2.0]))
         assert sorted(analysis.calcConcentrationPointWise(data, dxdydz=1.0)["C"].tolist()) == [1.0, 2.0]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B208: calcConcentrationTimeStepFullMesh does "
-               "`fulldata.filterType = 'C'` on an xarray DataArray, which "
-               "refuses attribute assignment (it must go through .attrs, as "
-               "the units are set two lines later). Every call raises "
-               "AttributeError, which also takes down "
-               "calcConcentrationFieldFullMesh and both toStructuredVTK "
-               "implementations. See the consolidated findings issue.",
-    )
-    def test_a_time_step_should_be_embedded_in_the_full_mesh(self, analysis):
+    def test_a_time_step_is_embedded_in_the_full_mesh(self, analysis):
         data = pandas.DataFrame(dict(time=[1.0], globalX=[0.5], globalY=[0.5], globalZ=[0.5],
                                      mass=[1.0]))
         field = analysis.calcConcentrationTimeStepFullMesh(data, extents=_EXTENTS, dxdydz=1.0)
         assert field.attrs["units"] == "1*kg/m**3"
+        assert sorted(field.dims) == ["time", "xI", "yI", "zI"]
+        assert field.sel(xI=0, yI=0, zI=0).values.tolist() == [1.0]
 
-    def test_a_time_step_currently_raises(self, analysis):
-        """Characterisation of B208."""
-        data = pandas.DataFrame(dict(time=[1.0], globalX=[0.5], globalY=[0.5], globalZ=[0.5],
-                                     mass=[1.0]))
-        with pytest.raises(AttributeError, match="filterType"):
-            analysis.calcConcentrationTimeStepFullMesh(data, extents=_EXTENTS, dxdydz=1.0)
-
-    def test_the_full_mesh_field_registers_its_cache_document_before_failing(self, analysis,
-                                                                            unit_project):
-        """Characterisation of B208, from calcConcentrationFieldFullMesh.
-
-        The cache document (and its Concentrations*.nc resource) is written
-        first, so a failed run leaves a document behind pointing at files
-        that were never produced. Behind this failure sits a second latent
-        typo: the transpose asks for a dimension called "time " (trailing
-        space).
+    def test_the_full_mesh_field_writes_its_netcdf_and_registers_a_cache_document(self, analysis,
+                                                                                  unit_project):
+        """B208 took this down too: the cache document (and its
+        Concentrations*.nc resource) is registered before the field is
+        computed, so a failure left a document pointing at files that were
+        never written. Behind that failure sat a second typo: the transpose
+        asked for a dimension called "time " (trailing space).
         """
         import dask.dataframe
 
@@ -811,12 +688,13 @@ class TestAnalysisConcentration:
             def getData(self):
                 return dask.dataframe.from_pandas(data, npartitions=1)
 
-        with pytest.raises(AttributeError, match="filterType"):
-            analysis.calcConcentrationFieldFullMesh(Document(), extents=_EXTENTS, dxdydz=1.0)
+        document = analysis.calcConcentrationFieldFullMesh(Document(), extents=_EXTENTS, dxdydz=1.0)
         cached = unit_project.getCacheDocuments(type=Analysis.DOCTYPE_CONCENTRATION)
         assert len(cached) == 1
         assert cached[0].desc["dataID"] == "deadbeef"
         assert cached[0].resource.endswith("Concentrations*.nc")
+        assert document.id == cached[0].id
+        assert glob.glob(cached[0].resource)
 
 
 @pytest.mark.unit
@@ -872,22 +750,16 @@ class TestAnalysisCalcDocumentConcentrationPointWise:
                                                     overwrite=True)
         assert len(unit_project.getCacheDocuments(type=Analysis.DOCTYPE_CONCENTRATION_POINTWISE)) == 1
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B209: the method documents ':return: Document' and its "
-               "last statement is `ret = doc`, but there is no return "
-               "statement at all -- so it always answers None and the caller "
-               "cannot reach the document (or the parquet) it just built. "
-               "See the consolidated findings issue.",
-    )
-    def test_it_should_return_the_cache_document(self, analysis, document):
-        assert analysis.calcDocumentConcentrationPointWise(document, dxdydz=1.0,
-                                                           saveAsDask=True) is not None
+    def test_it_returns_the_cache_document(self, analysis, document, unit_project):
+        returned = analysis.calcDocumentConcentrationPointWise(document, dxdydz=1.0,
+                                                               saveAsDask=True)
+        cached = unit_project.getCacheDocuments(type=Analysis.DOCTYPE_CONCENTRATION_POINTWISE)
+        assert returned.id == cached[0].id
 
-    def test_it_currently_returns_none(self, analysis, document):
-        """Characterisation of B209."""
+    def test_a_cached_result_returns_the_document_it_found(self, analysis, document):
+        first = analysis.calcDocumentConcentrationPointWise(document, dxdydz=1.0, saveAsDask=True)
         assert analysis.calcDocumentConcentrationPointWise(document, dxdydz=1.0,
-                                                           saveAsDask=True) is None
+                                                           saveAsDask=True).id == first.id
 
 
 @pytest.mark.unit
@@ -919,21 +791,17 @@ class TestAnalysisGetConcentrationField:
         assert analysis.getConcentrationField(document, dxdydz=1.0) is not None
         assert analysis.getConcentrationField(document, dxdydz=99.0) is None
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B210: returnFirst=False is documented as 'returns a list "
-               "(might be empty)', but the else branch returns "
-               "docList[0].getData(usePandas=True) -- the data of the first "
-               "document rather than a list, and an IndexError when nothing "
-               "matched. See the consolidated findings issue.",
-    )
-    def test_return_first_false_should_give_a_list(self, analysis, document):
-        assert analysis.getConcentrationField(document, returnFirst=False) == []
+    def test_return_first_false_gives_an_empty_list_when_nothing_matched(self, analysis, document):
+        assert list(analysis.getConcentrationField(document, returnFirst=False)) == []
 
-    def test_return_first_false_currently_raises_on_an_empty_result(self, analysis, document):
-        """Characterisation of B210."""
-        with pytest.raises(IndexError):
-            analysis.getConcentrationField(document, returnFirst=False)
+    def test_return_first_false_gives_every_matching_document(self, analysis, document,
+                                                              unit_project):
+        for dxdydz in [1.0, 2.0]:
+            unit_project.addCacheDocument(resource="/x", dataFormat="string",
+                                          type=Analysis.DOCTYPE_CONCENTRATION,
+                                          desc=dict(dataID="deadbeef", dxdydz=dxdydz))
+        documentList = analysis.getConcentrationField(document, returnFirst=False)
+        assert sorted(doc.desc["dxdydz"] for doc in documentList) == [1.0, 2.0]
 
 
 @pytest.mark.unit

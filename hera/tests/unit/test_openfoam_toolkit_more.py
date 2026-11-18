@@ -37,22 +37,9 @@ Deliberately not covered:
 Bugs pinned below (each with an xfail for the intended behaviour and a
 passing characterisation of what happens today):
 
-* B192 ``getMesh`` builds a broken ``foamJob`` argv.
-* B193 ``getMeshFromName`` / ``getMeshExtentFromName`` drop
-  ``readParallel`` and ``time``.
 * B194 ``prepareSlurmWorkflowExecution`` cannot take a workflow dict.
-* B195 ``prepareSlurmWorkflowExecution`` demands a variations *dict*,
-  which ``JSONVariations`` cannot read.
-* B196 ``Analysis.getFiltersDocuments``'s not-found guard tests the wrong
-  thing.
-* B197 ``Presentation.toUnstructuredVTK``'s overwrite guard checks a path
-  evtk never writes.
 * B198 ``Presentation.toStructuredVTK`` calls a method its analysis layer
   does not have.
-* B199 ``Presentation.loadLagrangianDataParallel`` drops the first
-  requested time step.
-* B200 ``Presentation.loadLagrangianDataParallel`` cannot take numeric
-  time steps.
 """
 import json
 import os
@@ -255,24 +242,14 @@ class TestPrepareSlurmWorkflowExecution:
         with pytest.raises(TypeError, match="not iterable"):
             of.prepareSlurmWorkflowExecution(12345, [{_ALPHA_PATH: [1]}])
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B195: the jsonVariations type check accepts a dict (and "
-               "logs an error for anything else), but hera.utils.jsonutils."
-               "JSONVariations iterates its second argument as a *list of "
-               "variation groups* -- so the accepted dict is iterated as its "
-               "keys and dies with AttributeError deep inside "
-               "JSONvariationItem, while the list form that actually works "
-               "is the one the method complains about. "
-               "See the consolidated findings issue.",
-    )
-    def test_a_variations_dict_should_work(self, of, workflowInDB, slurmSeam):
+    def test_a_variations_dict_is_taken_as_a_single_variation_group(self, of, workflowInDB, slurmSeam):
         of.prepareSlurmWorkflowExecution("flow_0000", {_ALPHA_PATH: [1, 2]})
+        assert open(os.path.join(of.filesDirectory, "cases.txt")).read().split() == ["flow_0000",
+                                                                                    "flow_0001"]
 
-    def test_a_variations_dict_currently_raises(self, of, workflowInDB, slurmSeam):
-        """Characterisation of B195."""
-        with pytest.raises(AttributeError, match="items"):
-            of.prepareSlurmWorkflowExecution("flow_0000", {_ALPHA_PATH: [1, 2]})
+    def test_an_unusable_variations_type_is_refused(self, of, workflowInDB, slurmSeam):
+        with pytest.raises(ValueError, match="path, dict or list"):
+            of.prepareSlurmWorkflowExecution("flow_0000", 12345)
 
 
 # ---------------------------------------------------------------------------
@@ -363,33 +340,19 @@ class TestGetMesh:
         assert runSeam.lastArgs[0][0] == "foamJob"
         assert runSeam.lastKwargs == dict(check=False)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B192: getMesh passes `f'-case {caseDirectory}'` as ONE "
-               "element of the argv list handed to subprocess.run, instead "
-               "of the two elements '-case' and the directory. Since the "
-               "call uses a list (no shell), foamJob receives a single "
-               "argument '-case /path' that it cannot parse -- and when the "
-               "case IS the cwd it receives an empty-string argument "
-               "instead. See the consolidated findings issue.",
-    )
-    def test_the_case_option_should_be_two_argv_elements(self, of, tmp_path, runSeam):
+    def test_the_case_option_is_two_argv_elements(self, of, tmp_path, runSeam):
         with pytest.raises(RuntimeError):
             of.getMesh(str(tmp_path))
-        assert "-case" in runSeam.lastArgs[0]
+        argv = runSeam.lastArgs[0]
+        assert argv[argv.index("-case") + 1] == str(tmp_path)
 
-    def test_the_case_option_is_currently_one_joined_argv_element(self, of, tmp_path, runSeam):
-        """Characterisation of B192."""
-        with pytest.raises(RuntimeError):
-            of.getMesh(str(tmp_path))
-        assert f"-case {tmp_path}" in runSeam.lastArgs[0]
-
-    def test_a_case_that_is_the_cwd_passes_an_empty_argument(self, of, tmp_path, runSeam, monkeypatch):
-        """Characterisation of B192, second symptom."""
+    def test_a_case_that_is_the_cwd_passes_no_case_option_at_all(self, of, tmp_path, runSeam, monkeypatch):
         monkeypatch.chdir(tmp_path)
         with pytest.raises(RuntimeError):
             of.getMesh(str(tmp_path))
-        assert "" in runSeam.lastArgs[0]
+        argv = runSeam.lastArgs[0]
+        assert "-case" not in argv
+        assert "" not in argv
 
 
 # ---------------------------------------------------------------------------
@@ -407,28 +370,11 @@ class TestGetMeshFromName:
         assert of.getMeshFromName("flow_0000") == "theMesh"
         assert getMesh.lastArgs == (workflowInDB.getData(),)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B193: getMeshFromName takes readParallel and time and "
-               "documents both, but calls self.getMesh(doc.getData()) "
-               "positionally with neither, so both are silently ignored and "
-               "the mesh is always read from time 0 as a parallel case. "
-               "getMeshExtentFromName has the same signature and the same "
-               "hole (its callee getMeshExtent takes no such arguments at "
-               "all). See the consolidated findings issue.",
-    )
-    def test_read_parallel_and_time_should_reach_getmesh(self, of, workflowInDB, monkeypatch):
+    def test_read_parallel_and_time_reach_getmesh(self, of, workflowInDB, monkeypatch):
         getMesh = _Recorder()
         monkeypatch.setattr(OFToolkit, "getMesh", lambda self, *a, **kw: getMesh(*a, **kw))
         of.getMeshFromName("flow_0000", readParallel=False, time=300)
         assert getMesh.lastKwargs == dict(readParallel=False, time=300)
-
-    def test_read_parallel_and_time_are_currently_dropped(self, of, workflowInDB, monkeypatch):
-        """Characterisation of B193."""
-        getMesh = _Recorder()
-        monkeypatch.setattr(OFToolkit, "getMesh", lambda self, *a, **kw: getMesh(*a, **kw))
-        of.getMeshFromName("flow_0000", readParallel=False, time=300)
-        assert getMesh.lastKwargs == {}
 
 
 @pytest.mark.unit
@@ -442,8 +388,9 @@ class TestGetMeshExtentFromName:
         assert of.getMeshExtentFromName("flow_0000") == "theExtent"
         assert getMeshExtent.lastArgs == (workflowInDB.getData(),)
 
-    def test_read_parallel_and_time_are_currently_dropped(self, of, workflowInDB, monkeypatch):
-        """Characterisation of B193, second site."""
+    def test_read_parallel_and_time_are_inert_here(self, of, workflowInDB, monkeypatch):
+        """getMeshExtent reads constant/polyMesh/points, which exists once per
+        case, so it has neither a parallel nor a time dimension to honour."""
         getMeshExtent = _Recorder()
         monkeypatch.setattr(OFToolkit, "getMeshExtent", lambda self, *a, **kw: getMeshExtent(*a, **kw))
         of.getMeshExtentFromName("flow_0000", readParallel=False, time=300)
@@ -719,26 +666,12 @@ class TestAnalysis:
         of.addCacheDocument(resource="/y", dataFormat="string", type="vtk_filter",
                             desc=dict(simulationName="flow_0000", filterName="f2"))
         monkeypatch.setattr(OFToolkit, "getWorkflowDocumentFromDB",
-                            lambda self, *a, **kw: dict(desc=dict(simulationName="flow_0000")))
+                            lambda self, *a, **kw: [dict(desc=dict(simulationName="flow_0000"))])
         assert len(of.analysis.getFiltersDocuments("flow_0000")) == 2
         assert len(of.analysis.getFiltersDocuments("flow_0000", filterName="f1")) == 1
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B196: getFiltersDocuments guards with `if wrkflow is "
-               "None`, but getWorkflowDocumentFromDB returns a LIST (empty "
-               "when nothing matches), which is never None. The intended "
-               "ValueError naming the missing case is therefore unreachable "
-               "and an unknown simulation dies with TypeError: list indices "
-               "must be integers. See the consolidated findings issue.",
-    )
-    def test_an_unknown_simulation_should_be_reported_as_a_valueerror(self, of):
+    def test_an_unknown_simulation_is_reported_as_a_valueerror(self, of):
         with pytest.raises(ValueError, match="was not found"):
-            of.analysis.getFiltersDocuments("noSuchSimulation")
-
-    def test_an_unknown_simulation_currently_raises_typeerror(self, of):
-        """Characterisation of B196."""
-        with pytest.raises(TypeError, match="list indices"):
             of.analysis.getFiltersDocuments("noSuchSimulation")
 
 
@@ -815,34 +748,23 @@ class TestPresentationToUnstructuredVTK:
                                           xcoord="x", ycoord="y", zcoord="z")
         assert sorted(vtkSeam.lastArgs[4]) == ["mass", "time"]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B197: the overwrite guard tests os.path.exists on the "
-               "extension-less base path it hands to evtk, but evtk writes "
-               "<base>.vtu. The file that exists is therefore never the file "
-               "checked, so the FileExistsError that is supposed to protect "
-               "an existing output (and the os.remove that overwrite=True "
-               "does) can never fire for a real evtk output. "
-               "See the consolidated findings issue.",
-    )
-    def test_an_existing_output_should_be_refused_without_overwrite(self, of, tmp_path, vtkSeam):
+    def test_an_existing_output_is_refused_without_overwrite(self, of, tmp_path, vtkSeam):
         (tmp_path / "particles_0.vtu").write_text("previous run")
-        with pytest.raises(FileExistsError):
-            of.presentation.toUnstructuredVTK(_particleData(), str(tmp_path), "particles")
-
-    def test_an_existing_vtu_is_currently_ignored(self, of, tmp_path, vtkSeam):
-        """Characterisation of B197."""
-        (tmp_path / "particles_0.vtu").write_text("previous run")
-        of.presentation.toUnstructuredVTK(_particleData(), str(tmp_path), "particles")
-        assert len(vtkSeam.calls) == 2
-
-    def test_the_guard_fires_for_the_extensionless_path_it_checks(self, of, tmp_path, vtkSeam):
-        """Characterisation of B197: the guard itself works, on the wrong path."""
-        (tmp_path / "particles_0").write_text("previous run")
         with pytest.raises(FileExistsError, match="overwrite"):
             of.presentation.toUnstructuredVTK(_particleData(), str(tmp_path), "particles")
-        of.presentation.toUnstructuredVTK(_particleData(), str(tmp_path), "particles", overwrite=True)
-        assert not (tmp_path / "particles_0").exists()
+
+    def test_overwrite_removes_the_vtu_evtk_actually_wrote(self, of, tmp_path, vtkSeam):
+        (tmp_path / "particles_0.vtu").write_text("previous run")
+        of.presentation.toUnstructuredVTK(_particleData(), str(tmp_path), "particles",
+                                          overwrite=True)
+        assert not (tmp_path / "particles_0.vtu").exists()
+        assert len(vtkSeam.calls) == 2
+
+    def test_an_extensionless_file_of_the_same_name_is_ignored(self, of, tmp_path, vtkSeam):
+        """evtk writes <base>.vtu, so a bare <base> is not its output."""
+        (tmp_path / "particles_0").write_text("not an evtk output")
+        of.presentation.toUnstructuredVTK(_particleData(), str(tmp_path), "particles")
+        assert len(vtkSeam.calls) == 2
 
 
 @pytest.mark.unit
@@ -900,45 +822,16 @@ class TestPresentationLoadLagrangianDataParallel:
         assert {call[0][0] for call in readSeam.calls} == {os.path.join("processor0", "100"),
                                                            os.path.join("processor0", "200")}
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B199: the record list is built from timeList[1:], so the "
-               "first time step is always dropped -- including when the "
-               "caller passed `times` explicitly, which the docstring "
-               "describes as 'a list of time steps to extract'. A single "
-               "requested time therefore yields an empty delayed list and "
-               "dask raises 'Must supply at least one delayed object'. "
-               "See the consolidated findings issue.",
-    )
-    def test_an_explicitly_requested_time_should_be_read(self, of, parallelCase, readSeam):
+    def test_an_explicitly_requested_time_is_read(self, of, parallelCase, readSeam):
         of.presentation.loadLagrangianDataParallel(str(parallelCase), times=["100"]).compute()
-        assert [call[0][0] for call in readSeam.calls] == [os.path.join("processor0", "100")]
+        assert {call[0][0] for call in readSeam.calls} == {os.path.join("processor0", "100")}
 
-    def test_a_single_requested_time_currently_leaves_nothing_to_read(self, of, parallelCase, readSeam):
-        """Characterisation of B199."""
-        with pytest.raises(TypeError, match="at least one delayed object"):
-            of.presentation.loadLagrangianDataParallel(str(parallelCase), times=["100"])
-
-    def test_two_requested_times_currently_read_only_the_second(self, of, parallelCase, readSeam):
-        """Characterisation of B199."""
+    def test_every_explicitly_requested_time_is_read(self, of, parallelCase, readSeam):
         of.presentation.loadLagrangianDataParallel(str(parallelCase), times=["100", "200"]).compute()
-        assert {call[0][0] for call in readSeam.calls} == {os.path.join("processor0", "200")}
+        assert {call[0][0] for call in readSeam.calls} == {os.path.join("processor0", "100"),
+                                                           os.path.join("processor0", "200")}
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B200: `times` is documented as 'a list of time steps to "
-               "extract' and is pushed through numpy.atleast_1d, which turns "
-               "numbers into numpy.int64 -- but each element is then used as "
-               "a path component in os.path.join, which only accepts str / "
-               "bytes / PathLike. Numeric times (the natural form for a "
-               "time step) therefore always raise TypeError; only strings "
-               "work. See the consolidated findings issue.",
-    )
-    def test_numeric_times_should_be_accepted(self, of, parallelCase, readSeam):
+    def test_numeric_times_are_accepted(self, of, parallelCase, readSeam):
         of.presentation.loadLagrangianDataParallel(str(parallelCase), times=[100, 200]).compute()
-        assert readSeam.calls != []
-
-    def test_numeric_times_currently_raise(self, of, parallelCase, readSeam):
-        """Characterisation of B200."""
-        with pytest.raises(TypeError, match="join"):
-            of.presentation.loadLagrangianDataParallel(str(parallelCase), times=[100, 200])
+        assert {call[0][0] for call in readSeam.calls} == {os.path.join("processor0", "100"),
+                                                           os.path.join("processor0", "200")}

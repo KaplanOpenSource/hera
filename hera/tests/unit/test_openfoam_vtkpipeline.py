@@ -565,45 +565,26 @@ class TestEnforceParam:
 
 @pytest.mark.unit
 class TestVTKFilterFullName:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B316: VTKFilter.fullName binds `fatherName` only inside "
-               "`if filter.father is not None`, then returns it "
-               "unconditionally.  `father` is a class attribute that is None "
-               "and is never assigned anywhere in the module (neither "
-               "__init__, addFilter, addFilterFromObj nor __setitem__ set "
-               "it), so the guard is always false and the property always "
-               "raises UnboundLocalError.  The dead branch is broken too: it "
-               "calls `filter.father.fullName()`, invoking the property's "
-               "string result as if it were a method.  See the consolidated "
-               "findings issue.",
-    )
     def test_a_root_filter_reports_its_own_name_as_its_full_name(self):
         assert VTKFilter("a", "Slice", True, []).fullName == "a"
 
-    def test_full_name_currently_raises_for_every_filter(self):
-        """Characterisation of B316."""
-        f = VTKFilter("a", "Slice", True, [])
-        assert f.father is None
-        with pytest.raises(UnboundLocalError):
-            f.fullName
-
-    def test_the_dead_father_branch_calls_the_property_as_a_method(self, monkeypatch):
-        """Characterisation of B316: even a filter that *does* have a father
-        cannot report a full name, because the branch invokes
-        ``father.fullName()`` -- the property already evaluated to a string.
-        """
-
-        class _StubFather:
-            fullName = "root"
-
+    def test_a_filter_with_a_father_is_reported_under_it(self, monkeypatch):
+        father = VTKFilter("root", "ExtractBlock", True, [])
         child = VTKFilter("child", "Slice", True, [])
-        monkeypatch.setattr(child, "father", _StubFather())
-        with pytest.raises(TypeError, match="not callable"):
-            child.fullName
+        monkeypatch.setattr(child, "father", father)
+        assert child.fullName == "root.child"
+
+    def test_the_path_is_built_all_the_way_up(self, monkeypatch):
+        root = VTKFilter("root", "ExtractBlock", True, [])
+        middle = VTKFilter("middle", "Clip", True, [])
+        leaf = VTKFilter("leaf", "Slice", True, [])
+        monkeypatch.setattr(middle, "father", root)
+        monkeypatch.setattr(leaf, "father", middle)
+        assert leaf.fullName == "root.middle.leaf"
 
     def test_no_code_path_in_the_module_ever_assigns_a_father(self):
-        """Characterisation of B316: the guard cannot become true."""
+        """The attribute has to be set by hand; nothing in the module does it,
+        so every filter built through the public API is its own root."""
         father = VTKFilter("a", "ExtractBlock", True, [])
         child = father.addFilter("b", "CellCenters")
         father.addFilterFromObj(vtkFilter_CellCenters(name="c", write=True))
@@ -753,28 +734,10 @@ class TestIntegrateVariablesFilter:
         iv = vtkFilter_IntegrateVariables(name="iv", write=True, params=[])
         assert iv.filterType == "IntegrateVariables"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B317: vtkFilter_IntegrateVariables.__init__ takes **kwargs "
-               "and forwards them to VTKFilter.__init__, whose `params` is a "
-               "required positional argument -- but unlike every one of its "
-               "five sibling filter classes (Slice, PlotOverLine, "
-               "CellCenters, DescriptiveStatistics, and ExtractBlock via an "
-               "explicit params=None default) it omits the "
-               "`kwargs.setdefault(\"params\", [])` line, so constructing it "
-               "the same way as its siblings raises TypeError.  See the "
-               "consolidated findings issue.",
-    )
     def test_it_can_be_built_without_an_explicit_parameter_list(self):
         assert vtkFilter_IntegrateVariables(name="iv", write=True).params == []
 
-    def test_it_currently_demands_an_explicit_parameter_list(self):
-        """Characterisation of B317."""
-        with pytest.raises(TypeError, match="params"):
-            vtkFilter_IntegrateVariables(name="iv", write=True)
-
-    def test_the_factory_hides_the_missing_default_by_always_passing_params(self):
-        """Characterisation of B317: new_vtk_pipeline_filter always supplies one."""
+    def test_the_factory_builds_it_with_the_same_empty_default(self):
         assert VTKPipeLine.new_vtk_pipeline_filter(name="iv", filter_type="IntegrateVariables").params == []
 
 
@@ -1062,38 +1025,22 @@ class TestBuildFilterQuery:
         mongoQuery = dictToMongoQuery(registered._buildFilterQuery(filter_name="f"))
         assert mongoQuery["simulation__workflowName"] == "flow_0001"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B318: _buildFilterQuery builds `dict(simulation=self."
-               "simulationParams, ...)`, which stores the very same dict "
-               "object rather than a copy, and then writes into it "
-               "(`qry['simulation']['regularMesh'] = regularMesh`).  Building "
-               "a query therefore mutates the object's own simulationParams. "
-               "_updateCacheDB compounds it by writing "
-               "`recordData['simulation']['timeList'] = timeList` into the "
-               "same aliased dict, so after one getData() every later cache "
-               "query silently carries a regularMesh and a timeList "
-               "constraint that was never asked for.  See the consolidated "
-               "findings issue.",
-    )
     def test_building_a_query_leaves_the_simulation_parameters_alone(self, registered):
         registered._buildFilterQuery(filter_name="f", regularMesh=True)
         assert registered.simulationParams == dict(
             workflowName="flow_0001", groupName="flow", workflowParameters={}
         )
 
-    def test_the_regular_mesh_flag_currently_leaks_into_later_queries(self, registered):
-        """Characterisation of B318."""
+    def test_the_regular_mesh_flag_does_not_leak_into_later_queries(self, registered):
         registered._buildFilterQuery(filter_name="f", regularMesh=True)
-        assert registered.simulationParams["regularMesh"] is True
-        leaked = registered._buildFilterQuery(filter_name="f")
-        assert leaked["simulation"]["regularMesh"] is True
+        assert "regularMesh" not in registered._buildFilterQuery(filter_name="f")["simulation"]
 
-    def test_every_query_shares_the_one_simulation_parameters_dict(self, registered):
-        """Characterisation of B318."""
+    def test_every_query_gets_its_own_simulation_parameters_dict(self, registered):
         first = registered._buildFilterQuery(filter_name="a")
         second = registered._buildFilterQuery(filter_name="b")
-        assert first["simulation"] is second["simulation"] is registered.simulationParams
+        assert first["simulation"] == second["simulation"] == registered.simulationParams
+        assert first["simulation"] is not second["simulation"]
+        assert first["simulation"] is not registered.simulationParams
 
 
 # ---------------------------------------------------------------------------
@@ -1190,22 +1137,6 @@ class TestFilterCachedTimesteps:
         assert toProcess == ["f"]
         assert docs == {}
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B319: _filterCachedTimesteps rebinds the single `timeList` "
-               "local inside its per-filter loop "
-               "(`timeList = [ts for ts in timeList if ts not in dbTimeList]`) "
-               "and returns that one list for every filter.  A filter whose "
-               "cache is complete therefore empties the timestep list for all "
-               "the *other* filters iterated after it, so a filter with no "
-               "cache at all is appended to filtersToProcess (len(docList)==0) "
-               "and then computed over zero timesteps -- after which "
-               "_updateCacheDB records a cache document claiming an empty "
-               "timeList for an output file that holds nothing.  Two filters "
-               "with disjoint cached times make it order dependent as well: "
-               "whichever is visited first is the one recomputed.  See the "
-               "consolidated findings issue.",
-    )
     def test_a_cached_filter_does_not_steal_the_timesteps_of_an_uncached_one(self, of, registered):
         of.addCacheDocument(
             resource="/somewhere/cached_0.parquet",
@@ -1219,8 +1150,7 @@ class TestFilterCachedTimesteps:
         assert toProcess == ["fresh"]
         assert list(timeList) == [0.0, 10.0]
 
-    def test_the_timestep_list_is_currently_shared_across_filters(self, of, registered):
-        """Characterisation of B319."""
+    def test_a_fully_cached_filter_is_not_recomputed(self, of, registered):
         of.addCacheDocument(
             resource="/somewhere/cached_0.parquet",
             dataFormat="parquet",
@@ -1228,16 +1158,14 @@ class TestFilterCachedTimesteps:
             desc=_cacheDescriptionFor(registered, "cached", False, [0.0, 10.0]),
         )
         timeList, toProcess, _, _ = registered._filterCachedTimesteps(
-            ["cached", "fresh"], [0.0, 10.0], False, "parquet", False
+            ["cached"], [0.0, 10.0], False, "parquet", False
         )
-        assert toProcess == ["fresh"]
+        assert toProcess == []
         assert list(timeList) == []
 
-    def test_which_fully_cached_filter_is_recomputed_depends_on_the_order(self, of, registered):
-        """Characterisation of B319: with two filters cached over disjoint
-        times, each one's subtraction leaves the other's times behind, so the
-        filter visited first is recomputed even though its cache is complete.
-        """
+    def test_two_partly_cached_filters_are_handled_the_same_in_either_order(self, of, registered):
+        """Each filter is missing the other's cached timestep, so both need
+        computing and the answer does not depend on the order they come in."""
         for filterName, cachedTimes in (("a", [0.0]), ("b", [10.0])):
             of.addCacheDocument(
                 resource=f"/somewhere/{filterName}_0.parquet",
@@ -1246,14 +1174,14 @@ class TestFilterCachedTimesteps:
                 desc=_cacheDescriptionFor(registered, filterName, False, cachedTimes),
             )
 
-        _, firstOrder, _, _ = registered._filterCachedTimesteps(
+        firstTimes, firstOrder, _, _ = registered._filterCachedTimesteps(
             ["a", "b"], [0.0, 10.0], False, "parquet", False
         )
-        _, secondOrder, _, _ = registered._filterCachedTimesteps(
+        secondTimes, secondOrder, _, _ = registered._filterCachedTimesteps(
             ["b", "a"], [0.0, 10.0], False, "parquet", False
         )
-        assert firstOrder == ["a"]
-        assert secondOrder == ["b"]
+        assert sorted(firstOrder) == sorted(secondOrder) == ["a", "b"]
+        assert list(firstTimes) == list(secondTimes) == [0.0, 10.0]
 
 
 @pytest.mark.unit
@@ -1314,7 +1242,7 @@ class TestClearCache:
             seen.append(kwargs)
             return []
 
-        monkeypatch.setattr(type(registered.datalayer), "deleteSimulationsDocuments", _record)
+        monkeypatch.setattr(type(registered.datalayer), "deleteCacheDocuments", _record)
         registered.clearCache()
         assert [kw["filterName"] for kw in seen] == ["ExtractBlock", "ExtractBlock.slice"]
 
@@ -1322,7 +1250,7 @@ class TestClearCache:
         seen = []
         monkeypatch.setattr(
             type(registered.datalayer),
-            "deleteSimulationsDocuments",
+            "deleteCacheDocuments",
             lambda self, **kwargs: seen.append(kwargs) or [],
         )
         registered.clearCache(filter_name="ExtractBlock.slice")
@@ -1332,7 +1260,7 @@ class TestClearCache:
         seen = []
         monkeypatch.setattr(
             type(registered.datalayer),
-            "deleteSimulationsDocuments",
+            "deleteCacheDocuments",
             lambda self, **kwargs: seen.append(kwargs) or [],
         )
         registered.clearCache(filter_name="f")
@@ -1342,7 +1270,7 @@ class TestClearCache:
         seen = []
         monkeypatch.setattr(
             type(registered.datalayer),
-            "deleteSimulationsDocuments",
+            "deleteCacheDocuments",
             lambda self, **kwargs: seen.append(kwargs) or [],
         )
         registered.clearCache(regularMesh=True, filter_name="f")
@@ -1352,7 +1280,7 @@ class TestClearCache:
         seen = []
         monkeypatch.setattr(
             type(registered.datalayer),
-            "deleteSimulationsDocuments",
+            "deleteCacheDocuments",
             lambda self, **kwargs: seen.append(kwargs) or [],
         )
         registered.clearCache(filter_name="f")
@@ -1363,10 +1291,10 @@ class TestClearCache:
         output.write_text("payload")
         doc = dict(
             resource=str(output),
-            desc=dict(workflowName="flow_0001", pipeline=dict(filters={})),
+            desc=dict(simulation=dict(workflowName="flow_0001"), pipeline=dict(filters={})),
         )
         monkeypatch.setattr(
-            type(registered.datalayer), "deleteSimulationsDocuments", lambda self, **kwargs: [doc]
+            type(registered.datalayer), "deleteCacheDocuments", lambda self, **kwargs: [doc]
         )
         registered.clearCache(filter_name="f")
         assert not output.exists()
@@ -1378,10 +1306,10 @@ class TestClearCache:
         (output / "inner").mkdir(parents=True)
         doc = dict(
             resource=str(output),
-            desc=dict(workflowName="flow_0001", pipeline=dict(filters={})),
+            desc=dict(simulation=dict(workflowName="flow_0001"), pipeline=dict(filters={})),
         )
         monkeypatch.setattr(
-            type(registered.datalayer), "deleteSimulationsDocuments", lambda self, **kwargs: [doc]
+            type(registered.datalayer), "deleteCacheDocuments", lambda self, **kwargs: [doc]
         )
         registered.clearCache(filter_name="f")
         assert not output.exists()
@@ -1389,39 +1317,14 @@ class TestClearCache:
     def test_an_already_missing_output_file_is_tolerated(self, registered, monkeypatch, tmp_path):
         doc = dict(
             resource=str(tmp_path / "gone.parquet"),
-            desc=dict(workflowName="flow_0001", pipeline=dict(filters={})),
+            desc=dict(simulation=dict(workflowName="flow_0001"), pipeline=dict(filters={})),
         )
         monkeypatch.setattr(
-            type(registered.datalayer), "deleteSimulationsDocuments", lambda self, **kwargs: [doc]
+            type(registered.datalayer), "deleteCacheDocuments", lambda self, **kwargs: [doc]
         )
         registered.clearCache(filter_name="f")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B320: clearCache deletes through "
-               "`self.datalayer.deleteSimulationsDocuments(...)` -- the "
-               "Simulations collection -- but the cache it is meant to clear "
-               "is written by _updateCacheDB with `addCacheDocument` and read "
-               "back by _filterCachedTimesteps with `getCacheDocuments`, i.e. "
-               "the Cache collection.  The query it builds is correct (the "
-               "test asserts the same query does match through "
-               "getCacheDocuments); only the collection is wrong, so "
-               "clearCache is a no-op against real pipeline output and leaves "
-               "both the documents and the files on disk.  See the "
-               "consolidated findings issue.",
-    )
     def test_it_removes_the_cache_documents_the_pipeline_itself_wrote(self, of, registered, tmp_path):
-        output = tmp_path / "slice_0.parquet"
-        output.write_text("payload")
-        desc = _cacheDescriptionFor(registered, "ExtractBlock.slice", False, [0.0])
-        of.addCacheDocument(
-            resource=str(output), dataFormat="parquet", type=TYPE_VTK_FILTER, desc=desc
-        )
-        registered.clearCache(regularMesh=False, filter_name="ExtractBlock.slice")
-        assert list(of.getCacheDocuments(type=TYPE_VTK_FILTER)) == []
-
-    def test_the_cache_documents_currently_survive_the_clear(self, of, registered, tmp_path):
-        """Characterisation of B320."""
         output = tmp_path / "slice_0.parquet"
         output.write_text("payload")
         desc = _cacheDescriptionFor(registered, "ExtractBlock.slice", False, [0.0])
@@ -1435,22 +1338,9 @@ class TestClearCache:
 
         registered.clearCache(regularMesh=False, filter_name="ExtractBlock.slice")
 
-        assert len(of.getCacheDocuments(type=TYPE_VTK_FILTER)) == 1
-        assert output.exists()
+        assert list(of.getCacheDocuments(type=TYPE_VTK_FILTER)) == []
+        assert not output.exists()
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B321: clearCache's per-document debug line reads "
-               "`doc['desc']['workflowName']`, but the desc that this very "
-               "class writes (_updateCacheDB -> _buildFilterQuery) nests the "
-               "name as desc['simulation']['workflowName'] and has no "
-               "top-level workflowName at all.  The f-string is built eagerly, "
-               "regardless of log level, so the moment the delete query "
-               "actually matches one of the pipeline's own cache documents the "
-               "loop dies with KeyError before removing anything from disk.  "
-               "Sibling of B101 in toolkit.clearVTKPipelineCache.  See the "
-               "consolidated findings issue.",
-    )
     def test_it_removes_the_output_file_of_a_document_it_wrote_itself(
         self, registered, monkeypatch, tmp_path
     ):
@@ -1460,30 +1350,13 @@ class TestClearCache:
             resource=str(output),
             desc=_cacheDescriptionFor(registered, "ExtractBlock.slice", False, [0.0]),
         )
-        monkeypatch.setattr(
-            type(registered.datalayer), "deleteSimulationsDocuments", lambda self, **kwargs: [doc]
-        )
-        registered.clearCache(filter_name="ExtractBlock.slice")
-        assert not output.exists()
-
-    def test_a_document_written_by_this_class_currently_raises_on_clear(
-        self, registered, monkeypatch, tmp_path
-    ):
-        """Characterisation of B321."""
-        output = tmp_path / "slice_0.parquet"
-        output.write_text("payload")
-        doc = dict(
-            resource=str(output),
-            desc=_cacheDescriptionFor(registered, "ExtractBlock.slice", False, [0.0]),
-        )
         assert "workflowName" not in doc["desc"]
         assert "workflowName" in doc["desc"]["simulation"]
         monkeypatch.setattr(
-            type(registered.datalayer), "deleteSimulationsDocuments", lambda self, **kwargs: [doc]
+            type(registered.datalayer), "deleteCacheDocuments", lambda self, **kwargs: [doc]
         )
-        with pytest.raises(KeyError, match="workflowName"):
-            registered.clearCache(filter_name="ExtractBlock.slice")
-        assert output.exists()
+        registered.clearCache(filter_name="ExtractBlock.slice")
+        assert not output.exists()
 
 
 # ---------------------------------------------------------------------------
@@ -1799,24 +1672,22 @@ class TestGetData:
         registered.getData(regularMesh=False)
         assert paraviewLog == []
 
-    def test_a_filter_starved_of_timesteps_is_still_recorded_as_cached(self, of, executedPipeline):
-        """Characterisation of B319 as it surfaces through getData: the
-        already-cached filter empties the timestep list, so the brand-new
-        filter requested alongside it is "computed" over zero timesteps and
-        still gets a cache document claiming so.
-        """
+    def test_a_new_filter_alongside_a_cached_one_keeps_its_timesteps(self, of, executedPipeline):
+        """The already-cached filter no longer empties the timestep list, so
+        the brand-new filter requested alongside it is computed over the
+        timesteps that were asked for."""
         registered, calls = executedPipeline
         registered.getData(regularMesh=False)
         registered.getData(regularMesh=False, filter_name=["ExtractBlock.slice", "ghost"])
 
-        assert calls["writeCase"][1]["timeList"] == []
+        assert calls["writeCase"][1]["timeList"] == [0.0, 10.0]
         ghost = [
             doc
             for doc in of.getCacheDocuments(type=TYPE_VTK_FILTER)
             if os.path.basename(doc.resource) == "ghost_0.parquet"
         ]
         assert len(ghost) == 1
-        assert ghost[0].desc["simulation"]["timeList"] == []
+        assert ghost[0].desc["simulation"]["timeList"] == [0.0, 10.0]
 
 
 @pytest.mark.unit

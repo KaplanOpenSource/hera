@@ -176,8 +176,15 @@ class OFToolkit(hermesWorkflowToolkit):
             logger.info(f"Assuming {jsonVariations} is path to variations file")
             with open(jsonVariations, 'r') as variationsFile:
                 jsonVariations = json.load(variationsFile)
-        elif not isinstance(jsonVariations, dict):
-            logger.error("Slurm preparation only supports json variation input as path or dict")
+
+        if isinstance(jsonVariations, dict):
+            # JSONVariations iterates a *list* of variation groups; a bare dict
+            # is a single group.
+            jsonVariations = [jsonVariations]
+        elif not isinstance(jsonVariations, list):
+            err = "Slurm preparation only supports json variation input as path, dict or list"
+            logger.error(err)
+            raise ValueError(err)
 
 
         for jsonConfig in JSONVariations(baseConfiguration, jsonVariations):
@@ -265,7 +272,7 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
         else:
             doc = docList[0]
 
-        return self.getMesh(doc.getData())
+        return self.getMesh(doc.getData(), readParallel=readParallel, time=time)
 
     def getMesh(self, caseDirectory, readParallel=True, time=0):
         """
@@ -301,7 +308,7 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
         logger = get_classMethod_logger(self, "getMesh")
         logger.info(f"Start. case {caseDirectory}. Current directory is : {os.getcwd()}.")
 
-        casePointer = "" if caseDirectory == os.getcwd() else f"-case {caseDirectory}"
+        casePointer = [] if caseDirectory == os.getcwd() else ["-case", caseDirectory]
 
         useParallel = False
         if readParallel:
@@ -325,9 +332,10 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
             foam_cmd = ["foamJob"]
             if useParallel:
                 foam_cmd.append("-parallel")
-            foam_cmd.extend([str(casePointer), "-wait", "postProcess", "-func", "writeCellCentres", "-time", str(time)])
+            foam_cmd.extend(casePointer)
+            foam_cmd.extend(["-wait", "postProcess", "-func", "writeCellCentres", "-time", str(time)])
             subprocess.run(foam_cmd, check=False)
-            logger.debug(f"done: foamJob {parallelExec} -wait postProcess -func writeCellCentres {casePointer} -time {time}")
+            logger.debug(f"done: {' '.join(foam_cmd)}")
             if not os.path.exists(checkPath):
                 logger.error("Error running the writeCellCentres. Executing writeCellCentres failed. Are you sure that the openFOAM environment is set?"\
                              "try to load the enviroment and then rerun (in jupyter, you need to restart the server)")
@@ -353,10 +361,12 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
         The name/dict that defines the item
 
         readParallel: bool
-                If parallel case exists, read it .
+                Ignored. getMeshExtent reads constant/polyMesh/points, which
+                exists once per case; kept for signature compatibility with
+                getMeshFromName.
 
         time : float
-            The time to read the mesh from. (relevant for mesh moving cases).
+            Ignored, for the same reason.
 
         Returns
         -------
@@ -956,7 +966,7 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
 
         logger.info(f"Found {len(docList)} documents to delete. ")
         for doc in docList:
-            logger.debug(f"Deleting resource {doc['desc']['filterName']} : {doc['desc']['pipeline']['filters']} ")
+            logger.debug(f"Deleting resource {doc['desc']['filterName']} : {doc['desc'].get('pipeline', {}).get('filters')} ")
             outputFile = doc['resource']
 
             if os.path.exists(outputFile):
@@ -1005,7 +1015,7 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
             isSingle = len(processorList) == 0 or singleProcessor
             if isSingle:
                 timeList = sorted([float(x) for x in os.listdir(case) if (
-                        os.path.isdir(x) and
+                        os.path.isdir(os.path.join(case, x)) and
                         x.isdigit() and
                         (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
                                   key=lambda x: int(x))
@@ -1081,11 +1091,11 @@ class Analysis:
         -------
             list of DB documents.
         """
-        wrkflow = self.datalayer.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
-        if wrkflow is None:
+        wrkflowList = self.datalayer.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+        if len(wrkflowList) == 0:
             raise ValueError(
                 f"The case {nameOrWorkflowFileOrJSONOrResource} was not found in the project {self.datalayer.projectName}")
-        simulationName = wrkflow['desc']['simulationName']
+        simulationName = wrkflowList[0]['desc']['simulationName']
 
         qry = dict(simulationName=simulationName)
         if filterName is not None:
@@ -1201,12 +1211,14 @@ class Presentation:
                 y = timeData[ycoord].values
                 z = timeData[zcoord].values
 
-                if os.path.exists(finalfile):
+                # evtk appends the .vtu extension to the base name it is given.
+                writtenFile = f"{finalfile}.vtu"
+                if os.path.exists(writtenFile):
                     logger.debug(f"The file exists, remove it if overwrite is True")
                     if overwrite:
-                        os.remove(finalfile)
+                        os.remove(writtenFile)
                     else:
-                        err = f"File {finalfile} exists. Use --overwrite to overwrite the files with newer version"
+                        err = f"File {writtenFile} exists. Use --overwrite to overwrite the files with newer version"
                         logger.error(err)
                         raise FileExistsError(err)
 
@@ -1222,12 +1234,14 @@ class Presentation:
                 y = timeData[ycoord].values
                 z = timeData[zcoord].values
 
-                if os.path.exists(finalfile):
+                # evtk appends the .vtu extension to the base name it is given.
+                writtenFile = f"{finalfile}.vtu"
+                if os.path.exists(writtenFile):
                     logger.debug(f"The file exists, remove it if overwrite is True")
                     if overwrite:
-                        os.remove(finalfile)
+                        os.remove(writtenFile)
                     else:
-                        err = f"File {finalfile} exists. Use --overwrite to overwrite the files with newer version"
+                        err = f"File {writtenFile} exists. Use --overwrite to overwrite the files with newer version"
                         logger.error(err)
                         raise FileExistsError(err)
 
@@ -1314,17 +1328,19 @@ class Presentation:
                 raise ValueError(f"There are no processor* directories in the case {finalCasePath}. Is it parallel?")
 
             if times is None:
+                # [1:] skips the initial time directory, which holds no cloud yet.
                 timeList = sorted([x for x in os.listdir(os.path.join(finalCasePath, processorList[0])) if (
                         os.path.isdir(os.path.join(finalCasePath, processorList[0], x)) and
                         x.isdigit() and
                         (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
-                                  key=lambda x: int(x))
+                                  key=lambda x: int(x))[1:]
             else:
-                timeList = numpy.atleast_1d(times)
+                # Time steps name directories, so they have to be strings.
+                timeList = [str(x) for x in numpy.atleast_1d(times)]
 
             data = dask.dataframe.from_delayed(
                 [delayed(loader)(os.path.join(processorName, timeName)) for processorName, timeName in
-                 product(processorList, timeList[1:])])
+                 product(processorList, timeList)])
         else:
 
             if times is None:
@@ -1334,7 +1350,8 @@ class Presentation:
                         (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
                                   key=lambda x: int(x))
             else:
-                timeList = numpy.atleast_1d(times)
+                # Time steps name directories, so they have to be strings.
+                timeList = [str(x) for x in numpy.atleast_1d(times)]
 
             data = dask.dataframe.from_delayed([delayed(loader)(timeName) for timeName in timeList])
 
