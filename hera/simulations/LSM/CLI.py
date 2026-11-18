@@ -31,6 +31,11 @@ def _lazy_setup(func):
 # Compatibility shim so existing 'logging.get_logger(...)' calls still work
 class _LoggingShim:
     def get_logger(self, *a, **kw):
+        # The callers in this module pass a logger *name*, but hera's
+        # get_logger(instance, name=None) reads its first argument as an
+        # instance -- so a bare name is resolved here instead of forwarded.
+        if len(a) == 1 and isinstance(a[0], str) and "name" not in kw:
+            return _stdlib_logging.getLogger(a[0])
         if _get_logger is not None:
             return _get_logger(*a, **kw)
         return _stdlib_logging.getLogger(*a, **kw)
@@ -81,20 +86,9 @@ def setup_template(arguments):
     outDir = template.modelFolder
     metDir = os.path.join(outDir,"tozaot","Meteorology")
 
-    try:
-        os.unlink(metDir)
-        logger.info(f"unlinked {metDir} from template")
-    except FileNotFoundError:
-        logger.error(f"file {metDir} not found")
-        pass
-
-    try:
-        os.unlink(os.path.join(outDir,"a.out"))
-        logger.info(f"unlinked {os.path.join(outDir,'a.out')} from template")
-    except FileNotFoundError:
-        logger.error(f"file {os.path.join(outDir,'a.out')} not found")
-        pass
-
+    # Nothing is unlinked up front: the symlink guards below decide what to do
+    # with whatever is already in place, and a missing link is the normal case
+    # on a first setup, not an error.
     os.makedirs(os.path.join(outDir,'tozaot'),exist_ok=True)
     os.makedirs(os.path.join(outDir,'tozaot','machsan'),exist_ok=True)
     logger.info(f"setup directories successfully")

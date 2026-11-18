@@ -561,6 +561,7 @@ class ToolkitHome(abstractToolkit):
     GIS_DEMOGRAPHY = "GIS_Demography"
     RISKASSESSMENT = "RiskAssessment"
     LSM = "LSM"
+    OF_LSM = "OF_LSM"
 
     DATA = "heraData"
 

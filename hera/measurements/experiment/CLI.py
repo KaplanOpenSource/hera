@@ -154,17 +154,20 @@ def create_experiment(arguments):
     logger.debug(f"Creating a project for local")
     projectCLI.project_create(arguments)
 
-    _create_repository(arguments.zip,experiment_path,arguments.experimentName,arguments.relative)
+    # runtimeExperimentData must exist first: _create_repository writes its
+    # Datasources_Configurations.json into that directory.
     _make_runtimeExperimentData(arguments.zip,experiment_path,arguments.experimentName)
+    _create_repository(arguments.zip,experiment_path,arguments.experimentName,arguments.relative)
 
     logger.debug("Loading the experiment repository to the project")
     arguments.repositoryName = os.path.join(experiment_path,f"{arguments.experimentName}_repository.json")
     projectCLI.repository_load(arguments)
 
-    with open("createNodeRedDeviceMap.sh","w") as noderedFile:
+    noderedScriptPath = os.path.join(experiment_path,"createNodeRedDeviceMap.sh")
+    with open(noderedScriptPath,"w") as noderedFile:
         noderedFile.writelines("argos-experiment-manager nodered createDeviceMap")
 
-    os.chmod("createNodeRedDeviceMap.sh", 0o755)
+    os.chmod(noderedScriptPath, 0o755)
 
 def _create_empty_class(experiment_path,experimentName):
     """

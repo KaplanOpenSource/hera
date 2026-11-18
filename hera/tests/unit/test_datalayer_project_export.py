@@ -3,13 +3,10 @@ AbstractCollection.deleteDocumentByID.
 
 addDocumentFromJSON is covered in test_datalayer_collection.py, and the
 "inconsistent mongomock behavior" this docstring used to blame is now
-resolved: it is not mongomock at all. mongoengine's
-``Document.from_json(json_data, created=False)`` defaults to treating a
-payload that carries an ``_id`` as already persisted, so the following
-``.save()`` issues an update with an empty change set -- nothing is
-inserted, nothing errors. Since ``asDict(with_id=True)``, ``to_json()``
-and ``exportProject`` all emit ``_id``, re-importing exported documents
-silently drops every one. Pinned as B261.
+resolved: it was not mongomock at all, but mongoengine's
+``Document.from_json(json_data, created=False)`` default, which treats a
+payload carrying an ``_id`` as already persisted. ``addDocumentFromJSON``
+now passes ``created=True``.
 """
 import os
 

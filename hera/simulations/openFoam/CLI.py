@@ -2,7 +2,6 @@ import json
 import logging
 import os
 import shutil
-import warnings
 
 
 
@@ -15,17 +14,18 @@ def Foam_createEmpty(arguments):
     logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
 
-    if 'projectName' not in arguments:
+    if ('projectName' not in arguments) or (arguments.projectName is None):
         configurationFile = arguments.configurationFile if 'configurationFile' in arguments else "caseConfiguration.json"
-        try:
-            configuration = loadJSON(configurationFile)
-        except:
+        # Only a genuinely missing file is replaced by a stub; a file that
+        # exists but cannot be parsed is reported as-is and left on disk.
+        if not os.path.isfile(configurationFile):
             err = f"Configuration file {configurationFile} not found! creating a basic file"
             with open(configurationFile, 'w') as defaultConfFile:
                 json.dump(dict(projectName=None), defaultConfFile, indent=4)
 
             raise ValueError(err)
 
+        configuration = loadJSON(configurationFile)
         projectName = configuration['projectName']
     else:
         projectName = arguments.projectName
@@ -83,8 +83,7 @@ def foam_solver_template_buildExecute(arguments):
     try:
         from hermes.utils.workflowAssembly import handler_buildExecute
     except ImportError:
-        #    raise ImportError("hermes is not installed. please install it to use the hermes workflow toolkit.")
-        warnings.warn("hermes is not installed. some features will not work.")
+        raise ImportError("hermes is not installed. please install it to use the hermes workflow toolkit.")
     logger = logging.getLogger("hera.bin")
     logger.debug(f"----- Start : foam_templates_flow_list-----")
     logger.debug(f" arguments: {arguments}")
@@ -189,7 +188,7 @@ def foam_solver_simulations_list(arguments):
         res = wftk.compareWorkflows([groupName], longFormat=arguments.longFormat, transpose=arguments.transpose)
 
         if arguments.format == "pandas":
-            output = res
+            output = res.to_string()
             ext = "txt"
         elif arguments.format == "latex":
             output = res.to_latex()
@@ -253,6 +252,7 @@ def stochasticLagrangian_dispersionFlow_create(arguments):
     except FileExistsError:
         err = f"Flow field {flowName} Already exists. Use --overwrite to recreate"
         logger.error(err)
+        raise ValueError(err)
 
     logger.debug(f"----- End -----")
 
@@ -263,10 +263,6 @@ def foam_mesh_blockMesh(arguments):
 def foam_mesh_setDomainHeight(arguments):
     """Set the domain height in the blockMesh (not yet implemented)."""
     raise NotImplementedError("Not implemented yet, maybe we will use classy blocks")
-
-def IC_hydrostaticPressure(argumets):
-    """Set hydrostatic pressure initial conditions (not yet implemented)."""
-    raise NotImplementedError("Use the openfoam application")
 
 def stochasticLagrangian_dispersionFlow_writeEmptyTemplate(arguments):
     """
@@ -317,7 +313,7 @@ def stochasticLagrangian_dispersionFlow_list(arguments):
     logger.debug(f"----- Start -----")
     logger.debug(f" makeDispersionFlow with arguments: {arguments}")
 
-    if 'projectName' not in arguments:
+    if ('projectName' not in arguments) or (arguments.projectName is None):
         configurationFile = arguments.configurationFile if 'configurationFile' in arguments else "caseConfiguration.json"
 
         configuration = loadJSON(configurationFile)
@@ -327,14 +323,25 @@ def stochasticLagrangian_dispersionFlow_list(arguments):
 
     logger.info(f"Listing all dispersion flows in project {projectName}")
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-    res = tk.workflowCompare(workflowsType="stochasticLagrangianSolver")
+    # No class in hera defines workflowCompare. The sibling handler
+    # foam_solver_simulations_list, ~150 lines above, already shows the real
+    # pair: getWorkflowListOfSolvers to find the groups, then compareWorkflows
+    # on their names.
+    solverDocuments = tk.getWorkflowListOfSolvers("stochasticLagrangianSolver")
+    groupNames = sorted({document.desc['groupName'] for document in solverDocuments})
+    res = tk.compareWorkflows(groupNames)
 
     if arguments.format == "pandas":
+        # Rendered into `output` like the other formats, so the common print
+        # and the --file write below both have something to work with.
+        groupSections = []
         for group in res.groupName.unique():
             ttl = f"Group name {group}"
-            print(ttl)
-            print("-" * len(ttl))
-            print(res.query('groupName == @group'))
+            groupSections.append("\n".join([ttl,
+                                             "-" * len(ttl),
+                                             res.query('groupName == @group').to_string()]))
+        output = "\n".join(groupSections)
+        ext = "txt"
 
     elif arguments.format == "latex":
         output = res.to_latex()
@@ -402,7 +409,9 @@ def stochasticLagrangian_dispersion_create(arguments):
     dispersionFlowFieldName = arguments.dispersionFlowField
     logger.info(f"Getting the dispersion flowField {dispersionFlowFieldName} ")
     doc = tk.getWorkflowDocumentFromDB(dispersionFlowFieldName, tk.DOCTYPE_OF_FLOWDISPERSION)
-    if len(doc) == 0 or arguments.overwrite:
+    # --overwrite applies to the dispersion case directory (handled below),
+    # not to the flow-field lookup.
+    if len(doc) == 0:
         logger.info(f"Dispersion flow {dispersionFlowFieldName} not found in DB. Trying to use as a directory")
         if not os.path.exists(dispersionFlowFieldName):
             err = f"{dispersionFlowFieldName} not found!. "
@@ -476,7 +485,7 @@ def stochasticLagrangian_source_makeEscapedMassFile(args):
     case = os.path.abspath(args.casePath)
     massFileName = f"{args.patch}Mass" if args.massFileName is None else args.massFileName
     dt = args.dt
-    LSMtoolkit = toolkitHome.getToolkit(toolkitHome.OF_LSM, "tmpProject", casePath=case)
+    LSMtoolkit = toolkitHome.getToolkit(toolkitName=toolkitHome.OF_LSM, projectName="tmpProject", casePath=case)
     data = LSMtoolkit.analysis.getMassFromLog(logFile=args.logFile, solver=args.solver)
     data = data.loc[data.filterType == args.patch].loc[data.action == args.action]
     data["diffMass"] = data.mass.diff()
@@ -487,7 +496,11 @@ def stochasticLagrangian_source_makeEscapedMassFile(args):
         timesteps = numpy.arange(data.time.min(), data.time.max(), float(dt))
         times = pandas.DataFrame({"time": timesteps})
         data = data.set_index("time").join(times.set_index("time"), how="outer").reset_index()
-        data = data.interpolate()
+        # Interpolate only the numeric columns: the outer join leaves NaN in
+        # the label columns too (filterType, action), and pandas refuses to
+        # interpolate a str dtype.
+        numericColumns = data.select_dtypes(include="number").columns
+        data[numericColumns] = data[numericColumns].interpolate()
     newstr = "/*--------------------------------*- C++ -*----------------------------------*\n" \
              "| =========                 |                                                 |\n" \
              "| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |\n" \
@@ -496,9 +509,9 @@ def stochasticLagrangian_source_makeEscapedMassFile(args):
              "|    \\/     M anipulation  |                                                 |\n" \
              "\\*---------------------------------------------------------------------------*/\n" \
              "FoamFile\n{    version     2.0;\n    format      ascii;\n    class       scalarField;\n    object      kinematicCloudPositions;\n}\n" \
-             f"// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //\n\n{len(data)}\n(\n"
+             f"// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //\n\n{len(timesteps)}\n(\n"
     for time in timesteps:
-        newstr += f"{float(data.loc[data.time == time].diffMass)}\n"
+        newstr += f"{float(data.loc[data.time == time].diffMass.iloc[0])}\n"
     newstr += ")"
     print("saving in ", os.path.join(case, "constant", massFileName))
     f = open(os.path.join(case, "constant", massFileName), "w")
@@ -533,6 +546,10 @@ def stochasticLagrangian_postProcess_toParquet(arguments):
                 f"Found {arguments.dispersionName} as directory. Trying to use it as lagrangian simulation and save it in VTK format")
             outputName = arguments.dispersionName
             cache = False
+        else:
+            err = f"The name {arguments.dispersionName} is neither a stored workflow nor a directory"
+            logger.error(err)
+            raise ValueError(err)
     else:
         doc = docList[0]
         outputName = doc.desc['workflowName']
@@ -542,7 +559,8 @@ def stochasticLagrangian_postProcess_toParquet(arguments):
 
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
     data = tk.stochasticLagrangian.getCaseResults(caseDescriptor=outputName, withVelocity=True, withMass=True,
-                                                  overwrite=arguments.overwrite, cloudName=arguments.cloudName)
+                                                  overwrite=arguments.overwrite, cloudName=arguments.cloudName,
+                                                  cache=cache)
 
 
 def stochasticLagrangian_postProcess_toVTK(arguments):
@@ -565,10 +583,13 @@ def stochasticLagrangian_postProcess_toVTK(arguments):
 
     logger.info(f"Using project {projectName}")
 
-    if 'outputdir' in arguments:
-        base_outputdir = os.getcwd() if arguments.outputdir is None else arguments.outputdir
+    # --outputDirectory ("the path to save the VTK files", default "VTK") is
+    # the directory the per-case output goes under; a relative value resolves
+    # against the process cwd, as it did when the flag was being ignored.
+    if ('outputDirectory' in arguments) and (arguments.outputDirectory is not None):
+        base_outputdir = os.path.abspath(arguments.outputDirectory)
     else:
-        base_outputdir = os.getcwd()
+        base_outputdir = os.path.abspath("VTK")
 
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
     docList = tk.getWorkflowDocumentFromDB(arguments.dispersionName)
@@ -578,12 +599,16 @@ def stochasticLagrangian_postProcess_toVTK(arguments):
             logger.info(
                 f"Found {arguments.dispersionName} as directory. Trying to use it as lagrangian simulation and save it in VTK format")
             outputName = arguments.dispersionName
+        else:
+            err = f"The name {arguments.dispersionName} is neither a stored workflow nor a directory"
+            logger.error(err)
+            raise ValueError(err)
     else:
         doc = docList[0]
         outputName = doc.desc['workflowName']
         logger.info(f"The name {arguments.dispersionName} found. Use the workflow name {outputName}")
 
-    outputdir = os.path.join(base_outputdir, "VTK", outputName)
+    outputdir = os.path.join(base_outputdir, outputName)
     logger.info(f"Writing values to directory {outputdir}")
     os.makedirs(outputdir, exist_ok=True)
     data = tk.stochasticLagrangian.getCaseResults(caseDescriptor=outputName, withVelocity=True, withMass=True,overwrite=arguments.overwrite,cache=False)
@@ -637,33 +662,6 @@ def objects_createVerticesAndBoundary(arguments):
     print(json.dumps(ret, indent=4, sort_keys=True))
 
 ############################################################## Workflow.
-def foam_mesh_blockMesh(arguments):
-    """
-        Adjusts the blockMesh according to the stl file.
-
-    Parameters
-    ----------
-    arguments
-
-    Returns
-    -------
-
-    """
-    pass
-
-def foam_mesh_setDomainHeight(arguments):
-    """
-        Sets the height of the domain and updates the number of cells.
-    Parameters
-    ----------
-    arguments
-
-    Returns
-    -------
-
-    """
-    pass
-
 def foam_snappyhexmesh_addobject(arguments):
     """
         Adding the snappy hex mesh node (if does not exist).
@@ -722,17 +720,18 @@ def IC_hydrostaticPressure(arguments):
     logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
 
-    if 'projectName' not in arguments:
+    if ('projectName' not in arguments) or (arguments.projectName is None):
         configurationFile = arguments.configurationFile if 'configurationFile' in arguments else "caseConfiguration.json"
-        try:
-            configuration = loadJSON(configurationFile)
-        except:
+        # Only a genuinely missing file is replaced by a stub; a file that
+        # exists but cannot be parsed is reported as-is and left on disk.
+        if not os.path.isfile(configurationFile):
             err = f"Configuration file {configurationFile} not found! creating a basic file"
             with open(configurationFile, 'w') as defaultConfFile:
                 json.dump(dict(projectName=None), defaultConfFile, indent=4)
 
             raise ValueError(err)
 
+        configuration = loadJSON(configurationFile)
         projectName = configuration['projectName']
     else:
         projectName = arguments.projectName
@@ -764,8 +763,7 @@ def hermes_buildExecute(arguments):
     try:
         from hermes.utils.workflowAssembly import handler_buildExecute
     except ImportError:
-        #    raise ImportError("hermes is not installed. please install it to use the hermes workflow toolkit.")
-        warnings.warn("hermes is not installed. some features will not work.")
+        raise ImportError("hermes is not installed. please install it to use the hermes workflow toolkit.")
     logger = logging.getLogger("bin.hermes_buildExecute")
     handler_buildExecute(arguments)
 

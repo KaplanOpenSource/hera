@@ -78,8 +78,12 @@ class _Toolkit:
         self.calls.append(("compareWorkflows", tuple(groupNames), kwargs))
         return self._comparison
 
-    def workflowCompare(self, **kwargs):
-        self.calls.append(("workflowCompare", kwargs))
+    def getWorkflowListOfSolvers(self, solver):
+        self.calls.append(("getWorkflowListOfSolvers", solver))
+        return [_Document("runA")]
+
+    def compareWorkflows(self, groupNames, **kwargs):
+        self.calls.append(("compareWorkflows", tuple(groupNames), kwargs))
         return self._comparison
 
 
@@ -199,8 +203,8 @@ class TestDispersionFlowListAsJson:
         toolkit = _Toolkit(_Comparison())
         installToolkit(toolkit)
         stochasticLagrangian_dispersionFlow_list(_dispersionArguments())
-        assert ("workflowCompare",
-                dict(workflowsType="stochasticLagrangianSolver")) in toolkit.calls
+        assert ("getWorkflowListOfSolvers", "stochasticLagrangianSolver") in toolkit.calls
+        assert ("compareWorkflows", ("runA",), {}) in toolkit.calls
 
     def test_an_empty_comparison_is_reported_rather_than_written(
         self, installToolkit, tmp_path, monkeypatch, capsys

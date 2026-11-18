@@ -20,18 +20,6 @@ Deliberately not tested:
   * the argparse wiring in hera/bin/hera-workflows, which is a script and
     not importable as a module.
 
-Bugs pinned here (each with an xfail for the intended behaviour plus a
-passing characterisation of what actually happens):
-  * workflow_delete tells the user to run a script whose name it never
-    wrote ("completeRemove.py" vs the "completeDelete.py" it writes);
-  * workflow_list reads `arguments.object`, an attribute the `list
-    workflows` parser never defines, on the very path that reports "not
-    found" -- and then indexes the empty list anyway;
-  * create_workflow_variations logs an error for a missing variation
-    JSON / an unknown workflow and then carries on into
-    FileNotFoundError / IndexError;
-  * workflow_compare with the default `--format pandas` plus `--file`
-    tries to write a DataFrame object to a text file (TypeError).
 """
 import json
 import sys
@@ -473,31 +461,14 @@ class TestWorkflowDelete:
         workflow_delete(_deleteArgs(Export=True))
         assert (in_tmp_cwd / "completeDelete.py").read_text() == ""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B131: workflow_delete writes its cleanup script to "
-               "'completeDelete.py' but prints 'python completeRemove.py'; "
-               "following the instruction fails with 'No such file'. "
-               "See the consolidated findings issue.",
-    )
     def test_the_script_name_it_prints_is_the_one_it_wrote(
         self, install_toolkit, in_tmp_cwd, capsys
     ):
         install_toolkit(_FakeWorkflowToolkit(documents=[_FakeDocument("wf_0")]))
         workflow_delete(_deleteArgs())
         printed = capsys.readouterr().out
-        assert "completeDelete.py" in printed
-
-    def test_it_currently_points_the_user_at_a_file_that_does_not_exist(
-        self, install_toolkit, in_tmp_cwd, capsys
-    ):
-        """Characterisation of B131."""
-        install_toolkit(_FakeWorkflowToolkit(documents=[_FakeDocument("wf_0")]))
-        workflow_delete(_deleteArgs())
-        printed = capsys.readouterr().out
-        assert "python completeRemove.py" in printed
+        assert "python completeDelete.py" in printed
         assert (in_tmp_cwd / "completeDelete.py").exists()
-        assert not (in_tmp_cwd / "completeRemove.py").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -794,36 +765,20 @@ class TestCreateWorkflowVariations:
         create_workflow_variations(_variationArgs(variations, naming_scheme="name"))
         assert not (tmp_path / "wf_0.json").exists()
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B133: create_workflow_variations only logs an error when the "
-               "variation JSON path does not exist and then falls through to "
-               "open() it, so the command dies with a raw FileNotFoundError "
-               "instead of reporting the bad path. "
-               "See the consolidated findings issue.",
-    )
     def test_a_missing_variation_file_is_reported_without_crashing(
         self, install_toolkit, tmp_path
     ):
         install_toolkit(_variationToolkit(tmp_path))
         create_workflow_variations(_variationArgs(tmp_path / "nosuchfile.json"))
+        assert not (tmp_path / "wf_0.json").exists()
 
-    def test_a_missing_variation_file_currently_raises_filenotfounderror(
+    def test_a_directory_instead_of_a_variation_file_is_reported_too(
         self, install_toolkit, tmp_path
     ):
-        """Characterisation of B133."""
         install_toolkit(_variationToolkit(tmp_path))
-        with pytest.raises(FileNotFoundError):
-            create_workflow_variations(_variationArgs(tmp_path / "nosuchfile.json"))
+        create_workflow_variations(_variationArgs(tmp_path))
+        assert not (tmp_path / "wf_0.json").exists()
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B134: create_workflow_variations logs 'workflow not found.' "
-               "when the DB returns no document and then immediately does "
-               "workflow_doc_list[0], so an unknown --workflow dies with "
-               "IndexError instead of the error message. "
-               "See the consolidated findings issue.",
-    )
     def test_an_unknown_base_workflow_is_reported_without_crashing(
         self, install_toolkit, tmp_path
     ):
@@ -831,16 +786,7 @@ class TestCreateWorkflowVariations:
         variations.write_text(json.dumps(VARIATION_JSON))
         install_toolkit(_FakeWorkflowToolkit(documents=[]))
         create_workflow_variations(_variationArgs(variations, workflow="nosuchflow"))
-
-    def test_an_unknown_base_workflow_currently_raises_indexerror(
-        self, install_toolkit, tmp_path
-    ):
-        """Characterisation of B134."""
-        variations = tmp_path / "variations.json"
-        variations.write_text(json.dumps(VARIATION_JSON))
-        install_toolkit(_FakeWorkflowToolkit(documents=[]))
-        with pytest.raises(IndexError):
-            create_workflow_variations(_variationArgs(variations, workflow="nosuchflow"))
+        assert not (tmp_path / "wf_0.json").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -974,38 +920,19 @@ class TestWorkflowList:
         assert "- dx" in printed and "- dy" in printed
         assert toolkit.call("listWorkflows")[2]["listParameters"] is True
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B132: workflow_list's 'nothing found' branch prints "
-               "arguments.object, which the `list workflows` parser never "
-               "defines (it declares group/projectName/nodes/parameters), "
-               "and then indexes simDocument[0] anyway -- so an unknown "
-               "group dies with AttributeError instead of the message. "
-               "See the consolidated findings issue.",
-    )
     def test_an_unknown_group_is_reported_instead_of_crashing(self, install_toolkit, capsys):
         install_toolkit(_FakeWorkflowToolkit(documents=[]))
         workflow_list(_listArgs(group="nosuchgroup"))
-        assert "is not a simulation" in capsys.readouterr().out
+        printed = capsys.readouterr().out
+        assert "nosuchgroup is not a simulation" in printed
 
-    def test_an_unknown_group_currently_raises_attributeerror_on_arguments_object(
-        self, install_toolkit
-    ):
-        """Characterisation of B132."""
-        install_toolkit(_FakeWorkflowToolkit(documents=[]))
-        with pytest.raises(AttributeError, match="object"):
-            workflow_list(_listArgs(group="nosuchgroup"))
-
-    def test_even_with_an_object_attribute_an_unknown_group_still_raises_indexerror(
-        self, install_toolkit, capsys
-    ):
-        """Characterisation of B132: the missing attribute hides a second
-        fault -- the handler never returns after reporting, so it indexes
-        the empty document list."""
-        install_toolkit(_FakeWorkflowToolkit(documents=[]))
-        with pytest.raises(IndexError):
-            workflow_list(_listArgs(group="nosuchgroup", object="nosuchgroup"))
-        assert "is not a simulation" in capsys.readouterr().out
+    def test_an_unknown_group_stops_before_listing_anything(self, install_toolkit, capsys):
+        """The handler returns after reporting, so it never indexes the
+        empty document list."""
+        toolkit = _FakeWorkflowToolkit(documents=[])
+        install_toolkit(toolkit)
+        workflow_list(_listArgs(group="nosuchgroup"))
+        assert [entry[0] for entry in toolkit.calls] == ["getWorkflowListDocumentFromDB"]
 
 
 # ---------------------------------------------------------------------------
@@ -1201,31 +1128,13 @@ class TestWorkflowCompare:
         assert "Could not found any workflows to compare" in capsys.readouterr().out
         assert not (in_tmp_cwd / "out.csv").exists()
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B135: workflow_compare keeps the raw DataFrame as `output` "
-               "for the default --format pandas, then does "
-               "outputFile.write(output) -- so `compare --file x` without an "
-               "explicit --format dies with TypeError and leaves an empty "
-               "file behind. See the consolidated findings issue.",
-    )
     def test_the_pandas_format_can_also_be_written_to_a_file(
         self, install_toolkit, in_tmp_cwd, capsys
     ):
         install_toolkit(_FakeWorkflowToolkit(comparison=_comparison()))
         workflow_compare(_compareArgs(file="out"))
         capsys.readouterr()
-        assert (in_tmp_cwd / "out.txt").read_text() != ""
-
-    def test_the_pandas_format_with_a_file_currently_raises_typeerror(
-        self, install_toolkit, in_tmp_cwd, capsys
-    ):
-        """Characterisation of B135."""
-        install_toolkit(_FakeWorkflowToolkit(comparison=_comparison()))
-        with pytest.raises(TypeError):
-            workflow_compare(_compareArgs(file="out"))
-        capsys.readouterr()
-        assert (in_tmp_cwd / "out.txt").read_text() == ""
+        assert (in_tmp_cwd / "out.txt").read_text() == _comparison().to_string()
 
 
 # ---------------------------------------------------------------------------

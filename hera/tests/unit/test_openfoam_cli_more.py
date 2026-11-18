@@ -19,11 +19,6 @@ behind on teardown).  Nothing here touches MongoDB, OpenFOAM, Luigi or
 paraview; everything written lands under ``tmp_path``, which is also the cwd
 for the handlers that write relative to it.
 
-``toolkitHome.OF_LSM`` has to be supplied for the mass-file handler to run at
-all -- that is B177, already pinned in the sibling file; it is patched onto
-the class here so the branch behind it can be reached, exactly as the sibling
-file does.
-
 The ``--format json`` branch of the list handler is deliberately left to the
 sibling file: ``DataFrame.to_json()`` goes through pandas' C encoder, which
 counts against the interpreter's recursion limit, and with a tracer installed
@@ -110,17 +105,22 @@ class _FakeVTKToolkit(_Recorder):
         self.calls.append(("toUnstructuredVTK", kwargs))
 
 
+class _FakeSolverDocument:
+    def __init__(self, groupName):
+        self.desc = dict(groupName=groupName)
+
+
 class _FakeCompareToolkit(_Recorder):
     def __init__(self, frame):
         super().__init__()
         self._frame = frame
 
-    def workflowCompare(self, **kwargs):
-        self.calls.append(("workflowCompare", kwargs))
-        return self._frame
+    def getWorkflowListOfSolvers(self, solver):
+        self.calls.append(("getWorkflowListOfSolvers", solver))
+        return [_FakeSolverDocument("dispersionGroup")]
 
-    def compareWorkflows(self, **kwargs):  # the name the module should be using (B174)
-        self.calls.append(("compareWorkflows", kwargs))
+    def compareWorkflows(self, groupNames, **kwargs):
+        self.calls.append(("compareWorkflows", tuple(groupNames), kwargs))
         return self._frame
 
 
@@ -141,14 +141,6 @@ def installToolkit(monkeypatch):
         return asked
 
     return install
-
-
-@pytest.fixture()
-def ofLSMConstant(monkeypatch):
-    """Supply the constant B177 says is missing, so the handler can run."""
-    from hera import toolkitHome
-
-    monkeypatch.setattr(type(toolkitHome), "OF_LSM", "OF_LSM", raising=False)
 
 
 # ---------------------------------------------------------------------------
@@ -185,8 +177,7 @@ def massCase(tmp_path):
 
 @pytest.mark.unit
 class TestMakeEscapedMassFileWithADeltaT:
-    def test_the_values_are_resampled_onto_the_regular_axis(self, massCase, installToolkit,
-                                                            ofLSMConstant):
+    def test_the_values_are_resampled_onto_the_regular_axis(self, massCase, installToolkit):
         installToolkit(_FakeLSMToolkit(_massLog()))
         stochasticLagrangian_source_makeEscapedMassFile(
             _massArguments(str(massCase), dt=0.5))
@@ -197,8 +188,7 @@ class TestMakeEscapedMassFileWithADeltaT:
             [0.0, 5.0, 10.0, 12.5]
 
     def test_the_final_log_time_is_outside_the_half_open_axis(self, massCase,
-                                                              installToolkit,
-                                                              ofLSMConstant):
+                                                              installToolkit):
         """numpy.arange stops before the maximum, so t=3 (diff 15) is dropped."""
         installToolkit(_FakeLSMToolkit(_massLog()))
         stochasticLagrangian_source_makeEscapedMassFile(
@@ -208,16 +198,14 @@ class TestMakeEscapedMassFileWithADeltaT:
         assert 15.0 not in values
 
     def test_a_delta_t_larger_than_the_log_span_gives_a_single_sample(self, massCase,
-                                                                      installToolkit,
-                                                                      ofLSMConstant):
+                                                                      installToolkit):
         installToolkit(_FakeLSMToolkit(_massLog()))
         stochasticLagrangian_source_makeEscapedMassFile(
             _massArguments(str(massCase), dt=5))
         values = _massValues((massCase / "constant" / "outletMass").read_text())[1:]
         assert len(values) == 1
 
-    def test_a_delta_t_given_as_a_string_is_accepted(self, massCase, installToolkit,
-                                                     ofLSMConstant):
+    def test_a_delta_t_given_as_a_string_is_accepted(self, massCase, installToolkit):
         """argparse hands strings through unless the parser says otherwise."""
         installToolkit(_FakeLSMToolkit(_massLog()))
         stochasticLagrangian_source_makeEscapedMassFile(
@@ -226,16 +214,14 @@ class TestMakeEscapedMassFileWithADeltaT:
             (massCase / "constant" / "outletMass").read_text())[1:]]
         assert values == [0.0, 10.0]
 
-    def test_the_file_still_lands_in_the_constant_directory(self, massCase, installToolkit,
-                                                            ofLSMConstant):
+    def test_the_file_still_lands_in_the_constant_directory(self, massCase, installToolkit):
         installToolkit(_FakeLSMToolkit(_massLog()))
         stochasticLagrangian_source_makeEscapedMassFile(
             _massArguments(str(massCase), dt=0.5))
         assert (massCase / "constant" / "outletMass").is_file()
 
     def test_the_openfoam_header_is_unchanged_by_the_resampling(self, massCase,
-                                                                installToolkit,
-                                                                ofLSMConstant):
+                                                                installToolkit):
         installToolkit(_FakeLSMToolkit(_massLog()))
         stochasticLagrangian_source_makeEscapedMassFile(
             _massArguments(str(massCase), dt=0.5))
@@ -244,8 +230,7 @@ class TestMakeEscapedMassFileWithADeltaT:
         assert written.rstrip().endswith(")")
 
     def test_the_log_is_still_filtered_by_patch_and_action_first(self, massCase,
-                                                                 installToolkit,
-                                                                 ofLSMConstant):
+                                                                 installToolkit):
         log = pandas.concat([_massLog(),
                              pandas.DataFrame({"time": [1.0, 2.0, 3.0],
                                                "mass": [900.0, 900.0, 900.0],
@@ -259,40 +244,16 @@ class TestMakeEscapedMassFileWithADeltaT:
             (massCase / "constant" / "outletMass").read_text())[1:]]
         assert all(value < 100.0 for value in values)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B295: with --dt the declared record count is len(data) -- "
-               "the frame after the regular axis has been outer-joined onto "
-               "the log times, i.e. the union of both -- while the values are "
-               "written by looping over `timesteps`, which is only "
-               "numpy.arange(min, max, dt) and excludes the last log time.  A "
-               "log at t=1,2,3 with --dt 0.5 therefore emits '5' followed by "
-               "four values, and OpenFOAM refuses to read the field.  Without "
-               "--dt the two are the same list, which is why the covered path "
-               "never showed it.  See the consolidated findings issue.",
-    )
     def test_the_declared_count_should_match_the_number_of_values(self, massCase,
-                                                                  installToolkit,
-                                                                  ofLSMConstant):
+                                                                  installToolkit):
         installToolkit(_FakeLSMToolkit(_massLog()))
         stochasticLagrangian_source_makeEscapedMassFile(
             _massArguments(str(massCase), dt=0.5))
         values = _massValues((massCase / "constant" / "outletMass").read_text())
         assert int(values[0]) == len(values) - 1
 
-    def test_the_count_currently_overstates_the_values_by_the_dropped_time(
-            self, massCase, installToolkit, ofLSMConstant):
-        """Characterisation of B295."""
-        installToolkit(_FakeLSMToolkit(_massLog()))
-        stochasticLagrangian_source_makeEscapedMassFile(
-            _massArguments(str(massCase), dt=0.5))
-        values = _massValues((massCase / "constant" / "outletMass").read_text())
-        assert int(values[0]) == 5
-        assert len(values) - 1 == 4
-
     def test_without_a_delta_t_the_count_and_the_values_agree(self, massCase,
-                                                              installToolkit,
-                                                              ofLSMConstant):
+                                                              installToolkit):
         """Characterisation of B295: --dt is the trigger."""
         installToolkit(_FakeLSMToolkit(_massLog()))
         stochasticLagrangian_source_makeEscapedMassFile(_massArguments(str(massCase)))
@@ -451,4 +412,4 @@ class TestDispersionFlowListWithoutAFile:
         toolkit = _FakeCompareToolkit(comparisonFrame)
         installToolkit(toolkit)
         stochasticLagrangian_dispersionFlow_list(_listArguments())
-        assert toolkit.calls[0][1] == dict(workflowsType="stochasticLagrangianSolver")
+        assert toolkit.calls[0] == ("getWorkflowListOfSolvers", "stochasticLagrangianSolver")

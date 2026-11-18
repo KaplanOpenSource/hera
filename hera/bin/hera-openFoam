@@ -454,6 +454,20 @@ if __name__ == "__main__":
     ## -- create source files.
     source_createReleaseRateFile_subparser = manualInjection_subparser.add_parser('createReleaseRateFile',
                                                                                   help='Creates a mass release at from the parquet file')
+    source_createReleaseRateFile_subparser.add_argument('casePath', type=str,
+                                                        help="The directory of the dispersion case")
+    source_createReleaseRateFile_subparser.add_argument('--patch', type=str, required=True,
+                                                        help="The name of the patch (filterType) to take the mass of")
+    source_createReleaseRateFile_subparser.add_argument('--action', type=str, default="escaped",
+                                                        help="The parcel action to take the mass of. default: escaped")
+    source_createReleaseRateFile_subparser.add_argument('--logFile', type=str, required=True,
+                                                        help="The solver log file to read the mass from")
+    source_createReleaseRateFile_subparser.add_argument('--solver', type=str, default="StochasticLagrangianSolver",
+                                                        help="The name of the solver in the log file. default: StochasticLagrangianSolver")
+    source_createReleaseRateFile_subparser.add_argument('--massFileName', type=str, default=None,
+                                                        help="The name of the file to write in <casePath>/constant. default: <patch>Mass")
+    source_createReleaseRateFile_subparser.add_argument('--dt', type=float, default=None,
+                                                        help="Resample the mass onto a regular time axis with this timestep. default: the log times")
     source_createReleaseRateFile_subparser.set_defaults(func=CLI.stochasticLagrangian_source_makeEscapedMassFile)
 
     ## -- post process

@@ -178,7 +178,10 @@ class AbstractCollection(object):
         json_data : str
             A JSON string representing the document.
         """
-        self._metadataCol.from_json(json_data).save()
+        # created=True: mongoengine's default (False) treats a body that
+        # carries an _id as already persisted, so .save() issues an update with
+        # an empty change set and silently writes nothing.
+        self._metadataCol.from_json(json_data, created=True).save()
 
     def deleteDocuments(self, projectName, **query):
         """

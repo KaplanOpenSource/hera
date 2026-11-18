@@ -25,7 +25,8 @@ def createRepository(arguments):
     repo['RiskAssessment'] = {}
     repo['RiskAssessment']['DataSource'] = {}
 
-    for file_path in os.listdir(arguments.path):
+    for fileName in os.listdir(arguments.path):
+        file_path = os.path.join(arguments.path, fileName)
         agent_json_description = _check_if_agent(file_path)
         if agent_json_description:
             agent_name = file_path.replace(".json","").split("/")[-1]
