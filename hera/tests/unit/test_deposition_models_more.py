@@ -1,7 +1,7 @@
 """Dry deposition: the two paths the earlier deposition files leave alone.
 
 ``test_deposition_models.py`` covers construction with a dict surface, the
-tangled ``ustar``/``diameter``/``heatFlux`` properties (B46-B49) and the
+``ustar``/``diameter``/``heatFlux`` properties (B46-B49) and the
 dispatch; ``test_deposition_models_canopy.py`` covers the
 ``obstacleShape`` branch and its nested PhiM/PsiM.  What neither reaches
 is:
@@ -15,32 +15,33 @@ is:
   ``Qsol`` and the nested ``PhiH`` that only the *non*-obstacle path
   exercises.
 
-Because of B46 the surviving ``ustar`` property returns ``_diameter``, so
-``diameter`` is what the model uses as friction velocity; the tests pass
-``diameter=0.3`` where a realistic u* is wanted, exactly as the canopy
-file does, and read ``model.ustar`` when they need the value the
-calculation actually saw.
+The tests pass ``ustar=0.3``, a realistic friction velocity, exactly as
+the canopy file does, and read ``model.ustar`` when they need the value
+the calculation saw.
 
 Three defects surfaced:
 
-* B254: ``surface`` given as a name runs
-  ``p.getCacheDocuments(type="surface", surface=surface)[0]``.  Nothing
-  checks the list, so an unregistered surface name raises
-  ``IndexError: list index out of range`` -- which names neither the
-  surface nor the collection it was looked for in.
-* B255: ``depositionRate_Petroff`` starts with
+* B254, fixed: ``surface`` given as a name ran
+  ``p.getCacheDocuments(type="surface", surface=surface)[0]`` with
+  nothing checking the list, so an unregistered surface name raised
+  ``IndexError: list index out of range`` -- naming neither the surface
+  nor the collection it was looked for in.  It now raises a ``ValueError``
+  that names both.
+* B255, fixed: ``depositionRate_Petroff`` started with
   ``dpm = 0.000001*dp``, a micron-to-metre conversion, but ``dp`` comes
   from ``self.diameter``, which the constructor has already normalised to
   metres (``tonumber(tounit(diameter, ureg.m), ureg.m)``).  Every other
   constant in the block is SI (mean free path 6.7e-8 m, viscosity
-  1.89e-5 Pa s), so the model evaluates a 1 micron particle as a 1
-  picometre one: the ground deposition efficiency ``vds/u*`` comes out at
-  8.5e4 instead of order 1e-5, i.e. the deposition velocity exceeds the
-  friction velocity by five orders of magnitude.
-* B257: the Boltzmann constant in the same block is written
-  ``kb = 1.83E-23``.  Its value is 1.380649e-23 J/K -- the digits are
-  transposed -- so the Brownian diffusivity is 33% too large wherever
-  the model is used.
+  1.89e-5 Pa s), so the model evaluated a 1 micron particle as a 1
+  picometre one: the ground deposition efficiency ``vds/u*`` came out at
+  8.5e4 instead of order 1e-5, i.e. the deposition velocity exceeded the
+  friction velocity by five orders of magnitude.  The same double
+  conversion sat on ``dp*0.000001`` in the leaf-interception term, and
+  both now use the metres the constructor stored.
+* B257 (fixed): the Boltzmann constant in the same block was written
+  ``kb = 1.83E-23``.  Its value is 1.380649e-23 J/K -- the digits were
+  transposed -- so the Brownian diffusivity was 33% too large wherever
+  the model was used.
 """
 import re
 
@@ -64,7 +65,7 @@ def make(unit_project):
 
     def _make(**kwargs):
         kwargs.setdefault("surface", DESERT)
-        kwargs.setdefault("diameter", 0.3)
+        kwargs.setdefault("ustar", 0.3)
         return depositionModels(projectName=unit_project.projectName, **kwargs)
 
     return _make
@@ -84,7 +85,7 @@ class TestSurfaceLookedUpByName:
         the Cache collection's `surface` field."""
         _registerSurface(unit_project, "Sand", zrough=0.002)
         built = depositionModels(
-            projectName=unit_project.projectName, surface="Sand", diameter=0.3
+            projectName=unit_project.projectName, surface="Sand", ustar=0.3
         )
         assert built.surface["zrough"] == pytest.approx(0.002)
 
@@ -92,7 +93,7 @@ class TestSurfaceLookedUpByName:
         """asDict()["desc"] is handed over as-is, so extra fields survive."""
         _registerSurface(unit_project, "Sand", zrough=0.002, hcanop=0.5)
         built = depositionModels(
-            projectName=unit_project.projectName, surface="Sand", diameter=0.3
+            projectName=unit_project.projectName, surface="Sand", ustar=0.3
         )
         assert built.surface["hcanop"] == pytest.approx(0.5)
         assert built.surface["surface"] == "Sand"
@@ -104,10 +105,10 @@ class TestSurfaceLookedUpByName:
             unit_project, "Meadow", zrough=0.1, hcanop=10.0, displacementHeight=6.0
         )
         byName = depositionModels(
-            projectName=unit_project.projectName, surface="Meadow", diameter=0.3
+            projectName=unit_project.projectName, surface="Meadow", ustar=0.3
         ).depositionRate()
         byDict = depositionModels(
-            projectName=unit_project.projectName, surface=GRASSLAND, diameter=0.3
+            projectName=unit_project.projectName, surface=GRASSLAND, ustar=0.3
         ).depositionRate()
         assert byName == pytest.approx(byDict)
 
@@ -115,34 +116,26 @@ class TestSurfaceLookedUpByName:
         """The `type(surface)==dict` test short-circuits the lookup."""
         assert make(surface=DESERT).surface is DESERT
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B254: an unregistered surface name indexes the query result "
-               "with [0] and no emptiness check, so it raises IndexError('list "
-               "index out of range') instead of an error naming the surface that "
-               "could not be found. See the consolidated findings issue.",
-    )
     def test_an_unknown_surface_name_is_reported_clearly(self, unit_project):
         with pytest.raises(ValueError, match="NoSuchSurface"):
             depositionModels(
                 projectName=unit_project.projectName, surface="NoSuchSurface"
             )
 
-    def test_an_unknown_surface_name_currently_raises_indexerror(self, unit_project):
-        """Characterisation of B254."""
-        with pytest.raises(IndexError, match="list index out of range"):
+    def test_the_error_names_the_project_it_looked_in(self, unit_project):
+        with pytest.raises(ValueError, match=unit_project.projectName):
             depositionModels(
                 projectName=unit_project.projectName, surface="NoSuchSurface"
             )
 
     def test_a_surface_registered_under_another_type_is_not_found(self, unit_project):
-        """Characterisation of B254: the query is narrowed by type, so a
-        near-miss fails the same silent way."""
+        """The query is narrowed by type, so a near-miss is reported the
+        same way as a complete miss."""
         unit_project.addCacheDocument(
             resource="", dataFormat="string", type="NotASurface",
             desc=dict(surface="Sand", zrough=0.002),
         )
-        with pytest.raises(IndexError):
+        with pytest.raises(ValueError, match="Sand"):
             depositionModels(projectName=unit_project.projectName, surface="Sand")
 
 
@@ -162,33 +155,19 @@ class TestGroundDepositionEfficiency:
         Qsol to 0 and vds collapses to u* egb."""
         model = make(diameter=1e-6)
         efficiency = model.depositionRate() / model.ustar
-        assert efficiency == pytest.approx(85142.1, rel=1e-4)
+        # 9.7707e-6 before B257: the corrected Boltzmann constant makes the
+        # Brownian diffusivity 1.33x smaller, and with it the efficiency.
+        assert efficiency == pytest.approx(8.0966e-6, rel=1e-4)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B255: depositionRate_Petroff computes dpm = 0.000001*dp, a "
-               "micron-to-metre conversion, but dp is self.diameter, which the "
-               "constructor already normalised to metres. The surrounding "
-               "constants are SI (mean free path 6.7e-8 m, dynamic viscosity "
-               "1.89e-5 Pa s), so a 1 micron particle is evaluated as a 1 "
-               "picometre one, deep in the free-molecule regime. The Brownian "
-               "ground efficiency vds/u* comes out at 8.5e4; being an efficiency "
-               "it cannot exceed 1, and for a 1 micron particle it should be of "
-               "order 1e-5. See the consolidated findings issue.",
-    )
     def test_a_deposition_velocity_cannot_exceed_the_friction_velocity(self, make):
         """vds = u* egb/(1 + Qsol) with egb a dimensionless ground transfer
         efficiency, so vds <= u* for every particle."""
         model = make(diameter=1e-6)
         assert model.depositionRate() <= model.ustar
 
-    def test_the_efficiency_currently_exceeds_one_by_five_orders(self, make):
-        """Characterisation of B255."""
-        model = make(diameter=1e-6)
-        assert model.depositionRate() / model.ustar > 1e4
-
-    def test_the_conversion_is_applied_to_an_already_converted_diameter(self, make):
-        """Characterisation of B255's mechanism, read off both sites."""
+    def test_the_diameter_reaches_the_model_in_metres_exactly_once(self, make):
+        """B255's mechanism, read off both sites: the constructor converts
+        to metres, so the rate must not convert again."""
         import inspect
 
         constructor = inspect.getsource(depositionModels.__init__)
@@ -196,7 +175,8 @@ class TestGroundDepositionEfficiency:
             constructor
         )
         rate = inspect.getsource(depositionModels.depositionRate_Petroff)
-        assert "dpm = 0.000001*dp" in rate
+        assert "0.000001*dp" not in rate
+        assert "dp*0.000001" not in rate
         assert make(diameter=1 * ureg.micrometer)._diameter == pytest.approx(1e-6)
 
     def test_brownian_deposition_weakens_as_the_particle_grows(self, make):
@@ -224,22 +204,8 @@ class TestBoltzmannConstant:
         assert match is not None, "the kb assignment moved"
         return float(match.group(1)) * 1e23
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B257: the Brownian diffusivity uses kb = 1.83E-23 where the "
-               "Boltzmann constant is 1.380649e-23 J/K -- the first two digits "
-               "are transposed. Db = cu kb T / (3 pi muA dpm) is therefore 33% "
-               "too large, and the Schmidt number 33% too small, everywhere the "
-               "Petroff model is used. See the consolidated findings issue.",
-    )
     def test_it_is_the_boltzmann_constant(self):
         assert self._constantInSource() == pytest.approx(1.380649, rel=1e-3)
-
-    def test_it_is_currently_a_transposition_of_it(self):
-        """Characterisation of B257, with the size of the error."""
-        used = self._constantInSource()
-        assert used == pytest.approx(1.83)
-        assert used / 1.380649 == pytest.approx(1.3255, rel=1e-3)
 
     def test_the_other_constants_in_the_block_are_right(self):
         """So B257 is a typo rather than a different unit system: every

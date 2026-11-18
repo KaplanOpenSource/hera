@@ -2,10 +2,16 @@ import numpy
 try:
     import wrf
 except ImportError:
-    print("You must install python-wrf to use this package ")
+    class _wrfNotInstalled:
+        """Keeps the module importable without python-wrf, and reports the
+        missing dependency at the first use instead of a bare NameError."""
+        def __getattr__(self, name):
+            raise ImportError("You must install python-wrf to use this package")
+
+    wrf = _wrfNotInstalled()
 
 import pandas
-#import geopandas
+import geopandas
 try:
     from netCDF4 import Dataset
 except ImportError:
@@ -33,15 +39,29 @@ class wrfDatalayer():
 
         """
 
-        for i in range(len(xdata.__getattr__(dimension))):
-            compare_dict = {dimension: i}
-            compare_dictplus = {dimension: i + 1}
-            if request > float(xdata.isel(Time=0, bottom_top=0, **compare_dict).__getattr__(coordinate).min()) - 0.01 and\
-               request < float(xdata.isel(Time=0, bottom_top=0, **compare_dict).__getattr__(coordinate).max()) + 0.01:
-                delta = float(xdata.isel(Time=0, bottom_top=0, **compare_dictplus).__getattr__(coordinate).mean()) - \
-                        float(xdata.isel(Time=0, bottom_top=0, **compare_dict).__getattr__(coordinate).mean())
-                request_delta = request - float(xdata.isel(Time=0, bottom_top=0, **compare_dict).__getattr__(coordinate).mean())
-                break
+        dimension_length = len(xdata.__getattr__(dimension))
+
+        def coordinate_at(index):
+            return xdata.isel(Time=0, bottom_top=0, **{dimension: index}).__getattr__(coordinate)
+
+        if request < float(coordinate_at(0).min()) - 0.01 or \
+           request > float(coordinate_at(dimension_length - 1).max()) + 0.01:
+            raise ValueError(f"The requested {coordinate} {request} is outside the {dimension} dimension of the data.")
+
+        # On a tilted grid the columns do not tile the axis, so a request can
+        # fall in the gap between two of them. The bracket is therefore taken
+        # between consecutive column means: i is the last index whose mean does
+        # not exceed the request.
+        i = 0
+        for index in range(dimension_length):
+            if float(coordinate_at(index).mean()) <= request:
+                i = index
+
+        # The last index has no i + 1 to difference against, so the spacing is
+        # read from the pair that ends at it.
+        reference = i if i < dimension_length - 1 else i - 1
+        delta = float(coordinate_at(reference + 1).mean()) - float(coordinate_at(reference).mean())
+        request_delta = request - float(coordinate_at(i).mean())
 
         return i + request_delta / delta
 

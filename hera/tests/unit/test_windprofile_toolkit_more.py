@@ -18,30 +18,34 @@ up, so an unpatched call would also be slow.
 
 Three defects surfaced:
 
-* B250: ``getSpatialWind`` calls
+* B250, fixed: ``getSpatialWind`` called
   ``landcover_tk.getRoughnessFromLandcover(xarray, dxdy)``, but that
   method's signature is ``(self, landcover,
   windMeteorologicalDirection=None, resolution=None, ...)``.  The grid
-  resolution is therefore passed as a *wind direction*: with the default
-  ``dxdy=30`` the roughness is computed for a wind from 30 degrees, and
-  the ``resolution`` argument the caller meant to set is left at None.
-* B251: ``_getWindSpeedDirection`` ends with
+  resolution was therefore passed as a *wind direction*: with the default
+  ``dxdy=30`` the roughness was computed for a wind from 30 degrees, and
+  the ``resolution`` argument the caller meant to set was left at None.
+  It is passed by keyword now.
+* B251, fixed: ``_getWindSpeedDirection`` ended with
   ``max(datetime_objects)`` over a list that is only appended to for
-  stations that returned usable data.  When none does -- every station
-  offline, a bad token, or every reading out of range -- the call raises
+  stations that returned usable data.  When none did -- every station
+  offline, a bad token, or every reading out of range -- the call raised
   ``ValueError: max() iterable argument is empty`` instead of returning
-  an empty list.
-* B252: ``ws`` and ``wd`` are bound only inside
-  ``for channel in data['data'][0]['channels']``, and are then read
+  the empty list its own filtering implies.
+* B252, fixed: ``ws`` and ``wd`` were bound only inside
+  ``for channel in data['data'][0]['channels']``, and were then read
   unconditionally.  A station that reports data but no WS/WD channel --
   a rain-only station, which the shipped ``wind_stations.json`` list does
-  contain -- raises ``UnboundLocalError``.  Worse, when only one of the
-  two is missing the loop silently reuses the *previous station's* value.
-* B258: the retry loop assigns ``data`` before the subscript that
+  contain -- raised ``UnboundLocalError``, and when only one of the two
+  was missing the loop silently reused the *previous station's* value.
+  Both are reset per station and the station is skipped unless both
+  arrived.
+* B258, fixed: the retry loop assigned ``data`` before the subscript that
   validates it, so an error payload -- from a rejected token, say --
-  survives all 20 attempts, passes the ``if data:`` guard that exists to
-  skip unreachable stations, and is then dereferenced outside the try,
-  raising ``KeyError: 'data'`` instead of skipping the station.
+  survived all 20 attempts, passed the ``if data:`` guard that exists to
+  skip unreachable stations, and was then dereferenced outside the try,
+  raising ``KeyError: 'data'`` instead of skipping the station.  The
+  payload is bound to ``data`` only once it has been validated.
 """
 import json
 
@@ -230,74 +234,44 @@ class TestGetWindSpeedDirection:
 class TestGetWindSpeedDirectionWithNoUsableStations:
     """B251: see the module docstring."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B251: _getWindSpeedDirection ends with max(datetime_objects) "
-               "over a list appended to only for stations that returned usable "
-               "data. If none does -- everything offline, a rejected token, or "
-               "every reading out of range -- it raises ValueError('max() "
-               "iterable argument is empty') rather than returning the empty "
-               "list its filtering implies. See the consolidated findings issue.",
-    )
     def test_an_empty_station_list_returns_no_stations(self, tk):
         assert tk._getWindSpeedDirection([], TOKEN) == []
 
-    def test_an_empty_station_list_currently_raises(self, tk):
-        """Characterisation of B251 in its simplest form: no HTTP needed."""
-        with pytest.raises(ValueError, match="max"):
-            tk._getWindSpeedDirection([], TOKEN)
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B251: the same max() over an empty list when every station "
-               "answers but every reading is out of range. "
-               "See the consolidated findings issue.",
-    )
     def test_all_readings_rejected_returns_no_stations(self, tk, monkeypatch):
         _fixedResponse(monkeypatch, _reading(ws=25.0))
         assert tk._getWindSpeedDirection([_station()], TOKEN) == []
 
-    def test_all_readings_rejected_currently_raises(self, tk, monkeypatch):
-        """Characterisation of B251: two stations answer, both readings are
-        out of range, and the empty list reaches max()."""
+    def test_several_stations_all_rejected_return_no_stations(self, tk, monkeypatch):
+        """B251: the empty list used to reach max() and raise."""
         _fixedResponse(monkeypatch, _reading(ws=25.0))
-        with pytest.raises(ValueError, match="max\\(\\) (iterable argument is empty|arg is an empty sequence)"):
-            tk._getWindSpeedDirection([_station(1), _station(2)], TOKEN)
+        assert tk._getWindSpeedDirection([_station(1), _station(2)], TOKEN) == []
 
 
 @pytest.mark.unit
 class TestGetWindSpeedDirectionWithAnErrorPayload:
-    """B258: an error response from the API is not skipped.
+    """B258: an error response from the API used not to be skipped.
 
-    The retry loop assigns ``data = json.loads(...)`` and only then reads
+    The retry loop assigned ``data = json.loads(...)`` and only then read
     ``data['data'][0]['datetime']``.  For an error payload -- ``{"errorMessage":
     "unauthorized"}`` from a rejected token -- the parse succeeds and the
-    subscript fails, so after 20 rejected attempts ``data`` is still the error
+    subscript fails, so after 20 rejected attempts ``data`` was still the error
     dict.  It is truthy, so the ``if data:`` guard that exists to skip
-    unreachable stations lets it through, and the very next line dereferences
+    unreachable stations let it through, and the very next line dereferenced
     ``data['data']`` outside the try, raising ``KeyError: 'data'``.
     """
 
     UNAUTHORIZED = {"errorMessage": "unauthorized"}
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B258: the retry loop assigns `data` before the subscript that "
-               "validates it, so a response it rejected 20 times still passes the "
-               "`if data:` guard; the error payload is then dereferenced outside "
-               "the try/except and raises KeyError: 'data'. A rejected IMS token "
-               "crashes the call instead of yielding no stations. "
-               "See the consolidated findings issue.",
-    )
     def test_an_error_payload_is_treated_as_no_data(self, tk, monkeypatch):
         _fixedResponse(monkeypatch, self.UNAUTHORIZED)
         assert tk._getWindSpeedDirection([_station()], TOKEN) == []
 
-    def test_an_error_payload_currently_raises_keyerror(self, tk, monkeypatch):
-        """Characterisation of B258."""
-        _fixedResponse(monkeypatch, self.UNAUTHORIZED)
-        with pytest.raises(KeyError, match="data"):
-            tk._getWindSpeedDirection([_station()], TOKEN)
+    def test_a_good_payload_still_gets_through(self, tk, monkeypatch):
+        """B258's boundary: the validated payload is still bound to `data`."""
+        _fixedResponse(monkeypatch, _reading())
+        assert tk._getWindSpeedDirection([_station()], TOKEN) == [
+            [32.0, 35.0, 375, [5.0, 270.0]]
+        ]
 
     def test_an_unreachable_station_is_skipped_by_contrast(self, tk, monkeypatch):
         """Characterisation of B258's boundary: when the request itself
@@ -308,8 +282,7 @@ class TestGetWindSpeedDirectionWithAnErrorPayload:
             raise RuntimeError("connection reset")
 
         monkeypatch.setattr(requests, "request", _request)
-        with pytest.raises(ValueError, match="max"):
-            tk._getWindSpeedDirection([_station()], TOKEN)
+        assert tk._getWindSpeedDirection([_station()], TOKEN) == []
 
 
 @pytest.mark.unit
@@ -318,31 +291,10 @@ class TestGetWindSpeedDirectionWithMissingChannels:
 
     RAIN_ONLY = _reading(channels=[{"name": "Rain", "value": 0.0}])
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B252: ws and wd are bound only inside the channel loop and "
-               "then read unconditionally, so a station that answers with no "
-               "WS/WD channel raises UnboundLocalError. The shipped "
-               "wind_stations.json does list stations whose monitor set is not "
-               "guaranteed to include both. See the consolidated findings issue.",
-    )
     def test_a_station_without_wind_channels_is_skipped(self, tk, monkeypatch):
         _fixedResponse(monkeypatch, self.RAIN_ONLY)
         assert tk._getWindSpeedDirection([_station()], TOKEN) == []
 
-    def test_a_station_without_wind_channels_currently_raises(self, tk, monkeypatch):
-        """Characterisation of B252."""
-        _fixedResponse(monkeypatch, self.RAIN_ONLY)
-        with pytest.raises(UnboundLocalError, match="ws"):
-            tk._getWindSpeedDirection([_station()], TOKEN)
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B252, the silent half: because ws/wd survive between loop "
-               "iterations, a station missing only one of the two channels is "
-               "recorded with the PREVIOUS station's value for it instead of "
-               "being skipped. See the consolidated findings issue.",
-    )
     def test_a_station_missing_one_channel_does_not_inherit_the_previous_one(
         self, tk, monkeypatch
     ):
@@ -354,18 +306,14 @@ class TestGetWindSpeedDirectionWithMissingChannels:
         result = tk._getWindSpeedDirection([_station(1), _station(2)], TOKEN)
         assert [row[3] for row in result] == [[5.0, 270.0]]
 
-    def test_a_station_missing_one_channel_currently_inherits_it(
-        self, tk, monkeypatch
-    ):
-        """Characterisation of B252's silent half: station 2 reports no
-        direction and is recorded with station 1's 270 degrees."""
+    def test_a_station_missing_only_the_speed_is_skipped_too(self, tk, monkeypatch):
         _responseSequence(
             monkeypatch,
             [_reading(ws=5.0, wd=270.0),
-             _reading(channels=[{"name": "WS", "value": 7.0}])],
+             _reading(channels=[{"name": "WD", "value": 90.0}])],
         )
         result = tk._getWindSpeedDirection([_station(1), _station(2)], TOKEN)
-        assert [row[3] for row in result] == [[5.0, 270.0], [7.0, 270.0]]
+        assert [row[3] for row in result] == [[5.0, 270.0]]
 
 
 @pytest.mark.unit
@@ -450,7 +398,7 @@ class TestGetSpatialWind:
 
 
 @pytest.mark.unit
-class TestGetSpatialWindPassesResolutionAsADirection:
+class TestGetSpatialWindPassesTheResolution:
     """B250: see the module docstring."""
 
     @pytest.fixture()
@@ -479,25 +427,14 @@ class TestGetSpatialWindPassesResolutionAsADirection:
         )
         return seen
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B250: getSpatialWind calls getRoughnessFromLandcover(xarray, "
-               "dxdy), but that method's second parameter is "
-               "windMeteorologicalDirection and its third is resolution. The grid "
-               "spacing is therefore consumed as a wind direction -- 30 degrees "
-               "for the default dxdy=30 -- and the resolution it was meant to set "
-               "stays None. See the consolidated findings issue.",
-    )
     def test_the_resolution_is_passed_as_the_resolution(self, tk, wired):
         tk.getSpatialWind(32.0, 35.0, 33.0, 36.0, TOKEN, dxdy=50)
         assert wired["resolution"] == 50
         assert wired["windMeteorologicalDirection"] is None
 
-    def test_the_resolution_currently_arrives_as_a_wind_direction(self, tk, wired):
-        """Characterisation of B250."""
-        tk.getSpatialWind(32.0, 35.0, 33.0, 36.0, TOKEN, dxdy=50)
-        assert wired["windMeteorologicalDirection"] == 50
-        assert wired["resolution"] is None
+    def test_the_default_resolution_reaches_it_too(self, tk, wired):
+        tk.getSpatialWind(32.0, 35.0, 33.0, 36.0, TOKEN)
+        assert wired["resolution"] == 30
 
     def test_the_signature_it_calls_into(self):
         """Characterisation of B250's mechanism, so the diagnosis does not

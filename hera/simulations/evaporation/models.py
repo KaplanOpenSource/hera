@@ -13,10 +13,7 @@ class evaporationModels(object):
     _dinamicViscocityModel = None
     _molecularDiffusionModel = None
     _evaporationModel = None
-
-    @property
-    def agent(self):
-        return self._agent
+    _riskToolkit = None
 
     @property
     def dinamicViscocityModel(self):
@@ -48,7 +45,7 @@ class evaporationModels(object):
 
     @agent.setter
     def agent(self,newAgent):
-        self._agent = RiskToolkit.getAgent(newAgent)
+        self._agent = self._riskToolkit.getAgent(newAgent)
 
     @property
     def Mair(self):
@@ -66,9 +63,10 @@ class evaporationModels(object):
     def Vagent(self):
         return self._Vagent
 
-    def __init__(self,agent, evaporationModel="US",dinamicViscocityModel="powerLaw",molecularDiffusionModel="FSG"):
+    def __init__(self,agent, evaporationModel="US",dinamicViscocityModel="powerLaw",molecularDiffusionModel="FSG",projectName="evaporation"):
 
-        self._agent=RiskToolkit.getAgent(agent)
+        self._riskToolkit = RiskToolkit(projectName=projectName)
+        self._agent=self._riskToolkit.getAgent(agent)
         self._Mair = 28.967
         self._Vair = 20.1
         self._molecularDiffusionModel = molecularDiffusionModel
@@ -119,4 +117,4 @@ class evaporationModels(object):
         Sc = self.Schmidt(temperature=temperature)
         Km = 0.664*(Re**(-0.5))*(Sc**(-2/3))*velocity if Re<=20000 else 0.0366*(Re**(-0.2))*(Sc**(-2/3))*velocity
         R = 8.205 * 10 ** (-5) # gas constant
-        return Km*self.Magent*self.agent.physicalproperties.vaporPressure(temperature)/(temperature * R)
+        return Km*self.Magent*self.agent.physicalproperties.vaporPressure(temperature*ureg.K)/(temperature * R)

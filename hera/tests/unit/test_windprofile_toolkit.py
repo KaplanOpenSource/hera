@@ -19,11 +19,11 @@ Three defects surfaced while probing:
   branch emits ``-0.0`` for the same input. Every returned profile
   therefore starts with a junk row, and the two branches disagree about
   what that row contains.
-* B112: ``_getStationsInRegion`` opens ``'wind_stations.json'`` as a bare
-  relative path, so it resolves against the process working directory and
-  raises ``FileNotFoundError`` anywhere but the module's own directory.
-  Its sibling ``getSpatialWind`` reads the same file correctly, via
-  ``os.path.dirname(os.path.abspath(__file__))``.
+* B112, fixed: ``_getStationsInRegion`` opened ``'wind_stations.json'``
+  as a bare relative path, so it resolved against the process working
+  directory and raised ``FileNotFoundError`` anywhere but the module's own
+  directory.  It now builds the path from ``__file__``, as its sibling
+  ``getSpatialWind`` already did.
 
 ``getSpatialWind`` itself is not exercised: it needs a populated
 LandCover toolkit plus a live IMS API token, which is integration-shaped.
@@ -248,25 +248,19 @@ class TestInterpolatedWindFields:
 
 
 @pytest.mark.unit
-class TestGetStationsInRegionCannotFindItsDataFile:
+class TestGetStationsInRegionFindsItsDataFile:
     """B112: see the module docstring."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B112: _getStationsInRegion opens 'wind_stations.json' as a "
-               "bare relative path, so it resolves against the process cwd "
-               "instead of the module directory. See the consolidated "
-               "findings issue.",
-    )
-    def test_it_should_read_the_station_list_shipped_beside_the_module(self, tk, tmp_path, monkeypatch):
+    def test_it_reads_the_station_list_shipped_beside_the_module(self, tk, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         assert tk._getStationsInRegion(34.0, 32.0, 35.0, 33.0, 4326) is not None
 
-    def test_it_currently_raises_filenotfounderror_from_any_other_directory(self, tk, tmp_path, monkeypatch):
-        """Characterisation of B112."""
+    def test_it_selects_the_stations_inside_the_box(self, tk, tmp_path, monkeypatch):
+        """A box around the whole country returns stations; a box far from
+        it returns none."""
         monkeypatch.chdir(tmp_path)
-        with pytest.raises(FileNotFoundError, match="wind_stations.json"):
-            tk._getStationsInRegion(34.0, 32.0, 35.0, 33.0, 4326)
+        assert tk._getStationsInRegion(34.0, 29.0, 36.0, 34.0, 4326) != []
+        assert tk._getStationsInRegion(34.0, 10.0, 36.0, 11.0, 4326) == []
 
     def test_the_data_file_it_wants_really_does_ship_with_the_module(self):
         """So B112 is purely a path bug, not a missing resource."""

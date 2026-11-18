@@ -7,7 +7,6 @@ name does, where the repository default lives -- part of the public contract.
 import pytest
 
 from hera import toolkitHome
-from hera.datalayer import datatypes
 
 PROJECT = "UNIT_TEST_PROJECT"
 
@@ -106,14 +105,10 @@ class TestToolkitNameConstants:
 class TestDefaultRepository:
     """Documented as persisting a repository name FOR A PROJECT.
 
-    Neither half of that works today, and the tests below say which is which:
-    B21 -- ToolkitHome._get_data_toolkit declares a projectName parameter and
-           ignores it, returning dataToolkit(), which always operates on the
-           default project.  So the setting is global, not per project.
-    B22 -- because the write therefore lands on defaultProject, which
-           Project guards as read-only (project.py:757), every call raises.
-           registerToolkit sets _allowWritingToDefaultProject before writing
-           (toolkit.py:1271); setDefaultRepository does not.
+    The config lives in the default project, which Project guards as
+    read-only (project.py:757), so setDefaultRepository lifts the guard the
+    same way registerToolkit does, and tags each document with the project
+    it belongs to so the setting is per project rather than global.
     """
 
     def test_unset_reads_as_an_empty_string(self):
@@ -131,48 +126,16 @@ class TestDefaultRepository:
         with pytest.raises(ValueError, match="'projectName' is required"):
             toolkitHome.getDefaultRepository(projectName="")
 
-    def test_the_helper_ignores_the_project_it_is_given(self):
-        """Characterisation of B21's mechanism, so the cause is unambiguous."""
-        fromProject = toolkitHome._get_data_toolkit(projectName=PROJECT)
-        fromNothing = toolkitHome._get_data_toolkit()
-        assert fromProject.projectName == fromNothing.projectName
-        assert fromProject.projectName == toolkitHome.DEFAULTPROJECT
+    def test_the_helper_always_works_on_the_default_project(self):
+        """The helper is unscoped by design; the callers do the scoping."""
+        assert toolkitHome._get_data_toolkit().projectName == toolkitHome.DEFAULTPROJECT
 
-    def test_the_json_format_lookup_is_dead(self):
-        """setDefaultRepository tries three names that do not exist.
-
-        `getattr(datatypes, "JSON") or getattr(datatypes, "json") or
-        getattr(datatypes, "TEXT")` -- the real constants are JSON_DICT,
-        JSON_PANDAS and JSON_GEOPANDAS, so the block never sets a format.
-        Reported as dead code rather than a wrong result: the payload lives in
-        desc, so the format is not load-bearing here.
-        """
-        for name in ("JSON", "json", "TEXT"):
-            assert not hasattr(datatypes, name), (
-                f"datatypes.{name} now exists, so the lookup in "
-                "setDefaultRepository is no longer dead -- revisit it"
-            )
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B22: setDefaultRepository writes through a dataToolkit bound to "
-               "defaultProject and does not set _allowWritingToDefaultProject, so "
-               "it always raises RuntimeError: project defaultProject is "
-               "read-only. See the consolidated findings issue.",
-    )
     def test_round_trip(self):
         toolkitHome.setDefaultRepository(
             projectName=PROJECT, repositoryName="meteo_data_v1"
         )
         assert toolkitHome.getDefaultRepository(projectName=PROJECT) == "meteo_data_v1"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B21: the setting is not scoped to a project, because "
-               "_get_data_toolkit ignores its projectName argument. Blocked behind "
-               "B22, which makes the write fail first. "
-               "See the consolidated findings issue.",
-    )
     def test_defaults_are_per_project(self):
         toolkitHome.setDefaultRepository(projectName=PROJECT, repositoryName="mine")
         assert toolkitHome.getDefaultRepository(projectName="OTHER_PROJECT") == ""

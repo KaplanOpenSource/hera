@@ -105,39 +105,21 @@ class TestFrictionReynoldsNumber:
 
 @pytest.mark.unit
 class TestBulkReynoldsNumber:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B34: ReynoldsUm divides by a viscosity that carries units while "
-               "multiplying by hydraulicHeight, which does not -- the height "
-               "property returns _channelHeight.m_as(m), a bare float. The result "
-               "comes back as 80000/meter instead of a dimensionless Reynolds "
-               "number. Re_tau in the same class avoids it by using "
-               "_channelHeight directly. See the consolidated findings issue.",
-    )
     def test_a_reynolds_number_is_dimensionless(self, channel):
         value = channel.ReynoldsUm(0.3 * ureg.m / ureg.s, 5 * ureg.m / ureg.s)
         assert not hasattr(value, "units") or value.dimensionless
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B35: ReynoldsUm is documented as 'the reynolds based on the Um and "
-               "hydraulic diameter' but its body never reads Um -- it computes "
-               "ustar * hydraulicHeight / nu. Changing Um leaves the answer "
-               "identical. See the consolidated findings issue.",
-    )
     def test_the_bulk_velocity_changes_the_answer(self, channel):
         ustar = 0.3 * ureg.m / ureg.s
         slow = channel.ReynoldsUm(ustar, 1 * ureg.m / ureg.s)
         fast = channel.ReynoldsUm(ustar, 100 * ureg.m / ureg.s)
         assert slow != fast
 
-    def test_the_height_property_strips_its_units(self, channel):
-        """Characterisation of B34's mechanism, so the cause is unambiguous."""
-        assert not hasattr(channel.height, "units"), (
-            "height carries units after all; B34's diagnosis needs revisiting"
-        )
-        assert channel.height == pytest.approx(2.0)
-        assert channel.hydraulicHeight == pytest.approx(4.0)
+    def test_the_height_property_keeps_its_units(self, channel):
+        """The height feeds ReynoldsUm, so it must stay a length."""
+        assert channel.height.check("[length]")
+        assert channel.height.to(ureg.m).magnitude == pytest.approx(2.0)
+        assert channel.hydraulicHeight.to(ureg.m).magnitude == pytest.approx(4.0)
 
 
 @pytest.mark.unit

@@ -379,10 +379,10 @@ class TestPlotDevicesOnImage:
 
         assert ax.collections[0].get_sizes().tolist() == [50]
         # Compare against whatever "r" currently resolves to rather than a
-        # literal RGBA: importing hera.presentation.basicplots runs
-        # seaborn.set() at import time, which rebinds matplotlib's
-        # single-letter colour shorthands process-wide (B309), so a literal
-        # [1,0,0,1] here passes alone and fails in a full run.
+        # literal RGBA.  B309 (seaborn.set() at hera.presentation.basicplots
+        # import time, rebinding matplotlib's single-letter colour shorthands
+        # process-wide) is fixed, but any other module is still free to
+        # restyle matplotlib, and the default is not the point of this test.
         assert ax.collections[0].get_facecolor()[0].tolist() == list(to_rgba("r"))
 
     def test_explicit_scatter_keywords_override_the_defaults(self, containedPresentation):
