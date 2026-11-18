@@ -30,21 +30,22 @@ which CRS, and the choropleth it overlays -- rather than on imagery.
 Bugs pinned (each has an xfail(strict) for the intended behaviour plus a
 passing characterisation of what actually happens)
 --------------------------------------------------------------------------
-* **B233** -- ``createNewArea``'s ``TOOLKIT_SAVEMODE_FILEANDDB`` branch reads
-  ``toolkit.TOOLKIT_DATASOURCE_NAME`` / ``toolkit.TOOLKIT_TOOLKITNAME_FIELD``
-  / ``toolkit.TOOLKIT_DATASOURCE_TYPE``.  The module imports ``from hera
-  import toolkit`` on line 9 and then *rebinds the same name* on line 10 with
-  ``from hera.measurements.GIS.vector import toolkit``; the vector toolkit
-  module defines none of those constants, so asking to save to the DB raises
-  ``AttributeError`` after the file has already been written.
-* **B234** -- the same branch is guarded by ``== TOOLKIT_SAVEMODE_FILEANDDB``
-  only, so ``TOOLKIT_SAVEMODE_FILEANDDB_REPLACE`` ("save to a file and store
-  to the DB as a source, replacing the entry if it exists", per the
-  docstring) writes the file and silently never touches the database.
-* **B235** -- ``TOOLKIT_SAVEMODE_ONLYFILE`` is documented to "raise exception
-  if file exists" and ``..._REPLACE`` to replace it, but the two are handled
-  identically: nothing checks for an existing file, so ONLYFILE overwrites
-  instead of raising.
+* **B233** (fixed) -- ``createNewArea``'s ``TOOLKIT_SAVEMODE_FILEANDDB``
+  branch read ``toolkit.TOOLKIT_DATASOURCE_NAME`` and friends off the
+  module-level name ``toolkit``, which was rebound to
+  ``hera.measurements.GIS.vector.toolkit``; that module defines none of those
+  constants, so saving to the DB raised ``AttributeError`` after the file had
+  already been written.  The constants are now imported from ``hera.toolkit``
+  by name.
+* **B234** (fixed) -- the same branch was guarded by ``==
+  TOOLKIT_SAVEMODE_FILEANDDB`` only, so ``TOOLKIT_SAVEMODE_FILEANDDB_REPLACE``
+  ("save to a file and store to the DB as a source, replacing the entry if it
+  exists", per the docstring) wrote the file and silently never touched the
+  database.  Both modes now take the branch.
+* **B235** (fixed) -- ``TOOLKIT_SAVEMODE_ONLYFILE`` is documented to "raise
+  exception if file exists" and ``..._REPLACE`` to replace it, but the two
+  were handled identically: nothing checked for an existing file, so ONLYFILE
+  overwrote instead of raising.  ONLYFILE now raises ``FileExistsError``.
 
 Deliberately not tested, and why
 --------------------------------
@@ -338,125 +339,74 @@ class TestCreateNewAreaFileOutput:
         )
         assert written["total_pop"].iloc[0] == 15000
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B235: createNewArea documents TOOLKIT_SAVEMODE_ONLYFILE as "
-               "'raise exception if file exists' and ..._REPLACE as 'replace "
-               "the file if it exists', but the two modes share one code path "
-               "that never checks os.path.exists -- so ONLYFILE silently "
-               "overwrites. See the consolidated findings issue.",
-    )
     def test_only_file_refuses_to_clobber_an_existing_file(self, demography, census):
+        """B235."""
         demography.analysis.createNewArea(
             _QUERY, census, saveMode=TOOLKIT_SAVEMODE_ONLYFILE, regionName="myarea.geojson"
         )
-        with pytest.raises((FileExistsError, ValueError)):
+        with pytest.raises(FileExistsError):
             demography.analysis.createNewArea(
                 _QUERY, census, saveMode=TOOLKIT_SAVEMODE_ONLYFILE, regionName="myarea.geojson"
             )
 
-    def test_only_file_overwrites_silently_on_the_second_call(self, demography, census):
-        """Characterisation of B235."""
+    def test_only_file_replace_overwrites_on_the_second_call(self, demography, census):
+        """B235: ..._REPLACE is the mode that is allowed to clobber."""
         smaller = geopandas.GeoDataFrame([_CELLS[0]], crs=ITM)
         demography.analysis.createNewArea(
-            _QUERY, census, saveMode=TOOLKIT_SAVEMODE_ONLYFILE, regionName="myarea.geojson"
+            _QUERY, census, saveMode=TOOLKIT_SAVEMODE_ONLYFILE_REPLACE, regionName="myarea.geojson"
         )
         demography.analysis.createNewArea(
-            _QUERY, smaller, saveMode=TOOLKIT_SAVEMODE_ONLYFILE, regionName="myarea.geojson"
+            _QUERY, smaller, saveMode=TOOLKIT_SAVEMODE_ONLYFILE_REPLACE, regionName="myarea.geojson"
         )
         written = geopandas.read_file(
             os.path.join(demography.filesDirectory, "myarea.geojson")
         )
         assert written["total_pop"].iloc[0] == 1000
 
-    def test_only_file_and_only_file_replace_behave_identically(self, demography, census):
-        """Characterisation of B235: the two modes are indistinguishable."""
-        for mode, name in (
-            (TOOLKIT_SAVEMODE_ONLYFILE, "plain.geojson"),
-            (TOOLKIT_SAVEMODE_ONLYFILE_REPLACE, "replace.geojson"),
-        ):
-            demography.analysis.createNewArea(
-                _QUERY, census, saveMode=mode, regionName=name
-            )
-            demography.analysis.createNewArea(
-                _QUERY, census, saveMode=mode, regionName=name
-            )
-            assert os.path.exists(os.path.join(demography.filesDirectory, name))
-
 
 @pytest.mark.unit
 class TestCreateNewAreaDatabaseOutput:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B233: the TOOLKIT_SAVEMODE_FILEANDDB branch reads "
-               "toolkit.TOOLKIT_DATASOURCE_NAME, but the module-level name "
-               "'toolkit' is rebound on line 10 from hera.toolkit to "
-               "hera.measurements.GIS.vector.toolkit, which defines no such "
-               "constant -- so saving to the DB raises AttributeError after "
-               "the file has already been written. See the consolidated "
-               "findings issue.",
-    )
     def test_saving_to_the_database_returns_the_stored_document(self, demography, census):
+        """B233."""
         doc = demography.analysis.createNewArea(
             _QUERY, census, saveMode=TOOLKIT_SAVEMODE_FILEANDDB, regionName="dbarea.geojson"
         )
         assert doc.resource.endswith("dbarea.geojson")
 
-    def test_saving_to_the_database_raises_on_the_rebound_module(self, demography, census):
-        """Characterisation of B233."""
-        with pytest.raises(AttributeError) as excinfo:
-            demography.analysis.createNewArea(
-                _QUERY, census, saveMode=TOOLKIT_SAVEMODE_FILEANDDB, regionName="dbarea.geojson"
-            )
-        assert "TOOLKIT_DATASOURCE_NAME" in str(excinfo.value)
+    def test_the_stored_document_carries_the_datasource_descriptor(self, demography, census):
+        """B233: the constants come from hera.toolkit, not the rebound module."""
+        demography.analysis.createNewArea(
+            _QUERY, census, saveMode=TOOLKIT_SAVEMODE_FILEANDDB, regionName="dbarea.geojson"
+        )
+        docs = demography.getCacheDocuments(type="ToolkitDataSource")
+        assert len(docs) == 1
+        assert docs[0].desc["datasourceName"] == "dbarea.geojson"
+        assert docs[0].desc["toolkit"] == demography.toolkitName
 
-    def test_the_file_is_written_before_the_database_step_fails(self, demography, census):
-        """Characterisation of B233: the failure leaves an orphan file behind."""
-        with pytest.raises(AttributeError):
-            demography.analysis.createNewArea(
-                _QUERY, census, saveMode=TOOLKIT_SAVEMODE_FILEANDDB, regionName="dbarea.geojson"
-            )
+    def test_the_file_is_written_alongside_the_database_record(self, demography, census):
+        demography.analysis.createNewArea(
+            _QUERY, census, saveMode=TOOLKIT_SAVEMODE_FILEANDDB, regionName="dbarea.geojson"
+        )
         assert os.path.exists(os.path.join(demography.filesDirectory, "dbarea.geojson"))
 
-    def test_the_rebound_module_carries_none_of_the_datasource_constants(self):
-        """Characterisation of B233: the root cause, stated directly."""
-        from hera.measurements.GIS.vector import demography as demography_module
-
-        assert demography_module.toolkit.__name__ == "hera.measurements.GIS.vector.toolkit"
-        for name in (
-            "TOOLKIT_DATASOURCE_NAME",
-            "TOOLKIT_TOOLKITNAME_FIELD",
-            "TOOLKIT_DATASOURCE_TYPE",
-        ):
-            assert not hasattr(demography_module.toolkit, name)
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B234: the database branch is guarded by '== "
-               "TOOLKIT_SAVEMODE_FILEANDDB' alone, so "
-               "TOOLKIT_SAVEMODE_FILEANDDB_REPLACE -- documented as 'save to "
-               "a file and store to the DB as a source, replacing the entry "
-               "if it exists' -- writes the file and never reaches the "
-               "database at all. See the consolidated findings issue.",
-    )
     def test_the_replacing_database_mode_also_stores_a_document(self, demography, census):
+        """B234."""
         demography.analysis.createNewArea(
             _QUERY, census,
             saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE, regionName="rep.geojson",
         )
         assert len(demography.getCacheDocuments(type="ToolkitDataSource")) == 1
 
-    def test_the_replacing_database_mode_writes_only_a_file(self, demography, census):
-        """Characterisation of B234."""
+    def test_the_replacing_database_mode_writes_the_file_too(self, demography, census):
+        """B234: the document is returned, not a bare nonDBMetadataFrame."""
         result = demography.analysis.createNewArea(
             _QUERY, census,
             saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE, regionName="rep.geojson",
         )
         from hera.datalayer import nonDBMetadataFrame
 
-        assert isinstance(result, nonDBMetadataFrame)
+        assert not isinstance(result, nonDBMetadataFrame)
         assert os.path.exists(os.path.join(demography.filesDirectory, "rep.geojson"))
-        assert len(demography.getCacheDocuments(type="ToolkitDataSource")) == 0
 
 
 # ==========================================================================

@@ -286,7 +286,8 @@ class TestGetPointElevation:
 
 @pytest.mark.unit
 class TestSRTMTileNaming:
-    """B188: the tile name is built without padding or hemisphere letters."""
+    """B188: the tile name follows the SRTM/HGT convention -- a hemisphere
+    letter plus the zero-padded floor of the coordinate."""
 
     @staticmethod
     def _requested_name(topo, srtm, lat, lon):
@@ -298,36 +299,22 @@ class TestSRTMTileNaming:
     def test_the_longitude_is_padded_to_three_digits(self, topo, srtm):
         assert self._requested_name(topo, srtm, 40.5, 7.5).endswith("E007.hgt")
 
-    def test_the_latitude_is_not_padded_at_all(self, topo, srtm):
-        """Characterisation of B188: real SRTM tiles are N05..., not N5...."""
-        assert self._requested_name(topo, srtm, 5.5, 7.5) == "N5E007.hgt"
+    def test_the_latitude_is_padded_to_two_digits(self, topo, srtm):
+        """B188: real SRTM tiles are N05..., not N5...."""
+        assert self._requested_name(topo, srtm, 5.5, 7.5) == "N05E007.hgt"
 
-    def test_a_southern_latitude_becomes_a_negative_n_tile(self, topo, srtm):
-        """Characterisation of B188: no S hemisphere letter."""
-        assert self._requested_name(topo, srtm, -1.5, 7.5) == "N-1E007.hgt"
+    def test_a_southern_latitude_gets_the_s_hemisphere_letter(self, topo, srtm):
+        """B188."""
+        assert self._requested_name(topo, srtm, -1.5, 7.5) == "S02E007.hgt"
 
-    def test_a_western_longitude_becomes_a_negative_e_tile(self, topo, srtm):
-        """Characterisation of B188: no W hemisphere letter."""
-        assert self._requested_name(topo, srtm, 40.5, -2.5) == "N40E-02.hgt"
+    def test_a_western_longitude_gets_the_w_hemisphere_letter(self, topo, srtm):
+        """B188."""
+        assert self._requested_name(topo, srtm, 40.5, -2.5) == "N40W003.hgt"
 
-    def test_it_truncates_towards_zero_rather_than_flooring(self, topo, srtm):
-        """Characterisation of B188: int(-1.5) is -1, but the tile is S02."""
-        assert self._requested_name(topo, srtm, -1.5, 7.5) != "N-2E007.hgt"
+    def test_it_floors_rather_than_truncating_towards_zero(self, topo, srtm):
+        """B188: int(-1.5) is -1, but the tile that contains it is S02."""
+        assert self._requested_name(topo, srtm, -1.5, 7.5) == "S02E007.hgt"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B188: getPointElevation and getPointListElevation build the "
-               "tile name as 'N' + str(int(lat)) + 'E' + str(int(long)).zfill(3). "
-               "The SRTM/HGT convention is two zero-padded latitude digits plus "
-               "a hemisphere letter -- N05E007.hgt, S02W003.hgt -- so every "
-               "latitude below 10 degrees, every southern latitude and every "
-               "western longitude asks for a filename no SRTM archive contains "
-               "('N5E007.hgt', 'N-1E007.hgt', 'N40E-02.hgt'). int() also "
-               "truncates towards zero where the tile index needs a floor, so "
-               "-1.5 must map to S02, not to 1. Israel sits at 29-33N / 34-36E, "
-               "which is why this has never bitten. See the consolidated "
-               "findings issue.",
-    )
     @pytest.mark.parametrize(
         "lat, lon, expected",
         [(5.5, 7.5, "N05E007.hgt"), (-1.5, 7.5, "S02E007.hgt"), (40.5, -2.5, "N40W003.hgt")],
@@ -338,39 +325,22 @@ class TestSRTMTileNaming:
 
 @pytest.mark.unit
 class TestMissingDefaultSRTM:
-    """B190: the 'datasource is not found' guard cannot fire on a missing key."""
+    """B190: the 'datasource is not found' guard fires on a missing key too."""
 
     def test_the_guard_does_fire_when_the_config_stores_an_explicit_none(self, topo):
         topo.setConfig(defaultSRTM=None)
         with pytest.raises(ValueError, match="datasource is not found"):
             topo.getPointElevation(lat=32.90625, long=35.15625)
 
-    def test_a_missing_config_key_raises_key_error_instead(self, topo):
-        """Characterisation of B190."""
-        with pytest.raises(KeyError, match="defaultSRTM"):
-            topo.getPointElevation(lat=32.90625, long=35.15625)
-
     def test_the_point_list_method_has_the_same_shape_of_guard(self, topo):
-        """Characterisation of B190 at the second call site."""
+        """B190 at the second call site."""
         import pandas as pd
 
-        with pytest.raises(KeyError, match="defaultSRTM"):
+        with pytest.raises(ValueError, match="datasource is not found"):
             topo.getPointListElevation(pd.DataFrame({"lat": [32.90625], "lon": [35.15625]}))
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B190: getPointElevation and getPointListElevation both do "
-               "`dataSourceName = self.getConfig()['defaultSRTM']` and only then "
-               "check `if dataSourceName is None: raise ValueError('The "
-               "datasource is not found!')`. A project that never configured a "
-               "default has no such key, so the bare dict subscript raises "
-               "KeyError('defaultSRTM') first and the deliberate, readable "
-               "ValueError is unreachable except in the odd case of a config "
-               "that stores None explicitly. getConfig().get('defaultSRTM') "
-               "would make the guard do its job. See the consolidated findings "
-               "issue.",
-    )
     def test_a_missing_default_reports_the_intended_error(self, topo):
+        """B190: a project that never configured a default has no such key."""
         with pytest.raises(ValueError, match="datasource is not found"):
             topo.getPointElevation(lat=32.90625, long=35.15625)
 
@@ -513,8 +483,8 @@ class TestGetPointListElevationFromGeometry:
 
 
 @pytest.mark.unit
-class TestGetPointListElevationIgnoresInputCRS:
-    """B189: the inputCRS parameter is accepted and never read."""
+class TestGetPointListElevationHonoursInputCRS:
+    """B189: the inputCRS parameter converts the points to WSG84."""
 
     @staticmethod
     def _wgs_frame():
@@ -537,30 +507,18 @@ class TestGetPointListElevationIgnoresInputCRS:
         )
         assert signature.parameters["inputCRS"].default == WSG84
 
-    def test_passing_it_changes_nothing_for_wgs84_numbers(self, topo, srtm):
-        """Characterisation of B189."""
+    def test_the_default_leaves_wgs84_numbers_alone(self, topo, srtm):
+        """B189: no conversion is attempted when the input already is WSG84."""
         default = topo.getPointListElevation(self._wgs_frame(), srtm)
-        declared = topo.getPointListElevation(self._wgs_frame(), srtm, inputCRS=ITM)
-        np.testing.assert_allclose(declared["elevation"].values, default["elevation"].values)
+        assert default["filename"].iloc[0] == "N32E035.hgt"
 
-    def test_itm_coordinates_are_read_as_degrees_and_ask_for_a_nonsense_tile(self, topo, srtm):
-        """Characterisation of B189: 200 000 m becomes latitude 200000."""
-        with pytest.raises(FileNotFoundError, match=r"N\d{6}E\d{6}\.hgt"):
-            topo.getPointListElevation(self._itm_frame(), srtm, inputCRS=ITM)
+    def test_itm_coordinates_resolve_to_the_right_tile(self, topo, srtm):
+        """B189: metres are no longer read as degrees."""
+        result = topo.getPointListElevation(self._itm_frame(), srtm, inputCRS=ITM)
+        assert result["filename"].iloc[0] == "N32E035.hgt"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B189: getPointListElevation declares inputCRS=WSG84 in its "
-               "signature and then never uses the name -- no reprojection, no "
-               "validation, not even a warning. A caller who hands it ITM "
-               "eastings/northings and says inputCRS=ITM (the project's own "
-               "constant) has the metres read as degrees: the tile name comes "
-               "out as N753355E212021.hgt and the call dies in "
-               "findElevationFile. Either honour the parameter by converting "
-               "through convertPointsCRS, or drop it from the signature. See "
-               "the consolidated findings issue.",
-    )
     def test_the_same_physical_point_gives_the_same_elevation_in_either_crs(self, topo, srtm):
+        """B189."""
         expected = topo.getPointListElevation(self._wgs_frame(), srtm)["elevation"].iloc[0]
         got = topo.getPointListElevation(self._itm_frame(), srtm, inputCRS=ITM)
         assert got["elevation"].iloc[0] == pytest.approx(expected)

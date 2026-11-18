@@ -45,23 +45,23 @@ Deliberately not covered
 Bugs pinned here (each a strict xfail for the intended behaviour plus a
 passing characterisation of today's behaviour):
 
-* B314: ``_getImageFromTiles`` sizes the mosaic from the *difference*
-  of the corner tile indices instead of the inclusive count
+* B314/B315 (fixed): ``_getImageFromTiles`` sized the mosaic from the
+  *difference* of the corner tile indices instead of the inclusive count
   (``lr - ul``, not ``lr - ul + 1``), so the eastern-most and
-  southern-most tile row of the requested box is always dropped -- and a
-  box that lies inside a single tile produces a 0x0 image with a
+  southern-most tile row of the requested box was always dropped -- and a
+  box that lies inside a single tile produced a 0x0 image with a
   zero-width extent and no HTTP request at all.
 * B315: ``presentation.plot`` looks up a named image with
   ``self.datalayer.getImage(...)``, but no ``getImage`` method exists
   anywhere in hera, so the documented "name of datasource image in DB"
   input always raises AttributeError.
-* B322: ``presentation.plot`` builds the matplotlib extent as
-  ``[minX, maxX, minY, maxY]`` only when ``outputCRS`` is ITM; for every
+* B322 (fixed): ``presentation.plot`` built the matplotlib extent as
+  ``[minX, maxX, minY, maxY]`` only when ``outputCRS`` was ITM; for every
   other CRS -- including its own ``WSG84`` default for ``inputCRS`` -- it
-  emits ``[minY, maxY, minX, maxX]``, so the image is stretched over a
+  emitted ``[minY, maxY, minX, maxX]``, so the image was stretched over a
   transposed box.
-* B323: ``_getImageFromTiles`` writes the squared corner back into the
-  ``lrTiles`` list it was handed, mutating the caller's argument.
+* B323 (fixed): ``_getImageFromTiles`` wrote the squared corner back into
+  the ``lrTiles`` list it was handed, mutating the caller's argument.
 """
 import io
 
@@ -260,19 +260,20 @@ class TestGetImageFromTiles:
         tiles._getImageFromTiles([610, 414], [612, 416], 10, TEMPLATE)
         assert "https://tiles.invalid/10/610/414.png" in tileServer
 
-    def test_a_two_by_two_span_is_a_512_pixel_square(self, tiles, tileServer):
+    def test_a_three_by_three_span_is_a_768_pixel_square(self, tiles, tileServer):
+        """B314: the corners are inclusive, so 610..612 is three tiles."""
         image, _ = tiles._getImageFromTiles([610, 414], [612, 416], 10, TEMPLATE)
-        assert image.size == (512, 512)
+        assert image.size == (256 * 3, 256 * 3)
 
     def test_squaring_extends_the_short_side_to_the_long_one(self, tiles, tileServer):
         image, _ = tiles._getImageFromTiles([610, 414], [613, 415], 10, TEMPLATE)
-        assert image.size == (256 * 3, 256 * 3)
+        assert image.size == (256 * 4, 256 * 4)
 
     def test_without_squaring_each_side_keeps_its_own_span(self, tiles, tileServer):
         image, _ = tiles._getImageFromTiles(
             [610, 414], [613, 415], 10, TEMPLATE, square=False
         )
-        assert image.size == (256 * 3, 256 * 1)
+        assert image.size == (256 * 4, 256 * 2)
 
     def test_each_tile_is_pasted_at_its_own_offset(self, tiles, tileServer):
         """The fake server colours tile (x, y) as (x%256, y%256, 7)."""
@@ -294,7 +295,8 @@ class TestGetImageFromTiles:
     ):
         _, extent = tiles._getImageFromTiles([610, 414], [612, 416], 10, TEMPLATE)
         assert extent[0] == pytest.approx(_tileWestEdge(610))
-        assert extent[1] == pytest.approx(_tileWestEdge(612))
+        # B314: three tiles wide, so the eastern edge is tile 613's western one.
+        assert extent[1] == pytest.approx(_tileWestEdge(613))
 
     def test_a_larger_zoom_level_reaches_a_smaller_span_of_degrees(
         self, tiles, tileServer
@@ -310,16 +312,8 @@ class TestGetImageFromTiles:
 
 @pytest.mark.unit
 class TestTheRequestedBoxIsFullyCovered:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B314: _getImageFromTiles sizes the mosaic as lr - ul rather "
-               "than lr - ul + 1, so the eastern-most and southern-most tile "
-               "row of the requested box is never fetched. Requesting "
-               "34.7E..35.2E / 31.9N..32.3N at zoom 10 spans tiles 610..612 x "
-               "414..416 -- nine tiles -- but only four are fetched. See the "
-               "consolidated findings issue.",
-    )
     def test_every_tile_touching_the_box_is_fetched(self, tiles, tileServer):
+        """B314."""
         tiles.getImageFromCorners(zoomlevel=ZOOM, tileServer=TEMPLATE, **BOX)
         expected = {
             (ZOOM, x, y)
@@ -328,41 +322,32 @@ class TestTheRequestedBoxIsFullyCovered:
         }
         assert set(_requestedTiles(tileServer)) == expected
 
-    def test_only_the_interior_tiles_are_fetched_today(self, tiles, tileServer):
-        """Characterisation of B314."""
+    def test_the_eastern_and_southern_rows_are_included(self, tiles, tileServer):
+        """B314: the rows that used to be dropped."""
         tiles.getImageFromCorners(zoomlevel=ZOOM, tileServer=TEMPLATE, **BOX)
-        assert set(_requestedTiles(tileServer)) == {
-            (ZOOM, 610, 414), (ZOOM, 610, 415),
-            (ZOOM, 611, 414), (ZOOM, 611, 415),
-        }
+        requested = set(_requestedTiles(tileServer))
+        assert (ZOOM, 612, 416) in requested
+        assert len(requested) == 9
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B314: a box that lies inside a single tile makes the corner "
-               "tile indices equal, so lr - ul is zero and the toolkit builds "
-               "a 0x0 image without asking the server for anything. A caller "
-               "zoomed in on one street gets an empty image and no error. See "
-               "the consolidated findings issue.",
-    )
     def test_a_box_inside_a_single_tile_still_returns_that_tile(self, tiles, tileServer):
+        """B315."""
         image, _ = tiles.getImageFromCorners(
             minx=34.7805, miny=32.0800, maxx=34.7810, maxy=32.0805,
             zoomlevel=14, tileServer=TEMPLATE,
         )
         assert image.size == (256, 256)
 
-    def test_a_box_inside_a_single_tile_yields_an_empty_image_today(
+    def test_a_box_inside_a_single_tile_asks_the_server_for_it(
         self, tiles, tileServer
     ):
-        """Characterisation of B314."""
-        image, extent = tiles.getImageFromCorners(
+        """B315: one request, and an extent of non-zero width."""
+        _, extent = tiles.getImageFromCorners(
             minx=34.7805, miny=32.0800, maxx=34.7810, maxy=32.0805,
             zoomlevel=14, tileServer=TEMPLATE,
         )
-        assert image.size == (0, 0)
-        assert tileServer == []
-        assert extent[0] == pytest.approx(extent[1])
-        assert extent[2] == pytest.approx(extent[3])
+        assert len(tileServer) == 1
+        assert extent[0] < extent[1]
+        assert extent[2] < extent[3]
 
 
 # ---------------------------------------------------------------------------
@@ -371,27 +356,20 @@ class TestTheRequestedBoxIsFullyCovered:
 
 @pytest.mark.unit
 class TestTheCornerArgumentsAreLeftAlone:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B323: _getImageFromTiles assigns the squared corner back "
-               "into the caller's list (`lrTiles[0] = ulTiles[0] + sqrx`), so "
-               "the argument is mutated in place. A caller that reuses its "
-               "corner list -- to fetch the same box at two zoom levels, say "
-               "-- silently gets a different box the second time. See the "
-               "consolidated findings issue.",
-    )
     def test_the_lower_right_corner_list_survives_the_call(self, tiles, tileServer):
+        """B323."""
         lower_right = [613, 415]
         tiles._getImageFromTiles([610, 414], lower_right, 10, TEMPLATE)
         assert lower_right == [613, 415]
 
-    def test_the_lower_right_corner_is_overwritten_with_the_squared_one(
+    def test_the_same_corners_give_the_same_box_twice(
         self, tiles, tileServer
     ):
-        """Characterisation of B323."""
-        lower_right = [613, 415]
-        tiles._getImageFromTiles([610, 414], lower_right, 10, TEMPLATE)
-        assert lower_right == [613, 417]
+        """B323: a reused corner list used to describe a different box."""
+        upper_left, lower_right = [610, 414], [613, 415]
+        _, first = tiles._getImageFromTiles(upper_left, lower_right, 10, TEMPLATE)
+        _, second = tiles._getImageFromTiles(upper_left, lower_right, 10, TEMPLATE)
+        assert first == pytest.approx(second)
 
 
 # ---------------------------------------------------------------------------
@@ -581,25 +559,20 @@ class TestPresentationPlotByName:
 class TestPresentationPlotNonItmOutput:
     EXTENTS = [34.7, 35.2, 31.9, 32.3]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B322: presentation.plot orders the matplotlib extent as "
-               "[x_min, x_max, y_min, y_max] only under `if outputCRS==ITM`; "
-               "every other output CRS takes the else branch, which emits "
-               "[y_min, y_max, x_min, x_max]. Plotting in WGS84 therefore "
-               "stretches the image over a transposed box -- latitudes on the "
-               "x axis and longitudes on the y axis. See the consolidated "
-               "findings issue.",
-    )
     def test_a_wgs84_round_trip_keeps_the_extent_it_was_given(self, tiles):
+        """B322."""
         extent = tiles.presentation.plot(
             _image(), extents=self.EXTENTS, inputCRS=WSG84, outputCRS=WSG84
         ).get_extent()
         assert extent == pytest.approx(self.EXTENTS)
 
-    def test_a_wgs84_round_trip_transposes_the_extent_today(self, tiles):
-        """Characterisation of B322."""
+    def test_every_output_crs_uses_the_same_x_then_y_order(self, tiles):
+        """B322: the ITM branch was the only one in x, x, y, y order."""
         extent = tiles.presentation.plot(
-            _image(), extents=self.EXTENTS, inputCRS=WSG84, outputCRS=WSG84
+            _image(), extents=self.EXTENTS, inputCRS=WSG84, outputCRS=ITM
         ).get_extent()
-        assert extent == pytest.approx([31.9, 32.3, 34.7, 35.2])
+        assert extent[0] < extent[1]
+        assert extent[2] < extent[3]
+        # Israeli TM eastings over Israel are ~1.2e5..2.5e5 m, northings ~6e5.
+        assert 1e5 < extent[0] < 3e5
+        assert 5e5 < extent[2] < 8e5

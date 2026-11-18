@@ -10,6 +10,11 @@ try:
     import Part
     import Mesh
 except ImportError as e:
+    # A partial install must not leave FreeCAD bound on its own: the STL
+    # methods guard on FreeCAD and would otherwise die later on Part/Mesh.
+    FreeCAD = None
+    Part = None
+    Mesh = None
     print("FreeCAD module is not installed in this environment. Cannot convert to STL")
 
 import matplotlib.pyplot as plt
@@ -61,7 +66,7 @@ class BuildingsToolkit(VectorToolkit):
             geopandas.DataFrame
         """
         topotk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName=self.projectName)
-        elevations = topotk.getPointListElevation(buildingData.centroid.to_crs(WGS84))
+        elevations = topotk.getPointListElevation(buildingData.centroid.to_crs(WGS84), dataSourceName=topographyDataSource)
         return buildingData.join(elevations)
 
     def buildingsGeopandasToSTLRasterTopography(self,
@@ -147,7 +152,10 @@ class BuildingsToolkit(VectorToolkit):
             newPad = FreeCADDOC.addObject("Part::Extrusion", "building" + str(indx))
             logger.debug("newPad.Base = newSketch")
             newPad.Base = newSketch
-            buildingTopAltitude = wallsheight + nonFlatTopographyShift # the paddign is from the bottom of the buildings, which is nonFlatTopographyShift lower.
+            # On real terrain the sketch was placed nonFlatTopographyShift below the
+            # ground, so the extrusion has to make that up; on flat terrain it sits
+            # on referenceTopography exactly and there is nothing to make up.
+            buildingTopAltitude = wallsheight if flatTerrain else wallsheight + nonFlatTopographyShift
             logger.debug(f"newPad.LengthFwd = {buildingTopAltitude}")
             newPad.LengthFwd = buildingTopAltitude
             logger.debug("newPad.Solid = True")

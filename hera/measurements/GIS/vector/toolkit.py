@@ -128,8 +128,6 @@ class VectorToolkit(toolkit.abstractToolkit):
 
         logger.debug(f"The crs of the input is {regionWithCRS.crs}")
         logger.debug(f"The shape is {regionWithCRS.iloc[0]}")
-        dct = dict(bbox=regionWithCRS) if isBounds else dict(mask=regionWithCRS)
-
         if regionWithCRS.crs is None:
             logger.debug("The region was defined without crs. Using the crs of the datasource.")
             regionWithCRS.crs = datasourceDocument.desc['desc']['crs']
@@ -138,6 +136,8 @@ class VectorToolkit(toolkit.abstractToolkit):
             regionWithCRS = regionWithCRS.to_crs(datasourceDocument.desc['desc']['crs'])
         else:
             logger.debug("shape and region crs match.")
+
+        dct = dict(bbox=regionWithCRS) if isBounds else dict(mask=regionWithCRS)
 
         return datasourceDocument.getData(**dct)
 

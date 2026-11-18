@@ -8,6 +8,7 @@ from hera import toolkit
 from hera.measurements.GIS.utils import stlFactory, convertCRS, ITM, WSG84, ED50_ZONE36N, create_xarray
 from hera.utils.logging import get_classMethod_logger
 
+import math
 import numpy
 import rasterio
 import os
@@ -30,6 +31,20 @@ def _open_raster(fheight):
         # rasterio affine: (xres, 0, xmin, 0, -yres, ymax)
         gt = (t.c, t.a, 0.0, t.f, 0.0, t.e)
     return myarray, gt
+
+
+def _srtmTileName(lat, long):
+    """Return the SRTM/HGT tile file name that contains the given point.
+
+    The convention is a hemisphere letter plus the zero-padded index of the
+    tile's south-west corner: N05E007.hgt, S02W003.hgt. The index is the
+    floor of the coordinate, which for negative values is not int().
+    """
+    latIndex = math.floor(lat)
+    longIndex = math.floor(long)
+    latName = f"{'N' if latIndex >= 0 else 'S'}{abs(latIndex):02d}"
+    longName = f"{'E' if longIndex >= 0 else 'W'}{abs(longIndex):03d}"
+    return f"{latName}{longName}.hgt"
 import geopandas
 import numpy as np
 
@@ -121,11 +136,11 @@ class TopographyToolkit(toolkit.abstractToolkit):
         """
         logger = get_classMethod_logger(self,"getPointElevation")
 
-        filename = 'N'+str(int(lat))+'E'+str(int(long)).zfill(3)+'.hgt'
+        filename = _srtmTileName(lat, long)
         logger.info(f"Getting elevation from file {filename}")
 
         if dataSourceName is None:
-            dataSourceName = self.getConfig()['defaultSRTM']
+            dataSourceName = self.getConfig().get('defaultSRTM')
 
         if dataSourceName is None:
             raise ValueError(f"The datasource is not found!")
@@ -156,13 +171,19 @@ class TopographyToolkit(toolkit.abstractToolkit):
         """
             Return the elevation of the point list.
 
-            For now we assume that pointList is in WSG84 coordinates.
-
         Parameters
         ----------
-        latList
-        longList
-        dataSourceName
+        pointList : geopandas.GeoSeries, geopandas.GeoDataFrame or pandas.DataFrame
+            The points of interest. A GeoDataFrame must carry a 'point' field;
+            a plain DataFrame must carry 'lat' and 'lon' columns.
+
+        dataSourceName : str
+            The name of the SRTM datasource to read. Defaults to the project's
+            configured 'defaultSRTM'.
+
+        inputCRS : int, default=WSG84
+            The EPSG of the coordinates in pointList. They are converted to
+            WSG84, which is what the SRTM tiles are indexed by.
 
         Returns
         -------
@@ -175,8 +196,7 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
 
         if isinstance(pointList,geopandas.geoseries.GeoSeries):
-            pointList = pointList.to_frame("point").assign(filename=pointList.apply(lambda row: 'N' + str(int(row.y)) + 'E' + str(int(row.x)).zfill(3) + '.hgt' ),
-                                                           lon=pointList.x,
+            pointList = pointList.to_frame("point").assign(lon=pointList.x,
                                                            lat=pointList.y,
                                                            elevation=0.0)
 
@@ -185,16 +205,23 @@ class TopographyToolkit(toolkit.abstractToolkit):
                 error = "GeoDataFrame must contain a field 'point' that contain the points of interest"
                 logger.error(error)
                 raise ValueError(error)
-            pointList = pointList.assign(filename=pointList.apply(lambda row: 'N' + str(int(row.point.y)) + 'E' + str(int(row.point.x)).zfill(3) + '.hgt', axis=1),
-                                         lon=pointList.point.x,
+            pointList = pointList.assign(lon=pointList.point.x,
                                          lat=pointList.point.y,
                                          elevation=0.0)
         else:
-            pointList = pointList.assign(filename=pointList.apply(lambda x: 'N' + str(int(x.lat)) + 'E' + str(int(x.lon)).zfill(3) + '.hgt' ,axis=1),elevation=0.0)
+            pointList = pointList.assign(elevation=0.0)
+
+        if inputCRS != WSG84:
+            logger.debug(f"Converting the points from {inputCRS} to WSG84, the CRS the SRTM tiles are indexed by")
+            convertedPoints = self.convertPointsCRS(pointList[['lon', 'lat']], inputCRS, WSG84, x='lon', y='lat')
+            pointList = pointList.assign(lon=convertedPoints.geometry.x.values,
+                                         lat=convertedPoints.geometry.y.values)
+
+        pointList = pointList.assign(filename=pointList.apply(lambda row: _srtmTileName(row.lat, row.lon), axis=1))
 
 
         if dataSourceName is None:
-            dataSourceName = self.getConfig()['defaultSRTM']
+            dataSourceName = self.getConfig().get('defaultSRTM')
         logger.info(f"Getting the elevation for the points. Using datasource {dataSourceName}")
 
         if dataSourceName is None:
@@ -540,7 +567,8 @@ class topographyAnalysis:
             calculate the domain elevation statistics
         Parameters
         ----------
-        elevation - elevation data including coordinates
+        elevation - elevation data including coordinates, as getElevation returns it:
+                    'lon', 'lat' and an 'elevation' field.
 
         Returns
         -------
@@ -555,22 +583,22 @@ class topographyAnalysis:
         after creating a project (hera-project project create project-name)
         from hera import toolkitHome
         tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_RASTER_TOPOGRAPHY,projectName="topotest")
-        elevation = tk.getDomainElevation(xmin=34.529,xmax=34.531,ymin=31.160,ymax=31.162)
+        elevation = tk.getElevation(minx=31.160,miny=34.529,maxx=31.162,maxy=34.531)
         print(tk.analysis.calculateStastics(elevation))
         """
-        xmin = elevation['X'].values.min()
-        xmax = elevation['X'].values.max()
-        ymin = elevation['Y'].values.min()
-        ymax = elevation['Y'].values.max()
+        xmin = elevation['lon'].values.min()
+        xmax = elevation['lon'].values.max()
+        ymin = elevation['lat'].values.min()
+        ymax = elevation['lat'].values.max()
         domainsize = (xmax - xmin) * (ymax - ymin)
-        domainmean = elevation['Elevation'].values.mean()
-        domainstd = elevation['Elevation'].values.std()
-        domainmax = elevation['Elevation'].values.max()
-        maxpos = numpy.argmax(elevation['Elevation'].values.ravel())
-        domainmaxlocation = (elevation['X'].values.ravel()[maxpos],elevation['Y'].values.ravel()[maxpos])
-        domainmin = elevation['Elevation'].values.min()
-        minpos = numpy.argmin(elevation['Elevation'].values.ravel())
-        domainminlocation = (elevation['X'].values.ravel()[minpos],elevation['Y'].values.ravel()[minpos])
+        domainmean = elevation['elevation'].values.mean()
+        domainstd = elevation['elevation'].values.std()
+        domainmax = elevation['elevation'].values.max()
+        maxpos = numpy.argmax(elevation['elevation'].values.ravel())
+        domainmaxlocation = (elevation['lon'].values.ravel()[maxpos],elevation['lat'].values.ravel()[maxpos])
+        domainmin = elevation['elevation'].values.min()
+        minpos = numpy.argmin(elevation['elevation'].values.ravel())
+        domainminlocation = (elevation['lon'].values.ravel()[minpos],elevation['lat'].values.ravel()[minpos])
         elevation_statistics = {
                 "xmin": xmin,
                 "xmax": xmax,

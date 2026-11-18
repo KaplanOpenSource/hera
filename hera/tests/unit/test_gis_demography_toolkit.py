@@ -6,11 +6,10 @@ handles both). The heavier analysis/presentation pipelines
 (``calculatePopulationInPolygon``, all the plotting methods) need real
 population shapefiles and are left for an integration test.
 
-One defect:
-
-* B81: the ``shapes`` property returns ``self._shapes``, but nothing in
-  the class -- not a class attribute, not ``__init__`` -- ever sets
-  ``_shapes``. Every access raises ``AttributeError``.
+B81 (fixed): the ``shapes`` property returns ``self._shapes``, which
+nothing in the class declared -- neither a class attribute nor
+``__init__`` -- so every access raised ``AttributeError``. ``_shapes`` is
+now declared alongside the other layer attributes and defaults to None.
 """
 import pytest
 
@@ -41,21 +40,10 @@ class TestConstruction:
 
 
 @pytest.mark.unit
-class TestShapesIsBroken:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B81: the shapes property returns self._shapes, which "
-               "nothing in the class ever assigns -- neither a class "
-               "attribute nor anywhere in __init__. Every access raises "
-               "AttributeError. See the consolidated findings issue.",
-    )
-    def test_shapes_should_return_something(self, demography):
-        demography.shapes
-
-    def test_shapes_currently_always_raises(self, demography):
-        """Characterisation of B81."""
-        with pytest.raises(AttributeError, match="_shapes"):
-            demography.shapes
+class TestShapes:
+    def test_shapes_is_readable_and_defaults_to_none(self, demography):
+        """B81: the property no longer raises AttributeError."""
+        assert demography.shapes is None
 
 
 @pytest.mark.unit

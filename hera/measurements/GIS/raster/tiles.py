@@ -179,8 +179,9 @@ class TilesToolkit(toolkit.abstractToolkit):
         logger = get_classMethod_logger(self,name="getImageFromTiles")
         logger.info("------- Start")
 
-        height = numpy.abs(ulTiles[1] - lrTiles[1])
-        width = numpy.abs(ulTiles[0] - lrTiles[0])
+        # inclusive counts: a box that falls inside a single tile still needs that tile.
+        height = numpy.abs(ulTiles[1] - lrTiles[1]) + 1
+        width = numpy.abs(ulTiles[0] - lrTiles[0]) + 1
 
         logger.debug(f"The number of tiles in x: {ulTiles[1]}-{lrTiles[1]}={width} and y: {ulTiles[0]}-{lrTiles[0]} {height}.")
 
@@ -193,8 +194,9 @@ class TilesToolkit(toolkit.abstractToolkit):
             sqry = height
             sqrx = width
 
-        lrTiles[0] = ulTiles[0] + sqrx
-        lrTiles[1] = ulTiles[1]+ sqry
+        # The exclusive south-east corner of the mosaic, kept local: writing it
+        # back into lrTiles would mutate the caller's list.
+        lrCorner = [ulTiles[0] + sqrx, ulTiles[1] + sqry]
 
         TILESIZE = 256
         finalimg = Image.new('RGB', (TILESIZE * sqrx, TILESIZE * sqry))
@@ -208,8 +210,8 @@ class TilesToolkit(toolkit.abstractToolkit):
             finalimg.paste(img, (i * TILESIZE, j * TILESIZE))
 
         boundULY, boundULX = self.tile2deg(ulTiles[0], ulTiles[1] , zoomLevel)
-        boundLRY, boundLRX = self.tile2deg(lrTiles[0], lrTiles[1], zoomLevel)
-        logger.info(f"Got the image extent (upper left -> lower right): ({ulTiles[0]},{ulTiles[1]})={[boundULY, boundULX]} and ({lrTiles[0]},{lrTiles[1]})={[boundLRY, boundLRX]}")
+        boundLRY, boundLRX = self.tile2deg(lrCorner[0], lrCorner[1], zoomLevel)
+        logger.info(f"Got the image extent (upper left -> lower right): ({ulTiles[0]},{ulTiles[1]})={[boundULY, boundULX]} and ({lrCorner[0]},{lrCorner[1]})={[boundLRY, boundLRX]}")
 
         return finalimg,[boundULX,boundLRX,boundULY,boundLRY]
 
@@ -353,10 +355,7 @@ class presentation:
         lower_left_converted = convertCRS(points=[[extents[0],extents[2]]], inputCRS=inputCRS, outputCRS=outputCRS)[0]
         upper_right_converted = convertCRS(points=[[extents[1],extents[3]]], inputCRS=inputCRS, outputCRS=outputCRS)[0]
 
-        if outputCRS==ITM:
-            extents = [lower_left_converted.x,upper_right_converted.x,lower_left_converted.y,upper_right_converted.y]
-        else:
-            extents = [lower_left_converted.y,upper_right_converted.y,lower_left_converted.x,upper_right_converted.x]
+        extents = [lower_left_converted.x,upper_right_converted.x,lower_left_converted.y,upper_right_converted.y]
 
         if display:
             ax = plt.imshow(image, extent=extents)

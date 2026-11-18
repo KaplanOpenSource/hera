@@ -5,17 +5,11 @@ document (just `.desc['desc']['crs']` and `.getData(**kwargs)`) rather than
 a real registered shapefile datasource, so the CRS-matching and
 bbox/mask dispatch logic can be verified without file I/O.
 
-B80: the CRS-mismatch reprojection is silently discarded. ``dct`` --
-the dict eventually passed to ``getData(**dct)`` -- is built from
-``regionWithCRS`` *before* the CRS check runs. When the shape's CRS
-differs from the datasource's, the mismatch branch does
-``regionWithCRS = regionWithCRS.to_crs(...)``, which returns a *new*
-object rather than mutating in place -- so the reassignment never
-reaches ``dct``, which still holds the original, un-reprojected shape.
-(The "shape has no CRS" branch happens to work, because it assigns
-``regionWithCRS.crs = ...`` directly onto the object ``dct`` already
-references, mutating it in place -- the one branch that actually needed
-a transform is the one that's broken.)
+B80 (fixed): ``dct`` -- the dict eventually passed to ``getData(**dct)``
+-- used to be built from ``regionWithCRS`` *before* the CRS check ran, so
+the mismatch branch's ``regionWithCRS = regionWithCRS.to_crs(...)``, a
+non-mutating reassignment, never reached it. ``dct`` is now built after
+the CRS block, so both branches are passed on to the datasource.
 """
 import geopandas
 import pytest
@@ -67,32 +61,14 @@ class TestCutRegionFromSource:
         toolkit.cutRegionFromSource(doc, shape=[0, 0, 10, 10], isBounds=False, inputCRS=4326)
         assert list(doc.calls[0].keys()) == ["mask"]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B80: dct (the dict handed to getData) is built from "
-               "regionWithCRS before the CRS-mismatch branch runs. That "
-               "branch does regionWithCRS = regionWithCRS.to_crs(...), a "
-               "non-mutating reassignment, so the reprojection never "
-               "reaches dct -- getData() receives the original CRS. "
-               "See the consolidated findings issue.",
-    )
-    def test_the_shape_should_be_reprojected_to_the_datasource_crs(self, toolkit):
+    def test_the_shape_is_reprojected_to_the_datasource_crs(self, toolkit):
+        """B80."""
         doc = _FakeDatasourceDoc(crs=2039)
         toolkit.cutRegionFromSource(doc, shape=[0, 0, 10, 10], isBounds=True, inputCRS=4326)
         reprojected = doc.calls[0]["bbox"]
         assert reprojected.crs.to_epsg() == 2039
 
-    def test_the_shape_currently_keeps_its_original_crs_despite_the_mismatch(self, toolkit):
-        """Characterisation of B80."""
-        doc = _FakeDatasourceDoc(crs=2039)
-        toolkit.cutRegionFromSource(doc, shape=[0, 0, 10, 10], isBounds=True, inputCRS=4326)
-        unreprojected = doc.calls[0]["bbox"]
-        assert unreprojected.crs.to_epsg() == 4326
-
-    def test_when_the_shape_has_no_crs_it_does_pick_up_the_datasource_crs(self, toolkit):
-        """The other branch (bare .crs = ... assignment mutates in place),
-        so this one actually works -- confirms the bug is specific to the
-        reprojection branch, not the whole CRS-handling block."""
+    def test_when_the_shape_has_no_crs_it_picks_up_the_datasource_crs(self, toolkit):
         doc = _FakeDatasourceDoc(crs=2039)
         toolkit.cutRegionFromSource(doc, shape=[0, 0, 10, 10], isBounds=True, inputCRS=None)
         result = doc.calls[0]["bbox"]
