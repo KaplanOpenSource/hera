@@ -1,5 +1,6 @@
 import numpy
 import os
+import tempfile
 from foamlib import FoamFieldFile
 from ....utils.logging import get_classMethod_logger
 from .. import FIELDTYPE_VECTOR, FIELDTYPE_TENSOR, FIELDTYPE_SCALAR
@@ -170,8 +171,6 @@ class OFObject:
         """
         header = {"version": 2.0, "format": "ascii", "class": f"vol{self.fieldType.title()}Field", "object": self.fileName}
         content = {"FoamFile": header, **processorData}
-        if self.fieldType != FIELDTYPE_SCALAR:
-            return FoamFieldFile.dumps(content)
 
         # ponytail: foamlib < 1.10 writes any 3, 6 or 9 long array as a uniform
         # vector/symmTensor/tensor, whatever the file class.  A scalar list of that
@@ -186,10 +185,21 @@ class OFObject:
                 return placeholder
             return value
 
-        content["internalField"] = protect(content.get("internalField"))
-        content["boundaryField"] = {patch: {key: protect(value) for key, value in patchData.items()}
-                                    for patch, patchData in content.get("boundaryField", {}).items()}
-        text = FoamFieldFile.dumps(content)
+        if self.fieldType == FIELDTYPE_SCALAR:
+            content["internalField"] = protect(content.get("internalField"))
+            content["boundaryField"] = {patch: {key: protect(value) for key, value in patchData.items()}
+                                        for patch, patchData in content.get("boundaryField", {}).items()}
+
+        # Written through a file, not FoamFieldFile.dumps: dumps puts the whole file on
+        # one line, and line-based readers (the Hmix template of the LSM toolkit) need
+        # OpenFOAM's own layout, one entry per line.
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, self.fileName)
+            with FoamFieldFile(path) as foamFile:
+                for key, value in content.items():
+                    foamFile[key] = value
+            with open(path, "rb") as written:
+                text = written.read()
         for placeholder, value in lists.items():
             listText = f"nonuniform List<scalar> {len(value)}({' '.join(repr(float(x)) for x in value)})"
             text = text.replace(placeholder.encode(), listText.encode())
