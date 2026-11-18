@@ -171,22 +171,23 @@ class TestPhysicalPropetiesCorrelations:
             a - b * 100
         )
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B66: getVolatility multiplies MW (a Quantity in g/mol) "
-               "straight into the return expression and then multiplies by "
-               "g/cm**3 again, without ever consuming the mol**-1 -- the "
-               "result comes out in g**2/(mol*cm**3), not the documented "
-               "g/cm**3 vapor saturation concentration. "
-               "See the consolidated findings issue.",
-    )
     def test_volatility_is_a_mass_concentration(self, props):
+        """B66, fixed: the molecular weight went into the expression as a
+        Quantity in g/mol and the result was multiplied by g/cm**3 again,
+        so the mol**-1 was never consumed and the documented vapor
+        saturation concentration came out in g**2/(mol*cm**3)."""
         assert props.getVolatility(ureg.Quantity(25, ureg.degC)).m_as(ureg.g / ureg.cm**3) > 0
 
-    def test_volatility_currently_carries_an_extra_inverse_mole(self, props):
-        """Characterisation of B66."""
-        volatility = props.getVolatility(ureg.Quantity(25, ureg.degC))
-        assert volatility.units == ureg.g**2 / ureg.mol / ureg.cm**3
+    def test_volatility_follows_the_documented_correlation(self, props):
+        a, b, c, d = 8.0, 2000.0, 200.0, 0
+        temperature = 25.0
+        expected = (1.585287951807229e-5 * 100.0 * 10 ** (a - b / (temperature + c))
+                    / (temperature + 273.16))
+
+        volatility = props.getVolatility(ureg.Quantity(temperature, ureg.degC))
+
+        assert volatility.units == ureg.g / ureg.cm**3
+        assert volatility.magnitude == pytest.approx(expected)
 
     def test_vapor_pressure_uses_the_antoine_style_constants(self, props):
         A, B, C = 5.0, 1000.0, 50.0

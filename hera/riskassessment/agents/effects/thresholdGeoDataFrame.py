@@ -122,7 +122,7 @@ class thresholdGeoDataFrame(geopandas.GeoDataFrame):
 		geopandas.GeoDataFrame
 			The intersection with area-weighted population.
 		"""
-		res_intersect_poly = demography.loc[not demography["geometry"].intersection(poly).is_empty]
+		res_intersect_poly = demography.loc[demography["geometry"].intersection(poly).is_empty == False]
 		intersection_poly = res_intersect_poly["geometry"].intersection(poly)
 
 		res_intersection = geopandas.GeoDataFrame.from_dict(

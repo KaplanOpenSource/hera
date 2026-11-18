@@ -230,7 +230,7 @@ class casualtiesPlot(object):
 
 
 		for ((severity,severitydata),prop) in zip(results.shiftLocationAndAngle(loc,mathematical_angle=rotate_angle,geometry="TotalPolygon")
-								 .query("severity in %s" % numpy.atleast_1d(plumSeverity))
+								 .query("severity in %s" % numpy.atleast_1d(plumSeverity).tolist())
 								 .groupby("severity"),
 							  boundarycycler):
 

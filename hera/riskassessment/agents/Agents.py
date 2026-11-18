@@ -255,7 +255,7 @@ class PhysicalPropeties(object):
 			The vapor saturation as Unum.
 		"""
 		temperature = unumToPint(temperature).m_as(ureg.celsius)
-		MW = self.getMolecularWeight().to(ureg.g/ureg.mol)
+		MW = self.getMolecularWeight().m_as(ureg.g/ureg.mol)
 
 		a,b,c,d = self._volatilityConst
 

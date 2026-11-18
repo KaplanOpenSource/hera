@@ -96,7 +96,7 @@ class CalculatorHaber(AbstractCalculator):
 		breathingRate = unumToPint(breathingRate)
 		breathingRatio = (breathingRate/self.injuryBreathingRate).magnitude
 		if inUnits is None:
-			inUnits = concentrationField.attrs[field] if hasattr(concentrationField, "attrs") else 1*(ureg.mg / ureg.m ** 3)
+			inUnits = concentrationField.attrs[field] if isinstance(concentrationField, xarray.Dataset) else 1*(ureg.mg / ureg.m ** 3)
 		if isinstance(inUnits, Unit): # pint by default can't do m_as to a Units type
 			inUnits = 1*inUnits
 
@@ -106,7 +106,9 @@ class CalculatorHaber(AbstractCalculator):
 			return concentrationField[field].cumsum(dim=time)*concentrationField.dt.m_as(ureg.min)*breathingRatio*CunitConversion
 		elif isinstance(concentrationField,pandas.DataFrame):
 			dt_min = concentrationField.reset_index()[time].diff().apply(lambda x: x.seconds)/60.
-			return (concentrationField[:-1].fillna(0)*dt_min[1:]).cumsum()*breathingRatio * CunitConversion
+			C = concentrationField[:-1].fillna(0)
+			# we have to ignore the index, so we transform one of the vectors to numpy.
+			return (C * dt_min[1:].values.reshape(C.shape[0],1)).cumsum()*breathingRatio * CunitConversion
 		else:
 			raise ValueError("concentrationField is not a pandas.DataFrame or xarray.Dataset")
 
@@ -174,7 +176,7 @@ class CalculatorTenBerge(AbstractCalculator):
 		breathingRate = unumToPint(breathingRate)
 		breathingRatio = (breathingRate/self.injuryBreathingRate).magnitude
 		if inUnits is None:
-			inUnits = concentrationField.attrs[field] if hasattr(concentrationField, "attrs") else 1*(ureg.mg / ureg.m ** 3)
+			inUnits = concentrationField.attrs[field] if isinstance(concentrationField, xarray.Dataset) else 1*(ureg.mg / ureg.m ** 3)
 		if isinstance(inUnits, Unit): # pint by default can't do m_as to a Units type
 			inUnits = 1*inUnits
 		CunitConversion = inUnits.m_as(ureg.mg / ureg.m ** 3)
@@ -245,7 +247,7 @@ class CalculatorMaxConcentration(AbstractCalculator):
 		breathingRate = unumToPint(breathingRate)
 		breathingRatio = (breathingRate/self.injuryBreathingRate).magnitude
 		if inUnits is None:
-			inUnits = concentrationField.attrs[field] if hasattr(concentrationField, "attrs") else 1*(ureg.mg / ureg.m ** 3)
+			inUnits = concentrationField.attrs[field] if isinstance(concentrationField, xarray.Dataset) else 1*(ureg.mg / ureg.m ** 3)
 		if isinstance(inUnits, Unit): # pint by default can't do m_as to a Units type
 			inUnits = 1*inUnits
 		CunitConversion = inUnits.m_as(ureg.mg / ureg.m ** 3)

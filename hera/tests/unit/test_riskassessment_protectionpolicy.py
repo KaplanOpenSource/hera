@@ -3,11 +3,11 @@
 Pure computation over xarray/pandas/numpy/pint -- no DB, no toolkit, no
 stubbed dependency.  One live defect surfaced while probing this module:
 
-* B54: ``ActionIndoor`` constructed with ``alpha=`` (rather than
-  ``turnover=``) calls ``.ureg(...)`` on a pint ``Quantity``, which has no
-  such method. Only the ``turnover=`` keyword -- not ``alpha=``, despite
-  being the class's own documented and first-listed example -- can actually
-  build an indoor action.
+* B54, fixed: ``ActionIndoor`` constructed with ``alpha=`` (rather than
+  ``turnover=``) called ``.ureg(...)`` on a pint ``Quantity``, which has no
+  such method, so only the ``turnover=`` keyword -- not ``alpha=``, despite
+  being the class's own documented and first-listed example -- could build
+  an indoor action.  It converts with ``.to(1/ureg.h)`` now.
 
 B53, resolved independently: ``addActions`` given a string used to check
 ``os.JSONpath.exists`` -- an attribute ``os`` does not have -- so the
@@ -154,15 +154,10 @@ class TestActionIndoor:
         with pytest.raises(ValueError, match="alpha or turnover"):
             ActionIndoor(1, ProtectionPolicy())
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B54: the alpha branch does `kwargs['alpha'].ureg(1/ureg.h)`, "
-               "but pint Quantity objects have no `.ureg` method (that call "
-               "raises AttributeError). Only turnover=, not the "
-               "class-docstring's own alpha=... example, actually works. "
-               "See the consolidated findings issue.",
-    )
     def test_constructing_with_alpha_directly(self):
+        """B54, fixed: the alpha branch called `.ureg(1/ureg.h)` on a pint
+        Quantity, which has no such method, so only turnover= worked -- not
+        the class docstring's own alpha=... example."""
         action = ActionIndoor(1, ProtectionPolicy(), alpha=0.5 / ureg.h)
         assert action.alpha.m_as(1 / ureg.h) == pytest.approx(0.5)
 
@@ -172,30 +167,20 @@ class TestActionIndoor:
         policy.compute(ds)
         assert policy._actionList[0].hdfkey.startswith("indoorT120min")
 
-    def test_indoor_field_is_always_zero_today(self):
-        """B59: the recurrence never actually writes into Cin.
-
-        ``Cin[curstep].values = ...`` assigns into the DataArray returned by
-        dict-based ``__getitem__``, which is a fresh copy on this xarray
-        version rather than a view -- so every write in the loop is
-        discarded and ``indoor_1`` comes out as all zeros regardless of
-        alpha, dt or the outdoor concentration.
-        """
+    def test_the_indoor_field_starts_at_zero(self):
+        """Cin is seeded with zeros, and only the steps after the first are
+        written by the recurrence."""
         ds = _dataset(n=5, value=10.0)
         policy = ProtectionPolicy().indoor(turnover=2 * ureg.h, **_window(ds))
         data = policy.compute(ds)
-        assert numpy.array_equal(data["indoor_1"].values, numpy.zeros(5))
+        assert data["indoor_1"].values[0] == 0.0
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B59: Cin[curstep].values = ... discards its write because "
-               "dict-indexing (`Cin[{'datetime': I}]`) returns a copy, not "
-               "a view, on this xarray version. The indoor recurrence "
-               "therefore never runs -- indoor_1 is all zeros no matter "
-               "what alpha, dt or the outdoor concentration are. "
-               "See the consolidated findings issue.",
-    )
     def test_compute_builds_a_low_pass_filtered_field_towards_the_outdoor_value(self):
+        """B59, fixed: ``Cin[curstep].values = ...`` assigned into the
+        DataArray returned by dict-based ``__getitem__``, which is a fresh
+        copy rather than a view, so every write in the loop was discarded
+        and indoor_1 came out all zeros whatever alpha, dt or the outdoor
+        concentration were."""
         ds = _dataset(n=5, value=10.0)
         policy = ProtectionPolicy().indoor(turnover=2 * ureg.h, **_window(ds))
         data = policy.compute(ds)

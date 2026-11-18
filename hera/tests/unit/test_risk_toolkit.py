@@ -7,19 +7,20 @@ out of scope here; it needs LSM/S3 data and belongs with an integration
 test. ``loadData`` turned out to have three real defects around its
 ``saveMode`` argument, found by exercising the documented modes directly:
 
-* B55: ``TOOLKIT_SAVEMODE_NOSAVE`` only has an effect when a matching
-  document already exists (the ``elif`` branch). The very first load of a
-  new agent goes through the ``if agentDoc is None`` branch, which calls
-  ``addDataSource`` unconditionally -- so "no save" still saves.
-* B56: ``TOOLKIT_SAVEMODE_FILEANDDB_REPLACE`` looks up the existing document
-  by the *new* version being loaded, not by name alone. Replacing with a
-  different version therefore never finds the old entry, falls into the
-  "create new" branch, and leaves a duplicate datasource under the same
-  name instead of replacing anything.
-* B57: even when the version matches and the replace path is taken, only
-  ``desc['version']`` is updated -- the rest of ``desc`` (e.g.
-  ``effectParameters``) is left stale while ``resource`` (the raw JSON) is
-  fully overwritit, so the document's metadata and payload diverge.
+* B55, fixed: ``TOOLKIT_SAVEMODE_NOSAVE`` only had an effect when a
+  matching document already existed (the ``elif`` branch). The very first
+  load of a new agent went through the ``if agentDoc is None`` branch,
+  which calls ``addDataSource`` unconditionally -- so "no save" still
+  saved. The mode is now honoured before the lookup, for both branches.
+* B56, fixed: ``TOOLKIT_SAVEMODE_FILEANDDB_REPLACE`` looked the existing
+  document up by the *new* version being loaded, not by name alone.
+  Replacing with a different version therefore never found the old entry,
+  fell into the "create new" branch, and left a duplicate datasource under
+  the same name instead of replacing anything.
+* B57, fixed: when the replace path was taken, only ``desc['version']``
+  was updated -- the rest of ``desc`` (e.g. ``effectParameters``) was left
+  stale while ``resource`` (the raw JSON) was overwritten in full, so the
+  document's metadata and payload diverged.
 """
 import pytest
 
@@ -81,59 +82,41 @@ class TestLoadData:
         with pytest.raises(ValueError, match="must be a file"):
             risk.loadData(12345, saveMode=TOOLKIT_SAVEMODE_FILEANDDB)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B55: saveMode is only consulted in the `elif agentDoc is "
-               "not None` branch. When no matching document exists yet -- "
-               "true for the very first load of any agent -- the `if "
-               "agentDoc is None` branch runs unconditionally and calls "
-               "addDataSource regardless of saveMode, so "
-               "TOOLKIT_SAVEMODE_NOSAVE still persists to the database. "
-               "See the consolidated findings issue.",
-    )
     def test_nosave_does_not_persist_a_new_agent(self, risk):
+        """B55, fixed: saveMode was consulted only in the `elif agentDoc is
+        not None` branch, so the very first load of any agent called
+        addDataSource whatever the mode was."""
         risk.loadData(_desc(), saveMode=TOOLKIT_SAVEMODE_NOSAVE)
         assert risk.listAgentsNames() == []
 
-    def test_nosave_currently_does_persist_a_new_agent(self, risk):
-        """Characterisation of B55, so the defect above is a number, not an adjective."""
-        risk.loadData(_desc(), saveMode=TOOLKIT_SAVEMODE_NOSAVE)
-        assert risk.listAgentsNames() == ["TestAgent"]
+    def test_nosave_does_not_touch_an_existing_agent_either(self, risk):
+        risk.loadData(_desc(), saveMode=TOOLKIT_SAVEMODE_FILEANDDB)
+        risk.loadData(_desc(effectParameters={"tenbergeCoefficient": 2}),
+                      saveMode=TOOLKIT_SAVEMODE_NOSAVE)
+        assert risk.getDataSourceDocument("TestAgent").desc["effectParameters"] == {}
 
     def test_replacing_the_same_name_and_version_updates_in_place(self, risk):
         risk.loadData(_desc(), saveMode=TOOLKIT_SAVEMODE_FILEANDDB)
         risk.loadData(_desc(), saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE)
         assert risk.listAgentsNames() == ["TestAgent"]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B56: the replace path looks up the existing document with "
-               "getDataSourceDocument(datasourceName=name, version=<the "
-               "NEW version>), so replacing with a different version never "
-               "finds the old entry, falls into the 'create' branch, and "
-               "leaves two datasources named TestAgent instead of one. "
-               "See the consolidated findings issue.",
-    )
     def test_replacing_with_a_different_version_updates_the_single_entry(self, risk):
+        """B56, fixed: the replace path looked the existing document up by
+        the NEW version, never found the old entry, fell into the 'create'
+        branch and left two datasources named TestAgent."""
         risk.loadData(_desc(version=(0, 0, 1)), saveMode=TOOLKIT_SAVEMODE_FILEANDDB)
         risk.loadData(_desc(version=(0, 0, 2)), saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE)
         assert risk.listAgentsNames() == ["TestAgent"]
 
-    def test_replacing_with_a_different_version_currently_duplicates_the_entry(self, risk):
-        """Characterisation of B56."""
+    def test_replacing_with_a_different_version_records_the_new_version(self, risk):
         risk.loadData(_desc(version=(0, 0, 1)), saveMode=TOOLKIT_SAVEMODE_FILEANDDB)
-        risk.loadData(_desc(version=(0, 0, 2)), saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE)
-        assert risk.listAgentsNames() == ["TestAgent", "TestAgent"]
+        doc = risk.loadData(_desc(version=(0, 0, 2)), saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE)
+        assert doc.desc["version"] == [0, 0, 2]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B57: the replace path only assigns agentDoc.desc['version'] "
-               "before saving -- the rest of desc (e.g. effectParameters) "
-               "is never refreshed, even though `resource` (the raw JSON) "
-               "is fully overwritten with the new description. "
-               "See the consolidated findings issue.",
-    )
     def test_replacing_with_the_same_version_refreshes_the_metadata(self, risk):
+        """B57, fixed: the replace path assigned only desc['version'], so
+        the rest of desc went stale while `resource` (the raw JSON) was
+        overwritten in full."""
         risk.loadData(_desc(), saveMode=TOOLKIT_SAVEMODE_FILEANDDB)
         doc = risk.loadData(
             _desc(effectParameters={"tenbergeCoefficient": 2}),

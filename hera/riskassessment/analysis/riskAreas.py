@@ -144,7 +144,7 @@ class riskAreaAlgorithm_Sweep(object):
 		minX, minY, maxX, maxY = affinity.rotate(united, origin=united.centroid, angle=-mathematical_angle).bounds
 
 		maxdatetime = effectIsopleths.datetime.max()
-		bounds_effectIsopleths = effectIsopleths.set_index("datetime").loc[maxdatetime]
+		bounds_effectIsopleths = effectIsopleths.set_index("datetime").loc[[maxdatetime]]
 
 		severityForMesh 	 = bounds_effectIsopleths.set_geometry(geometryColumn).dissolve(by=severityColumn).area.sort_values(ascending=False).index[0]
 		effectIsopleths_mesh = bounds_effectIsopleths.query("%s=='%s'" % (severityColumn, severityForMesh))
@@ -172,7 +172,7 @@ class riskAreaAlgorithm_Sweep(object):
 	def _doCalculation(self,releaseLoc,params):
 		"""Project effect isopleths at a single release location and return casualties."""
 		effectIsopleths = params["effectIsopleths"]
-		projected = effectIsopleths.datalayer(params["demog"], releaseLoc, mathematical_angle=params["rotate_angle"])
+		projected = effectIsopleths.project(params["demog"], releaseLoc, mathematical_angle=params["rotate_angle"])
 		if projected is not None:
 			data = projected.groupby(["severity", "datetime"]).sum().reset_index()[['severity', 'datetime', params["valueColumn"]]]
 			data['x'] = releaseLoc[0]

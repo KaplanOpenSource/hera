@@ -20,14 +20,14 @@ subclass with no ``_constructor`` override -- has its type erased by
 ``thresholdGeoDataFrame``-only method (``shiftLocationAndAngle`` again,
 or ``project``) onto the result fails with ``AttributeError``.
 
-B108: ``_calculatePopulationInPolygon`` always raises. It computes
+B108, fixed: ``_calculatePopulationInPolygon`` always raised. It computed
 ``demography.loc[not demography["geometry"].intersection(poly).is_empty]``
 -- ``not`` on a multi-element pandas Series raises
 ``ValueError: The truth value of a Series is ambiguous``, and pandas
 raises that same error even for a length-1 Series (unlike a numpy
-scalar). Every call fails, regardless of how many rows demography has;
-the elementwise negation it clearly needs is ``~`` (or ``.apply(...)``),
-not ``not``.
+scalar), so every call failed regardless of how many rows demography had.
+It now selects with ``... .is_empty == False``, the same form the parallel
+implementation in ``GIS/vector/demography.py`` has always used.
 """
 import pandas
 import pytest
@@ -152,8 +152,8 @@ class TestProjectAngleDispatch:
 
 
 @pytest.mark.unit
-class TestCalculatePopulationInPolygonIsBroken:
-    """B108: see the module docstring."""
+class TestCalculatePopulationInPolygon:
+    """B108, fixed: see the module docstring."""
 
     @staticmethod
     def _demography(n_rows=2):
@@ -164,33 +164,28 @@ class TestCalculatePopulationInPolygonIsBroken:
             "total_pop": [100 * (i + 1) for i in range(n_rows)],
         })
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B108: `not <Series>` raises ValueError for any "
-               "multi-element pandas Series -- the elementwise negation "
-               "needed here is `~`, not `not`. See the consolidated "
-               "findings issue.",
-    )
-    def test_it_should_return_the_intersecting_rows_with_population(self):
+    def test_it_returns_the_intersecting_rows_with_population(self):
         poly = Point(0, 0).buffer(2)
         result = thresholdGeoDataFrame._calculatePopulationInPolygon(
             self._demography(), poly, ["total_pop"],
         )
         assert len(result) == 1
 
-    def test_it_currently_raises_for_multiple_rows(self):
-        """Characterisation of B108."""
+    def test_a_single_row_demography_works_too(self):
+        """`not <Series>` used to raise regardless of length, because
+        pandas' Series.__bool__ has no length-1 shortcut."""
         poly = Point(0, 0).buffer(2)
-        with pytest.raises(ValueError, match="ambiguous"):
-            thresholdGeoDataFrame._calculatePopulationInPolygon(
-                self._demography(), poly, ["total_pop"],
-            )
+        result = thresholdGeoDataFrame._calculatePopulationInPolygon(
+            self._demography(n_rows=1), poly, ["total_pop"],
+        )
+        assert len(result) == 1
 
-    def test_it_currently_raises_even_for_a_single_row(self):
-        """Characterisation of B108: pandas' Series.__bool__ raises the
-        same way regardless of length, unlike a numpy scalar."""
+    def test_the_population_is_weighted_by_the_intersected_area(self):
+        """The row is a radius-1 disc at the origin, fully inside the
+        radius-2 polygon, so all of its 100 people are counted."""
         poly = Point(0, 0).buffer(2)
-        with pytest.raises(ValueError, match="ambiguous"):
-            thresholdGeoDataFrame._calculatePopulationInPolygon(
-                self._demography(n_rows=1), poly, ["total_pop"],
-            )
+        result = thresholdGeoDataFrame._calculatePopulationInPolygon(
+            self._demography(n_rows=1), poly, ["total_pop"],
+        )
+        assert result["areaFraction"].iloc[0] == pytest.approx(1.0)
+        assert result["total_pop"].iloc[0] == pytest.approx(100.0)

@@ -145,20 +145,14 @@ class TestThresholdLevel:
         with pytest.raises(AttributeError, match="'int' object has no attribute 'to'"):
             InjuryLevelThreshold("T", threshold="50")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B38: the threshold is passed straight to ureg(), which parses "
-               "strings only, so a plain number fails with pint's internal "
-               "AttributeError: 'float' object has no attribute 'replace'. Its "
-               "sibling InjuryLevelLognormal10DoseResponse accepts TL_50=100.0 "
-               "through tounit(), and the docstring here says only 'Must include "
-               "threshold'. See the consolidated findings issue.",
-    )
     def test_a_plain_number_is_accepted_like_its_sibling_takes_tl50(self):
+        """B38, fixed: the threshold went straight to ureg(), which parses
+        strings only, so a plain number failed with pint's internal
+        AttributeError: 'float' object has no attribute 'replace'."""
         level = InjuryLevelThreshold("T", threshold=50.0)
         assert level.threshold.to(ureg.mg / ureg.m**3).magnitude == pytest.approx(50.0)
 
-    def test_the_sibling_does_accept_a_plain_number(self):
-        """Establishes the inconsistency B38 is about."""
+    def test_the_sibling_also_accepts_a_plain_number(self):
+        """The consistency B38 restored."""
         sibling = InjuryLevelLognormal10DoseResponse("x", TL_50=50.0, sigma=0.5)
         assert sibling.TL_50.to(ureg.mg / ureg.m**3).magnitude == pytest.approx(50.0)

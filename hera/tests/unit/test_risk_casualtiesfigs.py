@@ -26,10 +26,10 @@ Two conventions matter throughout:
   the severities drawn before it, which is what stops a casualty from being
   counted twice across severities.
 
-One bug is pinned below as B265: asking ``plotCasualtiesProjection`` for
-more than one ``plumSeverity`` silently draws no plume outline at all,
-because the pandas ``query`` expression is built by ``%``-formatting a numpy
-array.
+One bug was found here, B265, now fixed: asking
+``plotCasualtiesProjection`` for more than one ``plumSeverity`` silently
+drew no plume outline at all, because the pandas ``query`` expression was
+built by ``%``-formatting a numpy array.
 
 Robustness note (not pinned as a bug): ``plotCasualtiesRose`` builds nine
 tick labels from ``numpy.linspace(0, 360, 9)`` and hands them to
@@ -689,8 +689,8 @@ class TestCasualtiesProjection:
 
 
 @pytest.mark.unit
-class TestSeveralPlumeSeveritiesDrawNothing:
-    """B265: see the reasons below."""
+class TestSeveralPlumeSeverities:
+    """B265, fixed: see the reasons below."""
 
     @staticmethod
     def _source():
@@ -699,51 +699,37 @@ class TestSeveralPlumeSeveritiesDrawNothing:
             geometry="TotalPolygon": _totals()
         return source
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B265: plotCasualtiesProjection selects the plume outlines "
-               "with .query(\"severity in %s\" % "
-               "numpy.atleast_1d(plumSeverity)).  str() of a numpy array "
-               "separates elements with spaces and no commas, so two "
-               "severities render as \"severity in ['Severe' 'Light']\"; "
-               "Python's adjacent-string-literal concatenation collapses that "
-               "to the single name ['SevereLight'], the query matches no row, "
-               "and every requested outline is silently dropped -- no error, "
-               "no warning, just a missing plume boundary.  One severity "
-               "happens to work because a single-element array has nothing to "
-               "concatenate with.  The list should be interpolated as a "
-               "Python list (e.g. list(numpy.atleast_1d(plumSeverity))) or "
-               "bound through @-variables.  See the consolidated findings "
-               "issue.",
-    )
-    def test_two_plume_severities_should_draw_two_outlines(self, plotter):
+    def test_two_plume_severities_draw_two_outlines(self, plotter):
+        """B265, fixed: the outlines were selected with .query("severity in
+        %s" % numpy.atleast_1d(plumSeverity)).  str() of a numpy array
+        separates elements with spaces and no commas, so two severities
+        rendered as "severity in ['Severe' 'Light']"; Python's adjacent
+        string literals collapsed that to the single name ['SevereLight'],
+        the query matched no row, and every requested outline was silently
+        dropped.  One severity happened to work, having nothing to
+        concatenate with."""
         axes, _ = plotter.plotCasualtiesProjection(
             self._source(), area={}, severityList=["Severe"], loc=(0, 0),
             mathematical_angle=0.0, plumSeverity=["Severe", "Light"])
 
         assert len(axes.lines) == 2
 
-    def test_two_plume_severities_currently_draw_none(self, plotter):
-        """Characterisation of B265."""
-        axes, _ = plotter.plotCasualtiesProjection(
-            self._source(), area={}, severityList=["Severe"], loc=(0, 0),
-            mathematical_angle=0.0, plumSeverity=["Severe", "Light"])
-
-        assert len(axes.lines) == 0
-
     def test_one_plume_severity_still_works(self, plotter):
-        """Characterisation of B265: isolates the element count as the
-        trigger, so the diagnosis is unambiguous."""
+        """The single-severity case the element count used to hide behind."""
         axes, _ = plotter.plotCasualtiesProjection(
             self._source(), area={}, severityList=["Severe"], loc=(0, 0),
             mathematical_angle=0.0, plumSeverity=["Severe"])
 
         assert len(axes.lines) == 1
 
-    def test_the_query_string_it_builds_selects_a_concatenated_name(self):
-        """Characterisation of B265's mechanism, derived from the standard
-        library rather than from hera's output."""
-        expression = "severity in %s" % numpy.atleast_1d(["Severe", "Light"])
+    def test_the_numpy_formatting_is_what_used_to_break_the_query(self):
+        """B265's mechanism, derived from the standard library rather than
+        from hera's output, and the form that replaced it."""
+        broken = "severity in %s" % numpy.atleast_1d(["Severe", "Light"])
+        # .tolist() gives plain str/int; list() would keep numpy scalars, which
+        # NumPy 2 prints as np.str_(...) and the query cannot evaluate.
+        fixed = "severity in %s" % numpy.atleast_1d(["Severe", "Light"]).tolist()
 
-        assert expression == "severity in ['Severe' 'Light']"
-        assert _totals().query(expression).empty
+        assert broken == "severity in ['Severe' 'Light']"
+        assert _totals().query(broken).empty
+        assert len(_totals().query(fixed)) == 2
