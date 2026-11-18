@@ -29,26 +29,27 @@ relations, and two of them are consequences the code cannot dodge:
 
 Two defects surfaced:
 
-* B244: ``calcU`` tests ``if z < hc`` then ``elif (z > hc) and
-  (z < surfaceLayerHeight)``.  Both are strict, so ``z == hc`` -- the
+* B244 (fixed): ``calcU`` tested ``if z < hc`` then ``elif (z > hc) and
+  (z < surfaceLayerHeight)``.  Both were strict, so ``z == hc`` -- the
   canopy top, the one height where the two profiles are built to agree --
-  falls through to the ``else`` branch, which *overwrites* z with the
-  2000 m surface-layer height.  A cell exactly at roof level is given the
-  wind speed of the top of the boundary layer: 11.10 m/s where the
-  profile is 2.44 m/s, a factor of 4.6, and identical to the value
-  returned for z = 3000 m.
-* B245: the interpolation write-back uses chained assignment,
-  ``data['Ux'].iloc[i] = ...``.  pandas already emits
+  fell through to the ``else`` branch, which *overwrites* z with the
+  2000 m surface-layer height, giving a cell at roof level 11.10 m/s where
+  the profile is 2.44 m/s.  The first test is now ``z <= hc``.
+* B245 (fixed): the interpolation write-back used chained assignment,
+  ``data['Ux'].iloc[i] = ...``.  pandas emitted
   ``FutureWarning: ChainedAssignmentError`` for it, and under
-  copy-on-write -- the pandas 3.0 default -- the write silently does
-  nothing: 60 of 80 cells come back NaN, i.e. the whole point of the
-  interpolation step is lost without any error.
+  copy-on-write -- the pandas 3.0 default -- the write silently did
+  nothing: 60 of 80 cells came back NaN, i.e. the whole point of the
+  interpolation step was lost without any error.  The write-back is now a
+  single ``data.iloc[i, col] = ...``.
 
 Not covered: the ``interpolation == 'linear1'`` and ``'Elevation'``
 branches.  ``interpolation`` is a local literal set to ``'linear'`` three
 lines above, so neither branch is reachable (and the 'Elevation' one is
 an admittedly unfinished sketch that only prints).
 """
+import warnings
+
 import numpy
 import pandas
 import pytest
@@ -277,16 +278,6 @@ class TestCanopyProfileValues:
 class TestContinuityAtCanopyTop:
     """B244: see the module docstring."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B244: calcU's two branches are `if z < hc` and `elif (z > hc) "
-               "and (z < surfaceLayerHeight)`, both strict, so z == hc falls "
-               "through to the else branch, which replaces z with the 2000 m "
-               "surface-layer height. The canopy top -- the single height where "
-               "the exponential and logarithmic branches are constructed to "
-               "agree, both giving Uh -- instead returns the wind speed at the "
-               "top of the boundary layer. See the consolidated findings issue.",
-    )
     def test_the_profile_at_canopy_top_is_the_canopy_top_speed(self, profile):
         """d/z0 = exp(kappa/beta) makes the log branch collapse to Uh at
         z = hc, matching the exponential branch there. A cell at roof level
@@ -306,22 +297,16 @@ class TestContinuityAtCanopyTop:
         assert fromBelow == pytest.approx(Uh)
         assert fromAbove == pytest.approx(Uh)
 
-    def test_canopy_top_currently_returns_the_surface_layer_value(self, profile):
-        """Characterisation of B244: z = hc and z = 3000 m come back
-        identical, and both are the 2000 m speed."""
+    def test_canopy_top_is_not_the_surface_layer_value(self, profile):
+        """z = 3000 m still clamps to the 2000 m speed; the canopy top must
+        not share it."""
         centre = _centre(profile)
         atRoof = centre[centre.z == 10.0].Umag.values
         aloft = centre[centre.z == 3000.0].Umag.values
-        assert atRoof == pytest.approx(aloft)
-        assert atRoof == pytest.approx(
-            [_profile(SURFACE_LAYER_HEIGHT)] * len(atRoof)
+        assert aloft == pytest.approx(
+            [_profile(SURFACE_LAYER_HEIGHT)] * len(aloft)
         )
-
-    def test_the_error_at_canopy_top_is_a_factor_of_four_and_a_half(self, profile):
-        """Characterisation of B244, sized."""
-        centre = _centre(profile)
-        atRoof = centre[centre.z == 10.0].Umag.mean()
-        assert atRoof / _uh() == pytest.approx(4.554, rel=1e-3)
+        assert atRoof[0] != pytest.approx(aloft[0])
 
 
 @pytest.mark.unit
@@ -382,32 +367,23 @@ class TestInterpolationFillsTheGaps:
 class TestChainedAssignmentWriteBack:
     """B245: see the module docstring."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B245: the interpolation results are written back with chained "
-               "assignment, `data['Ux'].iloc[i] = ...`. pandas already warns "
-               "(FutureWarning: ChainedAssignmentError) and under copy-on-write, "
-               "the pandas 3.0 default, the assignment targets a temporary and is "
-               "silently discarded: 60 of the 80 cells come back NaN and the "
-               "interpolation step becomes a no-op with no error raised. "
-               "See the consolidated findings issue.",
-    )
     def test_the_interpolation_survives_copy_on_write(self):
         with pandas.option_context("mode.copy_on_write", True):
             result = _run()
         assert not result.Ux.isna().any()
 
-    def test_under_copy_on_write_only_the_seeded_cells_survive(self):
-        """Characterisation of B245: exactly the 20 cells calcU wrote keep a
-        value; the 60 the interpolation was supposed to fill stay NaN."""
+    def test_every_cell_is_filled_under_copy_on_write(self):
+        """The 20 cells calcU seeds plus the 60 the interpolation fills."""
         with pandas.option_context("mode.copy_on_write", True):
             result = _run()
-        assert result.Ux.isna().sum() == 60
+        assert result.Ux.isna().sum() == 0
         assert len(_centre(result)) == 20
         assert not _centre(result).Umag.isna().any()
 
-    def test_the_write_back_is_flagged_by_pandas_today(self):
-        """Characterisation of B245: it is not a latent style issue, pandas
-        already emits a FutureWarning for every one of the four writes."""
-        with pytest.warns(FutureWarning, match="ChainedAssignmentError"):
+    def test_the_write_back_no_longer_warns(self):
+        """A single .iloc on the frame is not a chained assignment, so pandas
+        has nothing to flag."""
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", FutureWarning)
+            warnings.simplefilter("error", pandas.errors.SettingWithCopyWarning)
             _run()

@@ -35,11 +35,6 @@ Two defects surfaced while probing:
   here inherit it.  Note the pre-existing
   ``test_the_fully_rough_limit_is_eight`` records that plateau as
   intended; the two monotonicity tests below say why it cannot be.
-* B12 (already pinned in ``test_utils_units.py``) reaches this module:
-  every method documents ``ustar: float`` with mks defaults, but a bare
-  float goes through ``tounit``, which builds a Quantity in pint's
-  application registry instead of hera's, so it cannot be multiplied by
-  ``_channelHeight``.
 
 ``skin_friction`` is not touched here -- it is dead on arrival (B33)
 and already pinned.
@@ -97,28 +92,11 @@ class TestCouetteFrictionReynoldsNumber:
         two = smoothCouette.Re_tau(0.4 * ureg.m / ureg.s)
         assert two / one == pytest.approx(2.0)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B12 reaching a new call site: Re_tau documents `ustar: float, "
-               "unum -- default units [m/s]`, but tounit builds a bare "
-               "pint Quantity for a plain number, so it lands in pint's "
-               "application registry while _channelHeight (built from a ureg "
-               "Quantity) stays in hera's. Multiplying them raises "
-               "ValueError('Cannot operate with Quantity and Quantity of "
-               "different registries'). Every documented-float entry point of "
-               "this module is affected the same way. "
-               "See the consolidated findings issue.",
-    )
     def test_a_plain_float_is_read_as_metres_per_second(self, smoothCouette):
         """The docstring promises mks defaults for bare numbers."""
         assert smoothCouette.Re_tau(0.3) == pytest.approx(
             smoothCouette.Re_tau(0.3 * ureg.m / ureg.s)
         )
-
-    def test_a_plain_float_currently_raises_a_registry_error(self, smoothCouette):
-        """Characterisation of B12 at this call site."""
-        with pytest.raises(ValueError, match="different registries"):
-            smoothCouette.Re_tau(0.3)
 
     def test_the_two_flows_agree_on_it(self, smoothChannel, smoothCouette):
         """channelFlow and couetteFlow define Re_tau identically."""

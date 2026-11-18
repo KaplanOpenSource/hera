@@ -60,7 +60,7 @@ def prepareSlurmScriptExecution(*, scriptPath=None, script=None,
         return
 
     processorLine = f"#SBATCH -n {allocateProcessorsPerRun} # number of CPUs per job" if allocateProcessorsPerRun is not None else ""
-    meomoryLine   = f"#SBATCH -mem={memoryInGB}G" if memoryInGB is not None else ""
+    meomoryLine   = f"#SBATCH --mem={memoryInGB}G" if memoryInGB is not None else ""
     exclusiveLine = f"#SBATCH --exclusive" if exclusive is not None and exclusive else ""
     slurmBatchFile = f"""#!/bin/bash
 #SBATCH --job-name={jobName}

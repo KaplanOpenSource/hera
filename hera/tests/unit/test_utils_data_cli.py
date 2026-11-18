@@ -34,13 +34,14 @@ values that must appear in it, never character by character.
 
 Three bugs are pinned here:
 
-* B179 -- ``toolkit_register`` calls ``registerToolkit`` with the
-  undefined names ``toolkit_name``/``toolkit_path``, so the command can
+* B179 (fixed) -- ``toolkit_register`` called ``registerToolkit`` with the
+  undefined names ``toolkit_name``/``toolkit_path``, so the command could
   never register anything.
-* B180 -- ``update_datasource_default_version`` calls
+* B180 (fixed) -- ``update_datasource_default_version`` called
   ``setDataSourceDefaultVersion`` on a ``Project``, but that method only
-  exists on ``abstractToolkit``.
-* B181 -- ``add_toolkit`` reports a non-object ``--params`` JSON as
+  exists on ``abstractToolkit``; it now resolves the toolkit the datasource
+  was registered under and calls it there.
+* B181 (fixed) -- ``add_toolkit`` reported a non-object ``--params`` JSON as
   invalid JSON, hiding the real reason.
 """
 import json
@@ -184,7 +185,8 @@ def _makeProjectClass(harness):
 
     It deliberately does NOT define ``setDataSourceDefaultVersion``,
     because the real ``hera.datalayer.Project`` does not either -- see
-    B180 and ``test_the_real_project_class_has_no_...`` below.
+    B180 and ``test_the_real_project_class_has_no_...`` below.  The handler
+    has to reach that method through the toolkit instead.
     """
 
     class _FakeProject(_Recorder):
@@ -1063,29 +1065,16 @@ class TestAddToolkit:
 
         assert "registered successfully" in _messages(records)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B181: add_toolkit validates --params with `raise "
-               "ValueError('Params must be a JSON object.')` inside the same "
-               "try block that catches JSON decoding errors, and the bare "
-               "`except Exception` re-raises everything as 'Invalid JSON "
-               "passed to --params'. A perfectly valid JSON array or scalar "
-               "is therefore reported as malformed JSON, so the user is told "
-               "to fix their quoting instead of to pass an object. See the "
-               "consolidated findings issue.",
-    )
-    def test_valid_json_that_is_not_an_object_should_say_so(self, wired):
+    def test_valid_json_that_is_not_an_object_says_so(self, wired):
         with pytest.raises(ValueError, match="must be a JSON object"):
             CLI.add_toolkit(self._arguments(params="[1, 2]"))
 
-    def test_valid_json_that_is_not_an_object_is_reported_as_invalid_json(self, wired):
-        """Characterisation of B181."""
+    def test_malformed_json_is_still_reported_as_invalid_json(self, wired):
         with pytest.raises(ValueError) as caught:
-            CLI.add_toolkit(self._arguments(params="[1, 2]"))
+            CLI.add_toolkit(self._arguments(params="{not json"))
 
-        assert str(caught.value) == "Invalid JSON passed to --params: [1, 2]"
-        assert isinstance(caught.value.__cause__, ValueError)
-        assert str(caught.value.__cause__) == "Params must be a JSON object."
+        assert str(caught.value) == "Invalid JSON passed to --params: {not json"
+        assert caught.value.__cause__ is not None
 
 
 # ---------------------------------------------------------------------------
@@ -1191,10 +1180,23 @@ class TestUpdateDatasourceDefaultVersion:
             setattr(arguments, key, value)
         return arguments
 
-    def test_the_version_string_is_parsed_into_a_tuple_of_ints(self, wired):
+    @pytest.fixture()
+    def registered(self, wired):
+        """One datasource document, plus a toolkit for ToolkitHome to hand back."""
+        wired.measurementsDocuments = [
+            _FakeDocument(desc=dict(toolkit="MeteoLowFreq", datasourceName="YAVNEEL",
+                                    version=(0, 0, 2)))
+        ]
+        wired.loadedToolkit = _Recorder()
+        wired.loadedToolkit.setDataSourceDefaultVersion = (
+            lambda **kwargs: wired.loadedToolkit._record("setDataSourceDefaultVersion", **kwargs)
+        )
+        return wired
+
+    def test_the_version_string_is_parsed_into_a_tuple_of_ints(self, registered):
         arguments = self._arguments(version=" 1 , 2 , 3 ")
-        with pytest.raises(AttributeError):  # B180, pinned below
-            CLI.update_datasource_default_version(arguments)
+        registered.measurementsDocuments[0].desc["version"] = (1, 2, 3)
+        CLI.update_datasource_default_version(arguments)
         assert arguments.version == (1, 2, 3)
 
     def test_a_malformed_version_is_rejected_before_the_project_is_opened(self, wired):
@@ -1202,34 +1204,24 @@ class TestUpdateDatasourceDefaultVersion:
             CLI.update_datasource_default_version(self._arguments(version="zero,one"))
         assert wired.projects == []
 
-    def test_the_project_is_opened_by_name(self, wired):
-        with pytest.raises(AttributeError):  # B180
-            CLI.update_datasource_default_version(self._arguments())
-        assert wired.project.projectName == "VERSIONS"
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B180: update_datasource_default_version builds a "
-               "hera.datalayer.Project and calls "
-               "proj.setDataSourceDefaultVersion(...), but that method is "
-               "defined on hera.toolkit.abstractToolkit, not on Project -- "
-               "Project has no __getattr__ fallback either. So "
-               "`hera-project project version update <proj> <ds> <d,d,d>` "
-               "always dies with AttributeError and no default version can "
-               "ever be set from the CLI. See the consolidated findings issue.",
-    )
-    def test_the_default_version_should_reach_the_project(self, wired):
+    def test_the_project_is_opened_by_name(self, registered):
         CLI.update_datasource_default_version(self._arguments())
-        assert wired.project.kwargs("setDataSourceDefaultVersion") == dict(
+        assert registered.project.projectName == "VERSIONS"
+
+    def test_the_default_version_reaches_the_toolkit_the_datasource_belongs_to(self, registered):
+        CLI.update_datasource_default_version(self._arguments())
+
+        assert registered.home.kwargs("getToolkit") == dict(toolkitName="MeteoLowFreq")
+        assert registered.loadedToolkit.kwargs("setDataSourceDefaultVersion") == dict(
             datasourceName="YAVNEEL", version=(0, 0, 2))
 
-    def test_it_currently_raises_attributeerror(self, wired):
-        """Characterisation of B180."""
-        with pytest.raises(AttributeError, match="setDataSourceDefaultVersion"):
+    def test_an_unregistered_datasource_version_is_reported(self, wired):
+        wired.measurementsDocuments = []
+        with pytest.raises(ValueError, match="No DataSource with name=YAVNEEL"):
             CLI.update_datasource_default_version(self._arguments())
 
     def test_the_real_project_class_has_no_setdatasourcedefaultversion(self):
-        """Characterisation of B180: where the method actually lives."""
+        """B180: why the toolkit, and not the project, is the target."""
         from hera.datalayer import Project
         from hera.toolkit import abstractToolkit
 
@@ -1522,7 +1514,7 @@ class TestToolkitList:
 
 
 @pytest.mark.unit
-class TestToolkitRegisterIsBroken:
+class TestToolkitRegister:
     LOCATABLE = "hera.utils.data.CLI.load_project_name"
 
     def _arguments(self, **overrides):
@@ -1532,35 +1524,21 @@ class TestToolkitRegisterIsBroken:
             setattr(arguments, key, value)
         return arguments
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B179: toolkit_register calls "
-               "th.registerToolkit(toolkit_name=toolkit_name, "
-               "toolkit_path=toolkit_path, ...) but neither name is ever "
-               "defined -- the handler's own values are called cls_path and "
-               "name. The NameError is swallowed by the bare `except "
-               "Exception`, which prints '[ERROR] name \"toolkit_name\" is "
-               "not defined' and returns 0, so the command silently "
-               "registers nothing and its --version/--repository parsing is "
-               "unreachable. See the consolidated findings issue.",
-    )
-    def test_registering_a_toolkit_should_reach_toolkithome(self, wired):
+    def test_registering_a_toolkit_reaches_toolkithome(self, wired):
         CLI.toolkit_register(self._arguments())
         assert wired.home.kwargs("registerToolkit")["toolkit_name"] == "MyToolkit"
 
-    def test_it_currently_prints_a_nameerror_and_registers_nothing(self, wired, capsys):
-        """Characterisation of B179."""
+    def test_the_classpath_is_forwarded_as_the_toolkit_path(self, wired):
         CLI.toolkit_register(self._arguments())
+        assert wired.home.kwargs("registerToolkit")["toolkit_path"] == self.LOCATABLE
 
-        out = capsys.readouterr().out
-        assert "[ERROR]" in out
-        assert "toolkit_name" in out and "is not defined" in out
-        assert wired.home.names() == []
+    def test_the_parsed_version_is_forwarded(self, wired):
+        CLI.toolkit_register(self._arguments())
+        assert wired.home.kwargs("registerToolkit")["version"] == (1, 2, 3)
 
-    def test_the_module_really_has_no_toolkit_name_global(self):
-        """Characterisation of B179: nothing supplies the missing names."""
-        assert not hasattr(CLI, "toolkit_name")
-        assert not hasattr(CLI, "toolkit_path")
+    def test_a_successful_registration_is_announced(self, wired, capsys):
+        CLI.toolkit_register(self._arguments())
+        assert "Toolkit 'MyToolkit' registered" in capsys.readouterr().out
 
     def test_an_unlocatable_classpath_is_reported_before_the_nameerror(self, wired, capsys):
         CLI.toolkit_register(self._arguments(cls="no.such.module.Class"))
@@ -1574,10 +1552,10 @@ class TestToolkitRegisterIsBroken:
         capsys.readouterr()
         assert wired.home.projectName == "MY_PROJECT"
 
-    def test_a_malformed_version_does_not_raise(self, wired, capsys):
+    def test_a_malformed_version_falls_back_to_the_default(self, wired, capsys):
         """The (0,0,1) fallback keeps a bad --version from surfacing at all."""
         CLI.toolkit_register(self._arguments(version="not,a,version"))
-        assert "[ERROR]" in capsys.readouterr().out
+        assert wired.home.kwargs("registerToolkit")["version"] == (0, 0, 1)
 
 
 @pytest.mark.unit

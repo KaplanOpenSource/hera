@@ -79,18 +79,10 @@ class TestHebrewConversion:
         converted = bibItem(["יוסף כוהן."]).convert()
         assert "יוסף" in converted
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B9: the math-mode branch tests `word[indx] == 'DOLLAR SIGN'`, "
-               "comparing a single character to an 11-character string, so it can "
-               "never fire. '$' falls through to the literal branch and the "
-               "expression is mangled. See the consolidated findings issue.",
-    )
     def test_math_mode_is_preserved(self):
         r"""The class docstring's own example is $4\frac{m}{s}$.
 
-        It currently converts to $$4\$\L{frac}{\L{m}}{\L{s}}$ -- not valid
-        LaTeX. Whatever the Hebrew wrapping does elsewhere, an existing math
+        Whatever the Hebrew wrapping does elsewhere, an existing math
         expression has to come out intact.
         """
         converted = bibItem([r"האם $4\frac{m}{s}$ נכון"]).convert()
@@ -139,23 +131,11 @@ class TestBibtexFile:
         assert "John Smith." in converted
         assert converted.count("\n") > 2
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B10: _parseBibItems appends the accumulator on every \\bibitem "
-               "line including the first, when it is still empty, so items[0] is "
-               "always an empty bibItem. See the consolidated findings issue.",
-    )
     def test_item_count_matches_the_bibitem_count(self):
         """Two \\bibitem lines must yield two items, not three."""
         parsed = bibtexFile(io.StringIO(self.BIB))
         assert len(parsed.items) == 2
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B11: an empty file indexes thefileStr[0] and raises IndexError "
-               "instead of reporting an empty bibliography. "
-               "See the consolidated findings issue.",
-    )
     def test_empty_file_reports_clearly(self):
         with pytest.raises(ValueError):
             bibtexFile(io.StringIO(""))

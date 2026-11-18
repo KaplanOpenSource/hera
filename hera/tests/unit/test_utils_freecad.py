@@ -17,16 +17,16 @@ FreeCAD, and ``findObjects()`` its only call on the document.
 
 One defect surfaced:
 
-* B253: the module's ``try: import FreeCAD; import Mesh except
+* B253 (fixed): the module's ``try: import FreeCAD; import Mesh except
   ImportError`` is downgraded to ``warnings.warn`` so that the rest of
-  ``hera.utils`` stays importable.  Nothing then guards the use, so
-  calling ``getObjFileBoundaries`` without FreeCAD raises ``NameError:
-  name 'Mesh' is not defined`` -- which says nothing about FreeCAD, the
-  package the warning at import time told the user to install.  In this
-  test environment the shape is the same but sharper: the unit layer's
-  conftest stubs ``FreeCAD`` and not ``Mesh``, so ``FreeCAD`` is bound
-  while ``Mesh`` is not, and the same NameError is raised on the first
-  line of the function body.
+  ``hera.utils`` stays importable.  Nothing then guarded the use, so
+  calling ``getObjFileBoundaries`` without FreeCAD raised ``NameError:
+  name 'Mesh' is not defined`` -- which said nothing about FreeCAD, the
+  package the import-time warning told the user to install.  Both names
+  are now bound to ``None`` on a failed import and the function raises
+  ``ImportError`` naming freecad.  (The unit layer's conftest stubs
+  ``FreeCAD`` and not ``Mesh``, which is exactly the partial-install
+  case, so the two imports are guarded separately.)
 """
 import sys
 import types
@@ -182,43 +182,24 @@ class TestObjFileBoundaries:
 class TestMissingFreeCAD:
     """B253: see the module docstring."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B253: the module downgrades `import FreeCAD; import Mesh` "
-               "failures to warnings.warn('freecad is not installed. some "
-               "features will not work.') and then uses both names unguarded. "
-               "Calling getObjFileBoundaries without FreeCAD raises NameError: "
-               "name 'Mesh' is not defined, which names neither FreeCAD nor the "
-               "remedy the import-time warning offered. The unit layer's conftest "
-               "stubs FreeCAD but not Mesh, so the same NameError appears on the "
-               "function's first line. See the consolidated findings issue.",
-    )
     def test_a_missing_freecad_is_reported_as_such(self):
+        if freeCADModule.Mesh is not None and freeCADModule.FreeCAD is not None:
+            pytest.skip("a real FreeCAD/Mesh install is present")
         with pytest.raises(ImportError, match="freecad"):
             freeCADModule.getObjFileBoundaries("model.obj")
 
-    def test_it_currently_raises_a_bare_nameerror(self):
-        """Characterisation of B253."""
-        if hasattr(freeCADModule, "Mesh"):
-            pytest.skip("a real FreeCAD/Mesh install is present")
-        with pytest.raises(NameError, match="Mesh"):
-            freeCADModule.getObjFileBoundaries("model.obj")
-
     def test_the_import_failure_is_only_a_warning(self):
-        """Characterisation of B253's mechanism: importing the module
-        succeeds and says so, which is why the failure surfaces late."""
+        """Importing the module still succeeds and says so; the failure is
+        now reported by the function instead of by a NameError."""
         import inspect
 
         source = inspect.getsource(freeCADModule)
         assert "except ImportError:" in source
         assert 'warnings.warn("freecad is not installed' in source
-        # The raise the warning replaced is still there, commented out.
-        assert "#raise ImportError(" in source
 
     def test_the_two_names_are_bound_independently(self):
-        """Characterisation of B253's blast radius: `import FreeCAD` and
-        `import Mesh` are separate statements inside one try, so a partial
-        install binds the first and leaves the second missing -- exactly what
-        the conftest stub reproduces."""
-        assert hasattr(freeCADModule, "FreeCAD")
-        assert not hasattr(freeCADModule, "Mesh")
+        """`import FreeCAD` and `import Mesh` are guarded separately, so a
+        partial install -- what the conftest stub reproduces -- keeps the
+        name that is there and binds the missing one to None."""
+        assert freeCADModule.FreeCAD is not None
+        assert freeCADModule.Mesh is None

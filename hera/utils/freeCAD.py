@@ -1,12 +1,20 @@
 import numpy
 import warnings
 
+# The import failure is a warning rather than an error to allow partial usage
+# of hera.utils; the names stay defined (as None) so that the functions below
+# can say what is missing instead of raising NameError.
 try:
     import FreeCAD
+except ImportError:
+    FreeCAD = None
+
+try:
     import Mesh
 except ImportError:
-    # I changed the raise error to warning to allow partial usage.
-    #raise ImportError("freecad is not installed. please install it before trying again.")
+    Mesh = None
+
+if FreeCAD is None or Mesh is None:
     warnings.warn("freecad is not installed. some features will not work.")
 
 
@@ -25,6 +33,9 @@ def getObjFileBoundaries(fileName):
                 - 'XMax', 'YMax', 'ZMax'
                 - 'XMin', 'YMin', 'ZMin'
     """
+    if FreeCAD is None or Mesh is None:
+        raise ImportError("freecad is not installed. please install it before trying again.")
+
     Mesh.open(fileName)
     objFile = FreeCAD.getDocument("Unnamed")
 

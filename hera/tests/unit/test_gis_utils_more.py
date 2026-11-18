@@ -16,27 +16,29 @@ below has a closed form (``height == x``) rather than being a recorded
 number.  A ramp in x only (not in y) also makes an accidental axis transpose
 visible: a transposed grid would vary along the wrong index.
 
-Bugs pinned (each has an xfail(strict) for the intended behaviour plus a
-passing characterisation of what actually happens)
---------------------------------------------------------------------------
+Bugs fixed here
+---------------
 The returned dict promises three co-registered 2-D arrays -- ``x``, ``y`` and
 ``height`` -- and ``vectorToSTL`` feeds them straight to ``rasterToSTL`` as
-``grid_x``/``grid_y``/``grid_z``.  They are not co-registered, because the
-coordinate arrays and the height array are built with two different
+``grid_x``/``grid_y``/``grid_z``.  They were not co-registered, because the
+coordinate arrays and the height array were built with two different
 conventions:
 
-* **B239** -- the *shapes* disagree whenever the span is not an exact multiple
-  of ``dxdy``.  ``grid_x`` comes from ``numpy.mgrid[xmin:xmax:dxdy]``, which
-  *rounds the point count up*; ``Nx`` is ``int((xmax - xmin) / dxdy)``, which
-  *truncates*.  A 100 m span at ``dxdy=30`` gives a 4-point coordinate axis
-  against a 3-point height axis, so ``rasterToSTL`` then reads coordinates
-  for cells that have no height (or vice versa).
-* **B240** -- even when the shapes match, the *coordinates* are wrong.
+* **B239** -- the *shapes* disagreed whenever the span was not an exact
+  multiple of ``dxdy``.  ``grid_x`` came from ``numpy.mgrid[xmin:xmax:dxdy]``,
+  which *rounds the point count up*; ``Nx`` is ``int((xmax - xmin) / dxdy)``,
+  which *truncates*.
+* **B240** -- even when the shapes matched, the *coordinates* were wrong.
   ``numpy.mgrid`` with a step excludes the endpoint, while
   ``regularizeTimeSteps`` interpolates onto ``numpy.mgrid[...:complex(n)]``,
-  which *includes* both endpoints.  For a 100 m span at ``dxdy=50`` the
-  heights are sampled at x = 0 and x = 100 but labelled x = 0 and x = 50, so
-  every STL vertex except the first is placed at the wrong location.
+  which *includes* both endpoints.
+
+Both are fixed by building the axes with the same point count as the height
+grid.  Note what that leaves: ``Nx`` is a truncated count over an
+endpoint-inclusive axis, so the realised spacing is
+``(xmax - xmin) / (Nx - 1)``, which is coarser than the requested ``dxdy``.
+That is a property of the interpolation grid itself and is asserted, not
+pinned, below.
 
 Deliberately not tested, and why
 --------------------------------
@@ -87,9 +89,12 @@ class TestRasterizePandasOutputStructure:
         assert result["x"][0, 0] == pytest.approx(0.0)
         assert result["y"][0, 0] == pytest.approx(0.0)
 
-    def test_the_coordinate_step_is_dxdy(self, factory):
+    def test_the_coordinate_step_spans_the_data_in_nx_points(self, factory):
+        """Nx = int(span / dxdy) points cover the whole span, endpoints
+        included, so the realised spacing is span / (Nx - 1) -- 100 m here,
+        not the 50 m asked for."""
         result = factory.rasterizePandas(_ramp_table(), dxdy=50.0)
-        assert result["x"][1, 0] - result["x"][0, 0] == pytest.approx(50.0)
+        assert result["x"][1, 0] - result["x"][0, 0] == pytest.approx(100.0)
 
     def test_a_finer_resolution_gives_a_larger_grid(self, factory):
         coarse = factory.rasterizePandas(_ramp_table(), dxdy=50.0)
@@ -154,41 +159,25 @@ class TestRasterizePandasInterpolation:
 
 
 @pytest.mark.unit
-class TestRasterizePandasGridShapeMismatch:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B239: rasterizePandas builds its coordinate axes with "
-               "numpy.mgrid[xmin:xmax:dxdy] (point count rounded UP) but sizes "
-               "the interpolated height grid with Nx=int((xmax-xmin)/dxdy) "
-               "(truncated).  Any span that is not an exact multiple of dxdy "
-               "yields co-ordinate and height arrays of different shape, "
-               "which rasterToSTL then indexes as if they matched. "
-               "See the consolidated findings issue.",
-    )
+class TestRasterizePandasGridShape:
     def test_the_coordinate_and_height_arrays_always_have_the_same_shape(self, factory):
         result = factory.rasterizePandas(_ramp_table(), dxdy=30.0)
         assert result["x"].shape == result["height"].shape
         assert result["y"].shape == result["height"].shape
 
-    def test_a_non_multiple_resolution_produces_mismatched_shapes(self, factory):
-        """Characterisation of B239: 100 / 30 -> 4 coordinate rows, 3 height rows."""
+    def test_a_non_multiple_resolution_truncates_the_point_count(self, factory):
+        """100 / 30 -> 3 points on both axes, coordinates and heights alike."""
         result = factory.rasterizePandas(_ramp_table(), dxdy=30.0)
-        assert result["x"].shape == (4, 4)
+        assert result["x"].shape == (3, 3)
         assert result["height"].shape == (3, 3)
 
-    def test_an_exact_multiple_happens_to_agree(self, factory):
-        """Characterisation of B239: the defect hides on tidy numbers."""
+    def test_an_exact_multiple_agrees_too(self, factory):
         result = factory.rasterizePandas(_ramp_table(), dxdy=50.0)
         assert result["x"].shape == result["height"].shape == (2, 2)
 
-    def test_the_mismatch_silently_truncates_the_stl_instead_of_erroring(self, factory):
-        """Characterisation of B239: the downstream consequence, stated.
-
-        ``rasterToSTL`` loops over ``grid_z.shape``, so a *smaller* height
-        grid quietly drops the outermost coordinate row and column rather
-        than raising: at ``dxdy=30`` the coordinate axis reaches x = 90 but no
-        vertex past x = 60 is ever emitted.  The failure mode is a silently
-        undersized solid, which is worse than an exception.
+    def test_the_stl_spans_the_whole_data_extent(self, factory):
+        """``rasterToSTL`` loops over ``grid_z.shape``; with the two grids the
+        same size no row is dropped, so the solid reaches the data maximum.
         """
         result = factory.rasterizePandas(_ramp_table(), dxdy=30.0)
         stl = factory.rasterToSTL(
@@ -200,43 +189,28 @@ class TestRasterizePandasGridShapeMismatch:
             for line in stl.splitlines()
             if line.strip().startswith("vertex")
         ]
-        assert result["x"].max() == pytest.approx(90.0)
-        assert max(vertex_x) == pytest.approx(60.0)
+        assert result["x"].max() == pytest.approx(100.0)
+        assert max(vertex_x) == pytest.approx(100.0)
 
 
 @pytest.mark.unit
 class TestRasterizePandasCoordinateRegistration:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B240: the coordinate axes come from numpy.mgrid with a *step*, "
-               "which excludes the endpoint, while the heights are "
-               "interpolated onto numpy.mgrid with a *count* "
-               "(complex(n)), which includes it.  The two grids therefore "
-               "sample different locations even when their shapes agree, so "
-               "every height after the first is labelled with the wrong "
-               "coordinate. See the consolidated findings issue.",
-    )
     def test_each_height_is_labelled_with_the_coordinate_it_was_sampled_at(self, factory):
         """height == x, so a correctly registered grid has height == grid_x."""
         result = factory.rasterizePandas(_ramp_table(), dxdy=50.0)
         assert result["height"] == pytest.approx(result["x"])
 
-    def test_the_coordinate_axis_stops_one_step_short_of_the_data(self, factory):
-        """Characterisation of B240."""
+    def test_the_coordinate_axis_reaches_the_data_maximum(self, factory):
         result = factory.rasterizePandas(_ramp_table(), dxdy=50.0)
-        assert result["x"].max() == pytest.approx(50.0)   # data span is 0..100
-        assert result["y"].max() == pytest.approx(50.0)
+        assert result["x"].max() == pytest.approx(100.0)   # data span is 0..100
+        assert result["y"].max() == pytest.approx(100.0)
 
     def test_the_height_axis_spans_the_full_data_range(self, factory):
-        """Characterisation of B240: the other half of the disagreement."""
         result = factory.rasterizePandas(_ramp_table(), dxdy=50.0)
         assert result["height"].max() == pytest.approx(100.0)
 
-    def test_the_last_cell_is_off_by_a_full_span(self, factory):
-        """Characterisation of B240: quantified.
-
-        The height at index [1, 0] was interpolated at x = 100 but is labelled
-        x = 50, a 50 m error -- one whole dxdy, growing with the grid.
-        """
+    def test_the_last_cell_is_registered(self, factory):
+        """The height at index [1, 0] was interpolated at x = 100 and is now
+        labelled x = 100."""
         result = factory.rasterizePandas(_ramp_table(), dxdy=50.0)
-        assert result["height"][1, 0] - result["x"][1, 0] == pytest.approx(50.0)
+        assert result["height"][1, 0] - result["x"][1, 0] == pytest.approx(0.0)

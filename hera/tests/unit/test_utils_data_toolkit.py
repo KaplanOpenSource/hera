@@ -47,30 +47,28 @@ Covered
 ``loadRepositoryFromPath``, ``exportDocumentsToRepository``,
 ``_resolveDocumentsForExport``, ``_resolveRepositoryPath``.
 
-Bugs pinned here (xfail(strict=True) for the intended behaviour + a passing
-characterisation of what actually happens):
+Bugs fixed here (the tests below now assert the corrected behaviour):
 
-* B151 ``addRepository`` decides the ``.json`` extension with
+* B151 ``addRepository`` decided the ``.json`` extension with
   ``"json" not in repositoryPath`` -- a substring test over the whole path.
-* B152 ``addRepository`` re-arms the default project's read-only guard only
-  on the success path; a raising ``addDataSource`` leaves it disarmed.
-* B153 the ``Cache`` entry of the handler table is a lambda whose third
-  parameter is named ``itemDesc`` while the dispatcher calls every handler with
-  ``docTypeDict=`` -- Cache sections can never load.
-* B154 ``_makeItemPathAbsolute`` coerces ``isRelativePath`` with ``bool()``,
-  so the string ``"False"`` that the sibling handler *requires* is truthy.
-* B159 ``_DocumentHandler`` never removes the ``isRelativePath`` control key
-  from the item, so it is forwarded as a keyword to ``add<Type>Document`` and
-  raises ``TypeError`` -- which is also why B154 is only reachable by calling
-  ``_makeItemPathAbsolute`` directly.
-* B155 ``_DocumentHandler`` guards ``getattr(toolkit, ...)`` with
-  ``if retrieveFunc is None`` -- unreachable, ``getattr`` raises first.
-* B156 ``_handle_Function`` resolves the method name on ``self`` (the
+* B152 ``addRepository`` re-armed the default project's read-only guard only
+  on the success path; a raising ``addDataSource`` left it disarmed.
+* B153 the ``Cache`` entry of the handler table was a lambda whose third
+  parameter was named ``itemDesc`` while the dispatcher calls every handler
+  with ``docTypeDict=`` -- Cache sections could never load.
+* B154 ``_makeItemPathAbsolute`` coerced ``isRelativePath`` with ``bool()``,
+  so the string ``"False"`` that the sibling handler *requires* was truthy.
+* B159 ``_DocumentHandler`` never removed the ``isRelativePath`` control key
+  from the item, so it was forwarded as a keyword to ``add<Type>Document``
+  and raised ``TypeError``.
+* B155 ``_DocumentHandler`` guarded ``getattr(toolkit, ...)`` with
+  ``if retrieveFunc is None`` -- unreachable, ``getattr`` raised first.
+* B156 ``_handle_Function`` resolved the method name on ``self`` (the
   dataToolkit, on the read-only default project) instead of on the toolkit the
   section belongs to.
-* B157 ``_handle_DataSource`` pops ``resourceFilePath`` inside the ``open()``
-  call, so a failed read leaves the item with neither key.
-* B158 ``_resolveDocumentsForExport`` guards ``getDocumentByID`` with
+* B157 ``_handle_DataSource`` popped ``resourceFilePath`` inside the ``open()``
+  call, so a failed read left the item with neither key.
+* B158 ``_resolveDocumentsForExport`` guarded ``getDocumentByID`` with
   ``if doc is None`` -- unreachable, mongoengine raises ``DoesNotExist``.
 
 Deliberately not covered
@@ -249,18 +247,9 @@ class TestAddRepository:
 
 @pytest.mark.unit
 class TestAddRepositoryExtensionHeuristic:
-    """B151: the extension is decided with a substring test on the path."""
+    """B151: the extension has to be decided on the suffix, not on a
+    substring test against the whole path."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B151: addRepository appends '.json' only when the substring "
-               "'json' is absent from the WHOLE path, so a repository living "
-               "under a directory whose name contains 'json' is registered "
-               "with no extension and its resource points at a file that does "
-               "not exist. The test should be on the suffix "
-               "(os.path.splitext / endswith('.json')). "
-               "See the consolidated findings issue.",
-    )
     def test_the_extension_is_appended_regardless_of_the_directory_name(self, dtk, tmp_path):
         directory = tmp_path / "jsonRepositories"
         directory.mkdir()
@@ -268,31 +257,20 @@ class TestAddRepositoryExtensionHeuristic:
         dtk.addRepository("myRepo", str(directory / "repo"))
         assert dtk.getDataSourceDocument("myRepo").resource.endswith("repo.json")
 
-    def test_a_json_in_the_directory_name_suppresses_the_extension(self, dtk, tmp_path):
-        """Characterisation of B151."""
+    def test_a_json_in_the_directory_name_no_longer_suppresses_it(self, dtk, tmp_path):
         directory = tmp_path / "jsonRepositories"
         directory.mkdir()
         _writeRepository(directory, "repo", {})
         dtk.addRepository("myRepo", str(directory / "repo"))
         resource = dtk.getDataSourceDocument("myRepo").resource
-        assert resource == str(directory / "repo")
-        assert not os.path.exists(resource)
+        assert resource == str(directory / "repo.json")
+        assert os.path.exists(resource)
 
 
 @pytest.mark.unit
-class TestAddRepositoryLeavesTheDefaultProjectWritable:
-    """B152: the read-only guard is re-armed only on the success path."""
+class TestAddRepositoryLeavesTheDefaultProjectReadOnly:
+    """B152: the read-only guard has to be re-armed on the failure path too."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B152: addRepository sets _allowWritingToDefaultProject=True, "
-               "calls addDataSource, then sets it back to False. There is no "
-               "try/finally, so when addDataSource raises (a duplicate "
-               "repository name without overwrite=True) the flag stays True "
-               "and the read-only default project accepts arbitrary writes for "
-               "the rest of the instance's life. "
-               "See the consolidated findings issue.",
-    )
     def test_a_failed_registration_still_re_arms_the_guard(self, dtk, tmp_path):
         path = _writeRepository(tmp_path, "repo", {})
         dtk.addRepository("myRepo", path)
@@ -300,18 +278,16 @@ class TestAddRepositoryLeavesTheDefaultProjectWritable:
             dtk.addRepository("myRepo", path)
         assert dtk._allowWritingToDefaultProject is False
 
-    def test_a_failed_registration_disarms_the_guard_permanently(self, dtk, tmp_path):
-        """Characterisation of B152."""
+    def test_a_failed_registration_leaves_the_project_write_protected(self, dtk, tmp_path):
+        """The RuntimeError guard of TestConstruction is still in force."""
         path = _writeRepository(tmp_path, "repo", {})
         dtk.addRepository("myRepo", path)
         with pytest.raises(ValueError):
             dtk.addRepository("myRepo", path)
-        assert dtk._allowWritingToDefaultProject is True
-        # and the guard that raised RuntimeError in TestConstruction is gone
-        document = dtk.addMeasurementsDocument(
-            resource="sneaked-in", dataFormat="string", type="NOT_A_DATASOURCE", desc={}
-        )
-        assert document is not None
+        with pytest.raises(RuntimeError):
+            dtk.addMeasurementsDocument(
+                resource="sneaked-in", dataFormat="string", type="NOT_A_DATASOURCE", desc={}
+            )
 
 
 @pytest.mark.unit
@@ -532,20 +508,10 @@ class TestHandleDataSource:
 
 
 @pytest.mark.unit
-class TestHandleDataSourcePopsResourceFilePathTooEarly:
-    """B157: the pop happens inside the open() call, before the read."""
+class TestHandleDataSourceResourceFilePath:
+    """B157: a resourceFilePath that cannot be read has to surface as the
+    read failure, not as a missing argument further down."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B157: _handle_DataSource does "
-               "`with open(theItem.pop('resourceFilePath')) as f:` -- the key "
-               "is removed as the arguments are evaluated, so when the file "
-               "cannot be read the `except` logs the real cause and execution "
-               "falls through to addDataSource(**theItem) with neither "
-               "'resource' nor 'resourceFilePath' present. The caller sees "
-               "TypeError: missing 'resource' instead of the FileNotFoundError. "
-               "See the consolidated findings issue.",
-    )
     def test_an_unreadable_resource_file_reports_the_read_failure(self, dtk, make_target_toolkit, tmp_path):
         target = make_target_toolkit("DS_POP_1")
         with pytest.raises(FileNotFoundError):
@@ -556,16 +522,17 @@ class TestHandleDataSourcePopsResourceFilePathTooEarly:
                 False, str(tmp_path),
             )
 
-    def test_an_unreadable_resource_file_surfaces_as_a_missing_argument(self, dtk, make_target_toolkit, tmp_path):
-        """Characterisation of B157."""
-        target = make_target_toolkit("DS_POP_2")
-        with pytest.raises(TypeError, match="resource"):
-            dtk._handle_DataSource(
-                target, "Datasource",
-                {"A": {"isRelativePath": "True",
-                       "item": {"resourceFilePath": "missing.json", "dataFormat": "JSON_dict"}}},
-                False, str(tmp_path),
-            )
+    def test_through_the_loader_the_failure_is_logged_and_skipped(self, dtk, make_target_toolkit, tmp_path):
+        """The loader's own try/except keeps one bad entry from stopping a
+        whole repository."""
+        dtk.loadAllDatasourcesInRepositoryJSONToProject(
+            projectName="DS_POP_2",
+            repositoryJSON={TARGET_TOOLKIT_NAME: {"Datasource": {
+                "A": {"isRelativePath": "True",
+                      "item": {"resourceFilePath": "missing.json", "dataFormat": "JSON_dict"}}}}},
+            basedir=str(tmp_path),
+        )
+        assert make_target_toolkit("DS_POP_2").getDataSourceList() == []
 
 
 # ---------------------------------------------------------------------------
@@ -635,49 +602,27 @@ class TestDocumentHandler:
 
 @pytest.mark.unit
 class TestDocumentHandlerRejectsUnknownDocumentTypes:
-    """B155: the `if retrieveFunc is None` guard is unreachable."""
+    """B155: the `if retrieveFunc is None` guard has to be reachable, so the
+    getattr needs a default."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B155: _DocumentHandler does "
-               "`retrieveFunc = getattr(toolkit, f'get{documentType}Documents')` "
-               "and only then checks `if retrieveFunc is None: raise ValueError`. "
-               "getattr without a default raises AttributeError first, so the "
-               "guard is dead code and the helpful ValueError naming the legal "
-               "document types can never be produced. "
-               "See the consolidated findings issue.",
-    )
     def test_an_unknown_document_type_raises_the_documented_valueerror(self, dtk, make_target_toolkit):
         target = make_target_toolkit("DOC_TYPE_1")
         with pytest.raises(ValueError, match="must be"):
             dtk._DocumentHandler(target, "Bogus", _documentSection("/x.parquet"),
                                  False, "Bogus", "")
 
-    def test_an_unknown_document_type_raises_attributeerror_instead(self, dtk, make_target_toolkit):
-        """Characterisation of B155."""
+    def test_the_message_names_the_function_it_looked_for(self, dtk, make_target_toolkit):
         target = make_target_toolkit("DOC_TYPE_2")
-        with pytest.raises(AttributeError, match="getBogusDocuments"):
+        with pytest.raises(ValueError, match="getBogusDocuments"):
             dtk._DocumentHandler(target, "Bogus", _documentSection("/x.parquet"),
                                  False, "Bogus", "")
 
 
 @pytest.mark.unit
-class TestCacheSectionIsUnreachable:
-    """B153: the Cache lambda's parameter name does not match the call."""
+class TestCacheSection:
+    """B153: the Cache lambda's parameter name has to match the keyword the
+    dispatcher calls it with."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B153: in the handler table the Measurements/Simulations "
-               "lambdas take (toolkit, itemName, docTypeDict, overwrite, "
-               "basedir) but the Cache lambda takes (toolkit, itemName, "
-               "itemDesc, overwrite, basedir), while the dispatcher always "
-               "calls handler(toolkit=..., itemName=..., docTypeDict=..., "
-               "overwrite=..., basedir=...). The Cache lambda therefore raises "
-               "TypeError (unexpected keyword 'docTypeDict') on every call, and "
-               "the surrounding `except Exception: logger.error` hides it -- a "
-               "Cache section in a repository JSON can never be loaded. "
-               "See the consolidated findings issue.",
-    )
     def test_a_cache_section_adds_a_cache_document(self, dtk, make_target_toolkit):
         dtk.loadAllDatasourcesInRepositoryJSONToProject(
             projectName="CACHE_PROJECT_1",
@@ -685,26 +630,18 @@ class TestCacheSectionIsUnreachable:
         )
         assert len(make_target_toolkit("CACHE_PROJECT_1").getCacheDocuments(type="MY_TYPE")) == 1
 
-    def test_a_cache_section_silently_loads_nothing(self, dtk, make_target_toolkit):
-        """Characterisation of B153."""
-        dtk.loadAllDatasourcesInRepositoryJSONToProject(
-            projectName="CACHE_PROJECT_2",
-            repositoryJSON={TARGET_TOOLKIT_NAME: {"Cache": _documentSection("/c.parquet")}},
-        )
-        assert len(make_target_toolkit("CACHE_PROJECT_2").getCacheDocuments(type="MY_TYPE")) == 0
-
-    def test_the_cache_handler_rejects_the_keyword_the_dispatcher_uses(self, dtk, make_target_toolkit):
-        """Characterisation of B153: the same failure, one layer down,
-        with the swallowing try/except taken out of the picture."""
+    def test_the_cache_handler_accepts_the_keyword_the_dispatcher_uses(self, dtk, make_target_toolkit):
+        """The same path one layer down, with the swallowing try/except taken
+        out of the picture."""
         target = make_target_toolkit("CACHE_PROJECT_3")
 
         # rebuild exactly the lambda the module installs for 'Cache'
-        cacheHandler = (lambda toolkit, itemName, itemDesc, overwrite, basedir:
-                        dtk._DocumentHandler(toolkit, itemName, itemDesc, overwrite, "Cache", basedir))
-        with pytest.raises(TypeError, match="docTypeDict"):
-            cacheHandler(toolkit=target, itemName="Cache",
-                         docTypeDict=_documentSection("/c.parquet"),
-                         overwrite=False, basedir="")
+        cacheHandler = (lambda toolkit, itemName, docTypeDict, overwrite, basedir:
+                        dtk._DocumentHandler(toolkit, itemName, docTypeDict, overwrite, "Cache", basedir))
+        cacheHandler(toolkit=target, itemName="Cache",
+                     docTypeDict=_documentSection("/c.parquet"),
+                     overwrite=False, basedir="")
+        assert len(target.getCacheDocuments(type="MY_TYPE")) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -716,7 +653,7 @@ class TestHandleFunction:
     def test_a_dict_value_is_one_call_with_overwrite_appended(self, dtk, tmp_path):
         path = _writeRepository(tmp_path, "inner", {})
         dtk._handle_Function(
-            None, "Function",
+            dtk, "Function",
             {"addRepository": {"repositoryName": "fromFunction", "repositoryPath": path}},
             False, "",
         )
@@ -726,7 +663,7 @@ class TestHandleFunction:
         first = _writeRepository(tmp_path, "first", {})
         second = _writeRepository(tmp_path, "second", {})
         dtk._handle_Function(
-            None, "Function",
+            dtk, "Function",
             {"addRepository": [
                 {"repositoryName": "one", "repositoryPath": first},
                 {"repositoryName": "two", "repositoryPath": second},
@@ -738,7 +675,7 @@ class TestHandleFunction:
     def test_a_non_dict_element_in_the_list_is_skipped(self, dtk, tmp_path):
         path = _writeRepository(tmp_path, "inner", {})
         dtk._handle_Function(
-            None, "Function",
+            dtk, "Function",
             {"addRepository": ["nonsense", {"repositoryName": "ok", "repositoryPath": path}]},
             False, "",
         )
@@ -746,29 +683,18 @@ class TestHandleFunction:
 
     def test_a_scalar_value_raises(self, dtk):
         with pytest.raises(ValueError, match="must be dict"):
-            dtk._handle_Function(None, "Function", {"addRepository": "nonsense"}, False, "")
+            dtk._handle_Function(dtk, "Function", {"addRepository": "nonsense"}, False, "")
 
     def test_an_unknown_function_name_raises_attributeerror(self, dtk):
         with pytest.raises(AttributeError):
-            dtk._handle_Function(None, "Function", {"noSuchMethod": {}}, False, "")
+            dtk._handle_Function(dtk, "Function", {"noSuchMethod": {}}, False, "")
 
 
 @pytest.mark.unit
-class TestHandleFunctionTargetsTheWrongObject:
-    """B156: methods are resolved on the dataToolkit, not on the toolkit."""
+class TestHandleFunctionTargetsTheToolkit:
+    """B156: a Function section sits under a toolkit key, so its calls belong
+    to that toolkit in the target project."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B156: _handle_Function does `getattr(self, itemName)` where "
-               "self is the dataToolkit (bound to the read-only default "
-               "project), not `getattr(toolkit, itemName)`. A Function section "
-               "sits under a toolkit key in the repository JSON, so its calls "
-               "are meant for that toolkit in the target project; instead the "
-               "toolkit argument is unused and only dataToolkit's own methods "
-               "can ever be invoked -- and any of them that touch the config "
-               "blow up because the default project forbids configuration. "
-               "See the consolidated findings issue.",
-    )
     def test_a_function_section_calls_the_method_on_the_target_toolkit(self, dtk, make_target_toolkit):
         dtk.loadAllDatasourcesInRepositoryJSONToProject(
             projectName="FUNCTION_PROJECT_1",
@@ -776,15 +702,13 @@ class TestHandleFunctionTargetsTheWrongObject:
         )
         assert make_target_toolkit("FUNCTION_PROJECT_1").getConfig()["answer"] == 42
 
-    def test_a_function_section_calls_the_method_on_the_datatoolkit(self, dtk, make_target_toolkit):
-        """Characterisation of B156."""
+    def test_nothing_is_written_to_the_default_project(self, dtk, make_target_toolkit):
+        """The dataToolkit itself would refuse the call, which is why it must
+        not be the target."""
         dtk.loadAllDatasourcesInRepositoryJSONToProject(
             projectName="FUNCTION_PROJECT_2",
             repositoryJSON={TARGET_TOOLKIT_NAME: {"Function": {"setConfig": {"answer": 42}}}},
         )
-        # nothing reached the target project ...
-        assert "answer" not in make_target_toolkit("FUNCTION_PROJECT_2").getConfig()
-        # ... because setConfig ran on the default project, which refuses it
         with pytest.raises(ValueError, match="[Dd]efault project"):
             dtk.setConfig(answer=42)
 
@@ -808,81 +732,54 @@ class TestMakeItemPathAbsolute:
 
 
 @pytest.mark.unit
-class TestMakeItemPathAbsoluteMisreadsTheStringFlag:
-    """B154: isRelativePath is coerced with bool(), so "False" is truthy."""
+class TestMakeItemPathAbsoluteReadsTheStringFlag:
+    """B154: isRelativePath arrives as the string "True"/"False", which
+    bool() cannot read."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason='B154: _makeItemPathAbsolute does '
-               'bool(theItem.get("isRelativePath", True)). Repository JSON '
-               'carries this flag as the STRING "True"/"False" -- the sibling '
-               '_handle_DataSource asserts exactly that -- and bool("False") '
-               'is True, so a resource explicitly marked as not relative is '
-               'still joined onto basedir. Affects every Measurements / '
-               'Simulations / Cache item, unlike _handle_DataSource which '
-               'compares against the strings correctly. '
-               "See the consolidated findings issue.",
-    )
     def test_the_string_false_leaves_the_resource_untouched(self, dtk):
         item = {"resource": "a/b.parquet", "isRelativePath": "False"}
         assert dtk._makeItemPathAbsolute(item, "/base") == "a/b.parquet"
 
-    def test_the_string_false_is_treated_as_relative(self, dtk):
-        """Characterisation of B154."""
-        item = {"resource": "a/b.parquet", "isRelativePath": "False"}
+    def test_the_string_true_is_treated_as_relative(self, dtk):
+        item = {"resource": "a/b.parquet", "isRelativePath": "True"}
         assert dtk._makeItemPathAbsolute(item, "/base") == "/base/a/b.parquet"
 
-    def test_only_a_direct_call_can_reach_the_misreading(self, dtk):
-        """B154 is only observable through a direct call, because the one
-        caller of _makeItemPathAbsolute cannot pass the flag at all -- see
-        B159."""
+    def test_the_string_and_the_boolean_agree(self, dtk):
         assert dtk._makeItemPathAbsolute({"resource": "x", "isRelativePath": "False"}, "/base") \
-            != dtk._makeItemPathAbsolute({"resource": "x", "isRelativePath": False}, "/base")
+            == dtk._makeItemPathAbsolute({"resource": "x", "isRelativePath": False}, "/base")
 
 
 @pytest.mark.unit
-class TestDocumentHandlerForwardsTheControlFlagAsData:
-    """B159: the isRelativePath key is never removed from the item."""
+class TestDocumentHandlerDropsTheControlFlag:
+    """B159: isRelativePath is a control flag and has to be removed from the
+    item before it is forwarded to add<Type>Document."""
 
     def _section(self, isRelativePath):
         return {"D": {"item": {"resource": "a/b.parquet", "dataFormat": "parquet",
                                "type": "MY_TYPE", "isRelativePath": isRelativePath}}}
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B159: _DocumentHandler reads isRelativePath out of the item "
-               "(via _makeItemPathAbsolute) but never pops it, then calls "
-               "add<Type>Document(**theItem). add<Type>Document takes only "
-               "resource/dataFormat/type/desc, so any Measurements, "
-               "Simulations or Cache entry that declares isRelativePath dies "
-               "with TypeError -- silently, since the loader logs and "
-               "continues. Note the two handlers also disagree about where "
-               "the flag lives: _handle_DataSource reads it from the wrapper "
-               "next to 'item', _DocumentHandler from inside 'item'. "
-               "See the consolidated findings issue.",
-    )
     def test_an_item_may_declare_isrelativepath(self, dtk, make_target_toolkit, tmp_path):
         target = make_target_toolkit("REL_FLAG_PROJECT_1")
         dtk._DocumentHandler(target, "Measurements", self._section("True"),
                              False, "Measurements", str(tmp_path))
         assert len(target.getMeasurementsDocuments(type="MY_TYPE")) == 1
 
-    def test_declaring_isrelativepath_raises_a_typeerror(self, dtk, make_target_toolkit, tmp_path):
-        """Characterisation of B159."""
+    def test_a_false_flag_keeps_the_resource_as_written(self, dtk, make_target_toolkit, tmp_path):
         target = make_target_toolkit("REL_FLAG_PROJECT_2")
-        with pytest.raises(TypeError, match="isRelativePath"):
-            dtk._DocumentHandler(target, "Measurements", self._section("False"),
-                                 False, "Measurements", str(tmp_path))
+        dtk._DocumentHandler(target, "Measurements", self._section("False"),
+                             False, "Measurements", str(tmp_path))
+        documents = target.getMeasurementsDocuments(type="MY_TYPE")
+        assert [d.resource for d in documents] == ["a/b.parquet"]
 
-    def test_through_the_loader_such_an_item_silently_vanishes(self, dtk, make_target_toolkit, tmp_path):
-        """Characterisation of B159."""
+    def test_through_the_loader_such_an_item_is_loaded(self, dtk, make_target_toolkit, tmp_path):
         dtk.loadAllDatasourcesInRepositoryJSONToProject(
             projectName="REL_FLAG_PROJECT_3",
             repositoryJSON={TARGET_TOOLKIT_NAME: {"Measurements": self._section("True")}},
             basedir=str(tmp_path),
         )
         target = make_target_toolkit("REL_FLAG_PROJECT_3")
-        assert len(target.getMeasurementsDocuments(type="MY_TYPE")) == 0
+        documents = target.getMeasurementsDocuments(type="MY_TYPE")
+        assert [d.resource for d in documents] == [str(tmp_path / "a/b.parquet")]
 
 
 # ---------------------------------------------------------------------------
@@ -1098,31 +995,23 @@ class TestResolveDocumentsForExport:
 
 @pytest.mark.unit
 class TestResolveDocumentsForExportRejectsUnknownIds:
-    """B158: the `if doc is None` guard after getDocumentByID is unreachable."""
+    """B158: getDocumentByID raises DoesNotExist rather than returning None,
+    so the `if doc is None` guard has to catch it."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B158: _resolveDocumentsForExport does "
-               "`doc = proj.getDocumentByID(d)` then "
-               "`if doc is None: raise ValueError('Document id not found ...')`. "
-               "getDocumentByID goes through mongoengine's QuerySet.get(), "
-               "which raises DoesNotExist rather than returning None, so the "
-               "guard is dead code and callers get a mongoengine exception "
-               "instead of the intended ValueError. "
-               "See the consolidated findings issue.",
-    )
     def test_an_unknown_document_id_raises_the_documented_valueerror(self, dtk, patched_datalayer_project):
         project = patched_datalayer_project(projectName="EXPORT_PROJECT_5")
         with pytest.raises(ValueError, match="Document id not found"):
             dtk._resolveDocumentsForExport(project, "0" * 24)
 
-    def test_an_unknown_document_id_raises_doesnotexist(self, dtk, patched_datalayer_project):
-        """Characterisation of B158."""
+    def test_the_mongoengine_exception_does_not_escape(self, dtk, patched_datalayer_project):
         from mongoengine.errors import DoesNotExist
 
         project = patched_datalayer_project(projectName="EXPORT_PROJECT_6")
-        with pytest.raises(DoesNotExist):
-            dtk._resolveDocumentsForExport(project, "0" * 24)
+        with pytest.raises(ValueError):
+            try:
+                dtk._resolveDocumentsForExport(project, "0" * 24)
+            except DoesNotExist:  # pragma: no cover - would be the old behaviour
+                pytest.fail("DoesNotExist escaped _resolveDocumentsForExport")
 
 
 @pytest.mark.unit

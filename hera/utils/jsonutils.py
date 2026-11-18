@@ -183,7 +183,12 @@ def JSONToConfiguration(valueToProcess,returnUnum=False,returnStandardize=False)
                 unumToPint,
                 ureg,
             )
-            ret = ureg(valueToProcess['value']) if not returnStandardize else ureg(valueToProcess['units'])
+            # 'value' holds the original quantity; the 'units' field only holds
+            # base units when the ENCODER was given standardize=True, so the
+            # conversion to MKS is done here instead of relying on it.
+            ret = ureg(valueToProcess['value'])
+            if returnStandardize:
+                ret = ret.to_base_units()
             ret = pintToUnum(ret) if returnUnum else ret
         else:
             ret = {}

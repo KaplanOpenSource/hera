@@ -1,12 +1,12 @@
 """simulations/utils/inputForModelsCreation.py: the jinja2 template
 renderer used to produce model input files.
 
-B142: ``render`` guards against an unset template or params map by
-printing a message -- and then falls through to
+B142 (fixed): ``render`` guarded against an unset template or params map
+by printing a message -- and then fell through to
 ``return renderedTemplate``, a name only ever bound inside the ``else``
-branch. The guard therefore raises ``UnboundLocalError`` instead of
-returning anything, so the "not set yet" path is strictly worse than no
-guard at all: the user gets the message *and* a crash.
+branch, so the guard raised ``UnboundLocalError`` instead of returning.
+It now returns ``self._renderedTemplate``, i.e. ``None`` until a render
+has happened.
 """
 import pytest
 
@@ -79,39 +79,21 @@ class TestRender:
 
 
 @pytest.mark.unit
-class TestRenderGuardIsBroken:
+class TestRenderGuard:
     """B142: see the module docstring."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B142: render's 'not set yet' guard prints a message and "
-               "then returns a name bound only inside the else branch, so "
-               "it raises UnboundLocalError instead of returning. See the "
-               "consolidated findings issue.",
-    )
-    def test_rendering_with_nothing_set_should_not_crash(self, creator):
+    def test_rendering_with_nothing_set_returns_nothing(self, creator):
+        assert creator.render() is None
+
+    def test_it_prints_the_warning(self, creator, capsys):
         creator.render()
-
-    def test_rendering_with_nothing_set_currently_raises(self, creator):
-        """Characterisation of B142."""
-        with pytest.raises(UnboundLocalError, match="renderedTemplate"):
-            creator.render()
-
-    def test_it_still_prints_the_warning_before_crashing(self, creator, capsys):
-        """Characterisation of B142: the user gets the message *and* the
-        traceback."""
-        with pytest.raises(UnboundLocalError):
-            creator.render()
         assert "not set yet" in capsys.readouterr().out
 
     def test_a_template_without_a_params_map_hits_the_same_guard(self, creator):
-        """Characterisation of B142: either half being unset is enough."""
+        """Either half being unset is enough."""
         creator.setTemplate("case.template")
-        with pytest.raises(UnboundLocalError):
-            creator.render()
+        assert creator.render() is None
 
     def test_a_params_map_without_a_template_hits_the_same_guard(self, creator):
-        """Characterisation of B142."""
         creator.setParamsMap({"speed": 5})
-        with pytest.raises(UnboundLocalError):
-            creator.render()
+        assert creator.render() is None
