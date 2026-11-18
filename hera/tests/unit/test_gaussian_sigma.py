@@ -263,14 +263,6 @@ class TestErrorHandling:
         with pytest.raises(KeyError):
             sigma.getSigma(100.0, stability, units=False)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B24: getSigma does not validate the distance. A negative x yields "
-               "a negative standard deviation (x=-100, D -> sigma_y = -8.04 m), and "
-               "a large negative x yields NaN with a numpy RuntimeWarning, because "
-               "(1 + b x) goes negative under a fractional power. "
-               "See the consolidated findings issue.",
-    )
     @pytest.mark.parametrize("distance", [-1.0, -100.0, -20000.0])
     def test_an_upwind_distance_is_rejected(self, sigma, distance):
         """A standard deviation cannot be negative, and NaN is worse than an error.

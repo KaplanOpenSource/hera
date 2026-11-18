@@ -4,11 +4,12 @@ documented: the constructor always raises AttributeError, see
 FallingNonEvaporatingDroplets) cascades to every class in this file --
 none of them can be constructed either.
 
-B100: FixedPointClippedDropletCloud.__init__ calls super().__init__()
-(which dispatches to this subclass's own _initDropletPosition override,
-using self.clippedDiameter) before setting self.clippedDiameter -- so it
-crashes with a numpy TypeError reading a still-None clippedDiameter,
-before ever reaching the B96 crash its siblings hit cleanly.
+B100 (fixed): FixedPointClippedDropletCloud.__init__ used to call
+super().__init__() -- which dispatches to this subclass's own
+_initDropletPosition override, reading self.clippedDiameter -- before
+setting self.clippedDiameter, so it crashed with a numpy TypeError on a
+still-None clippedDiameter instead of reaching the B96 crash its siblings
+hit cleanly.  It now assigns clippedDiameter first.
 """
 import pytest
 
@@ -38,26 +39,8 @@ class TestDropletCloudCascadesB96:
                 linelength=10 * ureg.m, clouds=3, linepositions=2,
             )
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B100: __init__ calls super().__init__() (which dispatches "
-               "to this subclass's _initDropletPosition override) before "
-               "setting self.clippedDiameter -- so it reads clippedDiameter "
-               "while it is still None, raising a numpy TypeError before "
-               "ever reaching the B96 crash a sibling class hits. "
-               "See the consolidated findings issue.",
-    )
     def test_clipped_hits_b96_like_its_siblings(self):
         with pytest.raises(AttributeError, match="getMeteorology"):
-            FixedPointClippedDropletCloud(
-                mmd=200 * ureg.um, geometricstd=1.5,
-                position=(0 * ureg.m, 0 * ureg.m, 10 * ureg.m), Q=1 * ureg.kg,
-                clippedDiameter=1 * ureg.mm, clouds=3,
-            )
-
-    def test_clipped_currently_raises_earlier_for_a_different_reason(self):
-        """Characterisation of B100."""
-        with pytest.raises(TypeError, match="log"):
             FixedPointClippedDropletCloud(
                 mmd=200 * ureg.um, geometricstd=1.5,
                 position=(0 * ureg.m, 0 * ureg.m, 10 * ureg.m), Q=1 * ureg.kg,

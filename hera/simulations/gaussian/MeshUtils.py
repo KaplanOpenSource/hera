@@ -53,7 +53,7 @@ class GaussianToMesh(object):
 
     def __init__(self,dxdy = None):
         self.sigmaXName = "sigmaXCorrected"
-        self.sigmaYName = "sigmaXCorrected"
+        self.sigmaYName = "sigmaYCorrected"
         self.QName      = "QName"	
         self._dxdy      = dxdy
     def _defineCoordinates(self,gaussians):
@@ -78,10 +78,11 @@ class GaussianToMesh(object):
             maxYID = gaussians[gaussians['y'] == gaussians['y'].max()].index[0]
             minYID = gaussians[gaussians['y'] == gaussians['y'].min()].index[0]
 
-            maxX = gaussians.iloc[maxXID]['x'] + self.sigmashifts * gaussians.iloc[maxXID][self.sigmaXName]
-            minX = gaussians.iloc[minXID]['x'] - self.sigmashifts * gaussians.iloc[minXID][self.sigmaXName]
-            maxY = gaussians.iloc[maxYID]['y'] + self.sigmashifts * gaussians.iloc[maxYID][self.sigmaYName]
-            minY = gaussians.iloc[minYID]['y'] - self.sigmashifts * gaussians.iloc[minYID][self.sigmaYName]
+            # the IDs above are index labels, so they are looked up with .loc
+            maxX = gaussians.loc[maxXID]['x'] + self.sigmashifts * gaussians.loc[maxXID][self.sigmaXName]
+            minX = gaussians.loc[minXID]['x'] - self.sigmashifts * gaussians.loc[minXID][self.sigmaXName]
+            maxY = gaussians.loc[maxYID]['y'] + self.sigmashifts * gaussians.loc[maxYID][self.sigmaYName]
+            minY = gaussians.loc[minYID]['y'] - self.sigmashifts * gaussians.loc[minYID][self.sigmaYName]
 
         if self._dxdy is None: 
            dx   = gaussians[self.sigmaXName].min()/5.
@@ -198,7 +199,7 @@ class GaussianIntegrationToMesh(GaussianToMesh):
 
         fullX, fullY = xarray.broadcast(gaussX, gaussY)
 
-        ret = fullX*fullY*unumToPint(gaussian[QName]).m_as(unumToPint(QUnits))
+        ret = fullX*fullY*gaussian[QName] * (1*ureg.kg).m_as(unumToPint(QUnits))
         if addTo is not None:
             ret = addTo+ ret
         return ret

@@ -411,16 +411,17 @@ class TestFactory:
 
 @pytest.mark.unit
 class TestRawStringPrefixOnTheWrongQuotes:
-    r"""Five docstrings in gaussian/ carry the r prefix on the CLOSING quotes.
+    r"""Several docstrings in gaussian/ used to carry the r prefix on the
+    CLOSING quotes (B25, fixed).
 
         def getAirDensity(self, height):
             \"\"\"
                 ... \rho_{air} ...
             r\"\"\"
 
-    The r therefore becomes the last character of a non-raw docstring, so the
-    LaTeX backslashes are invalid escape sequences.  Two consequences follow,
-    and the second is the interesting one.
+    The r then became the last character of a non-raw docstring, so the LaTeX
+    backslashes were invalid escape sequences.  The tests below guard against
+    the prefix drifting back.
     """
 
     def test_the_module_is_importable_despite_the_escapes(self):

@@ -246,57 +246,42 @@ class TestGetTiacForDist:
 
 
 @pytest.mark.unit
-class TestContinuousReleaseGasCloudIsUnusable:
-    """B78: continuousReleaseGasCloud inherits directly from abstractGasCloud
-    -- NOT from instantaneousReleaseGasCloud -- but all four of its own
-    public methods call self.getDosage_inst_noQ / self.getDosage_inst_NoERF_noQ,
-    which are only ever defined on instantaneousReleaseGasCloud. Every one of
-    them raises AttributeError; the class cannot be used at all."""
+class TestContinuousReleaseGasCloud:
+    """A constant release rate makes the continuous concentration the
+    instantaneous dosage, which is why all four public methods delegate to
+    getDosage_inst_noQ / getDosage_inst_NoERF_noQ.  B78: the class used to
+    inherit straight from abstractGasCloud, so none of those methods existed
+    on it and every call raised AttributeError."""
 
     @pytest.fixture()
     def cloud(self, meteorology, space_time):
         return _make_cloud(meteorology, space_time, sourceQ=10 * ureg.kg / ureg.min)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B78: getConcentration_cont calls self.getDosage_inst_noQ, "
-               "defined only on instantaneousReleaseGasCloud. "
-               "See the consolidated findings issue.",
-    )
-    def test_concentration_cont_should_scale_the_erf_dosage_by_the_release_rate(self, cloud):
-        cloud.getConcentration_cont()
+    def test_concentration_cont_scales_the_erf_dosage_by_the_release_rate(self, cloud):
+        rate = tonumber(cloud.sourceQ, ureg.mg / ureg.s)
+        expected = rate * cloud.getDosage_inst_noQ()
+        assert numpy.allclose(cloud.getConcentration_cont().values, expected.values)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B78: same missing method, via getConcentration_cont_NoERF.",
-    )
-    def test_concentration_cont_noerf_should_scale_the_noerf_dosage_by_the_release_rate(self, cloud):
-        cloud.getConcentration_cont_NoERF()
+    def test_concentration_cont_noerf_scales_the_noerf_dosage_by_the_release_rate(self, cloud):
+        rate = tonumber(cloud.sourceQ, ureg.mg / ureg.s)
+        expected = rate * cloud.getDosage_inst_NoERF_noQ()
+        assert numpy.allclose(
+            cloud.getConcentration_cont_NoERF().values, expected.values
+        )
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B78: getDosage_cont_NoERF calls getConcentration_cont first.",
-    )
-    def test_dosage_cont_noerf_should_be_non_negative_and_increase_with_time(self, cloud):
-        cloud.getDosage_cont_NoERF()
+    def test_dosage_cont_noerf_is_non_negative_and_increases_with_time(self, cloud):
+        dosage = cloud.getDosage_cont_NoERF()
+        assert float(dosage.min()) >= 0
+        assert float(dosage.diff(dim="time").min()) >= -1e-12
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B78: getDosage_cont_doubleNoERF calls getConcentration_cont_NoERF first.",
-    )
-    def test_dosage_cont_double_noerf_should_run_without_error(self, cloud):
-        cloud.getDosage_cont_doubleNoERF()
+    def test_dosage_cont_double_noerf_is_non_negative_and_increases_with_time(self, cloud):
+        dosage = cloud.getDosage_cont_doubleNoERF()
+        assert float(dosage.min()) >= 0
+        assert float(dosage.diff(dim="time").min()) >= -1e-12
 
-    def test_all_four_public_methods_currently_raise(self, cloud):
-        """Characterisation of B78."""
-        for method_name in (
-            "getConcentration_cont",
-            "getConcentration_cont_NoERF",
-            "getDosage_cont_NoERF",
-            "getDosage_cont_doubleNoERF",
-        ):
-            with pytest.raises(AttributeError, match="getDosage_inst"):
-                getattr(cloud, method_name)()
+    def test_it_reuses_the_instantaneous_machinery(self, cloud):
+        """The four public methods above are only callable because of this."""
+        assert isinstance(cloud, instantaneousReleaseGasCloud)
 
 
 @pytest.mark.unit
