@@ -10,10 +10,10 @@ left uncovered is everything that takes a *case directory*:
 * ``readFieldAsDataFrame`` -- the deprecated reader that walks
   ``processor*``/``<time>`` and concatenates one ``extractFieldFile`` per pair.
 
-PyFoam is the conftest's bare ``MagicMock`` module (see ``_stubs.py``), so
-``ParsedParameterFile``/``BoundaryDict``/``WriteParameterFile`` carry no real
-storage and invent no values.  Nothing here asserts a value a stub produced.
-The first two methods are therefore asserted on what *they* decide -- the
+The case directories here are bare (time directories, no mesh and no field
+files), so foamlib finds nothing to read and the field falls back to its
+empty single-processor form.  The first two methods are therefore asserted
+on what *they* decide -- the
 field's name, its on-disk file name, its type, the dimension dictionary
 selected for the flow type, whether the field came out parallel, and which
 processor keys it holds -- all of which OFObjectHome computes itself from its
@@ -26,12 +26,10 @@ returns, so only the shape of the concatenation is asserted.
 Bugs pinned here (each with a strict xfail for the intended behaviour and a
 passing characterisation of what happens today):
 
-* B290 ``readFieldFromCase`` cannot read a decomposed case at all:
-  ``OFField.readFromCase``'s parallel branch tests
-  ``logger.getEffectiveLevel() == logger.DEBUG``, and ``logger`` is a
-  ``logging.Logger`` instance, which has no ``DEBUG`` attribute (the constant
-  lives on the ``logging`` module).  Every parallel read dies with
-  AttributeError before a single processor file is opened.
+* B290 (fixed in #1169) ``readFieldFromCase`` could not read a decomposed
+  case: ``OFField.readFromCase``'s parallel branch tested
+  ``logger.getEffectiveLevel() == logger.DEBUG``, and a ``logging.Logger``
+  has no ``DEBUG`` attribute.
 * B291 ``readFieldAsDataFrame(readParallel=False, times=None)`` finds no
   time steps unless the process happens to be sitting inside the case: the
   serial branch calls ``os.path.isdir(x)`` on the bare directory *name*
@@ -41,27 +39,14 @@ passing characterisation of what happens today):
 """
 import os
 import sys
-from unittest.mock import MagicMock
 
 import pandas
 import pytest
 
 from hera.simulations.openFoam.preprocessOFObjects.OFObjectHome import OFObjectHome
+from hera.tests.unit._openfoam_golden import INPUT_CASE
 
 _SCALAR_TIME_DIRS = ("0", "100", "constant")
-
-
-@pytest.fixture(autouse=True)
-def _pyfoamStandIns(monkeypatch):
-    """The stub layer yields to a real PyFoam when one is installed (#1067),
-    and the real one reads mesh and field files these bare case directories
-    do not have.  Put MagicMocks back where OFField looks the names up, so the
-    module docstring's premise -- PyFoam stores and invents nothing -- holds
-    either way."""
-    ofField = sys.modules["hera.simulations.openFoam.preprocessOFObjects.OFField"]
-    for name in ("BoundaryDict", "ParsedParameterFile", "WriteParameterFile",
-                 "Field", "Dimension", "DictProxy", "Vector", "Tensor"):
-        monkeypatch.setattr(ofField, name, MagicMock())
 
 
 @pytest.fixture()
@@ -163,16 +148,15 @@ class TestGetEmptyFieldFromCase:
         assert field.parallel is False
         assert list(field.data) == ["singleProcessor"]
 
-    def test_a_decomposed_case_gets_one_entry_per_processor(self, home, parallelCase):
+    def test_a_decomposed_case_gets_one_entry_per_processor(self, home):
         field = home.getEmptyFieldFromCase(fieldName="U", flowType="incompressible",
-                                           caseDirectory=str(parallelCase))
+                                           caseDirectory=INPUT_CASE)
         assert field.parallel is True
         assert sorted(field.data) == ["processor0", "processor1"]
 
-    def test_read_parallel_false_reads_a_decomposed_case_as_a_single_one(
-            self, home, parallelCase):
+    def test_read_parallel_false_reads_a_decomposed_case_as_a_single_one(self, home):
         field = home.getEmptyFieldFromCase(fieldName="U", flowType="incompressible",
-                                           caseDirectory=str(parallelCase),
+                                           caseDirectory=INPUT_CASE,
                                            readParallel=False)
         assert field.parallel is False
         assert list(field.data) == ["singleProcessor"]
@@ -216,38 +200,22 @@ class TestReadFieldFromCase:
             home.readFieldFromCase(fieldName="noSuchField", flowType="incompressible",
                                    caseDirectory=str(tmp_path / "doesNotExist"))
 
-    def test_read_parallel_false_reads_a_decomposed_case_as_a_single_one(
-            self, home, parallelCase):
+    def test_read_parallel_false_reads_a_decomposed_case_as_a_single_one(self, home):
         field = home.readFieldFromCase(fieldName="p", flowType="incompressible",
-                                       caseDirectory=str(parallelCase), readParallel=False)
+                                       caseDirectory=INPUT_CASE, readParallel=False)
         assert field.parallel is False
         assert list(field.data) == ["singleProcessor"]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B290: OFField.readFromCase's parallel branch reads "
-               "`logger.DEBUG`, but `logger` is a logging.Logger instance and "
-               "the DEBUG constant lives on the logging module, so every "
-               "attempt to read a decomposed case raises AttributeError "
-               "before any processor file is opened.  (The `itrObj` the line "
-               "computes is then never used either -- the loop below it "
-               "iterates procPaths.)  See the consolidated findings issue.",
-    )
-    def test_a_decomposed_case_should_be_readable(self, home, parallelCase):
+    def test_a_decomposed_case_is_read_per_processor(self, home):
+        """B290 (fixed): the parallel branch used to read logger.DEBUG and raise."""
         field = home.readFieldFromCase(fieldName="p", flowType="incompressible",
-                                       caseDirectory=str(parallelCase))
+                                       caseDirectory=INPUT_CASE)
+        assert field.parallel is True
         assert sorted(field.data) == ["processor0", "processor1"]
 
-    def test_a_decomposed_case_currently_raises_attributeerror(self, home, parallelCase):
-        """Characterisation of B290."""
-        with pytest.raises(AttributeError, match="'Logger' object has no attribute 'DEBUG'"):
-            home.readFieldFromCase(fieldName="p", flowType="incompressible",
-                                   caseDirectory=str(parallelCase))
-
-    def test_the_same_case_read_as_a_single_processor_succeeds(self, home, parallelCase):
-        """Characterisation of B290: only the parallel branch is broken."""
+    def test_the_same_case_read_as_a_single_processor_succeeds(self, home):
         assert home.readFieldFromCase(fieldName="p", flowType="incompressible",
-                                      caseDirectory=str(parallelCase),
+                                      caseDirectory=INPUT_CASE,
                                       readParallel=False).parallel is False
 
 

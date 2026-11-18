@@ -33,11 +33,20 @@ class TestTheStubsAreDoingTheWork:
 
         assert "hermes" in sys.modules
 
-    def test_pyfoam_is_present_as_a_package(self):
-        """Stubbed or real -- `import PyFoam.Basics.DataStructures` needs both."""
+    def test_paraview_is_present_as_a_package(self):
+        """Stubbed or real -- `import paraview.simple` needs both."""
         import sys
 
-        assert hasattr(sys.modules["PyFoam"], "__path__")
+        assert hasattr(sys.modules["paraview"], "__path__")
+
+    def test_the_openfoam_toolkit_does_not_need_pyfoam(self):
+        """#1169 replaced PyFoam with foamlib; nothing may bring it back."""
+        import sys
+
+        import hera.simulations.openFoam.preprocessOFObjects  # noqa: F401
+        from hera.simulations.openFoam.toolkit import OFToolkit  # noqa: F401
+
+        assert not any(name == "PyFoam" or name.startswith("PyFoam.") for name in sys.modules)
 
     def test_the_openfoam_toolkit_class_is_reachable(self):
         """Importing is not enough; the class has to be usable as a symbol."""
@@ -64,7 +73,7 @@ class TestTorchIsDeliberatelyNotStubbed:
 
         A MagicMock in sys.modules has no __path__, so `import torch.utils`
         raises "'torch' is not a package".  Stubbing torch would need the
-        namespace-package form PyFoam gets, not a leaf mock.
+        namespace-package form paraview gets, not a leaf mock.
         """
         import sys
         from unittest.mock import MagicMock
@@ -74,11 +83,11 @@ class TestTorchIsDeliberatelyNotStubbed:
             __import__("heraProbePackage.submodule")
 
     def test_the_namespace_form_does_carry_submodules(self):
-        """Which is exactly what PyFoam gets, and why that one works."""
+        """Which is exactly what paraview gets, and why that one works."""
         import sys
 
-        assert hasattr(sys.modules["PyFoam"], "__path__")
-        assert "PyFoam.Basics.DataStructures" in sys.modules
+        assert hasattr(sys.modules["paraview"], "__path__")
+        assert "paraview.simple" in sys.modules
 
     def test_the_module_is_skipped_rather_than_failed_when_torch_is_absent(self):
         pytest.importorskip("torch")

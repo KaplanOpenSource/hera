@@ -1,6 +1,7 @@
-import pandas
+import numpy
 import os
-import glob
+import tempfile
+from foamlib import FoamFieldFile
 from ....utils.logging import get_classMethod_logger
 from .. import FIELDTYPE_VECTOR, FIELDTYPE_TENSOR, FIELDTYPE_SCALAR
 
@@ -145,18 +146,62 @@ class OFObject:
         """
         if 'singleProcessor' in self.data:
             directory = os.path.join(caseDirectory,str(timeOrLocation))
-            outputdir = os.path.join(directory,self.fileName)
-
             os.makedirs(directory,exist_ok=True)
-
-            with open(outputdir,'w') as outputdir:
-                outputStr = str(self.data['singleProcessor'])
-                outputdir.writelines(outputStr.replace("proc.*",'"proc.*"'))
+            with open(os.path.join(directory,self.fileName),'wb') as outputFile:
+                outputFile.write(self.toFoamText(self.data['singleProcessor']))
         else:
             for procName,procData in self.data.items():
                 directory = os.path.join(caseDirectory,procName,str(timeOrLocation))
-                outputdir = os.path.join(directory,self.fileName)
                 os.makedirs(directory, exist_ok=True)
-                with open(outputdir,'w') as outputdir:
-                    outputdir.writelines(str(procData).replace("proc.*",'"proc.*"'))
+                with open(os.path.join(directory,self.fileName),'wb') as outputFile:
+                    outputFile.write(self.toFoamText(procData))
+
+    def toFoamText(self, processorData):
+        """
+            Returns the OpenFOAM file content (bytes) of one processor's data.
+
+        Parameters
+        ----------
+        processorData : dict
+            dimensions, internalField and boundaryField, as foamlib represents them.
+
+        Returns
+        -------
+            bytes
+        """
+        header = {"version": 2.0, "format": "ascii", "class": f"vol{self.fieldType.title()}Field", "object": self.fileName}
+        content = {"FoamFile": header, **processorData}
+
+        # ponytail: foamlib < 1.10 writes any 3, 6 or 9 long array as a uniform
+        # vector/symmTensor/tensor, whatever the file class.  A scalar list of that
+        # length (a patch with 3 faces) is swapped for a placeholder word and written
+        # by hand.  Drop this once foamlib >= 1.10 (it needs numpy >= 2).
+        lists = {}
+
+        def protect(value):
+            if isinstance(value, numpy.ndarray) and value.ndim == 1 and len(value) in (3, 6, 9):
+                placeholder = f"heraScalarList{len(lists)}"
+                lists[placeholder] = value
+                return placeholder
+            return value
+
+        if self.fieldType == FIELDTYPE_SCALAR:
+            content["internalField"] = protect(content.get("internalField"))
+            content["boundaryField"] = {patch: {key: protect(value) for key, value in patchData.items()}
+                                        for patch, patchData in content.get("boundaryField", {}).items()}
+
+        # Written through a file, not FoamFieldFile.dumps: dumps puts the whole file on
+        # one line, and line-based readers (the Hmix template of the LSM toolkit) need
+        # OpenFOAM's own layout, one entry per line.
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, self.fileName)
+            with FoamFieldFile(path) as foamFile:
+                for key, value in content.items():
+                    foamFile[key] = value
+            with open(path, "rb") as written:
+                text = written.read()
+        for placeholder, value in lists.items():
+            listText = f"nonuniform List<scalar> {len(value)}({' '.join(repr(float(x)) for x in value)})"
+            text = text.replace(placeholder.encode(), listText.encode())
+        return text
 

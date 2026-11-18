@@ -15,8 +15,8 @@ and ``Presentation`` (``to_paraview_CSV``, ``toUnstructuredVTK``,
 ``toStructuredVTK``, ``loadLagrangianDataParallel``).
 
 Nothing here shells out: OpenFOAM (``foamJob``, ``Allrun``), Luigi and
-Slurm are reached only through monkeypatched seams, and PyFoam / paraview /
-evtk are the conftest stubs, so no assertion below depends on a value a
+Slurm are reached only through monkeypatched seams, and paraview / evtk
+are the conftest stubs, so no assertion below depends on a value a
 stub invented -- only on which arguments crossed the seam, which branch ran
 and which files appeared under ``tmp_path``.
 

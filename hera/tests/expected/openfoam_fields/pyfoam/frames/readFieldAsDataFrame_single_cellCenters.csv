@@ -1,0 +1,15 @@
+processorIndex,Cx,Cy,Cz,time,region,boundary,type
+0,,,,0,boundaryField,frontAndBack,empty
+0,0.0,0.25,0.05,0,boundaryField,inlet,calculated
+1,0.0,0.75,0.05,0,boundaryField,inlet,calculated
+0,1.0,0.2,0.05,0,boundaryField,outlet,calculated
+1,1.0,0.5,0.05,0,boundaryField,outlet,calculated
+2,1.0,0.8,0.05,0,boundaryField,outlet,calculated
+0,0.25,0.0,0.05,0,boundaryField,walls,calculated
+1,0.75,0.0,0.05,0,boundaryField,walls,calculated
+2,0.25,1.0,0.05,0,boundaryField,walls,calculated
+3,0.75,1.0,0.05,0,boundaryField,walls,calculated
+0,0.25,0.25,0.05,0,internalField,,
+1,0.75,0.25,0.05,0,internalField,,
+2,0.25,0.75,0.05,0,internalField,,
+3,0.75,0.75,0.05,0,internalField,,

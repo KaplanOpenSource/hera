@@ -1,13 +1,13 @@
 """``sys.modules`` stubs for packages that are not installed.
 
-Nineteen hera modules import PyFoam, paraview, FreeCAD, hermes, argos or
-evtk at module level.  Registering placeholder modules before those imports
+Hera modules import paraview, FreeCAD, hermes, argos or evtk at module
+level.  Registering placeholder modules before those imports
 run lets the surrounding pure-Python logic be tested without the external
 binaries.
 
 Every stub here is conditional: a placeholder is registered only when the
 real module cannot be imported, so an environment that has the package --
-CI installs PyFoam and pyevtk from requirements.txt -- tests against the
+CI installs pyevtk from requirements.txt -- tests against the
 actual classes and the stub never gets in the way.
 
 Two kinds of placeholder, because the two are not interchangeable:
@@ -38,12 +38,6 @@ from unittest.mock import MagicMock
 #   "mock"               a leaf module; every attribute is a MagicMock
 #   (class names tuple)  a leaf module exposing those names as real classes
 _STUBS = (
-    ("PyFoam", "namespace"),
-    ("PyFoam.RunDictionary", "namespace"),
-    ("PyFoam.Basics", "namespace"),
-    ("PyFoam.RunDictionary.ParsedParameterFile", "mock"),
-    ("PyFoam.RunDictionary.BoundaryDict", "mock"),
-    ("PyFoam.Basics.DataStructures", "mock"),
     ("paraview", "namespace"),
     ("paraview.simple", "namespace"),
     ("evtk", "namespace"),

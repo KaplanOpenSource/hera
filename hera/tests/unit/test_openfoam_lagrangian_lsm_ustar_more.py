@@ -43,8 +43,11 @@ import os
 import pandas
 import pytest
 
+from hera.simulations.openFoam import FLOWTYPE_INCOMPRESSIBLE
 from hera.simulations.openFoam.lagrangian.LSM import toolkit as lsmModule
 from hera.simulations.openFoam.lagrangian.LSM.toolkit import OFLSMToolkit
+from hera.simulations.openFoam.preprocessOFObjects.OFObjectHome import OFObjectHome
+from hera.simulations.openFoam.preprocessOFObjects.utils import readFieldFile
 from hera.simulations.utils import coordinateHandler as coordinateHandlerModule
 
 _CELL_CENTRES = [(0.0, 0.0, 1.0), (10.0, 0.0, 2.0), (20.0, 0.0, 3.0)]
@@ -203,6 +206,20 @@ class TestMakeDistanceFromGroundFromCache:
         written = (case / "50" / "cellHeights").read_text()
         hmix = (case / "0" / "Hmix").read_text()
         assert written.endswith(hmix[hmix.index("boundaryField"):])
+
+    def test_a_hmix_written_by_hera_gives_a_valid_field(self, lsm, case, warmCellDataCache,
+                                                        refuseMeshRead):
+        """In a dispersion case Hmix is written by Hera itself (abstractLagrangianSolver,
+        through writeToCase).  The output must hold the heights and only the boundary
+        section of that template (#1169)."""
+        hmix = OFObjectHome().getEmptyField("Hmix", FLOWTYPE_INCOMPRESSIBLE)
+        hmix.addBoundaryField("ground", type="zeroGradient")
+        hmix.writeToCase(str(case), 0)
+        lsm.makeDistanceFromGround(times=["50"])
+        written = readFieldFile(str(case / "50" / "cellHeights"))
+        assert written["internalField"].tolist() == [[x, y, height] for (x, y, _), height
+                                                     in zip(_CELL_CENTRES, _HEIGHTS)]
+        assert written["boundaryField"] == readFieldFile(str(case / "0" / "Hmix"))["boundaryField"]
 
     def test_the_value_list_is_closed_the_way_openfoam_expects(self, lsm, case,
                                                                warmCellDataCache,

@@ -66,6 +66,13 @@ jobs:
           # exits 1 and would fail the job.
           COVERAGE_FILE: .coverage.unit
 
+      # Hermes has no test CI of its own; reverseOpenFOAM is compared there with
+      # the PyFoam goldens (#1169).
+      - name: Run the Hermes reverseOpenFOAM tests
+        run: pytest Hermes/tests/test_reverse_openfoam.py -q
+        env:
+          PYTHONPATH: ${{ github.workspace }}/Hermes:${{ github.workspace }}/_vendor/pyargos
+
       - name: Report unit coverage
         run: coverage report
         env:
@@ -77,6 +84,56 @@ jobs:
           name: coverage-unit
           path: .coverage.unit
           include-hidden-files: true
+
+  openfoam:
+    name: OpenFOAM 10 system test (fields written and read by Hera)
+    runs-on: ubuntu-24.04
+    needs: unit
+
+    steps:
+      - name: Checkout hera
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - name: Checkout pyargos (internal dependency — provides the `argos` package)
+        uses: actions/checkout@v6
+        with:
+          repository: KaplanOpenSource/pyargos
+          path: _vendor/pyargos
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements.txt
+            requirements-test.txt
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgdal-dev gdal-bin
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+          pip install -e . --no-deps
+
+      # OpenFOAM itself runs in the openfoam.org image; the test calls it with
+      # `docker run` on the case directories it creates.
+      - name: Pull OpenFOAM 10
+        run: docker pull openfoam/openfoam10-paraview56
+
+      - name: Run the OpenFOAM system test
+        run: pytest hera/tests/test_openfoam_fields_system.py -m openfoam -v
+        env:
+          MPLBACKEND: Agg
+          HERA_OPENFOAM_DOCKER_IMAGE: openfoam/openfoam10-paraview56
+          PYTHONPATH: ${{ github.workspace }}/Hermes:${{ github.workspace }}/_vendor/pyargos
 
   test:
     name: Run full test suite

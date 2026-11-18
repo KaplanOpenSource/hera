@@ -1,0 +1,7 @@
+processorIndex,Ux,Uy,Uz,region,boundary,type
+0,1.0,0.0,0.0,boundaryField,inlet,fixedValue
+0,,,,boundaryField,walls,noSlip
+0,0.1,0.0,0.0,internalField,,
+1,0.2,0.01,0.0,internalField,,
+2,0.3,0.0,-0.01,internalField,,
+3,0.4,0.02,0.0,internalField,,

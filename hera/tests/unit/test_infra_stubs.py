@@ -7,7 +7,7 @@ import pytest
 @pytest.mark.unit
 def test_stub_modules_are_registered():
     """install() is called by conftest at collection time."""
-    for name in ("PyFoam", "paraview", "evtk", "PyFoam.Basics.DataStructures"):
+    for name in ("paraview", "paraview.simple", "evtk", "evtk.hl"):
         assert name in sys.modules, f"{name} was not stubbed"
 
 
@@ -15,24 +15,24 @@ def test_stub_modules_are_registered():
 def test_namespace_stub_supports_submodule_import():
     """A namespace stub must carry __path__ or `import a.b` fails.
 
-    Real or stubbed, depending on whether PyFoam is installed here -- the
+    Real or stubbed, depending on whether paraview is installed here -- the
     stub yields to a real install, so only the package-ness is asserted.
     """
-    assert hasattr(sys.modules["PyFoam"], "__path__")
+    assert hasattr(sys.modules["paraview"], "__path__")
 
 
 @pytest.mark.unit
 def test_install_is_idempotent():
     from hera.tests.unit import _stubs
 
-    before = sys.modules["PyFoam"]
+    before = sys.modules["paraview"]
     _stubs.install()
-    assert sys.modules["PyFoam"] is before, "install() replaced an existing stub"
+    assert sys.modules["paraview"] is before, "install() replaced an existing stub"
 
 
 @pytest.mark.unit
 def test_openfoam_toolkit_imports_under_stubs():
-    """The whole point: a module that needs PyFoam+evtk must import."""
+    """The whole point: a module that needs paraview+evtk must import."""
     from hera.simulations.openFoam.toolkit import OFToolkit
 
     assert OFToolkit is not None
