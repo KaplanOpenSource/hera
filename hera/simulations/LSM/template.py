@@ -1,6 +1,5 @@
 import glob
 import os
-from itertools import product
 
 import numpy
 import pandas
@@ -212,77 +211,82 @@ class LSMTemplate:
 
         cur_dir = os.getcwd()
         os.chdir(saveDir)
-        logger.info(f"temporarily moving context from {cur_dir} to {os.getcwd()}")
+        try:
+            logger.info(f"temporarily moving context from {cur_dir} to {os.getcwd()}")
 
-        if topography is not None:
-            with open("TOPO","w") as topofile:
-                topofile.write(topography)
-        if depositionRates is not None:
-            depositionsFile = ""
-            for rate in depositionRates:
-                depositionsFile += f"{rate}\n"
-            with open("INPUT_VDEP","w") as newDepositionFile:
-                newDepositionFile.write(depositionsFile)
-            # make stations files
+            if topography is not None:
+                with open("TOPO","w") as topofile:
+                    topofile.write(topography)
+            if depositionRates is not None:
+                depositionsFile = ""
+                for rate in depositionRates:
+                    depositionsFile += f"{rate}\n"
+                with open("INPUT_VDEP","w") as newDepositionFile:
+                    newDepositionFile.write(depositionsFile)
+                # make stations files
 
-        if stations is not None:
-            stations = stations.rename(columns={self.timeColumn:"datetime"})
-            onlyStations = stations.drop(columns=["datetime",self.uColumn,
-                                                  self.directionColumn])
-            if self.hColumn in onlyStations.columns:
-                onlyStations = onlyStations.drop(columns=self.hColumn)
+            if stations is not None:
+                stations = stations.rename(columns={self.timeColumn:"datetime"})
+                stations[self.stationColumn] = stations[self.xColumn].astype(str) + stations[self.yColumn].astype(str)
 
-            stations[self.stationColumn] = stations[self.xColumn].astype(str) + stations[self.yColumn].astype(str)
+                # the per-station columns, which the resampling below does not
+                # carry, and which are joined back onto the resampled frame.
+                onlyStations = stations.drop(columns=["datetime",self.uColumn,
+                                                      self.directionColumn])
+                if self.hColumn in onlyStations.columns:
+                    onlyStations = onlyStations.drop(columns=self.hColumn)
+                onlyStations = onlyStations.drop_duplicates([self.xColumn, self.yColumn])
 
-            stationsXarray = stations.set_index([self.xColumn, self.yColumn, "datetime"]).drop(columns=self.stationColumn).to_xarray()
-            resampled = stationsXarray.resample(datetime="5Min").interpolate()
+                stationsXarray = stations.set_index([self.xColumn, self.yColumn, "datetime"]).drop(columns=self.stationColumn).to_xarray()
+                resampled = stationsXarray.resample(datetime="5Min").interpolate()
 
-            stations = resampled.to_dataframe().reset_index()
-            stations = stations.set_index([self.xColumn,self.yColumn]).join(onlyStations.set_index([self.xColumn,self.yColumn])).reset_index().dropna()
+                stations = resampled.to_dataframe().reset_index()
+                stations = stations.set_index([self.xColumn,self.yColumn]).join(onlyStations.set_index([self.xColumn,self.yColumn])).reset_index().dropna()
 
-            allStationsFile = f"{len(stations[self.stationColumn].drop_duplicates())}\n"
-            i = 0
-            j = 0
-            for station in stations[self.stationColumn].drop_duplicates():
-                stationName = f"{chr(65+i)}{chr(65+j)}"
-                allStationsFile += f"{stationName}  {list(stations.loc[stations[self.stationColumn]==station][self.xColumn])[0]}"
-                for k in range(9-len(str(list(stations.loc[stations[self.stationColumn]==station][self.xColumn])[0]))):
-                    allStationsFile += " "
-                allStationsFile += f"{list(stations.loc[stations[self.stationColumn]==station][self.yColumn])[0]}\n"
-                stationFile = ""
-                for k in range(2901):
-                    stationFile += "0 0\n"
-                for k, line in enumerate(stations.loc[stations[self.stationColumn]==station].iterrows()):
-                    stationFile += f"{line[1][self.uColumn]} {line[1][self.directionColumn]}\n"
-                with open(os.path.join("tozaot","Meteorology",f"{stationName}_st.txt"),"w") as newStationFile:
-                    newStationFile.write(stationFile)
-                if j == 25:
-                    j = 0
-                    i += 1
-                else:
-                    j += 1
-            with open("STATIONS","w") as newStationFile:
-                newStationFile.write(allStationsFile)
-        if canopy is not None:
-            with open("canopy_properties.txt","w") as newCanopyFile:
-                newCanopyFile.write(canopy)
-            if (topography is not None or stations is not None):
-                if self.hColumn not in stations.columns:
-                    raise KeyError("Height column is missing in the stations dataframe")
-                else:
-                    hStations = ""
-                    for h in stations.drop_duplicates(self.stationColumn)[self.hColumn]:
-                        hStations += f"{h} "
-                    with open("h_stations.txt", "w") as newStationFile:
-                        newStationFile.write(hStations)
+                allStationsFile = f"{len(stations[self.stationColumn].drop_duplicates())}\n"
+                i = 0
+                j = 0
+                for station in stations[self.stationColumn].drop_duplicates():
+                    stationName = f"{chr(65+i)}{chr(65+j)}"
+                    allStationsFile += f"{stationName}  {list(stations.loc[stations[self.stationColumn]==station][self.xColumn])[0]}"
+                    for k in range(9-len(str(list(stations.loc[stations[self.stationColumn]==station][self.xColumn])[0]))):
+                        allStationsFile += " "
+                    allStationsFile += f"{list(stations.loc[stations[self.stationColumn]==station][self.yColumn])[0]}\n"
+                    stationFile = ""
+                    for k in range(2901):
+                        stationFile += "0 0\n"
+                    for k, line in enumerate(stations.loc[stations[self.stationColumn]==station].iterrows()):
+                        stationFile += f"{line[1][self.uColumn]} {line[1][self.directionColumn]}\n"
+                    with open(os.path.join("tozaot","Meteorology",f"{stationName}_st.txt"),"w") as newStationFile:
+                        newStationFile.write(stationFile)
+                    if j == 25:
+                        j = 0
+                        i += 1
+                    else:
+                        j += 1
+                with open("STATIONS","w") as newStationFile:
+                    newStationFile.write(allStationsFile)
+            if canopy is not None:
+                with open("canopy_properties.txt","w") as newCanopyFile:
+                    newCanopyFile.write(canopy)
+                if stations is not None:
+                    if self.hColumn not in stations.columns:
+                        raise KeyError("Height column is missing in the stations dataframe")
+                    else:
+                        hStations = ""
+                        for h in stations.drop_duplicates(self.stationColumn)[self.hColumn]:
+                            hStations += f"{h} "
+                        with open("h_stations.txt", "w") as newStationFile:
+                            newStationFile.write(hStations)
 
-        logger.info("running the model")
-        # run the model.
-        import subprocess as _subprocess
-        lsm_return = _subprocess.run(['./a.out']).returncode
-        logger.info("simulation finished running")
-        logger.info(f"returning context back to {cur_dir}")
-        os.chdir(cur_dir)
+            logger.info("running the model")
+            # run the model.
+            import subprocess as _subprocess
+            lsm_return = _subprocess.run(['./a.out']).returncode
+            logger.info("simulation finished running")
+        finally:
+            logger.info(f"returning context back to {cur_dir}")
+            os.chdir(cur_dir)
         if lsm_return != 0:
             logger.error("simulation failed, aborting...")
             return
@@ -330,7 +334,7 @@ class LSMTemplate:
     @staticmethod
     def prepareParams(template_desc, paramsToPrepare):
         logger = get_logger(instance=None, name="hera.simulations.LSM.prepareParams")
-        params = template_desc.get('params', {}) if template_desc is not None else {}
+        params = dict(template_desc.get('params', {})) if template_desc is not None else {}
         params.update(paramsToPrepare)
         paramsToPrepare=params
         try:
@@ -467,7 +471,7 @@ class LSMTemplate:
         :param id:
         :return:
         """
-        return SingleSimulation(self.getDocumentByID(id))
+        return SingleSimulation(self.Toolkit.getDocumentByID(id))
 
     def getSimulationByName(self,simulationName):
         """
@@ -503,7 +507,7 @@ class LSMTemplate:
         params_df_list = [df.rename(columns=dict([(x,"params__%s"%x) for x in df.columns])) for df in params_df_list]
 
         desc_df_list = [pandas.DataFrame(desc, index=[0]) for desc in descList]
-        df_list = [desc.join(params) for (desc,params) in product(desc_df_list, params_df_list)]
+        df_list = [desc.join(params) for (desc,params) in zip(desc_df_list, params_df_list)]
 
         return df_list
 

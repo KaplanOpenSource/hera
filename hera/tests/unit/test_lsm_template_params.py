@@ -107,35 +107,16 @@ class TestIntegerFields:
 class TestTheTemplateIsNotMutated:
     """A template is reused across simulations, so preparing must not touch it."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B45: even a single call writes the caller's overrides into "
-               "template_desc['params']. See the consolidated findings issue.",
-    )
     def test_the_declared_defaults_survive_one_call(self):
         template = {"params": {"a": 1}, "units": {}}
         LSMTemplate.prepareParams(template, {"b": 2})
         assert template["params"] == {"a": 1}
 
-    def test_the_mutation_is_what_it_looks_like(self):
-        """Characterisation of B45's mechanism, so the cause is unambiguous."""
-        template = {"params": {"a": 1}, "units": {}}
-        LSMTemplate.prepareParams(template, {"b": 2})
-        assert template["params"] == {"a": 1, "b": 2}
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B45: prepareParams does params = template_desc.get('params', {}) "
-               "and then params.update(...), which writes the caller's overrides "
-               "into the template's own dict. A template reused for a second "
-               "simulation carries the first run's parameters. "
-               "See the consolidated findings issue.",
-    )
     def test_a_reused_template_does_not_accumulate_earlier_runs(self):
         """The scenario, verified: one template, two simulations.
 
-            prepareParams(template, {"b": 2})   # template gains b
-            prepareParams(template, {"c": 3})   # second run also sees b
+            prepareParams(template, {"b": 2})   # the template is untouched
+            prepareParams(template, {"c": 3})   # the second run does not see b
         """
         template = {"params": {"a": 1}, "units": {}}
 

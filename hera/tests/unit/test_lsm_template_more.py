@@ -16,9 +16,8 @@ time ordering, the leading zero frame and the unit scaling are all
 checkable without a simulation.
 
 The template document is built by hand for the same reason
-test_lsm_template.py does: ``LSMToolkit.loadData`` never persists the
-parsed template JSON's own desc (B92), so ``params``/``modelFolder``
-would KeyError on a template registered the normal way.
+test_lsm_template.py does: it keeps LSMTemplate's own logic independent of
+how the toolkit registers a datasource.
 
 Deliberately not covered: the ``to_xarray=True`` tail of ``run`` (the
 netcdf assembly), which needs real OUTD output from a real solver run --
@@ -30,21 +29,6 @@ and a passing characterisation of what actually happens:
   * B275: ``_toNetcdf`` says it converts the dosage "to s/m**3 instead
     of min/m**3" but multiplies by ``(1 s).m_as(min)`` = 1/60, which is
     the seconds-to-minutes factor -- the reverse of the stated conversion.
-  * B276: ``_getSimulationsList`` joins its desc frames to its params
-    frames with ``itertools.product`` instead of pairing them, so n
-    simulations produce n^2 rows in which one simulation's metadata is
-    stapled to another's parameters.
-  * B277: ``run(topography=..., canopy=...)`` without ``stations``
-    reaches ``stations.columns`` on None and dies with AttributeError.
-  * B278: ``run`` chdir's into the simulation directory with no
-    try/finally, so any failure past that point leaves the whole process
-    in the simulation directory.
-  * B279: ``run(stations=...)`` computes the station identifier column
-    and then loses it in the xarray resample round-trip, so it only
-    works if the caller happens to have supplied a ``station`` column.
-  * B280: the same code path joins a never-deduplicated ``onlyStations``
-    back onto the resampled series, so every station's wind record is
-    written once per original observation.
 """
 import os
 import subprocess
@@ -149,6 +133,16 @@ def solver(monkeypatch):
 
     monkeypatch.setattr(subprocess, "run", _run)
     return record
+
+
+@pytest.fixture()
+def failingSolver(monkeypatch):
+    """Make the ./a.out subprocess raise, to exercise run()'s failure paths."""
+
+    def _run(command, *args, **kwargs):
+        raise RuntimeError("the solver blew up")
+
+    monkeypatch.setattr(subprocess, "run", _run)
 
 
 @pytest.fixture()
@@ -549,21 +543,6 @@ class TestRunWithStations:
         assert lines[:2901] == ["0 0"] * 2901
         return [float(line.split()[0]) for line in lines[2901:]]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B280: after resampling the station series to five-minute "
-               "steps, run() joins `onlyStations` back on (x, y) -- but "
-               "onlyStations was never deduplicated, so it still holds one "
-               "row per original observation per station. The join is "
-               "therefore many-to-many and every resampled record is "
-               "repeated once per original observation: three 10-minute "
-               "observations become 5 interpolated steps written 3 times "
-               "each, 15 records instead of 5. The station wind series the "
-               "solver reads is the interpolated one stuttered N times, so "
-               "it runs N times too long and at the wrong times. "
-               "drop_duplicates on the (x, y) key is what the join needs. "
-               "See the consolidated findings issue.",
-    )
     def test_the_wind_is_resampled_to_five_minute_steps(
         self, template, ifmc, solver, cwd, lsm
     ):
@@ -572,68 +551,31 @@ class TestRunWithStations:
         self._run(template, _stationsFrame(samples=3))
         assert self._windRecords(lsm) == pytest.approx([1.0, 1.5, 2.0, 2.5, 3.0])
 
-    def test_every_resampled_record_is_currently_repeated_once_per_observation(
+    def test_the_record_count_does_not_follow_the_observation_count(
         self, template, ifmc, solver, cwd, lsm
     ):
-        """Characterisation of B280."""
-        self._run(template, _stationsFrame(samples=3))
-        records = self._windRecords(lsm)
-        assert len(records) == 5 * 3
-        assert records == pytest.approx(
-            [value for value in (1.0, 1.5, 2.0, 2.5, 3.0) for _ in range(3)]
-        )
-
-    def test_the_repetition_count_currently_follows_the_observation_count(
-        self, template, ifmc, solver, cwd, lsm
-    ):
-        """Characterisation of B280: two observations, each step twice."""
+        """Two observations span 10 minutes, i.e. three five-minute steps --
+        written once each, not once per original observation."""
         self._run(template, _stationsFrame(samples=2))
-        records = self._windRecords(lsm)
-        assert len(records) == 3 * 2
-        assert records == pytest.approx(
-            [value for value in (1.0, 1.5, 2.0) for _ in range(2)]
-        )
+        assert self._windRecords(lsm) == pytest.approx([1.0, 1.5, 2.0])
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B279: run() computes the station identifier itself "
-               "(stations[stationColumn] = x.astype(str) + y.astype(str)), "
-               "but then rebuilds the frame from a resampled xarray "
-               "(set_index(...).drop(columns=stationColumn).to_xarray() -> "
-               "to_dataframe().reset_index()), which does not carry that "
-               "column, and joins back only `onlyStations`, computed before "
-               "the identifier existed. The very next line reads "
-               "stations['station'] and raises KeyError. The path works only "
-               "if the caller happens to have supplied a 'station' column of "
-               "their own -- which the docstring never mentions and the "
-               "computed identifier is meant to make unnecessary. See the "
-               "consolidated findings issue.",
-    )
-    def test_stations_without_a_station_column_should_still_work(
+    def test_stations_without_a_station_column_still_work(
         self, template, ifmc, solver, cwd, lsm
     ):
+        """run() computes the station identifier from x and y, so the caller
+        need not supply a 'station' column -- the docstring never asks for one."""
         self._run(template, _stationsFrame(withStationColumn=False))
         assert os.path.isfile(os.path.join(self._saveDir(lsm), "STATIONS"))
 
-    def test_stations_without_a_station_column_currently_raise_keyerror(
-        self, template, ifmc, solver, cwd
-    ):
-        """Characterisation of B279."""
-        with pytest.raises(KeyError, match="station"):
-            self._run(template, _stationsFrame(withStationColumn=False))
-
-    def test_the_computed_identifier_is_currently_discarded(
+    def test_the_computed_identifier_survives_the_resampling(
         self, template, ifmc, solver, cwd, lsm
     ):
-        """Characterisation of B279: with a caller-supplied 'station'
-        column, it is the caller's values that survive, not the x+y
-        identifier the code builds."""
-        stations = _stationsFrame()
-        self._run(template, stations)
-        metDir = os.path.join(self._saveDir(lsm), "tozaot", "Meteorology")
-        # two distinct caller stations -> two files, named AA/AB from the
-        # loop counter, not from the discarded "0.00.0"/"50.060.0" ids
-        assert sorted(os.listdir(metDir)) == ["AA_st.txt", "AB_st.txt"]
+        """The x+y identifier is what groups the records, with or without a
+        caller-supplied column: two distinct coordinates, two station files."""
+        for stations in (_stationsFrame(), _stationsFrame(withStationColumn=False)):
+            self._run(template, stations)
+            metDir = os.path.join(self._saveDir(lsm), "tozaot", "Meteorology")
+            assert sorted(os.listdir(metDir)) == ["AA_st.txt", "AB_st.txt"]
 
     def test_a_canopy_needs_the_station_heights(
         self, template, ifmc, solver, cwd, lsm
@@ -663,58 +605,20 @@ class TestRunCanopyWithoutStations:
         """With neither topography nor stations the height check is skipped."""
         assert self._run(template, canopy="CANOPY DATA") is None
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B277: with a canopy and topography but no stations, run() "
-               "enters `if (topography is not None or stations is not None)` "
-               "and then reads `stations.columns` -- on None. Topography "
-               "alone is enough to enter the branch, so a canopy over "
-               "terrain without station data always dies with "
-               "AttributeError: 'NoneType' object has no attribute "
-               "'columns'. Only the stations arm of that `or` justifies the "
-               "check. See the consolidated findings issue.",
-    )
-    def test_a_canopy_over_topography_should_not_need_stations(
+    def test_a_canopy_over_topography_does_not_need_stations(
         self, template, ifmc, solver, cwd
     ):
+        """Only the stations arm justifies the station-height check."""
         assert self._run(template, topography="TOPO DATA", canopy="CANOPY DATA") is None
 
-    def test_a_canopy_over_topography_currently_raises_attributeerror(
-        self, template, ifmc, solver, cwd
+    def test_a_failure_inside_the_run_still_restores_the_directory(
+        self, template, ifmc, failingSolver, cwd
     ):
-        """Characterisation of B277."""
-        with pytest.raises(AttributeError, match="'NoneType' object has no attribute 'columns'"):
-            self._run(template, topography="TOPO DATA", canopy="CANOPY DATA")
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B278: run() does os.chdir(saveDir) with no try/finally, "
-               "so the restoring os.chdir(cur_dir) is skipped whenever "
-               "anything between them raises. The failure of one simulation "
-               "therefore leaves the whole interpreter parked inside that "
-               "simulation's directory, and every later relative path in "
-               "the session resolves somewhere unexpected. See the "
-               "consolidated findings issue.",
-    )
-    def test_a_failure_inside_the_run_should_still_restore_the_directory(
-        self, template, ifmc, solver, cwd
-    ):
-        with pytest.raises(AttributeError):
-            self._run(template, topography="TOPO DATA", canopy="CANOPY DATA")
+        """A failed simulation must not leave the interpreter parked inside
+        the simulation directory."""
+        with pytest.raises(RuntimeError):
+            self._run(template, canopy="CANOPY DATA")
         assert os.getcwd() == str(cwd)
-
-    def test_a_failure_inside_the_run_currently_leaves_the_directory_changed(
-        self, template, ifmc, solver, cwd, lsm
-    ):
-        """Characterisation of B278."""
-        try:
-            with pytest.raises(AttributeError):
-                self._run(template, topography="TOPO DATA", canopy="CANOPY DATA")
-            assert os.getcwd() == os.path.join(
-                os.path.abspath(lsm.filesDirectory), "sim"
-            )
-        finally:
-            os.chdir(str(cwd))
 
 
 # ---------------------------------------------------------------------------
@@ -906,46 +810,24 @@ class TestSimulationsListing:
     def test_an_empty_project_gives_no_frames(self, template, lsm):
         assert template()._getSimulationsList() == []
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B276: _getSimulationsList builds one desc frame and one "
-               "params frame per document, then combines them with "
-               "`product(desc_df_list, params_df_list)` instead of pairing "
-               "them. n simulations therefore yield n^2 rows, and every "
-               "off-diagonal row staples one simulation's id, name and "
-               "version onto a different simulation's parameters. "
-               "getSimulationsTable inherits the whole defect, and "
-               "LSMToolkit.getSimulationsList / getTemplatesTable repeat the "
-               "same construction. See the consolidated findings issue.",
-    )
     def test_two_simulations_should_give_two_frames(self, template, lsm):
         self._register(lsm, "sim1", extra=1)
         self._register(lsm, "sim2", extra=2)
         assert len(template()._getSimulationsList()) == 2
 
-    def test_two_simulations_currently_give_four_frames(self, template, lsm):
-        """Characterisation of B276."""
-        self._register(lsm, "sim1", extra=1)
-        self._register(lsm, "sim2", extra=2)
-        assert len(template()._getSimulationsList()) == 2**2
-
-    def test_the_cross_join_currently_mixes_one_run_with_anothers_parameters(
-        self, template, lsm
-    ):
-        """Characterisation of B276."""
+    def test_each_frame_keeps_its_own_runs_parameters(self, template, lsm):
         self._register(lsm, "sim1", extra=1)
         self._register(lsm, "sim2", extra=2)
         pairs = {
             (frame["simulationName"][0], frame["params__extra"][0])
             for frame in template()._getSimulationsList()
         }
-        assert pairs == {("sim1", 1), ("sim1", 2), ("sim2", 1), ("sim2", 2)}
+        assert pairs == {("sim1", 1), ("sim2", 2)}
 
-    def test_three_simulations_currently_give_nine_frames(self, template, lsm):
-        """Characterisation of B276: the growth is quadratic."""
+    def test_the_number_of_frames_grows_linearly(self, template, lsm):
         for index in range(3):
             self._register(lsm, f"sim{index}", extra=index)
-        assert len(template()._getSimulationsList()) == 3**2
+        assert len(template()._getSimulationsList()) == 3
 
 
 @pytest.mark.unit
@@ -993,29 +875,14 @@ class TestSimulationsTable:
         assert len(table) == 1
         assert table["simulationName"].iloc[0] == "other"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B276: getSimulationsTable inherits _getSimulationsList's "
-               "product() cross-join, so a project with n matching "
-               "simulations is reported as n^2 rows with duplicated index "
-               "values and parameters taken from the wrong run. See the "
-               "consolidated findings issue.",
-    )
     def test_two_simulations_should_give_two_rows(self, template, lsm):
         self._register(lsm, "sim1", extra=1)
         self._register(lsm, "sim2", extra=2)
         assert len(template().getSimulationsTable()) == 2
 
-    def test_two_simulations_currently_give_four_rows(self, template, lsm):
-        """Characterisation of B276."""
-        self._register(lsm, "sim1", extra=1)
-        self._register(lsm, "sim2", extra=2)
-        assert len(template().getSimulationsTable()) == 4
-
-    def test_each_id_currently_appears_twice_in_the_index(self, template, lsm):
-        """Characterisation of B276."""
+    def test_each_id_appears_once_in_the_index(self, template, lsm):
         first = self._register(lsm, "sim1", extra=1)
         second = self._register(lsm, "sim2", extra=2)
         index = list(template().getSimulationsTable().index)
-        assert index.count(first.id) == 2
-        assert index.count(second.id) == 2
+        assert index.count(first.id) == 1
+        assert index.count(second.id) == 1
