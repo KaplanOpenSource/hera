@@ -41,11 +41,6 @@ Just load an exported zip. The project gets the name it had when exported.
 2. **Client: load button.** Pick a zip from the user's machine, load it, and switch to it. Show the server's error if the name is taken.
 3. **Tests.** Server test for the load route. Client test for the load button.
 
-## Part 2.5: Edge-case bugs found in hera
-
-1. **Export writes one zip entry per record without the progress bar.** Not a blocker: `load` reads these zips since Part 1.8. But one entry per record is slow and makes big zip files for big projects. Optional fix in `Project.export`: use `_batched_cursor` in the `show_progressbar=False` path too, so all zips hold lists.
-2. **Old test marked as expected to fail.** Done: the `xfail` mark on `test_export_and_load` is removed, and the test passes.
-
 ## Part 3: Load with a new name
 
 The user picks the name.
@@ -54,3 +49,10 @@ The user picks the name.
 2. **Server: name in the load route.** Take an optional project name. Refuse if it is taken.
 3. **Client: name field in the load dialog.** The Load button is disabled while the name is empty or already in the project list.
 4. **Tests.** hera test for loading under a new name. Server and client tests for the name.
+
+## Part 3.5 (nice to have): Edge-case bugs found in hera
+
+Not a blocker. Can be done any time.
+
+1. **Export writes one zip entry per record without the progress bar.** Not a blocker: `load` reads these zips since Part 1.8. But one entry per record is slow and makes big zip files for big projects. Optional fix in `Project.export`: use `_batched_cursor` in the `show_progressbar=False` path too, so all zips hold lists.
+2. **Old test marked as expected to fail.** Done: the `xfail` mark on `test_export_and_load` is removed, and the test passes.

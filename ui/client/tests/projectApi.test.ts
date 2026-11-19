@@ -6,10 +6,11 @@ const { projectApi } = await import('../src/api/api');
 let getJson: ReturnType<typeof vi.fn>;
 let postJson: ReturnType<typeof vi.fn>;
 let postBytes: ReturnType<typeof vi.fn>;
+let postBytesForJson: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  ({ getJson, postJson, postBytes } = mockApiCall());
+  ({ getJson, postJson, postBytes, postBytesForJson } = mockApiCall());
 });
 
 describe('projectApi.names', () => {
@@ -143,5 +144,23 @@ describe('projectApi.export', () => {
     postBytes.mockResolvedValueOnce(null);
 
     expect(await projectApi.export('A')).toBeNull();
+  });
+});
+
+describe('projectApi.load', () => {
+  it('sends the zip bytes and returns the answer', async () => {
+    const bytes = new Uint8Array([1, 2]).buffer;
+    const answer = { projects: [{ name: 'A' }], project: { name: 'A', documents: [] } };
+    postBytesForJson.mockResolvedValueOnce(answer);
+
+    expect(await projectApi.load(bytes, 'A.zip')).toBe(answer);
+    expect(postBytesForJson).toHaveBeenCalledWith('/project/load', bytes,
+      { label: 'load project A.zip' });
+  });
+
+  it('returns null when the call failed', async () => {
+    postBytesForJson.mockResolvedValueOnce(null);
+
+    expect(await projectApi.load(new ArrayBuffer(1), 'A.zip')).toBeNull();
   });
 });

@@ -4,7 +4,8 @@ from __future__ import annotations
 import glob
 import io
 import os
-from typing import Any, Dict, List
+import zipfile
+from typing import IO, Any, Dict, List, Optional
 
 from project_api.project_files import ProjectFiles
 
@@ -94,6 +95,24 @@ class ProjectApi:
         buffer = io.BytesIO()
         Project(projectName=self.projectName).export(buffer, show_progressbar=False)
         return buffer.getvalue()
+
+    @staticmethod
+    def name_in_zip(buffer: IO[bytes]) -> Optional[str]:
+        """The project name in the zip's first record, or None if it is not an export."""
+        from hera.datalayer.project import Project
+        if not zipfile.is_zipfile(buffer):
+            return None
+        with zipfile.ZipFile(buffer) as zf:
+            first = next(Project._iter_pickled_docs(zf, return_batched=False), None)
+        if not isinstance(first, dict):
+            return None
+        return first.get("projectName") or None
+
+    def load(self, buffer: IO[bytes]) -> None:
+        """Load the records of an exported zip into this project, with new ids."""
+        from hera.datalayer.project import Project
+        buffer.seek(0)
+        Project.load(self.projectName, buffer, is_hard_import=False, show_progressbar=False)
 
     def detect_notebooks(self, filesDirectory: str) -> int:
         """Register every notebook under the directory that is not tracked yet.

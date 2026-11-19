@@ -14,6 +14,9 @@ vi.mock('../src/components/header/ProjectChooser', () => ({
 vi.mock('../src/components/header/AddProjectButton', () => ({
   AddProjectButton: () => null,
 }));
+vi.mock('../src/components/header/LoadProjectButton', () => ({
+  LoadProjectButton: () => null,
+}));
 vi.mock('../src/components/header/UserIndicator', () => ({
   UserIndicator: () => null,
 }));

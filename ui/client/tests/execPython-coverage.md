@@ -44,7 +44,7 @@ Each api class also has its own test file, one test per method:
 | `POST /stop_workflow/{token}` | `WorkflowApi.stop`, `RunWorkflowButton` | yes | no | `runWorkflow.test.tsx`, `server/tests/test_workflow_runner.py` |
 | `GET /workflow_runs` | `WorkflowApi.runs`, `WorkflowRunSelect` | yes | no | `workflowApi.test.ts`, `workflowRunSelect.test.tsx`, `server/tests/test_workflow_run_history.py` |
 | `GET /workflow_run` | `WorkflowApi.run`, `WorkflowRunSelect` | yes | no | `workflowApi.test.ts`, `workflowRunSelect.test.tsx`, `server/tests/test_workflow_run_history.py` |
-| `getJson` / `postJson` / `getBytes` / `postBytes` | `src/api/ApiCall.ts` | yes | no | `ApiCall.test.ts`, `apiPackageIsolation.test.ts` |
+| `getJson` / `postJson` / `getBytes` / `postBytes` / `postBytesForJson` | `src/api/ApiCall.ts` | yes | no | `ApiCall.test.ts`, `apiPackageIsolation.test.ts` |
 | `GET /project/names` | `fetchProjectsNames` | yes | yes | `FetchProjects.test.ts`, `server/tests/test_projects.py` |
 | `GET /project/documents` | `fetchProjectDetails`, `fetchProjectData` | yes | yes | `FetchProjects.test.ts`, `server/tests/test_projects.py` |
 | `GET /project/toolkits` | `fetchProjectData` | yes | yes | `FetchProjects.test.ts`, `server/tests/test_projects.py` |
@@ -52,6 +52,7 @@ Each api class also has its own test file, one test per method:
 | `POST /project/create` | `AddProjectButton` | yes | yes | `addProject.test.tsx`, `integration/addProject.integ.test.tsx`, `server/tests/test_projects.py` |
 | `POST /project/delete` | `DeleteProjectButton` | yes | yes | `deleteProject.test.tsx`, `integration/deleteProject.integ.test.tsx`, `server/tests/test_projects.py` |
 | `POST /project/export` | `ExportProjectButton` | yes | no | `exportProject.test.tsx`, `projectApi.test.ts`, `server/tests/test_projects.py` |
+| `POST /project/load` | `LoadProjectButton` | yes | no | `loadProject.test.tsx`, `projectApi.test.ts`, `ApiCall.test.ts`, `server/tests/test_projects.py` |
 | `POST /project/detectNotebooks` | `detectNotebooks` (on project load) | yes | no | `detectNotebooks.test.tsx`, `server/tests/test_projects.py` |
 | `POST /document/create` | `AddDocumentButton`, `duplicateDocuments` | yes | yes | `addDocument.test.tsx`, `documentOperations.test.ts`, `treeInteractions.test.tsx`, `integration/documents.integ.test.tsx`, `server/tests/test_documents.py` |
 | `POST /document/update` | `useShownDoc` | yes | yes | `documentOperations.test.ts`, `saveDocument.test.tsx`, `TwoUiSync.test.tsx`, `integration/documents.integ.test.tsx`, `server/tests/test_documents.py` |
@@ -70,3 +71,4 @@ and reports the reason. See `ENTRYPOINTS_REPOSITORIES_STEPS.md`.
 - No integration test for loading a repository into a project (`POST
   /repository/loadIntoProject`), or for the repository views in the browser.
 - No integration test for exporting a project (`POST /project/export`).
+- No integration test for loading a project (`POST /project/load`).

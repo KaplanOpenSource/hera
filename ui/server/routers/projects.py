@@ -1,9 +1,11 @@
-"""The project entrypoints: the list, one project, its files, toolkits, create, delete, export, notebooks.
+"""The project entrypoints: the list, one project, its files, toolkits, create, delete, export, load, notebooks.
 
 Named routes replacing the project `/exec` calls the UI used to assemble in the
 browser. See ui/client/ENTRYPOINTS_PROJECTS_STEPS.md.
 """
-from fastapi import APIRouter, HTTPException, Response
+import io
+
+from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.encoders import jsonable_encoder
 
 from api_models import CreateProjectPayload, DeleteProjectPayload, DetectNotebooksPayload, ExportProjectPayload
@@ -108,6 +110,21 @@ def export(payload: ExportProjectPayload) -> Response:
         content=project.export(),
         media_type="application/octet-stream",
         headers={"Content-Disposition": f'attachment; filename="{payload.projectName}.zip"'})
+
+
+@router.post("/load")
+async def load(request: Request) -> dict:
+    """Load an exported zip, sent as the raw body, under the name it was exported with."""
+    _require_ready()
+    buffer = io.BytesIO(await request.body())
+    name = ProjectApi.name_in_zip(buffer)
+    if not name:
+        raise HTTPException(status_code=400, detail="not a project export zip")
+    project = ProjectApi(name)
+    if project.exists():
+        raise HTTPException(status_code=409, detail=f"a project named {name} already exists")
+    project.load(buffer)
+    return jsonable_encoder({"projects": ProjectApi.names(), "project": project.documents()})
 
 
 @router.post("/detectNotebooks")

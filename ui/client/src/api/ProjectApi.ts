@@ -49,4 +49,9 @@ export class ProjectApi extends ApiCall {
       projectName,
     }, { label: `export project ${projectName}` });
   }
+
+  // Loads an exported zip under the name it was exported with; answers the list and the project.
+  async load(zipBytes: ArrayBuffer, fileName: string): Promise<any | null> {
+    return await this.postBytesForJson('/project/load', zipBytes, { label: `load project ${fileName}` });
+  }
 }

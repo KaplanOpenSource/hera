@@ -1,4 +1,5 @@
-"""The project entrypoints: the list, one project, toolkits, create, delete, export, notebooks."""
+"""The project entrypoints: the list, one project, toolkits, create, delete, export, load, notebooks."""
+import asyncio
 import io
 import json
 import sys
@@ -25,6 +26,7 @@ class FakeDatabase:
         self.created = []
         self.deletedIds = []
         self.exports = []
+        self.loads = []
 
     # --- hera.datalayer.All ---
 
@@ -61,6 +63,24 @@ class FakeDatabase:
         self.exports.append({"projectName": projectName, "show_progressbar": show_progressbar})
         with zipfile.ZipFile(path, mode="w") as zf:
             zf.writestr("chunk_0", json.dumps(self.documents.get(projectName, [])))
+
+    @staticmethod
+    def _iter_pickled_docs(zf, return_batched):
+        # Reads the zips _export and _zip_of write: each entry a JSON list of records.
+        for name in zf.namelist():
+            batch = json.loads(zf.read(name))
+            if return_batched:
+                yield batch
+            else:
+                yield from batch
+
+    def load(self, proj, exported_project_path, is_hard_import, show_progressbar=True):
+        self.loads.append({"projectName": proj, "is_hard_import": is_hard_import,
+                           "show_progressbar": show_progressbar})
+        with zipfile.ZipFile(exported_project_path) as zf:
+            records = list(self._iter_pickled_docs(zf, return_batched=False))
+        self.projects.append(proj)
+        self.documents[proj] = [dict(r, projectName=proj) for r in records]
 
     # --- hera.datalayer.Cache_Collection ---
 
@@ -105,7 +125,12 @@ def fake_hera(monkeypatch):
 
         project_module = types.ModuleType("hera.datalayer.project")
         project_module.getProjectList = db.getProjectList
-        project_module.Project = db.Project
+        # A function, not the bound method, so it can carry hera's static methods.
+        def project_class(*args, **kwargs):
+            return db.Project(*args, **kwargs)
+        setattr(project_class, "_iter_pickled_docs", db._iter_pickled_docs)
+        setattr(project_class, "load", db.load)
+        project_module.Project = project_class
 
         cli_module = types.ModuleType("hera.utils.data.CLI")
         cli_module.project_create = db.project_create
@@ -455,6 +480,81 @@ class TestExportProject:
         assert raised.value.status_code == 404
 
 
+def _zip_of(*entries):
+    """A zip like hera's export, one JSON list of records per entry."""
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, mode="w") as zf:
+        for i, records in enumerate(entries):
+            zf.writestr(f"chunk_{i}", json.dumps(records))
+    return buffer.getvalue()
+
+
+class FakeRequest:
+    """Only the raw body, which is all the load route reads."""
+
+    def __init__(self, body):
+        self._body = body
+
+    async def body(self):
+        return self._body
+
+
+def _load(body):
+    return asyncio.run(routes.load(FakeRequest(body)))
+
+
+class TestLoadProject:
+    def test_reads_the_name_from_the_first_record(self, fake_hera):
+        fake_hera([])
+        data = _zip_of([], [{"projectName": "Alpha", "type": "Alpha__config__"}])
+
+        assert ProjectApi.name_in_zip(io.BytesIO(data)) == "Alpha"
+
+    def test_no_name_in_what_is_not_a_zip(self, fake_hera):
+        fake_hera([])
+
+        assert ProjectApi.name_in_zip(io.BytesIO(b"not a zip")) is None
+
+    def test_route_loads_under_the_exported_name(self, fake_hera, warmed):
+        db = fake_hera(["Beta"], {"Beta": []})
+        data = _zip_of([{"projectName": "Alpha", "type": "Alpha__config__"},
+                        {"projectName": "Alpha", "type": "notebook"}])
+
+        answer = _load(data)
+
+        assert db.loads == [{"projectName": "Alpha", "is_hard_import": False, "show_progressbar": False}]
+        assert [p["name"] for p in answer["projects"]] == ["Alpha", "Beta"]
+        assert answer["project"]["name"] == "Alpha"
+        assert [d["type"] for d in answer["project"]["documents"]] == ["Alpha__config__", "notebook"]
+
+    def test_route_rejects_what_is_not_a_zip(self, fake_hera, warmed):
+        db = fake_hera([])
+
+        with pytest.raises(HTTPException) as raised:
+            _load(b"not a zip")
+
+        assert raised.value.status_code == 400
+        assert db.loads == []
+
+    def test_route_rejects_a_zip_with_no_records(self, fake_hera, warmed):
+        db = fake_hera([])
+
+        with pytest.raises(HTTPException) as raised:
+            _load(_zip_of())
+
+        assert raised.value.status_code == 400
+        assert db.loads == []
+
+    def test_route_rejects_a_name_that_is_taken(self, fake_hera, warmed):
+        db = fake_hera(["Alpha"], {"Alpha": []})
+
+        with pytest.raises(HTTPException) as raised:
+            _load(_zip_of([{"projectName": "Alpha", "type": "Alpha__config__"}]))
+
+        assert raised.value.status_code == 409
+        assert db.loads == []
+
+
 class TestProjectFiles:
     def test_holds_only_what_is_inside(self, tmp_path):
         files = ProjectFiles(str(tmp_path))
@@ -586,6 +686,7 @@ WARMING_CALLS = {
         projectName="Alpha", filesDirectory="", loadRepositories=True)),
     "delete": lambda: routes.delete(types.SimpleNamespace(
         projectName="Alpha", deleteFiles=False)),
+    "load": lambda: _load(_zip_of([{"projectName": "Beta"}])),
     "detectNotebooks": lambda: routes.detect(types.SimpleNamespace(
         projectName="Alpha", filesDirectory="/tmp")),
 }

@@ -5,6 +5,7 @@ import { ThemeModeSwitch } from '../../elements/ThemeModeSwitch';
 import { ThemeMode, useViewSettingsStore } from '../../stores/useViewSettingsStore';
 import { ProjectViewSettingsButton } from '../project/ProjectViewSettingsButton';
 import { AddProjectButton } from './AddProjectButton';
+import { LoadProjectButton } from './LoadProjectButton';
 import { PageTitle } from './PageTitle';
 import { ProjectChooser } from './ProjectChooser';
 
@@ -39,11 +40,12 @@ export const DashboardHeader = ({
     <ThemeProvider theme={headerTheme}>
       <AppBar position="static">
         <Toolbar>
-          {/* Left: title, project droplist and its add button. */}
+          {/* Left: title, project droplist, its add and load buttons. */}
           <Stack direction="row" spacing={1} alignItems="center">
             <PageTitle />
             <ProjectChooser />
             <AddProjectButton />
+            <LoadProjectButton />
           </Stack>
 
           <Box sx={{ flexGrow: 1 }} />
