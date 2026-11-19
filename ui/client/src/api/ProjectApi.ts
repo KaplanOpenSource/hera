@@ -7,6 +7,11 @@ export class ProjectApi extends ApiCall {
     return await this.getJson('/project/names', {}, { label: 'project names' });
   }
 
+  // Every project's name and files folder.
+  async folders(): Promise<any | null> {
+    return await this.getJson('/project/folders', {}, { label: 'project folders' });
+  }
+
   // label varies by caller; silent is for the periodic auto-reload, no toasts.
   async documents(projectName: string, label: string, silent = false): Promise<any | null> {
     return await this.getJson('/project/documents', { projectName }, { label, silent });

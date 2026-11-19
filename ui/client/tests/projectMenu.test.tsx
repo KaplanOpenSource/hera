@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, act, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { readFileSync } from 'fs';
 import { dirname, join } from 'path';
@@ -64,6 +64,10 @@ describe('ProjectMenuButton', () => {
     const sample = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'ZipSample.zip'));
     const file = new File([sample], 'Loaded.zip', { type: 'application/zip' });
     await act(async () => { fireEvent.change(input, { target: { files: [file] } }); });
+    // Load turns on once the zip is read.
+    await waitFor(() => {
+      expect((screen.getByRole('button', { name: 'Load' }) as HTMLButtonElement).disabled).toBe(false);
+    });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Load' })); });
 
     expect(mockPostBytesForJson).toHaveBeenCalledTimes(1);

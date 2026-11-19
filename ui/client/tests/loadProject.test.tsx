@@ -15,6 +15,7 @@ const { useProjectListStore } = await import('../src/stores/useProjectListStore'
 const LOADED = { name: 'Loaded', documents: [{ _id: { $oid: 'cfg' } }] };
 
 let mockPostBytesForJson: ReturnType<typeof vi.fn>;
+let mockGetJson: ReturnType<typeof vi.fn>;
 let shownPath: string;
 let shownState: any;
 
@@ -42,8 +43,16 @@ const pickFile = async (file: File) => {
   await act(async () => { fireEvent.change(input, { target: { files: [file] } }); });
 };
 
+const loadButton = () => {
+  return screen.getByRole('button', { name: 'Load' }) as HTMLButtonElement;
+};
+
+// Load turns on once the zip is read and checked.
 const clickLoad = async () => {
-  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Load' })); });
+  await waitFor(() => {
+    expect(loadButton().disabled).toBe(false);
+  });
+  await act(async () => { fireEvent.click(loadButton()); });
 };
 
 const SAMPLE_ZIP = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'ZipSample.zip'));
@@ -54,7 +63,8 @@ const zipFile = (name = 'Loaded.zip') => {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  ({ postBytesForJson: mockPostBytesForJson } = mockApiCall());
+  ({ postBytesForJson: mockPostBytesForJson, getJson: mockGetJson } = mockApiCall());
+  mockGetJson.mockResolvedValue({ projects: [{ name: 'Alpha', filesDirectory: '/projects/Alpha' }] });
   useProjectListStore.setState({ projectNames: [{ name: 'Alpha' }] });
   shownPath = '';
   shownState = null;
@@ -108,6 +118,53 @@ describe('LoadProjectButton', () => {
 
     expect((await screen.findByTestId('load-project-read-error')).textContent).toContain('Broken.zip');
     expect(console.error).toHaveBeenCalled();
+  });
+
+  it('asks for the other projects\' folders when the dialog opens', async () => {
+    renderButton();
+
+    await pickFile(zipFile());
+
+    expect(mockGetJson).toHaveBeenCalledWith('/project/folders', {}, { label: 'project folders' });
+  });
+
+  it('blocks Load when a project with the zip\'s name exists', async () => {
+    mockGetJson.mockResolvedValue({ projects: [{ name: 'ZipSample', filesDirectory: '/elsewhere' }] });
+    renderButton();
+
+    await pickFile(zipFile());
+
+    expect((await screen.findByTestId('load-project-name-taken')).textContent).toContain('ZipSample');
+    expect(loadButton().disabled).toBe(true);
+    expect(screen.queryByTestId('load-project-shared-folder')).toBeNull();
+  });
+
+  it('warns but allows Load when other projects use the zip\'s folder', async () => {
+    mockGetJson.mockResolvedValue({ projects: [
+      { name: 'Alpha', filesDirectory: '/projects/ZipSample' },
+      { name: 'Beta', filesDirectory: '/projects/ZipSample' },
+      { name: 'Gamma', filesDirectory: '/projects/Gamma' },
+    ] });
+    renderButton();
+
+    await pickFile(zipFile());
+
+    expect((await screen.findByTestId('load-project-shared-folder')).textContent).toContain('Alpha, Beta');
+    expect(screen.getByTestId('load-project-shared-folder').textContent).not.toContain('Gamma');
+    await waitFor(() => {
+      expect(loadButton().disabled).toBe(false);
+    });
+    expect(screen.queryByTestId('load-project-name-taken')).toBeNull();
+  });
+
+  it('keeps Load off when the picked file is not a project export', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => { });
+    renderButton();
+
+    await pickFile(new File([new Uint8Array([80, 75, 3, 4])], 'Broken.zip', { type: 'application/zip' }));
+
+    await screen.findByTestId('load-project-read-error');
+    expect(loadButton().disabled).toBe(true);
   });
 
   it('opens the file picker again on Choose another zip, and shows the new file', async () => {

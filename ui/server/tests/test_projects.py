@@ -91,7 +91,7 @@ class FakeDatabase:
 
     def _notebookDocuments(self, projectName, type):
         docs = [d for d in self.documents.get(projectName, []) if d.get("type") == type]
-        return [types.SimpleNamespace(resource=d.get("resource")) for d in docs]
+        return [types.SimpleNamespace(resource=d.get("resource"), desc=d.get("desc")) for d in docs]
 
     def _addDocument(self, projectName, resource, dataFormat, type, desc):
         doc = {
@@ -182,6 +182,25 @@ class TestProjectList:
 
         assert ProjectApi("Alpha").exists()
         assert not ProjectApi("Beta").exists()
+
+
+class TestProjectFolders:
+    def test_each_project_with_its_folder_from_its_settings_record(self, fake_hera, warmed):
+        fake_hera(["Beta", "Alpha"], documents={
+            "Alpha": [{"type": "Alpha__config__", "desc": {"filesDirectory": "/data/a"}}],
+            "Beta": [{"type": "Beta__config__", "desc": {"filesDirectory": "/data/b"}},
+                     {"type": "Station", "desc": {"filesDirectory": "/not/this"}}],
+        })
+
+        assert routes.folders() == {"projects": [
+            {"name": "Alpha", "filesDirectory": "/data/a"},
+            {"name": "Beta", "filesDirectory": "/data/b"},
+        ]}
+
+    def test_a_project_without_a_settings_record_has_no_folder(self, fake_hera):
+        fake_hera([DEFAULT_PROJECT])
+
+        assert ProjectApi.folders() == [{"name": DEFAULT_PROJECT, "filesDirectory": ""}]
 
 
 class TestProjectDocuments:
@@ -679,6 +698,7 @@ class TestListProjectFiles:
 # Every route reaches hera, so each one refuses while hera is still warming.
 WARMING_CALLS = {
     "names": lambda: routes.names(),
+    "folders": lambda: routes.folders(),
     "documents": lambda: routes.documents("Alpha"),
     "files": lambda: routes.files("Alpha", ""),
     "toolkits": lambda: routes.toolkits(),

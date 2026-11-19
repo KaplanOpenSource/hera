@@ -59,6 +59,12 @@ Just load an exported zip. The project gets the name it had when exported.
 3. **Check first:** `pickleparser` must handle the Python-only objects in our records (Mongo ids, dates). Try it on a real exported zip before building on it. Done: it reads both zip kinds; Mongo ids come out as raw bytes, which we don't need.
 4. **Tests.** Client test with a real exported zip as a test file.
 
+## Part 2.9: Check the zip against the other projects in the load dialog
+
+1. **Server: `GET /project/folders`.** Every project's name and files folder, read from each project's settings record. No side effects (does not open projects with `Project(...)`).
+2. **Client: check in the dialog.** When the dialog opens, get the folders. Once the zip's name and folder are read: if a project with that name exists, show an error and disable Load; if other projects use the same folder, show a warning naming them, and keep Load enabled.
+3. **Tests.** Server test for the route. Client tests for the block and the warning.
+
 ## Part 3: Load with a new name
 
 To be planned in detail after Part 2.85 works. Draft:

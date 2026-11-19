@@ -33,6 +33,19 @@ class ProjectApi:
         rest.sort(key=lambda p: p["name"].lower())
         return first + rest
 
+    @staticmethod
+    def folders() -> List[Dict[str, str]]:
+        """Every project's name and files folder, read from its settings record."""
+        from hera.datalayer import Cache_Collection
+        answer = []
+        for entry in ProjectApi.names():
+            name = entry["name"]
+            folder = ""
+            for doc in Cache_Collection().getDocuments(projectName=name, type=f"{name}__config__"):
+                folder = (doc.desc or {}).get("filesDirectory", "") or folder
+            answer.append({"name": name, "filesDirectory": folder})
+        return answer
+
     def default_files_directory(self) -> str:
         """Where the project's files go when the user names no directory."""
         return os.path.join(os.getcwd(), "projects", self.projectName)

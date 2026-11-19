@@ -1,4 +1,4 @@
-"""The project entrypoints: the list, one project, its files, toolkits, create, delete, export, load, notebooks.
+"""The project entrypoints: the list, folders, one project, its files, toolkits, create, delete, export, load, notebooks.
 
 Named routes replacing the project `/exec` calls the UI used to assemble in the
 browser. See ui/client/ENTRYPOINTS_PROJECTS_STEPS.md.
@@ -39,6 +39,13 @@ def names() -> dict:
     """The project list, the default project first. See ``ProjectApi.names``."""
     _require_ready()
     return {"projects": ProjectApi.names()}
+
+
+@router.get("/folders")
+def folders() -> dict:
+    """Every project's name and files folder. See ``ProjectApi.folders``."""
+    _require_ready()
+    return {"projects": ProjectApi.folders()}
 
 
 @router.get("/documents")

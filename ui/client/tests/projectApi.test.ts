@@ -28,6 +28,15 @@ describe('projectApi.names', () => {
   });
 });
 
+describe('projectApi.folders', () => {
+  it('asks for every project\'s folder', async () => {
+    getJson.mockResolvedValueOnce({ projects: [{ name: 'A', filesDirectory: '/a' }] });
+
+    expect(await projectApi.folders()).toEqual({ projects: [{ name: 'A', filesDirectory: '/a' }] });
+    expect(getJson).toHaveBeenCalledWith('/project/folders', {}, { label: 'project folders' });
+  });
+});
+
 describe('projectApi.documents', () => {
   it('sends the project and the label, not silent by default', async () => {
     getJson.mockResolvedValueOnce({ project: { projectName: 'A' } });

@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { projectApi } from "../../api/api";
 import { useProjectListStore } from "../../stores/useProjectListStore";
-import { ProjectName } from "../../shared/types";
+import { ProjectFolder, ProjectName } from "../../shared/types";
 import { useAppTheme } from "../../theme";
 import { ProjectZipInfo, readProjectZip } from "../../utils/readProjectZip";
 
@@ -34,6 +34,11 @@ export const LoadProjectDialog = ({
   const navigate = useNavigate();
   const [zipInfo, setZipInfo] = useState<ProjectZipInfo | null>(null);
   const [readError, setReadError] = useState('');
+  const [folders, setFolders] = useState<ProjectFolder[]>([]);
+
+  useEffect(() => {
+    projectApi.folders().then((data) => setFolders(data?.projects ?? []));
+  }, []);
 
   useEffect(() => {
     setZipInfo(null);
@@ -46,6 +51,11 @@ export const LoadProjectDialog = ({
         setReadError(`Could not read ${file.name} as a project export`);
       });
   }, [file]);
+
+  const nameTaken = !!zipInfo && folders.some((p) => p.name === zipInfo.name);
+  const sharedWith = folders
+    .filter((p) => !!zipInfo && !!p.filesDirectory && p.filesDirectory === zipInfo.filesDirectory && p.name !== zipInfo.name)
+    .map((p) => p.name);
 
   const loadProject = async () => {
     const data = await projectApi.load(await file.arrayBuffer(), file.name);
@@ -99,12 +109,22 @@ export const LoadProjectDialog = ({
               {readError}
             </Typography>
           )}
+          {nameTaken && (
+            <Typography color="error" data-testid="load-project-name-taken">
+              A project named {zipInfo?.name} already exists
+            </Typography>
+          )}
+          {sharedWith.length > 0 && (
+            <Typography color="warning.main" data-testid="load-project-shared-folder">
+              This folder is also used by: {sharedWith.join(', ')}
+            </Typography>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={() => loadProject()}>
+          <Button onClick={() => loadProject()} disabled={!zipInfo || nameTaken}>
             Load
           </Button>
         </DialogActions>

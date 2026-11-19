@@ -41,6 +41,11 @@ export interface ProjectName {
   name: string;
 }
 
+export interface ProjectFolder {
+  name: string;
+  filesDirectory: string;
+}
+
 export interface Project {
   id: string;
   name: string;
