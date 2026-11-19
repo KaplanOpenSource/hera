@@ -63,7 +63,8 @@ Just load an exported zip. The project gets the name it had when exported.
 
 1. **Server: `GET /project/folders`.** Every project's name and files folder, read from each project's settings record. No side effects (does not open projects with `Project(...)`).
 2. **Client: check in the dialog.** When the dialog opens, get the folders. Once the zip's name and folder are read: if a project with that name exists, show an error and disable Load; if other projects use the same folder, show a warning naming them, and keep Load enabled.
-3. **Tests.** Server test for the route. Client tests for the block and the warning.
+3. **Client: editable fields.** The name and folder start as the zip's and can be edited; both checks rerun as you type. Load still sends the zip as is and ignores the edits until Part 3.
+4. **Tests.** Server test for the route. Client tests for the block, the warning, and the edits.
 
 ## Part 3: Load with a new name
 

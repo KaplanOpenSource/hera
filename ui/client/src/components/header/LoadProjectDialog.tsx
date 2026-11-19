@@ -33,6 +33,8 @@ export const LoadProjectDialog = ({
   const dialogTheme = useAppTheme();
   const navigate = useNavigate();
   const [zipInfo, setZipInfo] = useState<ProjectZipInfo | null>(null);
+  // Starts as what the zip holds; edits only change the checks, not what Load sends yet.
+  const [edited, setEdited] = useState<ProjectZipInfo>({ name: '', filesDirectory: '' });
   const [readError, setReadError] = useState('');
   const [folders, setFolders] = useState<ProjectFolder[]>([]);
 
@@ -42,9 +44,14 @@ export const LoadProjectDialog = ({
 
   useEffect(() => {
     setZipInfo(null);
+    setEdited({ name: '', filesDirectory: '' });
     setReadError('');
     file.arrayBuffer()
-      .then((buffer) => setZipInfo(readProjectZip(new Uint8Array(buffer))))
+      .then((buffer) => {
+        const info = readProjectZip(new Uint8Array(buffer));
+        setZipInfo(info);
+        setEdited(info);
+      })
       // A picked file may not be a hera export: say so in the dialog instead of failing silently.
       .catch((error) => {
         console.error(`could not read ${file.name}`, error);
@@ -52,9 +59,9 @@ export const LoadProjectDialog = ({
       });
   }, [file]);
 
-  const nameTaken = !!zipInfo && folders.some((p) => p.name === zipInfo.name);
+  const nameTaken = !!zipInfo && folders.some((p) => p.name === edited.name);
   const sharedWith = folders
-    .filter((p) => !!zipInfo && !!p.filesDirectory && p.filesDirectory === zipInfo.filesDirectory)
+    .filter((p) => !!zipInfo && !!p.filesDirectory && p.filesDirectory === edited.filesDirectory)
     .map((p) => p.name);
 
   const loadProject = async () => {
@@ -90,24 +97,26 @@ export const LoadProjectDialog = ({
           </Stack>
           <TextField
             label="Project name"
-            value={zipInfo?.name ?? ''}
+            value={edited.name}
+            onChange={(e) => setEdited({ ...edited, name: e.target.value })}
             fullWidth
             margin="dense"
             size="small"
-            slotProps={{ input: { readOnly: true }, htmlInput: { 'data-testid': 'load-project-name' } }}
+            slotProps={{ input: { readOnly: !zipInfo }, htmlInput: { 'data-testid': 'load-project-name' } }}
           />
           {nameTaken && (
             <Typography variant="caption" color="error" data-testid="load-project-name-taken">
-              A project named {zipInfo?.name} already exists
+              A project named {edited.name} already exists
             </Typography>
           )}
           <TextField
             label="Files folder"
-            value={zipInfo?.filesDirectory ?? ''}
+            value={edited.filesDirectory}
+            onChange={(e) => setEdited({ ...edited, filesDirectory: e.target.value })}
             fullWidth
             margin="dense"
             size="small"
-            slotProps={{ input: { readOnly: true }, htmlInput: { 'data-testid': 'load-project-folder' } }}
+            slotProps={{ input: { readOnly: !zipInfo }, htmlInput: { 'data-testid': 'load-project-folder' } }}
           />
           {sharedWith.length > 0 && (
             <Typography variant="caption" color="warning.main" data-testid="load-project-shared-folder">

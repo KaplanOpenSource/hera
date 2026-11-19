@@ -117,7 +117,7 @@ describe('LoadProjectButton', () => {
     });
     const folder = screen.getByTestId('load-project-folder') as HTMLInputElement;
     expect(folder.value).toBe('/projects/ZipSample');
-    expect(folder.readOnly).toBe(true);
+    expect(folder.readOnly).toBe(false);
   });
 
   it('says so when the picked file is not a project export', async () => {
@@ -158,6 +158,28 @@ describe('LoadProjectButton', () => {
 
     expect((await screen.findByTestId('load-project-name-taken')).textContent).toContain('ZipSample');
     expect(screen.getByTestId('load-project-shared-folder').textContent).toContain('ZipSample');
+    expect(loadButton().disabled).toBe(true);
+  });
+
+  it('reruns both checks as the name and folder are edited', async () => {
+    mockGetJson.mockResolvedValue({ projects: [
+      { name: 'Alpha', filesDirectory: '/projects/Alpha' },
+      { name: 'ZipSample', filesDirectory: '/projects/ZipSample' },
+    ] });
+    renderButton();
+    await pickFile(zipFile());
+    await screen.findByTestId('load-project-name-taken');
+
+    fireEvent.change(screen.getByTestId('load-project-name'), { target: { value: 'Fresh' } });
+    fireEvent.change(screen.getByTestId('load-project-folder'), { target: { value: '/projects/New' } });
+    expect(screen.queryByTestId('load-project-name-taken')).toBeNull();
+    expect(screen.queryByTestId('load-project-shared-folder')).toBeNull();
+    expect(loadButton().disabled).toBe(false);
+
+    fireEvent.change(screen.getByTestId('load-project-name'), { target: { value: 'Alpha' } });
+    fireEvent.change(screen.getByTestId('load-project-folder'), { target: { value: '/projects/Alpha' } });
+    expect(screen.getByTestId('load-project-name-taken').textContent).toContain('Alpha');
+    expect(screen.getByTestId('load-project-shared-folder').textContent).toContain('Alpha');
     expect(loadButton().disabled).toBe(true);
   });
 
