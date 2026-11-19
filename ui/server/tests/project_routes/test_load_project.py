@@ -58,3 +58,50 @@ class TestLoadProject:
 
         assert raised.value.status_code == 409
         assert db.loads == []
+
+    def test_route_loads_under_the_given_name(self, fake_hera, warmed):
+        db = fake_hera([])
+        data = _zip_of([{"projectName": "Alpha", "type": "Alpha__config__"}])
+
+        answer = _load(data, {"projectName": " Gamma "})
+
+        assert [entry["projectName"] for entry in db.loads] == ["Gamma"]
+        assert answer["project"]["name"] == "Gamma"
+        assert "Alpha" not in db.projects
+
+    def test_route_sets_the_given_folder(self, fake_hera, warmed):
+        db = fake_hera([])
+        data = _zip_of([{"projectName": "Alpha", "type": "Alpha__config__"}])
+
+        _load(data, {"projectName": "Gamma", "filesDirectory": "/data/gamma"})
+
+        assert db.filesDirectories == {"Gamma": "/data/gamma"}
+
+    def test_route_falls_back_to_the_zip_name(self, fake_hera, warmed):
+        db = fake_hera([])
+        data = _zip_of([{"projectName": "Alpha", "type": "Alpha__config__"}])
+
+        _load(data, {"filesDirectory": "/data/alpha"})
+
+        assert [entry["projectName"] for entry in db.loads] == ["Alpha"]
+        assert db.filesDirectories == {"Alpha": "/data/alpha"}
+
+    def test_route_rejects_an_empty_name(self, fake_hera, warmed):
+        db = fake_hera([])
+        data = _zip_of([{"projectName": "Alpha", "type": "Alpha__config__"}])
+
+        with pytest.raises(HTTPException) as raised:
+            _load(data, {"projectName": "   "})
+
+        assert raised.value.status_code == 400
+        assert db.loads == []
+
+    def test_route_rejects_a_given_name_that_is_taken(self, fake_hera, warmed):
+        db = fake_hera(["Gamma"], {"Gamma": []})
+        data = _zip_of([{"projectName": "Alpha", "type": "Alpha__config__"}])
+
+        with pytest.raises(HTTPException) as raised:
+            _load(data, {"projectName": "Gamma"})
+
+        assert raised.value.status_code == 409
+        assert db.loads == []

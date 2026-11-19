@@ -21,14 +21,15 @@ def _zip_of(*entries):
 
 
 class FakeRequest:
-    """Only the raw body, which is all the load route reads."""
+    """Only the raw body and the query, which is all the load route reads."""
 
-    def __init__(self, body):
+    def __init__(self, body, query_params=None):
         self._body = body
+        self.query_params = dict(query_params or {})
 
     async def body(self):
         return self._body
 
 
-def _load(body):
-    return asyncio.run(routes.load(FakeRequest(body)))
+def _load(body, query_params=None):
+    return asyncio.run(routes.load(FakeRequest(body, query_params)))

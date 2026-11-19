@@ -114,9 +114,9 @@ export class ApiCall {
     }, options, AnswerKind.Bytes);
   }
 
-  // A POST of raw bytes, such as a file, whose answer is JSON.
-  protected async postBytesForJson(path: string, bytes: ArrayBuffer, options: CallOptions): Promise<any | null> {
-    return await this.call(path, {
+  // A POST of raw bytes, such as a file, whose answer is JSON; params go in the URL query.
+  protected async postBytesForJson(path: string, params: QueryParams, bytes: ArrayBuffer, options: CallOptions): Promise<any | null> {
+    return await this.call(this.withQuery(path, params), {
       method: 'POST',
       headers: { 'Content-Type': 'application/octet-stream' },
       body: bytes,

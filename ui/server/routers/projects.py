@@ -121,16 +121,24 @@ def export(payload: ExportProjectPayload) -> Response:
 
 @router.post("/load")
 async def load(request: Request) -> dict:
-    """Load an exported zip, sent as the raw body, under the name it was exported with."""
+    """Load an exported zip, sent as the raw body, under ?projectName= or the name in the zip."""
     _require_ready()
     buffer = io.BytesIO(await request.body())
     name = ProjectApi.name_in_zip(buffer)
     if not name:
         raise HTTPException(status_code=400, detail="not a project export zip")
+    params = request.query_params
+    if "projectName" in params:
+        name = params["projectName"].strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="no project name given")
     project = ProjectApi(name)
     if project.exists():
         raise HTTPException(status_code=409, detail=f"a project named {name} already exists")
     project.load(buffer)
+    files_directory = params.get("filesDirectory")
+    if files_directory:
+        project.set_files_directory(files_directory)
     return jsonable_encoder({"projects": ProjectApi.names(), "project": project.documents()})
 
 

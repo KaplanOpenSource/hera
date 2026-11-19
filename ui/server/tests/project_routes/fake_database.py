@@ -44,7 +44,12 @@ class FakeDatabase:
             self.filesDirectories[projectName] = filesDirectory
         return types.SimpleNamespace(
             filesDirectory=self.filesDirectories.get(projectName, ""),
-            export=lambda path, show_progressbar=True: self._export(projectName, path, show_progressbar))
+            export=lambda path, show_progressbar=True: self._export(projectName, path, show_progressbar),
+            setConfig=lambda **kwargs: self._set_config(projectName, kwargs))
+
+    def _set_config(self, project_name, kwargs):
+        if "filesDirectory" in kwargs:
+            self.filesDirectories[project_name] = kwargs["filesDirectory"]
 
     def _export(self, projectName, path, show_progressbar):
         # Like hera: one zip entry, written to whatever path or file object it is given.

@@ -26,8 +26,8 @@ class TestApi extends ApiCall {
   postForBytes(path: string, body: any, options: any) {
     return this.postBytes(path, body, options);
   }
-  postBytesGetJson(path: string, bytes: ArrayBuffer, options: any) {
-    return this.postBytesForJson(path, bytes, options);
+  postBytesGetJson(path: string, params: any, bytes: ArrayBuffer, options: any) {
+    return this.postBytesForJson(path, params, bytes, options);
   }
 }
 
@@ -198,7 +198,7 @@ describe('postBytesForJson', () => {
     const data = new Uint8Array([7, 8]).buffer;
     mockFetch.mockResolvedValueOnce(jsonAnswer({ project: { name: 'Alpha' } }));
 
-    expect(await api.postBytesGetJson('/project/load', data, { label: 'load' })).toEqual({ project: { name: 'Alpha' } });
+    expect(await api.postBytesGetJson('/project/load', {}, data, { label: 'load' })).toEqual({ project: { name: 'Alpha' } });
     const [url, init] = mockFetch.mock.calls[0];
     expect(url).toBe('http://test/project/load');
     expect(init.method).toBe('POST');
@@ -209,7 +209,17 @@ describe('postBytesForJson', () => {
   it('reports the server message and returns null on a rejected call', async () => {
     mockFetch.mockResolvedValueOnce(jsonAnswer({ detail: 'a project named Alpha already exists' }, false, 409));
 
-    expect(await api.postBytesGetJson('/project/load', new ArrayBuffer(1), { label: 'load' })).toBeNull();
+    expect(await api.postBytesGetJson('/project/load', {}, new ArrayBuffer(1), { label: 'load' })).toBeNull();
     expect(failed).toHaveBeenCalledWith('load: a project named Alpha already exists');
+  });
+
+  it('puts the params in the URL query, encoded', async () => {
+    mockFetch.mockResolvedValueOnce(jsonAnswer({}));
+
+    await api.postBytesGetJson('/project/load', { projectName: 'A b&c', filesDirectory: '/data/a b' },
+      new ArrayBuffer(1), { label: 'load' });
+
+    const [url] = mockFetch.mock.calls[0];
+    expect(url).toBe('http://test/project/load?projectName=A+b%26c&filesDirectory=%2Fdata%2Fa+b');
   });
 });

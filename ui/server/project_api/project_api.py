@@ -127,6 +127,11 @@ class ProjectApi:
         buffer.seek(0)
         Project.load(self.projectName, buffer, is_hard_import=False, show_progressbar=False)
 
+    def set_files_directory(self, files_directory: str) -> None:
+        """Save the folder in the project's settings record."""
+        from hera.datalayer.project import Project
+        Project(projectName=self.projectName).setConfig(filesDirectory=files_directory)
+
     def detect_notebooks(self, filesDirectory: str) -> int:
         """Register every notebook under the directory that is not tracked yet.
 

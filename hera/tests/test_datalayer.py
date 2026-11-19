@@ -1092,6 +1092,30 @@ class TestExportImport:
     def test_load_keeps_one_config_hard_import(self, tmp_dir):
         self._load_keeps_one_config(tmp_dir, is_hard_import=True)
 
+    def test_load_under_new_name_keeps_one_config(self, tmp_dir):
+        src_name = "pytest_export_rename_src"
+        dst_name = "pytest_export_rename_dst"
+        src = Project(projectName=src_name)
+        src.setConfig(myKey="myValue")
+        src.addMeasurementsDocument(
+            resource="ren_1", dataFormat="string", type="ExportRename", desc={"station": "A"},
+        )
+
+        export_path = os.path.join(tmp_dir, "export_rename")
+        src.export(export_path, show_progressbar=False)
+
+        Project.load(dst_name, export_path, is_hard_import=False, show_progressbar=False)
+
+        dst = Project(projectName=dst_name)
+        assert len(list(dst.getCacheDocuments(type=f"{dst_name}__config__"))) == 1
+        assert dst.getConfig()["myKey"] == "myValue"
+        docs = list(dst.getMeasurementsDocuments(type="ExportRename"))
+        assert [doc.resource for doc in docs] == ["ren_1"]
+        assert all(doc.projectName == dst_name for doc in docs)
+
+        self._delete_project_docs(src)
+        self._delete_project_docs(dst)
+
 
 # ===========================================================================
 # 18. Module-level functions

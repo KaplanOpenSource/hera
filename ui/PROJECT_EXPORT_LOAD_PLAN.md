@@ -66,18 +66,13 @@ Just load an exported zip. The project gets the name it had when exported.
 3. **Client: editable fields.** The name and folder start as the zip's and can be edited; both checks rerun as you type. Load still sends the zip as is and ignores the edits until Part 3.
 4. **Tests.** Server test for the route. Client tests for the block, the warning, and the edits.
 
-## Part 3: Load with a new name
+## Part 3: Load with the name and folder from the dialog
 
-To be planned in detail after Part 2.85 works. Draft:
+Load sends the dialog's name and folder, and the server uses them. Only what is new; the checks, the 409 on a taken name, and the fallback to the zip's name are already done (Parts 2 and 2.9).
 
-The user picks the name. The loaded project keeps the old project's files folder (copied with its settings in Part 1.9), because its data files are there.
-
-1. **hera: test only.** Part 1.9 already finds the zip's settings record by its old name. Add a hera test that loads under a new name and checks for one settings record with the old settings.
-2. **Server: name in the load route.** Take an optional `?projectName=` in the URL (the zip is the raw body). Without it, use the name in the zip. Refuse if the name is taken.
-3. **Server: shared folder warning.** After the load, check if any other project has the same files folder. If so, add a warning to the answer, naming those projects. Do not block the load.
-4. **Client: editable name in the load dialog.** The Load button is disabled while the name is empty or already in the project list. After the load, show the server's warning if there is one.
-5. **Client: check right away.** As soon as a file is picked, check the name and folder against the other projects in the dialog: block a taken name, warn on a shared folder. This needs the projects' folders on the client (a new server route that lists them).
-6. **Tests.** hera test for the new name. Server tests for the name and the warning. Client tests for the dialog, the checks, and the warning.
+1. **hera: test a new name.** Part 1.9 tested loading under the same name. Add a test that loads under a different name and checks for one settings record with the old settings.
+2. **Server: take the name and folder.** `POST /project/load` takes `?projectName=` and `?filesDirectory=`. Refuse an empty name. After `Project.load`, set the given folder in the project's settings. Server tests for both.
+3. **Client: send them.** Load sends the edited name and folder, and is disabled while the name is empty. Client tests for both.
 
 ## Part 3.5 (nice to have): Edge-case bugs found in hera
 

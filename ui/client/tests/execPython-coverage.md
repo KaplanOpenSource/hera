@@ -46,7 +46,7 @@ Each api class also has its own test file, one test per method:
 | `GET /workflow_run` | `WorkflowApi.run`, `WorkflowRunSelect` | yes | no | `workflowApi.test.ts`, `workflowRunSelect.test.tsx`, `server/tests/test_workflow_run_history.py` |
 | `getJson` / `postJson` / `getBytes` / `postBytes` / `postBytesForJson` | `src/api/ApiCall.ts` | yes | no | `ApiCall.test.ts`, `apiPackageIsolation.test.ts` |
 | `GET /project/names` | `fetchProjectsNames` | yes | yes | `FetchProjects.test.ts`, `server/tests/project_routes/test_project_list.py` |
-| `GET /project/folders` | `LoadProjectDialog` | yes | no | `loadProject.test.tsx`, `projectApi.test.ts`, `server/tests/project_routes/test_project_folders.py` |
+| `GET /project/folders` | `LoadProjectDialog` | yes | no | `loadProjectChecks.test.tsx`, `projectApi.test.ts`, `server/tests/project_routes/test_project_folders.py` |
 | `GET /project/documents` | `fetchProjectDetails`, `fetchProjectData` | yes | yes | `FetchProjects.test.ts`, `server/tests/project_routes/test_project_documents.py` |
 | `GET /project/toolkits` | `fetchProjectData` | yes | yes | `FetchProjects.test.ts`, `server/tests/project_routes/test_toolkits.py` |
 | `GET /project/files` | `ProjectFilesView` | yes | no | `projectApi.test.ts`, `projectFilesView.test.tsx`, `server/tests/project_routes/test_list_project_files.py` |

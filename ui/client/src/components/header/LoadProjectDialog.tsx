@@ -33,7 +33,7 @@ export const LoadProjectDialog = ({
   const dialogTheme = useAppTheme();
   const navigate = useNavigate();
   const [zipInfo, setZipInfo] = useState<ProjectZipInfo | null>(null);
-  // Starts as what the zip holds; edits only change the checks, not what Load sends yet.
+  // Starts as what the zip holds; Load sends the edited name and folder.
   const [edited, setEdited] = useState<ProjectZipInfo>({ name: '', filesDirectory: '' });
   const [readError, setReadError] = useState('');
   const [folders, setFolders] = useState<ProjectFolder[]>([]);
@@ -60,12 +60,13 @@ export const LoadProjectDialog = ({
   }, [file]);
 
   const nameTaken = !!zipInfo && folders.some((p) => p.name === edited.name);
+  const nameEmpty = edited.name.trim() === '';
   const sharedWith = folders
     .filter((p) => !!zipInfo && !!p.filesDirectory && p.filesDirectory === edited.filesDirectory)
     .map((p) => p.name);
 
   const loadProject = async () => {
-    const data = await projectApi.load(await file.arrayBuffer(), file.name);
+    const data = await projectApi.load(await file.arrayBuffer(), file.name, edited.name.trim(), edited.filesDirectory);
     if (!data) {
       return;
     }
@@ -133,7 +134,7 @@ export const LoadProjectDialog = ({
           <Button onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={() => loadProject()} disabled={!zipInfo || nameTaken}>
+          <Button onClick={() => loadProject()} disabled={!zipInfo || nameTaken || nameEmpty}>
             Load
           </Button>
         </DialogActions>
