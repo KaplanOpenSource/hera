@@ -107,7 +107,7 @@ describe('DeleteProjectButton', () => {
     await act(async () => { fireEvent.click(btn); });
 
     fireEvent.change(await screen.findByRole('textbox'), { target: { value: 'Alpha' } });
-    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByLabelText(/also delete the project's files/i));
 
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /yes/i })); });
 

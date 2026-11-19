@@ -3,16 +3,7 @@ import { Stack } from "@mui/material";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { projectApi } from "../../api/api";
 import { DEFAULT_PROJECT, useProjectStore } from "../../stores/useProjectStore";
-
-// Makes the browser save the bytes as a file on the user's machine.
-const saveFile = (bytes: ArrayBuffer, fileName: string) => {
-  const url = URL.createObjectURL(new Blob([bytes], { type: 'application/zip' }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = fileName;
-  link.click();
-  URL.revokeObjectURL(url);
-}
+import { saveFile } from "../../utils/saveFile";
 
 export const ExportProjectButton = ({
   onExported,
