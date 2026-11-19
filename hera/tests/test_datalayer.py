@@ -1029,6 +1029,36 @@ class TestExportImport:
                 except Exception:
                     pass
 
+    def _export_and_load(self, tmp_dir, show_progressbar):
+        src = Project(projectName="pytest_export_prog_src")
+        src.addMeasurementsDocument(
+            resource="prog_1", dataFormat="string", type="ExportProg",
+            desc={"station": "A"},
+        )
+        src.addMeasurementsDocument(
+            resource="prog_2", dataFormat="string", type="ExportProg",
+            desc={"station": "B"},
+        )
+
+        export_path = os.path.join(tmp_dir, f"export_prog_{show_progressbar}")
+        src.export(export_path, show_progressbar=show_progressbar)
+
+        dst = Project(projectName="pytest_export_prog_dst")
+        Project.load(dst, export_path, is_hard_import=False, show_progressbar=False)
+
+        docs = list(dst.getMeasurementsDocuments(type="ExportProg"))
+        assert sorted(doc.resource for doc in docs) == ["prog_1", "prog_2"]
+
+        for p in (src, dst):
+            for doc in p.getMeasurementsDocuments(type="ExportProg"):
+                doc.delete()
+
+    def test_export_without_progressbar_and_load(self, tmp_dir):
+        self._export_and_load(tmp_dir, show_progressbar=False)
+
+    def test_export_with_progressbar_and_load(self, tmp_dir):
+        self._export_and_load(tmp_dir, show_progressbar=True)
+
 
 # ===========================================================================
 # 18. Module-level functions

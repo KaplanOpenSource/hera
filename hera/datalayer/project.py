@@ -350,6 +350,8 @@ class Project:
         for name in zf.namelist():
             with zf.open(name) as f:
                 depickled_docs_batch=pickle.load(f)  # nosec B301 — loads from project's own export; migration to JSON planned in Part 2
+                if isinstance(depickled_docs_batch, dict):
+                    depickled_docs_batch = [depickled_docs_batch]  # export without progressbar pickles one record per entry
                 if return_batched:
                     yield depickled_docs_batch
                 else:
@@ -369,7 +371,7 @@ class Project:
         return doc_json
     
     @staticmethod
-    def load(proj, exported_project_path, is_hard_import, show_progressbar=True):
+    def load(proj, exported_project_path:str | IO[bytes], is_hard_import, show_progressbar=True):
         """
             loads an exported project's documents to a project, either hard import with the original ids or not 
 
