@@ -202,6 +202,19 @@ class TestProjectFolders:
 
         assert ProjectApi.folders() == [{"name": DEFAULT_PROJECT, "filesDirectory": ""}]
 
+    def test_does_not_open_or_change_any_project(self, fake_hera, warmed, monkeypatch):
+        db = fake_hera(["Alpha"], documents={
+            "Alpha": [{"type": "Alpha__config__", "desc": {"filesDirectory": "/data/a"}}],
+        })
+        def no_open(*args, **kwargs):
+            raise AssertionError("folders opened a project")
+        monkeypatch.setattr(sys.modules["hera.datalayer.project"], "Project", no_open)
+
+        assert routes.folders() == {"projects": [{"name": "Alpha", "filesDirectory": "/data/a"}]}
+        assert db.documents == {"Alpha": [{"type": "Alpha__config__", "desc": {"filesDirectory": "/data/a"}}]}
+        assert db.created == []
+        assert db.filesDirectories == {}
+
 
 class TestProjectDocuments:
     def test_answers_the_name_and_the_documents(self, fake_hera):

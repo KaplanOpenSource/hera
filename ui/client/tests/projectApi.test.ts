@@ -35,6 +35,12 @@ describe('projectApi.folders', () => {
     expect(await projectApi.folders()).toEqual({ projects: [{ name: 'A', filesDirectory: '/a' }] });
     expect(getJson).toHaveBeenCalledWith('/project/folders', {}, { label: 'project folders' });
   });
+
+  it('returns null when the call failed', async () => {
+    getJson.mockResolvedValueOnce(null);
+
+    expect(await projectApi.folders()).toBeNull();
+  });
 });
 
 describe('projectApi.documents', () => {

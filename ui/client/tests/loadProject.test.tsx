@@ -248,6 +248,86 @@ describe('LoadProjectButton', () => {
     });
   });
 
+  it('sends the zip as is on Load, ignoring the edited name and folder', async () => {
+    mockPostBytesForJson.mockResolvedValueOnce({
+      projects: [{ name: 'Alpha' }, { name: 'ZipSample' }],
+      project: LOADED,
+    });
+    renderButton();
+    await pickFile(zipFile());
+    await waitFor(() => {
+      expect((screen.getByTestId('load-project-name') as HTMLInputElement).value).toBe('ZipSample');
+    });
+
+    fireEvent.change(screen.getByTestId('load-project-name'), { target: { value: 'Renamed' } });
+    fireEvent.change(screen.getByTestId('load-project-folder'), { target: { value: '/projects/Renamed' } });
+    await clickLoad();
+
+    await waitFor(() => {
+      expect(mockPostBytesForJson).toHaveBeenCalledTimes(1);
+    });
+    const [path, bytes, options] = mockPostBytesForJson.mock.calls[0];
+    expect(path).toBe('/project/load');
+    expect(Array.from(new Uint8Array(bytes))).toEqual(Array.from(SAMPLE_ZIP));
+    expect(options).toEqual({ label: 'load project Loaded.zip' });
+  });
+
+  it('keeps Load off and the fields read only while the zip is still being read', async () => {
+    const file = zipFile();
+    vi.spyOn(file, 'arrayBuffer').mockReturnValue(new Promise<ArrayBuffer>(() => { }));
+    renderButton();
+
+    await pickFile(file);
+
+    expect(loadButton().disabled).toBe(true);
+    expect((screen.getByTestId('load-project-name') as HTMLInputElement).readOnly).toBe(true);
+    expect((screen.getByTestId('load-project-folder') as HTMLInputElement).readOnly).toBe(true);
+  });
+
+  it('does not warn about projects with no folder when the folder is cleared', async () => {
+    mockGetJson.mockResolvedValue({ projects: [{ name: 'NoFolder', filesDirectory: '' }] });
+    renderButton();
+    await pickFile(zipFile());
+    await waitFor(() => {
+      expect(loadButton().disabled).toBe(false);
+    });
+
+    fireEvent.change(screen.getByTestId('load-project-folder'), { target: { value: '' } });
+
+    expect(screen.queryByTestId('load-project-shared-folder')).toBeNull();
+  });
+
+  it('still allows Load when the folders could not be fetched', async () => {
+    mockGetJson.mockResolvedValue(null);
+    renderButton();
+
+    await pickFile(zipFile());
+
+    await waitFor(() => {
+      expect(loadButton().disabled).toBe(false);
+    });
+    expect(screen.queryByTestId('load-project-name-taken')).toBeNull();
+    expect(screen.queryByTestId('load-project-shared-folder')).toBeNull();
+  });
+
+  it('reads the new zip after Choose another zip, dropping the old one\'s name', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => { });
+    vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(() => { });
+    renderButton();
+    await pickFile(zipFile());
+    await waitFor(() => {
+      expect((screen.getByTestId('load-project-name') as HTMLInputElement).value).toBe('ZipSample');
+    });
+
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /choose another zip/i })); });
+    await pickFile(new File([new Uint8Array([80, 75, 3, 4])], 'Broken.zip', { type: 'application/zip' }));
+
+    await screen.findByTestId('load-project-read-error');
+    expect((screen.getByTestId('load-project-name') as HTMLInputElement).value).toBe('');
+    expect((screen.getByTestId('load-project-folder') as HTMLInputElement).value).toBe('');
+    expect(loadButton().disabled).toBe(true);
+  });
+
   it('keeps the dialog open and changes nothing when the server refused the load', async () => {
     mockPostBytesForJson.mockResolvedValueOnce(null);
     renderButton();
