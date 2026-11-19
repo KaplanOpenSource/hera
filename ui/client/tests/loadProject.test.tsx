@@ -39,6 +39,10 @@ const pickFile = async (file: File) => {
   await act(async () => { fireEvent.change(input, { target: { files: [file] } }); });
 };
 
+const clickLoad = async () => {
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Load' })); });
+};
+
 const zipFile = () => {
   return new File([new Uint8Array([80, 75, 3, 4])], 'Loaded.zip', { type: 'application/zip' });
 };
@@ -57,24 +61,48 @@ afterEach(() => {
 });
 
 describe('LoadProjectButton', () => {
-  it('opens the file picker for a zip', () => {
+  it('opens the zip file picker first, with no dialog', async () => {
     const clicked = vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(() => { });
     renderButton();
 
-    fireEvent.click(screen.getByRole('button'));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /load project/i })); });
 
     expect(clicked).toHaveBeenCalled();
     expect((screen.getByTestId('load-project-input') as HTMLInputElement).accept).toBe('.zip');
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('sends the file bytes, updates the list and switches to the loaded project', async () => {
+  it('shows the dialog with the file name once a zip is picked', async () => {
+    renderButton();
+
+    await pickFile(zipFile());
+
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(screen.getByTestId('load-project-file-name').textContent).toBe('Loaded.zip');
+    expect(mockPostBytesForJson).not.toHaveBeenCalled();
+  });
+
+  it('opens the file picker again on Choose another zip, and shows the new file', async () => {
+    renderButton();
+    await pickFile(zipFile());
+    const clicked = vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(() => { });
+
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /choose another zip/i })); });
+    expect(clicked).toHaveBeenCalled();
+    await pickFile(new File([new Uint8Array([80, 75, 3, 4])], 'Other.zip', { type: 'application/zip' }));
+
+    expect(screen.getByTestId('load-project-file-name').textContent).toBe('Other.zip');
+  });
+
+  it('sends the file bytes on Load, updates the list and switches to the loaded project', async () => {
     mockPostBytesForJson.mockResolvedValueOnce({
       projects: [{ name: 'Alpha' }, { name: 'Loaded' }],
       project: LOADED,
     });
     renderButton();
-
     await pickFile(zipFile());
+
+    await clickLoad();
 
     await waitFor(() => {
       expect(shownPath).toBe('/Loaded');
@@ -85,28 +113,47 @@ describe('LoadProjectButton', () => {
     expect(options).toEqual({ label: 'load project Loaded.zip' });
     expect(shownState).toEqual({ project: LOADED });
     expect(useProjectListStore.getState().projectNames).toEqual([{ name: 'Alpha' }, { name: 'Loaded' }]);
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
   });
 
-  it('changes nothing when the server refused the load', async () => {
+  it('keeps the dialog open and changes nothing when the server refused the load', async () => {
     mockPostBytesForJson.mockResolvedValueOnce(null);
     renderButton();
-
     await pickFile(zipFile());
+
+    await clickLoad();
 
     await waitFor(() => {
       expect(mockPostBytesForJson).toHaveBeenCalledTimes(1);
     });
     expect(shownPath).toBe('/Alpha');
     expect(useProjectListStore.getState().projectNames).toEqual([{ name: 'Alpha' }]);
+    expect(screen.getByRole('dialog')).toBeTruthy();
   });
 
-  it('sends nothing when no file was picked', async () => {
+  it('sends nothing on Cancel', async () => {
+    renderButton();
+    await pickFile(zipFile());
+
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /cancel/i })); });
+
+    expect(mockPostBytesForJson).not.toHaveBeenCalled();
+    expect(shownPath).toBe('/Alpha');
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+  });
+
+  it('shows no dialog when the file picker was closed without a file', async () => {
     renderButton();
 
     await act(async () => {
       fireEvent.change(screen.getByTestId('load-project-input'), { target: { files: [] } });
     });
 
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(mockPostBytesForJson).not.toHaveBeenCalled();
   });
 });

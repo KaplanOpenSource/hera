@@ -1,34 +1,25 @@
 import { Upload } from "@mui/icons-material";
-import { ChangeEvent, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { ChangeEvent, useRef, useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
-import { projectApi } from "../../api/api";
-import { useProjectListStore } from "../../stores/useProjectListStore";
-import { ProjectName } from "../../shared/types";
+import { LoadProjectDialog } from "./LoadProjectDialog";
 
+// Opens the file picker first; the dialog shows once a zip is picked.
 export const LoadProjectButton = ({
   onLoaded,
 }: {
   onLoaded?: () => void,
 }) => {
+  const [file, setFile] = useState<File | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const navigate = useNavigate();
 
-  const loadProject = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const pickFile = (e: ChangeEvent<HTMLInputElement>) => {
+    const picked = e.target.files?.[0];
     // Cleared so picking the same file again still fires a change.
     e.target.value = '';
-    if (!file) {
+    if (!picked) {
       return;
     }
-    const data = await projectApi.load(await file.arrayBuffer(), file.name);
-    if (!data) {
-      return;
-    }
-    // Same as after create: the project travels with the navigation. See AddProjectButton.
-    useProjectListStore.getState().setProjectNames(data.projects as ProjectName[]);
-    navigate('/' + encodeURIComponent(data.project.name), { state: { project: data.project } });
-    onLoaded?.();
+    setFile(picked);
   }
 
   return (<>
@@ -45,7 +36,15 @@ export const LoadProjectButton = ({
       accept=".zip"
       hidden
       data-testid="load-project-input"
-      onChange={loadProject}
+      onChange={pickFile}
     />
+    {file && (
+      <LoadProjectDialog
+        file={file}
+        onPickAnother={() => inputRef.current?.click()}
+        onClose={() => setFile(null)}
+        onLoaded={onLoaded}
+      />
+    )}
   </>);
 }

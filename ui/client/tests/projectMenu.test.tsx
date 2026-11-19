@@ -60,6 +60,7 @@ describe('ProjectMenuButton', () => {
     const input = screen.getByTestId('load-project-input') as HTMLInputElement;
     const file = new File([new Uint8Array([80, 75, 3, 4])], 'Loaded.zip', { type: 'application/zip' });
     await act(async () => { fireEvent.change(input, { target: { files: [file] } }); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Load' })); });
 
     expect(mockPostBytesForJson).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('button', { name: /load project/i })).toBeNull();

@@ -47,14 +47,30 @@ Just load an exported zip. The project gets the name it had when exported.
 2. **Tree menu.** The menu on the project name in the tree keeps only the document actions: Add document and Delete selected.
 3. **Tests.** Client test for the header menu. Update tests that expect the old places.
 
+## Part 2.8: Load dialog
+
+1. **Client: load dialog.** "Load project" in the header menu opens the file picker first. Once a `.zip` is picked, a small MUI `Dialog` shows its file name, with Choose another zip, Cancel, and Load. Load sends the zip as today (Part 2) and closes the dialog. Closing the picker without a file shows no dialog.
+2. **Tests.** Client test for the dialog: pick a file, choose another, Load, Cancel.
+
+## Part 2.85: Show the zip's name and folder
+
+1. **Client: read the zip in the browser.** When a file is picked, open the zip (a zip library, e.g. `fflate`) and read its records with `pickleparser` (npm, reads Python pickle in the browser). Take the project name and the files folder from the settings record.
+2. **Client: show them read only** in the load dialog.
+3. **Check first:** `pickleparser` must handle the Python-only objects in our records (Mongo ids, dates). Try it on a real exported zip before building on it.
+4. **Tests.** Client test with a real exported zip as a test file.
+
 ## Part 3: Load with a new name
 
-The user picks the name.
+To be planned in detail after Part 2.85 works. Draft:
 
-1. **hera: match the old settings record by the old name.** Changes `Project.load` in `hera/datalayer/project.py`. The zip's record is `<oldName>__config__`. `load` must treat it as the settings record and copy it into `<newName>__config__`.
-2. **Server: name in the load route.** Take an optional project name. Refuse if it is taken.
-3. **Client: name field in the load dialog.** The Load button is disabled while the name is empty or already in the project list.
-4. **Tests.** hera test for loading under a new name. Server and client tests for the name.
+The user picks the name. The loaded project keeps the old project's files folder (copied with its settings in Part 1.9), because its data files are there.
+
+1. **hera: test only.** Part 1.9 already finds the zip's settings record by its old name. Add a hera test that loads under a new name and checks for one settings record with the old settings.
+2. **Server: name in the load route.** Take an optional `?projectName=` in the URL (the zip is the raw body). Without it, use the name in the zip. Refuse if the name is taken.
+3. **Server: shared folder warning.** After the load, check if any other project has the same files folder. If so, add a warning to the answer, naming those projects. Do not block the load.
+4. **Client: editable name in the load dialog.** The Load button is disabled while the name is empty or already in the project list. After the load, show the server's warning if there is one.
+5. **Client: check right away.** As soon as a file is picked, check the name and folder against the other projects in the dialog: block a taken name, warn on a shared folder. This needs the projects' folders on the client (a new server route that lists them).
+6. **Tests.** hera test for the new name. Server tests for the name and the warning. Client tests for the dialog, the checks, and the warning.
 
 ## Part 3.5 (nice to have): Edge-case bugs found in hera
 
