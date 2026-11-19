@@ -44,7 +44,7 @@ Just load an exported zip. The project gets the name it had when exported.
 ## Part 2.5: Edge-case bugs found in hera
 
 1. **Export writes one zip entry per record without the progress bar.** Not a blocker: `load` reads these zips since Part 1.8. But one entry per record is slow and makes big zip files for big projects. Optional fix in `Project.export`: use `_batched_cursor` in the `show_progressbar=False` path too, so all zips hold lists.
-2. **Old test marked as expected to fail.** `test_export_and_load` in `hera/tests/test_datalayer.py`. Its reason is out of date, and it passes since Part 1.8. Remove the `xfail` mark.
+2. **Old test marked as expected to fail.** Done: the `xfail` mark on `test_export_and_load` is removed, and the test passes.
 
 ## Part 3: Load with a new name
 

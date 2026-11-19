@@ -4,7 +4,7 @@ import json
 import os
 import pickle
 import zipfile
-from typing import IO, Any
+from typing import IO, Any, Iterator
 
 from deprecated import deprecated
 
@@ -334,7 +334,7 @@ class Project:
                 i+=1
 
     @staticmethod
-    def _iter_pickled_docs(zf:zipfile.ZipFile, return_batched:bool):
+    def _iter_pickled_docs(zf:zipfile.ZipFile, return_batched:bool) -> Iterator[Any]:
         """
             creates an iterator over the documents in an exported project,
             can either returned the batched data or single documents 
@@ -388,6 +388,13 @@ class Project:
         """
         if isinstance(proj, str):
             proj = Project(proj)
+
+        def mergeIfConfigDoc(doc_json:dict):
+            # The zip's settings record is copied into the project's own one, not added as a second.
+            if doc_json.get("type") != f"{doc_json.get('projectName')}__config__":
+                return False
+            proj.setConfig(**doc_json.get("desc", {}))
+            return True
         
         with zipfile.ZipFile(exported_project_path, 'r') as zf:
             if is_hard_import:
@@ -396,13 +403,17 @@ class Project:
                     from tqdm import tqdm
                     pickled_docs_iterator = tqdm(pickled_docs_iterator, desc="Loading documents", unit="docsBatch", unit_scale=True)
                 for pickled_docs_batch in pickled_docs_iterator:
-                    proj._all._metadataCol._get_collection().insert_many([proj.updateProjectNameOnDoc(doc_son) for doc_son in pickled_docs_batch])
+                    docs_to_insert = [proj.updateProjectNameOnDoc(doc_son) for doc_son in pickled_docs_batch if not mergeIfConfigDoc(doc_son)]
+                    if docs_to_insert:
+                        proj._all._metadataCol._get_collection().insert_many(docs_to_insert)
             else:
                 pickled_docs_iterator = Project._iter_pickled_docs(zf, return_batched=False)
                 if show_progressbar:
                     from tqdm import tqdm
                     pickled_docs_iterator = tqdm(pickled_docs_iterator, desc="Loading documents", unit="docs", unit_scale=True)
                 for pickled_doc in pickled_docs_iterator:
+                    if mergeIfConfigDoc(pickled_doc):
+                        continue
                     proj._all._metadataCol.objects.insert(proj._all._metadataCol(**(proj.updateProjectNameOnDoc(pickled_doc))), load_bulk=False)
 
     @property
