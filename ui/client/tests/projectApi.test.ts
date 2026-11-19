@@ -5,10 +5,12 @@ const { projectApi } = await import('../src/api/api');
 
 let getJson: ReturnType<typeof vi.fn>;
 let postJson: ReturnType<typeof vi.fn>;
+let postBytes: ReturnType<typeof vi.fn>;
+let postBytesForJson: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  ({ getJson, postJson } = mockApiCall());
+  ({ getJson, postJson, postBytes, postBytesForJson } = mockApiCall());
 });
 
 describe('projectApi.names', () => {
@@ -23,6 +25,21 @@ describe('projectApi.names', () => {
     getJson.mockResolvedValueOnce(null);
 
     expect(await projectApi.names()).toBeNull();
+  });
+});
+
+describe('projectApi.folders', () => {
+  it('asks for every project\'s folder', async () => {
+    getJson.mockResolvedValueOnce({ projects: [{ name: 'A', filesDirectory: '/a' }] });
+
+    expect(await projectApi.folders()).toEqual({ projects: [{ name: 'A', filesDirectory: '/a' }] });
+    expect(getJson).toHaveBeenCalledWith('/project/folders', {}, { label: 'project folders' });
+  });
+
+  it('returns null when the call failed', async () => {
+    getJson.mockResolvedValueOnce(null);
+
+    expect(await projectApi.folders()).toBeNull();
   });
 });
 
@@ -124,5 +141,41 @@ describe('projectApi.delete', () => {
     postJson.mockResolvedValueOnce(null);
 
     expect(await projectApi.delete('A', false)).toBeNull();
+  });
+});
+
+describe('projectApi.export', () => {
+  it('sends the name and returns the zip bytes', async () => {
+    const bytes = new Uint8Array([1, 2]).buffer;
+    postBytes.mockResolvedValueOnce(bytes);
+
+    expect(await projectApi.export('A')).toBe(bytes);
+    expect(postBytes).toHaveBeenCalledWith('/project/export',
+      { projectName: 'A' },
+      { label: 'export project A' });
+  });
+
+  it('returns null when the call failed', async () => {
+    postBytes.mockResolvedValueOnce(null);
+
+    expect(await projectApi.export('A')).toBeNull();
+  });
+});
+
+describe('projectApi.load', () => {
+  it('sends the zip bytes with the name and folder, and returns the answer', async () => {
+    const bytes = new Uint8Array([1, 2]).buffer;
+    const answer = { projects: [{ name: 'A' }], project: { name: 'A', documents: [] } };
+    postBytesForJson.mockResolvedValueOnce(answer);
+
+    expect(await projectApi.load(bytes, 'A.zip', 'A', '/data/a')).toBe(answer);
+    expect(postBytesForJson).toHaveBeenCalledWith('/project/load',
+      { projectName: 'A', filesDirectory: '/data/a' }, bytes, { label: 'load project A.zip' });
+  });
+
+  it('returns null when the call failed', async () => {
+    postBytesForJson.mockResolvedValueOnce(null);
+
+    expect(await projectApi.load(new ArrayBuffer(1), 'A.zip', 'A', '')).toBeNull();
   });
 });

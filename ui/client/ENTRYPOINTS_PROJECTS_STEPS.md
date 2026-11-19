@@ -66,7 +66,7 @@ The toolkits are a plain function: they are not about a project.
 
 ## Tests
 
-- `ui/server/tests/test_projects.py` - `ProjectApi`, `ProjectFiles` and the six
+- `ui/server/tests/project_routes/` - `ProjectApi`, `ProjectFiles` and the six
   routes, on a fake hera in memory.
 - Client tests assert the entrypoint name and parameters sent, not python text.
 

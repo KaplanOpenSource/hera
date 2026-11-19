@@ -4,15 +4,17 @@ import { Chip, Menu, MenuItem } from '@mui/material';
 export enum ItemTypesEnum {
   number = 'number',
   string = 'string',
+  boolean = 'boolean',
   null = 'null',
   object = 'object',
   array = 'array',
 }
 
 // Each type gets a semantic MUI palette color so it adapts to light/dark mode.
-const typeColor: { [key in ItemTypesEnum]: 'success' | 'info' | 'secondary' | 'warning' | 'primary' } = {
+const typeColor: { [key in ItemTypesEnum]: 'success' | 'info' | 'secondary' | 'warning' | 'primary' | 'error' } = {
   [ItemTypesEnum.string]: 'success',
   [ItemTypesEnum.number]: 'info',
+  [ItemTypesEnum.boolean]: 'error',
   [ItemTypesEnum.object]: 'secondary',
   [ItemTypesEnum.array]: 'primary',
   [ItemTypesEnum.null]: 'warning',
@@ -22,6 +24,8 @@ const typeColor: { [key in ItemTypesEnum]: 'success' | 'info' | 'secondary' | 'w
 export const calcItemType = (val: any) => {
   if (val === null) {
     return ItemTypesEnum.null;
+  } else if (typeof val === 'boolean') {
+    return ItemTypesEnum.boolean;
   } else if (Array.isArray(val)) {
     return ItemTypesEnum.array;
   } else if (typeof val === 'object') {
@@ -37,7 +41,7 @@ export const calcItemType = (val: any) => {
 const noValueTypes = [ItemTypesEnum.null, ItemTypesEnum.object, ItemTypesEnum.array];
 
 // The value to store when a field is switched to the given type.
-const coerceToType = (t: ItemTypesEnum, current: any) => {
+export const coerceToType = (t: ItemTypesEnum, current: any) => {
   switch (t) {
     case ItemTypesEnum.object:
       if (Array.isArray(current)) {
@@ -55,7 +59,22 @@ const coerceToType = (t: ItemTypesEnum, current: any) => {
       return [];
     case ItemTypesEnum.null:
       return null;
+    case ItemTypesEnum.boolean: {
+      if (typeof current === 'boolean') {
+        return current;
+      }
+      if (typeof current === 'string') {
+        return current.trim().toLowerCase() === 'true';
+      }
+      if (typeof current === 'number') {
+        return current !== 0 && !Number.isNaN(current);
+      }
+      return false;
+    }
     case ItemTypesEnum.number: {
+      if (typeof current === 'boolean') {
+        return Number(current);
+      }
       // parseFloat on a list would wrongly pick up its first element.
       if (noValueTypes.includes(calcItemType(current))) {
         return 0;

@@ -4,9 +4,9 @@ import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { ThemeModeSwitch } from '../../elements/ThemeModeSwitch';
 import { ThemeMode, useViewSettingsStore } from '../../stores/useViewSettingsStore';
 import { ProjectViewSettingsButton } from '../project/ProjectViewSettingsButton';
-import { AddProjectButton } from './AddProjectButton';
 import { PageTitle } from './PageTitle';
 import { ProjectChooser } from './ProjectChooser';
+import { ProjectMenuButton } from './ProjectMenuButton';
 
 const headerTheme = createTheme({
   palette: {
@@ -39,11 +39,11 @@ export const DashboardHeader = ({
     <ThemeProvider theme={headerTheme}>
       <AppBar position="static">
         <Toolbar>
-          {/* Left: title, project droplist and its add button. */}
+          {/* Left: title, project droplist, its actions menu. */}
           <Stack direction="row" spacing={1} alignItems="center">
             <PageTitle />
             <ProjectChooser />
-            <AddProjectButton />
+            <ProjectMenuButton />
           </Stack>
 
           <Box sx={{ flexGrow: 1 }} />

@@ -2,6 +2,7 @@ import { TextField } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { FieldDef } from './fieldDef';
 import { ItemTypesEnum, calcItemType } from './ItemTypeSelector';
+import { DetailsViewItemBoolean } from './DetailsViewItemBoolean';
 
 export const DetailsViewItemSingle = ({
   itemValue,
@@ -28,41 +29,45 @@ export const DetailsViewItemSingle = ({
     onCaret?.(el.value, el.selectionStart, el);
   };
 
+  const isBoolean = itemType === ItemTypesEnum.boolean;
   // A null field has no value to edit; the type chip already shows "null".
-  if (itemType === ItemTypesEnum.null) {
-    return null;
-  }
+  const isText = itemType !== ItemTypesEnum.null && !isBoolean;
 
   return (
-    <TextField
-      size='small'
-      value={['object', 'function'].includes(typeof itemValue) ? JSON.stringify(itemValue) : itemValue}
-      onChange={(e) => {
-        if (itemType === ItemTypesEnum.number) {
-          const num = parseFloat(e.target.value);
-          if (Number.isFinite(num)) {
-            setItemValue(num)
-          }
-        } else {
-          setItemValue(e.target.value)
-        }
-        reportCaret(e.target as HTMLInputElement);
-      }}
-      onClick={e => { e.stopPropagation(); reportCaret(e.currentTarget.querySelector('input') ?? e.target as HTMLInputElement); }}
-      onKeyUp={e => reportCaret(e.target as HTMLInputElement)}
-      onKeyDown={e => e.stopPropagation()}
-      fullWidth
-      error={missing}
-      helperText={missing ? 'required' : undefined}
-      // Float the "required" text just below the field: absolute so it adds no
-      // height (required and normal rows stay the same height), zIndex so it is
-      // not painted over by the next row.
-      sx={{ position: 'relative' }}
-      slotProps={{
-        formHelperText: {
-          sx: { position: 'absolute', top: '100%', left: 0, m: 0, lineHeight: 1, zIndex: 1 },
-        },
-      }}
-    />
+    <>
+      {isBoolean && <DetailsViewItemBoolean itemValue={itemValue} setItemValue={setItemValue} />}
+      {isText && (
+        <TextField
+          size='small'
+          value={['object', 'function'].includes(typeof itemValue) ? JSON.stringify(itemValue) : itemValue}
+          onChange={(e) => {
+            if (itemType === ItemTypesEnum.number) {
+              const num = parseFloat(e.target.value);
+              if (Number.isFinite(num)) {
+                setItemValue(num)
+              }
+            } else {
+              setItemValue(e.target.value)
+            }
+            reportCaret(e.target as HTMLInputElement);
+          }}
+          onClick={e => { e.stopPropagation(); reportCaret(e.currentTarget.querySelector('input') ?? e.target as HTMLInputElement); }}
+          onKeyUp={e => reportCaret(e.target as HTMLInputElement)}
+          onKeyDown={e => e.stopPropagation()}
+          fullWidth
+          error={missing}
+          helperText={missing ? 'required' : undefined}
+          // Float the "required" text just below the field: absolute so it adds no
+          // height (required and normal rows stay the same height), zIndex so it is
+          // not painted over by the next row.
+          sx={{ position: 'relative' }}
+          slotProps={{
+            formHelperText: {
+              sx: { position: 'absolute', top: '100%', left: 0, m: 0, lineHeight: 1, zIndex: 1 },
+            },
+          }}
+        />
+      )}
+    </>
   )
 }

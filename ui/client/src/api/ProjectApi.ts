@@ -7,6 +7,11 @@ export class ProjectApi extends ApiCall {
     return await this.getJson('/project/names', {}, { label: 'project names' });
   }
 
+  // Every project's name and files folder.
+  async folders(): Promise<any | null> {
+    return await this.getJson('/project/folders', {}, { label: 'project folders' });
+  }
+
   // label varies by caller; silent is for the periodic auto-reload, no toasts.
   async documents(projectName: string, label: string, silent = false): Promise<any | null> {
     return await this.getJson('/project/documents', { projectName }, { label, silent });
@@ -41,5 +46,20 @@ export class ProjectApi extends ApiCall {
       projectName,
       deleteFiles,
     }, { label: `delete project ${projectName}` });
+  }
+
+  // The zip of the project's records; data files on disk are not in it.
+  async export(projectName: string): Promise<ArrayBuffer | null> {
+    return await this.postBytes('/project/export', {
+      projectName,
+    }, { label: `export project ${projectName}` });
+  }
+
+  // Loads an exported zip under the given name and files folder; answers the list and the project.
+  async load(zipBytes: ArrayBuffer, fileName: string, projectName: string, filesDirectory: string): Promise<any | null> {
+    return await this.postBytesForJson('/project/load', {
+      projectName,
+      filesDirectory,
+    }, zipBytes, { label: `load project ${fileName}` });
   }
 }

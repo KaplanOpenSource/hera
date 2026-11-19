@@ -4,7 +4,7 @@ import json
 import os
 import pickle
 import zipfile
-from typing import Any
+from typing import IO, Any, Iterator
 
 from deprecated import deprecated
 
@@ -300,13 +300,13 @@ class Project:
             else:
                 yield batch
     
-    def export(self, path:str, export_chunk_size:int=1024, show_progressbar:bool=True):
+    def export(self, path:str | IO[bytes], export_chunk_size:int=1024, show_progressbar:bool=True):
         """
             exports the project in chunks contained to one zip file
 
         Parameters
         ----------
-        path: str
+        path: str or file object
                 the path to the zip file to be created, overrides file if already exists
 
         export_chunk_size: int
@@ -334,7 +334,7 @@ class Project:
                 i+=1
 
     @staticmethod
-    def _iter_pickled_docs(zf:zipfile.ZipFile, return_batched:bool):
+    def _iter_pickled_docs(zf:zipfile.ZipFile, return_batched:bool) -> Iterator[Any]:
         """
             creates an iterator over the documents in an exported project,
             can either returned the batched data or single documents 
@@ -350,6 +350,8 @@ class Project:
         for name in zf.namelist():
             with zf.open(name) as f:
                 depickled_docs_batch=pickle.load(f)  # nosec B301 — loads from project's own export; migration to JSON planned in Part 2
+                if isinstance(depickled_docs_batch, dict):
+                    depickled_docs_batch = [depickled_docs_batch]  # export without progressbar pickles one record per entry
                 if return_batched:
                     yield depickled_docs_batch
                 else:
@@ -369,7 +371,7 @@ class Project:
         return doc_json
     
     @staticmethod
-    def load(proj, exported_project_path, is_hard_import, show_progressbar=True):
+    def load(proj, exported_project_path:str | IO[bytes], is_hard_import, show_progressbar=True):
         """
             loads an exported project's documents to a project, either hard import with the original ids or not 
 
@@ -386,6 +388,13 @@ class Project:
         """
         if isinstance(proj, str):
             proj = Project(proj)
+
+        def mergeIfConfigDoc(doc_json:dict):
+            # The zip's settings record is copied into the project's own one, not added as a second.
+            if doc_json.get("type") != f"{doc_json.get('projectName')}__config__":
+                return False
+            proj.setConfig(**doc_json.get("desc", {}))
+            return True
         
         with zipfile.ZipFile(exported_project_path, 'r') as zf:
             if is_hard_import:
@@ -394,13 +403,17 @@ class Project:
                     from tqdm import tqdm
                     pickled_docs_iterator = tqdm(pickled_docs_iterator, desc="Loading documents", unit="docsBatch", unit_scale=True)
                 for pickled_docs_batch in pickled_docs_iterator:
-                    proj._all._metadataCol._get_collection().insert_many([proj.updateProjectNameOnDoc(doc_son) for doc_son in pickled_docs_batch])
+                    docs_to_insert = [proj.updateProjectNameOnDoc(doc_son) for doc_son in pickled_docs_batch if not mergeIfConfigDoc(doc_son)]
+                    if docs_to_insert:
+                        proj._all._metadataCol._get_collection().insert_many(docs_to_insert)
             else:
                 pickled_docs_iterator = Project._iter_pickled_docs(zf, return_batched=False)
                 if show_progressbar:
                     from tqdm import tqdm
                     pickled_docs_iterator = tqdm(pickled_docs_iterator, desc="Loading documents", unit="docs", unit_scale=True)
                 for pickled_doc in pickled_docs_iterator:
+                    if mergeIfConfigDoc(pickled_doc):
+                        continue
                     proj._all._metadataCol.objects.insert(proj._all._metadataCol(**(proj.updateProjectNameOnDoc(pickled_doc))), load_bulk=False)
 
     @property
