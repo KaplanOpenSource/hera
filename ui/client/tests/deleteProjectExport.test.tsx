@@ -23,7 +23,9 @@ let clickedDownloads: string[];
 
 beforeEach(() => {
   vi.clearAllMocks();
-  ({ postJson: mockPostJson, postBytes: mockPostBytes } = mockApiCall());
+  const mocks = mockApiCall();
+  ({ postJson: mockPostJson, postBytes: mockPostBytes } = mocks);
+  mocks.getJson.mockResolvedValue({ files: [{ name: 'data.parquet', isFolder: false }] });
   URL.createObjectURL = vi.fn().mockReturnValue('blob:zip') as any;
   URL.revokeObjectURL = vi.fn() as any;
   clickedDownloads = [];

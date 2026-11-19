@@ -8,6 +8,7 @@ import { NO_PROJECT, useProjectStore } from "../../stores/useProjectStore";
 import { useProjectListStore } from "../../stores/useProjectListStore";
 import { pushError } from "../../io/snackbar";
 import { saveFile } from "../../utils/saveFile";
+import { CASE_CONFIGURATION } from "../../shared/constants";
 
 // How the user confirms the delete: by typing the name, or by saving a zip first.
 enum ConfirmBy {
@@ -29,6 +30,20 @@ export const DeleteProjectButton = ({
   const { openDialog, DialogComponent } = useDialog<DeleteProjectValues>();
   const { currProjectName, selectProject, setCurrentProject } = useProjectStore();
   const { setProjectNames } = useProjectListStore();
+
+  // True only when the files folder is missing or holds nothing but the case configuration.
+  const isFilesFolderEmpty = async () => {
+    const data = await projectApi.files(currProjectName, '');
+    if (!data) {
+      return false;
+    }
+    for (const file of data.files) {
+      if (file.name !== CASE_CONFIGURATION) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   // Saves the zip first; answers false when the export failed.
   const exportProject = async () => {
@@ -67,6 +82,7 @@ export const DeleteProjectButton = ({
       color="error"
       title='Delete project'
       onClick={async () => {
+        const filesEmpty = await isFilesFolderEmpty();
         const { confirmed, values } = await openDialog({
           title: `Are you sure you want to delete ${currProjectName}?`,
           maxWidth: 'sm',
@@ -107,7 +123,8 @@ export const DeleteProjectButton = ({
                 <FormControlLabel
                   control={
                     <Checkbox
-                      checked={values.deleteFiles}
+                      checked={values.deleteFiles || filesEmpty}
+                      disabled={filesEmpty}
                       onChange={(e) => setValues({ ...values, deleteFiles: e.target.checked, confirmBy: ConfirmBy.Name })}
                     />
                   }
@@ -116,6 +133,9 @@ export const DeleteProjectButton = ({
                 <FormHelperText>
                   Removes files under the project's files directory. External data referenced from elsewhere is left untouched.
                 </FormHelperText>
+                {filesEmpty && <FormHelperText>
+                  The project's files folder is empty, so there is nothing to delete.
+                </FormHelperText>}
               </div>
             </Stack>
           ),
@@ -126,7 +146,8 @@ export const DeleteProjectButton = ({
         if (values.confirmBy === ConfirmBy.Name && values.confirmName !== currProjectName) {
           return;
         }
-        await deleteProject(values.deleteFiles, values.confirmBy === ConfirmBy.Export);
+        // An empty folder is removed too, so no stale case configuration is left behind.
+        await deleteProject(values.deleteFiles || filesEmpty, values.confirmBy === ConfirmBy.Export);
       }}
     >
       <Stack direction={'row'} alignItems={'center'} spacing={0.5}>

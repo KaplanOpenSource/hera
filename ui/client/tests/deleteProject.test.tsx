@@ -15,10 +15,12 @@ afterEach(() => {
 });
 
 let mockPostJson: ReturnType<typeof vi.fn>;
+let mockGetJson: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  ({ postJson: mockPostJson } = mockApiCall());
+  ({ postJson: mockPostJson, getJson: mockGetJson } = mockApiCall());
+  mockGetJson.mockResolvedValue({ files: [{ name: 'data.parquet', isFolder: false }] });
   useProjectStore.setState({
     currProjectName: 'Alpha',
     currProject: { name: 'Alpha', documents: [] },
