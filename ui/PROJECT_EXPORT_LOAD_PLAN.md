@@ -41,6 +41,12 @@ Just load an exported zip. The project gets the name it had when exported.
 2. **Client: load button.** Pick a zip from the user's machine, load it, and switch to it. Show the server's error if the name is taken.
 3. **Tests.** Server test for the load route. Client test for the load button.
 
+## Part 2.1: One project menu in the header
+
+1. **Header menu.** A three-dots button next to the project chooser opens a menu with Add project, Load project, Export project, and Delete project. The separate Add and Load icons go away.
+2. **Tree menu.** The menu on the project name in the tree keeps only the document actions: Add document and Delete selected.
+3. **Tests.** Client test for the header menu. Update tests that expect the old places.
+
 ## Part 3: Load with a new name
 
 The user picks the name.

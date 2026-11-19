@@ -141,6 +141,9 @@ describe('ProjectActionsButton', () => {
     expect(screen.getByText('Actions')).toBeTruthy();
     expect(screen.getByRole('button', { name: /add document/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /delete selected/i })).toBeTruthy();
+    // Project actions live in the header menu now.
+    expect(screen.queryByRole('button', { name: /export project/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /delete project/i })).toBeNull();
   });
 
   it('clears the selection after a successful bulk delete', async () => {

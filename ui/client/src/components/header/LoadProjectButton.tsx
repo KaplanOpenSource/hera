@@ -6,7 +6,11 @@ import { projectApi } from "../../api/api";
 import { useProjectListStore } from "../../stores/useProjectListStore";
 import { ProjectName } from "../../shared/types";
 
-export const LoadProjectButton = () => {
+export const LoadProjectButton = ({
+  onLoaded,
+}: {
+  onLoaded?: () => void,
+}) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
@@ -24,10 +28,12 @@ export const LoadProjectButton = () => {
     // Same as after create: the project travels with the navigation. See AddProjectButton.
     useProjectListStore.getState().setProjectNames(data.projects as ProjectName[]);
     navigate('/' + encodeURIComponent(data.project.name), { state: { project: data.project } });
+    onLoaded?.();
   }
 
   return (<>
     <ButtonTooltip
+      button
       title='Load project'
       onClick={() => inputRef.current?.click()}
     >
