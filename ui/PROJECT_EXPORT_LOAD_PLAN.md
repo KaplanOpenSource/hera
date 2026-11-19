@@ -26,6 +26,13 @@ Goal: export a project to a zip, and load it back.
 1. **hera: `_iter_pickled_docs` in `hera/datalayer/project.py`.** After unpickling an entry, if it is a single record (a dict), wrap it in a list of one. Lists stay as they are. This fixes `load` and the server's `name_in_zip`, and makes zips already exported from the UI loadable.
 2. **Tests.** hera test that loads a zip exported with `show_progressbar=False`.
 
+## Part 1.9: One settings record after load
+
+Happens on every load into a new project, so it comes before Part 2.
+
+1. **Tests first, to show the bug.** hera test that exports, deletes, loads with the same name, and checks for one settings record, in both import modes. It must fail (2 records) before the fix.
+2. **Fix `Project.load` in `hera/datalayer/project.py`.** The project already has its own settings record when `load` starts. So when `load` reaches the zip's settings record, it copies those settings into the project's own record, and does not add the zip's record. Then the tests from step 1 pass.
+
 ## Part 2: Load with the original name
 
 Just load an exported zip. The project gets the name it had when exported.
@@ -36,9 +43,8 @@ Just load an exported zip. The project gets the name it had when exported.
 
 ## Part 2.5: Edge-case bugs found in hera
 
-1. **Two settings records after load.** `Project(name)` makes an empty `<name>__config__` before `load` adds the zip's one. Fix in `Project.load`: (a) copy the zip's settings into the project's own record, and (b) do not add the zip's record. A fix was written, tested, and reverted to keep Part 2 small. It added a small helper in `load` that spots the settings record by its type (`<projectName>__config__`, using the record's own old name), calls `proj.setConfig(**doc["desc"])`, and skips inserting it. Both import branches used it. Hard import also skipped `insert_many` on an empty batch. Its test, `test_load_with_original_name_keeps_one_settings_record` (both import modes), exported, deleted, loaded, then checked for one settings record. It failed with 2 before the fix and passed after.
-2. **Export without progress bar.** `load` reads these zips after Part 1.8. Export could still group records in the `False` path too (use `_batched_cursor`), so all zips look the same.
-3. **Old test marked as expected to fail.** `test_export_and_load` in `hera/tests/test_datalayer.py`. Its reason is out of date; it may pass after Part 1.8.
+1. **Export writes one zip entry per record without the progress bar.** Not a blocker: `load` reads these zips since Part 1.8. But one entry per record is slow and makes big zip files for big projects. Optional fix in `Project.export`: use `_batched_cursor` in the `show_progressbar=False` path too, so all zips hold lists.
+2. **Old test marked as expected to fail.** `test_export_and_load` in `hera/tests/test_datalayer.py`. Its reason is out of date, and it passes since Part 1.8. Remove the `xfail` mark.
 
 ## Part 3: Load with a new name
 
