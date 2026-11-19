@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { readFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
@@ -58,7 +61,8 @@ describe('ProjectMenuButton', () => {
     await openMenu();
 
     const input = screen.getByTestId('load-project-input') as HTMLInputElement;
-    const file = new File([new Uint8Array([80, 75, 3, 4])], 'Loaded.zip', { type: 'application/zip' });
+    const sample = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'ZipSample.zip'));
+    const file = new File([sample], 'Loaded.zip', { type: 'application/zip' });
     await act(async () => { fireEvent.change(input, { target: { files: [file] } }); });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Load' })); });
 

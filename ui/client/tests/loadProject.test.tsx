@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { readFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
@@ -43,8 +46,10 @@ const clickLoad = async () => {
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Load' })); });
 };
 
-const zipFile = () => {
-  return new File([new Uint8Array([80, 75, 3, 4])], 'Loaded.zip', { type: 'application/zip' });
+const SAMPLE_ZIP = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'ZipSample.zip'));
+
+const zipFile = (name = 'Loaded.zip') => {
+  return new File([SAMPLE_ZIP], name, { type: 'application/zip' });
 };
 
 beforeEach(() => {
@@ -82,6 +87,29 @@ describe('LoadProjectButton', () => {
     expect(mockPostBytesForJson).not.toHaveBeenCalled();
   });
 
+  it('shows the project name and folder read from the picked zip', async () => {
+    renderButton();
+
+    await pickFile(zipFile());
+
+    await waitFor(() => {
+      expect((screen.getByTestId('load-project-name') as HTMLInputElement).value).toBe('ZipSample');
+    });
+    const folder = screen.getByTestId('load-project-folder') as HTMLInputElement;
+    expect(folder.value).toBe('/projects/ZipSample');
+    expect(folder.readOnly).toBe(true);
+  });
+
+  it('says so when the picked file is not a project export', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => { });
+    renderButton();
+
+    await pickFile(new File([new Uint8Array([80, 75, 3, 4])], 'Broken.zip', { type: 'application/zip' }));
+
+    expect((await screen.findByTestId('load-project-read-error')).textContent).toContain('Broken.zip');
+    expect(console.error).toHaveBeenCalled();
+  });
+
   it('opens the file picker again on Choose another zip, and shows the new file', async () => {
     renderButton();
     await pickFile(zipFile());
@@ -89,7 +117,7 @@ describe('LoadProjectButton', () => {
 
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /choose another zip/i })); });
     expect(clicked).toHaveBeenCalled();
-    await pickFile(new File([new Uint8Array([80, 75, 3, 4])], 'Other.zip', { type: 'application/zip' }));
+    await pickFile(zipFile('Other.zip'));
 
     expect(screen.getByTestId('load-project-file-name').textContent).toBe('Other.zip');
   });
@@ -109,7 +137,7 @@ describe('LoadProjectButton', () => {
     });
     const [path, bytes, options] = mockPostBytesForJson.mock.calls[0];
     expect(path).toBe('/project/load');
-    expect(Array.from(new Uint8Array(bytes))).toEqual([80, 75, 3, 4]);
+    expect(Array.from(new Uint8Array(bytes))).toEqual(Array.from(SAMPLE_ZIP));
     expect(options).toEqual({ label: 'load project Loaded.zip' });
     expect(shownState).toEqual({ project: LOADED });
     expect(useProjectListStore.getState().projectNames).toEqual([{ name: 'Alpha' }, { name: 'Loaded' }]);

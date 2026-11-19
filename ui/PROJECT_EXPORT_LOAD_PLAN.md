@@ -56,7 +56,7 @@ Just load an exported zip. The project gets the name it had when exported.
 
 1. **Client: read the zip in the browser.** When a file is picked, open the zip (a zip library, e.g. `fflate`) and read its records with `pickleparser` (npm, reads Python pickle in the browser). Take the project name and the files folder from the settings record.
 2. **Client: show them read only** in the load dialog.
-3. **Check first:** `pickleparser` must handle the Python-only objects in our records (Mongo ids, dates). Try it on a real exported zip before building on it.
+3. **Check first:** `pickleparser` must handle the Python-only objects in our records (Mongo ids, dates). Try it on a real exported zip before building on it. Done: it reads both zip kinds; Mongo ids come out as raw bytes, which we don't need.
 4. **Tests.** Client test with a real exported zip as a test file.
 
 ## Part 3: Load with a new name
