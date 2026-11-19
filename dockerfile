@@ -70,9 +70,11 @@ RUN mkdir -p /root/.pyhera/log && \
 
 # RUN echo 'mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db' >> /root/.bashrc
 
-COPY ./ui/client /client
+# Package files first, so npm install reruns only when they change.
+COPY ./ui/client/package.json ./ui/client/package-lock.json /client/
 WORKDIR /client
 RUN npm install
+COPY ./ui/client /client
 RUN npm run build
 
 WORKDIR /app
