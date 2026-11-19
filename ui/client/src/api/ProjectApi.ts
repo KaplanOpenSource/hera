@@ -42,4 +42,11 @@ export class ProjectApi extends ApiCall {
       deleteFiles,
     }, { label: `delete project ${projectName}` });
   }
+
+  // The zip of the project's records; data files on disk are not in it.
+  async export(projectName: string): Promise<ArrayBuffer | null> {
+    return await this.postBytes('/project/export', {
+      projectName,
+    }, { label: `export project ${projectName}` });
+  }
 }

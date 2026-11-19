@@ -1,14 +1,14 @@
-"""The project entrypoints: the list, one project, its files, toolkits, create, delete, notebooks.
+"""The project entrypoints: the list, one project, its files, toolkits, create, delete, export, notebooks.
 
 Named routes replacing the project `/exec` calls the UI used to assemble in the
 browser. See ui/client/ENTRYPOINTS_PROJECTS_STEPS.md.
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 from fastapi.encoders import jsonable_encoder
 
-from api_models import CreateProjectPayload, DeleteProjectPayload, DetectNotebooksPayload
+from api_models import CreateProjectPayload, DeleteProjectPayload, DetectNotebooksPayload, ExportProjectPayload
 from dependencies import warmup
-from project_api.project_api import ProjectApi
+from project_api.project_api import DEFAULT_PROJECT, ProjectApi
 from project_api.project_files import ProjectFiles
 from project_api.toolkit_documents import toolkit_documents
 
@@ -95,6 +95,19 @@ def delete(payload: DeleteProjectPayload) -> dict:
     if remaining:
         nextProject = ProjectApi(remaining[0]["name"]).documents()
     return jsonable_encoder({"projects": remaining, "project": nextProject})
+
+
+@router.post("/export")
+def export(payload: ExportProjectPayload) -> Response:
+    """The project's records as a zip download. Data files on disk are not in it."""
+    project = _open_project(payload.projectName)
+    # hera only warns and writes nothing for the default project.
+    if payload.projectName == DEFAULT_PROJECT:
+        raise HTTPException(status_code=400, detail="the default project cannot be exported")
+    return Response(
+        content=project.export(),
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{payload.projectName}.zip"'})
 
 
 @router.post("/detectNotebooks")

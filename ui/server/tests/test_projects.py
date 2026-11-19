@@ -1,7 +1,9 @@
-"""The project entrypoints: the list, one project, toolkits, create, delete, notebooks."""
+"""The project entrypoints: the list, one project, toolkits, create, delete, export, notebooks."""
+import io
 import json
 import sys
 import types
+import zipfile
 
 import pytest
 from fastapi import HTTPException
@@ -22,6 +24,7 @@ class FakeDatabase:
         self.filesDirectories = dict(filesDirectories or {})
         self.created = []
         self.deletedIds = []
+        self.exports = []
 
     # --- hera.datalayer.All ---
 
@@ -50,7 +53,14 @@ class FakeDatabase:
         if filesDirectory:
             self.filesDirectories[projectName] = filesDirectory
         return types.SimpleNamespace(
-            filesDirectory=self.filesDirectories.get(projectName, ""))
+            filesDirectory=self.filesDirectories.get(projectName, ""),
+            export=lambda path, show_progressbar=True: self._export(projectName, path, show_progressbar))
+
+    def _export(self, projectName, path, show_progressbar):
+        # Like hera: one zip entry, written to whatever path or file object it is given.
+        self.exports.append({"projectName": projectName, "show_progressbar": show_progressbar})
+        with zipfile.ZipFile(path, mode="w") as zf:
+            zf.writestr("chunk_0", json.dumps(self.documents.get(projectName, [])))
 
     # --- hera.datalayer.Cache_Collection ---
 
@@ -405,6 +415,44 @@ class TestDeleteProject:
 
         assert raised.value.status_code == 500
         assert "still in the project list" in raised.value.detail
+
+
+class TestExportProject:
+    def test_answers_the_zip_hera_writes(self, fake_hera):
+        db = fake_hera(["Alpha"], {"Alpha": [{"x": 1}]})
+
+        data = ProjectApi("Alpha").export()
+
+        with zipfile.ZipFile(io.BytesIO(data)) as zf:
+            assert json.loads(zf.read("chunk_0")) == [{"x": 1}]
+        assert db.exports == [{"projectName": "Alpha", "show_progressbar": False}]
+
+    def test_route_answers_the_zip_as_a_download(self, fake_hera, warmed):
+        fake_hera(["Alpha"], {"Alpha": [{"x": 1}]})
+
+        answer = routes.export(types.SimpleNamespace(projectName="Alpha"))
+
+        assert answer.media_type == "application/octet-stream"
+        assert answer.headers["content-disposition"] == 'attachment; filename="Alpha.zip"'
+        with zipfile.ZipFile(io.BytesIO(answer.body)) as zf:
+            assert json.loads(zf.read("chunk_0")) == [{"x": 1}]
+
+    def test_route_rejects_the_default_project(self, fake_hera, warmed):
+        db = fake_hera([DEFAULT_PROJECT], {DEFAULT_PROJECT: []})
+
+        with pytest.raises(HTTPException) as raised:
+            routes.export(types.SimpleNamespace(projectName=DEFAULT_PROJECT))
+
+        assert raised.value.status_code == 400
+        assert db.exports == []
+
+    def test_route_rejects_an_unknown_project(self, fake_hera, warmed):
+        fake_hera(["Alpha"], {"Alpha": []})
+
+        with pytest.raises(HTTPException) as raised:
+            routes.export(types.SimpleNamespace(projectName="Nope"))
+
+        assert raised.value.status_code == 404
 
 
 class TestProjectFiles:

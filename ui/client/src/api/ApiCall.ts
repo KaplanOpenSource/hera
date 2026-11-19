@@ -104,4 +104,13 @@ export class ApiCall {
       body: JSON.stringify(body),
     }, options);
   }
+
+  // A POST whose answer is raw bytes, not JSON.
+  protected async postBytes(path: string, body: object, options: CallOptions): Promise<ArrayBuffer | null> {
+    return await this.call(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }, options, AnswerKind.Bytes);
+  }
 }

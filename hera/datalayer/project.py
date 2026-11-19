@@ -4,7 +4,7 @@ import json
 import os
 import pickle
 import zipfile
-from typing import Any
+from typing import IO, Any
 
 from deprecated import deprecated
 
@@ -300,13 +300,13 @@ class Project:
             else:
                 yield batch
     
-    def export(self, path:str, export_chunk_size:int=1024, show_progressbar:bool=True):
+    def export(self, path:str | IO[bytes], export_chunk_size:int=1024, show_progressbar:bool=True):
         """
             exports the project in chunks contained to one zip file
 
         Parameters
         ----------
-        path: str
+        path: str or file object
                 the path to the zip file to be created, overrides file if already exists
 
         export_chunk_size: int

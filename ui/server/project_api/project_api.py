@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import glob
+import io
 import os
 from typing import Any, Dict, List
 
@@ -86,6 +87,13 @@ class ProjectApi:
             All.deleteDocumentByID(doc["_id"]["$oid"])
 
         files.remove_if_empty()
+
+    def export(self) -> bytes:
+        """The zip of the project's records that hera's Project.export writes."""
+        from hera.datalayer.project import Project
+        buffer = io.BytesIO()
+        Project(projectName=self.projectName).export(buffer, show_progressbar=False)
+        return buffer.getvalue()
 
     def detect_notebooks(self, filesDirectory: str) -> int:
         """Register every notebook under the directory that is not tracked yet.

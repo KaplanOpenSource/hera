@@ -5,10 +5,11 @@ const { projectApi } = await import('../src/api/api');
 
 let getJson: ReturnType<typeof vi.fn>;
 let postJson: ReturnType<typeof vi.fn>;
+let postBytes: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  ({ getJson, postJson } = mockApiCall());
+  ({ getJson, postJson, postBytes } = mockApiCall());
 });
 
 describe('projectApi.names', () => {
@@ -124,5 +125,23 @@ describe('projectApi.delete', () => {
     postJson.mockResolvedValueOnce(null);
 
     expect(await projectApi.delete('A', false)).toBeNull();
+  });
+});
+
+describe('projectApi.export', () => {
+  it('sends the name and returns the zip bytes', async () => {
+    const bytes = new Uint8Array([1, 2]).buffer;
+    postBytes.mockResolvedValueOnce(bytes);
+
+    expect(await projectApi.export('A')).toBe(bytes);
+    expect(postBytes).toHaveBeenCalledWith('/project/export',
+      { projectName: 'A' },
+      { label: 'export project A' });
+  });
+
+  it('returns null when the call failed', async () => {
+    postBytes.mockResolvedValueOnce(null);
+
+    expect(await projectApi.export('A')).toBeNull();
   });
 });
