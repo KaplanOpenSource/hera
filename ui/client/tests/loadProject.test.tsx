@@ -43,6 +43,16 @@ const pickFile = async (file: File) => {
   await act(async () => { fireEvent.change(input, { target: { files: [file] } }); });
 };
 
+// True when the element with id `later` comes after the one with id `earlier` in the page.
+const follows = (earlier: string, later: string) => {
+  const position = screen.getByTestId(earlier).compareDocumentPosition(screen.getByTestId(later));
+  return (position & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+};
+
+const isBetween = (before: string, middle: string, after: string) => {
+  return follows(before, middle) && follows(middle, after);
+};
+
 const loadButton = () => {
   return screen.getByRole('button', { name: 'Load' }) as HTMLButtonElement;
 };
@@ -135,8 +145,20 @@ describe('LoadProjectButton', () => {
     await pickFile(zipFile());
 
     expect((await screen.findByTestId('load-project-name-taken')).textContent).toContain('ZipSample');
+    expect(isBetween('load-project-name', 'load-project-name-taken', 'load-project-folder')).toBe(true);
     expect(loadButton().disabled).toBe(true);
     expect(screen.queryByTestId('load-project-shared-folder')).toBeNull();
+  });
+
+  it('shows both the name error and the folder warning when the same project still exists', async () => {
+    mockGetJson.mockResolvedValue({ projects: [{ name: 'ZipSample', filesDirectory: '/projects/ZipSample' }] });
+    renderButton();
+
+    await pickFile(zipFile());
+
+    expect((await screen.findByTestId('load-project-name-taken')).textContent).toContain('ZipSample');
+    expect(screen.getByTestId('load-project-shared-folder').textContent).toContain('ZipSample');
+    expect(loadButton().disabled).toBe(true);
   });
 
   it('warns but allows Load when other projects use the zip\'s folder', async () => {
@@ -151,6 +173,7 @@ describe('LoadProjectButton', () => {
 
     expect((await screen.findByTestId('load-project-shared-folder')).textContent).toContain('Alpha, Beta');
     expect(screen.getByTestId('load-project-shared-folder').textContent).not.toContain('Gamma');
+    expect(follows('load-project-folder', 'load-project-shared-folder')).toBe(true);
     await waitFor(() => {
       expect(loadButton().disabled).toBe(false);
     });

@@ -54,7 +54,7 @@ export const LoadProjectDialog = ({
 
   const nameTaken = !!zipInfo && folders.some((p) => p.name === zipInfo.name);
   const sharedWith = folders
-    .filter((p) => !!zipInfo && !!p.filesDirectory && p.filesDirectory === zipInfo.filesDirectory && p.name !== zipInfo.name)
+    .filter((p) => !!zipInfo && !!p.filesDirectory && p.filesDirectory === zipInfo.filesDirectory)
     .map((p) => p.name);
 
   const loadProject = async () => {
@@ -96,6 +96,11 @@ export const LoadProjectDialog = ({
             size="small"
             slotProps={{ input: { readOnly: true }, htmlInput: { 'data-testid': 'load-project-name' } }}
           />
+          {nameTaken && (
+            <Typography variant="caption" color="error" data-testid="load-project-name-taken">
+              A project named {zipInfo?.name} already exists
+            </Typography>
+          )}
           <TextField
             label="Files folder"
             value={zipInfo?.filesDirectory ?? ''}
@@ -104,19 +109,14 @@ export const LoadProjectDialog = ({
             size="small"
             slotProps={{ input: { readOnly: true }, htmlInput: { 'data-testid': 'load-project-folder' } }}
           />
+          {sharedWith.length > 0 && (
+            <Typography variant="caption" color="warning.main" data-testid="load-project-shared-folder">
+              This folder is also used by: {sharedWith.join(', ')}
+            </Typography>
+          )}
           {readError && (
             <Typography color="error" data-testid="load-project-read-error">
               {readError}
-            </Typography>
-          )}
-          {nameTaken && (
-            <Typography color="error" data-testid="load-project-name-taken">
-              A project named {zipInfo?.name} already exists
-            </Typography>
-          )}
-          {sharedWith.length > 0 && (
-            <Typography color="warning.main" data-testid="load-project-shared-folder">
-              This folder is also used by: {sharedWith.join(', ')}
             </Typography>
           )}
         </DialogContent>
