@@ -22,8 +22,6 @@ if __name__ == "__main__":
     setup_template = lsm_subparsers.add_parser('setup', help='setup template after loading its repository, creates symbolic links as necessary')
     setup_template.add_argument('templateName', type=str, default=None,
                             help='name of the template to setup')
-    setup_template.add_argument('codeDir', type=str, default=None,
-                            help="the directory with the template's code")
     setup_template.add_argument('--templateVersion', type=str, default="1",
                             help='version of the template, defaults to 1')
     setup_template.add_argument('--projectName', type=str, default=None,
@@ -38,7 +36,7 @@ if __name__ == "__main__":
 
 
     argcomplete.autocomplete(parser)
-    parsed = parser.parse_args()()
+    parsed = parser.parse_args()
     logger.debug(f"Got {parsed} in the command line")
     if 'func' not in parsed:
         parser.print_help()
