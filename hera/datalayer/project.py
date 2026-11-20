@@ -3,6 +3,8 @@ import itertools
 import json
 import os
 import pickle
+import re
+import shutil
 import zipfile
 from typing import IO, Any, Iterator
 
@@ -277,7 +279,7 @@ class Project:
 
         if self.projectName != self.DEFAULTPROJECT:
             os.makedirs(os.path.abspath(filesDirectory),exist_ok=True)
-        self._FilesDirectory = str(filesDirectory)
+        self._FilesDirectory = filesDirectory
 
     @staticmethod
     def _batched_cursor(cur, export_chunk_size:int|None):# -> Generator[list, Any, None]:
@@ -415,6 +417,73 @@ class Project:
                     if mergeIfConfigDoc(pickled_doc):
                         continue
                     proj._all._metadataCol.objects.insert(proj._all._metadataCol(**(proj.updateProjectNameOnDoc(pickled_doc))), load_bulk=False)
+
+    def rename(self, new_name: str) -> None:
+        """
+            Renames the project: every document of the project moves to the new name,
+            and the config document's type becomes `<new_name>__config__`.
+
+            Each document is updated atomically, but the project as a whole is not
+            (there is no transaction). Other Project or toolkit instances open on the
+            old name keep it; open them again. caseConfiguration.json files that name
+            the project are not changed.
+
+        Parameters
+        ----------
+        new_name : str
+                The new project name. It must not be in use.
+        """
+        old_name = self.projectName
+        if self.DEFAULTPROJECT in (old_name, new_name):
+            raise ValueError(f"The default project cannot be renamed, and no project can take its name")
+        if not new_name or new_name == old_name:
+            raise ValueError(f"The new name must be a different, non-empty name, got '{new_name}'")
+        metadata = self._all._metadataCol._get_collection()
+        if metadata.count_documents({"projectName": new_name}, limit=1):
+            raise ValueError(f"A project named '{new_name}' already exists")
+
+        old_config, new_config = f"{old_name}__config__", f"{new_name}__config__"
+        metadata.update_many({"projectName": old_name},
+                             [{"$set": {"projectName": new_name,
+                                        "type": {"$cond": [{"$eq": ["$type", old_config]}, new_config, "$type"]}}}])
+        self._projectName = new_name
+
+    def relocate(self, new_files_directory: str) -> None:
+        """
+            Moves the project's files directory and points every resource of the project
+            that lies inside it to the new location.
+
+            If the new directory does not exist, the files directory is moved there.
+            If it already exists (the files were copied, e.g. with rsync), nothing is
+            moved or deleted and only the references change.
+
+        Parameters
+        ----------
+        new_files_directory : str
+                The new files directory. It must not be inside the current one.
+        """
+        if self.projectName == self.DEFAULTPROJECT:
+            raise ValueError("The default project has no files directory to relocate")
+        old = os.path.abspath(self.filesDirectory)
+        new = os.path.abspath(new_files_directory)
+        if new == old or new.startswith(old + os.sep):
+            raise ValueError(f"The new files directory must be outside {old}, got {new}")
+
+        if not os.path.exists(new):
+            os.makedirs(os.path.dirname(new), exist_ok=True)
+            if os.path.exists(old):
+                shutil.move(old, new)
+        os.makedirs(new, exist_ok=True)
+
+        # ponytail: one round trip per document; a pipeline update with $replaceOne would be one
+        # (mongomock, which the unit tests run on, implements neither it nor $substrCP).
+        metadata = self._all._metadataCol._get_collection()
+        inside = {"projectName": self.projectName, "resource": {"$regex": f"^{re.escape(old)}(/|$)"}}
+        for doc in list(metadata.find(inside, {"resource": 1})):
+            metadata.update_one({"_id": doc["_id"]}, {"$set": {"resource": new + doc["resource"][len(old):]}})
+
+        self.setConfig(filesDirectory=new)
+        self._FilesDirectory = new
 
     @property
     def simulations(self) -> Simulations_Collection:
@@ -973,7 +1042,7 @@ class Project:
             return self.getSimulationsDocuments
         elif dockind.lower() in ["cache", "cached"]:
             return self.getCacheDocuments
-        elif dockind.lower() in ["simulation", "simulations"]:
+        elif dockind.lower() in ["measurement", "measurements"]:
             return self.getMeasurementsDocuments
         raise NotImplementedError(f"Retrieve function for {dockind} isn't implemented, choose one of 'simulations', 'cache', 'measurements")
 

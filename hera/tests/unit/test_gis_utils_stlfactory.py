@@ -1,14 +1,10 @@
 """stlFactory: converting height-contour geopandas/pandas data to an STL raster.
 
-One defect surfaced while probing ``vectorToSTL``:
-
-* B74: it dispatches with
-  ``isinstance(gpandas, pandas.DataFrame) or isinstance(gpandas, dask.dataframe.DataFrame)``,
-  but ``dask`` is never imported anywhere in this module. Passing a
-  ``geopandas.GeoDataFrame`` or a plain ``pandas.DataFrame`` never reaches
-  the second operand (short-circuit ``or``), so those work -- but anything
-  that is neither raises ``NameError: name 'dask' is not defined`` instead
-  of the intended ``TypeError``-shaped rejection.
+One defect surfaced while probing ``vectorToSTL`` (B74, fixed): it
+dispatched on ``isinstance(gpandas, dask.dataframe.DataFrame)`` while
+``dask`` was never imported in the module, and an input that was neither a
+``GeoDataFrame`` nor a plain ``pandas.DataFrame`` fell through without a
+rejection at all.
 """
 import geopandas
 import numpy
@@ -62,20 +58,8 @@ class TestRasterizeGeopandas:
 
 @pytest.mark.unit
 class TestVectorToSTLDispatch:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B74: the dask branch of vectorToSTL's isinstance check "
-               "references the name `dask`, which this module never "
-               "imports. Anything that is neither a GeoDataFrame nor a "
-               "plain pandas.DataFrame raises NameError instead of a "
-               "clean type rejection. See the consolidated findings issue.",
-    )
-    def test_an_unsupported_type_should_be_rejected_cleanly(self):
-        stlFactory().vectorToSTL(object())
-
-    def test_an_unsupported_type_currently_raises_nameerror(self):
-        """Characterisation of B74."""
-        with pytest.raises(NameError, match="dask"):
+    def test_an_unsupported_type_is_rejected_cleanly(self):
+        with pytest.raises(TypeError, match="gpandas must be"):
             stlFactory().vectorToSTL(object())
 
     def test_a_geodataframe_produces_an_ascii_stl_string(self):

@@ -119,14 +119,6 @@ class TestRoundTrip:
         assert isinstance(restored, dict)
         assert "magnitude" in restored
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B13: returnStandardize is documented as 'return the units in MKS', "
-               "but the decoder reads the 'units' field, which only holds base "
-               "units when the ENCODER was given standardize=True. Asking the "
-               "decoder for MKS on a non-standardized document silently returns "
-               "the original units. See the consolidated findings issue.",
-    )
     def test_decoder_can_standardize_on_its_own(self):
         """returnStandardize=True must mean MKS regardless of how it was encoded."""
         encoded = ConfigurationToJSON({"v": 5 * ureg.km}, splitUnits=True)

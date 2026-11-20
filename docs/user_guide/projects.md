@@ -306,3 +306,22 @@ The CLI has a separate, JSON-based dump/load (not the zip format above):
 hera-project project dump WindStudy --format json --fileName backup.json
 hera-project project load WindStudy backup.json
 ```
+
+### Renaming and moving a project
+
+```python
+proj = Project(projectName="WindStudy")
+
+# Every document moves to the new name, the config (and its counters) included
+proj.rename("WindStudy2025")
+
+# Move the files directory and point the resources inside it to the new place
+proj.relocate("/data/projects/WindStudy2025")
+```
+
+| Method | Description |
+|--------|-------------|
+| `rename(new_name)` | Rename the project in the DB. Refuses a name that is already in use and the default project. Other open instances keep the old name; `caseConfiguration.json` files that name the project are not changed |
+| `relocate(new_files_directory)` | Move the files directory and rewrite every resource of the project that lies inside it. If the new directory already exists (the files were copied there), nothing is moved and only the references change |
+
+Neither is a transaction: each document is updated atomically, the project as a whole is not.

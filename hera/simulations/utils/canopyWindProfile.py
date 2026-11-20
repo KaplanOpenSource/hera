@@ -76,7 +76,9 @@ def urbanLogExponentProfile(cellCenters, lambdaGrid, stations):
             # we want to put the profile only in the lambda matrix cells center
             ret = numpy.nan
         else:
-            if z < hc:
+            if z <= hc:
+                # The canopy top belongs to the exponential branch; both
+                # branches give Uh there, so the choice is a tie-break.
                 ret = Uh*numpy.exp(beta * (z - hc) / ll)
             elif (z > hc) and (z < surfaceLayerHeight):
                 ret =  (Uh * beta / karman) * numpy.log((z - hc + dd) / zz0)
@@ -197,12 +199,16 @@ def urbanLogExponentProfile(cellCenters, lambdaGrid, stations):
             xi = np.where(lat == x)[0][0]
             yi = np.where(lon == y)[0][0]
             zi = np.where(elev == z)[0][0]
+            # Single .iloc on the frame: `data['Ux'].iloc[i] = ...` is a
+            # chained assignment and is discarded under copy-on-write.
+            uxCol = data.columns.get_loc('Ux')
+            uyCol = data.columns.get_loc('Uy')
             if np.isnan(gdxl[xi, yi, zi]):
-                data['Ux'].iloc[i] = gdxn[xi, yi, zi]
-                data['Uy'].iloc[i] = gdyn[xi, yi, zi]
+                data.iloc[i, uxCol] = gdxn[xi, yi, zi]
+                data.iloc[i, uyCol] = gdyn[xi, yi, zi]
             else:
-                data['Ux'].iloc[i] = gdxl[xi, yi, zi]
-                data['Uy'].iloc[i] = gdyl[xi, yi, zi]
+                data.iloc[i, uxCol] = gdxl[xi, yi, zi]
+                data.iloc[i, uyCol] = gdyl[xi, yi, zi]
 
 
     if interpolation=='linear1':

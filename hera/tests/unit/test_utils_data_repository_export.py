@@ -1,11 +1,11 @@
 """repositoryExport.py: pure dict/JSON helpers for exporting Metadata
 documents into a repository-JSON structure. No DB, no file IO.
 
-B91: mergeDocumentsIntoRepository appends the pre-disambiguation item_name
-to report['added']/['overwritten'] before _uniqueItemName renames the key
-actually written to the dict -- on a name collision between distinct
-documents, the report names an item that isn't the one just added. See
-TestMergeReportNameIsBrokenOnCollision.
+B91 (fixed): mergeDocumentsIntoRepository used to append the
+pre-disambiguation item_name to report['added']/['overwritten'] before
+_uniqueItemName renamed the key actually written to the dict, so on a name
+collision between distinct documents the report named an item that was not
+the one just added. See TestMergeReportNameOnCollision.
 """
 import pytest
 
@@ -112,20 +112,11 @@ class TestMergeDocumentsIntoRepository:
 
 
 @pytest.mark.unit
-class TestMergeReportNameIsBrokenOnCollision:
-    """B91: mergeDocumentsIntoRepository appends the pre-disambiguation
-    item_name to report['added']/['overwritten'] before _uniqueItemName
-    renames it -- so on a name collision with distinct content, the report
-    names an item_name that is not actually a key in the returned repo."""
+class TestMergeReportNameOnCollision:
+    """B91: the reported item_name has to be the key the document was
+    actually stored under, i.e. the one _uniqueItemName returned."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B91: report['added'] is recorded before _uniqueItemName "
-               "disambiguates the key, so it can name an item that was "
-               "never actually stored under that name. "
-               "See the consolidated findings issue.",
-    )
-    def test_the_reported_name_should_point_to_the_just_added_document(self):
+    def test_the_reported_name_points_to_the_just_added_document(self):
         repo, _ = re.mergeDocumentsIntoRepository({}, [_doc(oid="id1", type_="A")], "MyToolkit")
         repo2, report2 = re.mergeDocumentsIntoRepository(
             repo, [_doc(oid="id1", type_="B")], "MyToolkit"
@@ -133,18 +124,16 @@ class TestMergeReportNameIsBrokenOnCollision:
         reported_entry = repo2["MyToolkit"]["Measurements"][report2["added"][0]]
         assert reported_entry["item"]["type"] == "B"
 
-    def test_currently_the_reported_name_belongs_to_a_different_document(self):
-        """Characterisation of B91: report2['added'] == ['id1'], but the
-        actual key 'id1' in repo2 is the *first* document (added by the
-        earlier call); the second document actually landed at a
-        disambiguated key the report never mentions."""
+    def test_the_reported_name_is_the_disambiguated_key(self):
+        """'id1' stays with the first document; the report names the
+        disambiguated key the second one actually landed at."""
         repo, _ = re.mergeDocumentsIntoRepository({}, [_doc(oid="id1", type_="A")], "MyToolkit")
         repo2, report2 = re.mergeDocumentsIntoRepository(
             repo, [_doc(oid="id1", type_="B")], "MyToolkit"
         )
-        assert report2["added"] == ["id1"]
-        stored_under_id1 = repo2["MyToolkit"]["Measurements"]["id1"]
-        assert stored_under_id1["item"]["type"] == "A"  # not the just-added "B" document
+        assert report2["added"] != ["id1"]
+        assert report2["added"][0].startswith("id1_")
+        assert repo2["MyToolkit"]["Measurements"]["id1"]["item"]["type"] == "A"
 
 
 @pytest.mark.unit

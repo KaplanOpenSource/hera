@@ -79,7 +79,7 @@ def initialize_logging(*logger_overrides: (str, dict), disable_existing_loggers:
     logging.config.dictConfig(config)
 
 
-def with_logger(logger_name, level=None, handlers=None, propagate=None) -> (str, dict):
+def with_logger(logger_name, level=None, handlers=None, propagate=None) -> (str, dict, str):
     """Build a dictionary describing a logger, for use with initialize_logging()"""
     logger_dict = dict(level=level, handlers=handlers, propagate=propagate)
     # Remove from dict parameters not supplied; this allows the use here

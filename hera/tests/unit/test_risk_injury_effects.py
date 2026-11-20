@@ -32,9 +32,6 @@ Deliberately not covered here:
   probit itself -- see ``test_risk_injurylevel*.py``.  The timestamps the
   contour code stamps onto its output are its business, so the tests below
   assert row counts and geometry rather than datetime values.
-* ``Injury.getPercent`` on a *threshold* injury is only characterised, not
-  asserted: it dies inside ``InjuryLevelThreshold.getPercent`` on the
-  already-recorded B39/B12 cross-registry ``tounit`` defect.
 
 Bugs found while writing this file are pinned below as xfail(strict)/
 characterisation pairs: B122 (``Injury.__str__`` returns None),
@@ -397,13 +394,11 @@ class TestGetPercent:
         with pytest.raises(ValueError, match="not in list"):
             lognormal_injury.getPercent("Fatal", 100.0)
 
-    def test_a_threshold_injury_cannot_report_a_percent_at_all(self, threshold_injury):
-        """Characterisation of the recorded B39/B12 defect, reached here
-        through the Injury API: InjuryLevelThreshold.getPercent builds its
-        comparison value with the application-registry pint.Quantity while
-        the threshold lives in hera's own registry."""
-        with pytest.raises(ValueError, match="different registries"):
-            threshold_injury.getPercent("Severe", 20.0)
+    def test_a_threshold_injury_reports_a_step(self, threshold_injury):
+        """The threshold is 10 mg/m**3, so a numeric toxic load either
+        clears it or does not."""
+        assert float(threshold_injury.getPercent("Severe", 5.0)) == 0
+        assert float(threshold_injury.getPercent("Severe", 20.0)) == 1
 
 
 # ---------------------------------------------------------------------------
