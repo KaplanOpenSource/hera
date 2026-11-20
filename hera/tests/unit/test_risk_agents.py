@@ -77,6 +77,12 @@ class TestAgentToJSON:
         assert set(j["effect"]) == {"RegularPopulation"}
         assert j["effect"]["RegularPopulation"]["calculator"]["type"] == "tenBerge"
 
+    def test_str_is_the_pretty_printed_json(self):
+        import json
+
+        agent = Agent(_agent_descriptor())
+        assert str(agent) == json.dumps(agent.toJSON(), indent=4)
+
 
 @pytest.mark.unit
 class TestPhysicalPropetiesConstruction:

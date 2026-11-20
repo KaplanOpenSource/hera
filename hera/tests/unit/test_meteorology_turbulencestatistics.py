@@ -30,6 +30,7 @@ import pandas
 import pytest
 
 from hera.measurements.meteorology.highfreqdata.analysis.turbulencestatistics import (
+    InMemoryAvgData,
     InMemoryRawData,
     singlePointTurbulenceStatistics,
 )
@@ -269,3 +270,41 @@ class TestInMemoryRawData:
 
         loaded = InMemoryRawData.read_hdf(target, key="raw")
         assert loaded._Attrs == {}
+
+
+@pytest.mark.unit
+class TestTKE:
+    def test_tke_is_half_the_trace_of_the_diagonal_second_moments(self, ts):
+        ts.TKE()
+        expected = 0.5 * (ts._TemporaryData["uu"] + ts._TemporaryData["vv"] + ts._TemporaryData["ww"])
+        assert numpy.allclose(ts._TemporaryData["TKE"], expected)
+
+    def test_calling_it_twice_does_not_recompute(self, ts):
+        ts.TKE()
+        first = ts._TemporaryData["TKE"].copy()
+        ts.TKE()
+        assert numpy.allclose(ts._TemporaryData["TKE"], first)
+
+
+@pytest.mark.unit
+class TestInMemoryAvgDataGetattr:
+    def test_no_calculator_raises_attributeerror(self):
+        avg = InMemoryAvgData.__new__(InMemoryAvgData)
+        avg._TurbulenceCalculator = None
+        with pytest.raises(AttributeError, match="_TurbulenceCalculator"):
+            avg.TKE
+
+    def test_an_unknown_attribute_raises_notimplementederror(self, ts):
+        avg = InMemoryAvgData(turbulenceCalculator=ts)
+        with pytest.raises(NotImplementedError, match="NoSuchThing"):
+            avg.NoSuchThing
+
+    def test_compute_is_returned_unwrapped(self, ts):
+        avg = InMemoryAvgData(turbulenceCalculator=ts)
+        assert avg.compute == ts.compute
+
+    def test_a_calculator_method_is_wrapped_with_inmemory_set_to_self(self, ts):
+        avg = InMemoryAvgData(turbulenceCalculator=ts)
+        result = avg.TKE()
+        assert result is ts
+        assert ts._InMemoryAvgRef is avg
