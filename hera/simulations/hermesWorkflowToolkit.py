@@ -1028,7 +1028,7 @@ class hermesWorkflowToolkit(abstractToolkit):
 
         Returns
         -------
-            pandas.DataFrame or dict
+            dict
             A list of the simulations.old and their values.
 
         """
