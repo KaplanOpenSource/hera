@@ -18,7 +18,9 @@ import { projectApi } from "../../api/api";
 import { ProjectFolder } from "../../shared/types";
 import { DEFAULT_PROJECT } from "../../stores/useProjectStore";
 import { useAppTheme } from "../../theme";
+import { ExportProgress } from "./ExportProgress";
 import { ExportProjectsButton } from "./ExportProjectsButton";
+import { ExportStep } from "./ExportStep";
 import { FolderCheckEnum } from "./FolderCheckEnum";
 import { isFilesFolderEmpty } from "./isFilesFolderEmpty";
 import { ManageProjectsRow } from "./ManageProjectsRow";
@@ -36,6 +38,7 @@ export const ManageProjectsDialog = ({
   const [folderChecks, setFolderChecks] = useState<{ [name: string]: FolderCheckEnum }>({});
   const [search, setSearch] = useState('');
   const [marks, setMarks] = useState<{ [name: string]: boolean }>({});
+  const [exportStep, setExportStep] = useState<ExportStep | null>(null);
 
   const toggleMark = (name: string) => {
     setMarks((prev) => {
@@ -170,8 +173,9 @@ export const ManageProjectsDialog = ({
             </TableBody>
           </Table>
         </DialogContent>
+        {exportStep && <ExportProgress step={exportStep} />}
         <DialogActions>
-          <ExportProjectsButton names={markedNames} />
+          <ExportProjectsButton names={markedNames} onProgress={setExportStep} />
           <Button onClick={onClose}>
             Close
           </Button>

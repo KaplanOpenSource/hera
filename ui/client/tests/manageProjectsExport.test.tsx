@@ -219,3 +219,56 @@ describe('ManageProjectsDialog export', () => {
     expect(exportButton().textContent).toBe('Export 1 project');
   });
 });
+
+const progressText = () => {
+  return screen.queryByTestId('manage-projects-progress-text')?.textContent;
+};
+
+const progressValue = () => {
+  return screen.getByTestId('manage-projects-progress-bar').getAttribute('aria-valuenow');
+};
+
+describe('ManageProjectsDialog export progress', () => {
+  it('shows the bar and the count while exporting, and hides it after success', async () => {
+    const answers: ((v: ArrayBuffer) => void)[] = [];
+    mockPostBytes.mockImplementation(() => {
+      return new Promise((r) => { answers.push(r); });
+    });
+    await openWithRows();
+    expect(screen.queryByTestId('manage-projects-progress')).toBeNull();
+    fireEvent.click(markAllBox());
+
+    await clickExport();
+    expect(progressText()).toBe('Exporting 1 of 3: Alpha');
+    expect(progressValue()).toBe('0');
+
+    await act(async () => { answers[0](new Uint8Array([1]).buffer); });
+    expect(progressText()).toBe('Exporting 2 of 3: Beta');
+    expect(progressValue()).toBe('33');
+
+    await act(async () => { answers[1](new Uint8Array([1]).buffer); });
+    expect(progressText()).toBe('Exporting 3 of 3: Gamma');
+    expect(progressValue()).toBe('67');
+
+    await act(async () => { answers[2](new Uint8Array([1]).buffer); });
+    expect(clickedDownloads).toEqual(['projects.zip']);
+    expect(screen.queryByTestId('manage-projects-progress')).toBeNull();
+  });
+
+  it('hides the bar after a failed export', async () => {
+    let answer!: (v: ArrayBuffer | null) => void;
+    mockPostBytes.mockImplementation(() => {
+      return new Promise((r) => { answer = r; });
+    });
+    await openWithRows();
+    fireEvent.click(markBox('Beta'));
+    fireEvent.click(markBox('Gamma'));
+
+    await clickExport();
+    expect(progressText()).toBe('Exporting 1 of 2: Beta');
+
+    await act(async () => { answer(null); });
+    expect(mockPushError).toHaveBeenCalledWith('Export stopped: Beta failed.');
+    expect(screen.queryByTestId('manage-projects-progress')).toBeNull();
+  });
+});
