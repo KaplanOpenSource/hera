@@ -45,6 +45,7 @@ export interface ProjectFolder {
   name: string;
   filesDirectory: string;
   folderExists: boolean;
+  documentCount: number;
 }
 
 export interface Project {

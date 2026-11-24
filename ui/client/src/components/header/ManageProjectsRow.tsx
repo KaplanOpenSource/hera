@@ -2,18 +2,21 @@ import { TableCell, TableRow, Typography } from "@mui/material";
 import { ProjectFolder } from "../../shared/types";
 import { FolderCheckEnum } from "./FolderCheckEnum";
 import { MarkProjectCheckbox } from "./MarkProjectCheckbox";
+import { SwitchToProjectButton } from "./SwitchToProjectButton";
 
-// One project in the manage table: a mark, its name, files folder, and an empty-folder note.
+// One project in the manage table: a mark, its name, files folder, document count, a folder note, and a switch button.
 export const ManageProjectsRow = ({
   project,
   folderCheck,
   marked,
   onToggle,
+  onSwitched,
 }: {
   project: ProjectFolder,
   folderCheck: FolderCheckEnum,
   marked: boolean,
   onToggle: (shift: boolean) => void,
+  onSwitched: () => void,
 }) => {
   let folderText = 'No directory';
   if (project.filesDirectory) {
@@ -35,6 +38,9 @@ export const ManageProjectsRow = ({
       <TableCell sx={{ overflowWrap: 'anywhere', color: 'text.secondary' }}>
         {folderText}
       </TableCell>
+      <TableCell data-testid="manage-projects-documents">
+        {project.documentCount}
+      </TableCell>
       <TableCell>
         {folderCheck === FolderCheckEnum.Checking && (
           <Typography variant="caption" color="text.secondary" data-testid="manage-projects-checking">
@@ -51,6 +57,12 @@ export const ManageProjectsRow = ({
             empty folder
           </Typography>
         )}
+      </TableCell>
+      <TableCell>
+        <SwitchToProjectButton
+          name={project.name}
+          onSwitched={onSwitched}
+        />
       </TableCell>
     </TableRow>
   );

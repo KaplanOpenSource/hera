@@ -22,6 +22,8 @@ import { DeleteProjectsButton } from "./DeleteProjectsButton";
 import { ExportProjectsButton } from "./ExportProjectsButton";
 import { FolderCheckEnum } from "./FolderCheckEnum";
 import { isFilesFolderEmpty } from "./isFilesFolderEmpty";
+import { EmptyProjectsToggle } from "./EmptyProjectsToggle";
+import { isEmptyProject } from "./isEmptyProject";
 import { ManageProjectsRow } from "./ManageProjectsRow";
 import { MarkAllCheckbox } from "./MarkAllCheckbox";
 
@@ -36,6 +38,7 @@ export const ManageProjectsDialog = ({
   const [projects, setProjects] = useState<ProjectFolder[]>([]);
   const [folderChecks, setFolderChecks] = useState<{ [name: string]: FolderCheckEnum }>({});
   const [search, setSearch] = useState('');
+  const [onlyEmpty, setOnlyEmpty] = useState(false);
   const [marks, setMarks] = useState<{ [name: string]: boolean }>({});
   const [lastClicked, setLastClicked] = useState<string | null>(null);
 
@@ -85,7 +88,10 @@ export const ManageProjectsDialog = ({
   const searchLower = search.trim().toLowerCase();
   const filtered: ProjectFolder[] = [];
   for (const project of projects) {
-    if (project.name.toLowerCase().includes(searchLower)) {
+    const matchesSearch = project.name.toLowerCase().includes(searchLower);
+    const folderCheck = folderChecks[project.name] ?? FolderCheckEnum.Checking;
+    const matchesEmpty = !onlyEmpty || isEmptyProject(project, folderCheck);
+    if (matchesSearch && matchesEmpty) {
       filtered.push(project);
     }
   }
@@ -158,10 +164,18 @@ export const ManageProjectsDialog = ({
     }
   }
 
+  let shownMarkedCount = 0;
+  for (const project of filtered) {
+    if (marks[project.name]) {
+      shownMarkedCount += 1;
+    }
+  }
+
+  // Marking leaves exactly the shown rows marked, so a hidden row is never marked by it; clearing clears all.
   const markAll = (mark: boolean) => {
     const next: { [name: string]: boolean } = {};
     if (mark) {
-      for (const project of projects) {
+      for (const project of filtered) {
         next[project.name] = true;
       }
     }
@@ -187,6 +201,10 @@ export const ManageProjectsDialog = ({
             size="small"
             slotProps={{ htmlInput: { 'data-testid': 'manage-projects-search' } }}
           />
+          <EmptyProjectsToggle
+            onlyEmpty={onlyEmpty}
+            onChange={setOnlyEmpty}
+          />
           <Typography variant="body2" color="text.secondary" data-testid="manage-projects-count">
             {countText}
           </Typography>
@@ -199,14 +217,16 @@ export const ManageProjectsDialog = ({
               <TableRow>
                 <TableCell padding="checkbox">
                   <MarkAllCheckbox
-                    markedCount={markedNames.length}
-                    total={projects.length}
+                    markedCount={shownMarkedCount}
+                    total={filtered.length}
                     onMarkAll={markAll}
                   />
                 </TableCell>
-                <TableCell sx={{ width: '30%' }}>Name</TableCell>
-                <TableCell sx={{ width: '45%' }}>Files folder</TableCell>
-                <TableCell sx={{ width: '25%' }}>Note</TableCell>
+                <TableCell sx={{ width: '22%' }}>Name</TableCell>
+                <TableCell sx={{ width: '35%' }}>Files folder</TableCell>
+                <TableCell sx={{ width: '10%' }}>Documents</TableCell>
+                <TableCell sx={{ width: '18%' }}>Note</TableCell>
+                <TableCell sx={{ width: '15%' }} />
               </TableRow>
             </TableHead>
             <TableBody>
@@ -217,6 +237,7 @@ export const ManageProjectsDialog = ({
                   folderCheck={folderChecks[project.name] ?? FolderCheckEnum.Checking}
                   marked={!!marks[project.name]}
                   onToggle={(shift) => toggleMark(project.name, shift)}
+                  onSwitched={onClose}
                 />
               ))}
             </TableBody>

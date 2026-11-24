@@ -17,6 +17,7 @@ def fake_hera(monkeypatch):
         datalayer = types.ModuleType("hera.datalayer")
         datalayer.All = types.SimpleNamespace(
             getDocumentsAsDict=db.getDocumentsAsDict,
+            getDocuments=db.getDocuments,
             deleteDocumentByID=db.deleteDocumentByID)
         datalayer.Cache_Collection = db.Cache_Collection
 

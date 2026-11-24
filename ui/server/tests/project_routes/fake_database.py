@@ -21,6 +21,10 @@ class FakeDatabase:
     def getDocumentsAsDict(self, projectName, with_id=False):
         return {"documents": self.documents.get(projectName, [])}
 
+    def getDocuments(self, projectName):
+        docs = self.documents.get(projectName, [])
+        return types.SimpleNamespace(count=lambda: len(docs))
+
     def deleteDocumentByID(self, docId):
         self.deletedIds.append(docId)
         for name, docs in self.documents.items():

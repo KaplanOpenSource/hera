@@ -43,14 +43,14 @@ describe('ManageProjectsDialog', () => {
     expect(mockGetJson).toHaveBeenCalledWith('/project/folders', {}, { label: 'project folders' });
   });
 
-  it('shows the mark column and the three column titles in the header', async () => {
+  it('shows the column titles in the header', async () => {
     await openDialog();
 
     const headers: string[] = [];
     for (const cell of screen.getAllByRole('columnheader')) {
       headers.push(cell.textContent ?? '');
     }
-    expect(headers).toEqual(['', 'Name', 'Files folder', 'Note']);
+    expect(headers).toEqual(['', 'Name', 'Files folder', 'Documents', 'Note', '']);
   });
 
   it('shows each project\'s files folder', async () => {
@@ -59,6 +59,16 @@ describe('ManageProjectsDialog', () => {
     await waitFor(() => {
       expect(within(rowOf('Beta')).getByText('/data/beta')).toBeTruthy();
     });
+  });
+
+  it('shows how many documents each project has', async () => {
+    await openDialog();
+
+    await waitFor(() => {
+      expect(within(rowOf('Gamma')).getByTestId('manage-projects-documents').textContent).toBe('12');
+    });
+    expect(within(rowOf('Alpha')).getByTestId('manage-projects-documents').textContent).toBe('3');
+    expect(within(rowOf('Beta')).getByTestId('manage-projects-documents').textContent).toBe('0');
   });
 
   it('filters the list by the search text', async () => {

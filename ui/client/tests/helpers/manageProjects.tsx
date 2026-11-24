@@ -1,19 +1,26 @@
 import { render, screen, fireEvent, within, act } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { ManageProjectsButton } from '../../src/components/header/ManageProjectsButton';
 
 // Shared by the manage projects tests: the folders answer, opening the dialog, and finding rows.
 
 export const FOLDERS = {
   projects: [
-    { name: 'defaultProject', filesDirectory: '/data/default', folderExists: true },
-    { name: 'Alpha', filesDirectory: '/data/alpha', folderExists: true },
-    { name: 'Beta', filesDirectory: '/data/beta', folderExists: true },
-    { name: 'Gamma', filesDirectory: '/data/gamma', folderExists: true },
+    { name: 'defaultProject', filesDirectory: '/data/default', folderExists: true, documentCount: 1 },
+    { name: 'Alpha', filesDirectory: '/data/alpha', folderExists: true, documentCount: 3 },
+    { name: 'Beta', filesDirectory: '/data/beta', folderExists: true, documentCount: 0 },
+    { name: 'Gamma', filesDirectory: '/data/gamma', folderExists: true, documentCount: 12 },
   ],
 };
 
+// Shows the current route, so tests can see where a switch went.
+const LocationShower = () => {
+  const location = useLocation();
+  return <span data-testid="location">{location.pathname}</span>;
+};
+
 export const openDialog = async () => {
-  render(<ManageProjectsButton />);
+  render(<MemoryRouter><ManageProjectsButton /><LocationShower /></MemoryRouter>);
   const btn = within(screen.getByLabelText('Manage projects')).getByRole('button');
   await act(async () => { fireEvent.click(btn); });
   await screen.findByText('Manage projects', { selector: 'h2' });

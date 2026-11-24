@@ -35,16 +35,21 @@ class ProjectApi:
 
     @staticmethod
     def folders() -> List[Dict[str, Any]]:
-        """Every project's name and files folder, read from its settings record, and whether the folder is there."""
-        from hera.datalayer import Cache_Collection
+        """Every project's name, files folder (and whether it is there), and how many documents it has."""
+        from hera.datalayer import All, Cache_Collection
         answer = []
         for entry in ProjectApi.names():
             name = entry["name"]
             folder = ""
+            configCount = 0
             for doc in Cache_Collection().getDocuments(projectName=name, type=f"{name}__config__"):
                 folder = (doc.desc or {}).get("filesDirectory", "") or folder
+                configCount += 1
             folderExists = bool(folder) and os.path.isdir(folder)
-            answer.append({"name": name, "filesDirectory": folder, "folderExists": folderExists})
+            # The settings record is bookkeeping, not a document the user made.
+            documentCount = All.getDocuments(projectName=name).count() - configCount
+            answer.append({"name": name, "filesDirectory": folder, "folderExists": folderExists,
+                           "documentCount": documentCount})
         return answer
 
     def default_files_directory(self) -> str:
