@@ -64,5 +64,26 @@ Tests:
 - The message says how many were deleted.
 - The current project is replaced when it is deleted.
 
+## Step 4: export as JSON instead of pickle (to solve later)
+Today each project zip holds `chunk_0`, `chunk_1`, ... These are Python pickle files: binary, no extension, and only Python can read them.
+
+Issue #574 (closed as a duplicate of #932):
+- erasta asked for JSON chunks, with load still taking the old pickle zips.
+- lior-antonov answered: do not fix the old export. Use Ilay's `exportDocumentsToRepository` (in `hera/utils/data/toolkit.py`), which writes JSON. Later remove the other export code.
+
+What `exportDocumentsToRepository` does, and how it differs from today's zip:
+- By default it writes all the project's records into one JSON file.
+- It leaves out the project's settings record (it holds the files folder).
+- Like the zip, it has no data files from disk, only the records that point to them.
+- It saves the JSON on the server and registers it as a repository. It gives no file to download.
+- If the JSON file already exists, it merges the records into it, not replaces it.
+- It is brought back by loading a repository, not by "Load project".
+
+Open questions:
+- Can the UI export and load use it, or does it need changes in hera?
+- How to keep the files folder, since the settings record is left out?
+- Must load still take the old pickle zips?
+- Should there be a new issue for this?
+
 ## Later (own plan)
 - "Load project" accepts a zip of zips, and lets the user pick which project or projects to load.
