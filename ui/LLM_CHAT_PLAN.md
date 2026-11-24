@@ -26,14 +26,29 @@ UI "Create" click -> Hera server -> normal Hera code (addCacheDocument, ...)
 
 ## Step 0 - Prep: run the LLM + RAG with our stack
 
-The RAG code is in `hera/utils/rag/`. Ollama is already in `docker-compose.yml`.
+The RAG code is in `hera/utils/rag/`. Ollama is already in `docker-compose.yml` (profile `ai`).
+The compose file is locked down. New services must follow the same rules.
 
-1. Add Qdrant, Cassandra and the RAG server to `docker-compose.yml`, under the `ai` profile.
-2. Build the RAG index (docs + code).
-3. Ask it real project questions. Check the answers.
-4. If llama3 is weak, try a better model before going on.
+1. Add Qdrant and Cassandra services under the `ai` profile:
+   - use the `locked-down` anchor, run as a non-root user,
+   - no host ports (internal network only),
+   - mount a data folder each (like `./ollama-data`),
+   - bare TCP healthcheck, like mongo and ollama.
+   - Check that Cassandra can run as non-root with all rights removed. This is the riskiest part.
+2. Add a `rag` service built from the `hera` anchor (same image as the server):
+   - command: the RAG server (`hera/utils/rag/serve.py`, port 8765),
+   - no host ports; only the Hera server talks to it,
+   - env: `RAG_OLLAMA_BASE_URL=http://ollama:11434`, `RAG_QDRANT_HOST=qdrant`, `RAG_CASSANDRA_HOSTS=["cassandra"]`,
+   - `depends_on` Qdrant, Cassandra and Ollama (healthy).
+3. Image: the RAG packages are only in the `rag` extra of `setup.py`, not in `requirements.txt`.
+   Add them to the image. Note that sentence-transformers brings torch, which makes the image much bigger.
+4. Embedding model: mount a folder for `RAG_MODELS_CACHE_DIR` so the model is downloaded once.
+5. Server: add `RAG_API_URL=http://rag:8765` so the Hera server can reach the RAG.
+6. Build the index once (`docker compose exec rag ...`), into the mounted data folders.
+7. Ask it real project questions. Check the answers.
+8. If llama3 is weak, try a better model before going on.
 
-Done when: `docker compose --profile ai up` starts everything, and answers are useful.
+Done when: `docker compose --profile work --profile ai up` starts everything, and answers are useful.
 
 ## Step 1 - Chat panel, answers only
 
