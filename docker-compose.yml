@@ -9,7 +9,8 @@
 #
 # The server finds Mongo via ~/.pyhera/config.json. We inject our own config
 # (see the "configs" block below) so dbIP points at the "mongo" service name
-# instead of the 127.0.0.1 baked into the image.
+# instead of the 127.0.0.1 baked into the image. The top key must match the
+# Linux user name ("hera"), since hera picks its connection by that name.
 name: hera-stack
 
 x-locked-down: &locked-down
@@ -31,7 +32,7 @@ configs:
   pyhera_config:
     content: |
       {
-        "root": {
+        "hera": {
           "dbIP": "mongo",
           "dbName": "olymp",
           "username": "hera",
