@@ -14,6 +14,8 @@
 - `exportProjectsToZip.ts`: exports names one by one into one saved `projects.zip`. Used by export and delete.
 - `DeleteProjectsButton.tsx`: the delete button and the delete work.
 - `DeleteProjectsConfirm.tsx`: the confirm dialog for deleting several projects.
+- `DeleteProjectsRow.tsx`: one row of the confirm table.
+- `FilesFateEnum.ts`: what the delete does to a files folder.
 - `ExportProgressDialog.tsx`: covers the manage dialog with the progress while Export runs. Delete shows it inside its confirm.
 - `projectsText.ts`: "1 project" or "3 projects".
 
@@ -56,10 +58,9 @@ Tests:
    - The "..." shows that it does not delete yet. It only opens a confirm dialog.
 2. The confirm dialog:
    - Title: "Delete 3 projects?"
-   - Lists the marked projects in groups:
-     - Empty folder: "their files are deleted too".
-     - Folder with files: shown on their own, with the folder path, and "their files are kept".
-     - No folder or missing folder: nothing on disk to delete.
+   - A table of the marked projects: name, files folder, "Folder", and a folder note.
+     - "Folder" says what happens to it: "Empty, removed" (empty or only the case config), "Kept" (has files), or "None" (no folder or missing).
+     - Files are never deleted. Rows are sorted: empty first, then Kept, then None.
    - Says that `projects.zip` is saved first, and that nothing is deleted if an export fails.
    - A field asks the user to type the number of projects to delete, e.g. "3".
    - Buttons: "Cancel" and "Export and delete 3 projects".
@@ -77,7 +78,7 @@ Tests:
 
 Tests:
 - The button only opens the confirm; Cancel deletes and exports nothing.
-- The confirm lists the marked projects in their groups (empty folder, folder with files, no folder).
+- The confirm table shows each marked project with what happens to its files.
 - The delete button stays off until the typed number matches.
 - All projects are exported and saved before any is deleted.
 - A failed export stops it all: nothing saved, nothing deleted, the failed project is named.

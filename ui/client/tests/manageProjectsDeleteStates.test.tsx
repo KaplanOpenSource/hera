@@ -10,7 +10,7 @@ vi.mock('../src/io/snackbar', () => ({
 }));
 
 const { mockApiCall } = await import('./helpers/mockApiCall');
-const { openDialog, rowNames } = await import('./helpers/manageProjects');
+const { openDialog, rowNames, confirmNames, confirmRowText } = await import('./helpers/manageProjects');
 
 // Deleting projects whose folder holds only the case config, cannot be read, or is a file.
 
@@ -62,17 +62,16 @@ const openConfirmForAll = async () => {
 };
 
 describe('ManageProjectsDialog delete by folder state', () => {
-  it('puts the case-config-only folder with the deleted files, and the others with the kept files', async () => {
+  it('removes a case-config-only folder as empty, and keeps the others', async () => {
     await openConfirmForAll();
 
-    expect(screen.getByTestId('delete-projects-empty').textContent).toContain('CaseOnly');
-    const withFiles = screen.getByTestId('delete-projects-with-files');
-    expect(withFiles.textContent).toContain('Locked - /data/locked');
-    expect(withFiles.textContent).toContain('cannot read folder');
-    expect(withFiles.textContent).toContain('AFile - /data/file.txt');
-    expect(withFiles.textContent).toContain('not a folder');
-    expect(withFiles.textContent).not.toContain('CaseOnly');
-    expect(screen.queryByTestId('delete-projects-no-folder')).toBeNull();
+    expect(confirmNames()).toEqual(['CaseOnly', 'Locked', 'AFile']);
+    expect(confirmRowText('CaseOnly')).toContain('Empty, removed');
+    expect(confirmRowText('Locked')).toContain('/data/locked');
+    expect(confirmRowText('Locked')).toContain('Kept');
+    expect(confirmRowText('Locked')).toContain('cannot read folder');
+    expect(confirmRowText('AFile')).toContain('Kept');
+    expect(confirmRowText('AFile')).toContain('not a folder');
   });
 
   it('sends delete files for a case-config-only folder, but not for an unreadable one or a file', async () => {

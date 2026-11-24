@@ -14,7 +14,7 @@ vi.mock('../src/io/snackbar', () => ({
 }));
 
 const { mockApiCall } = await import('./helpers/mockApiCall');
-const { openDialog, rowNames } = await import('./helpers/manageProjects');
+const { openDialog, rowNames, confirmNames, confirmRowText } = await import('./helpers/manageProjects');
 const { useProjectStore } = await import('../src/stores/useProjectStore');
 const { useProjectListStore } = await import('../src/stores/useProjectListStore');
 
@@ -138,20 +138,17 @@ describe('ManageProjectsDialog delete confirm', () => {
     expect(rowNames()).toHaveLength(4);
   });
 
-  it('lists the marked projects in their groups', async () => {
+  it('lists the marked projects with what happens to their files', async () => {
     await openAndMark(['Alpha', 'Beta', 'Gamma', 'Delta']);
     await openConfirm();
 
-    const empty = screen.getByTestId('delete-projects-empty');
-    expect(empty.textContent).toContain('their files are deleted too');
-    expect(empty.textContent).toContain('Alpha');
-    const withFiles = screen.getByTestId('delete-projects-with-files');
-    expect(withFiles.textContent).toContain('their files are kept');
-    expect(withFiles.textContent).toContain('Beta - /data/beta');
-    const noFolder = screen.getByTestId('delete-projects-no-folder');
-    expect(noFolder.textContent).toContain('Gamma');
-    expect(noFolder.textContent).toContain('Delta');
-    expect(noFolder.textContent).not.toContain('Alpha');
+    expect(confirmNames()).toEqual(['Alpha', 'Beta', 'Gamma', 'Delta']);
+    expect(confirmRowText('Alpha')).toContain('Empty, removed');
+    expect(confirmRowText('Beta')).toContain('/data/beta');
+    expect(confirmRowText('Beta')).toContain('Kept');
+    expect(confirmRowText('Gamma')).toContain('None');
+    expect(confirmRowText('Delta')).toContain('None');
+    expect(confirmRowText('Delta')).toContain('folder missing');
   });
 
   it('keeps the delete button off until the typed number matches', async () => {

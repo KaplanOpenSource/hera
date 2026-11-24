@@ -42,3 +42,22 @@ export const rowOf = (name: string) => {
   }
   throw new Error(`no row for ${name}`);
 };
+
+// The names in the delete confirm table, in order.
+export const confirmNames = () => {
+  const names: string[] = [];
+  for (const row of screen.queryAllByTestId('delete-projects-row')) {
+    names.push(row.querySelector('[data-testid="delete-projects-name"]')?.textContent ?? '');
+  }
+  return names;
+};
+
+// The delete confirm row of a project, as its whole text.
+export const confirmRowText = (name: string) => {
+  for (const row of screen.getAllByTestId('delete-projects-row')) {
+    if (row.querySelector('[data-testid="delete-projects-name"]')?.textContent === name) {
+      return row.textContent;
+    }
+  }
+  throw new Error(`no confirm row for ${name}`);
+};
