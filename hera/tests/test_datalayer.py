@@ -986,7 +986,6 @@ class TestAutoCache:
 class TestExportImport:
     """Test Project export and load round-trip."""
 
-    @pytest.mark.xfail(reason="Project.load references _iter_pickled_docs which is not implemented")
     def test_export_and_load(self, tmp_dir):
         # Create source project with documents
         src_name = "pytest_export_src"
@@ -1028,6 +1027,94 @@ class TestExportImport:
                         doc.delete()
                 except Exception:
                     pass
+
+    def _export_and_load(self, tmp_dir, show_progressbar):
+        src = Project(projectName="pytest_export_prog_src")
+        src.addMeasurementsDocument(
+            resource="prog_1", dataFormat="string", type="ExportProg",
+            desc={"station": "A"},
+        )
+        src.addMeasurementsDocument(
+            resource="prog_2", dataFormat="string", type="ExportProg",
+            desc={"station": "B"},
+        )
+
+        export_path = os.path.join(tmp_dir, f"export_prog_{show_progressbar}")
+        src.export(export_path, show_progressbar=show_progressbar)
+
+        dst = Project(projectName="pytest_export_prog_dst")
+        Project.load(dst, export_path, is_hard_import=False, show_progressbar=False)
+
+        docs = list(dst.getMeasurementsDocuments(type="ExportProg"))
+        assert sorted(doc.resource for doc in docs) == ["prog_1", "prog_2"]
+
+        for p in (src, dst):
+            for doc in p.getMeasurementsDocuments(type="ExportProg"):
+                doc.delete()
+
+    def test_export_without_progressbar_and_load(self, tmp_dir):
+        self._export_and_load(tmp_dir, show_progressbar=False)
+
+    def test_export_with_progressbar_and_load(self, tmp_dir):
+        self._export_and_load(tmp_dir, show_progressbar=True)
+
+    @staticmethod
+    def _delete_project_docs(p):
+        for getter in (p.getMeasurementsDocuments, p.getSimulationsDocuments, p.getCacheDocuments):
+            for doc in getter():
+                doc.delete()
+
+    def _load_keeps_one_config(self, tmp_dir, is_hard_import):
+        name = f"pytest_export_config_{is_hard_import}"
+        src = Project(projectName=name)
+        src.setConfig(myKey="myValue")
+        src.addMeasurementsDocument(
+            resource="cfg_1", dataFormat="string", type="ExportCfg", desc={"station": "A"},
+        )
+
+        export_path = os.path.join(tmp_dir, f"export_config_{is_hard_import}")
+        src.export(export_path, show_progressbar=False)
+        self._delete_project_docs(src)
+
+        Project.load(name, export_path, is_hard_import=is_hard_import, show_progressbar=False)
+
+        dst = Project(projectName=name)
+        assert len(list(dst.getCacheDocuments(type=f"{name}__config__"))) == 1
+        assert dst.getConfig()["myKey"] == "myValue"
+        docs = list(dst.getMeasurementsDocuments(type="ExportCfg"))
+        assert [doc.resource for doc in docs] == ["cfg_1"]
+
+        self._delete_project_docs(dst)
+
+    def test_load_keeps_one_config_soft_import(self, tmp_dir):
+        self._load_keeps_one_config(tmp_dir, is_hard_import=False)
+
+    def test_load_keeps_one_config_hard_import(self, tmp_dir):
+        self._load_keeps_one_config(tmp_dir, is_hard_import=True)
+
+    def test_load_under_new_name_keeps_one_config(self, tmp_dir):
+        src_name = "pytest_export_rename_src"
+        dst_name = "pytest_export_rename_dst"
+        src = Project(projectName=src_name)
+        src.setConfig(myKey="myValue")
+        src.addMeasurementsDocument(
+            resource="ren_1", dataFormat="string", type="ExportRename", desc={"station": "A"},
+        )
+
+        export_path = os.path.join(tmp_dir, "export_rename")
+        src.export(export_path, show_progressbar=False)
+
+        Project.load(dst_name, export_path, is_hard_import=False, show_progressbar=False)
+
+        dst = Project(projectName=dst_name)
+        assert len(list(dst.getCacheDocuments(type=f"{dst_name}__config__"))) == 1
+        assert dst.getConfig()["myKey"] == "myValue"
+        docs = list(dst.getMeasurementsDocuments(type="ExportRename"))
+        assert [doc.resource for doc in docs] == ["ren_1"]
+        assert all(doc.projectName == dst_name for doc in docs)
+
+        self._delete_project_docs(src)
+        self._delete_project_docs(dst)
 
 
 # ===========================================================================

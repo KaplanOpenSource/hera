@@ -1,14 +1,16 @@
-"""The project entrypoints: the list, one project, its files, toolkits, create, delete, notebooks.
+"""The project entrypoints: the list, folders, one project, its files, toolkits, create, delete, export, load, notebooks.
 
 Named routes replacing the project `/exec` calls the UI used to assemble in the
 browser. See ui/client/ENTRYPOINTS_PROJECTS_STEPS.md.
 """
-from fastapi import APIRouter, HTTPException
+import io
+
+from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.encoders import jsonable_encoder
 
-from api_models import CreateProjectPayload, DeleteProjectPayload, DetectNotebooksPayload
+from api_models import CreateProjectPayload, DeleteProjectPayload, DetectNotebooksPayload, ExportProjectPayload
 from dependencies import warmup
-from project_api.project_api import ProjectApi
+from project_api.project_api import DEFAULT_PROJECT, ProjectApi
 from project_api.project_files import ProjectFiles
 from project_api.toolkit_documents import toolkit_documents
 
@@ -37,6 +39,13 @@ def names() -> dict:
     """The project list, the default project first. See ``ProjectApi.names``."""
     _require_ready()
     return {"projects": ProjectApi.names()}
+
+
+@router.get("/folders")
+def folders() -> dict:
+    """Every project's name and files folder. See ``ProjectApi.folders``."""
+    _require_ready()
+    return {"projects": ProjectApi.folders()}
 
 
 @router.get("/documents")
@@ -95,6 +104,42 @@ def delete(payload: DeleteProjectPayload) -> dict:
     if remaining:
         nextProject = ProjectApi(remaining[0]["name"]).documents()
     return jsonable_encoder({"projects": remaining, "project": nextProject})
+
+
+@router.post("/export")
+def export(payload: ExportProjectPayload) -> Response:
+    """The project's records as a zip download. Data files on disk are not in it."""
+    project = _open_project(payload.projectName)
+    # hera only warns and writes nothing for the default project.
+    if payload.projectName == DEFAULT_PROJECT:
+        raise HTTPException(status_code=400, detail="the default project cannot be exported")
+    return Response(
+        content=project.export(),
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{payload.projectName}.zip"'})
+
+
+@router.post("/load")
+async def load(request: Request) -> dict:
+    """Load an exported zip, sent as the raw body, under ?projectName= or the name in the zip."""
+    _require_ready()
+    buffer = io.BytesIO(await request.body())
+    name = ProjectApi.name_in_zip(buffer)
+    if not name:
+        raise HTTPException(status_code=400, detail="not a project export zip")
+    params = request.query_params
+    if "projectName" in params:
+        name = params["projectName"].strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="no project name given")
+    project = ProjectApi(name)
+    if project.exists():
+        raise HTTPException(status_code=409, detail=f"a project named {name} already exists")
+    project.load(buffer)
+    files_directory = params.get("filesDirectory")
+    if files_directory:
+        project.set_files_directory(files_directory)
+    return jsonable_encoder({"projects": ProjectApi.names(), "project": project.documents()})
 
 
 @router.post("/detectNotebooks")

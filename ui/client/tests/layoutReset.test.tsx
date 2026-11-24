@@ -11,8 +11,8 @@ vi.mock('../src/components/header/ProjectChooser', () => ({
   ProjectChooser: () => <div>ProjectChooser</div>,
 }));
 // The header now renders these network/router-dependent pieces directly; stub them.
-vi.mock('../src/components/header/AddProjectButton', () => ({
-  AddProjectButton: () => null,
+vi.mock('../src/components/header/ProjectMenuButton', () => ({
+  ProjectMenuButton: () => null,
 }));
 vi.mock('../src/components/header/UserIndicator', () => ({
   UserIndicator: () => null,

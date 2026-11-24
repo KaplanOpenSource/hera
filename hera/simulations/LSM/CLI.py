@@ -76,8 +76,9 @@ def setup_template(arguments):
     
     logger.info(f"Found template {arguments.templateName}")
 
-
-    codeDir = os.path.join(arguments.codeDir, arguments.templateName.split("-")[0])
+    template_path = template._document.resource
+    codeDir = os.path.join(template_path, "../../code")
+    codeDir = os.path.join(codeDir, arguments.templateName.split("-")[0])
     outDir = template.modelFolder
     metDir = os.path.join(outDir,"tozaot","Meteorology")
 
@@ -85,19 +86,19 @@ def setup_template(arguments):
         os.unlink(metDir)
         logger.info(f"unlinked {metDir} from template")
     except FileNotFoundError:
-        logger.error(f"file {metDir} not found")
-        pass
+        logger.info(f"file {metDir} not found - first setup")
+
 
     try:
         os.unlink(os.path.join(outDir,"a.out"))
         logger.info(f"unlinked {os.path.join(outDir,'a.out')} from template")
     except FileNotFoundError:
-        logger.error(f"file {os.path.join(outDir,'a.out')} not found")
-        pass
+        logger.info(f"file {os.path.join(outDir,'a.out')} not found - first setup")
+
 
     os.makedirs(os.path.join(outDir,'tozaot'),exist_ok=True)
     os.makedirs(os.path.join(outDir,'tozaot','machsan'),exist_ok=True)
-    logger.info(f"setup directories successfully")
+    logger.info("created setup directories successfully")
 
 
     src_aout = os.path.join(codeDir, 'a.out')

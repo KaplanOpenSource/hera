@@ -20,7 +20,11 @@ import { useAppTheme } from "../../theme";
 import { useProjectListStore } from "../../stores/useProjectListStore";
 import { ProjectName } from "../../shared/types";
 
-export const AddProjectButton = ({ }) => {
+export const AddProjectButton = ({
+  onAdded,
+}: {
+  onAdded?: () => void,
+}) => {
   // Follow the app theme so the dialog isn't tinted by the dark header it opens from.
   const dialogTheme = useAppTheme();
   const [open, setOpen] = useState(false);
@@ -47,10 +51,12 @@ export const AddProjectButton = ({ }) => {
     useProjectListStore.getState().setProjectNames(data.projects as ProjectName[]);
     navigate('/' + encodeURIComponent(trimmedName), { state: { project: data.project } });
     setOpen(false);
+    onAdded?.();
   }
 
   return (<>
     <ButtonTooltip
+      button
       title='Add project'
       onClick={() => {
         setOpen(true);

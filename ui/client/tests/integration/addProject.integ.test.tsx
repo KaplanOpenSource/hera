@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import { screen, fireEvent, waitFor, within, cleanup, act } from '@testing-library/react';
-import { renderApp, resetStore } from './integHelpers';
+import { openProjectMenu, renderApp, resetStore } from './integHelpers';
 
 vi.mock('../../src/shared/baseurl', async () => (await import('./mockFactories')).createBaseurlMock());
 vi.mock('../../src/stores/useServerConstants', async () => (await import('./mockFactories')).createServerConstantsMock());
@@ -18,6 +18,7 @@ describe('Add Project UI integration', () => {
   it('clicking Add Project creates the project and it appears in the list', async () => {
     renderApp('/');
 
+    await openProjectMenu();
     const addWrapper = await screen.findByLabelText('Add project');
     await act(async () => { fireEvent.click(within(addWrapper).getByRole('button')); });
 

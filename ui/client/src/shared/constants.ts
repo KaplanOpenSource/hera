@@ -13,3 +13,6 @@ export const FILES_DIRECTORY_FIELD = 'filesDirectory';
 
 // The server answers this while hera warms up; wait and retry, do not toast.
 export const WARMING_UP = 'WARMING_UP';
+
+// Written into every new project's files folder; holds only the project name.
+export const CASE_CONFIGURATION = 'caseConfiguration.json';

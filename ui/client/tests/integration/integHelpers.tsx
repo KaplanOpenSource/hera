@@ -23,13 +23,16 @@ export const renderApp = (path = '/') => {
   );
 };
 
-/**
- * Open the "Actions" popover on the project tree node. The project-level buttons
- * (add document, delete project) live inside it.
- */
+/** Open the "Actions" popover on the project tree node, which holds the document actions. */
 export const openProjectActions = async () => {
   const actionsWrapper = await screen.findByLabelText('Actions', {}, { timeout: 15000 });
   await act(async () => { fireEvent.click(within(actionsWrapper).getByRole('button')); });
+};
+
+/** Open the "Project actions" popover in the header (add, load, export, delete project). */
+export const openProjectMenu = async () => {
+  const menuWrapper = await screen.findByLabelText('Project actions', {}, { timeout: 15000 });
+  await act(async () => { fireEvent.click(within(menuWrapper).getByRole('button')); });
 };
 
 /** Render the app, click "Add project", fill the dialog, submit, cleanup. */
@@ -37,6 +40,7 @@ export const createProjectViaUI = async (projectName: string) => {
   resetStore();
   renderApp('/');
 
+  await openProjectMenu();
   const addWrapper = await screen.findByLabelText('Add project');
   await act(async () => { fireEvent.click(within(addWrapper).getByRole('button')); });
 

@@ -83,6 +83,10 @@ class DeleteProjectPayload(BaseModel):
     deleteFiles: bool = False
 
 
+class ExportProjectPayload(BaseModel):
+    projectName: str
+
+
 class DetectNotebooksPayload(BaseModel):
     projectName: str
     filesDirectory: str

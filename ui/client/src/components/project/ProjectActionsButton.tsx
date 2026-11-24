@@ -2,11 +2,10 @@ import { MoreVert } from '@mui/icons-material';
 import { Divider, Popover, Stack, Typography } from '@mui/material';
 import { useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
-import { DeleteProjectButton } from '../header/DeleteProjectButton';
 import { AddDocumentButton } from './AddDocumentButton';
 import { DeleteSelectedButton } from './DeleteSelectedButton';
 
-// "Actions" button on the project node: opens a popover holding the project-level actions.
+// "Actions" button on the project node: opens a popover holding the document actions.
 export const ProjectActionsButton = ({
   selectedIds = [],
   onSelectDocument,
@@ -49,9 +48,6 @@ export const ProjectActionsButton = ({
               onSelectDocument?.(undefined);
               setAnchorEl(null);
             }}
-          />
-          <DeleteProjectButton
-            onDeleted={() => setAnchorEl(null)}
           />
         </Stack>
       </Popover>

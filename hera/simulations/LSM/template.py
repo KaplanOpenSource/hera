@@ -80,8 +80,14 @@ class LSMTemplate:
     def modelFolder(self):
         dir_path= self._document['desc']['modelFolder']
         if not os.path.isabs(dir_path):
-            dir_path = self.Toolkit.filesDirectory + dir_path
+            dir_path = os.path.join(self.Toolkit.filesDirectory, dir_path)
         return dir_path
+
+    @property
+    def template_code_dir(self):
+        code_dir = os.path.join(self.dirPath, "../../code")
+        code_dir = os.path.join(code_dir, self.templateName.split("-")[0])
+        return code_dir
 
     def run(self,topography=None, stations=None,canopy=None,params=dict(),depositionRates=None, saveMode=toolkit.TOOLKIT_SAVEMODE_FILEANDDB,simulationName=None, saveDir=None,**descriptor):
         """
@@ -197,16 +203,16 @@ class LSMTemplate:
 
         ## If overwrite, or document does not exist in DB, or running without DB.
         os.makedirs(saveDir, exist_ok=True)
-
-        print([x for x in os.listdir(self.modelFolder)])
+	
+        logger.info("cloning model into the simulation's folder")
         import shutil as _shutil
-        for _src in glob.glob(os.path.join(self.modelFolder, '*')):
+        for _src in glob.glob(os.path.join(self.template_code_dir, '*')):
             _dst = os.path.join(saveDir, os.path.basename(_src))
             if os.path.isdir(_src):
                 _shutil.copytree(_src, _dst, dirs_exist_ok=True)
             else:
                 _shutil.copy2(_src, _dst)
-        logger.info(f"copied contents from {self.modelFolder} to {saveDir}")
+        logger.info("finished cloning model into the simulation's folder")
         # write to file.
         ifmc.render(os.path.join(saveDir, 'INPUT'))
 
@@ -439,12 +445,9 @@ class LSMTemplate:
         """
         logger = get_classMethod_logger(self)
 
-        updated_params = dict(self._document['desc']['params'])
-        updated_params.update(query)
+        updated_params= query
         updated_params = JSONToConfiguration(updated_params)
-        updated_params = self.prepareParams(template_desc=self._document['desc'], paramsToPrepare=updated_params)
-        # query = JSONToConfiguration(query)
-        # query = self.prepareParams(self._document['desc'], query)
+        updated_params = self.prepareParams(template_desc=dict(), paramsToPrepare=updated_params)
 
         new_query = dictToMongoQuery(updated_params,prefix="params")
 
@@ -458,7 +461,13 @@ class LSMTemplate:
                                         templateName=self.templateName,
                                         **new_query)
 
-        return [SingleSimulation(doc) for doc in docList]
+        single_simulations = []
+        for doc in docList:
+            try:
+                single_simulations.append(SingleSimulation(doc))
+            except Exception as e:
+                logger.warning(f"Simulation {doc.desc['simulationName']} Couldn't be loaded(probably broken), skipping...")
+        return single_simulations
 
     def getSimulationByID(self,id):
         """

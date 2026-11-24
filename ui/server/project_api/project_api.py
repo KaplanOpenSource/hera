@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import glob
+import io
 import os
-from typing import Any, Dict, List
+import zipfile
+from typing import IO, Any, Dict, List, Optional
 
 from project_api.project_files import ProjectFiles
 
@@ -30,6 +32,19 @@ class ProjectApi:
         rest = [{"name": n} for n in names if n != DEFAULT_PROJECT]
         rest.sort(key=lambda p: p["name"].lower())
         return first + rest
+
+    @staticmethod
+    def folders() -> List[Dict[str, str]]:
+        """Every project's name and files folder, read from its settings record."""
+        from hera.datalayer import Cache_Collection
+        answer = []
+        for entry in ProjectApi.names():
+            name = entry["name"]
+            folder = ""
+            for doc in Cache_Collection().getDocuments(projectName=name, type=f"{name}__config__"):
+                folder = (doc.desc or {}).get("filesDirectory", "") or folder
+            answer.append({"name": name, "filesDirectory": folder})
+        return answer
 
     def default_files_directory(self) -> str:
         """Where the project's files go when the user names no directory."""
@@ -86,6 +101,36 @@ class ProjectApi:
             All.deleteDocumentByID(doc["_id"]["$oid"])
 
         files.remove_if_empty()
+
+    def export(self) -> bytes:
+        """The zip of the project's records that hera's Project.export writes."""
+        from hera.datalayer.project import Project
+        buffer = io.BytesIO()
+        Project(projectName=self.projectName).export(buffer, show_progressbar=False)
+        return buffer.getvalue()
+
+    @staticmethod
+    def name_in_zip(buffer: IO[bytes]) -> Optional[str]:
+        """The project name in the zip's first record, or None if it is not an export."""
+        from hera.datalayer.project import Project
+        if not zipfile.is_zipfile(buffer):
+            return None
+        with zipfile.ZipFile(buffer) as zf:
+            first = next(Project._iter_pickled_docs(zf, return_batched=False), None)
+        if not isinstance(first, dict):
+            return None
+        return first.get("projectName") or None
+
+    def load(self, buffer: IO[bytes]) -> None:
+        """Load the records of an exported zip into this project, with new ids."""
+        from hera.datalayer.project import Project
+        buffer.seek(0)
+        Project.load(self.projectName, buffer, is_hard_import=False, show_progressbar=False)
+
+    def set_files_directory(self, files_directory: str) -> None:
+        """Save the folder in the project's settings record."""
+        from hera.datalayer.project import Project
+        Project(projectName=self.projectName).setConfig(filesDirectory=files_directory)
 
     def detect_notebooks(self, filesDirectory: str) -> int:
         """Register every notebook under the directory that is not tracked yet.
