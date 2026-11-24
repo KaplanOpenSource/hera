@@ -18,11 +18,13 @@ import { projectApi } from "../../api/api";
 import { ProjectFolder } from "../../shared/types";
 import { DEFAULT_PROJECT } from "../../stores/useProjectStore";
 import { useAppTheme } from "../../theme";
+import { ExportProjectsButton } from "./ExportProjectsButton";
 import { FolderCheckEnum } from "./FolderCheckEnum";
 import { isFilesFolderEmpty } from "./isFilesFolderEmpty";
 import { ManageProjectsRow } from "./ManageProjectsRow";
+import { MarkAllCheckbox } from "./MarkAllCheckbox";
 
-// Lists every project with its files folder, and notes the empty folders.
+// Lists every project with its files folder, notes the empty folders, and exports the marked ones.
 export const ManageProjectsDialog = ({
   onClose,
 }: {
@@ -33,6 +35,13 @@ export const ManageProjectsDialog = ({
   const [projects, setProjects] = useState<ProjectFolder[]>([]);
   const [folderChecks, setFolderChecks] = useState<{ [name: string]: FolderCheckEnum }>({});
   const [search, setSearch] = useState('');
+  const [marks, setMarks] = useState<{ [name: string]: boolean }>({});
+
+  const toggleMark = (name: string) => {
+    setMarks((prev) => {
+      return { ...prev, [name]: !prev[name] };
+    });
+  }
 
   const setCheck = (name: string, check: FolderCheckEnum) => {
     setFolderChecks((prev) => {
@@ -90,6 +99,23 @@ export const ManageProjectsDialog = ({
     countText = '1 project';
   }
 
+  const markedNames: string[] = [];
+  for (const project of projects) {
+    if (marks[project.name]) {
+      markedNames.push(project.name);
+    }
+  }
+
+  const markAll = (mark: boolean) => {
+    const next: { [name: string]: boolean } = {};
+    if (mark) {
+      for (const project of projects) {
+        next[project.name] = true;
+      }
+    }
+    setMarks(next);
+  }
+
   return (
     <ThemeProvider theme={dialogTheme}>
       <Dialog
@@ -112,10 +138,20 @@ export const ManageProjectsDialog = ({
           <Typography variant="body2" color="text.secondary" data-testid="manage-projects-count">
             {countText}
           </Typography>
+          <Typography variant="body2" color="text.secondary" data-testid="manage-projects-marked">
+            {`${markedNames.length} of ${projects.length} marked`}
+          </Typography>
           {/* Fixed layout so long folder paths wrap instead of widening the dialog. */}
           <Table size="small" sx={{ tableLayout: 'fixed' }}>
             <TableHead>
               <TableRow>
+                <TableCell padding="checkbox">
+                  <MarkAllCheckbox
+                    markedCount={markedNames.length}
+                    total={projects.length}
+                    onMarkAll={markAll}
+                  />
+                </TableCell>
                 <TableCell sx={{ width: '30%' }}>Name</TableCell>
                 <TableCell sx={{ width: '45%' }}>Files folder</TableCell>
                 <TableCell sx={{ width: '25%' }}>Note</TableCell>
@@ -127,12 +163,15 @@ export const ManageProjectsDialog = ({
                   key={project.name}
                   project={project}
                   folderCheck={folderChecks[project.name] ?? FolderCheckEnum.Checking}
+                  marked={!!marks[project.name]}
+                  onToggle={() => toggleMark(project.name)}
                 />
               ))}
             </TableBody>
           </Table>
         </DialogContent>
         <DialogActions>
+          <ExportProjectsButton names={markedNames} />
           <Button onClick={onClose}>
             Close
           </Button>

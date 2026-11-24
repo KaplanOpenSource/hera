@@ -1,24 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, within, cleanup, act } from '@testing-library/react';
+import { screen, fireEvent, waitFor, within, cleanup, act } from '@testing-library/react';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
 const { mockApiCall } = await import('./helpers/mockApiCall');
-const { ManageProjectsButton } = await import('../src/components/header/ManageProjectsButton');
+const { FOLDERS, openDialog, rowNames, rowOf } = await import('./helpers/manageProjects');
 
 // The manage projects dialog: the list, the search, and the empty-folder notes.
 
 let mockGetJson: ReturnType<typeof vi.fn>;
 let filesAnswers: { [name: string]: any };
-
-const FOLDERS = {
-  projects: [
-    { name: 'defaultProject', filesDirectory: '/data/default', folderExists: true },
-    { name: 'Alpha', filesDirectory: '/data/alpha', folderExists: true },
-    { name: 'Beta', filesDirectory: '/data/beta', folderExists: true },
-    { name: 'Gamma', filesDirectory: '/data/gamma', folderExists: true },
-  ],
-};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -41,30 +32,6 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const openDialog = async () => {
-  render(<ManageProjectsButton />);
-  const btn = within(screen.getByLabelText('Manage projects')).getByRole('button');
-  await act(async () => { fireEvent.click(btn); });
-  await screen.findByText('Manage projects', { selector: 'h2' });
-};
-
-const rowNames = () => {
-  const names: string[] = [];
-  for (const row of screen.queryAllByTestId('manage-projects-row')) {
-    names.push(row.querySelector('[data-testid="manage-projects-name"]')?.textContent ?? '');
-  }
-  return names;
-};
-
-const rowOf = (name: string) => {
-  for (const row of screen.getAllByTestId('manage-projects-row')) {
-    if (row.querySelector('[data-testid="manage-projects-name"]')?.textContent === name) {
-      return row;
-    }
-  }
-  throw new Error(`no row for ${name}`);
-};
-
 describe('ManageProjectsDialog', () => {
   it('lists all projects but defaultProject, with the count', async () => {
     await openDialog();
@@ -76,14 +43,14 @@ describe('ManageProjectsDialog', () => {
     expect(mockGetJson).toHaveBeenCalledWith('/project/folders', {}, { label: 'project folders' });
   });
 
-  it('shows the three column titles in the header', async () => {
+  it('shows the mark column and the three column titles in the header', async () => {
     await openDialog();
 
     const headers: string[] = [];
     for (const cell of screen.getAllByRole('columnheader')) {
       headers.push(cell.textContent ?? '');
     }
-    expect(headers).toEqual(['Name', 'Files folder', 'Note']);
+    expect(headers).toEqual(['', 'Name', 'Files folder', 'Note']);
   });
 
   it('shows each project\'s files folder', async () => {

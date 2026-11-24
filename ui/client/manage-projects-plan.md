@@ -36,30 +36,32 @@ Tests:
 3. It gets each marked project's zip, one by one, with the existing export call.
 4. It puts them all in one zip, `projects.zip`, holding `<name>.zip` for each project, and saves it.
    - The client builds it with `fflate`, which is already used. No server change.
-   - A project whose export failed is left out.
-   - If all failed, nothing is saved.
-5. When done, one message says what happened, e.g. "Exported 2 of 3. Failed: Beta."
+   - If any export fails, stop at once. Nothing is saved.
+   - An error message names the project that failed, e.g. "Export stopped: Beta failed."
+5. When all succeed, one message says so, e.g. "Exported 3 projects."
 
 Tests:
 - Marking, search keeps marks, mark all, clear, and the count stays right.
 - One zip is saved, holding one zip per marked project.
-- A failed export is left out and listed in the message.
-- When all fail, nothing is saved.
+- A failed export stops the rest, saves nothing, and names the failed project.
 
 ## Step 3: delete several projects
 1. A "Delete 3 projects" button next to export. Disabled when nothing is marked.
-2. It goes through the marked projects one by one:
-   - Export the zip first. If it fails, skip this project and go on.
-   - Delete the project. If its row was noted as an empty folder, delete its files too.
-3. When done, one message says what happened, e.g. "Deleted 2 of 3. Not deleted: Beta (export failed)."
-4. Update the project list. If the current project was deleted, switch to another, as today.
+2. First it exports all marked projects, as in step 2.
+   - If any export fails, stop at once. Nothing is saved and nothing is deleted.
+   - An error message names the project that failed, e.g. "Delete stopped: Beta export failed."
+3. When all exports succeed, it saves `projects.zip`, then deletes the projects one by one.
+   - If a row was noted as an empty folder, delete its files too.
+4. When done, one message says what happened, e.g. "Deleted 3 projects."
+5. Update the project list. If the current project was deleted, switch to another, as today.
 
 Open question for step 3: is the confirm and the "delete files" choice the same as in the single delete?
 
 Tests:
-- Each project is exported before it is deleted; a failed export skips only that project.
+- All projects are exported and saved before any is deleted.
+- A failed export stops it all: nothing saved, nothing deleted, the failed project is named.
 - Empty-folder projects are sent with "delete files" on.
-- The summary message lists what failed.
+- The message says how many were deleted.
 - The current project is replaced when it is deleted.
 
 ## Later (own plan)

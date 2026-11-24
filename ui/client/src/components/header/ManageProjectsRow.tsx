@@ -1,14 +1,19 @@
 import { TableCell, TableRow, Typography } from "@mui/material";
 import { ProjectFolder } from "../../shared/types";
 import { FolderCheckEnum } from "./FolderCheckEnum";
+import { MarkProjectCheckbox } from "./MarkProjectCheckbox";
 
-// One project in the manage table: its name, files folder, and an empty-folder note.
+// One project in the manage table: a mark, its name, files folder, and an empty-folder note.
 export const ManageProjectsRow = ({
   project,
   folderCheck,
+  marked,
+  onToggle,
 }: {
   project: ProjectFolder,
   folderCheck: FolderCheckEnum,
+  marked: boolean,
+  onToggle: () => void,
 }) => {
   let folderText = 'No directory';
   if (project.filesDirectory) {
@@ -17,6 +22,13 @@ export const ManageProjectsRow = ({
 
   return (
     <TableRow data-testid="manage-projects-row">
+      <TableCell padding="checkbox">
+        <MarkProjectCheckbox
+          name={project.name}
+          marked={marked}
+          onToggle={onToggle}
+        />
+      </TableCell>
       <TableCell sx={{ overflowWrap: 'anywhere' }}>
         <span data-testid="manage-projects-name">{project.name}</span>
       </TableCell>

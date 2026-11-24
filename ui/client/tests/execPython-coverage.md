@@ -52,7 +52,7 @@ Each api class also has its own test file, one test per method:
 | `GET /project/files` | `ProjectFilesView`, `isFilesFolderEmpty` (`DeleteProjectButton`, `ManageProjectsDialog`) | yes | no | `projectApi.test.ts`, `projectFilesView.test.tsx`, `deleteProjectEmptyFolder.test.tsx`, `manageProjects.test.tsx`, `server/tests/project_routes/test_list_project_files.py` |
 | `POST /project/create` | `AddProjectButton` | yes | yes | `addProject.test.tsx`, `integration/addProject.integ.test.tsx`, `server/tests/project_routes/test_create_project.py` |
 | `POST /project/delete` | `DeleteProjectButton` | yes | yes | `deleteProject.test.tsx`, `integration/deleteProject.integ.test.tsx`, `server/tests/project_routes/test_delete_project.py` |
-| `POST /project/export` | `ExportProjectButton` | yes | no | `exportProject.test.tsx`, `projectApi.test.ts`, `server/tests/project_routes/test_export_project.py` |
+| `POST /project/export` | `ExportProjectButton`, `ExportProjectsButton` (`ManageProjectsDialog`) | yes | no | `exportProject.test.tsx`, `manageProjectsExport.test.tsx`, `projectApi.test.ts`, `server/tests/project_routes/test_export_project.py` |
 | `POST /project/load` | `LoadProjectDialog` | yes | no | `loadProject.test.tsx`, `projectApi.test.ts`, `ApiCall.test.ts`, `server/tests/project_routes/test_load_project.py` |
 | `POST /project/detectNotebooks` | `detectNotebooks` (on project load) | yes | no | `detectNotebooks.test.tsx`, `server/tests/project_routes/test_detect_notebooks.py` |
 | `POST /document/create` | `AddDocumentButton`, `duplicateDocuments` | yes | yes | `addDocument.test.tsx`, `documentOperations.test.ts`, `treeInteractions.test.tsx`, `integration/documents.integ.test.tsx`, `server/tests/test_documents.py` |
