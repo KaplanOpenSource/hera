@@ -46,23 +46,62 @@ Tests:
 - A failed export stops the rest, saves nothing, and names the failed project.
 
 ## Step 3: delete several projects
-1. A "Delete 3 projects" button next to export. Disabled when nothing is marked.
-2. First it exports all marked projects, as in step 2.
+1. A "Delete 3 projects..." button next to export. Disabled when nothing is marked.
+   - The "..." shows that it does not delete yet. It only opens a confirm dialog.
+2. The confirm dialog:
+   - Title: "Delete 3 projects?"
+   - Lists the marked projects in groups:
+     - Empty folder: "their files are deleted too".
+     - Folder with files: shown on their own, with the folder path, and "their files are kept".
+     - No folder or missing folder: nothing on disk to delete.
+   - Says that `projects.zip` is saved first, and that nothing is deleted if an export fails.
+   - A field asks the user to type the number of projects to delete, e.g. "3".
+   - Buttons: "Cancel" and "Export and delete 3 projects".
+     - The delete button stays off until the typed number matches.
+     - Only this button starts the work.
+3. On confirm, it first exports all marked projects, as in step 2.
    - If any export fails, stop at once. Nothing is saved and nothing is deleted.
    - An error message names the project that failed, e.g. "Delete stopped: Beta export failed."
-3. When all exports succeed, it saves `projects.zip`, then deletes the projects one by one.
+4. When all exports succeed, it saves `projects.zip`, then deletes the projects one by one.
    - If a row was noted as an empty folder, delete its files too.
-4. When done, one message says what happened, e.g. "Deleted 3 projects."
-5. Update the project list. If the current project was deleted, switch to another, as today.
+   - A folder with files is never deleted. There is no choice for it.
+5. When done, one message says what happened, e.g. "Deleted 3 projects."
+6. Update the project list. If the current project was deleted, switch to another, as today.
 
-Open question for step 3: is the confirm and the "delete files" choice the same as in the single delete?
 
 Tests:
+- The button only opens the confirm; Cancel deletes and exports nothing.
+- The confirm lists the marked projects in their groups (empty folder, folder with files, no folder).
+- The delete button stays off until the typed number matches.
 - All projects are exported and saved before any is deleted.
 - A failed export stops it all: nothing saved, nothing deleted, the failed project is named.
-- Empty-folder projects are sent with "delete files" on.
+- Empty-folder projects are sent with "delete files" on; all others with it off.
 - The message says how many were deleted.
 - The current project is replaced when it is deleted.
+
+## Step 3.5: load several projects from one zip
+1. "Load project" also takes a `projects.zip` made by step 2 (a zip holding `<name>.zip` files).
+   - The client opens it with `fflate`. A zip of normal hera export files is a single project, as today.
+2. For a zip of zips, the load dialog shows a table of the projects inside, all marked.
+   - Each row: a checkbox, the name, and the files folder from that project's zip.
+   - Each row gets the same checks as the single load: "A project named X already exists" and "This folder is also used by: ...".
+   - Two rows in the zip with the same name or folder are flagged too.
+   - Shift-click marks a range, as in the manage table.
+3. A "Load 3 projects" button. Off when nothing is marked or a marked row has a name that already exists.
+4. It sends each marked inner zip one by one with the existing load call. No server change.
+   - If any load fails, stop at once. An error names the project that failed, and says which ones were already loaded.
+5. When done, one message says so, e.g. "Loaded 3 projects.", and the project list updates.
+
+Open questions for step 3.5:
+- Can the user edit each row's name and folder, as in the single load, or only mark rows?
+- When a load fails half way, should the ones already loaded stay?
+
+Tests:
+- A zip of zips shows one row per inner project, all marked.
+- A single export zip still loads as one project, as today.
+- Name and folder warnings show per row; a taken name blocks the load button.
+- Only marked projects are sent, one by one.
+- A failed load stops the rest and names the failed project and the loaded ones.
 
 ## Step 4: export as JSON instead of pickle (to solve later)
 Today each project zip holds `chunk_0`, `chunk_1`, ... These are Python pickle files: binary, no extension, and only Python can read them.
@@ -84,6 +123,3 @@ Open questions:
 - How to keep the files folder, since the settings record is left out?
 - Must load still take the old pickle zips?
 - Should there be a new issue for this?
-
-## Later (own plan)
-- "Load project" accepts a zip of zips, and lets the user pick which project or projects to load.
