@@ -46,13 +46,13 @@ Each api class also has its own test file, one test per method:
 | `GET /workflow_run` | `WorkflowApi.run`, `WorkflowRunSelect` | yes | no | `workflowApi.test.ts`, `workflowRunSelect.test.tsx`, `server/tests/test_workflow_run_history.py` |
 | `getJson` / `postJson` / `getBytes` / `postBytes` / `postBytesForJson` | `src/api/ApiCall.ts` | yes | no | `ApiCall.test.ts`, `apiPackageIsolation.test.ts` |
 | `GET /project/names` | `fetchProjectsNames` | yes | yes | `FetchProjects.test.ts`, `server/tests/project_routes/test_project_list.py` |
-| `GET /project/folders` | `LoadProjectDialog` | yes | no | `loadProjectChecks.test.tsx`, `projectApi.test.ts`, `server/tests/project_routes/test_project_folders.py` |
+| `GET /project/folders` | `LoadProjectDialog`, `ManageProjectsDialog` | yes | no | `loadProjectChecks.test.tsx`, `manageProjects.test.tsx`, `projectApi.test.ts`, `server/tests/project_routes/test_project_folders.py`, `server/tests/project_routes/test_folder_state.py` |
 | `GET /project/documents` | `fetchProjectDetails`, `fetchProjectData` | yes | yes | `FetchProjects.test.ts`, `server/tests/project_routes/test_project_documents.py` |
 | `GET /project/toolkits` | `fetchProjectData` | yes | yes | `FetchProjects.test.ts`, `server/tests/project_routes/test_toolkits.py` |
-| `GET /project/files` | `ProjectFilesView` | yes | no | `projectApi.test.ts`, `projectFilesView.test.tsx`, `server/tests/project_routes/test_list_project_files.py` |
+| `GET /project/files` | `ProjectFilesView`, `isFilesFolderEmpty` (`DeleteProjectButton`) | yes | no | `projectApi.test.ts`, `projectFilesView.test.tsx`, `deleteProjectEmptyFolder.test.tsx`, `server/tests/project_routes/test_list_project_files.py` |
 | `POST /project/create` | `AddProjectButton` | yes | yes | `addProject.test.tsx`, `integration/addProject.integ.test.tsx`, `server/tests/project_routes/test_create_project.py` |
-| `POST /project/delete` | `DeleteProjectButton` | yes | yes | `deleteProject.test.tsx`, `integration/deleteProject.integ.test.tsx`, `server/tests/project_routes/test_delete_project.py` |
-| `POST /project/export` | `ExportProjectButton` | yes | no | `exportProject.test.tsx`, `projectApi.test.ts`, `server/tests/project_routes/test_export_project.py` |
+| `POST /project/delete` | `DeleteProjectButton`, `DeleteProjectsButton` (`ManageProjectsDialog`) | yes | yes | `deleteProject.test.tsx`, `manageProjectsDelete.test.tsx`, `manageProjectsDeleteStates.test.tsx`, `integration/deleteProject.integ.test.tsx`, `server/tests/project_routes/test_delete_project.py` |
+| `POST /project/export` | `ExportProjectButton`, `exportProjectsToZip` (`ExportProjectsButton`, `DeleteProjectsButton`) | yes | no | `exportProject.test.tsx`, `manageProjectsExport.test.tsx`, `manageProjectsDelete.test.tsx`, `projectApi.test.ts`, `server/tests/project_routes/test_export_project.py` |
 | `POST /project/load` | `LoadProjectDialog` | yes | no | `loadProject.test.tsx`, `projectApi.test.ts`, `ApiCall.test.ts`, `server/tests/project_routes/test_load_project.py` |
 | `POST /project/detectNotebooks` | `detectNotebooks` (on project load) | yes | no | `detectNotebooks.test.tsx`, `server/tests/project_routes/test_detect_notebooks.py` |
 | `POST /document/create` | `AddDocumentButton`, `duplicateDocuments` | yes | yes | `addDocument.test.tsx`, `documentOperations.test.ts`, `treeInteractions.test.tsx`, `integration/documents.integ.test.tsx`, `server/tests/test_documents.py` |

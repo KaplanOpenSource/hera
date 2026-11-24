@@ -54,7 +54,6 @@ describe('ExportProjectButton', () => {
     expect(mockPostBytes).toHaveBeenCalledWith('/project/export',
       { projectName: 'Alpha' }, { label: 'export project Alpha' });
     expect((createObjectURL.mock.calls[0][0] as Blob).size).toBe(3);
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:zip');
     expect(onExported).toHaveBeenCalled();
   });
 

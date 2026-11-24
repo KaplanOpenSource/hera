@@ -8,7 +8,7 @@ import { NO_PROJECT, useProjectStore } from "../../stores/useProjectStore";
 import { useProjectListStore } from "../../stores/useProjectListStore";
 import { pushError } from "../../io/snackbar";
 import { saveFile } from "../../utils/saveFile";
-import { CASE_CONFIGURATION } from "../../shared/constants";
+import { isFilesFolderEmpty } from "./isFilesFolderEmpty";
 
 // How the user confirms the delete: by typing the name, or by saving a zip first.
 enum ConfirmBy {
@@ -30,20 +30,6 @@ export const DeleteProjectButton = ({
   const { openDialog, DialogComponent } = useDialog<DeleteProjectValues>();
   const { currProjectName, selectProject, setCurrentProject } = useProjectStore();
   const { setProjectNames } = useProjectListStore();
-
-  // True only when the files folder is missing or holds nothing but the case configuration.
-  const isFilesFolderEmpty = async () => {
-    const data = await projectApi.files(currProjectName, '');
-    if (!data) {
-      return false;
-    }
-    for (const file of data.files) {
-      if (file.name !== CASE_CONFIGURATION) {
-        return false;
-      }
-    }
-    return true;
-  }
 
   // Saves the zip first; answers false when the export failed.
   const exportProject = async () => {
@@ -82,7 +68,7 @@ export const DeleteProjectButton = ({
       color="error"
       title='Delete project'
       onClick={async () => {
-        const filesEmpty = await isFilesFolderEmpty();
+        const filesEmpty = await isFilesFolderEmpty(currProjectName);
         const { confirmed, values } = await openDialog({
           title: `Are you sure you want to delete ${currProjectName}?`,
           maxWidth: 'sm',

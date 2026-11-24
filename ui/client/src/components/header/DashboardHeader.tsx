@@ -6,6 +6,7 @@ import { ThemeMode, useViewSettingsStore } from '../../stores/useViewSettingsSto
 import { ProjectViewSettingsButton } from '../project/ProjectViewSettingsButton';
 import { PageTitle } from './PageTitle';
 import { ProjectChooser } from './ProjectChooser';
+import { ManageProjectsButton } from './ManageProjectsButton';
 import { ProjectMenuButton } from './ProjectMenuButton';
 
 const headerTheme = createTheme({
@@ -39,11 +40,12 @@ export const DashboardHeader = ({
     <ThemeProvider theme={headerTheme}>
       <AppBar position="static">
         <Toolbar>
-          {/* Left: title, project droplist, its actions menu. */}
+          {/* Left: title, project droplist, its actions menu, manage projects. */}
           <Stack direction="row" spacing={1} alignItems="center">
             <PageTitle />
             <ProjectChooser />
             <ProjectMenuButton />
+            <ManageProjectsButton />
           </Stack>
 
           <Box sx={{ flexGrow: 1 }} />

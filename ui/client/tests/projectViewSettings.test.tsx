@@ -8,7 +8,7 @@ afterEach(() => {
 });
 
 beforeEach(() => {
-  useViewSettingsStore.getState().setViewSettings({ alwaysSaveBeforeRun: false });
+  useViewSettingsStore.getState().setViewSettings({ alwaysSaveBeforeRun: false, detectNotebooks: true });
 });
 
 describe('ProjectViewSettingsButton', () => {
@@ -34,5 +34,16 @@ describe('ProjectViewSettingsButton', () => {
 
     expect(screen.getByRole('checkbox', { name: /auto save workflow before running/i }))
       .toHaveProperty('checked', true);
+  });
+
+  it('turns off detecting notebooks through the store', () => {
+    render(<ProjectViewSettingsButton />);
+    fireEvent.click(screen.getByRole('button'));
+
+    const checkbox = screen.getByRole('checkbox', { name: /detect notebooks/i });
+    expect(checkbox).toHaveProperty('checked', true);
+
+    fireEvent.click(checkbox);
+    expect(useViewSettingsStore.getState().viewSettings.detectNotebooks).toBe(false);
   });
 });
