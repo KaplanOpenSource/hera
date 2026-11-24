@@ -18,15 +18,14 @@ import { projectApi } from "../../api/api";
 import { ProjectFolder } from "../../shared/types";
 import { DEFAULT_PROJECT } from "../../stores/useProjectStore";
 import { useAppTheme } from "../../theme";
-import { ExportProgress } from "./ExportProgress";
+import { DeleteProjectsButton } from "./DeleteProjectsButton";
 import { ExportProjectsButton } from "./ExportProjectsButton";
-import { ExportStep } from "./ExportStep";
 import { FolderCheckEnum } from "./FolderCheckEnum";
 import { isFilesFolderEmpty } from "./isFilesFolderEmpty";
 import { ManageProjectsRow } from "./ManageProjectsRow";
 import { MarkAllCheckbox } from "./MarkAllCheckbox";
 
-// Lists every project with its files folder, notes the empty folders, and exports the marked ones.
+// Lists every project with its files folder, notes the empty folders, and exports or deletes the marked ones.
 export const ManageProjectsDialog = ({
   onClose,
 }: {
@@ -38,7 +37,6 @@ export const ManageProjectsDialog = ({
   const [folderChecks, setFolderChecks] = useState<{ [name: string]: FolderCheckEnum }>({});
   const [search, setSearch] = useState('');
   const [marks, setMarks] = useState<{ [name: string]: boolean }>({});
-  const [exportStep, setExportStep] = useState<ExportStep | null>(null);
   const [lastClicked, setLastClicked] = useState<string | null>(null);
 
   const setCheck = (name: string, check: FolderCheckEnum) => {
@@ -129,9 +127,34 @@ export const ManageProjectsDialog = ({
   }
 
   const markedNames: string[] = [];
+  const markedProjects: ProjectFolder[] = [];
   for (const project of projects) {
     if (marks[project.name]) {
       markedNames.push(project.name);
+      markedProjects.push(project);
+    }
+  }
+
+  // Drops the deleted projects' rows and marks.
+  const removeDeleted = (deleted: string[]) => {
+    setProjects((prev) => {
+      const left: ProjectFolder[] = [];
+      for (const project of prev) {
+        if (!deleted.includes(project.name)) {
+          left.push(project);
+        }
+      }
+      return left;
+    });
+    setMarks((prev) => {
+      const next = { ...prev };
+      for (const name of deleted) {
+        delete next[name];
+      }
+      return next;
+    });
+    if (lastClicked && deleted.includes(lastClicked)) {
+      setLastClicked(null);
     }
   }
 
@@ -199,9 +222,15 @@ export const ManageProjectsDialog = ({
             </TableBody>
           </Table>
         </DialogContent>
-        {exportStep && <ExportProgress step={exportStep} />}
         <DialogActions>
-          <ExportProjectsButton names={markedNames} onProgress={setExportStep} />
+          <ExportProjectsButton
+            names={markedNames}
+          />
+          <DeleteProjectsButton
+            projects={markedProjects}
+            folderChecks={folderChecks}
+            onDeleted={removeDeleted}
+          />
           <Button onClick={onClose}>
             Close
           </Button>

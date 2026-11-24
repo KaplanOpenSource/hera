@@ -198,7 +198,7 @@ describe('ManageProjectsDialog export', () => {
     expect(errorSpy).toHaveBeenCalled();
   });
 
-  it('disables the button while exporting', async () => {
+  it('shows a progress dialog over the list while exporting', async () => {
     let answer!: (v: ArrayBuffer) => void;
     mockPostBytes.mockImplementation(() => {
       return new Promise((r) => { answer = r; });
@@ -207,15 +207,12 @@ describe('ManageProjectsDialog export', () => {
     fireEvent.click(markBox('Alpha'));
 
     await clickExport();
-    expect(exportButton().disabled).toBe(true);
-    expect(exportButton().textContent).toBe('Exporting...');
-    await clickExport();
-    expect(mockPostBytes).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('export-progress-dialog')).toBeTruthy();
 
     await act(async () => { answer(new Uint8Array([1]).buffer); });
 
     expect(clickedDownloads).toEqual(['projects.zip']);
-    expect(exportButton().disabled).toBe(false);
+    expect(screen.queryByTestId('export-progress-dialog')).toBeNull();
     expect(exportButton().textContent).toBe('Export 1 project');
   });
 });

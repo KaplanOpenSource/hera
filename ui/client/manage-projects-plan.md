@@ -10,6 +10,11 @@
 - `ManageProjectsDialog.tsx`: the dialog with the list.
 - `ManageProjectsRow.tsx`: one line of the list.
 - `isFilesFolderEmpty.ts`: moved out of `DeleteProjectButton.tsx`, so both use it.
+- `exportProjectsToZip.ts`: exports names one by one into one saved `projects.zip`. Used by export and delete.
+- `DeleteProjectsButton.tsx`: the delete button and the delete work.
+- `DeleteProjectsConfirm.tsx`: the confirm dialog for deleting several projects.
+- `ExportProgressDialog.tsx`: covers the manage dialog with the progress while Export runs. Delete shows it inside its confirm.
+- `projectsText.ts`: "1 project" or "3 projects".
 
 ## Step 1: see the projects
 1. A new item in the project menu: "Manage projects". It opens the dialog.
