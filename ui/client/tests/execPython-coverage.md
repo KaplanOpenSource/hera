@@ -46,10 +46,10 @@ Each api class also has its own test file, one test per method:
 | `GET /workflow_run` | `WorkflowApi.run`, `WorkflowRunSelect` | yes | no | `workflowApi.test.ts`, `workflowRunSelect.test.tsx`, `server/tests/test_workflow_run_history.py` |
 | `getJson` / `postJson` / `getBytes` / `postBytes` / `postBytesForJson` | `src/api/ApiCall.ts` | yes | no | `ApiCall.test.ts`, `apiPackageIsolation.test.ts` |
 | `GET /project/names` | `fetchProjectsNames` | yes | yes | `FetchProjects.test.ts`, `server/tests/project_routes/test_project_list.py` |
-| `GET /project/folders` | `LoadProjectDialog` | yes | no | `loadProjectChecks.test.tsx`, `projectApi.test.ts`, `server/tests/project_routes/test_project_folders.py` |
+| `GET /project/folders` | `LoadProjectDialog`, `ManageProjectsDialog` | yes | no | `loadProjectChecks.test.tsx`, `manageProjects.test.tsx`, `projectApi.test.ts`, `server/tests/project_routes/test_project_folders.py` |
 | `GET /project/documents` | `fetchProjectDetails`, `fetchProjectData` | yes | yes | `FetchProjects.test.ts`, `server/tests/project_routes/test_project_documents.py` |
 | `GET /project/toolkits` | `fetchProjectData` | yes | yes | `FetchProjects.test.ts`, `server/tests/project_routes/test_toolkits.py` |
-| `GET /project/files` | `ProjectFilesView` | yes | no | `projectApi.test.ts`, `projectFilesView.test.tsx`, `server/tests/project_routes/test_list_project_files.py` |
+| `GET /project/files` | `ProjectFilesView`, `isFilesFolderEmpty` (`DeleteProjectButton`, `ManageProjectsDialog`) | yes | no | `projectApi.test.ts`, `projectFilesView.test.tsx`, `deleteProjectEmptyFolder.test.tsx`, `manageProjects.test.tsx`, `server/tests/project_routes/test_list_project_files.py` |
 | `POST /project/create` | `AddProjectButton` | yes | yes | `addProject.test.tsx`, `integration/addProject.integ.test.tsx`, `server/tests/project_routes/test_create_project.py` |
 | `POST /project/delete` | `DeleteProjectButton` | yes | yes | `deleteProject.test.tsx`, `integration/deleteProject.integ.test.tsx`, `server/tests/project_routes/test_delete_project.py` |
 | `POST /project/export` | `ExportProjectButton` | yes | no | `exportProject.test.tsx`, `projectApi.test.ts`, `server/tests/project_routes/test_export_project.py` |

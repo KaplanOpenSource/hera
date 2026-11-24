@@ -34,8 +34,8 @@ class ProjectApi:
         return first + rest
 
     @staticmethod
-    def folders() -> List[Dict[str, str]]:
-        """Every project's name and files folder, read from its settings record."""
+    def folders() -> List[Dict[str, Any]]:
+        """Every project's name and files folder, read from its settings record, and whether the folder is there."""
         from hera.datalayer import Cache_Collection
         answer = []
         for entry in ProjectApi.names():
@@ -43,7 +43,8 @@ class ProjectApi:
             folder = ""
             for doc in Cache_Collection().getDocuments(projectName=name, type=f"{name}__config__"):
                 folder = (doc.desc or {}).get("filesDirectory", "") or folder
-            answer.append({"name": name, "filesDirectory": folder})
+            folderExists = bool(folder) and os.path.isdir(folder)
+            answer.append({"name": name, "filesDirectory": folder, "folderExists": folderExists})
         return answer
 
     def default_files_directory(self) -> str:

@@ -14,14 +14,25 @@ class TestProjectFolders:
         })
 
         assert routes.folders() == {"projects": [
-            {"name": "Alpha", "filesDirectory": "/data/a"},
-            {"name": "Beta", "filesDirectory": "/data/b"},
+            {"name": "Alpha", "filesDirectory": "/data/a", "folderExists": False},
+            {"name": "Beta", "filesDirectory": "/data/b", "folderExists": False},
         ]}
 
     def test_a_project_without_a_settings_record_has_no_folder(self, fake_hera):
         fake_hera([DEFAULT_PROJECT])
 
-        assert ProjectApi.folders() == [{"name": DEFAULT_PROJECT, "filesDirectory": ""}]
+        assert ProjectApi.folders() == [{"name": DEFAULT_PROJECT, "filesDirectory": "", "folderExists": False}]
+
+    def test_says_whether_the_folder_is_there(self, fake_hera, tmp_path):
+        fake_hera(["Alpha", "Beta"], documents={
+            "Alpha": [{"type": "Alpha__config__", "desc": {"filesDirectory": str(tmp_path)}}],
+            "Beta": [{"type": "Beta__config__", "desc": {"filesDirectory": str(tmp_path / "gone")}}],
+        })
+
+        assert ProjectApi.folders() == [
+            {"name": "Alpha", "filesDirectory": str(tmp_path), "folderExists": True},
+            {"name": "Beta", "filesDirectory": str(tmp_path / "gone"), "folderExists": False},
+        ]
 
     def test_does_not_open_or_change_any_project(self, fake_hera, warmed, monkeypatch):
         db = fake_hera(["Alpha"], documents={
@@ -31,7 +42,7 @@ class TestProjectFolders:
             raise AssertionError("folders opened a project")
         monkeypatch.setattr(sys.modules["hera.datalayer.project"], "Project", no_open)
 
-        assert routes.folders() == {"projects": [{"name": "Alpha", "filesDirectory": "/data/a"}]}
+        assert routes.folders() == {"projects": [{"name": "Alpha", "filesDirectory": "/data/a", "folderExists": False}]}
         assert db.documents == {"Alpha": [{"type": "Alpha__config__", "desc": {"filesDirectory": "/data/a"}}]}
         assert db.created == []
         assert db.filesDirectories == {}

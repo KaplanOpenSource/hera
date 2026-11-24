@@ -44,6 +44,7 @@ export interface ProjectName {
 export interface ProjectFolder {
   name: string;
   filesDirectory: string;
+  folderExists: boolean;
 }
 
 export interface Project {
