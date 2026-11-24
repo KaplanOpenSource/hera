@@ -47,6 +47,15 @@ configs:
       }
   mongo_create_users:
     file: ./mongo-init.d/50-create-users.js
+  # Cassandra logs only warnings and errors, to the console.
+  cassandra_logback:
+    content: |
+      <configuration>
+        <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+          <encoder><pattern>%-5level %date{ISO8601} %F:%L - %msg%n</pattern></encoder>
+        </appender>
+        <root level="WARN"><appender-ref ref="STDOUT"/></root>
+      </configuration>
 
 services:
   mongo:
@@ -159,20 +168,26 @@ services:
       retries: 5
 
   ollama-pull:
-    # Runs once at ai startup: pulls the LLM into ./ollama-data if it is missing.
+    # Runs once at ai startup: pulls the LLM, printing its size and percent every 2 s.
     <<: *locked-down
     profiles: ["ai"]
-    image: ollama/ollama
+    image: python:3.11-slim
     user: "1000:1000"
     depends_on:
       ollama:
         condition: service_healthy
-    environment:
-      HOME: /home/ollama
-      OLLAMA_HOST: http://ollama:11434
-      MODEL: ${RAG_OLLAMA_MODEL:-llama3}
-    entrypoint: ["bash", "-c"]
-    command: ['ollama show "$$MODEL" > /dev/null || ollama pull "$$MODEL"']
+    command:
+      - python
+      - -c
+      - |
+        import json, time, urllib.request
+        last = 0
+        for line in urllib.request.urlopen("http://ollama:11434/api/pull", json.dumps({"model": "${RAG_OLLAMA_MODEL:-llama3}"}).encode()):
+            m = json.loads(line)
+            if m.get("total") and time.time() - last > 2:
+                print(f"{m['total'] / 1e9:.1f} GB {100 * m.get('completed', 0) / m['total']:.3f}%", flush=True)
+                last = time.time()
+        print(m.get("status", m), flush=True)
 
   qdrant:
     # Vector store for the RAG. The unprivileged image runs as uid 1000.
@@ -180,6 +195,10 @@ services:
     profiles: ["ai"]
     image: qdrant/qdrant:latest-unprivileged
     user: "1000:1000"
+    depends_on:
+      # Start after the model download, so its progress is not buried in logs.
+      ollama-pull:
+        condition: service_completed_successfully
     environment:
       # Keep snapshots in the mounted folder too.
       QDRANT__STORAGE__SNAPSHOTS_PATH: /qdrant/storage/snapshots
@@ -197,12 +216,19 @@ services:
     profiles: ["ai"]
     image: cassandra:4
     user: "999:999"
+    depends_on:
+      # Start after the model download, so its progress is not buried in logs.
+      ollama-pull:
+        condition: service_completed_successfully
     environment:
       # Small heap; the default takes a quarter of the RAM.
       MAX_HEAP_SIZE: 512M
       HEAP_NEWSIZE: 128M
     volumes:
       - cassandra-data:/var/lib/cassandra
+    configs:
+      - source: cassandra_logback
+        target: /etc/cassandra/logback.xml
     # Port 9042 opens only when Cassandra is ready, which takes about a minute.
     healthcheck:
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/9042"]
