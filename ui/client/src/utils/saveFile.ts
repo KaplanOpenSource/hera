@@ -1,3 +1,6 @@
+// Give the browser time to start the download before the bytes are freed.
+const REVOKE_DELAY_MS = 10000;
+
 // Makes the browser save the bytes as a file on the user's machine.
 export const saveFile = (bytes: ArrayBuffer, fileName: string) => {
   const url = URL.createObjectURL(new Blob([bytes], { type: 'application/zip' }));
@@ -5,5 +8,5 @@ export const saveFile = (bytes: ArrayBuffer, fileName: string) => {
   link.href = url;
   link.download = fileName;
   link.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), REVOKE_DELAY_MS);
 }
