@@ -6,7 +6,6 @@ import { AddProjectButton } from './AddProjectButton';
 import { DeleteProjectButton } from './DeleteProjectButton';
 import { ExportProjectButton } from './ExportProjectButton';
 import { LoadProjectButton } from './LoadProjectButton';
-import { ManageProjectsButton } from './ManageProjectsButton';
 
 // Three-dots button next to the project chooser: opens a popover holding the project actions.
 export const ProjectMenuButton = () => {
@@ -46,9 +45,6 @@ export const ProjectMenuButton = () => {
           />
           <DeleteProjectButton
             onDeleted={close}
-          />
-          <ManageProjectsButton
-            onClosed={close}
           />
         </Stack>
       </Popover>
