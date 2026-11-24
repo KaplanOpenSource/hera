@@ -417,6 +417,15 @@ Required services (can be Docker containers):
 - **Cassandra**: `docker run -p 9042:9042 cassandra:4`
 - **Ollama**: [Install Ollama](https://ollama.ai/) then `ollama pull llama3`
 
+### With docker compose
+
+The `ai` profile runs Ollama, Qdrant, Cassandra and the RAG API inside the locked-down compose network (no host ports):
+
+```bash
+docker compose --profile work --profile ai up --build   # pulls the LLM; the first start also builds the index
+docker compose exec server curl -s http://rag:8765/health
+```
+
 ---
 
 ## Extending

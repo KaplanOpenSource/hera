@@ -1,0 +1,30 @@
+# RAG image for the compose "rag" service: only the RAG packages and the hera source.
+FROM python:3.11-slim
+
+# CPU-only torch first, so the "rag" extra does not pull the much bigger GPU build.
+RUN python -m pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch
+
+# Packages come from setup.py's "rag" extra; copy only what setup.py reads, so code edits keep this layer.
+COPY setup.py /tmp/pyhera/
+COPY hera/__init__.py /tmp/pyhera/hera/
+COPY hera/bin /tmp/pyhera/hera/bin
+RUN python -m pip install --no-cache-dir "/tmp/pyhera[rag]" && rm -rf /tmp/pyhera
+
+WORKDIR /app
+
+ENV PATH="/app/hera/bin:${PATH}"
+# The real code in /app/hera comes before the stub package pip just installed.
+ENV PYTHONPATH="/app"
+
+# Normal user; uid 1000 matches the host user who owns the data folders.
+RUN useradd -m -u 1000 -s /bin/bash hera && \
+    mkdir -p /home/hera/.pyhera/log /home/hera/rag-models && \
+    chown -R hera:hera /home/hera
+
+# The RAG imports hera.utils.rag and indexes docs/ and hera/.
+COPY --chown=hera:hera hera /app/hera
+COPY --chown=hera:hera docs /app/docs
+
+USER hera
+EXPOSE 8765
+CMD ["python", "-m", "hera.utils.rag.serve"]

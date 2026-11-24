@@ -1,7 +1,7 @@
 # Hera full stack.
 #   docker compose up --build --watch                          -> mongo + server
 #   docker compose --profile work up --build --watch           -> + client (Vite dev)
-#   docker compose --profile work --profile ai up --build --watch -> + ollama (internal)
+#   docker compose --profile work --profile ai up --build --watch -> + ollama, qdrant, cassandra, rag (internal)
 #
 # Safety: code folders are not mounted. Code is copied into the image, and
 # --watch copies your edits in. Only data folders are mounted. No container
@@ -27,6 +27,12 @@ x-hera: &hera
   image: hera-server
   # uid 1000, same as the host user who owns the data folders.
   user: hera
+
+# Named volumes: Docker creates them owned like the image folder, so no mkdir or chown.
+volumes:
+  qdrant-data:
+  cassandra-data:
+  rag-models:
 
 configs:
   pyhera_config:
@@ -86,6 +92,8 @@ services:
       # jupyter-ai/langchain use this to reach the ollama service (started with
       # --profile ai). When ollama is not up, the name fails fast (100ms).
       OLLAMA_HOST: http://ollama:11434
+      # The RAG server (started with --profile ai).
+      RAG_API_URL: http://rag:8765
     # Bound to 127.0.0.1 so only this computer can reach them, not the LAN.
     ports:
       - "127.0.0.1:8000:8000"   # API
@@ -149,3 +157,114 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  ollama-pull:
+    # Runs once at ai startup: pulls the LLM into ./ollama-data if it is missing.
+    <<: *locked-down
+    profiles: ["ai"]
+    image: ollama/ollama
+    user: "1000:1000"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      HOME: /home/ollama
+      OLLAMA_HOST: http://ollama:11434
+      MODEL: ${RAG_OLLAMA_MODEL:-llama3}
+    entrypoint: ["bash", "-c"]
+    command: ['ollama show "$$MODEL" > /dev/null || ollama pull "$$MODEL"']
+
+  qdrant:
+    # Vector store for the RAG. The unprivileged image runs as uid 1000.
+    <<: *locked-down
+    profiles: ["ai"]
+    image: qdrant/qdrant:latest-unprivileged
+    user: "1000:1000"
+    environment:
+      # Keep snapshots in the mounted folder too.
+      QDRANT__STORAGE__SNAPSHOTS_PATH: /qdrant/storage/snapshots
+    volumes:
+      - qdrant-data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/6333"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  cassandra:
+    # Text store for the RAG. Runs as the image's cassandra user (uid 999).
+    <<: *locked-down
+    profiles: ["ai"]
+    image: cassandra:4
+    user: "999:999"
+    environment:
+      # Small heap; the default takes a quarter of the RAM.
+      MAX_HEAP_SIZE: 512M
+      HEAP_NEWSIZE: 128M
+    volumes:
+      - cassandra-data:/var/lib/cassandra
+    # Port 9042 opens only when Cassandra is ready, which takes about a minute.
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/9042"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  rag:
+    # RAG API (FastAPI, port 8765). No ports: only the server talks to it.
+    # Own small image (dockerfile.rag), so torch stays out of hera-server.
+    <<: *locked-down
+    profiles: ["ai"]
+    build:
+      context: .
+      dockerfile: dockerfile.rag
+    image: hera-rag
+    user: hera
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      cassandra:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+      ollama-pull:
+        condition: service_completed_successfully
+    volumes:
+      # Embedding model, downloaded once.
+      - rag-models:/home/hera/rag-models
+    environment:
+      RAG_OLLAMA_BASE_URL: http://ollama:11434
+      RAG_OLLAMA_MODEL: ${RAG_OLLAMA_MODEL:-llama3}
+      # llama3 on CPU can take minutes per answer; the default 120s is too short.
+      RAG_OLLAMA_TIMEOUT: "600"
+      RAG_QDRANT_HOST: qdrant
+      RAG_CASSANDRA_HOSTS: '["cassandra"]'
+      RAG_MODELS_CACHE_DIR: /home/hera/rag-models
+      # HuggingFace download cache, kept in the mounted folder.
+      HF_HOME: /home/hera/rag-models/hf
+    # Build the index when Qdrant has none yet, then start the API.
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        python -c "import sys; from qdrant_client import QdrantClient; q = QdrantClient(host='qdrant'); sys.exit(0 if q.collection_exists('hera_docs') and q.count('hera_docs').count > 0 else 1)" \
+          || hera-rag-search index --docs /app/docs --code /app/hera --clean
+        exec python -m hera.utils.rag.serve
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8765"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./hera
+          target: /app/hera
+          ignore: [__pycache__/]
+        - action: sync
+          path: ./docs
+          target: /app/docs
+        - action: rebuild
+          path: ./setup.py

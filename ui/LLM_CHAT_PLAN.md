@@ -35,7 +35,7 @@ The compose file is locked down. New services must follow the same rules.
    - mount a data folder each (like `./ollama-data`),
    - bare TCP healthcheck, like mongo and ollama.
    - Check that Cassandra can run as non-root with all rights removed. This is the riskiest part.
-2. Add a `rag` service built from the `hera` anchor (same image as the server):
+2. Add a `rag` service with its own small image (see the notes below):
    - command: the RAG server (`hera/utils/rag/serve.py`, port 8765),
    - no host ports; only the Hera server talks to it,
    - env: `RAG_OLLAMA_BASE_URL=http://ollama:11434`, `RAG_QDRANT_HOST=qdrant`, `RAG_CASSANDRA_HOSTS=["cassandra"]`,
@@ -49,6 +49,25 @@ The compose file is locked down. New services must follow the same rules.
 8. If llama3 is weak, try a better model before going on.
 
 Done when: `docker compose --profile work --profile ai up` starts everything, and answers are useful.
+
+Status: the files are written, but nothing was built or run yet (no Docker where they were written).
+How it differs from the list above:
+
+- Qdrant uses `qdrant/qdrant:latest-unprivileged` (made to run as uid 1000).
+- Qdrant, Cassandra and the embedding model use named volumes, so no folder setup is needed.
+- Cassandra runs as uid 999 (the image's own user). Heap is set to 512M. No capability was added back (not tested yet).
+- A one-shot `ollama-pull` service pulls the model into `./ollama-data` if it is missing.
+  `rag` waits for it. Model name: `RAG_OLLAMA_MODEL` (default llama3).
+- `rag` has its own small image from `dockerfile.rag` (python:3.11-slim,
+  CPU-only torch, the `rag` extra from `setup.py`, hera source + docs). The hera-server image has no torch.
+  `import hera` loads only logging, so the RAG does not need Hera's other packages.
+- `RAG_OLLAMA_TIMEOUT=600`, since llama3 on CPU can be slow.
+- Embedding model and HuggingFace cache live in the `rag-models` volume.
+- The index command needs explicit paths: `hera-rag-search index --docs /app/docs --code /app/hera`.
+  Its defaults point at `/app/hera/docs`, which is wrong (Python bug, not fixed here).
+  The `rag` service runs it by itself on start when the index is empty.
+  To rebuild after docs change: `docker compose exec rag hera-rag-search index --docs /app/docs --code /app/hera --clean`.
+- `RagSettings` reads `RAG_RAG_API_URL`, not `RAG_API_URL`. The server gets `RAG_API_URL`; Step 1 code must read that name.
 
 ## Step 1 - Chat panel, answers only
 
