@@ -2,10 +2,14 @@ import { ProjectEntire } from '@shared/types';
 import { projectApi } from '../api/api';
 import { ProjectObj } from '../objects/ProjectObj';
 import { useProjectStore } from '../stores/useProjectStore';
+import { useViewSettingsStore } from '../stores/useViewSettingsStore';
 import { pushInfo } from './snackbar';
 
 // Registers the untracked notebooks in the project's files directory; runs after a project loads.
 export const detectNotebooks = async (project: ProjectEntire) => {
+  if (!useViewSettingsStore.getState().viewSettings.detectNotebooks) {
+    return;
+  }
   const filesDir = new ProjectObj(project).configDocument?.data.desc.filesDirectory;
   if (!filesDir) {
     return;

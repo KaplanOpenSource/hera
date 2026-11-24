@@ -17,6 +17,8 @@ export type ViewSettingsType = {
   themeMode: ThemeMode;
   // When true, running a workflow saves the open document first.
   alwaysSaveBeforeRun: boolean;
+  // When true, opening a project registers the notebooks found in its files folder.
+  detectNotebooks: boolean;
 };
 
 type ViewSettingsStore = {
@@ -37,6 +39,7 @@ const defaultSettings: ViewSettingsType = {
   reloadIntervalSeconds: DEFAULT_RELOAD_INTERVAL_SECONDS,
   themeMode: ThemeMode.Light,
   alwaysSaveBeforeRun: false,
+  detectNotebooks: true,
 };
 
 export const useViewSettingsStore = create<ViewSettingsStore>()(

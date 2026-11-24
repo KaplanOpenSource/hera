@@ -13,6 +13,7 @@ vi.mock('../src/io/snackbar', () => ({
 
 const { detectNotebooks } = await import('../src/io/detectNotebooks');
 const { useProjectStore } = await import('../src/stores/useProjectStore');
+const { useViewSettingsStore } = await import('../src/stores/useViewSettingsStore');
 
 const configDoc = {
   _id: { $oid: 'cfg1' },
@@ -40,6 +41,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockPostJson = mockApiCall().postJson;
   useProjectStore.setState({ currProjectName: 'TestProject', currProject: project });
+  useViewSettingsStore.getState().setViewSettings({ detectNotebooks: true });
 });
 
 describe('detectNotebooks', () => {
@@ -98,6 +100,14 @@ describe('detectNotebooks', () => {
 
   it('does not call the server when the project has no files directory', async () => {
     await detectNotebooks({ name: 'TestProject', documents: [] });
+
+    expect(mockPostJson).not.toHaveBeenCalled();
+  });
+
+  it('does not call the server when detecting notebooks is turned off', async () => {
+    useViewSettingsStore.getState().setViewSettings({ detectNotebooks: false });
+
+    await detectNotebooks(project);
 
     expect(mockPostJson).not.toHaveBeenCalled();
   });

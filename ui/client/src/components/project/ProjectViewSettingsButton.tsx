@@ -68,6 +68,11 @@ export const ProjectViewSettingsButton = ({ }) => {
                 value={viewSettings.alwaysSaveBeforeRun}
                 setValue={v => setViewSettings({ ...viewSettings, alwaysSaveBeforeRun: v })}
               />
+              <BooleanProperty
+                label="Detect notebooks in the files folder when a project opens"
+                value={viewSettings.detectNotebooks}
+                setValue={v => setViewSettings({ ...viewSettings, detectNotebooks: v })}
+              />
               <Divider sx={{ mt: 1 }} />
               {/* Build info, the server user and the CORS tag, out of the way. */}
               <Stack direction="row" spacing={1} alignItems="center">
