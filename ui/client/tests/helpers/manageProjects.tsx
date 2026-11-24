@@ -6,10 +6,10 @@ import { ManageProjectsButton } from '../../src/components/header/ManageProjects
 
 export const FOLDERS = {
   projects: [
-    { name: 'defaultProject', filesDirectory: '/data/default', folderExists: true, documentCount: 1 },
-    { name: 'Alpha', filesDirectory: '/data/alpha', folderExists: true, documentCount: 3 },
-    { name: 'Beta', filesDirectory: '/data/beta', folderExists: true, documentCount: 0 },
-    { name: 'Gamma', filesDirectory: '/data/gamma', folderExists: true, documentCount: 12 },
+    { name: 'defaultProject', filesDirectory: '/data/default', folderState: 'hasFiles', documentCount: 1 },
+    { name: 'Alpha', filesDirectory: '/data/alpha', folderState: 'hasFiles', documentCount: 3 },
+    { name: 'Beta', filesDirectory: '/data/beta', folderState: 'hasFiles', documentCount: 0 },
+    { name: 'Gamma', filesDirectory: '/data/gamma', folderState: 'hasFiles', documentCount: 12 },
   ],
 };
 

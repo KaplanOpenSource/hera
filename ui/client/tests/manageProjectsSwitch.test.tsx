@@ -16,7 +16,7 @@ beforeEach(() => {
     if (path === '/project/folders') {
       return FOLDERS;
     }
-    return { files: [{ name: 'data.parquet', isFolder: false }] };
+    return null;
   });
   useProjectStore.setState({ currProjectName: 'Alpha' });
 });

@@ -23,11 +23,11 @@ const { useProjectListStore } = await import('../src/stores/useProjectListStore'
 // Alpha has an empty folder, Beta has files, Gamma has no folder, Delta's folder is missing.
 const FOLDERS = {
   projects: [
-    { name: 'defaultProject', filesDirectory: '/data/default', folderExists: true },
-    { name: 'Alpha', filesDirectory: '/data/alpha', folderExists: true },
-    { name: 'Beta', filesDirectory: '/data/beta', folderExists: true },
-    { name: 'Gamma', filesDirectory: '', folderExists: false },
-    { name: 'Delta', filesDirectory: '/data/delta', folderExists: false },
+    { name: 'defaultProject', filesDirectory: '/data/default', folderState: 'hasFiles' },
+    { name: 'Alpha', filesDirectory: '/data/alpha', folderState: 'empty' },
+    { name: 'Beta', filesDirectory: '/data/beta', folderState: 'hasFiles' },
+    { name: 'Gamma', filesDirectory: '', folderState: 'noFolder' },
+    { name: 'Delta', filesDirectory: '/data/delta', folderState: 'missing' },
   ],
 };
 
@@ -42,14 +42,11 @@ beforeEach(() => {
   const { getJson, postBytes, postJson } = mockApiCall();
   mockPostBytes = postBytes;
   mockPostJson = postJson;
-  getJson.mockImplementation(async (path: string, params: { projectName: string }) => {
+  getJson.mockImplementation(async (path: string) => {
     if (path === '/project/folders') {
       return FOLDERS;
     }
-    if (params.projectName === 'Alpha') {
-      return { files: [] };
-    }
-    return { files: [{ name: 'data.parquet', isFolder: false }] };
+    return null;
   });
   calls = [];
   mockPostBytes.mockImplementation(async (_path: string, body: { projectName: string }) => {
@@ -81,12 +78,11 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// Opens the dialog, waits for the folder checks, and marks the given rows.
+// Opens the dialog, waits for the rows, and marks the given ones.
 const openAndMark = async (names: string[]) => {
   await openDialog();
   await waitFor(() => {
     expect(rowNames()).toHaveLength(4);
-    expect(screen.queryAllByTestId('manage-projects-checking')).toHaveLength(0);
   });
   for (const name of names) {
     fireEvent.click(screen.getByLabelText(`Mark ${name}`));

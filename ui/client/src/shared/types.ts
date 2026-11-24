@@ -1,4 +1,5 @@
 import { AgentConfig } from "./AgentConfig";
+import { FolderStateEnum } from "./FolderStateEnum";
 
 // Where the node catalog discovered a Hermes node's parameter or output.
 export enum NodeParameterSource {
@@ -44,7 +45,7 @@ export interface ProjectName {
 export interface ProjectFolder {
   name: string;
   filesDirectory: string;
-  folderExists: boolean;
+  folderState: FolderStateEnum;
   documentCount: number;
 }
 

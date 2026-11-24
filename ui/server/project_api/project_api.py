@@ -7,6 +7,7 @@ import os
 import zipfile
 from typing import IO, Any, Dict, List, Optional
 
+from project_api.folder_state import folder_state
 from project_api.project_files import ProjectFiles
 
 # Shown first in the project list; the rest are sorted by name.
@@ -35,7 +36,7 @@ class ProjectApi:
 
     @staticmethod
     def folders() -> List[Dict[str, Any]]:
-        """Every project's name, files folder (and whether it is there), and how many documents it has."""
+        """Every project's name, files folder and its state, and how many documents it has."""
         from hera.datalayer import All, Cache_Collection
         answer = []
         for entry in ProjectApi.names():
@@ -45,10 +46,9 @@ class ProjectApi:
             for doc in Cache_Collection().getDocuments(projectName=name, type=f"{name}__config__"):
                 folder = (doc.desc or {}).get("filesDirectory", "") or folder
                 configCount += 1
-            folderExists = bool(folder) and os.path.isdir(folder)
             # The settings record is bookkeeping, not a document the user made.
             documentCount = All.getDocuments(projectName=name).count() - configCount
-            answer.append({"name": name, "filesDirectory": folder, "folderExists": folderExists,
+            answer.append({"name": name, "filesDirectory": folder, "folderState": folder_state(folder).value,
                            "documentCount": documentCount})
         return answer
 

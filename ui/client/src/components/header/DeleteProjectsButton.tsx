@@ -1,6 +1,7 @@
 import { Button } from "@mui/material";
 import { useState } from "react";
 import { projectApi } from "../../api/api";
+import { FolderStateEnum } from "../../shared/FolderStateEnum";
 import { pushError, pushInfo } from "../../io/snackbar";
 import { ProjectEntire, ProjectFolder, ProjectName } from "../../shared/types";
 import { useProjectListStore } from "../../stores/useProjectListStore";
@@ -8,17 +9,14 @@ import { NO_PROJECT, useProjectStore } from "../../stores/useProjectStore";
 import { DeleteProjectsConfirm } from "./DeleteProjectsConfirm";
 import { ExportStep } from "./ExportStep";
 import { exportProjectsToZip } from "./exportProjectsToZip";
-import { FolderCheckEnum } from "./FolderCheckEnum";
 import { projectsText } from "./projectsText";
 
 // Saves the marked projects in projects.zip, then deletes them one by one.
 export const DeleteProjectsButton = ({
   projects,
-  folderChecks,
   onDeleted,
 }: {
   projects: ProjectFolder[],
-  folderChecks: { [name: string]: FolderCheckEnum },
   onDeleted: (names: string[]) => void,
 }) => {
   const [confirming, setConfirming] = useState(false);
@@ -57,9 +55,11 @@ export const DeleteProjectsButton = ({
     }
     const deleted: string[] = [];
     let lastAnswer: any = null;
-    for (const name of names) {
+    for (const project of projects) {
+      const name = project.name;
       // Only a folder known to be empty goes too; a folder with files is never deleted.
-      const deleteFiles = folderChecks[name] === FolderCheckEnum.Empty;
+      const deleteFiles = project.folderState === FolderStateEnum.Empty
+        || project.folderState === FolderStateEnum.OnlyCaseConfig;
       const answer = await projectApi.delete(name, deleteFiles);
       if (!answer) {
         pushError(`Delete stopped: ${name} delete failed. Deleted ${deleted.length} of ${projectsText(names.length)}.`);
@@ -92,7 +92,6 @@ export const DeleteProjectsButton = ({
     {confirming && (
       <DeleteProjectsConfirm
         projects={projects}
-        folderChecks={folderChecks}
         running={running}
         step={step}
         onCancel={() => setConfirming(false)}

@@ -1,19 +1,17 @@
-import { TableCell, TableRow, Typography } from "@mui/material";
+import { TableCell, TableRow } from "@mui/material";
 import { ProjectFolder } from "../../shared/types";
-import { FolderCheckEnum } from "./FolderCheckEnum";
+import { FolderStateNote } from "./FolderStateNote";
 import { MarkProjectCheckbox } from "./MarkProjectCheckbox";
 import { SwitchToProjectButton } from "./SwitchToProjectButton";
 
 // One project in the manage table: a mark, its name, files folder, document count, a folder note, and a switch button.
 export const ManageProjectsRow = ({
   project,
-  folderCheck,
   marked,
   onToggle,
   onSwitched,
 }: {
   project: ProjectFolder,
-  folderCheck: FolderCheckEnum,
   marked: boolean,
   onToggle: (shift: boolean) => void,
   onSwitched: () => void,
@@ -42,21 +40,7 @@ export const ManageProjectsRow = ({
         {project.documentCount}
       </TableCell>
       <TableCell>
-        {folderCheck === FolderCheckEnum.Checking && (
-          <Typography variant="caption" color="text.secondary" data-testid="manage-projects-checking">
-            checking...
-          </Typography>
-        )}
-        {folderCheck === FolderCheckEnum.Missing && (
-          <Typography variant="caption" color="warning.main" data-testid="manage-projects-missing">
-            folder missing
-          </Typography>
-        )}
-        {folderCheck === FolderCheckEnum.Empty && (
-          <Typography variant="caption" color="warning.main" data-testid="manage-projects-empty">
-            empty folder
-          </Typography>
-        )}
+        <FolderStateNote state={project.folderState} />
       </TableCell>
       <TableCell>
         <SwitchToProjectButton

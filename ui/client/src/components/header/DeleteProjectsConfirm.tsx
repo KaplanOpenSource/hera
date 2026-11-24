@@ -9,23 +9,22 @@ import {
   Typography
 } from "@mui/material";
 import { useState } from "react";
+import { FolderStateEnum } from "../../shared/FolderStateEnum";
 import { ProjectFolder } from "../../shared/types";
 import { ExportProgress } from "./ExportProgress";
 import { ExportStep } from "./ExportStep";
-import { FolderCheckEnum } from "./FolderCheckEnum";
+import { FolderStateNote } from "./FolderStateNote";
 import { projectsText } from "./projectsText";
 
 // Asks before deleting the marked projects, then stays open with the progress until the work ends.
 export const DeleteProjectsConfirm = ({
   projects,
-  folderChecks,
   running,
   step,
   onCancel,
   onConfirm,
 }: {
   projects: ProjectFolder[],
-  folderChecks: { [name: string]: FolderCheckEnum },
   running: boolean,
   step: ExportStep | null,
   onCancel: () => void,
@@ -37,10 +36,12 @@ export const DeleteProjectsConfirm = ({
   const withFiles: ProjectFolder[] = [];
   const noFolder: ProjectFolder[] = [];
   for (const project of projects) {
-    const check = folderChecks[project.name] ?? FolderCheckEnum.Checking;
-    if (check === FolderCheckEnum.Empty) {
+    const state = project.folderState;
+    const filesGoToo = state === FolderStateEnum.Empty || state === FolderStateEnum.OnlyCaseConfig;
+    const nothingOnDisk = state === FolderStateEnum.NoFolder || state === FolderStateEnum.Missing;
+    if (filesGoToo) {
       emptyFolder.push(project);
-    } else if (check === FolderCheckEnum.NoFolder || check === FolderCheckEnum.Missing) {
+    } else if (nothingOnDisk) {
       noFolder.push(project);
     } else {
       withFiles.push(project);
@@ -80,7 +81,8 @@ export const DeleteProjectsConfirm = ({
             <Typography variant="subtitle2">Folder with files: their files are kept.</Typography>
             {withFiles.map((project) => (
               <Typography key={project.name} variant="body2" sx={{ overflowWrap: 'anywhere' }}>
-                {`${project.name} - ${project.filesDirectory}`}
+                {`${project.name} - ${project.filesDirectory} `}
+                <FolderStateNote state={project.folderState} />
               </Typography>
             ))}
           </Box>

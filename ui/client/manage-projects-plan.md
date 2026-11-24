@@ -9,6 +9,7 @@
 - `ManageProjectsButton.tsx`: only the menu item. It opens the dialog.
 - `ManageProjectsDialog.tsx`: the dialog with the list.
 - `ManageProjectsRow.tsx`: one line of the list.
+- `FolderStateNote.tsx`: the note for a folder state, in a row and in the delete confirm.
 - `isFilesFolderEmpty.ts`: moved out of `DeleteProjectButton.tsx`, so both use it.
 - `exportProjectsToZip.ts`: exports names one by one into one saved `projects.zip`. Used by export and delete.
 - `DeleteProjectsButton.tsx`: the delete button and the delete work.

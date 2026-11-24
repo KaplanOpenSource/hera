@@ -20,14 +20,12 @@ import { DEFAULT_PROJECT } from "../../stores/useProjectStore";
 import { useAppTheme } from "../../theme";
 import { DeleteProjectsButton } from "./DeleteProjectsButton";
 import { ExportProjectsButton } from "./ExportProjectsButton";
-import { FolderCheckEnum } from "./FolderCheckEnum";
-import { isFilesFolderEmpty } from "./isFilesFolderEmpty";
 import { EmptyProjectsToggle } from "./EmptyProjectsToggle";
 import { isEmptyProject } from "./isEmptyProject";
 import { ManageProjectsRow } from "./ManageProjectsRow";
 import { MarkAllCheckbox } from "./MarkAllCheckbox";
 
-// Lists every project with its files folder, notes the empty folders, and exports or deletes the marked ones.
+// Lists every project with its files folder, notes the folder state, and exports or deletes the marked ones.
 export const ManageProjectsDialog = ({
   onClose,
 }: {
@@ -36,33 +34,10 @@ export const ManageProjectsDialog = ({
   // Follow the app theme so the dialog isn't tinted by the dark header it opens from.
   const dialogTheme = useAppTheme();
   const [projects, setProjects] = useState<ProjectFolder[]>([]);
-  const [folderChecks, setFolderChecks] = useState<{ [name: string]: FolderCheckEnum }>({});
   const [search, setSearch] = useState('');
   const [onlyEmpty, setOnlyEmpty] = useState(false);
   const [marks, setMarks] = useState<{ [name: string]: boolean }>({});
   const [lastClicked, setLastClicked] = useState<string | null>(null);
-
-  const setCheck = (name: string, check: FolderCheckEnum) => {
-    setFolderChecks((prev) => {
-      return { ...prev, [name]: check };
-    });
-  }
-
-  const checkFolder = (name: string) => {
-    isFilesFolderEmpty(name)
-      .then((empty) => {
-        if (empty) {
-          setCheck(name, FolderCheckEnum.Empty);
-        } else {
-          setCheck(name, FolderCheckEnum.NotEmpty);
-        }
-      })
-      // A failed check shows no note.
-      .catch((error) => {
-        console.error(`could not check the files folder of ${name}`, error);
-        setCheck(name, FolderCheckEnum.NotEmpty);
-      });
-  }
 
   useEffect(() => {
     projectApi.folders().then((data) => {
@@ -73,15 +48,6 @@ export const ManageProjectsDialog = ({
         }
       }
       setProjects(shown);
-      for (const project of shown) {
-        if (!project.filesDirectory) {
-          setCheck(project.name, FolderCheckEnum.NoFolder);
-        } else if (!project.folderExists) {
-          setCheck(project.name, FolderCheckEnum.Missing);
-        } else {
-          checkFolder(project.name);
-        }
-      }
     });
   }, []);
 
@@ -89,8 +55,7 @@ export const ManageProjectsDialog = ({
   const filtered: ProjectFolder[] = [];
   for (const project of projects) {
     const matchesSearch = project.name.toLowerCase().includes(searchLower);
-    const folderCheck = folderChecks[project.name] ?? FolderCheckEnum.Checking;
-    const matchesEmpty = !onlyEmpty || isEmptyProject(project, folderCheck);
+    const matchesEmpty = !onlyEmpty || isEmptyProject(project);
     if (matchesSearch && matchesEmpty) {
       filtered.push(project);
     }
@@ -234,7 +199,6 @@ export const ManageProjectsDialog = ({
                 <ManageProjectsRow
                   key={project.name}
                   project={project}
-                  folderCheck={folderChecks[project.name] ?? FolderCheckEnum.Checking}
                   marked={!!marks[project.name]}
                   onToggle={(shift) => toggleMark(project.name, shift)}
                   onSwitched={onClose}
@@ -249,7 +213,6 @@ export const ManageProjectsDialog = ({
           />
           <DeleteProjectsButton
             projects={markedProjects}
-            folderChecks={folderChecks}
             onDeleted={removeDeleted}
           />
           <Button onClick={onClose}>

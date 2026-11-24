@@ -1,29 +1,23 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { screen, fireEvent, waitFor, within, cleanup, act } from '@testing-library/react';
+import { screen, fireEvent, waitFor, within, cleanup } from '@testing-library/react';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
 const { mockApiCall } = await import('./helpers/mockApiCall');
 const { FOLDERS, openDialog, rowNames, rowOf } = await import('./helpers/manageProjects');
 
-// The manage projects dialog: the list, the search, and the empty-folder notes.
+// The manage projects dialog: the list, the search, and the folder notes.
 
 let mockGetJson: ReturnType<typeof vi.fn>;
-let filesAnswers: { [name: string]: any };
 
 beforeEach(() => {
   vi.clearAllMocks();
   ({ getJson: mockGetJson } = mockApiCall());
-  filesAnswers = {
-    Alpha: { files: [{ name: 'data.parquet', isFolder: false }] },
-    Beta: { files: [{ name: 'data.parquet', isFolder: false }] },
-    Gamma: { files: [{ name: 'data.parquet', isFolder: false }] },
-  };
-  mockGetJson.mockImplementation(async (path: string, params: any) => {
+  mockGetJson.mockImplementation(async (path: string) => {
     if (path === '/project/folders') {
       return FOLDERS;
     }
-    return filesAnswers[params.projectName];
+    return null;
   });
 });
 
@@ -83,112 +77,44 @@ describe('ManageProjectsDialog', () => {
     expect(screen.getByTestId('manage-projects-count').textContent).toBe('3 projects');
   });
 
-  it('checks each project\'s files folder when it opens', async () => {
+  it('does not list any project\'s files when it opens', async () => {
     await openDialog();
 
     await waitFor(() => {
-      expect(mockGetJson).toHaveBeenCalledWith('/project/files',
-        { projectName: 'Gamma', path: '' }, { label: 'project files' });
+      expect(rowNames()).toHaveLength(3);
     });
-    expect(mockGetJson).not.toHaveBeenCalledWith('/project/files',
-      { projectName: 'defaultProject', path: '' }, { label: 'project files' });
+    expect(mockGetJson).toHaveBeenCalledTimes(1);
+    expect(mockGetJson).not.toHaveBeenCalledWith('/project/files', expect.anything(), expect.anything());
   });
 
-  it('notes the empty folders only', async () => {
-    filesAnswers.Alpha = { files: [] };
-    filesAnswers.Beta = { files: [{ name: 'caseConfiguration.json', isFolder: false }] };
-    await openDialog();
-
-    await waitFor(() => {
-      expect(within(rowOf('Alpha')).queryByTestId('manage-projects-empty')).toBeTruthy();
-    });
-    expect(within(rowOf('Beta')).queryByTestId('manage-projects-empty')).toBeTruthy();
-    expect(within(rowOf('Gamma')).queryByTestId('manage-projects-empty')).toBeNull();
-    expect(screen.queryAllByTestId('manage-projects-checking')).toHaveLength(0);
-  });
-
-  it('shows checking until the folder check answers', async () => {
-    let answerAlpha!: (v: any) => void;
-    mockGetJson.mockImplementation(async (path: string, params: any) => {
-      if (path === '/project/folders') {
-        return FOLDERS;
-      }
-      if (params.projectName === 'Alpha') {
-        return new Promise((r) => { answerAlpha = r; });
-      }
-      return filesAnswers[params.projectName];
+  it('notes each folder state from the folders answer', async () => {
+    mockGetJson.mockImplementation(async () => {
+      return { projects: [
+        { name: 'NoFolder', filesDirectory: '', folderState: 'noFolder', documentCount: 0 },
+        { name: 'Missing', filesDirectory: '/data/gone', folderState: 'missing', documentCount: 0 },
+        { name: 'AFile', filesDirectory: '/data/file.txt', folderState: 'notAFolder', documentCount: 0 },
+        { name: 'Empty', filesDirectory: '/data/e', folderState: 'empty', documentCount: 0 },
+        { name: 'CaseOnly', filesDirectory: '/data/c', folderState: 'onlyCaseConfig', documentCount: 0 },
+        { name: 'HasFiles', filesDirectory: '/data/f', folderState: 'hasFiles', documentCount: 0 },
+        { name: 'Locked', filesDirectory: '/data/l', folderState: 'unreadable', documentCount: 0 },
+      ] };
     });
     await openDialog();
-
     await waitFor(() => {
-      expect(within(rowOf('Alpha')).queryByTestId('manage-projects-checking')).toBeTruthy();
+      expect(rowNames()).toHaveLength(7);
     });
-    expect(within(rowOf('Beta')).queryByTestId('manage-projects-checking')).toBeNull();
 
-    await act(async () => { answerAlpha({ files: [] }); });
-
-    expect(within(rowOf('Alpha')).queryByTestId('manage-projects-checking')).toBeNull();
-    expect(within(rowOf('Alpha')).queryByTestId('manage-projects-empty')).toBeTruthy();
-  });
-
-  it('shows no note when the folder check fails', async () => {
-    filesAnswers.Alpha = null;
-    await openDialog();
-
-    await waitFor(() => {
-      expect(within(rowOf('Beta')).queryByTestId('manage-projects-checking')).toBeNull();
-    });
-    expect(within(rowOf('Alpha')).queryByTestId('manage-projects-checking')).toBeNull();
-    expect(within(rowOf('Alpha')).queryByTestId('manage-projects-empty')).toBeNull();
-  });
-
-  it('shows no note when the folder check throws', async () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    mockGetJson.mockImplementation(async (path: string, params: any) => {
-      if (path === '/project/folders') {
-        return FOLDERS;
-      }
-      if (params.projectName === 'Alpha') {
-        throw new Error('boom');
-      }
-      return filesAnswers[params.projectName];
-    });
-    await openDialog();
-
-    await waitFor(() => {
-      expect(within(rowOf('Alpha')).queryByTestId('manage-projects-checking')).toBeNull();
-    });
-    expect(within(rowOf('Alpha')).queryByTestId('manage-projects-empty')).toBeNull();
-    expect(errorSpy).toHaveBeenCalled();
-  });
-
-  it('skips the check when no folder is set or the folder is missing', async () => {
-    mockGetJson.mockImplementation(async (path: string, params: any) => {
-      if (path === '/project/folders') {
-        return { projects: [
-          { name: 'Alpha', filesDirectory: '', folderExists: false },
-          { name: 'Beta', filesDirectory: '/data/gone', folderExists: false },
-          { name: 'Gamma', filesDirectory: '/data/gamma', folderExists: true },
-        ] };
-      }
-      return filesAnswers[params.projectName];
-    });
-    await openDialog();
-
-    await waitFor(() => {
-      expect(within(rowOf('Beta')).queryByTestId('manage-projects-missing')).toBeTruthy();
-    });
-    expect(within(rowOf('Alpha')).getByText('No directory')).toBeTruthy();
-    expect(within(rowOf('Alpha')).queryByTestId('manage-projects-missing')).toBeNull();
-    expect(within(rowOf('Alpha')).queryByTestId('manage-projects-empty')).toBeNull();
-    expect(within(rowOf('Beta')).queryByTestId('manage-projects-empty')).toBeNull();
-    expect(screen.queryAllByTestId('manage-projects-checking')).toHaveLength(0);
-    expect(mockGetJson).toHaveBeenCalledWith('/project/files',
-      { projectName: 'Gamma', path: '' }, { label: 'project files' });
-    expect(mockGetJson).not.toHaveBeenCalledWith('/project/files',
-      { projectName: 'Alpha', path: '' }, { label: 'project files' });
-    expect(mockGetJson).not.toHaveBeenCalledWith('/project/files',
-      { projectName: 'Beta', path: '' }, { label: 'project files' });
+    const noteOf = (name: string) => {
+      return within(rowOf(name)).getAllByRole('cell')[4].textContent;
+    };
+    expect(noteOf('NoFolder')).toBe('');
+    expect(within(rowOf('NoFolder')).getByText('No directory')).toBeTruthy();
+    expect(noteOf('Missing')).toBe('folder missing');
+    expect(noteOf('AFile')).toBe('not a folder');
+    expect(noteOf('Empty')).toBe('empty folder');
+    expect(noteOf('CaseOnly')).toBe('empty folder (case config only)');
+    expect(noteOf('HasFiles')).toBe('');
+    expect(noteOf('Locked')).toBe('cannot read folder');
   });
 
   it('shows an empty list when the folders call fails', async () => {

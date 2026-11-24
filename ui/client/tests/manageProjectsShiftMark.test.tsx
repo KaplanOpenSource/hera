@@ -15,13 +15,13 @@ beforeEach(() => {
   const { getJson } = mockApiCall();
   const projects = [];
   for (const name of NAMES) {
-    projects.push({ name, filesDirectory: `/data/${name}`, folderExists: true });
+    projects.push({ name, filesDirectory: `/data/${name}`, folderState: 'hasFiles' });
   }
   getJson.mockImplementation(async (path: string) => {
     if (path === '/project/folders') {
       return { projects };
     }
-    return { files: [{ name: 'data.parquet', isFolder: false }] };
+    return null;
   });
 });
 

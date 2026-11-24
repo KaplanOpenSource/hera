@@ -14,25 +14,27 @@ class TestProjectFolders:
         })
 
         assert routes.folders() == {"projects": [
-            {"name": "Alpha", "filesDirectory": "/data/a", "folderExists": False, "documentCount": 0},
-            {"name": "Beta", "filesDirectory": "/data/b", "folderExists": False, "documentCount": 1},
+            {"name": "Alpha", "filesDirectory": "/data/a", "folderState": "missing", "documentCount": 0},
+            {"name": "Beta", "filesDirectory": "/data/b", "folderState": "missing", "documentCount": 1},
         ]}
 
     def test_a_project_without_a_settings_record_has_no_folder(self, fake_hera):
         fake_hera([DEFAULT_PROJECT])
 
-        assert ProjectApi.folders() == [{"name": DEFAULT_PROJECT, "filesDirectory": "", "folderExists": False,
+        assert ProjectApi.folders() == [{"name": DEFAULT_PROJECT, "filesDirectory": "", "folderState": "noFolder",
                                           "documentCount": 0}]
 
-    def test_says_whether_the_folder_is_there(self, fake_hera, tmp_path):
+    def test_says_the_state_of_each_folder(self, fake_hera, tmp_path):
+        (tmp_path / "full").mkdir()
+        (tmp_path / "full" / "data.parquet").write_text("x")
         fake_hera(["Alpha", "Beta"], documents={
-            "Alpha": [{"type": "Alpha__config__", "desc": {"filesDirectory": str(tmp_path)}}],
+            "Alpha": [{"type": "Alpha__config__", "desc": {"filesDirectory": str(tmp_path / "full")}}],
             "Beta": [{"type": "Beta__config__", "desc": {"filesDirectory": str(tmp_path / "gone")}}],
         })
 
         assert ProjectApi.folders() == [
-            {"name": "Alpha", "filesDirectory": str(tmp_path), "folderExists": True, "documentCount": 0},
-            {"name": "Beta", "filesDirectory": str(tmp_path / "gone"), "folderExists": False, "documentCount": 0},
+            {"name": "Alpha", "filesDirectory": str(tmp_path / "full"), "folderState": "hasFiles", "documentCount": 0},
+            {"name": "Beta", "filesDirectory": str(tmp_path / "gone"), "folderState": "missing", "documentCount": 0},
         ]
 
     def test_counts_the_documents_but_not_the_settings_record(self, fake_hera):
@@ -52,7 +54,7 @@ class TestProjectFolders:
             raise AssertionError("folders opened a project")
         monkeypatch.setattr(sys.modules["hera.datalayer.project"], "Project", no_open)
 
-        assert routes.folders() == {"projects": [{"name": "Alpha", "filesDirectory": "/data/a", "folderExists": False,
+        assert routes.folders() == {"projects": [{"name": "Alpha", "filesDirectory": "/data/a", "folderState": "missing",
                                                        "documentCount": 0}]}
         assert db.documents == {"Alpha": [{"type": "Alpha__config__", "desc": {"filesDirectory": "/data/a"}}]}
         assert db.created == []

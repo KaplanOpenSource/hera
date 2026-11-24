@@ -9,27 +9,24 @@ const { openDialog, rowNames } = await import('./helpers/manageProjects');
 // The "Only empty projects" switch: no documents, and no files on disk.
 
 const PROJECTS = [
-  { name: 'EmptyFolder', filesDirectory: '/data/e', folderExists: true, documentCount: 0 },
-  { name: 'NoFolder', filesDirectory: '', folderExists: false, documentCount: 0 },
-  { name: 'Missing', filesDirectory: '/data/gone', folderExists: false, documentCount: 0 },
-  { name: 'HasFiles', filesDirectory: '/data/f', folderExists: true, documentCount: 0 },
-  { name: 'HasDocs', filesDirectory: '/data/d', folderExists: true, documentCount: 4 },
+  { name: 'EmptyFolder', filesDirectory: '/data/e', folderState: 'empty', documentCount: 0 },
+  { name: 'NoFolder', filesDirectory: '', folderState: 'noFolder', documentCount: 0 },
+  { name: 'Missing', filesDirectory: '/data/gone', folderState: 'missing', documentCount: 0 },
+  { name: 'CaseConfig', filesDirectory: '/data/c', folderState: 'onlyCaseConfig', documentCount: 0 },
+  { name: 'HasFiles', filesDirectory: '/data/f', folderState: 'hasFiles', documentCount: 0 },
+  { name: 'NotAFolder', filesDirectory: '/data/x', folderState: 'notAFolder', documentCount: 0 },
+  { name: 'Unreadable', filesDirectory: '/data/u', folderState: 'unreadable', documentCount: 0 },
+  { name: 'HasDocs', filesDirectory: '/data/d', folderState: 'empty', documentCount: 4 },
 ];
-
-const FILES: { [name: string]: any } = {
-  EmptyFolder: { files: [] },
-  HasFiles: { files: [{ name: 'data.parquet', isFolder: false }] },
-  HasDocs: { files: [] },
-};
 
 beforeEach(() => {
   vi.clearAllMocks();
   const { getJson } = mockApiCall();
-  getJson.mockImplementation(async (path: string, params: any) => {
+  getJson.mockImplementation(async (path: string) => {
     if (path === '/project/folders') {
       return { projects: PROJECTS };
     }
-    return FILES[params.projectName];
+    return null;
   });
 });
 
@@ -43,9 +40,6 @@ const openWithRows = async () => {
   await waitFor(() => {
     expect(rowNames()).toHaveLength(PROJECTS.length);
   });
-  await waitFor(() => {
-    expect(screen.queryAllByTestId('manage-projects-checking')).toHaveLength(0);
-  });
 };
 
 const toggle = async () => {
@@ -53,12 +47,12 @@ const toggle = async () => {
 };
 
 describe('ManageProjectsDialog empty filter', () => {
-  it('shows only projects with no documents and an empty, missing or unset folder', async () => {
+  it('shows only projects with no documents and an empty, case-config-only, missing or unset folder', async () => {
     await openWithRows();
 
     await toggle();
 
-    expect(rowNames()).toEqual(['EmptyFolder', 'NoFolder', 'Missing']);
+    expect(rowNames()).toEqual(['EmptyFolder', 'NoFolder', 'Missing', 'CaseConfig']);
   });
 
   it('shows all projects again when turned off', async () => {
@@ -95,7 +89,7 @@ describe('ManageProjectsDialog mark all with a filter', () => {
 
     await act(async () => { fireEvent.click(markAllBox()); });
 
-    expect(markedLine()).toBe('3 of 5 marked');
+    expect(markedLine()).toBe('4 of 8 marked');
     await toggle();
     expect((screen.getByLabelText('Mark HasFiles') as HTMLInputElement).checked).toBe(false);
     expect((screen.getByLabelText('Mark HasDocs') as HTMLInputElement).checked).toBe(false);
@@ -108,7 +102,7 @@ describe('ManageProjectsDialog mark all with a filter', () => {
 
     await act(async () => { fireEvent.click(markAllBox()); });
 
-    expect(markedLine()).toBe('3 of 5 marked');
+    expect(markedLine()).toBe('4 of 8 marked');
     await toggle();
     expect((screen.getByLabelText('Mark HasDocs') as HTMLInputElement).checked).toBe(false);
   });

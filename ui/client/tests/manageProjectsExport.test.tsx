@@ -30,7 +30,7 @@ beforeEach(() => {
     if (path === '/project/folders') {
       return FOLDERS;
     }
-    return { files: [{ name: 'data.parquet', isFolder: false }] };
+    return null;
   });
   mockPostBytes.mockImplementation(async (_path: string, body: { projectName: string }) => {
     return new TextEncoder().encode(`zip of ${body.projectName}`).buffer;
