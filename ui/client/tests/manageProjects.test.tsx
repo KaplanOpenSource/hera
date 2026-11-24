@@ -76,6 +76,16 @@ describe('ManageProjectsDialog', () => {
     expect(mockGetJson).toHaveBeenCalledWith('/project/folders', {}, { label: 'project folders' });
   });
 
+  it('shows the three column titles in the header', async () => {
+    await openDialog();
+
+    const headers: string[] = [];
+    for (const cell of screen.getAllByRole('columnheader')) {
+      headers.push(cell.textContent ?? '');
+    }
+    expect(headers).toEqual(['Name', 'Files folder', 'Note']);
+  });
+
   it('shows each project\'s files folder', async () => {
     await openDialog();
 

@@ -4,7 +4,11 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  List,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
   TextField,
   ThemeProvider,
   Typography
@@ -92,7 +96,7 @@ export const ManageProjectsDialog = ({
         open
         onClose={onClose}
         fullWidth
-        maxWidth="sm"
+        maxWidth="lg"
       >
         <DialogTitle>Manage projects</DialogTitle>
         <DialogContent>
@@ -108,15 +112,25 @@ export const ManageProjectsDialog = ({
           <Typography variant="body2" color="text.secondary" data-testid="manage-projects-count">
             {countText}
           </Typography>
-          <List dense>
-            {filtered.map((project) => (
-              <ManageProjectsRow
-                key={project.name}
-                project={project}
-                folderCheck={folderChecks[project.name] ?? FolderCheckEnum.Checking}
-              />
-            ))}
-          </List>
+          {/* Fixed layout so long folder paths wrap instead of widening the dialog. */}
+          <Table size="small" sx={{ tableLayout: 'fixed' }}>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ width: '30%' }}>Name</TableCell>
+                <TableCell sx={{ width: '45%' }}>Files folder</TableCell>
+                <TableCell sx={{ width: '25%' }}>Note</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filtered.map((project) => (
+                <ManageProjectsRow
+                  key={project.name}
+                  project={project}
+                  folderCheck={folderChecks[project.name] ?? FolderCheckEnum.Checking}
+                />
+              ))}
+            </TableBody>
+          </Table>
         </DialogContent>
         <DialogActions>
           <Button onClick={onClose}>
