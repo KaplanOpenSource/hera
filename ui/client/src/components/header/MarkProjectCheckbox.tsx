@@ -8,12 +8,12 @@ export const MarkProjectCheckbox = ({
 }: {
   name: string,
   marked: boolean,
-  onToggle: () => void,
+  onToggle: (shift: boolean) => void,
 }) => {
   return (
     <Checkbox
       checked={marked}
-      onChange={onToggle}
+      onChange={(e) => onToggle((e.nativeEvent as MouseEvent).shiftKey)}
       slotProps={{ input: { 'aria-label': `Mark ${name}` } }}
     />
   );

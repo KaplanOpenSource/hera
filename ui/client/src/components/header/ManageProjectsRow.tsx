@@ -13,7 +13,7 @@ export const ManageProjectsRow = ({
   project: ProjectFolder,
   folderCheck: FolderCheckEnum,
   marked: boolean,
-  onToggle: () => void,
+  onToggle: (shift: boolean) => void,
 }) => {
   let folderText = 'No directory';
   if (project.filesDirectory) {

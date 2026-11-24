@@ -39,12 +39,7 @@ export const ManageProjectsDialog = ({
   const [search, setSearch] = useState('');
   const [marks, setMarks] = useState<{ [name: string]: boolean }>({});
   const [exportStep, setExportStep] = useState<ExportStep | null>(null);
-
-  const toggleMark = (name: string) => {
-    setMarks((prev) => {
-      return { ...prev, [name]: !prev[name] };
-    });
-  }
+  const [lastClicked, setLastClicked] = useState<string | null>(null);
 
   const setCheck = (name: string, check: FolderCheckEnum) => {
     setFolderChecks((prev) => {
@@ -95,6 +90,37 @@ export const ManageProjectsDialog = ({
     if (project.name.toLowerCase().includes(searchLower)) {
       filtered.push(project);
     }
+  }
+
+  // The shown names from the last clicked row to this one, both included.
+  const namesFromLastClicked = (name: string) => {
+    const shownNames: string[] = [];
+    for (const project of filtered) {
+      shownNames.push(project.name);
+    }
+    const from = shownNames.indexOf(lastClicked ?? '');
+    const to = shownNames.indexOf(name);
+    if (from < 0) {
+      return [name];
+    }
+    return shownNames.slice(Math.min(from, to), Math.max(from, to) + 1);
+  }
+
+  // With shift, every row between the last clicked one and this one takes this row's new mark.
+  const toggleMark = (name: string, shift: boolean) => {
+    const mark = !marks[name];
+    let names = [name];
+    if (shift) {
+      names = namesFromLastClicked(name);
+    }
+    setMarks((prev) => {
+      const next = { ...prev };
+      for (const each of names) {
+        next[each] = mark;
+      }
+      return next;
+    });
+    setLastClicked(name);
   }
 
   let countText = `${projects.length} projects`;
@@ -167,7 +193,7 @@ export const ManageProjectsDialog = ({
                   project={project}
                   folderCheck={folderChecks[project.name] ?? FolderCheckEnum.Checking}
                   marked={!!marks[project.name]}
-                  onToggle={() => toggleMark(project.name)}
+                  onToggle={(shift) => toggleMark(project.name, shift)}
                 />
               ))}
             </TableBody>
