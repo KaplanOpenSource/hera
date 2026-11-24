@@ -18,3 +18,10 @@ Dockerfile
 node_modules/
 ui/client/node_modules/
 ui/client/dist/
+
+# Data folders are mounted at run time, not copied
+mongo-db-datadir/
+ollama-data/
+projects/
+notebooks/
+cache/

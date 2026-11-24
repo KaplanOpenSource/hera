@@ -56,7 +56,7 @@ ENV PYTHONPATH="/app:/app/hera/bin"
 
 # The bind-mounted repo is owned by the host user, but the container runs as
 # root. Mark it safe so git (used by jupyterlab-git) does not refuse to run.
-RUN git config --global --add safe.directory '*'
+RUN git config --system --add safe.directory '*'
 
 # Default DB credentials — override at runtime via --env or .env file
 ENV MONGO_HERA_USER=hera
@@ -70,16 +70,24 @@ RUN mkdir -p /root/.pyhera/log && \
 
 # RUN echo 'mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db' >> /root/.bashrc
 
+# Normal user for compose; uid 1000 matches the host user who owns the data folders.
+RUN useradd -m -u 1000 -s /bin/bash hera && \
+    mkdir -p /home/hera/.pyhera/log /client && \
+    chown -R hera:hera /home/hera /client
+
 # Package files first, so npm install reruns only when they change.
-COPY ./ui/client/package.json ./ui/client/package-lock.json /client/
+USER hera
+COPY --chown=hera:hera ./ui/client/package.json ./ui/client/package-lock.json /client/
 WORKDIR /client
 RUN npm install
-COPY ./ui/client /client
+COPY --chown=hera:hera ./ui/client /client
 RUN npm run build
+USER root
 
 WORKDIR /app
 
-# COPY . /app
+# Code goes in last, so a code change does not rerun apt, pip or npm.
+COPY --chown=hera:hera . /app
 
 EXPOSE 27017
 EXPOSE 8000

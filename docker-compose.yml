@@ -1,12 +1,31 @@
 # Hera full stack.
-#   docker compose up                        -> mongo + server
-#   docker compose --profile work up         -> + client (Vite dev)
-#   docker compose --profile work --profile ai up -> + ollama (internal)
+#   docker compose up --build --watch                          -> mongo + server
+#   docker compose --profile work up --build --watch           -> + client (Vite dev)
+#   docker compose --profile work --profile ai up --build --watch -> + ollama (internal)
+#
+# Safety: code folders are not mounted. Code is copied into the image, and
+# --watch copies your edits in. Only data folders are mounted. No container
+# runs as root, and all extra Linux rights are removed.
 #
 # The server finds Mongo via ~/.pyhera/config.json. We inject our own config
 # (see the "configs" block below) so dbIP points at the "mongo" service name
 # instead of the 127.0.0.1 baked into the image.
 name: hera-stack
+
+x-locked-down: &locked-down
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+
+x-hera: &hera
+  <<: *locked-down
+  build:
+    context: .
+    dockerfile: dockerfile
+    args:
+      REQUIREMENTS: ${REQUIREMENTS:-requirements.txt}
+  image: hera-server
+  # uid 1000, same as the host user who owns the data folders.
+  user: hera
 
 configs:
   pyhera_config:
@@ -19,15 +38,22 @@ configs:
           "password": "heracles"
         }
       }
+  mongo_create_users:
+    file: ./mongo-init.d/50-create-users.js
 
 services:
   mongo:
+    <<: *locked-down
     image: mongo:5.0
+    # The data folder already belongs to uid 999 (the mongodb user).
+    user: "999:999"
     # --quiet drops the per-connection open/close log spam from the healthcheck.
     command: ["mongod", "--quiet"]
     volumes:
       - ./mongo-db-datadir:/data/db
-      - ./mongo-init.d:/docker-entrypoint-initdb.d
+    configs:
+      - source: mongo_create_users
+        target: /docker-entrypoint-initdb.d/50-create-users.js
     environment:
       MONGO_HERA_USER: hera
       MONGO_HERA_PWD: heracles
@@ -41,22 +67,18 @@ services:
       retries: 10
 
   server:
-    build:
-      context: .
-      dockerfile: dockerfile
-      args:
-        REQUIREMENTS: ${REQUIREMENTS:-requirements.txt}
-    image: hera-server
+    <<: *hera
     depends_on:
       mongo:
         condition: service_healthy
     volumes:
-      # Live code mount, matches run_server_docker.sh (-v .:/app).
-      - .:/app
+      # Data the server writes. Code comes from the image and --watch.
+      - ./projects:/app/projects
+      - ./notebooks:/app/notebooks
     configs:
       # Point hera at the mongo service instead of 127.0.0.1.
       - source: pyhera_config
-        target: /root/.pyhera/config.json
+        target: /home/hera/.pyhera/config.json
     environment:
       # Hermes is a submodule with no setup.py, so add it to the path.
       PYTHONPATH: /app:/app/hera/bin:/app/Hermes
@@ -70,28 +92,56 @@ services:
       - "127.0.0.1:5678:5678"   # debugpy
     # --cors remote binds Jupyter to 0.0.0.0 so port 8888 is reachable from the host.
     command: python ui/server/server.py --cors remote
+    develop:
+      # The server has no auto reload, so restart it after each copy.
+      watch:
+        - action: sync+restart
+          path: ./hera
+          target: /app/hera
+          ignore: [__pycache__/]
+        - action: sync+restart
+          path: ./ui/server
+          target: /app/ui/server
+          ignore: [__pycache__/, node_modules/, tests/]
+        - action: sync+restart
+          path: ./Hermes
+          target: /app/Hermes
+          ignore: [__pycache__/]
+        - action: rebuild
+          path: ./requirements.txt
 
   client:
     # Only starts with: docker compose --profile work up  (or: docker compose up client)
+    <<: *hera
     profiles: ["work"]
-    image: hera-server
     depends_on:
       - server
     working_dir: /client
-    volumes:
-      - ./ui/client:/client        # live source for hot reload
-      - /client/node_modules       # keep the image's node_modules (see below)
     command: npm run dev -- --host
     ports:
       - "127.0.0.1:5173:5173"
+    develop:
+      # Vite reloads by itself, so a plain copy is enough.
+      watch:
+        - action: sync
+          path: ./ui/client
+          target: /client
+          ignore: [node_modules/, dist/, data/]
+        - action: rebuild
+          path: ./ui/client/package-lock.json
 
   ollama:
     # Only starts with: docker compose --profile ai up
     # No ports: reachable only by the server over the internal network.
+    <<: *locked-down
     profiles: ["ai"]
     image: ollama/ollama
+    user: "1000:1000"
+    environment:
+      # Ollama keeps keys and models in $HOME/.ollama.
+      HOME: /home/ollama
     volumes:
-      - ./ollama-data:/root/.ollama
+      - ./ollama-data:/home/ollama/.ollama
     # Bare TCP port check (no HTTP request), so GIN logs nothing on success.
     healthcheck:
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/11434"]
