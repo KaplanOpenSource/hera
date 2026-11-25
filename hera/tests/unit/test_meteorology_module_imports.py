@@ -11,7 +11,6 @@ import pathlib
 import pytest
 
 IMPORTABLE = [
-    "hera.measurements.meteorology.analysis",
     "hera.measurements.meteorology.lowfreqdata.analysis",
     "hera.measurements.meteorology.lowfreqdata.toolkit",
     "hera.measurements.meteorology.highfreqdata.toolkit",

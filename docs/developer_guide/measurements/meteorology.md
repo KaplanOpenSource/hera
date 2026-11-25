@@ -25,7 +25,6 @@ hera/measurements/meteorology/
             __init__.py        # normalise_sonic_df, normalise_trh_df, detect_device_type
             CampbellBinary.py  # Parser (TOB1 binary), CampbellBinaryInterface
             TOA5.py            # ASCIIParser (TOA5 ASCII)
-    analysis.py                # Legacy shared analysis (static addDatesColumns, calcHourlyDist)
     radiosonde.py              # Radiosonde DataLayer (used by hera-radiosonde)
     GFS.py                     # GFS forecast-file readers
 ```
