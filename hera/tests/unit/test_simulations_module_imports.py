@@ -12,7 +12,6 @@ import pytest
 IMPORTABLE = [
     "hera.simulations.hydrodynamics.nearWallFlow",
     "hera.simulations.windProfile.toolkit",
-    "hera.simulations.utils.canopyWindProfile",
     "hera.simulations.utils.interpolations",
     "hera.simulations.utils.coordinateHandler",
     "hera.simulations.utils.inputForModelsCreation",

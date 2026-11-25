@@ -64,7 +64,6 @@ hera/simulations/
     utils/
         interpolations.py      # Spatial interpolation
         coordinateHandler.py   # Coordinate transformations
-        canopyWindProfile.py   # Canopy wind profile model
         inputForModelsCreation.py  # Model input generation
 ```
 
