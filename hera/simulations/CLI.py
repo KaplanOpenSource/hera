@@ -428,40 +428,40 @@ def workflow_list(arguments):
     """
     from hera import toolkitHome
     logger = logging.getLogger("hera.bin.hera_workflows.list")
-    logger.info(f" -- Starting: Listing simulations --")
+    logger.info(" -- Starting: Listing simulations --")
 
     _confirm_project_name(arguments, logger)
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=arguments.projectName)
 
-    simDocument = wftk.getWorkflowListDocumentFromDB(arguments.group)
-    if len(simDocument) == 0:
+    sim_document = wftk.getWorkflowListDocumentFromDB(arguments.group)
+    if len(sim_document) == 0:
         print(f"{arguments.object} is not a simulation, directory, workflow file or a simulation group in project {arguments.projectName} ")
-    workflowGroup = simDocument[0].desc[wftk.DESC_GROUPNAME]
+    workflow_group = sim_document[0].desc[wftk.DESC_GROUPNAME]
 
-    listNodes     = arguments.nodes
+    list_nodes     = arguments.nodes
     parameters    = arguments.parameters
 
-    simulationList = wftk.listWorkflows(workflowGroup=workflowGroup,
-                                        listNodes=listNodes,
+    simulation_list = wftk.listWorkflows(workflowGroup=workflow_group,
+                                        listNodes=list_nodes,
                                         listParameters=parameters)
 
 
-    title = f"The simulations in group *{workflowGroup}*  in project *{arguments.projectName}* "
+    title = f"The simulations in group *{workflow_group}*  in project *{arguments.projectName}* "
     print(title)
     print("-" * len(title))
 
-    for doc in simulationList:
+    for doc in simulation_list:
         print(f"\t* {doc['workflowName']}")
-        if listNodes:
+        if list_nodes:
                 for node in doc['nodes']:
                     print(f"\t\t + {node}")
 
         if parameters:
-            for nodeName,nodeData in wftk.getParamsFromDoc(doc).items():
+            for node_name,node_data in doc['parameters'].items():
 
-                print(f"\t\t + {nodeName}")
-                for pname,pvalue in nodeData.items():
+                print(f"\t\t + {node_name}")
+                for pname,_ in node_data.items():
                     print(f"\t\t\t  - {pname}")
 
 
