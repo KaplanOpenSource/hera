@@ -50,7 +50,6 @@ hera/simulations/
         LightingModule.py      # PyTorch Lightning module helpers
         torch/
             modelContainer.py  # PyTorch model container
-        dataanalisys/          # Data-analysis helpers (ml.py, stat.py)
     hermesWorkflowToolkit.py   # hermesWorkflowToolkit — workflow management
     analysis/
         errorCalculation.py    # Model-vs-observation error metrics
