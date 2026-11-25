@@ -45,7 +45,6 @@ hera/measurements/
         analysis.py            # Experiment analysis layer
         dataEngine.py          # Parquet data engine for experiments
         presentation.py        # Experiment visualizations
-        parsers.py             # Data file parsers
         CLI.py                 # hera-experiment CLI entry points
 ```
 

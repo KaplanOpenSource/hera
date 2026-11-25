@@ -15,7 +15,6 @@ hera/measurements/experiment/
     dataEngine.py            # data engine factory + 3 backends (Parquet, Pandas/MongoDB, Dask/MongoDB)
     analysis.py              # experimentAnalysis — transmission frequency, turbulence, metadata
     presentation.py          # experimentPresentation — device plots, heatmaps, LaTeX reports
-    parsers.py               # data format parsers (OldStyleMetaDataParquet, CampbellBinary, TOA5)
     CLI.py                   # hera-experiment CLI entry points
 ```
 
@@ -618,45 +617,6 @@ Results are cached in the data layer (cache collection, `type=experimentAnalysis
 | Method | Purpose |
 |--------|---------|
 | `generateLatexTable(latex_template, folder_path)` | LaTeX/PDF report with device maps and metadata tables |
-
----
-
-## Parsers (`parsers.py`)
-
-Parsers convert raw data files into structured experiment data.
-
-### Parser_OldStyleMetaDataParquet
-
-Reads `metadata.json` and `campaignDescription.json` to build experiment dictionaries from Parquet-based experiments.
-
-```python
-parser = Parser_OldStyleMetaDataParquet()
-result = parser.parse(pathToData="/path/to/experiment")
-# Returns: {experimentName: {Stations: {...}, devices: [...], trials: [...], ...}}
-```
-
-### Parser_CampbellBinary
-
-Reads Campbell Scientific TOB1 binary data files. Supports multiple measurement heights and instruments.
-
-```python
-parser = Parser_CampbellBinary()
-dask_df, metadata = parser.parse(
-    path="/path/to/data",
-    fromTime=start_time,
-    toTime=end_time
-)
-```
-
-Uses `CampbellBinaryInterface` internally — a low-level reader that handles:
-- Binary record parsing with `struct` module
-- Multi-height data (6m, 11m, 16m) with per-height column slicing
-- Binary search by timestamp for efficient time-range queries
-- Format types: ULONG, FP2, IEEE4, IEEE8, USHORT, LONG, BOOL, ASCII
-
-### Parser_TOA5
-
-Campbell Scientific TOA5 ASCII format. Stub — not yet implemented.
 
 ---
 
