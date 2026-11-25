@@ -79,7 +79,6 @@ These variables control the behavior of the Pytest test suite.
 | `RESULT_SET` | No | `BASELINE` | Name of the expected-output result set to compare against. Must correspond to a directory under `expected/` in the test data root. |
 | `PREPARE_EXPECTED_OUTPUT` | No | unset | Documented in the `hera/tests/conftest.py` docstring as switching the suite into **generation mode** (write current outputs as the new baselines), but in master no test code reads it (the `compare_outputs` / `save_expected_output` helpers exist in `conftest.py` but no test calls them), so setting it has no effect. |
 | `GDF_TOL_AREA` | No | `1e-7` | Tolerance for geometry comparison in GeoDataFrame tests. The comparison uses `symmetric_difference().area` and checks that the area is below this threshold. |
-| `HERA_FULL_LOGGING_TESTS` | No | unset | When set (to any value), runs the full logging tests in `hera/utils/logging/test_helpers.py`. When unset, those tests are skipped. |
 | `HERA_DB_USER` / `HERA_DB_PASS` / `HERA_DB_NAME` | CI only | set in `ci.yml` | Used only by `.github/workflows/ci.yml` to write `~/.pyhera/config.json` for the CI MongoDB service. Hera itself does not read them. |
 | `PYARGOS_PATH` | No | unset | Optional developer-set path to a local `pyargos-master` (PyArgos) installation. Used only by `hera/tests/dynamic_loading_tests_pack/test_experiment_cli_shortcuts.py`, which prepends this directory to `PYTHONPATH` so the experiment toolkit CLI can locate PyArgos. If unset or the path does not exist, the related tests fall back to the default environment. |
 
