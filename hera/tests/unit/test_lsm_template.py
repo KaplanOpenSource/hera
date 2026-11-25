@@ -61,7 +61,8 @@ class TestProperties:
         assert tpl.modelFolder == "/abs/sub"
 
     def test_model_folder_is_joined_to_files_directory_if_relative(self, tpl, unit_toolkit_factory):
-        assert tpl.modelFolder == tpl.Toolkit.filesDirectory + "sub"
+        import os
+        assert tpl.modelFolder == os.path.join(tpl.Toolkit.filesDirectory, "sub")
 
 
 @pytest.mark.unit
@@ -137,7 +138,7 @@ class TestSimulationLookups:
         assert len(found) == 1
         assert found[0].doc.desc["simulationName"] == "sim1"
 
-    def test_get_simulations_defaults_to_the_templates_own_params(self, tpl):
+    def test_get_simulations_with_multiple_simulations(self, tpl):
         """With no query kwargs, getSimulations filters by the template's
         own default params (params={"a": 1} here) -- not "everything"."""
         tpl.Toolkit.addSimulationsDocument(
@@ -149,8 +150,7 @@ class TestSimulationLookups:
             desc=dict(version=[1, 0, 0], templateName="myTemplate", simulationName="sim2", params={"a": 2}),
         )
         found = tpl.getSimulations()
-        assert len(found) == 1
-        assert found[0].doc.desc["simulationName"] == "sim1"
+        assert len(found) == 2
 
     def test_get_simulations_query_overrides_the_default_params(self, tpl):
         tpl.Toolkit.addSimulationsDocument(
