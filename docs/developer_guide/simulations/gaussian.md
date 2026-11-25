@@ -76,7 +76,7 @@ graph LR
 | `log` | `StandardMeteorolgyConstant_log` | Logarithmic profile anchored at `u(refHeight)` with roughness `z0` |
 | `uniformWind` | `StandardMeteorolgyConstant_uniformWind` | Height-independent wind |
 
-`MeteorologyProfile` is a further `powerLaw` subclass that is not registered in the factory. `hera/simulations/evaporation/monaghan.py` also uses `StandardMeteorolgyConstant_powerLaw`.
+`MeteorologyProfile` is a further `powerLaw` subclass that is not registered in the factory.
 
 ## Dispersion coefficients (`Sigma.py`)
 

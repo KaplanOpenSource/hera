@@ -39,15 +39,12 @@ hera/measurements/
             parsers/
                 CampbellBinary.py  # Campbell Scientific binary parser
                 TOA5.py            # TOA5 CSV format parser
-        radiosonde.py          # Radiosonde atmospheric data
-        analysis.py            # Shared meteorology analysis
         GFS.py                 # GFS weather model data
     experiment/
         experiment.py          # experimentHome — experiment toolkit
         analysis.py            # Experiment analysis layer
         dataEngine.py          # Parquet data engine for experiments
         presentation.py        # Experiment visualizations
-        parsers.py             # Data file parsers
         CLI.py                 # hera-experiment CLI entry points
 ```
 

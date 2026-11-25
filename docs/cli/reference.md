@@ -34,7 +34,6 @@ flowchart LR
     subgraph DataTools ["Measurements"]
         direction TB
         HeraExp["hera-experiment\n\nExperiments"]
-        HeraRadio["hera-radiosonde\n\nRadiosonde loading"]
     end
 
     subgraph RiskTools ["Risk Assessment"]
@@ -61,7 +60,6 @@ flowchart LR
 | `hera-OF-serverFoamJob` | Simulation Tools | Runs an OpenFOAM application in the background (OpenFOAM `foamJob` script) |
 | `hera-OF-runPVServer` | Simulation Tools | Starts a parallel ParaView `pvserver` through `hera-OF-serverFoamJob` |
 | `hera-experiment` | Measurements | Experiment creation, loading and data access |
-| `hera-radiosonde` | Measurements | Radiosonde data loading |
 | `hera-riskassessment` | Risk Assessment | Agent repository creation |
 | `hera-ui` | Utilities | Starts the Hera web UI API server |
 | `hera-rag-search` | Utilities | RAG index/search/serve over the docs and source (needs the `rag` extra) |
@@ -541,15 +539,6 @@ Starts the Hera UI API server (`ui/server/server.py`). It exits with a message i
 ```bash
 hera-ui --port 8000 --jupyter-port 0
 ```
-
-### hera-radiosonde
-
-```bash
-hera-radiosonde load <projectName> <locationName> <date> <filePath> [--coords "(lat, lon)"]
-```
-
-!!! warning "Broken in master"
-    The handler imports `hera.measurements.meteorology.radiosonde.DataLayer`, which subclasses the removed `datalayer.ProjectMultiDBPublic`, so the command fails at import time.
 
 ### hera-rag-search
 

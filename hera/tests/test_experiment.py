@@ -11,7 +11,6 @@ Tests cover:
 - experimentPresentation: plotDeviceTypeFunctionality (smoke test)
 - dataEngineFactory: engine selection
 - parquetDataEngineHera: getData, getDataFromTrial
-- Parsers: Parser_OldStyleMetaDataParquet
 
 DB-backed tests require MongoDB and auto-skip when unavailable.
 Synthetic tests create in-memory data and run without infrastructure.
@@ -696,23 +695,6 @@ class TestPresentationFrequencyDistribution:
         self._presentation(tmp_path).plotFrequencyDistribution("NDIR", "trial1")
         figname = tmp_path / "technical" / "trial1_NDIR_MessagesFrequencyDistribution_TS1.png"
         assert figname.exists()
-
-
-# ===========================================================================
-# 10. Parsers — synthetic (no DB)
-# ===========================================================================
-
-@pytest.mark.unit
-class TestParsers:
-    """Test parsers with synthetic data."""
-
-    def test_old_style_metadata_parser_import(self):
-        from hera.measurements.experiment.parsers import Parser_OldStyleMetaDataParquet
-        assert Parser_OldStyleMetaDataParquet is not None
-
-    def test_campbell_binary_parser_import(self):
-        from hera.measurements.experiment.parsers import Parser_CampbellBinary
-        assert Parser_CampbellBinary is not None
 
 
 # ===========================================================================

@@ -54,7 +54,7 @@ hera/simulations/
     hermesWorkflowToolkit.py   # hermesWorkflowToolkit — workflow management
     analysis/
         errorCalculation.py    # Model-vs-observation error metrics
-    evaporation/               # Evaporation models (models.py, monaghan.py)
+    evaporation/               # Evaporation models (models.py)
     deposition/
         models.py              # Particle deposition models
     hydrodynamics/
@@ -64,7 +64,6 @@ hera/simulations/
     utils/
         interpolations.py      # Spatial interpolation
         coordinateHandler.py   # Coordinate transformations
-        canopyWindProfile.py   # Canopy wind profile model
         inputForModelsCreation.py  # Model input generation
 ```
 

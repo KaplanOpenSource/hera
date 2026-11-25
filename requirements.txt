@@ -371,7 +371,6 @@ langchain-ollama==0.3.10
 #   - Mesh       -> provided by the FreeCAD python bindings above
 #   - openfoam   -> 'make install-openfoam' (Ubuntu apt: openfoam10)
 #   - hermes     -> private package; install from the internal index/repo
-#   - pyriskassessment -> private package; install from the internal index/repo
 #
 # evtk is already covered by pyevtk (above); unicodedata is a stdlib module
 # and mpl_toolkits ships with matplotlib -- neither belongs in requirements.

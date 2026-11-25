@@ -12,7 +12,6 @@ import pytest
 IMPORTABLE = [
     "hera.simulations.hydrodynamics.nearWallFlow",
     "hera.simulations.windProfile.toolkit",
-    "hera.simulations.utils.canopyWindProfile",
     "hera.simulations.utils.interpolations",
     "hera.simulations.utils.coordinateHandler",
     "hera.simulations.utils.inputForModelsCreation",
@@ -28,11 +27,6 @@ FIXED_BY_THE_IMPORT_CORRECTION = [
     "hera.simulations.deposition",
     "hera.simulations.deposition.models",
 ]
-
-# monaghan.py needs pyriskassessment, a private package declared in
-# requirements.txt:372 and installed from an internal index.  Absent here, so
-# skipped rather than failed -- the same treatment GFS.py gets for sklearn.
-NEEDS_A_PRIVATE_PACKAGE = ["hera.simulations.evaporation.monaghan"]
 
 
 @pytest.mark.unit
@@ -72,9 +66,4 @@ class TestTheRelativeImportFix:
 
     @pytest.mark.parametrize("moduleName", FIXED_BY_THE_IMPORT_CORRECTION)
     def test_the_physics_packages_import(self, moduleName):
-        assert importlib.import_module(moduleName) is not None
-
-    @pytest.mark.parametrize("moduleName", NEEDS_A_PRIVATE_PACKAGE)
-    def test_the_rest_imports_once_its_private_dependency_is_present(self, moduleName):
-        pytest.importorskip("pyriskassessment")
         assert importlib.import_module(moduleName) is not None
