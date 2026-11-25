@@ -54,7 +54,7 @@ hera/simulations/
     hermesWorkflowToolkit.py   # hermesWorkflowToolkit — workflow management
     analysis/
         errorCalculation.py    # Model-vs-observation error metrics
-    evaporation/               # Evaporation models (models.py, monaghan.py)
+    evaporation/               # Evaporation models (models.py)
     deposition/
         models.py              # Particle deposition models
     hydrodynamics/
