@@ -41,7 +41,7 @@ Both inherit directly from `abstractToolkit`, so datasource management (`addData
 
 **Source:** `lowfreqdata/toolkit.py`
 
-A thin toolkit: it adds no ingestion methods of its own (the old `loadData`/parser code is commented out), so station data is registered as ordinary datasources (typically `parquet`) and read with `getDataSourceData`. It exposes `docType` (`"<toolkitName>_LowFreqData"`) and the `STATIONNAME = 'StationName'` column constant.
+A thin toolkit: it adds no ingestion methods of its own, so station data is registered as ordinary datasources (typically `parquet`) and read with `getDataSourceData`. It exposes `docType` (`"<toolkitName>_LowFreqData"`) and the `STATIONNAME = 'StationName'` column constant.
 
 The toolkit follows the standard analysis + presentation pattern:
 
