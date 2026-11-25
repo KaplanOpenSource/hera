@@ -1,9 +1,7 @@
 """hera/toolkit.py: three small abstractToolkit methods not covered
 elsewhere -- presentation (the property, exercised directly rather than
 through a concrete toolkit's own presentation layer), classLoggerName,
-and getToolkitDocument (a second, independent implementation of the same
-lookup idea as hera.utils.data.toolkit_repository.ToolkitRepository,
-covered in an earlier batch)."""
+and getToolkitDocument."""
 import pytest
 
 
