@@ -143,6 +143,16 @@ Calculators compute the toxic load (dose) from a concentration field. All inheri
 - **Breathing rate ratio**: `breathingRatio = (breathingRate / self.injuryBreathingRate).magnitude` — scales the dose based on actual vs. reference breathing rate.
 - **Time integration**: For `pandas.DataFrame`, time steps are computed via `diff().apply(lambda x: x.seconds)/60.` (non-uniform spacing supported). For `xarray.Dataset`, uses `cumsum(dim=time) * concentrationField.dt` (the dataset must expose a `dt` quantity).
 
+#### Converting Haber thresholds to Ten Berge
+
+Thresholds published as a Haber dose `D` have to be corrected before they are used with the Ten Berge toxic load `T_L = integral(C^n × dt)`:
+
+1. Work out the concentration at which the dose was estimated. This is usually a constant concentration held for 2 minutes: `C = D / 2 min`.
+2. Substitute it into the Ten Berge equation to get the new threshold: `T_L = 2 min × C^n = 2 min × (D / 2 min)^n`. The same procedure is described in Weinrich SL, Lawrence AE, Burr JK, *A comparative analysis of toxicity models*, IDA, 2008.
+3. Correct the probit. Numerical experiments showed that the new probit is the old one divided by `n`.
+
+The GB values in the agent descriptors were modified this way.
+
 ### Injury levels (`agents/effects/InjuryLevel.py`)
 
 Injury levels map toxic loads to the fraction of population affected. All inherit from `InjuryLevel`.
