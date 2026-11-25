@@ -88,7 +88,6 @@ class DataHandler_max_cell_grids(object):
     """
     @staticmethod
     def saveData(resource, fileName, **kwargs):
-        
         # resource is a list of dicts: [{'concentration': arr, 'second_moment': arr}, ...]
         with h5py.File(fileName, "w") as f:
             for idx, grid_dict in enumerate(resource):
@@ -99,11 +98,15 @@ class DataHandler_max_cell_grids(object):
                     grp.create_dataset('second_moment', data=grid_dict['second_moment'], compression="gzip")
                 if 'occupied_volume' in grid_dict:
                     grp.create_dataset('occupied_volume', data=grid_dict['occupied_volume'], compression="gzip")
+                if 'fluctuation_intensity' in grid_dict:
+                    grp.create_dataset('fluctuation_intensity', data=grid_dict['fluctuation_intensity'], compression="gzip")
+                if 'coefficient_of_variation' in grid_dict:
+                    grp.create_dataset('coefficient_of_variation', data=grid_dict['coefficient_of_variation'], compression="gzip")
         return dict()
 
     @staticmethod
     def getData(resource, desc=None, **kwargs):
-        
+
         max_results = []
         with h5py.File(resource, "r") as f:
             for slice_name in sorted(f.keys()):
@@ -115,5 +118,57 @@ class DataHandler_max_cell_grids(object):
                     slice_data['second_moment'] = grp['second_moment'][:]
                 if 'occupied_volume' in grp:
                     slice_data['occupied_volume'] = grp['occupied_volume'][:]
+                if 'fluctuation_intensity' in grp:
+                    slice_data['fluctuation_intensity'] = grp['fluctuation_intensity'][:]
+                if 'coefficient_of_variation' in grp:
+                    slice_data['coefficient_of_variation'] = grp['coefficient_of_variation'][:]
                 max_results.append(slice_data)
         return max_results
+
+class DataHandler_concentrations(object):
+    """
+    Handler for the concentration cache.
+    The resource is a path to an HDF5 file containing concentration grids and
+    per-particle concentration mappings for each timestep.
+    """
+    @staticmethod
+    def saveData(resource, fileName, **kwargs):
+        """
+        Saves the concentration data.
+        'resource' should be a dictionary mapping t_str -> {grid, phi_mean, is_uniform}.
+        """
+        with h5py.File(fileName, "w") as f:
+            for t_str, data in resource.items():
+                grp = f.create_group(t_str)
+                grp.create_dataset("phi_mean", data=data['phi_mean'], compression="lzf")
+                if data['is_uniform']:
+                    grp.create_dataset("grid", data=data['grid'], compression="lzf")
+                else:
+                    grid_grp = grp.create_group("grid")
+                    for idx, res in enumerate(data['grid']):
+                        grid_grp.create_dataset(f"slice_{idx:03d}", data=res, compression="lzf")
+        return dict()
+
+    @staticmethod
+    def getData(resource, timestep=None, is_uniform=True, **kwargs):
+        """
+        Retrieve concentration data for a specific timestep.
+        'resource' is the path to the HDF5 file.
+        """
+        if timestep is None:
+            raise ValueError("timestep must be provided to retrieve concentration data.")
+
+        with h5py.File(resource, "r") as f:
+            if timestep not in f:
+                return None, None
+
+            grp = f[timestep]
+            phi_mean = grp["phi_mean"][:]
+
+            if is_uniform:
+                grid = grp["grid"][:]
+            else:
+                grid_grp = grp["grid"]
+                grid = [grid_grp[f"slice_{idx:03d}"][:] for idx in range(len(grid_grp.keys()))]
+
+            return grid, phi_mean

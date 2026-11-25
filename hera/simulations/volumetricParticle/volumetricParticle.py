@@ -10,6 +10,7 @@ from hera import toolkitHome
 from hera.datalayer.datahandler import getHandler
 import pandas as pd
 from calculator import volumetricParticleCalculator
+import re
 
 class volumetricParticleAnalysis:
     """
@@ -51,20 +52,13 @@ class volumetricParticleAnalysis:
         Returns:
             tuple: (ids, positions, mass, age, sigma, TL, epsilon) as numpy arrays.
         """
-        data = self.toolkit.of.stochasticLagrangian.getCaseResults(
-            caseDescriptor=self.toolkit.path,
-            withReleaseTimes=True,
-            withVelocity=False,
-            withTurbProperties=True,
-            cloudName="kinematicCloud",
-            cache=False,
-            timeList=[f"{float(t):g}"],
-            useDask=False)
-
-        return data['id'].values.astype(int), data[['x', 'y', 'z']].values, \
-               data['mass'].values, data['age'].values, \
-               data['sigma'].values, data['TL'].values, \
-               data['epsilon'].values
+        return np.load(os.path.join(self.toolkit.path,f"{float(t):g}",f"origId.npy")).astype(int).ravel(), \
+               np.load(os.path.join(self.toolkit.path,f"{float(t):g}",f"globalPositions.npy")), \
+               np.load(os.path.join(self.toolkit.path,f"{float(t):g}",f"mass.npy")).ravel(), \
+               np.load(os.path.join(self.toolkit.path,f"{float(t):g}",f"age.npy")).ravel(), \
+               np.load(os.path.join(self.toolkit.path,f"{float(t):g}",f"sigma.npy")).ravel(), \
+               np.load(os.path.join(self.toolkit.path,f"{float(t):g}",f"TL.npy")).ravel(), \
+               np.load(os.path.join(self.toolkit.path,f"{float(t):g}",f"epsilon.npy")).ravel()
 
     def _getParticles_FORTRAN(self, timestep, **kwargs):
         """
@@ -166,7 +160,7 @@ class volumetricParticleAnalysis:
             "buffer": buffer,
             **kwargs
         }
-        default_path = os.path.join(self.toolkit.path, self.toolkit.adaptiveGridFileName + "_fixed_res.h5")
+        default_path = os.path.join(self.toolkit.path, self.toolkit.adaptiveGridFileName)
         filepath = default_path if overwrite else self.toolkit._get_unique_path(default_path)
 
         docs = self.toolkit.getCacheDocuments(type=self.toolkit.ADAPTIVE_GRID, **fingerprint)
@@ -270,7 +264,7 @@ class volumetricParticleAnalysis:
             )]
         return docs
 
-    def _scaleExceedingVolumes(self, positions, vol_active, occupied_volumes, grid):
+    def _scaleExceedingVolumes(self, positions, vol_active, occupied_volumes, grid, block_indices=None, valid_mask=None):
         """
         Scales down particle volumes if the occupied volume fraction in their
         respective grid cell exceeds 1.0. Also clamps the occupied volume grid to [0, 1].
@@ -289,81 +283,261 @@ class volumetricParticleAnalysis:
                 vol_active[exceed_mask] *= (1.0 / particle_occ[exceed_mask])
             return np.minimum(occupied_volumes, 1.0)
         else:
+            # Use pre-calculated block assignment if available
+            if block_indices is None or valid_mask is None:
+                x_bounds = np.array([b['x_edges'][0] for b in grid] + [grid[-1]['x_edges'][-1]])
+                block_indices = np.digitize(positions[:, 0], x_bounds) - 1
+                block_indices[positions[:, 0] == x_bounds[-1]] = len(grid) - 1
+                valid_mask = (block_indices >= 0) & (block_indices < len(grid))
+
             clamped_occ_list = []
             for slice_idx, block_grid in enumerate(occupied_volumes):
-                # Get the corresponding block edges from the grid definition
                 block_info = grid[slice_idx]
                 x_edges, y_edges, z_edges = block_info['x_edges'], block_info['y_edges'], block_info['z_edges']
 
-                # 1. Identify particles in this block's X-range
-                if slice_idx == len(grid) - 1:
-                    in_block = (positions[:, 0] >= x_edges[0]) & (positions[:, 0] <= x_edges[-1])
-                else:
-                    in_block = (positions[:, 0] >= x_edges[0]) & (positions[:, 0] < x_edges[-1])
-
+                in_block = (block_indices == slice_idx) & valid_mask
                 if not np.any(in_block):
                     clamped_occ_list.append(np.minimum(block_grid, 1.0))
                     continue
 
-                # 2. Find 3D coordinates for particles in this block
                 block_pos = positions[in_block]
-                ix = np.digitize(block_pos[:, 0], x_edges) - 1
-                iy = np.digitize(block_pos[:, 1], y_edges) - 1
-                iz = np.digitize(block_pos[:, 2], z_edges) - 1
+                # Use searchsorted instead of digitize for faster local mapping
+                ix = np.searchsorted(x_edges, block_pos[:, 0], side='right') - 1
+                iy = np.searchsorted(y_edges, block_pos[:, 1], side='right') - 1
+                iz = np.searchsorted(z_edges, block_pos[:, 2], side='right') - 1
 
-                # 3. Filter for particles that actually fall inside the 3D grid bounds
-                valid_mask = (ix >= 0) & (ix < block_grid.shape[0]) & \
-                            (iy >= 0) & (iy < block_grid.shape[1]) & \
-                            (iz >= 0) & (iz < block_grid.shape[2])
+                valid_mask_local = (ix >= 0) & (ix < block_grid.shape[0]) & \
+                                  (iy >= 0) & (iy < block_grid.shape[1]) & \
+                                  (iz >= 0) & (iz < block_grid.shape[2])
 
-                if np.any(valid_mask):
-                    # Extract the occupied volume for the valid particles
-                    # block_grid is 3D: [X, Y, Z]
-                    p_occ = block_grid[ix[valid_mask], iy[valid_mask], iz[valid_mask]]
-
-                    exceed_mask = p_occ > 1.0
-                    if np.any(exceed_mask):
-                        # Map back to the original vol_active array
-                        # we use the in_block mask and then the valid_mask
+                if np.any(valid_mask_local):
+                    p_occ = block_grid[ix[valid_mask_local], iy[valid_mask_local], iz[valid_mask_local]]
+                    exceed_mask_local = p_occ > 1.0
+                    if np.any(exceed_mask_local):
+                        # Map local indices back to global vol_active
                         all_indices = np.where(in_block)[0]
-                        valid_indices = all_indices[valid_mask]
-                        exceed_indices = valid_indices[exceed_mask]
-
-                        # Scale volumes
-                        vol_active[exceed_indices] *= (1.0 / p_occ[exceed_mask])
+                        valid_indices = all_indices[valid_mask_local]
+                        exceed_indices = valid_indices[exceed_mask_local]
+                        vol_active[exceed_indices] *= (1.0 / p_occ[exceed_mask_local])
 
                 clamped_occ_list.append(np.minimum(block_grid, 1.0))
             return clamped_occ_list
+    
+    def preProcessCase(self, nTimesteps):
 
-    def calculate(self, grid_doc, nParticles, nTimesteps, initialVolume, sigma0, Cr = 0.3, mu = 0.47, Cphi = 1,
-                  continue_step = None, savedt = 1, scale_exceeding_volumes = True, fileName = None,
-                  printEvery=100, overwrite = False, debugMode = False, **kwargs):
+        self.__getattribute__(f"_preProcessCase_{self.toolkit.source}")(nTimesteps)
+
+    def _preProcessCase_openFOAM(self, nTimesteps):
+
+        def read_foam_field(filename):
+            with open(filename, 'r') as f:
+                lines = f.readlines()
+
+            for i, line in enumerate(lines):
+                match = re.fullmatch(r'\s*(\d+)(?:\s*\{(.*)\})?\s*', line)
+
+                if match:
+                    N = int(match.group(1))
+                    value = match.group(2)
+
+                    if value is not None:
+                        # Uniform field
+                        value = value.strip().strip('()')
+                        values = np.fromstring(value, sep=' ')
+                        return np.tile(values, (N, 1)) if len(values) > 1 else np.full(N, values[0])
+
+                    # Explicit field
+                    data = lines[i+1:]
+                    if data[0].strip() == '(':
+                        data = data[1:]
+
+                    return np.fromstring(' '.join(data[:N]).replace('(', '').replace(')', ''), sep=' ').reshape(N, -1)
+
+        for i in range(1, nTimesteps+1):
+            t = Decimal(format(i * self.toolkit.dt, '.12g')).normalize()
+            for field in ["origId","globalPositions","mass","age","TL","sigma","epsilon"]:
+                np.save(os.path.join(self.toolkit.path,f"{float(t):g}",f"{field}.npy"), \
+                        read_foam_field(os.path.join(self.toolkit.path, f"{float(t):g}", "lagrangian", "kinematicCloud", field)))
+            print(f"Processed time step {i}")
+
+    def _initialize_accumulator(self, reference):
+        arrays = [
+            np.zeros(reference.shape, dtype=np.float64)
+            for _ in range(5)
+        ]
+        scratch = np.empty(reference.shape, dtype=np.float64)
+
+        return arrays + [scratch]
+
+    def _accumulate(self, acc, C, C2, OV = None):
+        sum_C, sum_C2, sum_OV, sum_FI, sum_CV, scratch = acc
+
+        # Accumulate the three original fields
+        np.add(sum_C, C, out=sum_C)
+        np.add(sum_C2, C2, out=sum_C2)
+        if OV is not None:
+            np.add(sum_OV, OV, out=sum_OV)
+
+        # FI = sqrt(C2) / C
+        np.maximum(C2, 0, out=scratch)
+        np.sqrt(scratch, out=scratch)
+        np.divide(scratch, C, out=scratch, where=C > 0)
+        np.copyto(scratch, 0, where=C <= 0)
+        np.add(sum_FI, scratch, out=sum_FI)
+
+        # CV = sqrt(C2 - C**2) / C
+        np.multiply(C, C, out=scratch)
+        np.subtract(C2, scratch, out=scratch)
+        np.maximum(scratch, 0, out=scratch)
+        np.sqrt(scratch, out=scratch)
+        np.divide(scratch, C, out=scratch, where=C > 0)
+        np.copyto(scratch, 0, where=C <= 0)
+        np.add(sum_CV, scratch, out=sum_CV)
+
+    def _save_interval(self, f, t_str, n_steps, is_uniform, occupied_blocks, block_accumulators):
+
+        if n_steps == 0:
+            return
+
+        if is_uniform:
+            if uniform_accumulator is None:
+                return
+            grp_t = f.require_group(t_str)
+            for name, arr in zip(self.toolkit.dataset_names, uniform_accumulator[:5]):
+                if name in grp_t:
+                    del grp_t[name]
+
+                # Divide in place to avoid allocating another array.
+                np.divide(arr, n_steps, out=arr)
+                grp_t.create_dataset(name, data=arr, compression="lzf")
+
+                # Reset for the next interval.
+                arr.fill(0)
+        else:
+            if not occupied_blocks:
+                return
+
+            grp_t = f.require_group(t_str)
+
+            for idx in sorted(occupied_blocks):
+                acc = block_accumulators[idx]
+                slice_name = f"slice_{idx:03d}"
+
+                if slice_name in grp_t:
+                    del grp_t[slice_name]
+                grp_slice = grp_t.create_group(slice_name)
+
+                for name, arr in zip(self.toolkit.dataset_names, acc[:5]):
+                    np.divide(arr, n_steps, out=arr)
+                    grp_slice.create_dataset(name, data=arr, compression="lzf")
+                    arr.fill(0)
+
+            occupied_blocks.clear()
+
+    def calculate(self, grid_doc, nParticles, nTimesteps, initialVolume, sigma0,
+                Cr=0.3, mu=0.47, Cphi=1, savedt=1, fileName=None, tm_mode='mean',
+                printEvery=100, overwrite=False, debugMode=False, **kwargs):
         """
-        Main computation loop for volumetric particle metrics over a series of timesteps.
+        Calculate volumetric particle metrics and save temporal averages.
+        Saves averages every `savedt` timesteps:
+            concentration
+            second_moment
+            occupied_volume
+            fluctuation_intensity
+            coefficient_of_variation
 
-        This method implements a physical model for particle volume evolution based on
-        Cassiani (2013). It calculates concentration, second moment, and occupied volume
-        for each timestep, averaging results between save intervals.
+        For adaptive grids, unoccupied blocks contribute zero to the
+        temporal averages.
 
-        Args:
-            grid_doc (cache document): The grid document (uniform or adaptive).
-            nParticles (int): Total number of particles.
-            nTimesteps (int): Number of timesteps to simulate.
-            initialVolume (float): Initial volume of a particle.
-            sigma0 (float): Initial standard deviation of the particle size distribution.
-            Cr (float): Coefficient for volume growth (default 0.3).
-            mu (float): Growth rate constant (default 0.47).
-            Cphi (float): Concentration correction factor (default 1).
-            continue_step (int, optional): Step to resume from. If provided, loads state from state.h5.
-            savedt (int): Interval (in steps) for saving results to disk (default 1).
-            scale_exceeding_volumes (bool): Whether to scale down volumes if occupied volume exceeds 1.0.
-            fileName (str, optional): Filename for the output HDF5 file.
-            printEvery (int): Frequency of progress printing (default 100).
-
-        Returns:
-            None: Results are written directly to HDF5 files in the toolkit path.
+        A final incomplete averaging interval is also saved.
         """
-        # Construct Simulation Fingerprint
+
+        existing_C = self.toolkit.getCacheDocuments(type="concentrations", grid_params=grid_doc.desc, nTimesteps=nTimesteps)
+        if not existing_C:
+            grid = grid_doc.getData()
+            is_uniform = (isinstance(grid, (list, tuple)) and len(grid) == 3 and not isinstance(grid[0], dict))
+            results_file = os.path.join(self.toolkit.path, self.toolkit.CONCENTRATION_CACHE)
+            results_file = self.toolkit._get_unique_path(results_file)
+            resource = {}
+            with h5py.File(results_file, "w") as f:
+                for i in range(1, nTimesteps + 1):
+
+                    t = Decimal(format(i * self.toolkit.dt, ".12g")).normalize()
+                    t_str = f"{float(t):g}"
+
+                    # --- Particle loading ---
+
+                    (
+                        active_ids,
+                        positions,
+                        mass,
+                        age,
+                        sigma_sqrd,
+                        particlesTL,
+                        particlesEpsilon
+                    ) = self._getParticles(t, i)
+
+                    # Empty timesteps still count towards savedt.
+                    if len(active_ids) > 0:
+
+                        block_indices = None
+                        valid_mask = None
+
+                        if not is_uniform:
+
+                            x_bounds = np.array([b["x_edges"][0] for b in grid] + [grid[-1]["x_edges"][-1]])
+
+                            block_indices = np.digitize(positions[:, 0], x_bounds) - 1
+                            block_indices[positions[:, 0] == x_bounds[-1]] = len(grid) - 1
+                            valid_mask = ((block_indices >= 0) & (block_indices < len(grid)))
+
+                        results, phi_mean = (
+                            self.calculator.calculateConcentration(
+                                positions,
+                                mass,
+                                grid,
+                                block_indices=block_indices,
+                                valid_mask=valid_mask
+                            )
+                        )
+                        resource[t_str] = {"grid": results, "phi_mean": phi_mean, "is_uniform": is_uniform}
+                    if i % printEvery == 0:
+                        print(f"Completed concentration calculation timestep {i} (t={t})")
+
+            getHandler("concentrations").saveData(resource=resource, fileName=results_file)           
+            self.toolkit.addCacheDocument(
+                    type="concentrations",
+                    resource=results_file,
+                    dataFormat="h5",
+                    desc=dict(grid_params=grid_doc.desc, nTimesteps=nTimesteps)
+                )
+
+        concentration_cache_file = existing_C[0].resource if existing_C else results_file
+
+        return self.__getattribute__(f"_calculate_{self.toolkit.model}")(
+                grid_doc=grid_doc, nParticles=nParticles, nTimesteps=nTimesteps, initialVolume=initialVolume, sigma0=sigma0,
+                Cr=Cr, mu=mu, Cphi=Cphi, savedt=savedt, fileName=fileName, tm_mode=tm_mode,
+                printEvery=printEvery, overwrite=overwrite, debugMode=debugMode, concentration_cache=concentration_cache_file, **kwargs)
+
+    def _calculate_VPA(self, grid_doc, nParticles, nTimesteps, initialVolume, sigma0,
+                Cr=0.3, mu=0.47, Cphi=1, savedt=1,
+                scale_exceeding_volumes=True, fileName=None, tm_mode='mean',
+                printEvery=100, overwrite=False, debugMode=False, concentration_cache=None, **kwargs):
+
+        # ---------------------------------------------------------
+        # 1. Initialization
+        # ---------------------------------------------------------
+
+        if not isinstance(savedt, (int, np.integer)) or savedt < 1:
+            raise ValueError("savedt must be a positive integer")
+
+        grid = grid_doc.getData()
+        is_uniform = (isinstance(grid, (list, tuple)) and len(grid) == 3 and not isinstance(grid[0], dict))
+        if fileName is None:
+            fileName = (self.toolkit.fileName["uniform"] if is_uniform else self.toolkit.fileName["adaptive"])
+        results_file = os.path.join(self.toolkit.path, fileName)
+        results_file = self.toolkit._get_unique_path(results_file)
+
         sim_fingerprint = {
             "grid_params": grid_doc.desc,
             "physics": {
@@ -378,165 +552,233 @@ class volumetricParticleAnalysis:
                 "nParticles": nParticles,
                 "nTimesteps": nTimesteps,
                 "savedt": savedt,
-                "scale_exceeding_volumes": scale_exceeding_volumes
+                "scale_exceeding_volumes": scale_exceeding_volumes,
+                "tm_mode": tm_mode,
+                "model": "VPA"
             },
             **kwargs
         }
 
-        grid = grid_doc.getData()
-        sigma0_sqrd = sigma0**2
-
-        # 1. Handle initialization vs resuming from a checkpoint
-        if continue_step is not None:
-            t_prev = Decimal(format(continue_step * self.toolkit.dt, '.12g')).normalize()
-            state_file = os.path.join(self.toolkit.path, str(t_prev), "state.h5")
-            with h5py.File(state_file, "r") as f:
-                volume, d_r_sqrd, sigma_r_sqrd, t0 = \
-                    f['volume'][:], f['d_r_sqrd'][:], f['sigma_r_sqrd'][:], f['t0'][:]
-            start_step = continue_step + 1
-        else:
-            volume, d_r_sqrd, sigma_r_sqrd, t0 = \
-                np.ones(nParticles)*initialVolume, np.ones(nParticles)*sigma0_sqrd, \
-                np.ones(nParticles)*sigma0_sqrd, np.zeros(nParticles)
-            start_step = 1
-
-        # Robust uniform grid check: list/tuple of length 3 where elements are not dicts
-        is_uniform = (isinstance(grid, (list, tuple)) and len(grid) == 3 and not isinstance(grid[0], dict))
-
-        if fileName is None:
-            fileName = self.toolkit.fileName["uniform"] if is_uniform else self.toolkit.fileName["adaptive"]
-
-        if not overwrite:
-            t_first = Decimal(format(start_step * self.toolkit.dt, '.12g')).normalize()
-            first_step_dir = os.path.join(self.toolkit.path, f"{float(t_first):g}")
-            first_step_file = os.path.join(first_step_dir, fileName)
-            unique_path = self.toolkit._get_unique_path(first_step_file)
-            fileName = os.path.basename(unique_path)
-
-        # Skip if run is already finished and we aren't overwriting
         existing_sims = self.toolkit.getCacheDocuments(type="VolumetricSimulation", **sim_fingerprint)
         if existing_sims:
-            if not overwrite and continue_step is None:
+            if overwrite:
+                results_file = existing_sims[0]["desc"]["config"]["results_file"]
+            else:
                 print(f"Found existing document: {existing_sims[0].resource}")
                 return existing_sims
 
-        # Initialize time-averaging accumulators
-        sum_concentration, sum_second_moment, sum_occupied_volume, steps_accumulated = None, None, None, 0
+        sim_fingerprint["config"]["results_file"] = results_file
 
-        # 2. Loop over timesteps starting from start_step
-        for i in range(start_step, nTimesteps+1):
-            t = Decimal(format(i * self.toolkit.dt, '.12g')).normalize()
-            active_ids, positions, mass, age, sigma_sqrd, particlesTL, particlesEpsilon = self._getParticles(t, i)
+        sigma0_sqrd = sigma0**2
+        volume = np.ones(nParticles) * initialVolume
+        d_r_sqrd = np.ones(nParticles) * sigma0_sqrd
+        sigma_r_sqrd = np.ones(nParticles) * sigma0_sqrd
+        t0 = np.zeros(nParticles)
 
-            if len(active_ids) == 0: continue
+        # ---------------------------------------------------------
+        # 2. Accumulator initialization
+        # ---------------------------------------------------------
 
-            mass /= nParticles
+        uniform_accumulator = None
 
-            # --- VECTORIZED STATE EXTRACTION VIA INDEXING ---
-            vol_active, d_r_active, sig_r_active, t0_active = \
-                volume[active_ids], d_r_sqrd[active_ids], sigma_r_sqrd[active_ids], t0[active_ids]
+        # Adaptive grids: allocate only when a block first becomes occupied.
+        block_accumulators = {} if not is_uniform else None
 
-            # --- STEP 1: CONCENTRATION MUST BE CALCULATED BEFORE VOLUME UPDATE ---
-            results, phi_mean = self.calculator.calculateConcentration(positions, mass, grid)
-            zero_mask = (t0_active == 0)
+        # Blocks that received particles during the current averaging interval.
+        # This avoids scanning all accumulator arrays when saving.
+        occupied_blocks = set()
 
-            # --- STEP 2: PHYSICS & VOLUME EVOLUTION UPDATES ---
-            t0_active[zero_mask] = (sigma0_sqrd / Cr / particlesEpsilon[zero_mask])**(1./3.)
-            d_r_active += 3 * Cr * particlesEpsilon * (t0_active + age)**2 * self.toolkit.dt # Cassiani 2013, Eq. 38
-            new_sigma_r_sqrd = d_r_active / (1 + (d_r_active - sigma0_sqrd) / 
-                (sigma0_sqrd + 2 * sigma_sqrd * particlesTL * age)) # Cassiani 2013, Eq. 36
-            sig_r_active = np.maximum(sig_r_active, new_sigma_r_sqrd)
-            L_sqrd = ((1.5 * sigma_sqrd) ** 3) / (particlesEpsilon ** 2)
-            sigma_ur_sqrd = np.minimum(sigma_sqrd, sigma_sqrd * (sig_r_active / L_sqrd)**(1./3.)) # Cassiani 2013, Eq. 35
-            k = 1.5 * sigma_sqrd
-            tm = np.minimum(mu * np.sqrt(sig_r_active / sigma_ur_sqrd), k / particlesEpsilon / Cphi) # Cassiani 2013, Eq. 34
-            if tm.min() < self.toolkit.dt:
-                print(f"Warning: minimum calculated tm {tm.min()} < dt!")
-            tm = np.maximum(tm, self.toolkit.dt + 1e-10) 
-            phi = mass / vol_active
+        interval_steps = 0
 
-            delta_phi = - self.toolkit.dt * (phi - phi_mean) / tm # Cassiani 2013, Eq. 6
-            vol_active = vol_active * phi / (phi + delta_phi) # Cassiani 2013, Eq. 7
+        # ---------------------------------------------------------
+        # 3. Main computation loop
+        # ---------------------------------------------------------
 
-            # --- STEP 3: OCCUPIED VOLUME & VOLUME SCALING ---
-            occupied_volumes = self.calculator.calculateOccupiedVolume(positions, vol_active, grid)
-            if scale_exceeding_volumes:
-                occupied_volumes = self._scaleExceedingVolumes(positions, vol_active, occupied_volumes, grid)
+        with h5py.File(results_file, "w") as f:
 
-            # --- STEP 4: SECOND MOMENT (Using scaled vol_active) ---
-            second_moments = self.calculator.calculateSecondMoment(positions, mass, vol_active, grid)
+            for i in range(1, nTimesteps + 1):
 
-            # --- WRITE UPDATED STATES BACK VECTORIALLY ---
-            volume[active_ids], d_r_sqrd[active_ids], sigma_r_sqrd[active_ids], t0[active_ids] = \
-             vol_active, d_r_active, sig_r_active, t0_active
-                
-            # --- TIME-AVERAGING ACCUMULATION ---
-            if is_uniform:
-                if sum_concentration is None: 
-                    sum_concentration, sum_second_moment, sum_occupied_volume = \
-                        np.zeros_like(results), np.zeros_like(second_moments), np.zeros_like(occupied_volumes)
-                sum_concentration += results
-                sum_second_moment += second_moments
-                sum_occupied_volume += occupied_volumes
-            else:
-                if sum_concentration is None: sum_concentration, sum_second_moment, sum_occupied_volume = \
-                    [np.zeros_like(res) for res in results], [np.zeros_like(sm) for sm in second_moments], \
-                    [np.zeros_like(ov) for ov in occupied_volumes]
-                for idx, (res_grid, sm_grid, ov_grid) in enumerate(zip(results, second_moments, occupied_volumes)): 
-                    sum_concentration[idx] += res_grid
-                    sum_second_moment[idx] += sm_grid
-                    sum_occupied_volume[idx] += ov_grid
+                t = Decimal(format(i * self.toolkit.dt, ".12g")).normalize()
+                t_str = f"{float(t):g}"
 
-            steps_accumulated += 1
+                # --- Particle loading ---
 
-            # --- SAVING & WRITING (Triggered every `savedt` steps) ---
-            if (i-1) % savedt == 0 or i == nTimesteps - 1:
-                if is_uniform: avg_concentration, avg_second_moment, avg_occupied_volume = \
-                    sum_concentration/steps_accumulated, sum_second_moment/steps_accumulated, \
-                    sum_occupied_volume/steps_accumulated
-                else: avg_concentration, avg_second_moment, avg_occupied_volume = \
-                    [sc/steps_accumulated for sc in sum_concentration], \
-                    [ss/steps_accumulated for ss in sum_second_moment], \
-                    [sov/steps_accumulated for sov in sum_occupied_volume]
+                (
+                    active_ids,
+                    positions,
+                    mass,
+                    age,
+                    sigma_sqrd,
+                    particlesTL,
+                    particlesEpsilon
+                ) = self._getParticles(t, i)
 
-                timestep_dir = os.path.join(self.toolkit.path, f"{float(t):g}")
-                os.makedirs(timestep_dir, exist_ok=True)
-                file_path = os.path.join(timestep_dir, fileName)
+                # Empty timesteps still count towards savedt.
+                if len(active_ids) > 0:
 
-                with h5py.File(file_path, "w") as f:
+                    # --- State extraction ---
+
+                    vol_active = volume[active_ids]
+                    d_r_active = d_r_sqrd[active_ids]
+                    sig_r_active = sigma_r_sqrd[active_ids]
+                    t0_active = t0[active_ids]
+
+                    # --- Adaptive block assignment ---
+
+                    block_indices = None
+                    valid_mask = None
+
+                    if not is_uniform:
+
+                        x_bounds = np.array([b["x_edges"][0] for b in grid] + [grid[-1]["x_edges"][-1]])
+
+                        block_indices = np.digitize(positions[:, 0], x_bounds) - 1
+                        block_indices[positions[:, 0] == x_bounds[-1]] = len(grid) - 1
+                        valid_mask = ((block_indices >= 0) & (block_indices < len(grid)))
+
+                    # --- STEP 1: Concentration ---
+
+                    results, phi_mean = getHandler("concentrations").getData(resource=concentration_cache, timestep=t_str, is_uniform=is_uniform)
+
+                    # --- STEP 2: Physics and volume evolution ---
+
+                    t0_active, d_r_active, sig_r_active, tm = self.calculator.updatePhysicsState(
+                        t0_active=t0_active,
+                        d_r_active=d_r_active,
+                        sig_r_active=sig_r_active,
+                        sigma0_sqrd=sigma0_sqrd,
+                        Cr=Cr,
+                        mu=mu,
+                        Cphi=Cphi,
+                        dt=self.toolkit.dt,
+                        particlesEpsilon=particlesEpsilon,
+                        age=age,
+                        sigma_sqrd=sigma_sqrd,
+                        particlesTL=particlesTL,
+                        warn=True
+                    )
+
+                    tm = self.calculator.adjustTmByCell(
+                        positions, tm, grid,
+                        block_indices=block_indices,
+                        valid_mask=valid_mask,
+                        mode=tm_mode
+                    )
+
+                    phi = mass / vol_active
+                    delta_phi = (-self.toolkit.dt * (phi - phi_mean) / tm)
+
+                    vol_active = (vol_active * phi / (phi + delta_phi))
+
+                    # --- STEP 3: Occupied volume and scaling ---
+
+                    occupied_volumes = (
+                        self.calculator.calculateOccupiedVolume(
+                            positions,
+                            vol_active,
+                            grid,
+                            block_indices=block_indices,
+                            valid_mask=valid_mask
+                        )
+                    )
+
+                    if scale_exceeding_volumes:
+                        occupied_volumes = self._scaleExceedingVolumes(
+                            positions,
+                            vol_active,
+                            occupied_volumes,
+                            grid,
+                            block_indices=block_indices,
+                            valid_mask=valid_mask
+                        )
+
+                    # --- STEP 4: Second moment ---
+
+                    second_moments = (
+                        self.calculator.calculateSecondMoment(
+                            positions,
+                            mass,
+                            vol_active,
+                            grid,
+                            block_indices=block_indices,
+                            valid_mask=valid_mask
+                        )
+                    )
+
+                    # --- Update particle states ---
+
+                    volume[active_ids] = vol_active
+                    d_r_sqrd[active_ids] = d_r_active
+                    sigma_r_sqrd[active_ids] = sig_r_active
+                    t0[active_ids] = t0_active
+
+                    # -------------------------------------------------
+                    # STEP 5: Accumulate instantaneous fields and metrics
+                    # -------------------------------------------------
+
                     if is_uniform:
-                        f.create_dataset('concentration', data=avg_concentration, compression="lzf")
-                        f.create_dataset('second_moment', data=avg_second_moment, compression="lzf")
-                        f.create_dataset('occupied_volume', data=avg_occupied_volume, compression="lzf")
+                        if uniform_accumulator is None:
+                            uniform_accumulator = (self._initialize_accumulator(results))
+
+                        self._accumulate(
+                            uniform_accumulator,
+                            results,
+                            second_moments,
+                            occupied_volumes
+                        )
                     else:
-                        for idx, (res_grid, sm_grid, ov_grid) in \
-                            enumerate(zip(avg_concentration, avg_second_moment, avg_occupied_volume)):
-                            grp = f.create_group(f"slice_{idx:03d}")
-                            grp.create_dataset('concentration', data=res_grid, compression="lzf")
-                            grp.create_dataset('second_moment', data=sm_grid, compression="lzf")
-                            grp.create_dataset('occupied_volume', data=ov_grid, compression="lzf")
-                with h5py.File(os.path.join(timestep_dir, "state.h5"), "w") as f:
-                    f.create_dataset('volume', data=volume, compression="lzf")
-                    f.create_dataset('d_r_sqrd', data=d_r_sqrd, compression="lzf")
-                    f.create_dataset('sigma_r_sqrd', data=sigma_r_sqrd, compression="lzf")
-                    f.create_dataset('t0', data=t0, compression="lzf")
+                        for idx, (C, C2, OV) in enumerate(zip(results, second_moments, occupied_volumes)):
 
-                sum_concentration = sum_second_moment = sum_occupied_volume = None; steps_accumulated = 0
-                if debugMode:
-                    np.save(os.path.join(timestep_dir, "sig_r.npy"),sig_r_active**0.5)
-                    np.save(os.path.join(timestep_dir, "L.npy"),L_sqrd**0.5)
-                    np.save(os.path.join(timestep_dir, "tm.npy"),tm)
-                    np.save(os.path.join(timestep_dir, "tm_clip.npy"),k / particlesEpsilon / Cphi)
-            if i % printEvery == 0: print(f"Completed timestep {i} (t={t})")
+                            # An unoccupied block contributes zero.
+                            # Its accumulator is deliberately left untouched.
+                            if not np.any(C):
+                                continue
+                            if idx not in block_accumulators:
+                                block_accumulators[idx] = (self._initialize_accumulator(C))
+                            self._accumulate(block_accumulators[idx], C, C2, OV)
+                            occupied_blocks.add(idx)
 
-        sim_fingerprint["config"]["filename"] = fileName
-        sim_fingerprint["config"]["sim_path"] = self.toolkit.path
+                    # --- Debug output ---
+
+                    if debugMode:
+                        timestep_dir = os.path.join(self.toolkit.path, t_str)
+                        os.makedirs(timestep_dir, exist_ok=True)
+                        np.save(os.path.join(timestep_dir, "sig_r.npy"),sig_r_active**0.5)
+                        np.save(os.path.join(timestep_dir, "L.npy"), L_sqrd**0.5)
+                        np.save(os.path.join(timestep_dir, "tm.npy"), tm)
+                        np.save(os.path.join(timestep_dir, "tm_clip.npy"), k / particlesEpsilon / Cphi)
+
+                # -------------------------------------------------
+                # STEP 6: Interval management and saving
+                # -------------------------------------------------
+
+                interval_steps += 1
+                if interval_steps == savedt:
+                    self._save_interval(f, t_str, interval_steps, is_uniform, occupied_blocks, block_accumulators)
+                    interval_steps = 0
+                if i % printEvery == 0:
+                    print(f"Completed timestep {i} (t={t})")
+
+            # ---------------------------------------------------------
+            # 4. Save final incomplete interval
+            # ---------------------------------------------------------
+
+            if interval_steps > 0:
+                self._save_interval(f, t_str, interval_steps, is_uniform, occupied_blocks, block_accumulators)
+
+        # ---------------------------------------------------------
+        # 5. Finalize
+        # ---------------------------------------------------------
+
         if not existing_sims:
-            existing_sims = [self.toolkit.addCacheDocument(
-                type="VolumetricSimulation",
-                resource=self.toolkit.path,
-                dataFormat="folder",
-                desc=sim_fingerprint)]
+            existing_sims = [
+                self.toolkit.addCacheDocument(
+                    type="VolumetricSimulation",
+                    resource=results_file,
+                    dataFormat="h5",
+                    desc=sim_fingerprint
+                )
+            ]
 
         return existing_sims
 
@@ -557,11 +799,11 @@ class volumetricParticleAnalysis:
         low2, high2, is_range2 = get_range(val2)
 
         is_list_format = isinstance(results, list)
-        has_occupied_volume = False
+        has_extra = False
         if is_list_format:
-            has_occupied_volume = 'occupied_volume' in results[0] if results else False
+            has_extra = 'occupied_volume' in results[0] if results else False
         elif isinstance(results, dict):
-            has_occupied_volume = 'occupied_volume' in results and results['occupied_volume'] is not None
+            has_extra = 'occupied_volume' in results and results['occupied_volume'] is not None
 
         raw_profiles = []
         edges_list = []
@@ -580,15 +822,21 @@ class volumetricParticleAnalysis:
                 concentration = res_dict.get('concentration')
                 second_moment = res_dict.get('second_moment')
                 occupied_volume = res_dict.get('occupied_volume')
+                fluct_int = res_dict.get('fluctuation_intensity')
+                coeff_var = res_dict.get('coefficient_of_variation')
             else:
                 concentration = results.get('concentration')[idx] if results.get('concentration') else None
                 second_moment = results.get('second_moment')[idx] if results.get('second_moment') else None
                 occupied_volume = results.get('occupied_volume')[idx] if results.get('occupied_volume') else None
+                fluct_int = results.get('fluctuation_intensity')[idx] if results.get('fluctuation_intensity') else None
+                coeff_var = results.get('coefficient_of_variation')[idx] if results.get('coefficient_of_variation') else None
 
             if concentration is None: continue
             conc_grid = concentration
             sec_grid = second_moment
             occ_grid = occupied_volume
+            fi_grid = fluct_int
+            cv_grid = coeff_var
 
             # Find matching indices for fixed dimensions
             def find_matching(dim_name, l, h, is_rng):
@@ -612,9 +860,11 @@ class volumetricParticleAnalysis:
             s_conc = np.full(n_prof, np.nan)
             s_sec = np.full(n_prof, np.nan)
             s_occ = np.full(n_prof, np.nan)
+            s_fi = np.full(n_prof, np.nan)
+            s_cv = np.full(n_prof, np.nan)
 
             for ip in range(n_prof):
-                vals_c, vals_s, vals_o = [], [], []
+                vals_c, vals_s, vals_o, vals_fi, vals_cv = [], [], [], [], []
                 for i1 in match1:
                     for i2 in match2:
                         # Map coordinates based on profile_dim
@@ -631,13 +881,19 @@ class volumetricParticleAnalysis:
                                 vals_s.append(sec_grid[c_idx])
                             if occ_grid is not None and 0 <= c_idx[0] < occ_grid.shape[0] and 0 <= c_idx[1] < occ_grid.shape[1] and 0 <= c_idx[2] < occ_grid.shape[2]:
                                 vals_o.append(occ_grid[c_idx])
+                            if fi_grid is not None and 0 <= c_idx[0] < fi_grid.shape[0] and 0 <= c_idx[1] < fi_grid.shape[1] and 0 <= c_idx[2] < fi_grid.shape[2]:
+                                vals_fi.append(fi_grid[c_idx])
+                            if cv_grid is not None and 0 <= c_idx[0] < cv_grid.shape[0] and 0 <= c_idx[1] < cv_grid.shape[1] and 0 <= c_idx[2] < cv_grid.shape[2]:
+                                vals_cv.append(cv_grid[c_idx])
 
                 if vals_c:
                     s_conc[ip] = np.nanmean(vals_c)
                     if sec_grid is not None: s_sec[ip] = np.nanmean(vals_s) if vals_s else np.nan
                     if occ_grid is not None: s_occ[ip] = np.nanmean(vals_o) if vals_o else np.nan
+                    if fi_grid is not None: s_fi[ip] = np.nanmean(vals_fi) if vals_fi else np.nan
+                    if cv_grid is not None: s_cv[ip] = np.nanmean(vals_cv) if vals_cv else np.nan
 
-            raw_profiles.append({'edges': prof_edges, 'conc': s_conc, 'sec': s_sec, 'occ': s_occ})
+            raw_profiles.append({'edges': prof_edges, 'conc': s_conc, 'sec': s_sec, 'occ': s_occ, 'fi': s_fi, 'cv': s_cv})
             edges_list.append(prof_edges)
 
         if not raw_profiles:
@@ -652,13 +908,13 @@ class volumetricParticleAnalysis:
         ref_edges[-1] = global_max
         ref_centers = 0.5 * (ref_edges[:-1] + ref_edges[1:])
 
-        collected_c, collected_s, collected_o = [], [], []
+        collected_c, collected_s, collected_o, collected_fi, collected_cv = [], [], [], [], []
         for prof in raw_profiles:
             e_p = prof['edges']
             if np.array_equal(e_p, ref_edges):
-                collected_c.append(prof['conc']); collected_s.append(prof['sec']); collected_o.append(prof['occ'])
+                collected_c.append(prof['conc']); collected_s.append(prof['sec']); collected_o.append(prof['occ']); collected_fi.append(prof['fi']); collected_cv.append(prof['cv'])
             else:
-                c_res, s_res, o_res = np.full_like(ref_centers, np.nan), np.full_like(ref_centers, np.nan), np.full_like(ref_centers, np.nan)
+                c_res, s_res, o_res, fi_res, cv_res = np.full_like(ref_centers, np.nan), np.full_like(ref_centers, np.nan), np.full_like(ref_centers, np.nan), np.full_like(ref_centers, np.nan), np.full_like(ref_centers, np.nan)
                 centers_p, dp = 0.5 * (e_p[:-1] + e_p[1:]), np.diff(e_p)
                 for i_ref in range(len(ref_edges) - 1):
                     mi, ma = ref_edges[i_ref], ref_edges[i_ref + 1]
@@ -668,11 +924,13 @@ class volumetricParticleAnalysis:
                         c_res[i_ref] = np.sum(prof['conc'][mask] * w) / np.sum(w)
                         s_res[i_ref] = np.sum(prof['sec'][mask] * w) / np.sum(w)
                         o_res[i_ref] = np.sum(prof['occ'][mask] * w) / np.sum(w)
-                collected_c.append(c_res); collected_s.append(s_res); collected_o.append(o_res)
+                        fi_res[i_ref] = np.sum(prof['fi'][mask] * w) / np.sum(w)
+                        cv_res[i_ref] = np.sum(prof['cv'][mask] * w) / np.sum(w)
+                collected_c.append(c_res); collected_s.append(s_res); collected_o.append(o_res); collected_fi.append(fi_res); collected_cv.append(cv_res)
 
-        avg_c, avg_s, avg_o = np.nanmean(collected_c, axis=0), np.nanmean(collected_s, axis=0), np.nanmean(collected_o, axis=0)
-        if has_occupied_volume: return ref_centers, avg_c, avg_s, avg_o
-        return ref_centers, avg_c, avg_s
+        avg_c, avg_s, avg_o, avg_fi, avg_cv = np.nanmean(collected_c, axis=0), np.nanmean(collected_s, axis=0), np.nanmean(collected_o, axis=0), np.nanmean(collected_fi, axis=0), np.nanmean(collected_cv, axis=0)
+        if has_extra: return ref_centers, avg_c, avg_s, avg_o, avg_fi, avg_cv
+        return ref_centers, avg_c, avg_s, avg_fi, avg_cv
 
     def get_profiles_x(self, master_grid, results, y0=0.0, z0=0.0):
         """
@@ -706,11 +964,11 @@ class volumetricParticleAnalysis:
         if low > high: low, high = high, low
 
         is_list_format = isinstance(results, list)
-        has_occupied_volume = False
+        has_extra = False
         if is_list_format:
-            has_occupied_volume = 'occupied_volume' in results[0] if results else False
+            has_extra = 'occupied_volume' in results[0] if results else False
         elif isinstance(results, dict):
-            has_occupied_volume = 'occupied_volume' in results and results['occupied_volume'] is not None
+            has_extra = 'occupied_volume' in results and results['occupied_volume'] is not None
 
         # We will store results as a list of DataFrames (one per block) and then concatenate
         block_dfs = []
@@ -728,15 +986,21 @@ class volumetricParticleAnalysis:
                 concentration = res_dict.get('concentration')
                 second_moment = res_dict.get('second_moment')
                 occupied_volume = res_dict.get('occupied_volume')
+                fluct_int = res_dict.get('fluctuation_intensity')
+                coeff_var = res_dict.get('coefficient_of_variation')
             else:
                 concentration = results.get('concentration')[idx] if results.get('concentration') else None
                 second_moment = results.get('second_moment')[idx] if results.get('second_moment') else None
                 occupied_volume = results.get('occupied_volume')[idx] if results.get('occupied_volume') else None
+                fluct_int = results.get('fluctuation_intensity')[idx] if results.get('fluctuation_intensity') else None
+                coeff_var = results.get('coefficient_of_variation')[idx] if results.get('coefficient_of_variation') else None
 
             if concentration is None: continue
             conc_grid = concentration
             sec_grid = second_moment
             occ_grid = occupied_volume
+            fi_grid = fluct_int
+            cv_grid = coeff_var
 
             # Find matching indices for the fixed dimension
             edges = {'x': x_edges, 'y': y_edges, 'z': z_edges}[fixed_dim]
@@ -764,10 +1028,12 @@ class volumetricParticleAnalysis:
             # Create the 2D arrays for this block
             ny, nz = len(dim1_edges)-1, len(dim2_edges)-1 # Generic names for the other 2 dims
             s_conc, s_sec, s_occ = np.zeros((ny, nz)), np.zeros((ny, nz)) if sec_grid is not None else None, np.zeros((ny, nz)) if occ_grid is not None else None
+            s_fi = np.zeros((ny, nz)) if fi_grid is not None else None
+            s_cv = np.zeros((ny, nz)) if cv_grid is not None else None
 
             for i1 in range(ny):
                 for i2 in range(nz):
-                    vals_c, vals_s, vals_o = [], [], []
+                    vals_c, vals_s, vals_o, vals_fi, vals_cv = [], [], [], [], []
                     # Loop over the fixed dimension indices
                     for ifix in matching_indices:
                         # Map 3D coords based on fixed_dim
@@ -783,15 +1049,23 @@ class volumetricParticleAnalysis:
                                 vals_s.append(sec_grid[coords])
                             if occ_grid is not None and 0 <= coords[0] < occ_grid.shape[0] and 0 <= coords[1] < occ_grid.shape[1] and 0 <= coords[2] < occ_grid.shape[2]:
                                 vals_o.append(occ_grid[coords])
+                            if fi_grid is not None and 0 <= coords[0] < fi_grid.shape[0] and 0 <= coords[1] < fi_grid.shape[1] and 0 <= coords[2] < fi_grid.shape[2]:
+                                vals_fi.append(fi_grid[coords])
+                            if cv_grid is not None and 0 <= coords[0] < cv_grid.shape[0] and 0 <= coords[1] < cv_grid.shape[1] and 0 <= coords[2] < cv_grid.shape[2]:
+                                vals_cv.append(cv_grid[coords])
 
                     if vals_c:
                         s_conc[i1, i2] = np.nanmean(vals_c)
                         if s_sec is not None: s_sec[i1, i2] = np.nanmean(vals_s) if vals_s else np.nan
                         if s_occ is not None: s_occ[i1, i2] = np.nanmean(vals_o) if vals_o else np.nan
+                        if s_fi is not None: s_fi[i1, i2] = np.nanmean(vals_fi) if vals_fi else np.nan
+                        if s_cv is not None: s_cv[i1, i2] = np.nanmean(vals_cv) if vals_cv else np.nan
                     else:
                         s_conc[i1, i2] = np.nan
                         if s_sec is not None: s_sec[i1, i2] = np.nan
                         if s_occ is not None: s_occ[i1, i2] = np.nan
+                        if s_fi is not None: s_fi[i1, i2] = np.nan
+                        if s_cv is not None: s_cv[i1, i2] = np.nan
 
             # Convert this block's 2D slice to a DataFrame
             d1_centers = 0.5 * (dim1_edges[:-1] + dim1_edges[1:])
@@ -804,6 +1078,8 @@ class volumetricParticleAnalysis:
                     row['concentration'] = s_conc[i1, i2]
                     row['second_moment'] = s_sec[i1, i2] if s_sec is not None else np.nan
                     row['occupied_volume'] = s_occ[i1, i2] if s_occ is not None else np.nan
+                    row['fluctuation_intensity'] = s_fi[i1, i2] if s_fi is not None else np.nan
+                    row['coefficient_of_variation'] = s_cv[i1, i2] if s_cv is not None else np.nan
                     block_data.append(row)
 
             block_dfs.append(pd.DataFrame(block_data))
@@ -831,91 +1107,150 @@ class volumetricParticleAnalysis:
         """
         return self._extract_slice_data(master_grid, results, 'x', x0)
 
-    def get_max_cell_grids_over_time(self, sim_doc, timesteps_list, printRate=None, overwrite=False, **kwargs):
+    def get_max_cell_grids_over_time(self, sim_doc=None, grid_doc=None, h5_file=None, timesteps_list=None,
+                                    printRate=None, overwrite=False, **kwargs):
         """
-        Resolves the max cell grids resource for a specific simulation.
+        Resolves the maximum cell grids over time for an adaptive-grid simulation.
+
+        Compatible with simulations saving temporal averages of:
+            concentration
+            second_moment
+            occupied_volume
+            fluctuation_intensity
+            coefficient_of_variation
+
+        Returns the maximum value of each saved field over the requested intervals.
         """
-        # 1. Define the fingerprint
-        # Use sim_doc.resource as the unique identifier for this simulation run
+
+        # ---------------------------------------------------------
+        # 1. Resolve resources (sim_doc or grid_doc + h5_file)
+        # ---------------------------------------------------------
+
+        if sim_doc is not None:
+            results_file = sim_doc.resource
+            grid_params = sim_doc.desc.get("grid_params")
+        elif h5_file is not None and grid_doc is not None:
+            results_file = h5_file
+            grid_params = None # We already have the grid_doc
+        else:
+            raise ValueError("Must provide either 'sim_doc' or both 'grid_doc' and 'h5_file'.")
+
+        # Handle timesteps_list
+        if timesteps_list is None:
+            raise ValueError("timesteps_list must be provided.")
+
+        # Define fingerprint for the output cache
+        # If we have sim_doc, use its desc. Otherwise, we use grid_doc and h5_file info.
         fingerprint = {
-            "sim_params": sim_doc.desc,
+            "h5_file": results_file,
             "timesteps": sorted(timesteps_list),
             **kwargs
         }
-
-        # 2. Try to retrieve from Database
-        sim_path = sim_doc.resource
-        default_path = os.path.join(sim_path, "max_cell_grids.h5")
+        if sim_doc:
+            fingerprint["sim_params"] = sim_doc.desc
+            sim_dir = os.path.dirname(results_file)
+        else:
+            sim_dir = self.toolkit.path
+        default_path = os.path.join(sim_dir, "max_cell_grids.h5")
         filepath = default_path if overwrite else self.toolkit._get_unique_path(default_path)
 
-        docs = self.toolkit.getCacheDocuments(type=self.toolkit.MAX_CELL_GRID, **fingerprint)
-        if docs:
-            if not overwrite:
-                return docs
+        docs = self.toolkit.getCacheDocuments(
+            type=self.toolkit.MAX_CELL_GRID, **fingerprint
+        )
 
-        # 3. Resolve the Grid document using the grid_params stored in the sim_doc
-        grid_params = sim_doc.desc.get("grid_params")
-        if not grid_params:
-            raise ValueError("The simulation document is missing 'grid_params' in its description.")
+        if docs and not overwrite:
+            return docs
 
-        # Find the grid document that matches the parameters used for this simulation
-        grid_docs = self.toolkit.getCacheDocuments(type=self.toolkit.ADAPTIVE_GRID, **grid_params)
-        if not grid_docs:
-            grid_docs = self.toolkit.getCacheDocuments(type=self.toolkit.UNIFORM_GRID, **grid_params)
+        # ---------------------------------------------------------
+        # 2. Resolve grid document
+        # ---------------------------------------------------------
+
+        if grid_doc is not None:
+            target_grid_doc = grid_doc
+        elif grid_params is not None:
+            grid_docs = self.toolkit.getCacheDocuments(
+                type=self.toolkit.ADAPTIVE_GRID, **grid_params
+            )
             if not grid_docs:
-                raise ValueError(f"Could not find a grid document matching the parameters: {grid_params}")
-            else:
-                raise ValueError("Function is available for adaptive grid only!")
+                # Fallback check for uniform grids just in case
+                uniform_docs = self.toolkit.getCacheDocuments(
+                    type=self.toolkit.UNIFORM_GRID, **grid_params
+                )
+                if uniform_docs:
+                    raise ValueError("Function is available for adaptive grid only!")
+                raise ValueError(
+                    f"Could not find a grid document matching the parameters: {grid_params}"
+                )
+            target_grid_doc = grid_docs[0]
+        else:
+            raise ValueError("Could not resolve grid document.")
 
-        grid_doc = grid_docs[0]
-        master_grid = grid_doc.getData()
+        master_grid = target_grid_doc.getData()
 
-        # 4. Computation Logic
-        
-        fileName = sim_doc.desc["config"]["filename"]
+        # ---------------------------------------------------------
+        # 3. Initialize maximum arrays
+        # ---------------------------------------------------------
 
-        n_slices = len(master_grid)
         max_results = []
+
         for slice_info in master_grid:
-            # Now we include nx for the 3D block
-            nx = len(slice_info['x_edges']) - 1
-            ny = len(slice_info['y_edges']) - 1
-            nz = len(slice_info['z_edges']) - 1
+
+            nx = len(slice_info["x_edges"]) - 1
+            ny = len(slice_info["y_edges"]) - 1
+            nz = len(slice_info["z_edges"]) - 1
+
             max_results.append({
-                'concentration': np.zeros((nx, ny, nz)),
-                'second_moment': np.zeros((nx, ny, nz)),
-                'occupied_volume': np.zeros((nx, ny, nz))
+                name: np.zeros((nx, ny, nz), dtype=np.float64)
+                for name in self.toolkit.dataset_names
             })
 
+        # ---------------------------------------------------------
+        # 4. Read and calculate maxima
+        # ---------------------------------------------------------
+
         count = 0
-        for i in timesteps_list:
-            t = Decimal(format(i * self.toolkit.dt, '.12g')).normalize()
-            result_file = os.path.join(sim_path, f"{float(t):g}", fileName)
 
-            if not os.path.exists(result_file):
-                continue
+        with h5py.File(results_file, "r") as f:
 
-            with h5py.File(result_file, "r") as f:
-                for idx in range(n_slices):
-                    slice_name = f"slice_{idx:03d}"
-                    if slice_name in f:
-                        grp = f[slice_name]
-                        if 'concentration' in grp:
-                            c_grid = grp['concentration'][:]
-                            if c_grid.size > 0:
-                                max_results[idx]['concentration'] = np.maximum(max_results[idx]['concentration'], c_grid)
-                        if 'second_moment' in grp:
-                            c2_grid = grp['second_moment'][:]
-                            if c2_grid.size > 0:
-                                max_results[idx]['second_moment'] = np.maximum(max_results[idx]['second_moment'], c2_grid)
-                        if 'occupied_volume' in grp:
-                            ov_grid = grp['occupied_volume'][:]
-                            if ov_grid.size > 0:
-                                max_results[idx]['occupied_volume'] = np.maximum(max_results[idx]['occupied_volume'], ov_grid)
+            for i in timesteps_list:
+                t = Decimal(format(i * self.toolkit.dt, ".12g")).normalize()
+                t_str = f"{float(t):g}"
 
-            if printRate is not None and count % printRate == 0:
-                print(f"Finished calculation for time step number {count}")
-            count += 1
+                if t_str in f:
+                    grp_t = f[t_str]
+
+                    for idx in range(len(master_grid)):
+                        slice_name = f"slice_{idx:03d}"
+                        if slice_name not in grp_t:
+                            continue
+
+                        grp_slice = grp_t[slice_name]
+                        max_slice = max_results[idx]
+
+                        for name in self.toolkit.dataset_names:
+                            if name not in grp_slice:
+                                continue
+
+                            data = grp_slice[name]
+
+                            # Read directly into a reusable temporary array
+                            # only when necessary.
+                            values = data[:]
+                            np.maximum(max_slice[name], values, out=max_slice[name])
+
+                count += 1
+
+                if printRate is not None and count % printRate == 0:
+                    print(f"Finished calculation for time step number {count}")
+
+        # ---------------------------------------------------------
+        # 5. Save and register
+        # ---------------------------------------------------------
+
+        handler = getHandler("max_cell_grids")
+
+        handler.saveData(resource=max_results, fileName=filepath)
+
         if not docs:
             docs = [self.toolkit.addCacheDocument(
                 type=self.toolkit.MAX_CELL_GRID,
@@ -924,65 +1259,305 @@ class volumetricParticleAnalysis:
                 desc=fingerprint
             )]
 
-        handler = getHandler("max_cell_grids")
-        handler.saveData(resource=max_results, fileName=filepath)
-
         return docs
 
-    def getResultsForTimesteps(self, sim_doc, timesteps_list):
+    def get_results_for_timesteps(self, sim_doc=None, h5_file=None, timesteps_list=None):
         """
-        Retrieves simulation results (concentration, second moment, occupied volume) 
-        for a list of timesteps from the simulation's HDF5 files.
+        Retrieves time-averaged simulation results for a list of saved timesteps.
 
-        Args:
-            sim_doc (CacheDocument): The simulation cache document.
-            timesteps_list (list): List of timestep indices (integers).
+        Returns a list of dictionaries, with None for timesteps that were not saved.
 
-        Returns:
-            list: A list of dictionaries containing the results for each timestep. 
-                Returns None for timesteps where the file is missing.
+        Adaptive grids:
+            Each field contains a list of arrays, one per block.
+            Missing blocks are represented by None.
+
+        Uniform grids:
+            Each field contains a single numpy array.
         """
-        sim_path = sim_doc.resource
-        fileName = sim_doc.desc["config"]["filename"]
+
+        if sim_doc is not None:
+            results_file = sim_doc.resource
+        elif h5_file is not None:
+            results_file = h5_file
+        else:
+            raise ValueError("Must provide either 'sim_doc' or 'h5_file'.")
+
+        if timesteps_list is None:
+            raise ValueError("timesteps_list must be provided.")
+
         results_list = []
 
-        for i in timesteps_list:
-            # Match the exact time string format used during the 'calculate' loop
-            t = Decimal(format(i * self.toolkit.dt, '.12g')).normalize()
-            result_file = os.path.join(sim_path, str(t), fileName)
 
-            if not os.path.exists(result_file):
-                results_list.append(None)
-                continue
+        with h5py.File(results_file, "r") as f:
 
-            with h5py.File(result_file, "r") as f:
-                # Determine if the result is adaptive (contains slice groups) or uniform
-                if "slice_000" in f:
-                    # --- Adaptive Grid Retrieval ---
+            for i in timesteps_list:
+
+                # Match the time string format used in calculate()
+                t = Decimal(format(i * self.toolkit.dt, '.12g')).normalize()
+                t_str = f"{float(t):g}"
+                if t_str not in f:
+                    results_list.append(None)
+                    continue
+                grp = f[t_str]
+
+                # -------------------------------------------------
+                # Adaptive grid retrieval
+                # -------------------------------------------------
+
+                if any(k.startswith('slice_') for k in grp.keys()):
+
                     timestep_res = {}
-                    # Identify all available slices in sorted order
-                    slice_keys = sorted([k for k in f.keys() if k.startswith('slice_')])
+                    n_blocks = grp.attrs.get('n_blocks', 0)
+                    slice_keys = sorted(k for k in grp.keys() if k.startswith('slice_'))
 
-                    for field in ['concentration', 'second_moment', 'occupied_volume']:
-                        field_data = []
+                    for field in self.dataset_names:
+                        field_data = [None] * n_blocks
                         for sk in slice_keys:
-                            grp = f[sk]
-                            field_data.append(grp[field][:] if field in grp else None)
+                            idx = int(sk.split('_')[1])
+                            if idx < n_blocks:
+                                grp_slice = grp[sk]
+                                if field in grp_slice:
+                                    field_data[idx] = grp_slice[field][:]
+
                         timestep_res[field] = field_data
+
+                # -------------------------------------------------
+                # Uniform grid retrieval
+                # -------------------------------------------------
+
                 else:
-                    # --- Uniform Grid Retrieval ---
-                    timestep_res = {}
-                    for field in ['concentration', 'second_moment', 'occupied_volume']:
-                        timestep_res[field] = f[field][:] if field in f else None
+                    timestep_res = {field: (grp[field][:] if field in grp else None) for field in self.dataset_names}
 
                 results_list.append(timestep_res)
 
         return results_list
 
+    def _calculate_clipped(self, grid_doc, nParticles, nTimesteps, initialVolume, sigma0,
+                        Cr=0.3, mu=0.47, Cphi=1, savedt=1,
+                        fileName=None, tm_mode='mean',
+                        printEvery=100, overwrite=False, debugMode=False, concentration_cache=None, **kwargs):
+        """
+        Calculate volumetric particle metrics for the clipped case where volume is constant.
+        The particle volume is fixed at `initialVolume`.
+        The concentration `phi` is a state variable updated according to:
+        phi = phi - dt * (phi - phi_mean) / tm.
+        """
+
+        if not isinstance(savedt, (int, np.integer)) or savedt < 1:
+            raise ValueError("savedt must be a positive integer")
+
+        grid = grid_doc.getData()
+        is_uniform = (isinstance(grid, (list, tuple)) and len(grid) == 3 and not isinstance(grid[0], dict))
+
+        # --- Calculate constant cell volume and f ---
+        if is_uniform:
+            x_e, y_e, z_e = grid
+            cell_volume = (x_e[1] - x_e[0]) * (y_e[1] - y_e[0]) * (z_e[1] - z_e[0])
+        else:
+            block = grid[0]
+            cell_volume = (block['x_edges'][1] - block['x_edges'][0]) * \
+                          (block['y_edges'][1] - block['y_edges'][0]) * \
+                          (block['z_edges'][1] - block['z_edges'][0])
+
+        particle_prob = initialVolume / cell_volume
+
+        if fileName is None:
+            fileName = (self.toolkit.fileName["uniform"] if is_uniform else self.toolkit.fileName["adaptive"])
+
+        results_file = os.path.join(self.toolkit.path, fileName)
+        results_file = self.toolkit._get_unique_path(results_file)
+
+        sim_fingerprint = {
+            "grid_params": grid_doc.desc,
+            "physics": {
+                "dt": self.toolkit.dt,
+                "initialVolume": initialVolume,
+                "sigma0": sigma0,
+                "Cr": Cr,
+                "mu": mu,
+                "Cphi": Cphi,
+            },
+            "config": {
+                "nParticles": nParticles,
+                "nTimesteps": nTimesteps,
+                "savedt": savedt,
+                "tm_mode": tm_mode,
+                "model": clipped
+            },
+            **kwargs
+        }
+
+        existing_sims = self.toolkit.getCacheDocuments(type="VolumetricSimulation", **sim_fingerprint)
+
+        if existing_sims:
+            if overwrite:
+                results_file = existing_sims[0]["desc"]["config"]["results_file"]
+            else:
+                print(f"Found existing document: {existing_sims[0].resource}")
+                return existing_sims
+
+        sim_fingerprint["config"]["results_file"] = results_file
+        sigma0_sqrd = sigma0**2
+
+        # State variables
+        phi = np.zeros(nParticles)
+        initialized = np.zeros(nParticles, dtype=bool)
+        d_r_sqrd = np.ones(nParticles) * sigma0_sqrd
+        sigma_r_sqrd = np.ones(nParticles) * sigma0_sqrd
+        t0 = np.zeros(nParticles)
+
+        uniform_accumulator = None
+        block_accumulators = {} if not is_uniform else None
+        occupied_blocks = set()
+        interval_steps = 0
+
+        with h5py.File(results_file, "w") as f:
+            for i in range(1, nTimesteps + 1):
+                t = Decimal(format(i * self.toolkit.dt, ".12g")).normalize()
+                t_str = f"{float(t):g}"
+
+                (
+                    active_ids,
+                    positions,
+                    mass,
+                    age,
+                    sigma_sqrd,
+                    particlesTL,
+                    particlesEpsilon
+                ) = self._getParticles(t, i)
+
+                if len(active_ids) > 0:
+                    # --- Initialize phi for new particles ---
+                    newly_active = active_ids[~initialized[active_ids]]
+                    if len(newly_active) > 0:
+                        mask_new = ~initialized[active_ids]
+                        phi[newly_active] = mass[mask_new] / initialVolume
+                        initialized[active_ids] = True
+
+                    phi_active = phi[active_ids]
+                    d_r_active = d_r_sqrd[active_ids]
+                    sig_r_active = sigma_r_sqrd[active_ids]
+                    t0_active = t0[active_ids]
+
+                    # --- Adaptive block assignment ---
+                    block_indices = None
+                    valid_mask = None
+                    if not is_uniform:
+                        x_bounds = np.array([b["x_edges"][0] for b in grid] + [grid[-1]["x_edges"][-1]])
+                        block_indices = np.digitize(positions[:, 0], x_bounds) - 1
+                        block_indices[positions[:, 0] == x_bounds[-1]] = len(grid) - 1
+                        valid_mask = (block_indices >= 0) & (block_indices < len(grid))
+
+                    # --- STEP 1: Concentration ---
+                    results, phi_mean = getHandler("concentrations").getData(resource=concentration_cache, timestep=t_str, is_uniform=is_uniform)
+
+                    # --- STEP 2: Physics and volume evolution ---
+                    t0_active, d_r_active, sig_r_active, tm = self.calculator.updatePhysicsState(
+                        t0_active=t0_active,
+                        d_r_active=d_r_active,
+                        sig_r_active=sig_r_active,
+                        sigma0_sqrd=sigma0_sqrd,
+                        Cr=Cr,
+                        mu=mu,
+                        Cphi=Cphi,
+                        dt=self.toolkit.dt,
+                        particlesEpsilon=particlesEpsilon,
+                        age=age,
+                        sigma_sqrd=sigma_sqrd,
+                        particlesTL=particlesTL,
+                        warn=False
+                    )
+                    tm = self.calculator.adjustTmByCell(positions, tm, grid, block_indices=block_indices, valid_mask=valid_mask, mode=tm_mode)
+
+                    # Update phi according to the clipped rule
+                    phi_active = phi_active - self.toolkit.dt * (phi_active - phi_mean) / tm
+                    phi[active_ids] = phi_active
+
+                    # --- STEP 3: Second moment ---
+                    if is_uniform:
+                        edges = grid
+                        n_particles_grid, _ = np.histogramdd(positions, bins=edges)
+                        sum_phi_grid, _ = np.histogramdd(positions, bins=edges, weights=phi_active)
+                        sum_phi_sq_grid, _ = np.histogramdd(positions, bins=edges, weights=phi_active**2)
+
+                        ov_grid = (n_particles_grid * initialVolume) / cell_volume
+                        # Assuming OV < 1 as per user instruction
+                        denom = 1.0 - ov_grid
+                        c_low_grid = (results - f * sum_phi_grid) / denom
+                        second_moments = (1.0 - ov_grid) * (c_low_grid**2) + f * sum_phi_sq_grid
+                    else:
+                        second_moments = []
+                        for idx, block in enumerate(grid):
+                            x_edges, y_edges, z_edges = block['x_edges'], block['y_edges'], block['z_edges']
+
+                            # Mask for particles in this block
+                            block_mask = (block_indices == idx) & valid_mask
+                            if not np.any(block_mask):
+                                second_moments.append(np.zeros((len(x_edges)-1, len(y_edges)-1, len(z_edges)-1)))
+                                continue
+
+                            block_pos = positions[block_mask]
+                            block_phi = phi_active[block_mask]
+
+                            n_p_block, _ = np.histogramdd(block_pos, bins=[x_edges, y_edges, z_edges])
+                            sum_phi_block, _ = np.histogramdd(block_pos, bins=[x_edges, y_edges, z_edges], weights=block_phi)
+                            sum_phi_sq_block, _ = np.histogramdd(block_pos, bins=[x_edges, y_edges, z_edges], weights=block_phi**2)
+
+                            ov_block = (n_p_block * initialVolume) / cell_volume
+                            # Assuming OV < 1 as per user instruction
+                            denom = 1.0 - ov_block
+
+                            # results[idx] is the concentration grid for this block
+                            res_grid = np.asarray(results[idx])
+
+                            c_low_block = (res_grid - particle_prob * sum_phi_block) / denom
+
+                            sm_block = (1.0 - ov_block) * (c_low_block**2) + particle_prob * sum_phi_sq_block
+                            second_moments.append(sm_block)
+
+                    # Update state
+                    d_r_sqrd[active_ids] = d_r_active
+                    sigma_r_sqrd[active_ids] = sig_r_active
+                    t0[active_ids] = t0_active
+
+                    # --- STEP 4: Accumulate ---
+                    if is_uniform:
+                        if uniform_accumulator is None:
+                            uniform_accumulator = _initialize_accumulator(results)
+                        self._accumulate(uniform_accumulator, results, second_moments)
+                    else:
+                        for idx, (C, C2) in enumerate(zip(results, second_moments)):
+                            if not np.any(C): continue
+                            if idx not in block_accumulators:
+                                block_accumulators[idx] = self._initialize_accumulator(C)
+                            self._accumulate(block_accumulators[idx], C, C2)
+                            occupied_blocks.add(idx)
+
+                interval_steps += 1
+                if interval_steps == savedt:
+                    self._save_interval(f, t_str, interval_steps, is_uniform, occupied_blocks, block_accumulators)
+                    interval_steps = 0
+                if i % printEvery == 0:
+                    print(f"Completed timestep {i} (t={t})")
+
+            if interval_steps > 0:
+                self._save_interval(f, t_str, interval_steps, is_uniform, occupied_blocks, block_accumulators)
+
+        if not existing_sims:
+            existing_sims = [
+                self.toolkit.addCacheDocument(
+                    type="VolumetricSimulation",
+                    resource=results_file,
+                    dataFormat="h5",
+                    desc=sim_fingerprint
+                )
+            ]
+        return existing_sims
+
 class volumetricParticle(abstractToolkit):
     toolkitName = "VolumetricParticle"
 
-    def __init__(self, projectName, path, dt, source="openFOAM", **kwargs):
+    def __init__(self, projectName, path, dt, source="openFOAM", model="VPA", **kwargs):
         super().__init__(projectName=projectName, toolkitName=self.toolkitName, **kwargs)
         if os.path.isabs(path):
             self.path = path
@@ -996,12 +1571,15 @@ class volumetricParticle(abstractToolkit):
         self.t = dt
         self.of = toolkitHome.getToolkit(toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
         self.fileName = {"uniform":"uniform_grid_results.h5", "adaptive":"adaptive_grid_results.h5"}
-        self.adaptiveGridFileName = "adaptive_grid"
+        self.adaptiveGridFileName = "adaptive_grid.h5"
         self.uniformGridFileName = "uniform_grid.h5"
         self._analysis = volumetricParticleAnalysis(self)
         self.ADAPTIVE_GRID = "adaptive_grid"
         self.UNIFORM_GRID = "uniform_grid"
         self.MAX_CELL_GRID = "max_cell_grid"
+        self.CONCENTRATION_CACHE = "concentration_cache.h5"
+        self.dataset_names = ["concentration", "second_moment", "occupied_volume", "fluctuation_intensity", "coefficient_of_variation"]
+        self.model = model
 
     @property
     def analysis(self):
