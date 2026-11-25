@@ -273,7 +273,6 @@ These variables are optional but useful for testing and advanced configurations:
 | `RESULT_SET` | No | `BASELINE` | Name of the expected-output result set for tests |
 | `MPLBACKEND` | No | system default | Set to `Agg` for headless matplotlib (no display) |
 | `GDF_TOL_AREA` | No | `1e-7` | Tolerance for geometry comparison in tests |
-| `HERA_FULL_LOGGING_TESTS` | No | unset | Set to enable full logging during tests |
 
 See the [Environment Variables Reference](../configuration/env_vars.md) for complete details.
 

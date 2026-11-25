@@ -11,7 +11,6 @@ The ML/DL toolkit (`machineLearningDeepLearningToolkit`, `hera/simulations/machi
 | Toolkit | `toolkit.py` | `machineLearningDeepLearningToolkit` — model registry (query, pack/unpack), class-path helpers; `analysis` class (Morris sensitivity analysis) |
 | PyTorch container | `torch/modelContainer.py` | `torchLightingModelContainer` — builds the model JSON, creates/loads its DB document, trains/validates, reads TensorBoard statistics, loads submodule weights from other checkpoints |
 | Lightning mixin | `LightingModule.py` | `LightningModuleHera` — mixin that receives the container (`setModelContainer`) before training |
-| Legacy helpers | `dataanalisys/ml.py`, `dataanalisys/stat.py` | Older scikit-learn style `ml` wrapper and a `stat(a, b, kind='rmse')` metric helper; not used by the toolkit |
 
 | Item | Value |
 |------|-------|
