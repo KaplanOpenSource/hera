@@ -263,3 +263,24 @@ class TestProjectNameFromDirectory:
         (tmp_path / "caseConfiguration.json").write_text('{"other": 1}', encoding="utf-8")
         with pytest.raises(ValueError, match="projectName"):
             Project(configurationPath=str(tmp_path), filesDirectory=unit_files_directory)
+
+
+@pytest.mark.unit
+class TestGetRetrieveFunction:
+    @pytest.mark.parametrize("dockind, method", [
+        ("Simulations", "getSimulationsDocuments"),
+        ("cache", "getCacheDocuments"),
+        ("measurements", "getMeasurementsDocuments"),
+    ])
+    def test_each_kind_maps_to_its_collection(self, unit_project, dockind, method):
+        assert unit_project.getRetrieveFunction(dockind) == getattr(unit_project, method)
+
+    def test_an_unknown_kind_is_refused(self, unit_project):
+        with pytest.raises(NotImplementedError, match="measurements"):
+            unit_project.getRetrieveFunction("nonsense")
+
+
+@pytest.mark.unit
+class TestTheDefaultProjectHasNoFilesDirectory:
+    def test_it_is_none_not_the_string_none(self):
+        assert Project(projectName=Project.DEFAULTPROJECT).FilesDirectory is None

@@ -9,6 +9,8 @@ import pytest
 
 from hera.utils import diffJSONS
 
+pytestmark = pytest.mark.unit
+
 
 def test_identical_documents_produce_an_empty_patch():
     """The CLIs read the result as `if not res`, so equal documents must be falsy."""

@@ -94,7 +94,7 @@ The generated script will include:
 
 ```bash
 #SBATCH -n 8 # number of CPUs per job
-#SBATCH -mem=16G
+#SBATCH --mem=16G
 #SBATCH --exclusive
 ```
 

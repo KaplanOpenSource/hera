@@ -3,6 +3,8 @@ import argparse
 import pathlib
 import os
 
+from mongoengine.errors import DoesNotExist
+
 from hera.utils import loadJSON, dictToMongoQuery
 from hera.utils.logging import get_classMethod_logger
 from hera.toolkit import abstractToolkit, ToolkitHome
@@ -56,11 +58,13 @@ class dataToolkit(abstractToolkit):
             If True, overwrite an existing repository with the same name.
         """
         self._allowWritingToDefaultProject = True  # allows the addition of datasource to the Default project.
-
-        repositoryPath = f"{repositoryPath}.json" if "json" not in repositoryPath else repositoryPath
-        self.addDataSource(dataSourceName=repositoryName, resource=os.path.abspath(repositoryPath),
-                           dataFormat=self.datatypes.JSON_DICT, overwrite=overwrite)
-        self._allowWritingToDefaultProject = False
+        try:
+            repositoryPath = repositoryPath if repositoryPath.endswith(".json") else f"{repositoryPath}.json"
+            self.addDataSource(dataSourceName=repositoryName, resource=os.path.abspath(repositoryPath),
+                               dataFormat=self.datatypes.JSON_DICT, overwrite=overwrite)
+        finally:
+            # Re-arm the read-only guard even when addDataSource raises.
+            self._allowWritingToDefaultProject = False
 
     def getRepositoryTable(self):
         """
@@ -219,8 +223,8 @@ class dataToolkit(abstractToolkit):
             Simulations=lambda toolkit, itemName, docTypeDict, overwrite, basedir: self._DocumentHandler(
                 toolkit, itemName, docTypeDict, overwrite, "Simulations", basedir
             ),
-            Cache=lambda toolkit, itemName, itemDesc, overwrite, basedir: self._DocumentHandler(
-                toolkit, itemName, itemDesc, overwrite, "Cache", basedir
+            Cache=lambda toolkit, itemName, docTypeDict, overwrite, basedir: self._DocumentHandler(
+                toolkit, itemName, docTypeDict, overwrite, "Cache", basedir
             ),
             Function=self._handle_Function,
         )
@@ -330,12 +334,17 @@ class dataToolkit(abstractToolkit):
                     theItem["resourceFilePath"] = os.path.join(basedir, theItem["resourceFilePath"])
                 
                 logger.info("detected dataSource resource specified using file's contents")
+                # Pop before the open: popping inside the call leaves the item
+                # without either key when the read fails, and addDataSource
+                # then hides the real cause behind a missing-argument TypeError.
+                resourceFilePath = theItem.pop("resourceFilePath")
                 try:
-                    with open(theItem.pop("resourceFilePath")) as dataSourceResourceFile:
+                    with open(resourceFilePath) as dataSourceResourceFile:
                         theItem['resource'] = json.load(dataSourceResourceFile)
                         logger.info("extracted resource from file successfully")
                 except Exception as e:
                     logger.error(f"failed reading resource from file, {e}")
+                    raise
             else:
                 # logger.debug(f"Checking if {itemName} resource is a path {isRelativePath}, is it absolute? {isAbsolute}")
                 if isRelativePath=='True' or isRelativePath is True:
@@ -386,10 +395,13 @@ class dataToolkit(abstractToolkit):
         for itemName, itemDesc in docTypeDict.items():
             theItem = itemDesc["item"]
             theItem["resource"] = self._makeItemPathAbsolute(theItem,basedir)
+            # isRelativePath is a control flag for the line above, not a field
+            # of the document; add<Type>Document would reject it.
+            theItem.pop("isRelativePath", None)
 
             logger.debug(f"Checking if the data item {itemName} is already in the project")
             retrieveFuncName = f"get{documentType}Documents"
-            retrieveFunc = getattr(toolkit, retrieveFuncName)
+            retrieveFunc = getattr(toolkit, retrieveFuncName, None)
             if retrieveFunc is None:
                 raise ValueError(
                     f"function {retrieveFuncName} not found. Key {documentType} must be : DataSource, Measurement, Cache, or Simulation")
@@ -427,7 +439,7 @@ class dataToolkit(abstractToolkit):
         """
         Handle a Function section by calling named methods on the toolkit.
 
-        Each key in ``docTypeDict`` is a method name on ``self``. The value can be:
+        Each key in ``docTypeDict`` is a method name on ``toolkit``. The value can be:
         - A dict: passed as keyword arguments to a single call.
         - A list of dicts: each dict triggers a separate call.
 
@@ -436,7 +448,7 @@ class dataToolkit(abstractToolkit):
         Parameters
         ----------
         toolkit : abstractToolkit
-            The toolkit instance (unused directly; methods are called on ``self``).
+            The toolkit instance the methods are called on.
         itemName : str
             The section name.
         docTypeDict : dict
@@ -448,7 +460,10 @@ class dataToolkit(abstractToolkit):
         """
         logger = get_classMethod_logger(self, "_handle_GeneralFunction")
         for itemName, itemDesc in docTypeDict.items():
-            retrieveFunc = getattr(self,itemName)
+            # The Function section sits under a toolkit key, so the calls are
+            # meant for that toolkit in the target project -- not for self,
+            # which is bound to the read-only default project.
+            retrieveFunc = getattr(toolkit,itemName)
 
             if isinstance(itemDesc,dict):
                 retrieveFunc(**itemDesc,overwrite=overwrite)
@@ -482,7 +497,10 @@ class dataToolkit(abstractToolkit):
             The absolute resource path.
         """
         logger = get_classMethod_logger(self, "_makeItemPathAbsolute")
-        isRelativePath = bool(theItem.get("isRelativePath", True))
+        # Repository JSON carries the flag as the string "True"/"False"; bool("False")
+        # would be True, so compare the way the sibling _handle_DataSource does.
+        isRelativePath = theItem.get("isRelativePath", True)
+        isRelativePath = (isRelativePath is True) or (isRelativePath == 'True')
         # logger.debug(f"Checking if {itemName} resource is a path {isRelativePath}, is it absolute? {isAbsolute}")
 
         if isRelativePath:
@@ -671,7 +689,12 @@ class dataToolkit(abstractToolkit):
         resolved = []
         for d in documents:
             if isinstance(d, str):
-                doc = proj.getDocumentByID(d)
+                # getDocumentByID goes through mongoengine's QuerySet.get(),
+                # which raises DoesNotExist rather than returning None.
+                try:
+                    doc = proj.getDocumentByID(d)
+                except DoesNotExist:
+                    doc = None
                 if doc is None:
                     raise ValueError(f"Document id not found in project: {d}")
                 resolved.append(doc)

@@ -136,6 +136,7 @@ def mergeDocumentsIntoRepository(repoJSON, docDicts, toolkitName,
         section, item_name, entry = documentToRepositoryItem(docDict, idStrategy=idStrategy)
         identity = entry.get("contentHash") or entry.get("sourceId")
 
+        reportKey = "added"
         if identity in index:
             if not overwrite:
                 report["skipped_existing"].append(item_name)
@@ -143,14 +144,14 @@ def mergeDocumentsIntoRepository(repoJSON, docDicts, toolkitName,
             # Remove the previously stored entry (possibly in another section).
             old_section, old_name = index[identity]
             toolkitDict.get(old_section, {}).pop(old_name, None)
-            report["overwritten"].append(item_name)
-        else:
-            report["added"].append(item_name)
+            reportKey = "overwritten"
 
         sectionDict = toolkitDict.setdefault(section, {})
         item_name = _uniqueItemName(sectionDict, item_name, entry["contentHash"])
         sectionDict[item_name] = entry
         index[identity] = (section, item_name)
+        # Reported after the rename, so the name is the key actually stored.
+        report[reportKey].append(item_name)
 
     return repo, report
 
