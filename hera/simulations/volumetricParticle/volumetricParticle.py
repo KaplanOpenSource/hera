@@ -360,56 +360,55 @@ class volumetricParticleAnalysis:
                         read_foam_field(os.path.join(self.toolkit.path, f"{float(t):g}", "lagrangian", "kinematicCloud", field)))
             print(f"Processed time step {i}")
 
-    def _initialize_accumulator(self, reference):
-        arrays = [
-            np.zeros(reference.shape, dtype=np.float64)
-            for _ in range(2)
-        ]
-        return arrays
-
-    def _accumulate(self, acc, C, C2):
-        sum_C, sum_C2 = acc
-        np.add(sum_C, C, out=sum_C)
-        np.add(sum_C2, C2, out=sum_C2)
-
-
-    def _save_interval(self, f, t_str, n_steps, is_uniform, occupied_blocks, block_accumulators):
-
+    def _save_interval(self, f, t_str, n_steps, is_uniform, occupied_blocks, block_accumulators, uniform_accumulator=None):
+        """
+        Saves the temporal average of the second moment for the current interval.
+        
+        Structure:
+        - Uniform: t_str is the dataset itself.
+        - Adaptive: t_str is a group containing 'slice_xxx' datasets.
+        """
         if n_steps == 0:
             return
 
         if is_uniform:
             if uniform_accumulator is None:
                 return
-            grp_t = f.require_group(t_str)
-            for name, arr in zip(self.toolkit.dataset_names, uniform_accumulator):
-                if name in grp_t:
-                    del grp_t[name]
 
-                # Divide in place to avoid allocating another array.
-                np.divide(arr, n_steps, out=arr)
-                grp_t.create_dataset(name, data=arr, compression="lzf")
+            # 1. Compute average in-place
+            np.divide(uniform_accumulator, n_steps, out=uniform_accumulator)
 
-                # Reset for the next interval.
-                arr.fill(0)
+            # 2. Save directly as the time step entry (no sub-group/sub-dataset)
+            if t_str in f:
+                del f[t_str]
+
+            f.create_dataset(t_str, data=uniform_accumulator, compression="lzf")
+
+            # 3. Reset for next interval
+            uniform_accumulator.fill(0)
+
         else:
             if not occupied_blocks:
                 return
 
+            # For adaptive, t_str must remain a group to hold multiple slices
             grp_t = f.require_group(t_str)
 
             for idx in sorted(occupied_blocks):
-                acc = block_accumulators[idx]
+                sm_arr = block_accumulators[idx]
                 slice_name = f"slice_{idx:03d}"
 
+                # 1. Compute average in-place
+                np.divide(sm_arr, n_steps, out=sm_arr)
+
+                # 2. Save as a dataset inside the t_str group
                 if slice_name in grp_t:
                     del grp_t[slice_name]
-                grp_slice = grp_t.create_group(slice_name)
 
-                for name, arr in zip(self.toolkit.dataset_names, acc):
-                    np.divide(arr, n_steps, out=arr)
-                    grp_slice.create_dataset(name, data=arr, compression="lzf")
-                    arr.fill(0)
+                grp_t.create_dataset(slice_name, data=sm_arr, compression="lzf")
+
+                # 3. Reset for next interval
+                sm_arr.fill(0)
 
             occupied_blocks.clear()
 
@@ -428,13 +427,17 @@ class volumetricParticleAnalysis:
         A final incomplete averaging interval is also saved.
         """
 
-        existing_C = self.toolkit.getCacheDocuments(type="concentrations", grid_params=grid_doc.desc, nTimesteps=nTimesteps)
+        existing_C = self.toolkit.getCacheDocuments(type=self.toolkit.CONCENTRATION_GRID, 
+                     grid_params=grid_doc.desc, nTimesteps=nTimesteps, savedt=1, path=self.toolkit.path)
         if not existing_C:
             grid = grid_doc.getData()
             is_uniform = (isinstance(grid, (list, tuple)) and len(grid) == 3 and not isinstance(grid[0], dict))
-            results_file = os.path.join(self.toolkit.path, self.toolkit.CONCENTRATION_CACHE)
-            results_file = self.toolkit._get_unique_path(results_file)
-            with h5py.File(results_file, "w") as f:
+            grid_file = os.path.join(self.toolkit.path, self.toolkit.concentrationGridFileName)
+            grid_file = self.toolkit._get_unique_path(grid_file)
+            mapping_file = os.path.join(self.toolkit.path, self.toolkit.concentrationMappingFileName)
+            mapping_file = self.toolkit._get_unique_path(mapping_file)
+
+            with h5py.File(grid_file, "w") as f_grid, h5py.File(mapping_file, "w") as f_map:
                 for i in range(1, nTimesteps + 1):
 
                     t = Decimal(format(i * self.toolkit.dt, ".12g")).normalize()
@@ -476,37 +479,42 @@ class volumetricParticleAnalysis:
                             )
                         )
 
-                        # Save directly to h5 file to avoid keeping all timesteps in memory
-                        grp = f.create_group(t_str)
-                        grp.create_dataset("phi_mean", data=phi_mean, compression="lzf")
+                        # Save grid and mapping
                         if is_uniform:
-                            grp.create_dataset("grid", data=results, compression="lzf")
+                            f_grid.create_dataset(t_str, data=results, compression="lzf")
                         else:
-                            grid_grp = grp.create_group("grid")
+                            grid_grp = f_grid.create_group(t_str)
                             for idx, res in enumerate(results):
                                 grid_grp.create_dataset(f"slice_{idx:03d}", data=res, compression="lzf")
+                        f_map.create_dataset(t_str, data=phi_mean, compression="lzf")
 
                     if i % printEvery == 0:
                         print(f"Completed concentration calculation timestep {i} (t={t})")
 
             self.toolkit.addCacheDocument(
-                    type="concentrations",
-                    resource=results_file,
+                    type=self.toolkit.CONCENTRATION_GRID,
+                    resource=grid_file,
                     dataFormat="h5",
-                    desc=dict(grid_params=grid_doc.desc, nTimesteps=nTimesteps)
+                    desc=dict(grid_params=grid_doc.desc, nTimesteps=nTimesteps,
+                              savedt=1, path=self.toolkit.path)
                 )
-
-        concentration_cache_file = existing_C[0].resource if existing_C else results_file
+            self.toolkit.addCacheDocument(
+                    type=self.toolkit.CONCENTRATION_MAPPING,
+                    resource=mapping_file,
+                    dataFormat="h5",
+                    desc=dict(grid_params=grid_doc.desc, nTimesteps=nTimesteps,
+                              path=self.toolkit.path)
+                )
 
         return self.__getattribute__(f"_calculate_{self.toolkit.model}")(
                 grid_doc=grid_doc, nParticles=nParticles, nTimesteps=nTimesteps, initialVolume=initialVolume, sigma0=sigma0,
                 Cr=Cr, mu=mu, Cphi=Cphi, savedt=savedt, fileName=fileName, tm_mode=tm_mode,
-                printEvery=printEvery, overwrite=overwrite, debugMode=debugMode, concentration_cache=concentration_cache_file, **kwargs)
+                printEvery=printEvery, overwrite=overwrite, debugMode=debugMode, **kwargs)
 
     def _calculate_VPA(self, grid_doc, nParticles, nTimesteps, initialVolume, sigma0,
                 Cr=0.3, mu=0.47, Cphi=1, savedt=1,
-                scale_exceeding_volumes=True, fileName=None, tm_mode='mean',
-                printEvery=100, overwrite=False, debugMode=False, concentration_cache=None, **kwargs):
+                scale_exceeding_volumes=True, tm_mode='mean',
+                printEvery=100, overwrite=False, debugMode=False, **kwargs):
 
         # ---------------------------------------------------------
         # 1. Initialization
@@ -517,9 +525,7 @@ class volumetricParticleAnalysis:
 
         grid = grid_doc.getData()
         is_uniform = (isinstance(grid, (list, tuple)) and len(grid) == 3 and not isinstance(grid[0], dict))
-        if fileName is None:
-            fileName = (self.toolkit.fileName["uniform"] if is_uniform else self.toolkit.fileName["adaptive"])
-        results_file = os.path.join(self.toolkit.path, fileName)
+        results_file = os.path.join(self.toolkit.path, self.toolkit.secondMomentFileName)
         results_file = self.toolkit._get_unique_path(results_file)
 
         sim_fingerprint = {
@@ -543,13 +549,45 @@ class volumetricParticleAnalysis:
             **kwargs
         }
 
-        existing_sims = self.toolkit.getCacheDocuments(type="VolumetricSimulation", **sim_fingerprint)
+        existing_C = self.toolkit.getCacheDocuments(type=self.toolkit.CONCENTRATION_GRID,
+                     grid_params=grid_doc.desc, nTimesteps=nTimesteps, savedt=savedt, path=self.toolkit.path)
+        existing_sims = self.toolkit.getCacheDocuments(type=self.toolkit.SECOND_MOMENT_GRID, **sim_fingerprint)
+
         if existing_sims:
             if overwrite:
                 results_file = existing_sims[0]["desc"]["config"]["results_file"]
             else:
                 print(f"Found existing document: {existing_sims[0].resource}")
-                return existing_sims
+                import pdb
+                pdb.set_trace()
+                return existing_C, existing_sims
+        else:
+            # test if there is a non-averaged doc
+            if not existing_C:
+                grid_file = os.path.join(self.toolkit.path, self.toolkit.concentrationGridFileName)
+                grid_file = self.toolkit._get_unique_path(grid_file)
+                self._average_grid_data(
+                    input_path=self.toolkit.getCacheDocuments(type=self.toolkit.CONCENTRATION_GRID,
+                        grid_params=grid_doc.desc, nTimesteps=nTimesteps, savedt=1, path=self.toolkit.path)[0]["resource"], 
+                    savedt=savedt, 
+                    output_filename=grid_file, 
+                    doc_dype=self.toolkit.CONCENTRATION_GRID,
+                    grid_params=grid_doc.desc, 
+                    nTimesteps=nTimesteps)
+                existing_C = self.toolkit.getCacheDocuments(type=self.toolkit.CONCENTRATION_GRID,
+                     grid_params=grid_doc.desc, nTimesteps=nTimesteps, savedt=savedt, path=self.toolkit.path)
+
+            sim_fingerprint["config"]["savedt"] = 1
+            existing_sims_1 = self.toolkit.getCacheDocuments(type=self.toolkit.SECOND_MOMENT_GRID, **sim_fingerprint)
+            sim_fingerprint["config"]["savedt"] = savedt
+            if existing_sims_1:
+                self._average_grid_data(
+                    input_path=existing_sims_1[0]["resource"], 
+                    output_filename=results_file, 
+                    doc_dype=self.toolkit.SECOND_MOMENT_GRID,
+                    **sim_fingerprint)
+                existing_sims = self.toolkit.getCacheDocuments(type=self.toolkit.SECOND_MOMENT_GRID, **sim_fingerprint)
+                return existing_C, existing_sims
 
         sim_fingerprint["config"]["results_file"] = results_file
 
@@ -573,7 +611,8 @@ class volumetricParticleAnalysis:
         occupied_blocks = set()
 
         interval_steps = 0
-
+        map_path = self.toolkit.getCacheDocuments(type=self.toolkit.CONCENTRATION_MAPPING,
+                     grid_params=grid_doc.desc, nTimesteps=nTimesteps, path=self.toolkit.path)[0]["resource"]
         # ---------------------------------------------------------
         # 3. Main computation loop
         # ---------------------------------------------------------
@@ -622,7 +661,8 @@ class volumetricParticleAnalysis:
 
                     # --- STEP 1: Concentration ---
 
-                    results, phi_mean = getHandler("concentrations").getData(resource=concentration_cache, timestep=t_str, is_uniform=is_uniform)
+                    with h5py.File(map_path, "r") as f_map:
+                        phi_mean = f_map[t_str][:]
 
                     # --- STEP 2: Physics and volume evolution ---
 
@@ -696,24 +736,27 @@ class volumetricParticleAnalysis:
                     t0[active_ids] = t0_active
 
                     # -------------------------------------------------
-                    # STEP 5: Accumulate instantaneous fields and metrics
+                    # STEP 5: Accumulate second moment fields
                     # -------------------------------------------------
 
                     if is_uniform:
                         if uniform_accumulator is None:
-                            uniform_accumulator = (self._initialize_accumulator(results))
+                            # Initialize with zeros based on the shape of the first result
+                            uniform_accumulator = np.zeros_like(second_moments)
 
-                        self._accumulate(uniform_accumulator, results, second_moments)
+                        # Direct NumPy addition (in-place)
+                        np.add(uniform_accumulator, second_moments, out=uniform_accumulator)
                     else:
-                        for idx, (C, C2) in enumerate(zip(results, second_moments)):
-
-                            # An unoccupied block contributes zero.
-                            # Its accumulator is deliberately left untouched.
-                            if not np.any(C):
+                        for idx, sm_block in enumerate(second_moments):
+                            # An unoccupied block (all zeros) is skipped to save memory/time
+                            if not np.any(sm_block):
                                 continue
+
                             if idx not in block_accumulators:
-                                block_accumulators[idx] = (self._initialize_accumulator(C))
-                            self._accumulate(block_accumulators[idx], C, C2)
+                                block_accumulators[idx] = np.zeros_like(sm_block)
+
+                            # Direct NumPy addition (in-place)
+                            np.add(block_accumulators[idx], sm_block, out=block_accumulators[idx])
                             occupied_blocks.add(idx)
 
                     # --- Debug output ---
@@ -721,7 +764,7 @@ class volumetricParticleAnalysis:
                     if debugMode:
                         timestep_dir = os.path.join(self.toolkit.path, t_str)
                         os.makedirs(timestep_dir, exist_ok=True)
-                        np.save(os.path.join(timestep_dir, "sig_r.npy"),sig_r_active**0.5)
+                        np.save(os.path.join(timestep_dir, "sig_r.npy"), sig_r_active**0.5)
                         np.save(os.path.join(timestep_dir, "tm.npy"), tm)
 
                 # -------------------------------------------------
@@ -730,8 +773,12 @@ class volumetricParticleAnalysis:
 
                 interval_steps += 1
                 if interval_steps == savedt:
-                    self._save_interval(f, t_str, interval_steps, is_uniform, occupied_blocks, block_accumulators)
+                    # Pass the uniform_accumulator explicitly to the save function
+                    self._save_interval(f, t_str, interval_steps, is_uniform,
+                                        occupied_blocks, block_accumulators,
+                                        uniform_accumulator=uniform_accumulator)
                     interval_steps = 0
+
                 if i % printEvery == 0:
                     print(f"Completed timestep {i} (t={t})")
 
@@ -749,14 +796,14 @@ class volumetricParticleAnalysis:
         if not existing_sims:
             existing_sims = [
                 self.toolkit.addCacheDocument(
-                    type="VolumetricSimulation",
+                    type=self.toolkit.SECOND_MOMENT_GRID,
                     resource=results_file,
                     dataFormat="h5",
                     desc=sim_fingerprint
                 )
             ]
 
-        return existing_sims
+        return existing_C, existing_sims
 
     def _extract_profile_data(self, master_grid, results, profile_dim, fixed_dim1, val1, fixed_dim2, val2):
         """
@@ -1026,142 +1073,136 @@ class volumetricParticleAnalysis:
         """
         return self._extract_slice_data(master_grid, results, 'x', x0)
 
-    def get_max_cell_grids_over_time(self, sim_doc=None, grid_doc=None, h5_file=None, timesteps_list=None,
-                                    printEvery=100, overwrite=False, **kwargs):
+    def get_max_cell_grids_over_time(self, concentration_doc=None,second_moment_doc=None,
+                                    grid_doc=None, conc_file_name=None, sm_file_name=None,
+                                    timesteps_list=None, printRate=None, overwrite=False, **kwargs):
         """
-        Resolves the maximum cell grids over time for an adaptive-grid simulation.
-
-        Compatible with simulations saving temporal averages of:
-            concentration
-            second_moment
-
-        Returns the maximum value of each saved field over the requested intervals.
+        Resolves the maximum cell grids over time for an adaptive or uniform grid simulation.
+        Reads from separate concentration and second moment files.
         """
-
         # ---------------------------------------------------------
-        # 1. Resolve resources (sim_doc or grid_doc + h5_file)
+        # 1. Resolve file paths
         # ---------------------------------------------------------
-
-        if sim_doc is not None:
-            results_file = sim_doc.resource
-            grid_params = sim_doc.desc.get("grid_params")
-        elif h5_file is not None and grid_doc is not None:
-            results_file = h5_file
-            grid_params = None # We already have the grid_doc
+        if concentration_doc and second_moment_doc:
+            conc_file = concentration_doc.resource
+            sm_file = second_moment_doc.resource
+            grid_params = concentration_doc.desc.get("grid_params")
+        elif grid_doc and conc_file_name and sm_file_name:
+            sim_dir = self.toolkit.path
+            conc_file = os.path.join(sim_dir, conc_file_name)
+            sm_file = os.path.join(sim_dir, sm_file_name)
+            grid_params = None # We have grid_doc
         else:
-            raise ValueError("Must provide either 'sim_doc' or both 'grid_doc' and 'h5_file'.")
+            raise ValueError("Must provide either (concentration_doc ANDsecond_moment_doc) "
+                            "OR (grid_doc, conc_file_name, AND sm_file_name).")
 
-        # Handle timesteps_list
         if timesteps_list is None:
             raise ValueError("timesteps_list must be provided.")
 
         # Define fingerprint for the output cache
-        # If we have sim_doc, use its desc. Otherwise, we use grid_doc and h5_file info.
         fingerprint = {
-            "h5_file": results_file,
+            "conc_file": conc_file,
+            "sm_file": sm_file,
             "timesteps": sorted(timesteps_list),
             **kwargs
         }
-        if sim_doc:
-            fingerprint["sim_params"] = sim_doc.desc
-            sim_dir = os.path.dirname(results_file)
-        else:
-            sim_dir = self.toolkit.path
-        default_path = os.path.join(sim_dir, "max_cell_grids.h5")
-        filepath = default_path if overwrite else self.toolkit._get_unique_path(default_path)
 
-        docs = self.toolkit.getCacheDocuments(
-            type=self.toolkit.MAX_CELL_GRID, **fingerprint
-        )
-
+        # Check cache
+        docs = self.toolkit.getCacheDocuments(type=self.toolkit.MAX_CELL_GRID, **fingerprint)
         if docs and not overwrite:
             return docs
 
         # ---------------------------------------------------------
         # 2. Resolve grid document
         # ---------------------------------------------------------
-
         if grid_doc is not None:
             target_grid_doc = grid_doc
         elif grid_params is not None:
-            grid_docs = self.toolkit.getCacheDocuments(
-                type=self.toolkit.ADAPTIVE_GRID, **grid_params
-            )
+            grid_docs = self.toolkit.getCacheDocuments(type=self.toolkit.ADAPTIVE_GRID, **grid_params)
             if not grid_docs:
-                # Fallback check for uniform grids just in case
-                uniform_docs = self.toolkit.getCacheDocuments(
-                    type=self.toolkit.UNIFORM_GRID, **grid_params
-                )
-                if uniform_docs:
-                    raise ValueError("Function is available for adaptive grid only!")
-                raise ValueError(
-                    f"Could not find a grid document matching the parameters: {grid_params}"
-                )
+                raise ValueError(f"Could not find a grid document matching: {grid_params}")
             target_grid_doc = grid_docs[0]
         else:
             raise ValueError("Could not resolve grid document.")
 
         master_grid = target_grid_doc.getData()
+        is_uniform = (isinstance(master_grid, (list, tuple)) and len(master_grid) == 3 and not isinstance(master_grid[0], dict))
 
         # ---------------------------------------------------------
         # 3. Initialize maximum arrays
         # ---------------------------------------------------------
-
         max_results = []
-
-        for slice_info in master_grid:
-
-            nx = len(slice_info["x_edges"]) - 1
-            ny = len(slice_info["y_edges"]) - 1
-            nz = len(slice_info["z_edges"]) - 1
-
-            max_results.append({
-                name: np.zeros((nx, ny, nz), dtype=np.float64)
-                for name in self.toolkit.dataset_names
-            })
+        if is_uniform:
+            # Single array for concentration, single for SM
+            max_results = {
+                "concentration": np.zeros(np.shape(master_grid[0]), dtype=np.float64),
+                "second_moment": np.zeros(np.shape(master_grid[0]), dtype=np.float64)
+            }
+            
+            nx = len(master_grid[0]) - 1
+            ny = len(master_grid[1]) - 1
+            nz = len(master_grid[2]) - 1
+            max_results = {"concentration": np.zeros((nx, ny, nz),dtype=np.float64),"second_moment": np.zeros((nx, ny, nz),dtype=np.float64)
+            }
+        else:
+            # List of dicts (one per block)
+            for slice_info in master_grid:
+                nx = len(slice_info["x_edges"]) - 1
+                ny = len(slice_info["y_edges"]) - 1
+                nz = len(slice_info["z_edges"]) - 1
+                max_results.append({
+                    "concentration": np.zeros((nx, ny, nz),dtype=np.float64),
+                    "second_moment": np.zeros((nx, ny, nz),dtype=np.float64)
+                })
 
         # ---------------------------------------------------------
         # 4. Read and calculate maxima
         # ---------------------------------------------------------
-
         count = 0
-
-        with h5py.File(results_file, "r") as f:
-
+        with h5py.File(conc_file, "r") as f_conc, h5py.File(sm_file,"r") as f_sm:
             for i in timesteps_list:
-                t = Decimal(format(i * self.toolkit.dt, ".12g")).normalize()
+                t = Decimal(format(i * self.toolkit.dt,".12g")).normalize()
                 t_str = f"{float(t):g}"
 
-                if t_str in f:
-                    grp_t = f[t_str]
+                # Handle Concentration
+                if t_str in f_conc:
+                    conc_item = f_conc[t_str]
+                    if is_uniform:
+                        # Uniform: t_str is the dataset
+                        c_val = conc_item[:]
+                        np.maximum(max_results["concentration"], c_val,out=max_results["concentration"])
+                    else:
+                        # Adaptive: t_str is a group of slices
+                        for idx in range(len(master_grid)):
+                            slice_name = f"slice_{idx:03d}"
+                            if slice_name in conc_item:
+                                np.maximum(max_results[idx]["concentration"], conc_item[slice_name][:], out=max_results[idx]["concentration"])
 
-                    for idx in range(len(master_grid)):
-                        slice_name = f"slice_{idx:03d}"
-                        if slice_name not in grp_t:
-                            continue
-
-                        grp_slice = grp_t[slice_name]
-                        max_slice = max_results[idx]
-
-                        for name in self.toolkit.dataset_names:
-                            if name not in grp_slice:
-                                continue
-
-                            data = grp_slice[name]
-
-                            values = data[:]
-                            np.maximum(max_slice[name], values, out=max_slice[name])
+                # Handle Second Moment
+                if t_str in f_sm:
+                    sm_item = f_sm[t_str]
+                    if is_uniform:
+                        # Uniform: t_str is the dataset
+                        sm_val = sm_item[:]
+                        np.maximum(max_results["second_moment"], sm_val,out=max_results["second_moment"])
+                    else:
+                        # Adaptive: t_str is a group of slices
+                        for idx in range(len(master_grid)):
+                            slice_name = f"slice_{idx:03d}"
+                            if slice_name in sm_item:
+                                np.maximum(max_results[idx]["second_moment"], conc_item[slice_name][:], out=max_results[idx]["second_moment"])
 
                 count += 1
-
-                if count % printEvery== 0:
-                    print(f"Finished calculation of maxs for time step number {count}")
+                if printRate is not None and count % printRate == 0:
+                    print(f"Finished calculation for time step number {count}")
 
         # ---------------------------------------------------------
         # 5. Save and register
         # ---------------------------------------------------------
-
         handler = getHandler("max_cell_grids")
+        # Ensure we use a unique path for the output
+        default_path = os.path.join(self.toolkit.path, "max_cell_grids.h5")
+        filepath = default_path if overwrite else self.toolkit._get_unique_path(default_path)
 
         handler.saveData(resource=max_results, fileName=filepath)
 
@@ -1172,7 +1213,6 @@ class volumetricParticleAnalysis:
                 dataFormat="max_cell_grids",
                 desc=fingerprint
             )]
-
         return docs
 
     def get_results_for_timesteps(self, sim_doc=None, h5_file=None, timesteps_list=None):
@@ -1247,9 +1287,8 @@ class volumetricParticleAnalysis:
         return results_list
 
     def _calculate_clipped(self, grid_doc, nParticles, nTimesteps, initialVolume, sigma0,
-                        Cr=0.3, mu=0.47, Cphi=1, savedt=1,
-                        fileName=None, tm_mode='mean',
-                        printEvery=100, overwrite=False, debugMode=False, concentration_cache=None, **kwargs):
+                        Cr=0.3, mu=0.47, Cphi=1, savedt=1, tm_mode='mean',
+                        printEvery=100, overwrite=False, debugMode=False, **kwargs):
         """
         Calculate volumetric particle metrics for the clipped case where volume is constant.
         The particle volume is fixed at `initialVolume`.
@@ -1275,10 +1314,7 @@ class volumetricParticleAnalysis:
 
         particle_prob = initialVolume / cell_volume
 
-        if fileName is None:
-            fileName = (self.toolkit.fileName["uniform"] if is_uniform else self.toolkit.fileName["adaptive"])
-
-        results_file = os.path.join(self.toolkit.path, fileName)
+        results_file = os.path.join(self.toolkit.path, self.toolkit.secondMomentFileName)
         results_file = self.toolkit._get_unique_path(results_file)
 
         sim_fingerprint = {
@@ -1300,15 +1336,43 @@ class volumetricParticleAnalysis:
             },
             **kwargs
         }
-
-        existing_sims = self.toolkit.getCacheDocuments(type="VolumetricSimulation", **sim_fingerprint)
+        existing_C = self.toolkit.getCacheDocuments(type=self.toolkit.CONCENTRATION_GRID,
+                     grid_params=grid_doc.desc, nTimesteps=nTimesteps, savedt=savedt, path=self.toolkit.path)
+        existing_sims = self.toolkit.getCacheDocuments(type=self.toolkit.SECOND_MOMENT_GRID, **sim_fingerprint)
 
         if existing_sims:
             if overwrite:
                 results_file = existing_sims[0]["desc"]["config"]["results_file"]
             else:
                 print(f"Found existing document: {existing_sims[0].resource}")
-                return existing_sims
+                return existing_C, existing_sims
+        else:
+            # test if there is a non-averaged doc
+            if not existing_C:
+                grid_file = os.path.join(self.toolkit.path, self.toolkit.concentrationGridFileName)
+                grid_file = self.toolkit._get_unique_path(grid_file)
+                self._average_grid_data(
+                    input_path=self.toolkit.getCacheDocuments(type=self.toolkit.CONCENTRATION_GRID,
+                        grid_params=grid_doc.desc, nTimesteps=nTimesteps, savedt=1, path=self.toolkit.path)[0]["resource"], 
+                    savedt=savedt, 
+                    output_filename=grid_file, 
+                    doc_dype=self.toolkit.CONCENTRATION_GRID,
+                    grid_params=grid_doc.desc, 
+                    nTimesteps=nTimesteps)
+                existing_C = self.toolkit.getCacheDocuments(type=self.toolkit.CONCENTRATION_GRID,
+                     grid_params=grid_doc.desc, nTimesteps=nTimesteps, savedt=savedt, path=self.toolkit.path)
+
+            sim_fingerprint["config"]["savedt"] = 1
+            existing_sims_1 = self.toolkit.getCacheDocuments(type=self.toolkit.SECOND_MOMENT_GRID, **sim_fingerprint)
+            sim_fingerprint["config"]["savedt"] = savedt
+            if existing_sims_1:
+                self._average_grid_data(
+                    input_path=existing_sims_1[0]["resource"], 
+                    output_filename=results_file, 
+                    doc_dype=self.toolkit.SECOND_MOMENT_GRID,
+                    **sim_fingerprint)
+                existing_sims = self.toolkit.getCacheDocuments(type=self.toolkit.SECOND_MOMENT_GRID, **sim_fingerprint)
+                return existing_C, existing_sims
 
         sim_fingerprint["config"]["results_file"] = results_file
         sigma0_sqrd = sigma0**2
@@ -1324,8 +1388,11 @@ class volumetricParticleAnalysis:
         block_accumulators = {} if not is_uniform else None
         occupied_blocks = set()
         interval_steps = 0
+        map_path = self.toolkit.getCacheDocuments(type=self.toolkit.CONCENTRATION_MAPPING,
+                     grid_params=grid_doc.desc, nTimesteps=nTimesteps, path=self.toolkit.path)[0]["resource"]
 
-        with h5py.File(results_file, "w") as f:
+        C_grid_path = existing_C[0].resource
+        with h5py.File(results_file, "w") as f, h5py.File(C_grid_path, "r") as f_conc:
             for i in range(1, nTimesteps + 1):
                 t = Decimal(format(i * self.toolkit.dt, ".12g")).normalize()
                 t_str = f"{float(t):g}"
@@ -1363,7 +1430,8 @@ class volumetricParticleAnalysis:
                         valid_mask = (block_indices >= 0) & (block_indices < len(grid))
 
                     # --- STEP 1: Concentration ---
-                    results, phi_mean = getHandler("concentrations").getData(resource=concentration_cache, timestep=t_str, is_uniform=is_uniform)
+                    with h5py.File(map_path, "r") as f_map:
+                        phi_mean = f_map[t_str][:]
 
                     # --- STEP 2: Physics and volume evolution ---
                     t0_active, d_r_active, sig_r_active, tm = self.calculator.updatePhysicsState(
@@ -1388,6 +1456,12 @@ class volumetricParticleAnalysis:
                     phi[active_ids] = phi_active
 
                     # --- STEP 3: Second moment ---
+                    # Load concentration grid for the current timestep
+                    if is_uniform:
+                        results = f_conc[t_str][:]
+                    else:
+                        results = [f_conc[t_str][f"slice_{idx:03d}"][:] for idx in range(len(grid))]
+
                     if is_uniform:
                         edges = grid
                         n_particles_grid, _ = np.histogramdd(positions, bins=edges)
@@ -1397,8 +1471,8 @@ class volumetricParticleAnalysis:
                         ov_grid = (n_particles_grid * initialVolume) / cell_volume
                         # Assuming OV < 1 as per user instruction
                         denom = 1.0 - ov_grid
-                        c_low_grid = (results - f * sum_phi_grid) / denom
-                        second_moments = (1.0 - ov_grid) * (c_low_grid**2) + f * sum_phi_sq_grid
+                        c_low_grid = (results - particle_prob * sum_phi_grid) / denom
+                        second_moments = (1.0 - ov_grid) * (c_low_grid**2) + particle_prob * sum_phi_sq_grid
                     else:
                         second_moments = []
                         for idx, block in enumerate(grid):
@@ -1437,44 +1511,157 @@ class volumetricParticleAnalysis:
                     # --- STEP 4: Accumulate ---
                     if is_uniform:
                         if uniform_accumulator is None:
-                            uniform_accumulator = _initialize_accumulator(results)
-                        self._accumulate(uniform_accumulator, results, second_moments)
+                            # Initialize with zeros based on the shape of the first result
+                            uniform_accumulator = np.zeros_like(second_moments)
+
+                        # Direct NumPy addition (in-place)
+                        np.add(uniform_accumulator, second_moments, out=uniform_accumulator)
                     else:
-                        for idx, (C, C2) in enumerate(zip(results, second_moments)):
-                            if not np.any(C): continue
+                        for idx, sm_block in enumerate(second_moments):
+                            # An unoccupied block (all zeros) is skipped to save memory/time
+                            if not np.any(sm_block):
+                                continue
+
                             if idx not in block_accumulators:
-                                block_accumulators[idx] = self._initialize_accumulator(C)
-                            self._accumulate(block_accumulators[idx], C, C2)
+                                block_accumulators[idx] = np.zeros_like(sm_block)
+
+                            # Direct NumPy addition (in-place)
+                            np.add(block_accumulators[idx], sm_block, out=block_accumulators[idx])
                             occupied_blocks.add(idx)
-                            
+
                     # --- Debug output ---
 
                     if debugMode:
                         timestep_dir = os.path.join(self.toolkit.path, t_str)
                         os.makedirs(timestep_dir, exist_ok=True)
-                        np.save(os.path.join(timestep_dir, "sig_r.npy"),sig_r_active**0.5)
+                        np.save(os.path.join(timestep_dir, "sig_r.npy"), sig_r_active**0.5)
                         np.save(os.path.join(timestep_dir, "tm.npy"), tm)
+
+                # -------------------------------------------------
+                # STEP 5: Interval management and saving
+                # -------------------------------------------------
 
                 interval_steps += 1
                 if interval_steps == savedt:
-                    self._save_interval(f, t_str, interval_steps, is_uniform, occupied_blocks, block_accumulators)
+                    # Pass the uniform_accumulator explicitly to the save function
+                    self._save_interval(f, t_str, interval_steps, is_uniform,
+                                        occupied_blocks, block_accumulators,
+                                        uniform_accumulator=uniform_accumulator)
                     interval_steps = 0
+
                 if i % printEvery == 0:
                     print(f"Completed timestep {i} (t={t})")
 
-            if interval_steps > 0:
-                self._save_interval(f, t_str, interval_steps, is_uniform, occupied_blocks, block_accumulators)
 
         if not existing_sims:
             existing_sims = [
                 self.toolkit.addCacheDocument(
-                    type="VolumetricSimulation",
+                    type=self.toolkit.SECOND_MOMENT_GRID,
                     resource=results_file,
                     dataFormat="h5",
                     desc=sim_fingerprint
                 )
             ]
-        return existing_sims
+        return existing_C, existing_sims
+
+    def _average_grid_data(self, input_path, output_filename, doc_dype, savedt=None, config=None, **kwargs):
+        """
+        Performs temporal averaging on a grid dataset (Concentration or Second Moment).
+        
+        Args:
+            input_path: The file containing the raw data (saved every timestep).
+            savedt (int): The averaging interval.
+            output_filename (str): Path to save the averaged results. 
+            **kwargs: Additional metadata for the output cache document.
+            
+        Returns:
+            CacheDocument: The registered document for the averaged data.
+        """
+        print(f"Calculating average using existing data in {input_path}")
+        
+        fingerprint = {"path":self.toolkit.path, "source_file": input_path,"config": config, **kwargs} if savedt is None else \
+                      {"path":self.toolkit.path, "source_file": input_path,"savedt": savedt, **kwargs}
+        savedt = config["savedt"] if savedt is None else savedt
+        # 1. Determine if grid is Uniform or Adaptive by inspecting the first timestep
+        with h5py.File(input_path, "r") as f_in:
+            # Get the first available timestep key
+            first_t = list(f_in.keys())[0]
+            item = f_in[first_t]
+            is_uniform = isinstance(item, h5py.Dataset)
+
+            # Determine the total number of timesteps
+            all_timesteps = sorted(f_in.keys(), key=lambda x: float(x))
+            n_timesteps = len(all_timesteps)
+
+        # 2. Perform Averaging and Save during calculation
+        with h5py.File(input_path, "r") as f_in, h5py.File(output_filename, "w") as f_out:
+            accumulator = None
+            count = 0
+
+            # For adaptive grids, we track which slices are active in the current interval
+            adaptive_slices = set()
+            block_accumulators = {}
+
+            for t_str in all_timesteps:
+                data_item = f_in[t_str]
+
+                if is_uniform:
+                    # --- Uniform Logic ---
+                    val = data_item[:]
+                    if accumulator is None:
+                        accumulator = np.zeros_like(val)
+                    np.add(accumulator, val, out=accumulator)
+                else:
+                    # --- Adaptive Logic ---
+                    # data_item is a group containing 'slice_xxx'
+                    for slice_name in data_item.keys():
+                        val = data_item[slice_name][:]
+                        if slice_name not in block_accumulators:
+                            block_accumulators[slice_name] = np.zeros_like(val)
+
+                        np.add(block_accumulators[slice_name], val, out=block_accumulators[slice_name])
+                        adaptive_slices.add(slice_name)
+
+                count += 1
+
+                # Save interval
+                if count == savedt:
+                    if is_uniform:
+                        # Calculate average and save as a dataset
+                        avg_val = accumulator / count
+                        f_out.create_dataset(t_str, data=avg_val, compression="lzf")
+                        accumulator.fill(0)
+                    else:
+                        # Calculate average and save as a group of slices
+                        grp_out = f_out.create_group(t_str)
+                        for s_name in adaptive_slices:
+                            avg_val = block_accumulators[s_name] / count
+                            grp_out.create_dataset(s_name, data=avg_val, compression="lzf")
+                            block_accumulators[s_name].fill(0)
+                        adaptive_slices.clear()
+
+                    count = 0
+
+            # 3. Handle the final incomplete interval
+            if count > 0:
+                if is_uniform:
+                    avg_val = accumulator / count
+                    f_out.create_dataset(all_timesteps[-1], data=avg_val, compression="lzf")
+                else:
+                    grp_out = f_out.create_group(all_timesteps[-1])
+                    for s_name in adaptive_slices:
+                        avg_val = block_accumulators[s_name] / count
+                        grp_out.create_dataset(s_name, data=avg_val, compression="lzf")
+
+        # 4. Register the new averaged file in the project cache
+
+        self.toolkit.addCacheDocument(
+            type=doc_dype,
+            resource=output_filename,
+            dataFormat="h5",
+            desc=fingerprint
+        )
+
 
 class volumetricParticle(abstractToolkit):
     toolkitName = "VolumetricParticle"
@@ -1492,15 +1679,18 @@ class volumetricParticle(abstractToolkit):
         self.source = source
         self.t = dt
         self.of = toolkitHome.getToolkit(toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-        self.fileName = {"uniform":"uniform_grid_results.h5", "adaptive":"adaptive_grid_results.h5"}
+        self.concentrationGridFileName = "concentration_grid.h5"
+        self.concentrationMappingFileName = "concentration_mapping.h5"
+        self.secondMomentFileName = "second_moment.h5"
         self.adaptiveGridFileName = "adaptive_grid.h5"
         self.uniformGridFileName = "uniform_grid.h5"
         self._analysis = volumetricParticleAnalysis(self)
         self.ADAPTIVE_GRID = "adaptive_grid"
         self.UNIFORM_GRID = "uniform_grid"
         self.MAX_CELL_GRID = "max_cell_grid"
-        self.CONCENTRATION_CACHE = "concentration_cache.h5"
-        self.dataset_names = ["concentration", "second_moment"]
+        self.CONCENTRATION_GRID = "concentration_grid"
+        self.SECOND_MOMENT_GRID = "second_moment_grid"
+        self.CONCENTRATION_MAPPING = "concentration_mapping"
         self.model = model
 
     @property
