@@ -363,36 +363,15 @@ class volumetricParticleAnalysis:
     def _initialize_accumulator(self, reference):
         arrays = [
             np.zeros(reference.shape, dtype=np.float64)
-            for _ in range(5)
+            for _ in range(2)
         ]
-        scratch = np.empty(reference.shape, dtype=np.float64)
+        return arrays
 
-        return arrays + [scratch]
-
-    def _accumulate(self, acc, C, C2, OV = None):
-        sum_C, sum_C2, sum_OV, sum_FI, sum_CV, scratch = acc
-
-        # Accumulate the three original fields
+    def _accumulate(self, acc, C, C2):
+        sum_C, sum_C2 = acc
         np.add(sum_C, C, out=sum_C)
         np.add(sum_C2, C2, out=sum_C2)
-        if OV is not None:
-            np.add(sum_OV, OV, out=sum_OV)
 
-        # FI = sqrt(C2) / C
-        np.maximum(C2, 0, out=scratch)
-        np.sqrt(scratch, out=scratch)
-        np.divide(scratch, C, out=scratch, where=C > 0)
-        np.copyto(scratch, 0, where=C <= 0)
-        np.add(sum_FI, scratch, out=sum_FI)
-
-        # CV = sqrt(C2 - C**2) / C
-        np.multiply(C, C, out=scratch)
-        np.subtract(C2, scratch, out=scratch)
-        np.maximum(scratch, 0, out=scratch)
-        np.sqrt(scratch, out=scratch)
-        np.divide(scratch, C, out=scratch, where=C > 0)
-        np.copyto(scratch, 0, where=C <= 0)
-        np.add(sum_CV, scratch, out=sum_CV)
 
     def _save_interval(self, f, t_str, n_steps, is_uniform, occupied_blocks, block_accumulators):
 
@@ -403,7 +382,7 @@ class volumetricParticleAnalysis:
             if uniform_accumulator is None:
                 return
             grp_t = f.require_group(t_str)
-            for name, arr in zip(self.toolkit.dataset_names, uniform_accumulator[:5]):
+            for name, arr in zip(self.toolkit.dataset_names, uniform_accumulator):
                 if name in grp_t:
                     del grp_t[name]
 
@@ -427,7 +406,7 @@ class volumetricParticleAnalysis:
                     del grp_t[slice_name]
                 grp_slice = grp_t.create_group(slice_name)
 
-                for name, arr in zip(self.toolkit.dataset_names, acc[:5]):
+                for name, arr in zip(self.toolkit.dataset_names, acc):
                     np.divide(arr, n_steps, out=arr)
                     grp_slice.create_dataset(name, data=arr, compression="lzf")
                     arr.fill(0)
@@ -442,9 +421,6 @@ class volumetricParticleAnalysis:
         Saves averages every `savedt` timesteps:
             concentration
             second_moment
-            occupied_volume
-            fluctuation_intensity
-            coefficient_of_variation
 
         For adaptive grids, unoccupied blocks contribute zero to the
         temporal averages.
@@ -458,7 +434,6 @@ class volumetricParticleAnalysis:
             is_uniform = (isinstance(grid, (list, tuple)) and len(grid) == 3 and not isinstance(grid[0], dict))
             results_file = os.path.join(self.toolkit.path, self.toolkit.CONCENTRATION_CACHE)
             results_file = self.toolkit._get_unique_path(results_file)
-            resource = {}
             with h5py.File(results_file, "w") as f:
                 for i in range(1, nTimesteps + 1):
 
@@ -500,11 +475,20 @@ class volumetricParticleAnalysis:
                                 valid_mask=valid_mask
                             )
                         )
-                        resource[t_str] = {"grid": results, "phi_mean": phi_mean, "is_uniform": is_uniform}
+
+                        # Save directly to h5 file to avoid keeping all timesteps in memory
+                        grp = f.create_group(t_str)
+                        grp.create_dataset("phi_mean", data=phi_mean, compression="lzf")
+                        if is_uniform:
+                            grp.create_dataset("grid", data=results, compression="lzf")
+                        else:
+                            grid_grp = grp.create_group("grid")
+                            for idx, res in enumerate(results):
+                                grid_grp.create_dataset(f"slice_{idx:03d}", data=res, compression="lzf")
+
                     if i % printEvery == 0:
                         print(f"Completed concentration calculation timestep {i} (t={t})")
 
-            getHandler("concentrations").saveData(resource=resource, fileName=results_file)           
             self.toolkit.addCacheDocument(
                     type="concentrations",
                     resource=results_file,
@@ -672,17 +656,16 @@ class volumetricParticleAnalysis:
 
                     # --- STEP 3: Occupied volume and scaling ---
 
-                    occupied_volumes = (
-                        self.calculator.calculateOccupiedVolume(
-                            positions,
-                            vol_active,
-                            grid,
-                            block_indices=block_indices,
-                            valid_mask=valid_mask
-                        )
-                    )
-
                     if scale_exceeding_volumes:
+                        occupied_volumes = (
+                            self.calculator.calculateOccupiedVolume(
+                                positions,
+                                vol_active,
+                                grid,
+                                block_indices=block_indices,
+                                valid_mask=valid_mask
+                            )
+                        )
                         occupied_volumes = self._scaleExceedingVolumes(
                             positions,
                             vol_active,
@@ -720,14 +703,9 @@ class volumetricParticleAnalysis:
                         if uniform_accumulator is None:
                             uniform_accumulator = (self._initialize_accumulator(results))
 
-                        self._accumulate(
-                            uniform_accumulator,
-                            results,
-                            second_moments,
-                            occupied_volumes
-                        )
+                        self._accumulate(uniform_accumulator, results, second_moments)
                     else:
-                        for idx, (C, C2, OV) in enumerate(zip(results, second_moments, occupied_volumes)):
+                        for idx, (C, C2) in enumerate(zip(results, second_moments)):
 
                             # An unoccupied block contributes zero.
                             # Its accumulator is deliberately left untouched.
@@ -735,7 +713,7 @@ class volumetricParticleAnalysis:
                                 continue
                             if idx not in block_accumulators:
                                 block_accumulators[idx] = (self._initialize_accumulator(C))
-                            self._accumulate(block_accumulators[idx], C, C2, OV)
+                            self._accumulate(block_accumulators[idx], C, C2)
                             occupied_blocks.add(idx)
 
                     # --- Debug output ---
@@ -744,9 +722,7 @@ class volumetricParticleAnalysis:
                         timestep_dir = os.path.join(self.toolkit.path, t_str)
                         os.makedirs(timestep_dir, exist_ok=True)
                         np.save(os.path.join(timestep_dir, "sig_r.npy"),sig_r_active**0.5)
-                        np.save(os.path.join(timestep_dir, "L.npy"), L_sqrd**0.5)
                         np.save(os.path.join(timestep_dir, "tm.npy"), tm)
-                        np.save(os.path.join(timestep_dir, "tm_clip.npy"), k / particlesEpsilon / Cphi)
 
                 # -------------------------------------------------
                 # STEP 6: Interval management and saving
@@ -821,22 +797,13 @@ class volumetricParticleAnalysis:
                 res_dict = results[idx]
                 concentration = res_dict.get('concentration')
                 second_moment = res_dict.get('second_moment')
-                occupied_volume = res_dict.get('occupied_volume')
-                fluct_int = res_dict.get('fluctuation_intensity')
-                coeff_var = res_dict.get('coefficient_of_variation')
             else:
                 concentration = results.get('concentration')[idx] if results.get('concentration') else None
                 second_moment = results.get('second_moment')[idx] if results.get('second_moment') else None
-                occupied_volume = results.get('occupied_volume')[idx] if results.get('occupied_volume') else None
-                fluct_int = results.get('fluctuation_intensity')[idx] if results.get('fluctuation_intensity') else None
-                coeff_var = results.get('coefficient_of_variation')[idx] if results.get('coefficient_of_variation') else None
 
             if concentration is None: continue
             conc_grid = concentration
             sec_grid = second_moment
-            occ_grid = occupied_volume
-            fi_grid = fluct_int
-            cv_grid = coeff_var
 
             # Find matching indices for fixed dimensions
             def find_matching(dim_name, l, h, is_rng):
@@ -859,12 +826,9 @@ class volumetricParticleAnalysis:
             n_prof = len(prof_edges) - 1
             s_conc = np.full(n_prof, np.nan)
             s_sec = np.full(n_prof, np.nan)
-            s_occ = np.full(n_prof, np.nan)
-            s_fi = np.full(n_prof, np.nan)
-            s_cv = np.full(n_prof, np.nan)
 
             for ip in range(n_prof):
-                vals_c, vals_s, vals_o, vals_fi, vals_cv = [], [], [], [], []
+                vals_c, vals_s= [], []
                 for i1 in match1:
                     for i2 in match2:
                         # Map coordinates based on profile_dim
@@ -879,25 +843,16 @@ class volumetricParticleAnalysis:
                             vals_c.append(conc_grid[c_idx])
                             if sec_grid is not None and 0 <= c_idx[0] < sec_grid.shape[0] and 0 <= c_idx[1] < sec_grid.shape[1] and 0 <= c_idx[2] < sec_grid.shape[2]:
                                 vals_s.append(sec_grid[c_idx])
-                            if occ_grid is not None and 0 <= c_idx[0] < occ_grid.shape[0] and 0 <= c_idx[1] < occ_grid.shape[1] and 0 <= c_idx[2] < occ_grid.shape[2]:
-                                vals_o.append(occ_grid[c_idx])
-                            if fi_grid is not None and 0 <= c_idx[0] < fi_grid.shape[0] and 0 <= c_idx[1] < fi_grid.shape[1] and 0 <= c_idx[2] < fi_grid.shape[2]:
-                                vals_fi.append(fi_grid[c_idx])
-                            if cv_grid is not None and 0 <= c_idx[0] < cv_grid.shape[0] and 0 <= c_idx[1] < cv_grid.shape[1] and 0 <= c_idx[2] < cv_grid.shape[2]:
-                                vals_cv.append(cv_grid[c_idx])
 
                 if vals_c:
                     s_conc[ip] = np.nanmean(vals_c)
                     if sec_grid is not None: s_sec[ip] = np.nanmean(vals_s) if vals_s else np.nan
-                    if occ_grid is not None: s_occ[ip] = np.nanmean(vals_o) if vals_o else np.nan
-                    if fi_grid is not None: s_fi[ip] = np.nanmean(vals_fi) if vals_fi else np.nan
-                    if cv_grid is not None: s_cv[ip] = np.nanmean(vals_cv) if vals_cv else np.nan
 
-            raw_profiles.append({'edges': prof_edges, 'conc': s_conc, 'sec': s_sec, 'occ': s_occ, 'fi': s_fi, 'cv': s_cv})
+            raw_profiles.append({'edges': prof_edges, 'conc': s_conc, 'sec': s_sec})
             edges_list.append(prof_edges)
 
         if not raw_profiles:
-            return (np.array([]), np.array([]), np.array([]), np.array([])) if has_occupied_volume else (np.array([]), np.array([]), np.array([]))
+            return (np.array([]), np.array([]))
 
         # Create a global reference grid spanning the entire domain at the coarsest resolution
         all_edges_flat = np.concatenate(edges_list)
@@ -908,13 +863,13 @@ class volumetricParticleAnalysis:
         ref_edges[-1] = global_max
         ref_centers = 0.5 * (ref_edges[:-1] + ref_edges[1:])
 
-        collected_c, collected_s, collected_o, collected_fi, collected_cv = [], [], [], [], []
+        collected_c, collected_s = [], []
         for prof in raw_profiles:
             e_p = prof['edges']
             if np.array_equal(e_p, ref_edges):
-                collected_c.append(prof['conc']); collected_s.append(prof['sec']); collected_o.append(prof['occ']); collected_fi.append(prof['fi']); collected_cv.append(prof['cv'])
+                collected_c.append(prof['conc']); collected_s.append(prof['sec'])
             else:
-                c_res, s_res, o_res, fi_res, cv_res = np.full_like(ref_centers, np.nan), np.full_like(ref_centers, np.nan), np.full_like(ref_centers, np.nan), np.full_like(ref_centers, np.nan), np.full_like(ref_centers, np.nan)
+                c_res, s_res = np.full_like(ref_centers, np.nan), np.full_like(ref_centers, np.nan)
                 centers_p, dp = 0.5 * (e_p[:-1] + e_p[1:]), np.diff(e_p)
                 for i_ref in range(len(ref_edges) - 1):
                     mi, ma = ref_edges[i_ref], ref_edges[i_ref + 1]
@@ -923,14 +878,12 @@ class volumetricParticleAnalysis:
                         w = dp[mask]
                         c_res[i_ref] = np.sum(prof['conc'][mask] * w) / np.sum(w)
                         s_res[i_ref] = np.sum(prof['sec'][mask] * w) / np.sum(w)
-                        o_res[i_ref] = np.sum(prof['occ'][mask] * w) / np.sum(w)
-                        fi_res[i_ref] = np.sum(prof['fi'][mask] * w) / np.sum(w)
-                        cv_res[i_ref] = np.sum(prof['cv'][mask] * w) / np.sum(w)
-                collected_c.append(c_res); collected_s.append(s_res); collected_o.append(o_res); collected_fi.append(fi_res); collected_cv.append(cv_res)
 
-        avg_c, avg_s, avg_o, avg_fi, avg_cv = np.nanmean(collected_c, axis=0), np.nanmean(collected_s, axis=0), np.nanmean(collected_o, axis=0), np.nanmean(collected_fi, axis=0), np.nanmean(collected_cv, axis=0)
-        if has_extra: return ref_centers, avg_c, avg_s, avg_o, avg_fi, avg_cv
-        return ref_centers, avg_c, avg_s, avg_fi, avg_cv
+                collected_c.append(c_res); collected_s.append(s_res)
+
+        avg_c, avg_s = np.nanmean(collected_c, axis=0), np.nanmean(collected_s, axis=0)
+
+        return ref_centers, avg_c, avg_s
 
     def get_profiles_x(self, master_grid, results, y0=0.0, z0=0.0):
         """
@@ -964,11 +917,6 @@ class volumetricParticleAnalysis:
         if low > high: low, high = high, low
 
         is_list_format = isinstance(results, list)
-        has_extra = False
-        if is_list_format:
-            has_extra = 'occupied_volume' in results[0] if results else False
-        elif isinstance(results, dict):
-            has_extra = 'occupied_volume' in results and results['occupied_volume'] is not None
 
         # We will store results as a list of DataFrames (one per block) and then concatenate
         block_dfs = []
@@ -985,22 +933,13 @@ class volumetricParticleAnalysis:
                 res_dict = results[idx]
                 concentration = res_dict.get('concentration')
                 second_moment = res_dict.get('second_moment')
-                occupied_volume = res_dict.get('occupied_volume')
-                fluct_int = res_dict.get('fluctuation_intensity')
-                coeff_var = res_dict.get('coefficient_of_variation')
             else:
                 concentration = results.get('concentration')[idx] if results.get('concentration') else None
                 second_moment = results.get('second_moment')[idx] if results.get('second_moment') else None
-                occupied_volume = results.get('occupied_volume')[idx] if results.get('occupied_volume') else None
-                fluct_int = results.get('fluctuation_intensity')[idx] if results.get('fluctuation_intensity') else None
-                coeff_var = results.get('coefficient_of_variation')[idx] if results.get('coefficient_of_variation') else None
 
             if concentration is None: continue
             conc_grid = concentration
             sec_grid = second_moment
-            occ_grid = occupied_volume
-            fi_grid = fluct_int
-            cv_grid = coeff_var
 
             # Find matching indices for the fixed dimension
             edges = {'x': x_edges, 'y': y_edges, 'z': z_edges}[fixed_dim]
@@ -1027,13 +966,11 @@ class volumetricParticleAnalysis:
 
             # Create the 2D arrays for this block
             ny, nz = len(dim1_edges)-1, len(dim2_edges)-1 # Generic names for the other 2 dims
-            s_conc, s_sec, s_occ = np.zeros((ny, nz)), np.zeros((ny, nz)) if sec_grid is not None else None, np.zeros((ny, nz)) if occ_grid is not None else None
-            s_fi = np.zeros((ny, nz)) if fi_grid is not None else None
-            s_cv = np.zeros((ny, nz)) if cv_grid is not None else None
+            s_conc, s_sec = np.zeros((ny, nz)), np.zeros((ny, nz)) if sec_grid is not None else None
 
             for i1 in range(ny):
                 for i2 in range(nz):
-                    vals_c, vals_s, vals_o, vals_fi, vals_cv = [], [], [], [], []
+                    vals_c, vals_s = [], []
                     # Loop over the fixed dimension indices
                     for ifix in matching_indices:
                         # Map 3D coords based on fixed_dim
@@ -1047,25 +984,13 @@ class volumetricParticleAnalysis:
                             vals_c.append(conc_grid[coords])
                             if sec_grid is not None and 0 <= coords[0] < sec_grid.shape[0] and 0 <= coords[1] < sec_grid.shape[1] and 0 <= coords[2] < sec_grid.shape[2]:
                                 vals_s.append(sec_grid[coords])
-                            if occ_grid is not None and 0 <= coords[0] < occ_grid.shape[0] and 0 <= coords[1] < occ_grid.shape[1] and 0 <= coords[2] < occ_grid.shape[2]:
-                                vals_o.append(occ_grid[coords])
-                            if fi_grid is not None and 0 <= coords[0] < fi_grid.shape[0] and 0 <= coords[1] < fi_grid.shape[1] and 0 <= coords[2] < fi_grid.shape[2]:
-                                vals_fi.append(fi_grid[coords])
-                            if cv_grid is not None and 0 <= coords[0] < cv_grid.shape[0] and 0 <= coords[1] < cv_grid.shape[1] and 0 <= coords[2] < cv_grid.shape[2]:
-                                vals_cv.append(cv_grid[coords])
 
                     if vals_c:
                         s_conc[i1, i2] = np.nanmean(vals_c)
                         if s_sec is not None: s_sec[i1, i2] = np.nanmean(vals_s) if vals_s else np.nan
-                        if s_occ is not None: s_occ[i1, i2] = np.nanmean(vals_o) if vals_o else np.nan
-                        if s_fi is not None: s_fi[i1, i2] = np.nanmean(vals_fi) if vals_fi else np.nan
-                        if s_cv is not None: s_cv[i1, i2] = np.nanmean(vals_cv) if vals_cv else np.nan
                     else:
                         s_conc[i1, i2] = np.nan
                         if s_sec is not None: s_sec[i1, i2] = np.nan
-                        if s_occ is not None: s_occ[i1, i2] = np.nan
-                        if s_fi is not None: s_fi[i1, i2] = np.nan
-                        if s_cv is not None: s_cv[i1, i2] = np.nan
 
             # Convert this block's 2D slice to a DataFrame
             d1_centers = 0.5 * (dim1_edges[:-1] + dim1_edges[1:])
@@ -1077,15 +1002,9 @@ class volumetricParticleAnalysis:
                     row = {dim1_name: d1_centers[i1], dim2_name: d2_centers[i2]}
                     row['concentration'] = s_conc[i1, i2]
                     row['second_moment'] = s_sec[i1, i2] if s_sec is not None else np.nan
-                    row['occupied_volume'] = s_occ[i1, i2] if s_occ is not None else np.nan
-                    row['fluctuation_intensity'] = s_fi[i1, i2] if s_fi is not None else np.nan
-                    row['coefficient_of_variation'] = s_cv[i1, i2] if s_cv is not None else np.nan
                     block_data.append(row)
 
             block_dfs.append(pd.DataFrame(block_data))
-
-        if not block_dfs:
-            return pd.DataFrame(columns=[dim1_name, dim2_name, 'concentration', 'second_moment', 'occupied_volume'])
 
         return pd.concat(block_dfs, ignore_index=True)
 
@@ -1108,16 +1027,13 @@ class volumetricParticleAnalysis:
         return self._extract_slice_data(master_grid, results, 'x', x0)
 
     def get_max_cell_grids_over_time(self, sim_doc=None, grid_doc=None, h5_file=None, timesteps_list=None,
-                                    printRate=None, overwrite=False, **kwargs):
+                                    printEvery=100, overwrite=False, **kwargs):
         """
         Resolves the maximum cell grids over time for an adaptive-grid simulation.
 
         Compatible with simulations saving temporal averages of:
             concentration
             second_moment
-            occupied_volume
-            fluctuation_intensity
-            coefficient_of_variation
 
         Returns the maximum value of each saved field over the requested intervals.
         """
@@ -1233,15 +1149,13 @@ class volumetricParticleAnalysis:
 
                             data = grp_slice[name]
 
-                            # Read directly into a reusable temporary array
-                            # only when necessary.
                             values = data[:]
                             np.maximum(max_slice[name], values, out=max_slice[name])
 
                 count += 1
 
-                if printRate is not None and count % printRate == 0:
-                    print(f"Finished calculation for time step number {count}")
+                if count % printEvery== 0:
+                    print(f"Finished calculation of maxs for time step number {count}")
 
         # ---------------------------------------------------------
         # 5. Save and register
@@ -1382,7 +1296,7 @@ class volumetricParticleAnalysis:
                 "nTimesteps": nTimesteps,
                 "savedt": savedt,
                 "tm_mode": tm_mode,
-                "model": clipped
+                "model": "clipped"
             },
             **kwargs
         }
@@ -1532,6 +1446,14 @@ class volumetricParticleAnalysis:
                                 block_accumulators[idx] = self._initialize_accumulator(C)
                             self._accumulate(block_accumulators[idx], C, C2)
                             occupied_blocks.add(idx)
+                            
+                    # --- Debug output ---
+
+                    if debugMode:
+                        timestep_dir = os.path.join(self.toolkit.path, t_str)
+                        os.makedirs(timestep_dir, exist_ok=True)
+                        np.save(os.path.join(timestep_dir, "sig_r.npy"),sig_r_active**0.5)
+                        np.save(os.path.join(timestep_dir, "tm.npy"), tm)
 
                 interval_steps += 1
                 if interval_steps == savedt:
@@ -1578,7 +1500,7 @@ class volumetricParticle(abstractToolkit):
         self.UNIFORM_GRID = "uniform_grid"
         self.MAX_CELL_GRID = "max_cell_grid"
         self.CONCENTRATION_CACHE = "concentration_cache.h5"
-        self.dataset_names = ["concentration", "second_moment", "occupied_volume", "fluctuation_intensity", "coefficient_of_variation"]
+        self.dataset_names = ["concentration", "second_moment"]
         self.model = model
 
     @property
